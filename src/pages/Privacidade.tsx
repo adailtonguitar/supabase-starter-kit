@@ -3,7 +3,7 @@ import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const Privacidade = () => (
-  <div className="min-h-screen bg-background text-foreground">
+  <div className="h-screen overflow-y-auto bg-background text-foreground">
     <div className="max-w-3xl mx-auto px-6 py-12">
       <Button asChild variant="ghost" size="sm" className="mb-8">
         <Link to="/"><ArrowLeft className="w-4 h-4 mr-2" /> Voltar</Link>
