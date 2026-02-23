@@ -1,0 +1,62 @@
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useCompany } from "./useCompany";
+
+export interface LocalFinancialEntry {
+  id: string;
+  type: "pagar" | "receber";
+  description: string;
+  counterpart?: string;
+  category: string;
+  amount: number;
+  paid_amount?: number;
+  due_date: string;
+  status: string;
+  payment_method?: string;
+  company_id: string;
+}
+
+export function useLocalFinancialEntries(filters?: { type?: "pagar" | "receber"; startDate?: string; endDate?: string }) {
+  const { companyId } = useCompany();
+  return useQuery({
+    queryKey: ["financial-entries", companyId, filters],
+    queryFn: async () => {
+      if (!companyId) return [];
+      let query = supabase.from("financial_entries").select("*").eq("company_id", companyId);
+      if (filters?.type) query = query.eq("type", filters.type);
+      if (filters?.startDate) query = query.gte("due_date", filters.startDate);
+      if (filters?.endDate) query = query.lte("due_date", filters.endDate);
+      const { data, error } = await query.order("due_date", { ascending: false });
+      if (error) throw error;
+      return (data || []) as LocalFinancialEntry[];
+    },
+    enabled: !!companyId,
+  });
+}
+
+export function useDeleteLocalFinancialEntry() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("financial_entries").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["financial-entries"] }),
+  });
+}
+
+export function useMarkAsLocalPaid() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (params: { id: string; paid_amount: number; payment_method: string }) => {
+      const { error } = await supabase.from("financial_entries").update({
+        status: "pago",
+        paid_amount: params.paid_amount,
+        payment_method: params.payment_method,
+        paid_at: new Date().toISOString(),
+      }).eq("id", params.id);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["financial-entries"] }),
+  });
+}
