@@ -208,19 +208,25 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
       await invokeWithSdk("create-checkout-v2");
       return;
     } catch (v2SdkErr: any) {
-      let v2Message = String(v2SdkErr?.message || "Erro ao criar checkout (v2)");
+      const v2SdkMessage = String(v2SdkErr?.message || "Erro ao criar checkout (v2)");
+      let v2HttpMessage = "";
 
-      if (shouldTryHttp(v2Message) || shouldTryLegacy(v2Message)) {
+      if (shouldTryHttp(v2SdkMessage) || shouldTryLegacy(v2SdkMessage)) {
         try {
           await invokeWithHttp("create-checkout-v2");
           return;
         } catch (v2HttpErr: any) {
-          v2Message = String(v2HttpErr?.message || v2Message);
+          v2HttpMessage = String(v2HttpErr?.message || "");
         }
       }
 
-      if (!shouldTryLegacy(v2Message)) {
-        throw new Error(v2Message);
+      const shouldFallbackToLegacy =
+        shouldTryLegacy(v2SdkMessage) ||
+        shouldTryHttp(v2SdkMessage) ||
+        shouldTryLegacy(v2HttpMessage);
+
+      if (!shouldFallbackToLegacy) {
+        throw new Error(v2SdkMessage || v2HttpMessage || "Erro ao criar checkout (v2)");
       }
 
       try {
