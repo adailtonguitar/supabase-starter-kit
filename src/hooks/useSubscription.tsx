@@ -158,6 +158,11 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
       await tryInvoke("create-checkout-v2");
     } catch (firstErr: any) {
       const msg = String(firstErr?.message || "");
+
+      if (msg.includes("getClaims")) {
+        throw new Error("Backend de checkout desatualizado (usa getClaims). Atualize/publice a função create-checkout no backend.");
+      }
+
       const shouldFallback =
         msg.includes("Failed to send a request to the Edge Function") ||
         msg.includes("Requested function was not found") ||
@@ -167,7 +172,15 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
       if (!shouldFallback) throw firstErr;
 
       console.warn("[createCheckout] create-checkout-v2 unavailable, fallback to create-checkout");
-      await tryInvoke("create-checkout");
+      try {
+        await tryInvoke("create-checkout");
+      } catch (secondErr: any) {
+        const secondMsg = String(secondErr?.message || "");
+        if (secondMsg.includes("getClaims")) {
+          throw new Error("Backend de checkout desatualizado (usa getClaims). Atualize/publice a função create-checkout no backend.");
+        }
+        throw secondErr;
+      }
     }
   }, []);
 
