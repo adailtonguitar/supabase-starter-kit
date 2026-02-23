@@ -31,7 +31,8 @@ Deno.serve(async (req) => {
       { global: { headers: { Authorization: authHeader } } }
     );
 
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    const token = authHeader.replace("Bearer ", "");
+    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
     if (userError || !user) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
@@ -40,7 +41,13 @@ Deno.serve(async (req) => {
     }
 
     const userId = user.id;
-    const userEmail = user.email;
+    const userEmail = user.email ?? user.user_metadata?.email ?? null;
+    if (!userEmail) {
+      return new Response(JSON.stringify({ error: "Usuário sem e-mail para checkout" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const { planKey } = await req.json();
     const plan = PLANS[planKey];
