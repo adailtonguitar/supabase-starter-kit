@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import {
-  ShoppingCart,
+  Monitor,
   BarChart3,
   Package,
   FileText,
@@ -15,7 +15,7 @@ import {
 
 const features = [
   {
-    icon: ShoppingCart,
+    icon: Monitor,
     title: "PDV para Supermercado",
     desc: "Caixa rápido com atalhos, leitor de código de barras, pesagem e múltiplas formas de pagamento.",
     color: "bg-primary/10 text-primary",
