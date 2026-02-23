@@ -1,4 +1,11 @@
-import { ReactNode } from "react";
+import { ReactNode, useState, useEffect } from "react";
+import { Plus, Pencil, Trash2, Search, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { toast } from "sonner";
+import { useCnpjLookup } from "@/hooks/useCnpjLookup";
 
 export interface FieldConfig {
   key: string;
@@ -28,8 +35,105 @@ interface CrudPageProps {
   headerActions?: ReactNode;
 }
 
-export function CrudPage({ title, icon, data, isLoading, fields, headerActions }: CrudPageProps) {
-  const tableFields = fields.filter(f => f.showInTable);
+function CurrencyInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const display = value ? parseFloat(value).toLocaleString("pt-BR", { minimumFractionDigits: 2 }) : "";
+  return (
+    <Input
+      value={display}
+      onChange={(e) => {
+        const raw = e.target.value.replace(/[^\d,]/g, "").replace(",", ".");
+        onChange(raw);
+      }}
+      placeholder="0,00"
+    />
+  );
+}
+
+export function CrudPage({
+  title, icon, data, isLoading, fields, getFields, onValidate, onCreate, onUpdate, onDelete, searchKeys, cnpjFieldMap, headerActions,
+}: CrudPageProps) {
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<any>(null);
+  const [formData, setFormData] = useState<Record<string, any>>({});
+  const [saving, setSaving] = useState(false);
+  const [search, setSearch] = useState("");
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+
+  const activeFields = getFields ? getFields(formData) : fields;
+  const tableFields = fields.filter((f) => f.showInTable);
+
+  const { lookup: lookupCnpj, loading: cnpjLoading } = useCnpjLookup();
+
+  const filteredData = search.trim()
+    ? data.filter((item) => {
+        const keys = searchKeys || tableFields.map((f) => f.key);
+        return keys.some((k) => String(item[k] || "").toLowerCase().includes(search.toLowerCase()));
+      })
+    : data;
+
+  const openCreate = () => {
+    setEditingItem(null);
+    setFormData({});
+    setDialogOpen(true);
+  };
+
+  const openEdit = (item: any) => {
+    setEditingItem(item);
+    setFormData({ ...item });
+    setDialogOpen(true);
+  };
+
+  const handleFieldChange = (key: string, value: any) => {
+    setFormData((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const handleCnpjLookup = async () => {
+    const cnpj = (formData.cpf_cnpj || "").replace(/\D/g, "");
+    if (cnpj.length !== 14) {
+      toast.error("CNPJ deve ter 14 dígitos");
+      return;
+    }
+    const result = await lookupCnpj(cnpj);
+    if (result && cnpjFieldMap) {
+      const mapped: Record<string, any> = {};
+      for (const [apiKey, formKey] of Object.entries(cnpjFieldMap)) {
+        if ((result as any)[apiKey]) mapped[formKey] = (result as any)[apiKey];
+      }
+      setFormData((prev) => ({ ...prev, ...mapped }));
+      toast.success("Dados do CNPJ preenchidos!");
+    }
+  };
+
+  const handleSave = async () => {
+    if (onValidate) {
+      const err = onValidate(formData);
+      if (err) { toast.error(err); return; }
+    }
+    setSaving(true);
+    try {
+      if (editingItem) {
+        await onUpdate({ ...formData, id: editingItem.id });
+        toast.success("Registro atualizado!");
+      } else {
+        await onCreate(formData);
+        toast.success("Registro criado!");
+      }
+      setDialogOpen(false);
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao salvar");
+    }
+    setSaving(false);
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      await onDelete(id);
+      toast.success("Registro excluído!");
+      setDeleteConfirm(null);
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao excluir");
+    }
+  };
 
   return (
     <div className="p-3 sm:p-6 space-y-4 sm:space-y-6 max-w-7xl mx-auto">
@@ -37,16 +141,39 @@ export function CrudPage({ title, icon, data, isLoading, fields, headerActions }
         <div className="flex items-center gap-2">
           {icon}
           <h1 className="text-xl sm:text-2xl font-bold text-foreground">{title}</h1>
-          <span className="text-sm text-muted-foreground">({data.length})</span>
+          <span className="text-sm text-muted-foreground">({filteredData.length})</span>
         </div>
-        {headerActions}
+        <div className="flex items-center gap-2">
+          {headerActions}
+          <Button size="sm" onClick={openCreate}>
+            <Plus className="w-4 h-4 mr-1" /> Novo
+          </Button>
+        </div>
       </div>
+
+      {/* Search */}
+      {data.length > 0 && (
+        <div className="relative max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Buscar..."
+            className="pl-9"
+          />
+          {search && (
+            <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+      )}
 
       {isLoading ? (
         <div className="flex items-center justify-center py-20">
           <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
         </div>
-      ) : data.length === 0 ? (
+      ) : filteredData.length === 0 ? (
         <div className="text-center py-20 text-muted-foreground text-sm">
           Nenhum registro encontrado.
         </div>
@@ -56,17 +183,28 @@ export function CrudPage({ title, icon, data, isLoading, fields, headerActions }
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border">
-                  {tableFields.map(f => (
+                  {tableFields.map((f) => (
                     <th key={f.key} className="text-left px-5 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">{f.label}</th>
                   ))}
+                  <th className="text-right px-5 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Ações</th>
                 </tr>
               </thead>
               <tbody>
-                {data.map((item: any) => (
+                {filteredData.map((item: any) => (
                   <tr key={item.id} className="border-b border-border last:border-0 hover:bg-muted/50 transition-colors">
-                    {tableFields.map(f => (
+                    {tableFields.map((f) => (
                       <td key={f.key} className="px-5 py-3 text-foreground">{item[f.key] ?? "—"}</td>
                     ))}
+                    <td className="px-5 py-3 text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <button onClick={() => openEdit(item)} className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                        <button onClick={() => setDeleteConfirm(item.id)} className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -74,6 +212,77 @@ export function CrudPage({ title, icon, data, isLoading, fields, headerActions }
           </div>
         </div>
       )}
+
+      {/* Form Dialog */}
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{editingItem ? "Editar" : "Novo"} {title.replace(/s$/, "")}</DialogTitle>
+          </DialogHeader>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-4">
+            {activeFields.map((f) => (
+              <div key={f.key} className={f.colSpan === 2 ? "sm:col-span-2" : ""}>
+                <Label className="text-xs text-muted-foreground">{f.label}{f.required ? " *" : ""}</Label>
+                {f.type === "select" ? (
+                  <select
+                    value={formData[f.key] || ""}
+                    onChange={(e) => handleFieldChange(f.key, e.target.value)}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground"
+                  >
+                    <option value="">Selecione</option>
+                    {f.options?.map((o) => (
+                      <option key={o.value} value={o.value}>{o.label}</option>
+                    ))}
+                  </select>
+                ) : f.type === "textarea" ? (
+                  <textarea
+                    value={formData[f.key] || ""}
+                    onChange={(e) => handleFieldChange(f.key, e.target.value)}
+                    className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground"
+                    placeholder={f.placeholder}
+                  />
+                ) : f.type === "currency" ? (
+                  <CurrencyInput value={formData[f.key] || ""} onChange={(v) => handleFieldChange(f.key, v)} />
+                ) : (
+                  <div className="flex gap-1">
+                    <Input
+                      type={f.type || "text"}
+                      value={formData[f.key] || ""}
+                      onChange={(e) => handleFieldChange(f.key, e.target.value)}
+                      placeholder={f.placeholder}
+                    />
+                    {f.cnpjLookup && (
+                      <Button type="button" variant="outline" size="sm" onClick={handleCnpjLookup} disabled={cnpjLoading} className="shrink-0">
+                        {cnpjLoading ? "..." : "Consultar"}
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
+            <Button onClick={handleSave} disabled={saving}>
+              {saving ? "Salvando..." : "Salvar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirm */}
+      <Dialog open={!!deleteConfirm} onOpenChange={() => setDeleteConfirm(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirmar exclusão</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">Tem certeza que deseja excluir este registro? Esta ação não pode ser desfeita.</p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteConfirm(null)}>Cancelar</Button>
+            <Button variant="destructive" onClick={() => deleteConfirm && handleDelete(deleteConfirm)}>Excluir</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
