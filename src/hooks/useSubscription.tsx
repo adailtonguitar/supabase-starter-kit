@@ -129,7 +129,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
   const createCheckout = useCallback(async (planKey: string) => {
     console.log("[createCheckout] Starting checkout for plan:", planKey);
     try {
-      const { data, error } = await supabase.functions.invoke("create-checkout", { body: { planKey } });
+      const { data, error } = await supabase.functions.invoke("create-checkout-v2", { body: { planKey } });
       console.log("[createCheckout] Response data:", data, "error:", error);
       if (error) {
         console.error("[createCheckout] Function error:", error);
