@@ -133,7 +133,17 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
       console.log("[createCheckout] Response data:", data, "error:", error);
       if (error) {
         console.error("[createCheckout] Function error:", error);
-        throw new Error(typeof error === "object" && error?.message ? error.message : "Erro ao criar checkout");
+        let message = typeof error === "object" && error?.message ? String(error.message) : "Erro ao criar checkout";
+        try {
+          const context = (error as any)?.context;
+          if (context?.json) {
+            const body = await context.json();
+            if (body?.error) message = String(body.error);
+          }
+        } catch {
+          // ignore parse errors
+        }
+        throw new Error(message);
       }
       if (data?.error) {
         console.error("[createCheckout] Data error:", data.error);
