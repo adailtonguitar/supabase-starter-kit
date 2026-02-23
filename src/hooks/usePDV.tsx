@@ -51,12 +51,12 @@ export function usePDV() {
   const loadProducts = useCallback(async () => {
     if (!companyId) return;
     setLoadingProducts(true);
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("products")
-      .select("id, name, sku, barcode, price, stock_quantity, unit, category, ncm, reorder_point")
+      .select("id, name, sku, barcode, price, stock_quantity, unit, category, ncm")
       .eq("company_id", companyId)
-      .or("is_active.eq.true,is_active.is.null")
       .order("name");
+    console.log("[PDV] Products loaded:", data?.length ?? 0, "error:", error);
     if (data) setProducts(data as PDVProduct[]);
     setLoadingProducts(false);
   }, [companyId]);
