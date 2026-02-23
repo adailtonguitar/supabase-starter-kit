@@ -127,12 +127,15 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
   useEffect(() => { checkSubscription(); const interval = setInterval(checkSubscription, 60_000); return () => clearInterval(interval); }, [checkSubscription]);
 
   const createCheckout = useCallback(async (planKey: string) => {
-    const newWindow = window.open("", "_blank");
     try {
       const { data, error } = await supabase.functions.invoke("create-checkout", { body: { planKey } });
       if (error) throw error;
-      if (data?.url && newWindow) { newWindow.location.href = data.url; } else if (data?.url) { window.location.href = data.url; } else { newWindow?.close(); throw new Error("URL de checkout não retornada"); }
-    } catch (err) { newWindow?.close(); throw err; }
+      if (data?.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error("URL de checkout não retornada");
+      }
+    } catch (err) { throw err; }
   }, []);
 
   const openCustomerPortal = useCallback(async () => {
