@@ -182,8 +182,9 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
 
   const onSubmit = async (data: FormData) => {
     try {
+      const { reorder_point, reorder_quantity, ...rest } = data as any;
       const payload = {
-        ...data,
+        ...rest,
         fiscal_category_id: data.fiscal_category_id || null,
       };
 
