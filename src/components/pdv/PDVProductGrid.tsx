@@ -32,14 +32,14 @@ export function PDVProductGrid({ products, loading, onAddToCart }: PDVProductGri
           {search && <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2"><X className="w-4 h-4 text-muted-foreground" /></button>}
         </div>
       </div>
-      <div className="flex-1 overflow-y-auto p-2 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
+      <div className="flex-1 overflow-y-auto p-2 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 auto-rows-min content-start">
         {loading ? (
           <div className="col-span-full text-center py-12 text-muted-foreground">Carregando...</div>
         ) : filtered.length === 0 ? (
           <div className="col-span-full text-center py-12 text-muted-foreground text-sm">Nenhum produto encontrado</div>
         ) : filtered.map(p => (
           <button key={p.id} onClick={() => onAddToCart(p)}
-            className="flex flex-col items-start p-3 rounded-xl bg-card border border-border hover:border-primary/40 transition-all text-left">
+            className="flex flex-col items-start p-2.5 rounded-lg bg-card border border-border hover:border-primary/40 transition-all text-left h-auto">
             <span className="text-xs font-mono text-muted-foreground">{p.sku}</span>
             <span className="text-sm font-semibold text-foreground line-clamp-2 mt-0.5">{p.name}</span>
             <span className="text-sm font-bold text-primary font-mono mt-auto pt-1">
