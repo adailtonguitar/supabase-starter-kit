@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { Download, Smartphone, Monitor, Share, PlusSquare, MoreVertical, ArrowDown } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Download, Smartphone, Monitor, Share, PlusSquare, MoreVertical, ArrowDown, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import logoAs from "@/assets/logo-as.png";
@@ -39,6 +40,9 @@ export default function Instalar() {
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="max-w-md w-full space-y-6">
+        <Link to="/" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors">
+          <ArrowLeft className="w-4 h-4" /> Voltar
+        </Link>
         <div className="text-center space-y-3">
           <img src={logoAs} alt="Logo" className="w-16 h-16 mx-auto rounded-xl" />
           <h1 className="text-2xl font-bold text-foreground">Instalar Aplicativo</h1>
