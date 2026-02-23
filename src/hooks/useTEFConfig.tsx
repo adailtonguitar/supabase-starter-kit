@@ -5,7 +5,10 @@ import { useCompany } from "./useCompany";
 export interface TEFConfig {
   provider?: string;
   api_key?: string;
+  api_secret?: string;
   terminal_id?: string;
+  merchant_id?: string;
+  environment?: string;
 }
 
 export function useTEFConfig() {
