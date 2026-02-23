@@ -34,3 +34,7 @@ function validateCNPJ(cnpj: string): { valid: boolean; error?: string } {
   if (remainder !== parseInt(cnpj.charAt(13))) return { valid: false, error: "CNPJ inválido" };
   return { valid: true };
 }
+
+export function isValidCnpj(cnpj: string): boolean {
+  return validateCNPJ(cnpj.replace(/\D/g, "")).valid;
+}
