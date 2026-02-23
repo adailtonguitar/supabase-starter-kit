@@ -21,7 +21,14 @@ export function useCreateSupplier() {
   const { companyId } = useCompany();
   return useMutation({
     mutationFn: async (data: any) => {
-      const { error } = await supabase.from("suppliers").insert({ ...data, company_id: companyId });
+      // Only send known columns to avoid schema cache errors
+      const { id, created_at, updated_at, ...rest } = data;
+      const payload: Record<string, any> = { company_id: companyId };
+      const knownCols = ["name","trade_name","cnpj","ie","contact_name","email","phone","notes"];
+      for (const k of knownCols) {
+        if (rest[k] !== undefined) payload[k] = rest[k];
+      }
+      const { error } = await supabase.from("suppliers").insert(payload);
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["suppliers"] }),
@@ -32,8 +39,13 @@ export function useUpdateSupplier() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (data: any) => {
-      const { id, ...rest } = data;
-      const { error } = await supabase.from("suppliers").update(rest).eq("id", id);
+      const { id, created_at, updated_at, company_id, ...rest } = data;
+      const payload: Record<string, any> = {};
+      const knownCols = ["name","trade_name","cnpj","ie","contact_name","email","phone","notes"];
+      for (const k of knownCols) {
+        if (rest[k] !== undefined) payload[k] = rest[k];
+      }
+      const { error } = await supabase.from("suppliers").update(payload).eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["suppliers"] }),

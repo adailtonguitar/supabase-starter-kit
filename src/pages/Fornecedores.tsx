@@ -12,13 +12,6 @@ const fields: FieldConfig[] = [
   { key: "contact_name", label: "Contato", showInTable: true },
   { key: "email", label: "E-mail", type: "email", showInTable: true },
   { key: "phone", label: "Telefone", type: "tel", showInTable: true },
-  { key: "address_street", label: "Rua" },
-  { key: "address_number", label: "Número" },
-  { key: "address_complement", label: "Complemento" },
-  { key: "address_neighborhood", label: "Bairro" },
-  { key: "address_city", label: "Cidade" },
-  { key: "address_state", label: "UF" },
-  { key: "address_zip", label: "CEP" },
   { key: "notes", label: "Observações", colSpan: 2 },
 ];
 
