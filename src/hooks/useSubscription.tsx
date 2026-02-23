@@ -127,128 +127,56 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
   useEffect(() => { checkSubscription(); const interval = setInterval(checkSubscription, 60_000); return () => clearInterval(interval); }, [checkSubscription]);
 
   const createCheckout = useCallback(async (planKey: string) => {
-    const extractMessage = async (error: unknown, fallback = "Erro ao criar checkout") => {
-      let message = typeof error === "object" && error && "message" in error
-        ? String((error as { message?: string }).message)
-        : fallback;
+    console.log("[createCheckout] Starting checkout for plan:", planKey);
 
-      try {
-        const context = (error as any)?.context;
-        if (context?.json) {
-          const body = await context.json();
-          if (body?.error) message = String(body.error);
-          if (body?.message) message = String(body.message);
-        }
-      } catch {
-        // ignore parse errors
-      }
-
-      return message;
-    };
-
-    const openCheckoutUrl = (payload: any) => {
-      if (payload?.error) throw new Error(String(payload.error));
-      if (!payload?.url) throw new Error("URL de checkout não retornada");
-      window.location.href = payload.url;
-    };
-
-    const invokeWithSdk = async (functionName: "create-checkout-v2" | "create-checkout") => {
+    const tryInvoke = async (functionName: "create-checkout-v2" | "create-checkout") => {
       const { data, error } = await supabase.functions.invoke(functionName, { body: { planKey } });
-      if (error) throw new Error(await extractMessage(error));
-      openCheckoutUrl(data);
-    };
 
-    const invokeWithHttp = async (functionName: "create-checkout-v2" | "create-checkout") => {
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
+      if (error) {
+        let message = typeof error === "object" && error?.message ? String(error.message) : "Erro ao criar checkout";
+        try {
+          const context = (error as any)?.context;
+          if (context?.json) {
+            const body = await context.json();
+            if (body?.error) message = String(body.error);
+            if (body?.message) message = String(body.message);
+          }
+        } catch {
+          // ignore parse errors
+        }
 
-      if (!token) {
-        throw new Error("Sessão expirada. Faça login novamente para assinar.");
+        throw new Error(message);
       }
 
-      const functionBaseUrl = (import.meta.env.VITE_SUPABASE_URL || "https://fsvxpxziotklbxkivyug.supabase.co").replace(/\/$/, "");
+      if (data?.error) throw new Error(String(data.error));
+      if (!data?.url) throw new Error("URL de checkout não retornada");
 
-      const response = await fetch(`${functionBaseUrl}/functions/v1/${functionName}`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ planKey }),
-      });
-
-      const body = await response.json().catch(() => ({}));
-
-      if (!response.ok) {
-        throw new Error(String(body?.error || body?.message || `Erro ${response.status} ao criar checkout`));
-      }
-
-      openCheckoutUrl(body);
-    };
-
-    const shouldTryLegacy = (message: string) => {
-      return (
-        message.includes("Requested function was not found") ||
-        message.includes("NOT_FOUND") ||
-        message.includes("404") ||
-        message.includes("getClaims")
-      );
-    };
-
-    const shouldTryHttp = (message: string) => {
-      return (
-        message.includes("Failed to send a request to the Edge Function") ||
-        message.includes("Failed to fetch") ||
-        message.includes("NetworkError") ||
-        message.includes("TypeError")
-      );
+      window.location.href = data.url;
     };
 
     try {
-      await invokeWithSdk("create-checkout-v2");
-      return;
-    } catch (v2SdkErr: any) {
-      const v2SdkMessage = String(v2SdkErr?.message || "Erro ao criar checkout (v2)");
-      let v2HttpMessage = "";
+      await tryInvoke("create-checkout-v2");
+    } catch (firstErr: any) {
+      const msg = String(firstErr?.message || "");
 
-      if (shouldTryHttp(v2SdkMessage) || shouldTryLegacy(v2SdkMessage)) {
-        try {
-          await invokeWithHttp("create-checkout-v2");
-          return;
-        } catch (v2HttpErr: any) {
-          v2HttpMessage = String(v2HttpErr?.message || "");
-        }
-      }
+      const shouldFallback =
+        msg.includes("Failed to send a request to the Edge Function") ||
+        msg.includes("Requested function was not found") ||
+        msg.includes("NOT_FOUND") ||
+        msg.includes("404") ||
+        msg.includes("getClaims");
 
-      const shouldFallbackToLegacy =
-        shouldTryLegacy(v2SdkMessage) ||
-        shouldTryHttp(v2SdkMessage) ||
-        shouldTryLegacy(v2HttpMessage);
+      if (!shouldFallback) throw firstErr;
 
-      if (!shouldFallbackToLegacy) {
-        throw new Error(v2SdkMessage || v2HttpMessage || "Erro ao criar checkout (v2)");
-      }
-
+      console.warn("[createCheckout] create-checkout-v2 unavailable, fallback to create-checkout");
       try {
-        await invokeWithSdk("create-checkout");
-        return;
-      } catch (legacySdkErr: any) {
-        let legacyMessage = String(legacySdkErr?.message || "Erro ao criar checkout (legacy)");
-
-        if (shouldTryHttp(legacyMessage) || legacyMessage.includes("getClaims")) {
-          try {
-            await invokeWithHttp("create-checkout");
-            return;
-          } catch (legacyHttpErr: any) {
-            legacyMessage = String(legacyHttpErr?.message || legacyMessage);
-          }
+        await tryInvoke("create-checkout");
+      } catch (secondErr: any) {
+        const secondMsg = String(secondErr?.message || "");
+        if (secondMsg.includes("getClaims")) {
+          throw new Error("Backend de checkout desatualizado (usa getClaims). Atualize/publice a função create-checkout no backend.");
         }
-
-        if (legacyMessage.includes("getClaims")) {
-          throw new Error("Backend de checkout desatualizado (usa getClaims). Atualize/publice as funções create-checkout e create-checkout-v2 no backend.");
-        }
-
-        throw new Error(legacyMessage);
+        throw secondErr;
       }
     }
   }, []);
