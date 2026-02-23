@@ -9,7 +9,7 @@ import { toast } from "sonner";
 interface Client {
   id: string;
   name: string;
-  cpf?: string;
+  cpf_cnpj?: string;
   phone?: string;
 }
 
@@ -34,7 +34,7 @@ export function PDVLoyaltyClientList({ onSelect }: PDVLoyaltyClientListProps) {
       setLoading(true);
       const { data } = await supabase
         .from("clients")
-        .select("id, name, cpf, phone")
+        .select("id, name, cpf_cnpj, phone")
         .eq("company_id", companyId)
         .order("name")
         .limit(500);
@@ -49,7 +49,7 @@ export function PDVLoyaltyClientList({ onSelect }: PDVLoyaltyClientListProps) {
     const q = search.toLowerCase();
     return clients.filter(c =>
       c.name.toLowerCase().includes(q) ||
-      (c.cpf && c.cpf.includes(q)) ||
+      (c.cpf_cnpj && c.cpf_cnpj.includes(q)) ||
       (c.phone && c.phone.includes(q))
     );
   }, [clients, search]);
@@ -66,11 +66,11 @@ export function PDVLoyaltyClientList({ onSelect }: PDVLoyaltyClientListProps) {
         .from("clients")
         .insert({
           name: newName.trim(),
-          cpf: newCpf.trim() || null,
+          cpf_cnpj: newCpf.trim() || null,
           phone: newPhone.trim() || null,
           company_id: companyId,
         })
-        .select("id, name, cpf, phone")
+        .select("id, name, cpf_cnpj, phone")
         .single();
       if (error) throw error;
       const client = data as Client;
@@ -149,8 +149,8 @@ export function PDVLoyaltyClientList({ onSelect }: PDVLoyaltyClientListProps) {
               <div>
                 <p className="text-sm font-medium text-foreground">{c.name}</p>
                 <p className="text-xs text-muted-foreground">
-                  {c.cpf && `CPF: ${c.cpf}`}
-                  {c.cpf && c.phone && " · "}
+                  {c.cpf_cnpj && `Doc: ${c.cpf_cnpj}`}
+                  {c.cpf_cnpj && c.phone && " · "}
                   {c.phone && `Tel: ${c.phone}`}
                 </p>
               </div>
