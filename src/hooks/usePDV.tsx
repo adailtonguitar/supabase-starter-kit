@@ -55,7 +55,7 @@ export function usePDV() {
       .from("products")
       .select("id, name, sku, barcode, price, stock_quantity, unit, category, ncm, reorder_point")
       .eq("company_id", companyId)
-      .eq("is_active", true)
+      .or("is_active.eq.true,is_active.is.null")
       .order("name");
     if (data) setProducts(data as PDVProduct[]);
     setLoadingProducts(false);
