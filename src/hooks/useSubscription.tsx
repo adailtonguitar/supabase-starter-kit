@@ -159,15 +159,12 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
     } catch (firstErr: any) {
       const msg = String(firstErr?.message || "");
 
-      if (msg.includes("getClaims")) {
-        throw new Error("Backend de checkout desatualizado (usa getClaims). Atualize/publice a função create-checkout no backend.");
-      }
-
       const shouldFallback =
         msg.includes("Failed to send a request to the Edge Function") ||
         msg.includes("Requested function was not found") ||
         msg.includes("NOT_FOUND") ||
-        msg.includes("404");
+        msg.includes("404") ||
+        msg.includes("getClaims");
 
       if (!shouldFallback) throw firstErr;
 
