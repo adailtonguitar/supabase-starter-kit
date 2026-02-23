@@ -15,6 +15,7 @@ export interface Product {
   min_stock?: number;
   unit: string;
   company_id: string;
+  is_active?: boolean;
 }
 
 export function useProducts() {
