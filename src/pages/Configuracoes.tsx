@@ -1,2 +1,560 @@
-const Configuracoes = () => <div className="p-4"><h1 className="text-2xl font-bold text-foreground">Configurações</h1></div>;
-export default Configuracoes;
+import { useState, useEffect, useRef } from "react";
+import { Download, Upload, Clock, HardDrive, Percent, Save, Loader2, Crown, Check, ArrowRight, MessageCircle, Pencil, Calculator, Send, Mail } from "lucide-react";
+import { TEFConfigSection } from "@/components/settings/TEFConfigSection";
+import { motion } from "framer-motion";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { usePermissions } from "@/hooks/usePermissions";
+import { useSubscription, PLANS } from "@/hooks/useSubscription";
+import { useCompany } from "@/hooks/useCompany";
+
+function WhatsAppSupportSection() {
+  const { role } = usePermissions();
+  const { companyId } = useCompany();
+  const [number, setNumber] = useState("");
+  const [savedNumber, setSavedNumber] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [editing, setEditing] = useState(false);
+
+  useEffect(() => {
+    if (!companyId) return;
+    const load = async () => {
+      const { data } = await supabase.from("companies").select("whatsapp_support").eq("id", companyId).single();
+      if (data?.whatsapp_support) {
+        setNumber(data.whatsapp_support);
+        setSavedNumber(data.whatsapp_support);
+      }
+      setLoading(false);
+    };
+    load();
+  }, [companyId]);
+
+  const hasSaved = !!savedNumber;
+
+  const handleSave = async () => {
+    if (!companyId) return;
+    setSaving(true);
+    try {
+      const { error } = await supabase.from("companies").update({ whatsapp_support: number || null }).eq("id", companyId);
+      if (error) throw error;
+      setSavedNumber(number);
+      setEditing(false);
+      toast.success("WhatsApp de suporte salvo!");
+    } catch {
+      toast.error("Erro ao salvar");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (role !== "admin") return null;
+
+  const isReadOnly = hasSaved && !editing;
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className="bg-card rounded-xl card-shadow border border-border overflow-hidden">
+      <div className="px-5 py-4 border-b border-border flex items-center gap-2">
+        <MessageCircle className="w-4 h-4 text-primary" />
+        <h2 className="text-base font-semibold text-foreground">WhatsApp de Suporte</h2>
+      </div>
+      <div className="p-5 space-y-4">
+        <p className="text-sm text-muted-foreground">Configure o número de WhatsApp que será exibido no botão flutuante de suporte para seus usuários.</p>
+        {loading ? (
+          <div className="flex items-center justify-center py-6">
+            <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+          </div>
+        ) : (
+          <>
+            <input type="text" value={number} onChange={(e) => setNumber(e.target.value)} placeholder="(11) 99999-9999" disabled={isReadOnly}
+              className="w-full px-4 py-2.5 rounded-xl bg-background border border-border text-foreground placeholder:text-muted-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all disabled:opacity-60 disabled:cursor-not-allowed" />
+            <div className="flex gap-3">
+              {isReadOnly ? (
+                <button onClick={() => setEditing(true)}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-secondary text-secondary-foreground text-sm font-medium hover:opacity-90 transition-all">
+                  <Pencil className="w-4 h-4" /> Editar
+                </button>
+              ) : (
+                <>
+                  <button onClick={handleSave} disabled={saving}
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-all disabled:opacity-50">
+                    {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Salvar
+                  </button>
+                  {hasSaved && (
+                    <button onClick={() => { setNumber(savedNumber); setEditing(false); }}
+                      className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-muted text-muted-foreground text-sm font-medium hover:opacity-90 transition-all">
+                      Cancelar
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
+          </>
+        )}
+      </div>
+    </motion.div>
+  );
+}
+
+const roleLabels: Record<string, string> = {
+  admin: "Administrador",
+  gerente: "Gerente",
+  supervisor: "Supervisor",
+  caixa: "Caixa",
+};
+
+function DiscountLimitsSection() {
+  const { role } = usePermissions();
+  const [limits, setLimits] = useState<{ id: string; role: string; max_discount_percent: number }[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [edited, setEdited] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    const load = async () => {
+      const { data } = await supabase.from("discount_limits").select("id, role, max_discount_percent").order("max_discount_percent", { ascending: false });
+      if (data) setLimits(data);
+      setLoading(false);
+    };
+    load();
+  }, []);
+
+  const handleChange = (id: string, value: number) => {
+    setEdited((prev) => ({ ...prev, [id]: Math.min(100, Math.max(0, value)) }));
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      for (const [id, val] of Object.entries(edited)) {
+        const { error } = await supabase.from("discount_limits").update({ max_discount_percent: val }).eq("id", id);
+        if (error) throw error;
+      }
+      setLimits((prev) => prev.map((l) => edited[l.id] !== undefined ? { ...l, max_discount_percent: edited[l.id] } : l));
+      setEdited({});
+      toast.success("Limites de desconto salvos!");
+    } catch {
+      toast.error("Erro ao salvar limites");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (role !== "admin") return null;
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="bg-card rounded-xl card-shadow border border-border overflow-hidden">
+      <div className="px-5 py-4 border-b border-border flex items-center gap-2">
+        <Percent className="w-4 h-4 text-primary" />
+        <h2 className="text-base font-semibold text-foreground">Limites de Desconto por Cargo</h2>
+      </div>
+      <div className="p-5 space-y-4">
+        <p className="text-sm text-muted-foreground">Defina o percentual máximo de desconto que cada cargo pode aplicar no PDV.</p>
+        {loading ? (
+          <div className="flex items-center justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>
+        ) : (
+          <div className="space-y-3">
+            {limits.map((limit) => {
+              const val = edited[limit.id] ?? limit.max_discount_percent;
+              return (
+                <div key={limit.id} className="flex items-center justify-between py-2 px-3 rounded-lg bg-muted/50 border border-border">
+                  <span className="text-sm font-medium text-foreground">{roleLabels[limit.role] || limit.role}</span>
+                  <div className="flex items-center gap-2">
+                    <input type="number" min={0} max={100} step={1} value={val} onChange={(e) => handleChange(limit.id, Number(e.target.value))}
+                      className="w-20 px-2 py-1.5 rounded-lg bg-card border border-border text-sm font-mono text-right focus:outline-none focus:ring-1 focus:ring-primary/40" />
+                    <span className="text-sm text-muted-foreground">%</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+        {Object.keys(edited).length > 0 && (
+          <button onClick={handleSave} disabled={saving}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-all disabled:opacity-50">
+            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Salvar Alterações
+          </button>
+        )}
+      </div>
+    </motion.div>
+  );
+}
+
+const planFeatures: Record<string, string[]> = {
+  essencial: ["1 terminal PDV", "Até 500 produtos", "Até 200 notas/mês", "Controle de estoque", "Financeiro básico", "Relatórios de vendas", "Suporte por e-mail"],
+  profissional: ["Até 5 terminais PDV", "Produtos ilimitados", "NF-e + NFC-e", "Relatórios avançados com IA", "Programa de fidelidade", "Multi-usuários e permissões", "Orçamentos e cotações", "Curva ABC e painel de lucro", "Suporte prioritário"],
+};
+
+function MyPlanSection() {
+  const { subscribed, planKey, trialActive, trialDaysLeft, subscriptionEnd, createCheckout, loading } = useSubscription();
+  const [upgrading, setUpgrading] = useState(false);
+
+  if (loading) return null;
+
+  const currentPlan = planKey && PLANS[planKey as keyof typeof PLANS] ? PLANS[planKey as keyof typeof PLANS] : null;
+  const isEssencial = planKey === "essencial";
+  const features = planKey ? planFeatures[planKey] || [] : [];
+
+  const handleUpgrade = async () => {
+    try {
+      setUpgrading(true);
+      await createCheckout("profissional");
+    } catch (err: any) {
+      toast.error(err?.message || "Erro ao iniciar checkout");
+    } finally {
+      setUpgrading(false);
+    }
+  };
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-card rounded-xl card-shadow border border-border overflow-hidden">
+      <div className="px-5 py-4 border-b border-border flex items-center gap-2">
+        <Crown className="w-4 h-4 text-primary" />
+        <h2 className="text-base font-semibold text-foreground">Meu Plano</h2>
+      </div>
+      <div className="p-5 space-y-4">
+        {subscribed && currentPlan ? (
+          <>
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="text-lg font-bold text-foreground">{currentPlan.name}</span>
+                <span className="ml-2 text-xs font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary">Ativo</span>
+              </div>
+              <div className="text-right">
+                <span className="text-2xl font-extrabold text-foreground">R$ {currentPlan.price.toFixed(2).replace(".", ",")}</span>
+                <span className="text-sm text-muted-foreground">/mês</span>
+              </div>
+            </div>
+            {subscriptionEnd && <p className="text-xs text-muted-foreground">Próxima renovação: {new Date(subscriptionEnd).toLocaleDateString("pt-BR")}</p>}
+            <ul className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+              {features.map((f) => (
+                <li key={f} className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                  <Check className="w-3.5 h-3.5 text-primary flex-shrink-0" /> {f}
+                </li>
+              ))}
+            </ul>
+            {isEssencial && (
+              <button onClick={handleUpgrade} disabled={upgrading}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-all disabled:opacity-50">
+                <ArrowRight className="w-4 h-4" /> {upgrading ? "Redirecionando..." : "Fazer upgrade para Profissional"}
+              </button>
+            )}
+          </>
+        ) : trialActive ? (
+          <>
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="text-lg font-bold text-foreground">Período de Teste</span>
+                <span className="ml-2 text-xs font-medium px-2 py-0.5 rounded-full bg-warning/10 text-warning">{trialDaysLeft} dia{trialDaysLeft !== 1 ? "s" : ""} restante{trialDaysLeft !== 1 ? "s" : ""}</span>
+              </div>
+            </div>
+            <p className="text-sm text-muted-foreground">Assine um plano para continuar usando o sistema após o período de teste.</p>
+            <div className="flex gap-3 flex-wrap">
+              <button onClick={() => createCheckout("essencial").catch(() => toast.error("Erro ao iniciar checkout"))}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-secondary text-secondary-foreground text-sm font-medium hover:opacity-90 transition-all">
+                Essencial — R$ 149,90/mês
+              </button>
+              <button onClick={() => createCheckout("profissional").catch(() => toast.error("Erro ao iniciar checkout"))}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-all">
+                Profissional — R$ 199,90/mês
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <p className="text-sm text-muted-foreground">Você não possui uma assinatura ativa.</p>
+            <button onClick={() => createCheckout("profissional").catch(() => toast.error("Erro ao iniciar checkout"))}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-all">
+              Assinar agora
+            </button>
+          </>
+        )}
+      </div>
+    </motion.div>
+  );
+}
+
+function AccountantSection() {
+  const { role } = usePermissions();
+  const { companyId } = useCompany();
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [crc, setCrc] = useState("");
+  const [autoSend, setAutoSend] = useState(false);
+  const [sendDay, setSendDay] = useState(5);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [hasSaved, setHasSaved] = useState(false);
+
+  useEffect(() => {
+    if (!companyId) return;
+    const load = async () => {
+      const { data } = await supabase.from("companies").select("accountant_name, accountant_email, accountant_phone, accountant_crc, accountant_auto_send, accountant_send_day").eq("id", companyId).single();
+      if (data) {
+        setName((data as any).accountant_name || "");
+        setEmail((data as any).accountant_email || "");
+        setPhone((data as any).accountant_phone || "");
+        setCrc((data as any).accountant_crc || "");
+        setAutoSend((data as any).accountant_auto_send || false);
+        setSendDay((data as any).accountant_send_day || 5);
+        setHasSaved(!!(data as any).accountant_email);
+      }
+      setLoading(false);
+    };
+    load();
+  }, [companyId]);
+
+  const handleSave = async () => {
+    if (!companyId) return;
+    setSaving(true);
+    try {
+      const { error } = await supabase.from("companies").update({
+        accountant_name: name || null,
+        accountant_email: email || null,
+        accountant_phone: phone || null,
+        accountant_crc: crc || null,
+        accountant_auto_send: autoSend,
+        accountant_send_day: sendDay,
+      } as any).eq("id", companyId);
+      if (error) throw error;
+      setHasSaved(!!email);
+      setEditing(false);
+      toast.success("Dados do contador salvos!");
+    } catch {
+      toast.error("Erro ao salvar");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSendReport = async () => {
+    if (!email) { toast.error("Configure o e-mail do contador primeiro"); return; }
+    setSending(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("send-accountant-report", { body: { email } });
+      if (error) throw error;
+      if (data?.success) {
+        toast.success(`Relatório enviado para ${data.sent_to} (${data.period})`);
+      } else {
+        toast.error(data?.error || "Erro ao enviar relatório");
+      }
+    } catch (err: any) {
+      toast.error(err?.message || "Erro ao enviar relatório");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  if (role !== "admin" && role !== "gerente") return null;
+
+  const isReadOnly = hasSaved && !editing;
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="bg-card rounded-xl card-shadow border border-border overflow-hidden">
+      <div className="px-5 py-4 border-b border-border flex items-center gap-2">
+        <Calculator className="w-4 h-4 text-primary" />
+        <h2 className="text-base font-semibold text-foreground">Integração com Contador</h2>
+      </div>
+      <div className="p-5 space-y-4">
+        <p className="text-sm text-muted-foreground">Configure os dados do seu contador para envio automático de relatórios fiscais mensais.</p>
+        {loading ? (
+          <div className="flex items-center justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>
+        ) : (
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">Nome do Contador</label>
+                <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex: João Silva" disabled={isReadOnly}
+                  className="w-full px-3 py-2 rounded-lg bg-background border border-border text-foreground placeholder:text-muted-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all disabled:opacity-60 disabled:cursor-not-allowed" />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">E-mail do Contador *</label>
+                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="contador@exemplo.com" disabled={isReadOnly}
+                  className="w-full px-3 py-2 rounded-lg bg-background border border-border text-foreground placeholder:text-muted-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all disabled:opacity-60 disabled:cursor-not-allowed" />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">Telefone</label>
+                <input type="text" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="(11) 99999-9999" disabled={isReadOnly}
+                  className="w-full px-3 py-2 rounded-lg bg-background border border-border text-foreground placeholder:text-muted-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all disabled:opacity-60 disabled:cursor-not-allowed" />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">CRC</label>
+                <input type="text" value={crc} onChange={(e) => setCrc(e.target.value)} placeholder="CRC-SP 123456" disabled={isReadOnly}
+                  className="w-full px-3 py-2 rounded-lg bg-background border border-border text-foreground placeholder:text-muted-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all disabled:opacity-60 disabled:cursor-not-allowed" />
+              </div>
+            </div>
+
+            {!isReadOnly && (
+              <div className="flex items-center gap-4 pt-2">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={autoSend} onChange={(e) => setAutoSend(e.target.checked)}
+                    className="w-4 h-4 rounded border-border text-primary focus:ring-primary/20" />
+                  <span className="text-sm text-foreground">Envio automático mensal</span>
+                </label>
+                {autoSend && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">Dia</span>
+                    <input type="number" min={1} max={28} value={sendDay} onChange={(e) => setSendDay(Number(e.target.value))}
+                      className="w-16 px-2 py-1.5 rounded-lg bg-background border border-border text-sm font-mono text-center focus:outline-none focus:ring-1 focus:ring-primary/40" />
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="flex gap-3 flex-wrap pt-2">
+              {isReadOnly ? (
+                <>
+                  <button onClick={() => setEditing(true)}
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-secondary text-secondary-foreground text-sm font-medium hover:opacity-90 transition-all">
+                    <Pencil className="w-4 h-4" /> Editar
+                  </button>
+                  <button onClick={handleSendReport} disabled={sending}
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-all disabled:opacity-50">
+                    {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                    {sending ? "Enviando..." : "Enviar Relatório Agora"}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button onClick={handleSave} disabled={saving || !email}
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-all disabled:opacity-50">
+                    {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Salvar
+                  </button>
+                  {hasSaved && (
+                    <button onClick={() => setEditing(false)}
+                      className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-muted text-muted-foreground text-sm font-medium hover:opacity-90 transition-all">
+                      Cancelar
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
+
+            {hasSaved && isReadOnly && (
+              <div className="flex items-center gap-2 pt-1">
+                <Mail className="w-3.5 h-3.5 text-muted-foreground" />
+                <span className="text-xs text-muted-foreground">
+                  Relatório fiscal mensal será enviado para <strong>{email}</strong>
+                  {autoSend ? ` automaticamente no dia ${sendDay} de cada mês` : " quando você clicar em enviar"}
+                </span>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </motion.div>
+  );
+}
+
+export default function Configuracoes() {
+  const [exporting, setExporting] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { toast.error("Faça login para exportar"); return; }
+      const response = await supabase.functions.invoke("export-company-data", { body: {} });
+      if (response.error) { toast.error("Erro ao exportar: " + response.error.message); return; }
+      const result = response.data;
+      if (result.success) {
+        toast.success(`Backup criado! ${Object.values(result.records as Record<string, number>).reduce((a: number, b: number) => a + b, 0)} registros exportados.`);
+      } else { toast.error(result.error || "Erro ao exportar"); }
+    } catch { toast.error("Erro ao exportar dados"); } finally { setExporting(false); }
+  };
+
+  const handleDownloadExport = async () => {
+    setExporting(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { toast.error("Faça login para exportar"); return; }
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/export-company-data?download=true`;
+      const res = await fetch(url, {
+        headers: { Authorization: `Bearer ${session.access_token}`, apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY },
+      });
+      if (!res.ok) { toast.error("Erro ao baixar backup"); return; }
+      const blob = await res.blob();
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `backup_${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+      toast.success("Backup baixado!");
+    } catch { toast.error("Erro ao baixar backup"); } finally { setExporting(false); }
+  };
+
+  const handleImportBackup = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (fileInputRef.current) fileInputRef.current.value = "";
+    if (!file.name.endsWith(".json")) { toast.error("Selecione um arquivo .json válido"); return; }
+    if (file.size > 50 * 1024 * 1024) { toast.error("Arquivo muito grande (máx. 50MB)"); return; }
+    setImporting(true);
+    try {
+      const text = await file.text();
+      let backup: any;
+      try { backup = JSON.parse(text); } catch { toast.error("Arquivo JSON inválido"); setImporting(false); return; }
+      if (!backup.version || !backup.data) { toast.error("Este arquivo não parece ser um backup válido do sistema"); setImporting(false); return; }
+      const { data, error } = await supabase.functions.invoke("import-company-data", { body: { backup } });
+      if (error) { toast.error("Erro ao importar: " + error.message); return; }
+      if (data?.success) {
+        const totalImported = data.total_imported || 0;
+        const totalErrors = data.total_errors || 0;
+        if (totalErrors > 0) toast.warning(`Importação concluída: ${totalImported} registros importados, ${totalErrors} erros`);
+        else toast.success(`Backup restaurado com sucesso! ${totalImported} registros importados.`);
+      } else { toast.error(data?.error || "Erro ao importar backup"); }
+    } catch { toast.error("Erro ao processar arquivo de backup"); } finally { setImporting(false); }
+  };
+
+  return (
+    <div className="p-6 space-y-6 max-w-3xl mx-auto">
+      <div>
+        <h1 className="text-2xl font-bold text-foreground">Configurações</h1>
+        <p className="text-sm text-muted-foreground mt-1">Configurações gerais do sistema</p>
+      </div>
+
+      <MyPlanSection />
+      <WhatsAppSupportSection />
+      <DiscountLimitsSection />
+      <TEFConfigSection />
+      <AccountantSection />
+
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-card rounded-xl card-shadow border border-border overflow-hidden">
+        <div className="px-5 py-4 border-b border-border flex items-center gap-2">
+          <HardDrive className="w-4 h-4 text-primary" />
+          <h2 className="text-base font-semibold text-foreground">Backup & Exportação</h2>
+        </div>
+        <div className="p-5 space-y-4">
+          <p className="text-sm text-muted-foreground">Exporte ou restaure todos os dados da empresa em formato JSON.</p>
+          <div className="flex gap-3 flex-wrap">
+            <button onClick={handleExport} disabled={exporting || importing} className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-secondary text-secondary-foreground text-sm font-medium hover:opacity-90 transition-all disabled:opacity-50">
+              <Clock className={`w-4 h-4 ${exporting ? "animate-spin" : ""}`} />
+              {exporting ? "Exportando..." : "Salvar Backup no Cloud"}
+            </button>
+            <button onClick={handleDownloadExport} disabled={exporting || importing} className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-all disabled:opacity-50">
+              <Download className="w-4 h-4" /> Baixar Backup (JSON)
+            </button>
+          </div>
+
+          <div className="border-t border-border pt-4 mt-4">
+            <h3 className="text-sm font-semibold text-foreground mb-2">Restaurar Backup</h3>
+            <p className="text-xs text-muted-foreground mb-3">
+              Faça upload de um arquivo <strong>.json</strong> exportado anteriormente pelo sistema.
+            </p>
+            <input ref={fileInputRef} type="file" accept=".json" onChange={handleImportBackup} className="hidden" id="backup-file-input" />
+            <button onClick={() => fileInputRef.current?.click()} disabled={importing || exporting}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-secondary text-secondary-foreground text-sm font-medium hover:opacity-90 transition-all disabled:opacity-50">
+              {importing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+              {importing ? "Importando..." : "Restaurar Backup (JSON)"}
+            </button>
+          </div>
+        </div>
+      </motion.div>
+    </div>
+  );
+}

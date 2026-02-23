@@ -1,2 +1,494 @@
-const Fiscal = () => <div className="p-4"><h1 className="text-2xl font-bold text-foreground">Fiscal</h1></div>;
-export default Fiscal;
+import { useState, useEffect, useCallback } from "react";
+import {
+  FileText,
+  Search,
+  Send,
+  XCircle,
+  Eye,
+  AlertTriangle,
+  CheckCircle,
+  Clock,
+  Ban,
+  RotateCcw,
+  Printer,
+  Loader2,
+  Download,
+  FileSpreadsheet,
+} from "lucide-react";
+import { formatCurrency } from "@/lib/mock-data";
+import { motion } from "framer-motion";
+import { supabase } from "@/integrations/supabase/client";
+import { useCompany } from "@/hooks/useCompany";
+import { FiscalEmissionService } from "@/services/FiscalEmissionService";
+import { toast } from "sonner";
+
+type DocType = "nfce" | "nfe" | "sat";
+type DocStatus = "pendente" | "autorizada" | "cancelada" | "rejeitada" | "contingencia" | "inutilizada";
+
+interface FiscalDoc {
+  id: string;
+  doc_type: DocType;
+  number: number | null;
+  serie: number | null;
+  access_key: string | null;
+  status: DocStatus;
+  total_value: number;
+  customer_name: string | null;
+  customer_cpf_cnpj: string | null;
+  payment_method: string | null;
+  created_at: string;
+  is_contingency: boolean;
+  environment: "homologacao" | "producao";
+}
+
+const statusConfig: Record<DocStatus, { icon: React.ElementType; label: string; className: string }> = {
+  pendente: { icon: Clock, label: "Pendente", className: "bg-muted text-muted-foreground" },
+  autorizada: { icon: CheckCircle, label: "Autorizada", className: "bg-success/10 text-success" },
+  cancelada: { icon: XCircle, label: "Cancelada", className: "bg-destructive/10 text-destructive" },
+  rejeitada: { icon: Ban, label: "Rejeitada", className: "bg-destructive/10 text-destructive" },
+  contingencia: { icon: AlertTriangle, label: "Contingência", className: "bg-warning/10 text-warning" },
+  inutilizada: { icon: RotateCcw, label: "Inutilizada", className: "bg-muted text-muted-foreground" },
+};
+
+const typeLabels: Record<DocType, string> = { nfce: "NFC-e", nfe: "NF-e", sat: "SAT" };
+
+export default function Fiscal() {
+  const { companyId } = useCompany();
+  const [selectedType, setSelectedType] = useState<DocType | "all">("all");
+  const [search, setSearch] = useState("");
+  const [selectedDoc, setSelectedDoc] = useState<FiscalDoc | null>(null);
+  const [docs, setDocs] = useState<FiscalDoc[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [printingDanfe, setPrintingDanfe] = useState(false);
+
+  const loadDocs = useCallback(async () => {
+    if (!companyId) return;
+    setLoading(true);
+    const { data, error } = await supabase
+      .from("fiscal_documents")
+      .select("id, doc_type, number, serie, access_key, status, total_value, customer_name, customer_cpf_cnpj, payment_method, created_at, is_contingency, environment")
+      .eq("company_id", companyId)
+      .order("created_at", { ascending: false })
+      .limit(100);
+
+    if (!error && data) setDocs(data as FiscalDoc[]);
+    setLoading(false);
+  }, [companyId]);
+
+  useEffect(() => { loadDocs(); }, [loadDocs]);
+
+  const handlePrintDanfe = async (doc: FiscalDoc) => {
+    if (!doc.access_key) {
+      toast.error("Documento sem chave de acesso. Não é possível gerar DANFE.");
+      return;
+    }
+    setPrintingDanfe(true);
+    try {
+      const result = await FiscalEmissionService.downloadPdf(doc.access_key, doc.doc_type as "nfce" | "nfe");
+      const pdfBase64 = (result as any)?.pdf_base64 || (result as any)?.base64;
+      if (pdfBase64) {
+        const byteCharacters = atob(pdfBase64);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+          byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        const blob = new Blob([byteArray], { type: "application/pdf" });
+        const url = URL.createObjectURL(blob);
+        window.open(url, "_blank");
+        toast.success("DANFE gerada com sucesso!");
+      } else if ((result as any)?.error) {
+        toast.error(`Erro da Nuvem Fiscal: ${typeof (result as any).error === 'string' ? (result as any).error : 'Documento não encontrado no provedor fiscal.'}`);
+      } else {
+        toast.error("Não foi possível obter o PDF da DANFE.");
+      }
+    } catch (err: any) {
+      toast.error(`Erro ao gerar DANFE: ${err.message}`);
+    } finally {
+      setPrintingDanfe(false);
+    }
+  };
+
+  const filtered = docs.filter((doc) => {
+    const matchType = selectedType === "all" || doc.doc_type === selectedType;
+    const matchSearch =
+      String(doc.number || "").includes(search) ||
+      (doc.access_key?.includes(search) ?? false) ||
+      (doc.customer_name?.toLowerCase().includes(search.toLowerCase()) ?? false);
+    return matchType && matchSearch;
+  });
+
+  const statusCounts = {
+    autorizada: docs.filter((d) => d.status === "autorizada").length,
+    pendente: docs.filter((d) => d.status === "pendente").length,
+    contingencia: docs.filter((d) => d.status === "contingencia").length,
+    rejeitada: docs.filter((d) => d.status === "rejeitada").length,
+  };
+
+  const [spedYear, setSpedYear] = useState(new Date().getFullYear());
+  const [spedMonth, setSpedMonth] = useState(new Date().getMonth() + 1);
+  const [spedGenerating, setSpedGenerating] = useState(false);
+  const [spedJobId, setSpedJobId] = useState<string | null>(null);
+  const [spedProgress, setSpedProgress] = useState(0);
+  const [showSpedPanel, setShowSpedPanel] = useState(false);
+
+  useEffect(() => {
+    if (!spedJobId) return;
+    const interval = setInterval(async () => {
+      const { data } = await supabase
+        .from("processing_jobs")
+        .select("status, progress, result, error")
+        .eq("id", spedJobId)
+        .single();
+      if (!data) return;
+      setSpedProgress(data.progress || 0);
+      if (data.status === "completed") {
+        clearInterval(interval);
+        setSpedGenerating(false);
+        setSpedJobId(null);
+        const result = data.result as any;
+        toast.success(`SPED gerado: ${result?.period} — ${result?.docs_count} documentos`);
+        if (result?.file_path) {
+          const { data: fileData } = await supabase.storage.from("company-backups").download(result.file_path);
+          if (fileData) {
+            const url = URL.createObjectURL(fileData);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `SPED_${result.period?.replace("/", "_")}.txt`;
+            a.click();
+            URL.revokeObjectURL(url);
+          }
+        }
+      } else if (data.status === "failed") {
+        clearInterval(interval);
+        setSpedGenerating(false);
+        setSpedJobId(null);
+        toast.error(`Erro ao gerar SPED: ${data.error || "erro desconhecido"}`);
+      }
+    }, 2000);
+    return () => clearInterval(interval);
+  }, [spedJobId]);
+
+  const handleGenerateSped = async () => {
+    setSpedGenerating(true);
+    setSpedProgress(0);
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-sped", {
+        body: { year: spedYear, month: spedMonth },
+      });
+      if (error) throw error;
+      if (data?.job_id) {
+        setSpedJobId(data.job_id);
+        toast.info(`Gerando SPED ${data.period}...`);
+      } else if (data?.success) {
+        setSpedGenerating(false);
+        toast.success("SPED gerado com sucesso!");
+      } else {
+        throw new Error(data?.error || "Erro desconhecido");
+      }
+    } catch (err: any) {
+      setSpedGenerating(false);
+      toast.error(err?.message || "Erro ao gerar SPED");
+    }
+  };
+
+  return (
+    <div className="p-3 sm:p-6 space-y-4 sm:space-y-6 max-w-7xl mx-auto">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-bold text-foreground">Documentos Fiscais</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">NFC-e, NF-e e SAT</p>
+        </div>
+        <div className="flex gap-2 self-start sm:self-auto">
+          <button
+            onClick={() => setShowSpedPanel(!showSpedPanel)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-secondary text-secondary-foreground text-xs sm:text-sm font-medium hover:opacity-90 transition-all"
+          >
+            <FileSpreadsheet className="w-4 h-4" />
+            <span className="hidden sm:inline">SPED Fiscal</span>
+            <span className="sm:hidden">SPED</span>
+          </button>
+        </div>
+      </div>
+
+      {showSpedPanel && (
+        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="bg-card rounded-xl card-shadow border border-border p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <FileSpreadsheet className="w-5 h-5 text-primary" />
+            <h2 className="text-base font-semibold text-foreground">Exportação SPED Fiscal (EFD ICMS/IPI)</h2>
+          </div>
+          <p className="text-sm text-muted-foreground mb-4">
+            Gera o arquivo SPED Fiscal com os registros de documentos fiscais, produtos e participantes do período selecionado.
+          </p>
+          <div className="flex flex-wrap items-end gap-4">
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">Mês</label>
+              <select value={spedMonth} onChange={(e) => setSpedMonth(Number(e.target.value))}
+                className="px-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/20">
+                {Array.from({ length: 12 }, (_, i) => (
+                  <option key={i + 1} value={i + 1}>
+                    {new Date(2000, i).toLocaleString("pt-BR", { month: "long" })}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">Ano</label>
+              <input type="number" value={spedYear} onChange={(e) => setSpedYear(Number(e.target.value))} min={2020} max={2030}
+                className="w-24 px-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary/20" />
+            </div>
+            <button onClick={handleGenerateSped} disabled={spedGenerating}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-all disabled:opacity-50">
+              {spedGenerating ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Gerando... {spedProgress}%
+                </>
+              ) : (
+                <>
+                  <Download className="w-4 h-4" />
+                  Gerar e Baixar SPED
+                </>
+              )}
+            </button>
+          </div>
+          {spedGenerating && (
+            <div className="mt-3">
+              <div className="w-full bg-muted rounded-full h-2">
+                <div className="bg-primary h-2 rounded-full transition-all duration-500" style={{ width: `${spedProgress}%` }} />
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">Processando documentos fiscais do período...</p>
+            </div>
+          )}
+        </motion.div>
+      )}
+
+      <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 sm:items-center">
+        <div className="relative flex-1 sm:max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <input
+            type="text"
+            placeholder="Buscar por número, chave ou cliente..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-card border border-border text-foreground placeholder:text-muted-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+          />
+        </div>
+        <div className="flex gap-1.5 overflow-x-auto">
+          {(["all", "nfce", "nfe", "sat"] as const).map((type) => (
+            <button
+              key={type}
+              onClick={() => setSelectedType(type)}
+              className={`px-3 py-2 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${
+                selectedType === type
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-card border border-border text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {type === "all" ? "Todos" : typeLabels[type]}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {[
+          { label: "Autorizadas", count: statusCounts.autorizada, className: "text-success" },
+          { label: "Pendentes", count: statusCounts.pendente, className: "text-muted-foreground" },
+          { label: "Contingência", count: statusCounts.contingencia, className: "text-warning" },
+          { label: "Rejeitadas", count: statusCounts.rejeitada, className: "text-destructive" },
+        ].map((s) => (
+          <div key={s.label} className="bg-card rounded-xl border border-border p-3 sm:p-4 card-shadow">
+            <p className="text-[10px] sm:text-xs text-muted-foreground">{s.label}</p>
+            <p className={`text-lg sm:text-2xl font-bold font-mono mt-0.5 ${s.className}`}>{s.count}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="space-y-2">
+        {loading ? (
+          <div className="flex items-center justify-center py-12 text-muted-foreground">
+            <Loader2 className="w-5 h-5 animate-spin mr-2" /> Carregando documentos...
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="text-center py-12 text-muted-foreground text-sm">Nenhum documento encontrado.</div>
+        ) : (
+          filtered.map((doc, i) => {
+            const st = statusConfig[doc.status];
+            return (
+              <motion.div
+                key={doc.id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.03 }}
+                className="bg-card rounded-xl card-shadow border border-border p-3 sm:p-4 hover:border-primary/30 transition-all cursor-pointer"
+                onClick={() => setSelectedDoc(doc)}
+              >
+                <div className="sm:hidden space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-secondary text-secondary-foreground">
+                        {typeLabels[doc.doc_type]}
+                      </span>
+                      <span className="text-sm font-semibold text-foreground font-mono">
+                        #{String(doc.number || 0).padStart(6, "0")}
+                      </span>
+                      {doc.is_contingency && <AlertTriangle className="w-3 h-3 text-warning" />}
+                    </div>
+                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium ${st.className}`}>
+                      <st.icon className="w-3 h-3" />
+                      {st.label}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="text-xs text-muted-foreground">
+                      {new Date(doc.created_at).toLocaleDateString("pt-BR")}
+                      {doc.customer_name && <span className="ml-1.5">• {doc.customer_name}</span>}
+                    </div>
+                    <span className="text-sm font-bold font-mono text-primary">{formatCurrency(doc.total_value)}</span>
+                  </div>
+                  <div className="flex items-center gap-1 justify-end">
+                    {doc.status === "autorizada" && doc.access_key && (
+                      <button onClick={(e) => { e.stopPropagation(); handlePrintDanfe(doc); }} disabled={printingDanfe}
+                        className="p-1 rounded-lg text-primary hover:bg-primary/10 transition-colors" title="DANFE">
+                        <Printer className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                    <button className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+                      <Eye className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="hidden sm:flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-lg bg-accent flex items-center justify-center">
+                      <FileText className="w-5 h-5 text-accent-foreground" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-semibold px-2 py-0.5 rounded bg-secondary text-secondary-foreground">
+                          {typeLabels[doc.doc_type]}
+                        </span>
+                        <span className="font-semibold text-foreground font-mono">
+                          #{String(doc.number || 0).padStart(6, "0")}
+                        </span>
+                        <span className="text-xs text-muted-foreground">Série {doc.serie || 1}</span>
+                        {doc.is_contingency && <AlertTriangle className="w-3.5 h-3.5 text-warning" />}
+                      </div>
+                      {doc.access_key && (
+                        <p className="text-xs text-muted-foreground mt-0.5 font-mono truncate max-w-[300px]">
+                          {doc.access_key}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="text-right">
+                      {doc.customer_name && <p className="text-sm text-foreground">{doc.customer_name}</p>}
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(doc.created_at).toLocaleString("pt-BR")} • {doc.payment_method || "-"}
+                      </p>
+                    </div>
+                    <span className="text-lg font-bold font-mono text-primary">{formatCurrency(doc.total_value)}</span>
+                    <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${st.className}`}>
+                      <st.icon className="w-3 h-3" />
+                      {st.label}
+                    </span>
+                    {doc.status === "autorizada" && doc.access_key && (
+                      <button onClick={(e) => { e.stopPropagation(); handlePrintDanfe(doc); }} disabled={printingDanfe}
+                        className="p-1.5 rounded-lg text-primary hover:bg-primary/10 transition-colors" title="Imprimir DANFE">
+                        <Printer className="w-4 h-4" />
+                      </button>
+                    )}
+                    <button className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+                      <Eye className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            );
+          })
+        )}
+      </div>
+
+      {selectedDoc && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/20 backdrop-blur-sm"
+          onClick={() => setSelectedDoc(null)}
+        >
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-card rounded-2xl border border-border card-shadow w-full max-w-lg mx-4 p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-foreground">
+                {typeLabels[selectedDoc.doc_type]} #{String(selectedDoc.number || 0).padStart(6, "0")}
+              </h3>
+              <button onClick={() => setSelectedDoc(null)} className="p-1 rounded text-muted-foreground hover:text-foreground">
+                <XCircle className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-sm">
+              <div className="flex justify-between"><span className="text-muted-foreground">Status</span>
+                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${statusConfig[selectedDoc.status].className}`}>
+                  {statusConfig[selectedDoc.status].label}
+                </span>
+              </div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Ambiente</span><span className="text-foreground capitalize">{selectedDoc.environment}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Valor Total</span><span className="font-mono font-semibold text-primary">{formatCurrency(selectedDoc.total_value)}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Pagamento</span><span className="text-foreground">{selectedDoc.payment_method || "-"}</span></div>
+              {selectedDoc.customer_name && (
+                <div className="flex justify-between"><span className="text-muted-foreground">Cliente</span><span className="text-foreground">{selectedDoc.customer_name}</span></div>
+              )}
+              {selectedDoc.customer_cpf_cnpj && (
+                <div className="flex justify-between"><span className="text-muted-foreground">CPF/CNPJ</span><span className="font-mono text-foreground">{selectedDoc.customer_cpf_cnpj}</span></div>
+              )}
+              {selectedDoc.access_key && (
+                <div>
+                  <span className="text-muted-foreground block mb-1">Chave de Acesso</span>
+                  <code className="text-xs font-mono bg-muted p-2 rounded-lg block break-all text-foreground">{selectedDoc.access_key}</code>
+                </div>
+              )}
+              {selectedDoc.is_contingency && (
+                <div className="flex items-center gap-2 p-3 rounded-lg bg-warning/10 text-warning text-xs">
+                  <AlertTriangle className="w-4 h-4" />
+                  Documento emitido em contingência
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-2 mt-6">
+              {selectedDoc.status === "autorizada" && selectedDoc.access_key && (
+                <button
+                  onClick={() => handlePrintDanfe(selectedDoc)}
+                  disabled={printingDanfe}
+                  className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-all disabled:opacity-50"
+                >
+                  {printingDanfe ? <Loader2 className="w-4 h-4 animate-spin" /> : <Printer className="w-4 h-4" />}
+                  Imprimir DANFE
+                </button>
+              )}
+              {selectedDoc.status !== "autorizada" && (
+                <button
+                  disabled
+                  className="flex-1 py-2.5 rounded-xl bg-muted text-muted-foreground text-sm font-medium cursor-not-allowed"
+                >
+                  DANFE indisponível
+                </button>
+              )}
+              {selectedDoc.status === "autorizada" && (
+                <button className="flex-1 py-2.5 rounded-xl bg-destructive text-destructive-foreground text-sm font-medium hover:opacity-90 transition-all">
+                  Cancelar
+                </button>
+              )}
+            </div>
+          </motion.div>
+        </div>
+      )}
+    </div>
+  );
+}
