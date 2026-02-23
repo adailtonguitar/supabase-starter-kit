@@ -128,37 +128,46 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
 
   const createCheckout = useCallback(async (planKey: string) => {
     console.log("[createCheckout] Starting checkout for plan:", planKey);
-    try {
-      const { data, error } = await supabase.functions.invoke("create-checkout-v2", { body: { planKey } });
-      console.log("[createCheckout] Response data:", data, "error:", error);
+
+    const tryInvoke = async (functionName: "create-checkout-v2" | "create-checkout") => {
+      const { data, error } = await supabase.functions.invoke(functionName, { body: { planKey } });
+
       if (error) {
-        console.error("[createCheckout] Function error:", error);
         let message = typeof error === "object" && error?.message ? String(error.message) : "Erro ao criar checkout";
         try {
           const context = (error as any)?.context;
           if (context?.json) {
             const body = await context.json();
             if (body?.error) message = String(body.error);
+            if (body?.message) message = String(body.message);
           }
         } catch {
           // ignore parse errors
         }
+
         throw new Error(message);
       }
-      if (data?.error) {
-        console.error("[createCheckout] Data error:", data.error);
-        throw new Error(data.error);
-      }
-      if (data?.url) {
-        console.log("[createCheckout] Redirecting to:", data.url);
-        window.location.href = data.url;
-      } else {
-        console.error("[createCheckout] No URL in response:", data);
-        throw new Error("URL de checkout não retornada");
-      }
-    } catch (err) {
-      console.error("[createCheckout] Caught error:", err);
-      throw err;
+
+      if (data?.error) throw new Error(String(data.error));
+      if (!data?.url) throw new Error("URL de checkout não retornada");
+
+      window.location.href = data.url;
+    };
+
+    try {
+      await tryInvoke("create-checkout-v2");
+    } catch (firstErr: any) {
+      const msg = String(firstErr?.message || "");
+      const shouldFallback =
+        msg.includes("Failed to send a request to the Edge Function") ||
+        msg.includes("Requested function was not found") ||
+        msg.includes("NOT_FOUND") ||
+        msg.includes("404");
+
+      if (!shouldFallback) throw firstErr;
+
+      console.warn("[createCheckout] create-checkout-v2 unavailable, fallback to create-checkout");
+      await tryInvoke("create-checkout");
     }
   }, []);
 
