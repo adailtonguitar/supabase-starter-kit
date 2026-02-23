@@ -181,25 +181,42 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
   };
 
   const onSubmit = async (data: FormData) => {
-    const payload = {
-      ...data,
-      fiscal_category_id: data.fiscal_category_id || null,
-    };
-    let savedProduct: any;
-    if (isEditing && product) {
-      savedProduct = await updateProduct.mutateAsync({ id: product.id, ...payload } as any);
-    } else {
-      savedProduct = await createProduct.mutateAsync({ name: payload.name, sku: payload.sku, ...payload } as any);
-    }
-    const productId = savedProduct?.id || product?.id;
-    if (imageFile && productId && companyId) {
-      const imageUrl = await uploadImage(productId);
-      if (imageUrl) {
-        await supabase.from("products").update({ image_url: imageUrl }).eq("id", productId);
+    try {
+      const payload = {
+        ...data,
+        fiscal_category_id: data.fiscal_category_id || null,
+      };
+
+      let savedProduct: any;
+      if (isEditing && product) {
+        savedProduct = await updateProduct.mutateAsync({ id: product.id, ...payload } as any);
+      } else {
+        savedProduct = await createProduct.mutateAsync({ name: payload.name, sku: payload.sku, ...payload } as any);
       }
+
+      const productId = savedProduct?.id || product?.id;
+      if (imageFile && productId && companyId) {
+        const imageUrl = await uploadImage(productId);
+        if (imageUrl) {
+          const { error: imageUpdateError } = await supabase.from("products").update({ image_url: imageUrl }).eq("id", productId);
+          if (imageUpdateError) throw imageUpdateError;
+        }
+      }
+
+      toast.success(isEditing ? "Produto atualizado com sucesso" : "Produto cadastrado com sucesso");
+      onOpenChange(false);
+      form.reset();
+    } catch (err: any) {
+      console.error("[ProductFormDialog] save error:", err);
+
+      const rawMessage = String(err?.message || "Erro ao salvar produto");
+      const isRlsError = rawMessage.toLowerCase().includes("row-level security") || rawMessage.toLowerCase().includes("violates row-level security");
+      const message = isRlsError
+        ? "Sem permissão para salvar produto nesta empresa. Verifique acesso da conta e políticas RLS."
+        : rawMessage;
+
+      toast.error(message);
     }
-    onOpenChange(false);
-    form.reset();
   };
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
