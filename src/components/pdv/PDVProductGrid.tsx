@@ -32,24 +32,38 @@ export function PDVProductGrid({ products, loading, onAddToCart }: PDVProductGri
           {search && <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2"><X className="w-4 h-4 text-muted-foreground" /></button>}
         </div>
       </div>
-      <div className="flex-1 overflow-y-auto p-2 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 auto-rows-min content-start">
+      <div className="flex-1 overflow-y-auto">
         {loading ? (
-          <div className="col-span-full text-center py-12 text-muted-foreground">Carregando...</div>
+          <div className="text-center py-12 text-muted-foreground">Carregando...</div>
         ) : filtered.length === 0 ? (
-          <div className="col-span-full text-center py-12 text-muted-foreground text-sm">Nenhum produto encontrado</div>
-        ) : filtered.map(p => (
-          <button key={p.id} onClick={() => onAddToCart(p)}
-            className="flex flex-col items-start p-2.5 rounded-lg bg-card border border-border hover:border-primary/40 transition-all text-left h-auto">
-            <span className="text-xs font-mono text-muted-foreground">{p.sku}</span>
-            <span className="text-sm font-semibold text-foreground line-clamp-2 mt-0.5">{p.name}</span>
-            <span className="text-sm font-bold text-primary font-mono mt-auto pt-1">
-              {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(p.price)}
-            </span>
-            <span className={`text-[10px] font-mono ${p.stock_quantity > 0 ? "text-muted-foreground" : "text-destructive"}`}>
-              Est: {p.stock_quantity} {p.unit}
-            </span>
-          </button>
-        ))}
+          <div className="text-center py-12 text-muted-foreground text-sm">Nenhum produto encontrado</div>
+        ) : (
+          <table className="w-full text-sm">
+            <thead className="sticky top-0 bg-card border-b border-border">
+              <tr className="text-left text-muted-foreground text-xs">
+                <th className="px-3 py-2 font-medium">Código</th>
+                <th className="px-3 py-2 font-medium">Produto</th>
+                <th className="px-3 py-2 font-medium text-right">Preço</th>
+                <th className="px-3 py-2 font-medium text-right">Estoque</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map(p => (
+                <tr key={p.id} onClick={() => onAddToCart(p)}
+                  className="border-b border-border/50 hover:bg-primary/10 cursor-pointer transition-colors">
+                  <td className="px-3 py-1.5 font-mono text-muted-foreground">{p.sku}</td>
+                  <td className="px-3 py-1.5 font-medium text-foreground">{p.name}</td>
+                  <td className="px-3 py-1.5 text-right font-mono text-primary font-semibold">
+                    {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(p.price)}
+                  </td>
+                  <td className={`px-3 py-1.5 text-right font-mono ${p.stock_quantity > 0 ? "text-muted-foreground" : "text-destructive"}`}>
+                    {p.stock_quantity} {p.unit}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
     </div>
   );
