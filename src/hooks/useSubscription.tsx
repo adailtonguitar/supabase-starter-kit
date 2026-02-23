@@ -127,15 +127,29 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
   useEffect(() => { checkSubscription(); const interval = setInterval(checkSubscription, 60_000); return () => clearInterval(interval); }, [checkSubscription]);
 
   const createCheckout = useCallback(async (planKey: string) => {
+    console.log("[createCheckout] Starting checkout for plan:", planKey);
     try {
       const { data, error } = await supabase.functions.invoke("create-checkout", { body: { planKey } });
-      if (error) throw error;
+      console.log("[createCheckout] Response data:", data, "error:", error);
+      if (error) {
+        console.error("[createCheckout] Function error:", error);
+        throw new Error(typeof error === "object" && error?.message ? error.message : "Erro ao criar checkout");
+      }
+      if (data?.error) {
+        console.error("[createCheckout] Data error:", data.error);
+        throw new Error(data.error);
+      }
       if (data?.url) {
+        console.log("[createCheckout] Redirecting to:", data.url);
         window.location.href = data.url;
       } else {
+        console.error("[createCheckout] No URL in response:", data);
         throw new Error("URL de checkout não retornada");
       }
-    } catch (err) { throw err; }
+    } catch (err) {
+      console.error("[createCheckout] Caught error:", err);
+      throw err;
+    }
   }, []);
 
   const openCustomerPortal = useCallback(async () => {
