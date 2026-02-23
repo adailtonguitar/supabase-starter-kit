@@ -1,2 +1,370 @@
-const RelatorioVendas = () => <div className="p-4"><h1 className="text-2xl font-bold text-foreground">Relatório de Vendas</h1></div>;
-export default RelatorioVendas;
+import { useState, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { BarChart3, Calendar, Download, TrendingUp, TrendingDown, DollarSign, Package } from "lucide-react";
+import { motion } from "framer-motion";
+import { supabase } from "@/integrations/supabase/client";
+import { useCompany } from "@/hooks/useCompany";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { format, startOfDay, endOfDay, startOfMonth, endOfMonth, parseISO } from "date-fns";
+import { ptBR } from "date-fns/locale";
+
+type DatePreset = "hoje" | "mes" | "custom";
+
+interface SaleItemJson {
+  product_id: string;
+  name: string;
+  sku: string;
+  quantity: number;
+  unit_price: number;
+  unit: string;
+}
+
+interface ProductProfit {
+  product_id: string;
+  name: string;
+  sku: string;
+  total_quantity: number;
+  total_revenue: number;
+  total_cost: number;
+  total_profit: number;
+  margin_percent: number;
+}
+
+function formatCurrency(value: number) {
+  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
+}
+
+export default function RelatorioVendas() {
+  const { companyId } = useCompany();
+  const [preset, setPreset] = useState<DatePreset>("hoje");
+  const [startDate, setStartDate] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [endDate, setEndDate] = useState(format(new Date(), "yyyy-MM-dd"));
+
+  const dateRange = useMemo(() => {
+    const now = new Date();
+    if (preset === "hoje") {
+      return { from: startOfDay(now).toISOString(), to: endOfDay(now).toISOString() };
+    }
+    if (preset === "mes") {
+      return { from: startOfMonth(now).toISOString(), to: endOfMonth(now).toISOString() };
+    }
+    return {
+      from: startOfDay(parseISO(startDate)).toISOString(),
+      to: endOfDay(parseISO(endDate)).toISOString(),
+    };
+  }, [preset, startDate, endDate]);
+
+  const { data: sales = [], isLoading: loadingSales } = useQuery({
+    queryKey: ["report-sales", companyId, dateRange.from, dateRange.to],
+    queryFn: async () => {
+      if (!companyId) return [];
+      const { data, error } = await supabase
+        .from("fiscal_documents")
+        .select("id, created_at, total_value, items_json, payment_method, status, customer_name")
+        .eq("company_id", companyId)
+        .eq("doc_type", "nfce")
+        .neq("status", "cancelada")
+        .gte("created_at", dateRange.from)
+        .lte("created_at", dateRange.to)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!companyId,
+  });
+
+  const { data: products = [], isLoading: loadingProducts } = useQuery({
+    queryKey: ["report-products", companyId],
+    queryFn: async () => {
+      if (!companyId) return [];
+      const { data, error } = await supabase
+        .from("products")
+        .select("id, name, sku, cost_price")
+        .eq("company_id", companyId);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!companyId,
+  });
+
+  const costMap = useMemo(() => {
+    const map: Record<string, number> = {};
+    products.forEach((p) => { map[p.id] = p.cost_price || 0; });
+    return map;
+  }, [products]);
+
+  const { productProfits, totals } = useMemo(() => {
+    const byProduct: Record<string, ProductProfit> = {};
+
+    for (const sale of sales) {
+      const items = (sale.items_json as unknown as SaleItemJson[] | null) || [];
+      for (const item of items) {
+        if (!byProduct[item.product_id]) {
+          byProduct[item.product_id] = {
+            product_id: item.product_id,
+            name: item.name,
+            sku: item.sku,
+            total_quantity: 0,
+            total_revenue: 0,
+            total_cost: 0,
+            total_profit: 0,
+            margin_percent: 0,
+          };
+        }
+        const p = byProduct[item.product_id];
+        const revenue = item.quantity * item.unit_price;
+        const cost = item.quantity * (costMap[item.product_id] || 0);
+        p.total_quantity += item.quantity;
+        p.total_revenue += revenue;
+        p.total_cost += cost;
+        p.total_profit += revenue - cost;
+      }
+    }
+
+    const list = Object.values(byProduct).map((p) => ({
+      ...p,
+      margin_percent: p.total_revenue > 0 ? (p.total_profit / p.total_revenue) * 100 : 0,
+    }));
+    list.sort((a, b) => b.total_profit - a.total_profit);
+
+    const totals = {
+      revenue: list.reduce((s, p) => s + p.total_revenue, 0),
+      cost: list.reduce((s, p) => s + p.total_cost, 0),
+      profit: list.reduce((s, p) => s + p.total_profit, 0),
+      quantity: list.reduce((s, p) => s + p.total_quantity, 0),
+      salesCount: sales.length,
+    };
+
+    return { productProfits: list, totals };
+  }, [sales, costMap]);
+
+  const isLoading = loadingSales || loadingProducts;
+
+  const handleExportCSV = () => {
+    const header = "Produto;SKU;Qtd Vendida;Receita;Custo;Lucro;Margem %\n";
+    const rows = productProfits.map((p) =>
+      `${p.name};${p.sku};${p.total_quantity};${p.total_revenue.toFixed(2)};${p.total_cost.toFixed(2)};${p.total_profit.toFixed(2)};${p.margin_percent.toFixed(1)}`
+    ).join("\n");
+    const footer = `\nTOTAL;;${totals.quantity};${totals.revenue.toFixed(2)};${totals.cost.toFixed(2)};${totals.profit.toFixed(2)};${totals.revenue > 0 ? ((totals.profit / totals.revenue) * 100).toFixed(1) : "0.0"}`;
+    const blob = new Blob([header + rows + footer], { type: "text/csv;charset=utf-8;" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `relatorio_vendas_${startDate}_${endDate}.csv`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
+
+  const inputClass = "px-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all";
+
+  return (
+    <div className="p-3 sm:p-6 space-y-4 sm:space-y-6 max-w-7xl mx-auto">
+      {/* Header */}
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+            <BarChart3 className="w-6 h-6 text-primary" />
+            Relatório de Vendas
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">Lucro por produto e totais do período</p>
+        </div>
+        <Button variant="outline" size="sm" onClick={handleExportCSV} disabled={productProfits.length === 0}>
+          <Download className="w-4 h-4 mr-2" />
+          Exportar CSV
+        </Button>
+      </div>
+
+      {/* Filters */}
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-card rounded-xl card-shadow border border-border p-4">
+        <div className="flex items-center gap-2 flex-wrap">
+          <Calendar className="w-4 h-4 text-muted-foreground" />
+          <div className="flex gap-1">
+            {(["hoje", "mes", "custom"] as DatePreset[]).map((p) => (
+              <button
+                key={p}
+                onClick={() => setPreset(p)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                  preset === p
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-secondary text-secondary-foreground hover:opacity-80"
+                }`}
+              >
+                {p === "hoje" ? "Hoje" : p === "mes" ? "Este Mês" : "Período"}
+              </button>
+            ))}
+          </div>
+          {preset === "custom" && (
+            <div className="flex items-center gap-2 ml-2">
+              <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className={inputClass} />
+              <span className="text-sm text-muted-foreground">até</span>
+              <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className={inputClass} />
+            </div>
+          )}
+        </div>
+      </motion.div>
+
+      {/* Summary Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {[
+          { label: "Vendas", value: totals.salesCount.toString(), icon: BarChart3, color: "text-primary" },
+          { label: "Receita Total", value: formatCurrency(totals.revenue), icon: DollarSign, color: "text-primary" },
+          { label: "Custo Total", value: formatCurrency(totals.cost), icon: TrendingDown, color: "text-destructive" },
+          { label: "Lucro Total", value: formatCurrency(totals.profit), icon: TrendingUp, color: totals.profit >= 0 ? "text-emerald-500" : "text-destructive" },
+        ].map((card, i) => (
+          <motion.div
+            key={card.label}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.05 }}
+            className="bg-card rounded-xl card-shadow border border-border p-4"
+          >
+            <div className="flex items-center gap-2 mb-2">
+              <card.icon className={`w-4 h-4 ${card.color}`} />
+              <span className="text-xs font-medium text-muted-foreground">{card.label}</span>
+            </div>
+            <p className={`text-lg font-bold font-mono ${card.color}`}>{isLoading ? "..." : card.value}</p>
+          </motion.div>
+        ))}
+      </div>
+
+      {/* Margin Overview */}
+      {!isLoading && totals.revenue > 0 && (
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-card rounded-xl card-shadow border border-border p-4">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium text-foreground">Margem de Lucro Geral</span>
+            <span className={`text-lg font-bold font-mono ${totals.profit >= 0 ? "text-emerald-500" : "text-destructive"}`}>
+              {((totals.profit / totals.revenue) * 100).toFixed(1)}%
+            </span>
+          </div>
+          <div className="mt-2 w-full bg-muted rounded-full h-2.5">
+            <div
+              className={`h-2.5 rounded-full transition-all ${totals.profit >= 0 ? "bg-emerald-500" : "bg-destructive"}`}
+              style={{ width: `${Math.min(Math.max((totals.profit / totals.revenue) * 100, 0), 100)}%` }}
+            />
+          </div>
+        </motion.div>
+      )}
+
+      {/* Product Profit - Mobile Cards */}
+      <div className="sm:hidden space-y-2">
+        <div className="flex items-center gap-2 px-1">
+          <Package className="w-4 h-4 text-primary" />
+          <h2 className="text-sm font-semibold text-foreground">Lucro por Produto</h2>
+          <span className="text-xs text-muted-foreground ml-auto">{productProfits.length} produtos</span>
+        </div>
+        {isLoading ? (
+          [...Array(3)].map((_, i) => <Skeleton key={i} className="h-20 w-full rounded-xl" />)
+        ) : productProfits.length === 0 ? (
+          <div className="text-center py-12 text-muted-foreground text-sm">Nenhuma venda no período.</div>
+        ) : (
+          productProfits.map((p) => (
+            <div key={p.product_id} className="bg-card rounded-xl border border-border p-3 space-y-2">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-foreground truncate">{p.name}</p>
+                  <p className="text-xs text-muted-foreground font-mono">{p.sku}</p>
+                </div>
+                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium shrink-0 ${
+                  p.margin_percent >= 30 ? "bg-emerald-500/10 text-emerald-500"
+                    : p.margin_percent >= 10 ? "bg-amber-500/10 text-amber-500"
+                    : "bg-destructive/10 text-destructive"
+                }`}>
+                  {p.margin_percent.toFixed(1)}%
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground pt-2 border-t border-border">
+                <span>Qtd: <strong className="text-foreground font-mono">{p.total_quantity}</strong></span>
+                <span>Receita: <strong className="text-foreground font-mono">{formatCurrency(p.total_revenue)}</strong></span>
+                <span>Lucro: <strong className={`font-mono ${p.total_profit >= 0 ? "text-emerald-500" : "text-destructive"}`}>{formatCurrency(p.total_profit)}</strong></span>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Product Profit - Desktop Table */}
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="hidden sm:block bg-card rounded-xl card-shadow border border-border overflow-hidden">
+        <div className="px-5 py-4 border-b border-border flex items-center gap-2">
+          <Package className="w-4 h-4 text-primary" />
+          <h2 className="text-base font-semibold text-foreground">Lucro por Produto</h2>
+          <span className="text-xs text-muted-foreground ml-auto">{productProfits.length} produtos</span>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border">
+                <th className="text-left px-5 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Produto</th>
+                <th className="text-right px-5 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Qtd</th>
+                <th className="text-right px-5 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Receita</th>
+                <th className="text-right px-5 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Custo</th>
+                <th className="text-right px-5 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Lucro</th>
+                <th className="text-right px-5 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Margem</th>
+              </tr>
+            </thead>
+            <tbody>
+              {isLoading ? (
+                [...Array(5)].map((_, i) => (
+                  <tr key={i} className="border-b border-border">
+                    <td className="px-5 py-3" colSpan={6}><Skeleton className="h-8 w-full" /></td>
+                  </tr>
+                ))
+              ) : productProfits.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-5 py-12 text-center text-muted-foreground">
+                    Nenhuma venda encontrada no período selecionado.
+                  </td>
+                </tr>
+              ) : (
+                <>
+                  {productProfits.map((p) => (
+                    <tr key={p.product_id} className="border-b border-border last:border-0 hover:bg-muted/50 transition-colors">
+                      <td className="px-5 py-3">
+                        <div>
+                          <span className="font-medium text-foreground">{p.name}</span>
+                          <span className="text-xs text-muted-foreground ml-2 font-mono">{p.sku}</span>
+                        </div>
+                      </td>
+                      <td className="px-5 py-3 text-right font-mono text-foreground">{p.total_quantity}</td>
+                      <td className="px-5 py-3 text-right font-mono text-foreground">{formatCurrency(p.total_revenue)}</td>
+                      <td className="px-5 py-3 text-right font-mono text-muted-foreground">{formatCurrency(p.total_cost)}</td>
+                      <td className={`px-5 py-3 text-right font-mono font-medium ${p.total_profit >= 0 ? "text-emerald-500" : "text-destructive"}`}>
+                        {formatCurrency(p.total_profit)}
+                      </td>
+                      <td className="px-5 py-3 text-right">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                          p.margin_percent >= 30 ? "bg-emerald-500/10 text-emerald-500"
+                            : p.margin_percent >= 10 ? "bg-amber-500/10 text-amber-500"
+                            : "bg-destructive/10 text-destructive"
+                        }`}>
+                          {p.margin_percent.toFixed(1)}%
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                  <tr className="bg-muted/30 font-semibold">
+                    <td className="px-5 py-3 text-foreground">TOTAL</td>
+                    <td className="px-5 py-3 text-right font-mono text-foreground">{totals.quantity}</td>
+                    <td className="px-5 py-3 text-right font-mono text-foreground">{formatCurrency(totals.revenue)}</td>
+                    <td className="px-5 py-3 text-right font-mono text-muted-foreground">{formatCurrency(totals.cost)}</td>
+                    <td className={`px-5 py-3 text-right font-mono ${totals.profit >= 0 ? "text-emerald-500" : "text-destructive"}`}>
+                      {formatCurrency(totals.profit)}
+                    </td>
+                    <td className="px-5 py-3 text-right">
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                        totals.revenue > 0 && (totals.profit / totals.revenue) * 100 >= 30
+                          ? "bg-emerald-500/10 text-emerald-500"
+                          : "bg-amber-500/10 text-amber-500"
+                      }`}>
+                        {totals.revenue > 0 ? ((totals.profit / totals.revenue) * 100).toFixed(1) : "0.0"}%
+                      </span>
+                    </td>
+                  </tr>
+                </>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
