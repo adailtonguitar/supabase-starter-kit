@@ -1,278 +1,426 @@
-import { useState } from "react";
-import { NavLink } from "react-router-dom";
-import { useAuth } from "@/hooks/useAuth";
-import { useCompany } from "@/hooks/useCompany";
-import { useSubscription } from "@/hooks/useSubscription";
-import { useAdminRole } from "@/hooks/useAdminRole";
-import { cn } from "@/lib/utils";
+import { useState, useEffect } from "react";
+import anthoLogo from "@/assets/logo-as.png";
+import { Link, useLocation } from "react-router-dom";
 import {
-  LayoutDashboard,
-  Package,
-  ShoppingCart,
-  Receipt,
-  DollarSign,
-  BarChart3,
-  Settings,
-  Users,
-  Building2,
-  Truck,
-  CreditCard,
-  Tags,
-  ChevronDown,
-  ChevronLeft,
-  LogOut,
-  Monitor,
-  FileText,
-  TrendingUp,
-  AlertTriangle,
-  Wallet,
-  PieChart,
-  Landmark,
-  Percent,
-  ArrowRightLeft,
-  ClipboardList,
-  Layers,
-  Boxes,
-  Scissors,
-  Heart,
-  Brain,
-  Tag,
-  FileCheck,
-  Flame,
-  HandCoins,
-  ShoppingBag,
-  Terminal,
-  Shield,
-  HelpCircle,
-  Menu,
-  X,
-  Factory,
+  ShoppingCart, LayoutDashboard, Package, FileText, Settings,
+  Wifi, WifiOff, RefreshCw, ChevronLeft, ChevronRight, ChevronDown,
+  Store, Receipt, Shield, ScrollText, LogOut, DollarSign, Landmark,
+  Users, Building2, ClipboardList, UserCheck, Factory, Truck, Tags, BarChart3, ArrowUpDown, User,
+  Download, Tag, TrendingUp, AlertTriangle as AlertTriangleIcon, FileSpreadsheet, GitGraph,
+  Percent, ArrowRightLeft, TrendingDown, Gift, Brain, Monitor, ShieldCheck, CreditCard, ChefHat,
+  HelpCircle, X,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { motion, AnimatePresence } from "framer-motion";
+import { useAuth } from "@/hooks/useAuth";
+import { useSync } from "@/hooks/useSync";
+import { useAdminRole } from "@/hooks/useAdminRole";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface NavItem {
+  icon: any;
   label: string;
-  to: string;
-  icon: React.ElementType;
-  children?: NavItem[];
-  gated?: boolean;
+  path: string;
 }
 
-const navItems: NavItem[] = [
-  { label: "Dashboard", to: "/dashboard", icon: LayoutDashboard },
-  { label: "PDV", to: "/pdv", icon: Monitor },
-  { label: "Produtos", to: "/produtos", icon: Package },
-  { label: "Vendas", to: "/vendas", icon: ShoppingCart },
-  { label: "Relatório Vendas", to: "/relatorio-vendas", icon: BarChart3 },
-  { label: "Caixa", to: "/caixa", icon: Wallet },
+interface NavGroup {
+  icon: any;
+  label: string;
+  children: NavItem[];
+}
+
+type NavEntry = NavItem | NavGroup;
+
+function isGroup(entry: NavEntry): entry is NavGroup {
+  return "children" in entry;
+}
+
+const navItems: NavEntry[] = [
+  { icon: ShoppingCart, label: "PDV", path: "/pdv" },
+  { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
   {
-    label: "Financeiro",
-    to: "/financeiro",
-    icon: DollarSign,
-    children: [
-      { label: "Financeiro", to: "/financeiro", icon: DollarSign },
-      { label: "Painel Lucro", to: "/painel-lucro", icon: TrendingUp, gated: true },
-      { label: "Lucro Diário", to: "/lucro-diario", icon: BarChart3 },
-      { label: "Alertas", to: "/alertas", icon: AlertTriangle, gated: true },
-      { label: "DRE", to: "/dre", icon: FileText, gated: true },
-      { label: "Fluxo de Caixa", to: "/fluxo-caixa", icon: PieChart, gated: true },
-      { label: "Centro de Custo", to: "/centro-custo", icon: Landmark, gated: true },
-      { label: "Comissões", to: "/comissoes", icon: Percent, gated: true },
-      { label: "Conciliação", to: "/conciliacao", icon: ArrowRightLeft, gated: true },
-    ],
-  },
-  {
+    icon: Package,
     label: "Estoque",
-    to: "/estoque/movimentacoes",
-    icon: Boxes,
     children: [
-      { label: "Movimentações", to: "/estoque/movimentacoes", icon: ArrowRightLeft },
-      { label: "Inventário", to: "/estoque/inventario", icon: ClipboardList },
-      { label: "Curva ABC", to: "/estoque/curva-abc", icon: BarChart3, gated: true },
-      { label: "Lotes", to: "/estoque/lotes", icon: Layers },
-      { label: "Perdas", to: "/estoque/perdas", icon: Scissors },
+      { icon: Package, label: "Produtos", path: "/produtos" },
+      { icon: ClipboardList, label: "Inventário", path: "/estoque/inventario" },
+      { icon: BarChart3, label: "Curva ABC", path: "/estoque/curva-abc" },
+      { icon: Tags, label: "Lotes & Validade", path: "/estoque/lotes" },
+      { icon: TrendingDown, label: "Perdas", path: "/estoque/perdas" },
+      { icon: ShoppingCart, label: "Pedidos Compra", path: "/pedidos-compra" },
+      { icon: Tag, label: "Etiquetas", path: "/etiquetas" },
+      { icon: ChefHat, label: "Produção", path: "/producao" },
     ],
   },
   {
-    label: "Cadastros",
-    to: "/cadastro/empresas",
-    icon: Building2,
+    icon: FileText,
+    label: "Vendas",
     children: [
-      { label: "Empresas", to: "/cadastro/empresas", icon: Building2 },
-      { label: "Clientes", to: "/cadastro/clientes", icon: Users },
-      { label: "Fornecedores", to: "/cadastro/fornecedores", icon: Truck },
-      { label: "Funcionários", to: "/cadastro/funcionarios", icon: Users },
-      { label: "Transportadoras", to: "/cadastro/transportadoras", icon: Truck },
-      { label: "Adm. Cartões", to: "/cadastro/adm-cartoes", icon: CreditCard },
-      { label: "Categorias", to: "/cadastro/categorias", icon: Tags },
+      { icon: FileText, label: "Histórico", path: "/vendas" },
+      { icon: Tag, label: "Promoções", path: "/promocoes" },
+      { icon: CreditCard, label: "Fiado", path: "/fiado" },
+      { icon: ScrollText, label: "Orçamentos", path: "/orcamentos" },
+      { icon: Gift, label: "Fidelidade", path: "/fidelidade" },
     ],
   },
   {
-    label: "Fiscal",
-    to: "/fiscal",
+    icon: BarChart3,
+    label: "Relatórios",
+    children: [
+      { icon: BarChart3, label: "Relatório Vendas", path: "/relatorio-vendas" },
+      { icon: Brain, label: "Relatórios IA", path: "/relatorios-ia" },
+    ],
+  },
+  {
+    icon: ArrowUpDown,
+    label: "Movimentações",
+    children: [
+      { icon: ArrowUpDown, label: "Estoque", path: "/estoque/movimentacoes" },
+      { icon: DollarSign, label: "Caixa", path: "/caixa" },
+      { icon: Landmark, label: "Contas", path: "/financeiro" },
+    ],
+  },
+  {
+    icon: Landmark,
+    label: "Análise Financeira",
+    children: [
+      { icon: TrendingUp, label: "Lucro Diário", path: "/lucro-diario" },
+      { icon: TrendingUp, label: "Painel de Lucro", path: "/painel-lucro" },
+      { icon: FileSpreadsheet, label: "DRE", path: "/dre" },
+      { icon: GitGraph, label: "Fluxo Projetado", path: "/fluxo-caixa" },
+      { icon: Building2, label: "Centro de Custo", path: "/centro-custo" },
+      { icon: Percent, label: "Comissões", path: "/comissoes" },
+      { icon: ArrowRightLeft, label: "Conciliação Bancária", path: "/conciliacao" },
+      { icon: AlertTriangleIcon, label: "Alertas Financeiros", path: "/alertas" },
+    ],
+  },
+  {
+    icon: ClipboardList,
+    label: "Cadastro",
+    children: [
+      { icon: Building2, label: "Empresa", path: "/cadastro/empresas" },
+      { icon: Users, label: "Clientes", path: "/cadastro/clientes" },
+      { icon: Factory, label: "Fornecedores", path: "/cadastro/fornecedores" },
+      { icon: UserCheck, label: "Funcionários", path: "/cadastro/funcionarios" },
+      { icon: Truck, label: "Transportadoras", path: "/cadastro/transportadoras" },
+      { icon: CreditCard, label: "ADM Cartões", path: "/cadastro/adm-cartoes" },
+      { icon: Tags, label: "Categorias", path: "/cadastro/categorias" },
+      { icon: Users, label: "Usuários", path: "/usuarios" },
+    ],
+  },
+  {
     icon: Receipt,
+    label: "Fiscal",
     children: [
-      { label: "Notas Fiscais", to: "/fiscal", icon: Receipt },
-      { label: "Configuração", to: "/fiscal/config", icon: Settings },
-      { label: "Assinador", to: "/fiscal/assinador", icon: FileCheck },
-      { label: "Auditoria", to: "/fiscal/auditoria", icon: ClipboardList },
-      { label: "Comparar XML", to: "/fiscal/comparar-xml", icon: FileText },
+      { icon: Receipt, label: "Documentos", path: "/fiscal" },
+      { icon: Shield, label: "Config. Fiscal", path: "/fiscal/config" },
+      { icon: ScrollText, label: "Auditoria", path: "/fiscal/auditoria" },
+      { icon: ArrowRightLeft, label: "Comparar XML", path: "/fiscal/comparar-xml" },
+      { icon: Download, label: "Assinador Digital", path: "/fiscal/assinador" },
     ],
   },
-  { label: "Produção", to: "/producao", icon: Factory },
-  { label: "Fidelidade", to: "/fidelidade", icon: Heart, gated: true },
-  { label: "Relatórios IA", to: "/relatorios-ia", icon: Brain, gated: true },
-  { label: "Etiquetas", to: "/etiquetas", icon: Tag },
-  { label: "Orçamentos", to: "/orcamentos", icon: FileText, gated: true },
-  { label: "Promoções", to: "/promocoes", icon: Flame },
-  { label: "Fiado", to: "/fiado", icon: HandCoins },
-  { label: "Pedidos Compra", to: "/pedidos-compra", icon: ShoppingBag },
-  { label: "Terminais", to: "/terminais", icon: Terminal },
-  { label: "Usuários", to: "/usuarios", icon: Users },
-  { label: "Configurações", to: "/configuracoes", icon: Settings },
-  { label: "Ajuda", to: "/ajuda", icon: HelpCircle },
+  { icon: Settings, label: "Configurações", path: "/configuracoes" },
+  { icon: Monitor, label: "Terminais", path: "/terminais" },
+  { icon: HelpCircle, label: "Ajuda", path: "/ajuda" },
+  { icon: Download, label: "Instalar App", path: "/install" },
 ];
 
-function SidebarGroup({ item, collapsed }: { item: NavItem; collapsed: boolean }) {
-  const [open, setOpen] = useState(false);
+const adminNavItem: NavItem = { icon: ShieldCheck, label: "Admin", path: "/admin" };
 
-  if (!item.children) {
-    return <SidebarLink item={item} collapsed={collapsed} />;
+interface AppSidebarProps {
+  mobileOpen?: boolean;
+  onMobileClose?: () => void;
+}
+
+export function AppSidebar({ mobileOpen, onMobileClose }: AppSidebarProps) {
+  const location = useLocation();
+  const isMobile = useIsMobile();
+  const [collapsed, setCollapsed] = useState(false);
+  const { isOnline, pendingCount, syncing, syncAll } = useSync();
+  const { signOut, user } = useAuth();
+  const { isSuperAdmin } = useAdminRole();
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
+    const initial: Record<string, boolean> = {};
+    navItems.forEach((entry) => {
+      if (isGroup(entry)) {
+        initial[entry.label] = entry.children.some((c) => location.pathname === c.path);
+      }
+    });
+    return initial;
+  });
+
+  useEffect(() => {
+    if (isMobile && onMobileClose) {
+      onMobileClose();
+    }
+  }, [location.pathname]);
+
+  let visibleNavItems: NavEntry[] = navItems;
+  if (isSuperAdmin) {
+    visibleNavItems = [...visibleNavItems, adminNavItem];
+  }
+
+  const toggleGroup = (label: string) => {
+    if (collapsed) return;
+    setOpenGroups((prev) => ({ ...prev, [label]: !prev[label] }));
+  };
+
+  const isChildActive = (group: NavGroup) =>
+    group.children.some((c) => location.pathname === c.path);
+
+  if (isMobile) {
+    return (
+      <AnimatePresence>
+        {mobileOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/50 z-40"
+              onClick={onMobileClose}
+            />
+            <motion.aside
+              initial={{ x: -280 }}
+              animate={{ x: 0 }}
+              exit={{ x: -280 }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              className="fixed top-0 left-0 bottom-0 w-[280px] bg-sidebar border-r border-sidebar-border z-50 flex flex-col"
+            >
+              <div className="flex items-center justify-between px-3 py-2">
+                <div className="flex items-center gap-2">
+                  <img src={anthoLogo} alt="AnthoSystem" className="h-10 w-10 object-contain" />
+                  <span className="text-sm font-bold text-sidebar-foreground">AnthoSystem</span>
+                </div>
+                <button onClick={onMobileClose} className="p-2 rounded-lg text-sidebar-foreground hover:bg-sidebar-accent">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <nav className="flex-1 py-3 px-2 space-y-1 overflow-y-auto">
+                {visibleNavItems.map((entry) => {
+                  if (isGroup(entry)) {
+                    const groupOpen = !!openGroups[entry.label];
+                    return (
+                      <div key={entry.label}>
+                        <button
+                          onClick={() => toggleGroup(entry.label)}
+                          className={cn(
+                            "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
+                            isChildActive(entry)
+                              ? "text-sidebar-primary"
+                              : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                          )}
+                        >
+                          <entry.icon className="w-5 h-5 flex-shrink-0" />
+                          <span className="whitespace-nowrap flex-1 text-left">{entry.label}</span>
+                          <ChevronDown className={cn("w-4 h-4 transition-transform", groupOpen && "rotate-180")} />
+                        </button>
+                        <AnimatePresence>
+                          {groupOpen && (
+                            <motion.div
+                              initial={{ height: 0, opacity: 0 }}
+                              animate={{ height: "auto", opacity: 1 }}
+                              exit={{ height: 0, opacity: 0 }}
+                              className="overflow-hidden ml-4 border-l border-sidebar-border pl-2 space-y-0.5"
+                            >
+                              {entry.children.map((child) => {
+                                const isActive = location.pathname === child.path;
+                                return (
+                                  <Link
+                                    key={child.path}
+                                    to={child.path}
+                                    className={cn(
+                                      "flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200",
+                                      isActive
+                                        ? "bg-sidebar-accent text-sidebar-primary"
+                                        : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                                    )}
+                                  >
+                                    <child.icon className={cn("w-4 h-4 flex-shrink-0", isActive && "text-sidebar-primary")} />
+                                    <span className="whitespace-nowrap">{child.label}</span>
+                                  </Link>
+                                );
+                              })}
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
+                    );
+                  }
+
+                  const isActive = location.pathname === entry.path;
+                  return (
+                    <Link
+                      key={entry.path}
+                      to={entry.path}
+                      className={cn(
+                        "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
+                        isActive
+                          ? "bg-sidebar-accent text-sidebar-primary"
+                          : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                      )}
+                    >
+                      <entry.icon className={cn("w-5 h-5 flex-shrink-0", isActive && "text-sidebar-primary")} />
+                      <span className="whitespace-nowrap">{entry.label}</span>
+                    </Link>
+                  );
+                })}
+              </nav>
+
+              <div className="px-2 pb-2 space-y-0.5 border-t border-sidebar-border pt-2">
+                <div className="flex items-center gap-2 px-2 py-1 rounded-lg">
+                  <User className="w-3.5 h-3.5 text-sidebar-foreground flex-shrink-0" />
+                  <span className="text-[11px] text-sidebar-foreground font-medium truncate">{user?.email}</span>
+                </div>
+                {pendingCount > 0 && (
+                  <button onClick={syncAll} disabled={syncing || !isOnline} className="flex items-center gap-2 px-2 py-1 rounded-lg bg-sidebar-accent w-full">
+                    <RefreshCw className={cn("w-3.5 h-3.5 text-warning flex-shrink-0", syncing && "animate-spin")} />
+                    <span className="text-[11px] text-sidebar-foreground">{pendingCount} pendentes</span>
+                  </button>
+                )}
+                <div className="flex items-center gap-2 px-2 py-1 rounded-lg">
+                  {isOnline ? (
+                    <><Wifi className="w-3.5 h-3.5 status-online flex-shrink-0" /><span className="text-[11px] status-online font-medium">Online</span></>
+                  ) : (
+                    <><WifiOff className="w-3.5 h-3.5 status-offline flex-shrink-0" /><span className="text-[11px] status-offline font-medium">Offline</span></>
+                  )}
+                </div>
+                <button onClick={signOut} className="w-full flex items-center gap-2 px-2 py-1 rounded-lg text-sidebar-foreground hover:bg-sidebar-accent transition-colors">
+                  <LogOut className="w-3.5 h-3.5 flex-shrink-0" /><span className="text-[11px]">Sair</span>
+                </button>
+              </div>
+            </motion.aside>
+          </>
+        )}
+      </AnimatePresence>
+    );
   }
 
   return (
-    <div>
-      <button
-        onClick={() => setOpen(!open)}
-        className={cn(
-          "flex items-center w-full gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
-          "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-          collapsed && "justify-center px-2"
-        )}
-      >
-        <item.icon className="w-4 h-4 shrink-0" />
-        {!collapsed && (
-          <>
-            <span className="flex-1 text-left truncate">{item.label}</span>
-            <ChevronDown className={cn("w-3.5 h-3.5 transition-transform", open && "rotate-180")} />
-          </>
-        )}
-      </button>
-      {open && !collapsed && (
-        <div className="ml-4 mt-0.5 space-y-0.5 border-l border-sidebar-border pl-3">
-          {item.children.map((child) => (
-            <SidebarLink key={child.to} item={child} collapsed={false} sub />
-          ))}
-        </div>
+    <aside
+      className={cn(
+        "flex flex-col h-screen bg-sidebar border-r border-sidebar-border transition-all duration-300 relative z-10",
+        collapsed ? "w-[72px]" : "w-[240px]"
       )}
-    </div>
-  );
-}
-
-function SidebarLink({ item, collapsed, sub }: { item: NavItem; collapsed: boolean; sub?: boolean }) {
-  return (
-    <NavLink
-      to={item.to}
-      className={({ isActive }) =>
-        cn(
-          "flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors",
-          sub ? "text-xs py-1.5" : "font-medium",
-          isActive
-            ? "bg-sidebar-primary text-sidebar-primary-foreground"
-            : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-          collapsed && "justify-center px-2"
-        )
-      }
     >
-      <item.icon className={cn("shrink-0", sub ? "w-3.5 h-3.5" : "w-4 h-4")} />
-      {!collapsed && <span className="truncate">{item.label}</span>}
-    </NavLink>
-  );
-}
+      <div className="flex flex-col items-center justify-center px-2 py-2 overflow-visible">
+        <img src={anthoLogo} alt="AnthoSystem" className={cn("object-contain", collapsed ? "w-8 h-8" : "h-20 w-full -mb-3")} style={collapsed ? undefined : { marginTop: '0px', marginBottom: '-12px' }} />
+        {!collapsed && <span className="text-sm font-bold text-sidebar-foreground tracking-wide -mt-1">AnthoSystem</span>}
+      </div>
 
-export function AppSidebar() {
-  const { signOut } = useAuth();
-  const { companyName, logoUrl } = useCompany();
-  const { isSuperAdmin } = useAdminRole();
-  const [collapsed, setCollapsed] = useState(false);
-  const [mobileOpen, setMobileOpen] = useState(false);
+      <nav className="flex-1 py-3 px-2 space-y-1 overflow-y-auto">
+        {visibleNavItems.map((entry) => {
+          if (isGroup(entry)) {
+            const groupOpen = !!openGroups[entry.label];
+            return (
+              <div key={entry.label}>
+                <button
+                  onClick={() => toggleGroup(entry.label)}
+                  className={cn(
+                    "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
+                    isChildActive(entry)
+                      ? "text-sidebar-primary"
+                      : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                  )}
+                >
+                  <entry.icon className="w-5 h-5 flex-shrink-0" />
+                  <AnimatePresence>
+                    {!collapsed && (
+                      <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="whitespace-nowrap flex-1 text-left">
+                        {entry.label}
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
+                  {!collapsed && (
+                    <ChevronDown className={cn("w-4 h-4 transition-transform", groupOpen && "rotate-180")} />
+                  )}
+                </button>
+                <AnimatePresence>
+                  {groupOpen && !collapsed && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      className="overflow-hidden ml-4 border-l border-sidebar-border pl-2 space-y-0.5"
+                    >
+                      {entry.children.map((child) => {
+                        const isActive = location.pathname === child.path;
+                        return (
+                          <Link
+                            key={child.path}
+                            to={child.path}
+                            className={cn(
+                              "flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200",
+                              isActive
+                                ? "bg-sidebar-accent text-sidebar-primary"
+                                : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                            )}
+                          >
+                            <child.icon className={cn("w-4 h-4 flex-shrink-0", isActive && "text-sidebar-primary")} />
+                            <span className="whitespace-nowrap">{child.label}</span>
+                          </Link>
+                        );
+                      })}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            );
+          }
 
-  const adminItem: NavItem = { label: "Admin", to: "/admin", icon: Shield };
+          const isActive = location.pathname === entry.path;
+          return (
+            <Link
+              key={entry.path}
+              to={entry.path}
+              className={cn(
+                "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
+                isActive
+                  ? "bg-sidebar-accent text-sidebar-primary"
+                  : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+              )}
+            >
+              <entry.icon className={cn("w-5 h-5 flex-shrink-0", isActive && "text-sidebar-primary")} />
+              <AnimatePresence>
+                {!collapsed && (
+                  <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="whitespace-nowrap">
+                    {entry.label}
+                  </motion.span>
+                )}
+              </AnimatePresence>
+            </Link>
+          );
+        })}
+      </nav>
 
-  return (
-    <>
-      {/* Mobile toggle */}
-      <button
-        onClick={() => setMobileOpen(true)}
-        className="fixed top-3 left-3 z-50 md:hidden p-2 rounded-lg bg-card border border-border shadow-md"
-        aria-label="Abrir menu"
-      >
-        <Menu className="w-5 h-5" />
-      </button>
-
-      {/* Mobile overlay */}
-      {mobileOpen && (
-        <div className="fixed inset-0 z-40 bg-black/50 md:hidden" onClick={() => setMobileOpen(false)} />
-      )}
-
-      {/* Sidebar */}
-      <aside
-        className={cn(
-          "flex flex-col h-full bg-sidebar-background text-sidebar-foreground border-r border-sidebar-border",
-          "transition-all duration-200 z-50",
-          collapsed ? "w-16" : "w-60",
-          "hidden md:flex",
-          mobileOpen && "!flex fixed inset-y-0 left-0 w-60"
-        )}
-      >
-        {/* Header */}
-        <div className="flex items-center gap-3 px-3 py-4 border-b border-sidebar-border min-h-[56px]">
-          {logoUrl && !collapsed ? (
-            <img src={logoUrl} alt="Logo" className="w-8 h-8 rounded-lg object-cover shrink-0" />
-          ) : (
-            <div className="w-8 h-8 rounded-lg bg-sidebar-primary flex items-center justify-center shrink-0">
-              <span className="text-sidebar-primary-foreground text-sm font-bold">
-                {companyName?.[0]?.toUpperCase() || "A"}
-              </span>
-            </div>
-          )}
+      <div className="px-2 pb-2 space-y-0.5 border-t border-sidebar-border pt-2">
+        <div className={cn("flex items-center gap-2 px-2 py-1 rounded-lg", collapsed && "justify-center")}>
+          <User className="w-3.5 h-3.5 text-sidebar-foreground flex-shrink-0" />
           {!collapsed && (
-            <span className="text-sm font-semibold truncate">{companyName || "Minha Empresa"}</span>
+            <span className="text-[11px] text-sidebar-foreground font-medium truncate">{user?.email}</span>
           )}
-          {/* Mobile close */}
-          <button onClick={() => setMobileOpen(false)} className="ml-auto md:hidden p-1">
-            <X className="w-4 h-4" />
-          </button>
         </div>
-
-        {/* Nav */}
-        <nav className="flex-1 overflow-y-auto px-2 py-3 space-y-0.5 scrollbar-thin">
-          {navItems.map((item) => (
-            <SidebarGroup key={item.to + item.label} item={item} collapsed={collapsed} />
-          ))}
-          {isSuperAdmin && <SidebarLink item={adminItem} collapsed={collapsed} />}
-        </nav>
-
-        {/* Footer */}
-        <div className="border-t border-sidebar-border p-2 space-y-1">
-          <button
-            onClick={() => setCollapsed(!collapsed)}
-            className="hidden md:flex items-center gap-3 w-full px-3 py-2 rounded-lg text-xs text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
-          >
-            <ChevronLeft className={cn("w-4 h-4 transition-transform", collapsed && "rotate-180")} />
-            {!collapsed && <span>Recolher</span>}
+        {pendingCount > 0 && (
+          <button onClick={syncAll} disabled={syncing || !isOnline} className={cn("flex items-center gap-2 px-2 py-1 rounded-lg bg-sidebar-accent w-full", collapsed && "justify-center")}>
+            <RefreshCw className={cn("w-3.5 h-3.5 text-warning flex-shrink-0", syncing && "animate-spin")} />
+            {!collapsed && <span className="text-[11px] text-sidebar-foreground">{pendingCount} pendentes</span>}
           </button>
-          <button
-            onClick={signOut}
-            className={cn(
-              "flex items-center gap-3 w-full px-3 py-2 rounded-lg text-xs text-destructive hover:bg-destructive/10 transition-colors",
-              collapsed && "justify-center px-2"
-            )}
-          >
-            <LogOut className="w-4 h-4 shrink-0" />
-            {!collapsed && <span>Sair</span>}
-          </button>
+        )}
+        <div className={cn("flex items-center gap-2 px-2 py-1 rounded-lg", collapsed && "justify-center")}>
+          {isOnline ? (
+            <><Wifi className="w-3.5 h-3.5 status-online flex-shrink-0" />{!collapsed && <span className="text-[11px] status-online font-medium">Online</span>}</>
+          ) : (
+            <><WifiOff className="w-3.5 h-3.5 status-offline flex-shrink-0" />{!collapsed && <span className="text-[11px] status-offline font-medium">Offline</span>}</>
+          )}
         </div>
-      </aside>
-    </>
+        <button onClick={signOut} className={cn("w-full flex items-center gap-2 px-2 py-1 rounded-lg text-sidebar-foreground hover:bg-sidebar-accent transition-colors", collapsed && "justify-center")}>
+          <LogOut className="w-3.5 h-3.5 flex-shrink-0" />{!collapsed && <span className="text-[11px]">Sair</span>}
+        </button>
+        <button onClick={() => setCollapsed(!collapsed)} className="w-full flex items-center justify-center py-1 rounded-lg text-sidebar-foreground hover:bg-sidebar-accent transition-colors">
+          {collapsed ? <ChevronRight className="w-3.5 h-3.5" /> : <ChevronLeft className="w-3.5 h-3.5" />}
+        </button>
+      </div>
+    </aside>
   );
 }
