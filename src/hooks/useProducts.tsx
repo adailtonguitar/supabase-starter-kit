@@ -36,6 +36,41 @@ export function useProducts() {
   });
 }
 
+export function useCreateProduct() {
+  const queryClient = useQueryClient();
+  const { companyId } = useCompany();
+  return useMutation({
+    mutationFn: async (product: Partial<Product>) => {
+      if (!companyId) throw new Error("Empresa não encontrada");
+      const { data, error } = await supabase
+        .from("products")
+        .insert({ ...product, company_id: companyId })
+        .select()
+        .single();
+      if (error) throw error;
+      return data as Product;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["products"] }),
+  });
+}
+
+export function useUpdateProduct() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, ...updates }: Partial<Product> & { id: string }) => {
+      const { data, error } = await supabase
+        .from("products")
+        .update(updates)
+        .eq("id", id)
+        .select()
+        .single();
+      if (error) throw error;
+      return data as Product;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["products"] }),
+  });
+}
+
 export function useDeleteProduct() {
   const queryClient = useQueryClient();
   return useMutation({
