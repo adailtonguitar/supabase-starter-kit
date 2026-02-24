@@ -32,12 +32,14 @@ export function SubscriptionBanner() {
   };
 
   const bannerType = useMemo(() => {
+    if (adminLoading || subLoading) return null;
+    if (isSuperAdmin) return null;
     if (subscribed && daysUntilExpiry !== null && daysUntilExpiry <= 5) return "expiry";
     if (gracePeriodActive && graceDaysLeft !== null) return "grace";
     if (trialActive && trialDaysLeft !== null && trialDaysLeft <= 3) return "trial";
     if (subscribed && planKey === "essencial") return "upgrade";
     return null;
-  }, [subscribed, daysUntilExpiry, gracePeriodActive, graceDaysLeft, trialActive, trialDaysLeft, planKey]);
+  }, [adminLoading, subLoading, isSuperAdmin, subscribed, daysUntilExpiry, gracePeriodActive, graceDaysLeft, trialActive, trialDaysLeft, planKey]);
 
   const [visibleBannerType, setVisibleBannerType] = useState<string | null>(null);
 
@@ -54,8 +56,7 @@ export function SubscriptionBanner() {
     return () => window.clearTimeout(timeoutId);
   }, [bannerType]);
 
-  if (adminLoading || subLoading) return null;
-  if (dismissed || isSuperAdmin) return null;
+  if (dismissed || !visibleBannerType) return null;
 
   if (visibleBannerType === "expiry") {
     return (
