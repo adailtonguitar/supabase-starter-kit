@@ -44,9 +44,15 @@ export function AiInsightWidget() {
       });
 
       if (!resp.ok) {
-        const text = await resp.text();
-        console.error("[AiInsight] HTTP error:", resp.status, text);
-        setErrorMsg(`Erro ${resp.status}. Verifique o deploy da edge function.`);
+        let msg = `Erro ${resp.status}.`;
+        try {
+          const errData = await resp.json();
+          if (errData?.error) msg = errData.error;
+        } catch {
+          await resp.text();
+        }
+        console.error("[AiInsight] HTTP error:", resp.status, msg);
+        setErrorMsg(msg);
         setLoading(false);
         return;
       }
