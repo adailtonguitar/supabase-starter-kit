@@ -26,7 +26,6 @@ function buildDataSummary(
   const lucro = receitas - despesas;
   const margem = receitas > 0 ? ((lucro / receitas) * 100).toFixed(1) : "0.0";
 
-  // Payment methods breakdown
   const paymentMethods: Record<string, number> = {};
   sales.forEach((s) => {
     try {
@@ -38,7 +37,6 @@ function buildDataSummary(
     } catch {}
   });
 
-  // Average product margin
   const productsWithMargin = products.filter((p) => p.sale_price > 0 && p.cost_price > 0);
   const avgMargin = productsWithMargin.length > 0
     ? productsWithMargin.reduce((s, p) => s + ((p.sale_price - p.cost_price) / p.sale_price) * 100, 0) / productsWithMargin.length
@@ -100,10 +98,7 @@ Um parágrafo introdutório resumindo a situação geral da empresa.
 Análise geral do período em 1-2 parágrafos.
 
 ### 2. Indicadores Chave
-Liste os indicadores mais relevantes em negrito com valores. Exemplo:
-**Total de Vendas:** X
-**Receita Total:** R$ X
-(inclua todos os indicadores relevantes dos dados fornecidos)
+Liste os indicadores mais relevantes em negrito com valores.
 
 ### 3. Análise Detalhada
 Análise aprofundada com observações estratégicas sobre os dados.
@@ -120,7 +115,6 @@ Parágrafo final com perspectiva geral e próximos passos sugeridos.
 Use linguagem profissional mas acessível. Valores monetários em R$ formatados. Seja específico com os dados fornecidos.`;
 }
 
-// Fallback programmatic report (no AI key)
 function generateFallbackReport(reportType: string, sales: any[], products: any[], financial: any[]) {
   const totalSales = sales.reduce((s, r) => s + Number(r.total || 0), 0);
   const ticketMedio = sales.length > 0 ? totalSales / sales.length : 0;
@@ -177,85 +171,84 @@ Deno.serve(async (req) => {
     const financial = financialRes.data || [];
     const isQuick = report_type === "quick";
 
-    // Try Google Gemini API
-    const GOOGLE_GEMINI_KEY = Deno.env.get("GOOGLE_GEMINI_KEY");
-    const debugInfo = `[DEBUG] Key present: ${!!GOOGLE_GEMINI_KEY}, length: ${GOOGLE_GEMINI_KEY?.length || 0}, starts: ${GOOGLE_GEMINI_KEY?.substring(0, 4) || "N/A"}`;
-    console.log(debugInfo);
-    
-    if (GOOGLE_GEMINI_KEY) {
+    // Use Lovable AI Gateway (LOVABLE_API_KEY is auto-provisioned)
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    console.log("[ai-report] LOVABLE_API_KEY present:", !!LOVABLE_API_KEY);
+
+    if (LOVABLE_API_KEY) {
       try {
         const dataSummary = buildDataSummary(report_type || "general", sales, products, financial);
         const systemPrompt = getSystemPrompt(report_type || "general", isQuick);
 
-        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GOOGLE_GEMINI_KEY}`;
-        console.log("[ai-report] Calling Gemini API...");
-        
-        const aiResponse = await fetch(geminiUrl, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              contents: [
-                { role: "user", parts: [{ text: `${systemPrompt}\n\n${dataSummary}` }] },
-              ],
-              generationConfig: {
-                maxOutputTokens: isQuick ? 200 : 2048,
-                temperature: 0.7,
-              },
-            }),
-          }
-        );
+        console.log("[ai-report] Calling Lovable AI Gateway...");
 
-        console.log("[ai-report] Gemini status:", aiResponse.status);
+        const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "google/gemini-3-flash-preview",
+            messages: [
+              { role: "system", content: systemPrompt },
+              { role: "user", content: dataSummary },
+            ],
+            max_tokens: isQuick ? 200 : 2048,
+            temperature: 0.7,
+          }),
+        });
 
-      if (aiResponse.status === 429) {
-          console.warn("Gemini 429 rate limit, using fallback report");
-          // Fall through to fallback with debug
+        console.log("[ai-report] Gateway status:", aiResponse.status);
+
+        if (aiResponse.status === 429) {
+          console.warn("[ai-report] Rate limited, using fallback");
           const report = generateFallbackReport(report_type || "general", sales, products, financial);
-          return new Response(JSON.stringify({ report, debug: "Gemini 429 rate limit" }), {
+          return new Response(JSON.stringify({ report, debug: "Rate limit 429 - usando fallback" }), {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
-        } else if (aiResponse.ok) {
+        }
+
+        if (aiResponse.status === 402) {
+          console.warn("[ai-report] Payment required");
+          const report = generateFallbackReport(report_type || "general", sales, products, financial);
+          return new Response(JSON.stringify({ report, debug: "Créditos insuficientes (402)" }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        if (aiResponse.ok) {
           const aiData = await aiResponse.json();
-          const content = aiData.candidates?.[0]?.content?.parts?.[0]?.text;
+          const content = aiData.choices?.[0]?.message?.content;
           if (content) {
             return new Response(JSON.stringify({ report: content }), {
               headers: { ...corsHeaders, "Content-Type": "application/json" },
             });
           }
-          console.error("[ai-report] No content in Gemini response:", JSON.stringify(aiData).substring(0, 500));
+          console.error("[ai-report] No content in response:", JSON.stringify(aiData).substring(0, 500));
         } else {
           const errText = await aiResponse.text();
-          console.error("Gemini API error:", aiResponse.status, errText);
-          // Return error details so user can diagnose
-          return new Response(JSON.stringify({ 
-            report: null, 
-            error: `Gemini API erro ${aiResponse.status}: ${errText.substring(0, 200)}`,
-            debug: debugInfo
+          console.error("[ai-report] Gateway error:", aiResponse.status, errText);
+          return new Response(JSON.stringify({
+            report: null,
+            error: `AI Gateway erro ${aiResponse.status}: ${errText.substring(0, 200)}`,
           }), {
             status: 200,
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }
-    } catch (aiErr: any) {
-        console.error("Gemini API error, falling back:", aiErr);
+      } catch (aiErr: any) {
+        console.error("[ai-report] AI exception:", aiErr);
         const report = generateFallbackReport(report_type || "general", sales, products, financial);
-        return new Response(JSON.stringify({ report, debug: `Gemini exception: ${aiErr?.message || aiErr}` }), {
+        return new Response(JSON.stringify({ report, debug: `Exception: ${aiErr?.message || aiErr}` }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
     } else {
-      // No key - return debug info
-      return new Response(JSON.stringify({ 
-        report: null, 
-        error: "GOOGLE_GEMINI_KEY não encontrada nas secrets do Supabase.",
-        debug: debugInfo
-      }), {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      console.warn("[ai-report] LOVABLE_API_KEY not found");
     }
 
-    // Fallback: programmatic report
+    // Fallback
     const report = generateFallbackReport(report_type || "general", sales, products, financial);
     return new Response(JSON.stringify({ report }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
