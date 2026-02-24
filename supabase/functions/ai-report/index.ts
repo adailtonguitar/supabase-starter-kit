@@ -207,8 +207,13 @@ Deno.serve(async (req) => {
 
         console.log("[ai-report] Gemini status:", aiResponse.status);
 
-        if (aiResponse.status === 429) {
+      if (aiResponse.status === 429) {
           console.warn("Gemini 429 rate limit, using fallback report");
+          // Fall through to fallback with debug
+          const report = generateFallbackReport(report_type || "general", sales, products, financial);
+          return new Response(JSON.stringify({ report, debug: "Gemini 429 rate limit" }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
         } else if (aiResponse.ok) {
           const aiData = await aiResponse.json();
           const content = aiData.candidates?.[0]?.content?.parts?.[0]?.text;
@@ -231,8 +236,12 @@ Deno.serve(async (req) => {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }
-      } catch (aiErr) {
+    } catch (aiErr: any) {
         console.error("Gemini API error, falling back:", aiErr);
+        const report = generateFallbackReport(report_type || "general", sales, products, financial);
+        return new Response(JSON.stringify({ report, debug: `Gemini exception: ${aiErr?.message || aiErr}` }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
     } else {
       // No key - return debug info
