@@ -9,7 +9,7 @@ function formatBRL(v: number) {
   return `R$ ${v.toFixed(2).replace(".", ",")}`;
 }
 
-function generateReport(
+function buildDataSummary(
   reportType: string,
   sales: any[],
   products: any[],
@@ -26,74 +26,125 @@ function generateReport(
   const lucro = receitas - despesas;
   const margem = receitas > 0 ? ((lucro / receitas) * 100).toFixed(1) : "0.0";
 
+  // Payment methods breakdown
+  const paymentMethods: Record<string, number> = {};
+  sales.forEach((s) => {
+    try {
+      const payments = Array.isArray(s.payments) ? s.payments : typeof s.payments === "string" ? JSON.parse(s.payments) : [];
+      payments.forEach((p: any) => {
+        const method = p.method || "outros";
+        paymentMethods[method] = (paymentMethods[method] || 0) + Number(p.amount || s.total || 0);
+      });
+    } catch {}
+  });
+
+  // Average product margin
+  const productsWithMargin = products.filter((p) => p.sale_price > 0 && p.cost_price > 0);
+  const avgMargin = productsWithMargin.length > 0
+    ? productsWithMargin.reduce((s, p) => s + ((p.sale_price - p.cost_price) / p.sale_price) * 100, 0) / productsWithMargin.length
+    : 0;
+
+  const lines: string[] = [];
+  lines.push(`Dados do último mês da empresa:`);
+  lines.push(`- Total de vendas: ${sales.length} transações, totalizando ${formatBRL(totalSales)}`);
+  lines.push(`- Ticket médio: ${formatBRL(ticketMedio)}`);
+  
+  if (Object.keys(paymentMethods).length > 0) {
+    lines.push(`- Formas de pagamento: ${Object.entries(paymentMethods).map(([m, v]) => `${m}: ${formatBRL(v)}`).join(", ")}`);
+  }
+
+  lines.push(`- Produtos cadastrados: ${products.length}`);
+  lines.push(`- Produtos com estoque zerado: ${zeroStock.length}`);
+  lines.push(`- Produtos com estoque baixo (abaixo do mínimo): ${lowStock.length}`);
+  if (lowStock.length > 0) {
+    lines.push(`- Produtos que precisam reposição: ${lowStock.slice(0, 10).map((p) => `${p.name} (${p.stock_quantity ?? 0}/${p.min_stock})`).join(", ")}`);
+  }
+  lines.push(`- Margem média dos produtos: ${avgMargin.toFixed(0)}%`);
+
+  lines.push(`- Receitas pagas: ${formatBRL(receitas)}`);
+  lines.push(`- Despesas pagas: ${formatBRL(despesas)}`);
+  lines.push(`- Resultado operacional: ${formatBRL(lucro)} (margem ${margem}%)`);
+  lines.push(`- Contas vencidas: ${overdue.length}`);
+  if (overdue.length > 0) {
+    const totalOverdue = overdue.reduce((s: number, f: any) => s + Number(f.amount || 0), 0);
+    lines.push(`- Valor total vencido: ${formatBRL(totalOverdue)}`);
+  }
+
+  return lines.join("\n");
+}
+
+function getSystemPrompt(reportType: string, isQuick: boolean) {
+  if (isQuick) {
+    return `Você é um analista de negócios especialista em pequenas e médias empresas brasileiras. 
+Gere um insight CURTO (máximo 2 frases) sobre o ponto mais importante dos dados. 
+Use emojis. Seja direto e acionável. Responda apenas com o insight, sem título.`;
+  }
+
+  const focusMap: Record<string, string> = {
+    general: "vendas, estoque e financeiro de forma integrada",
+    sales: "performance de vendas, tendências, ticket médio e formas de pagamento",
+    stock: "gestão de estoque, rupturas, giro de produtos e oportunidades de reposição",
+    financial: "fluxo de caixa, inadimplência, margem operacional e projeções",
+  };
+
+  return `Você é um consultor de negócios sênior especializado em pequenas e médias empresas brasileiras.
+Gere um **Relatório Executivo** profissional e detalhado focando em: ${focusMap[reportType] || focusMap.general}.
+
+Estruture o relatório EXATAMENTE neste formato markdown:
+
+## Relatório Executivo - Desempenho dos Últimos 30 Dias
+
+Um parágrafo introdutório resumindo a situação geral da empresa.
+
+### 1. Resumo Executivo
+Análise geral do período em 1-2 parágrafos.
+
+### 2. Indicadores Chave
+Liste os indicadores mais relevantes em negrito com valores. Exemplo:
+**Total de Vendas:** X
+**Receita Total:** R$ X
+(inclua todos os indicadores relevantes dos dados fornecidos)
+
+### 3. Análise Detalhada
+Análise aprofundada com observações estratégicas sobre os dados.
+
+### 4. Pontos de Atenção
+⚠️ Liste problemas identificados que precisam de ação urgente.
+
+### 5. Recomendações Estratégicas
+Recomendações numeradas, práticas e acionáveis para melhorar os resultados.
+
+### 6. Conclusão
+Parágrafo final com perspectiva geral e próximos passos sugeridos.
+
+Use linguagem profissional mas acessível. Valores monetários em R$ formatados. Seja específico com os dados fornecidos.`;
+}
+
+// Fallback programmatic report (no AI key)
+function generateFallbackReport(reportType: string, sales: any[], products: any[], financial: any[]) {
+  const totalSales = sales.reduce((s, r) => s + Number(r.total || 0), 0);
+  const ticketMedio = sales.length > 0 ? totalSales / sales.length : 0;
+  const lowStock = products.filter((p) => p.min_stock > 0 && (p.stock_quantity ?? 0) <= p.min_stock);
+  const zeroStock = products.filter((p) => (p.stock_quantity ?? 0) === 0);
+  const today = new Date().toISOString().split("T")[0];
+  const overdue = financial.filter((f) => f.status === "pendente" && f.due_date <= today);
+  const receitas = financial.filter((f) => f.type === "receita" && f.status === "pago").reduce((s, f) => s + Number(f.amount || 0), 0);
+  const despesas = financial.filter((f) => f.type === "despesa" && f.status === "pago").reduce((s, f) => s + Number(f.amount || 0), 0);
+  const lucro = receitas - despesas;
+  const margem = receitas > 0 ? ((lucro / receitas) * 100).toFixed(1) : "0.0";
+
   if (reportType === "quick") {
-    if (lowStock.length > 5) {
-      return `⚠️ **Atenção ao estoque!** ${lowStock.length} produtos estão com estoque baixo ou zerado. Reponha para evitar perda de vendas.`;
-    }
-    if (overdue.length > 0) {
-      return `⚠️ **${overdue.length} conta(s) vencida(s)** pendentes. Regularize para manter o fluxo de caixa saudável.`;
-    }
-    if (lucro < 0) {
-      return `📉 **Resultado negativo no mês:** despesas (${formatBRL(despesas)}) superaram receitas (${formatBRL(receitas)}). Revise custos.`;
-    }
+    if (lowStock.length > 5) return `⚠️ **Atenção ao estoque!** ${lowStock.length} produtos estão com estoque baixo ou zerado. Reponha para evitar perda de vendas.`;
+    if (overdue.length > 0) return `⚠️ **${overdue.length} conta(s) vencida(s)** pendentes. Regularize para manter o fluxo de caixa saudável.`;
+    if (lucro < 0) return `📉 **Resultado negativo no mês:** despesas (${formatBRL(despesas)}) superaram receitas (${formatBRL(receitas)}). Revise custos.`;
     return `✅ **Resumo do mês:** ${sales.length} vendas totalizando ${formatBRL(totalSales)}. Ticket médio: ${formatBRL(ticketMedio)}. Margem: ${margem}%.`;
   }
 
   const sections: string[] = [];
-
-  if (reportType === "general" || reportType === "sales") {
-    sections.push(`## 📊 Vendas\n`);
-    sections.push(`- **Total no mês:** ${formatBRL(totalSales)} (${sales.length} vendas)`);
-    sections.push(`- **Ticket médio:** ${formatBRL(ticketMedio)}`);
-    if (sales.length === 0) {
-      sections.push(`\n> Nenhuma venda registrada no período.`);
-    } else {
-      const daysWithSales = new Set(sales.map((s) => s.created_at?.split("T")[0])).size;
-      sections.push(`- **Dias com vendas:** ${daysWithSales}`);
-      sections.push(`- **Média diária:** ${formatBRL(daysWithSales > 0 ? totalSales / daysWithSales : 0)}`);
-    }
-    sections.push("");
-  }
-
-  if (reportType === "general" || reportType === "stock") {
-    sections.push(`## 📦 Estoque\n`);
-    sections.push(`- **Produtos cadastrados:** ${products.length}`);
-    sections.push(`- **Estoque zerado:** ${zeroStock.length}`);
-    sections.push(`- **Estoque baixo (abaixo do mínimo):** ${lowStock.length}`);
-    if (lowStock.length > 0) {
-      sections.push(`\n**Produtos que precisam de reposição:**`);
-      lowStock.slice(0, 10).forEach((p) => {
-        sections.push(`- ${p.name}: ${p.stock_quantity ?? 0} un. (mín: ${p.min_stock})`);
-      });
-      if (lowStock.length > 10) sections.push(`- _...e mais ${lowStock.length - 10} produtos_`);
-    }
-    sections.push("");
-  }
-
-  if (reportType === "general" || reportType === "financial") {
-    sections.push(`## 💰 Financeiro\n`);
-    sections.push(`- **Receitas pagas:** ${formatBRL(receitas)}`);
-    sections.push(`- **Despesas pagas:** ${formatBRL(despesas)}`);
-    sections.push(`- **Resultado operacional:** ${formatBRL(lucro)} (${Number(margem) >= 0 ? "✅" : "⚠️"} margem de ${margem}%)`);
-    sections.push(`- **Contas vencidas:** ${overdue.length}`);
-    if (overdue.length > 0) {
-      const totalOverdue = overdue.reduce((s: number, f: any) => s + Number(f.amount || 0), 0);
-      sections.push(`- **Valor total vencido:** ${formatBRL(totalOverdue)}`);
-    }
-    sections.push("");
-  }
-
-  // Recomendações
-  const recs: string[] = [];
-  if (lowStock.length > 3) recs.push(`Repor urgentemente ${lowStock.length} produtos com estoque baixo`);
-  if (overdue.length > 0) recs.push(`Cobrar/regularizar ${overdue.length} conta(s) vencida(s)`);
-  if (lucro < 0) recs.push("Reduzir despesas ou aumentar volume de vendas para reverter resultado negativo");
-  if (ticketMedio > 0 && ticketMedio < 30) recs.push("Ticket médio baixo — considere estratégias de upselling");
-  if (recs.length === 0) recs.push("Negócio está saudável neste período. Continue monitorando!");
-
-  sections.push(`## 💡 Recomendações\n`);
-  recs.forEach((r, i) => sections.push(`${i + 1}. ${r}`));
-
+  sections.push(`## Relatório Executivo - Desempenho dos Últimos 30 Dias\n`);
+  sections.push(`### 📊 Vendas\n- **Total:** ${formatBRL(totalSales)} (${sales.length} vendas)\n- **Ticket médio:** ${formatBRL(ticketMedio)}\n`);
+  sections.push(`### 📦 Estoque\n- **Produtos:** ${products.length}\n- **Estoque zerado:** ${zeroStock.length}\n- **Estoque baixo:** ${lowStock.length}\n`);
+  sections.push(`### 💰 Financeiro\n- **Receitas:** ${formatBRL(receitas)}\n- **Despesas:** ${formatBRL(despesas)}\n- **Resultado:** ${formatBRL(lucro)} (margem ${margem}%)\n- **Contas vencidas:** ${overdue.length}\n`);
   return sections.join("\n");
 }
 
@@ -121,13 +172,63 @@ Deno.serve(async (req) => {
       supabase.from("financial_entries").select("type, amount, status, due_date, description").eq("company_id", company_id).gte("due_date", monthStart).limit(200),
     ]);
 
-    const report = generateReport(
-      report_type || "general",
-      salesRes.data || [],
-      productsRes.data || [],
-      financialRes.data || []
-    );
+    const sales = salesRes.data || [];
+    const products = productsRes.data || [];
+    const financial = financialRes.data || [];
+    const isQuick = report_type === "quick";
 
+    // Try Lovable AI
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (LOVABLE_API_KEY) {
+      try {
+        const dataSummary = buildDataSummary(report_type || "general", sales, products, financial);
+        const systemPrompt = getSystemPrompt(report_type || "general", isQuick);
+
+        const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${LOVABLE_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "google/gemini-3-flash-preview",
+            messages: [
+              { role: "system", content: systemPrompt },
+              { role: "user", content: dataSummary },
+            ],
+            stream: false,
+          }),
+        });
+
+        if (aiResponse.status === 429) {
+          return new Response(JSON.stringify({ error: "Limite de requisições excedido. Tente novamente em alguns minutos." }), {
+            status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        if (aiResponse.status === 402) {
+          return new Response(JSON.stringify({ error: "Créditos de IA esgotados. Adicione créditos no workspace." }), {
+            status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        if (aiResponse.ok) {
+          const aiData = await aiResponse.json();
+          const content = aiData.choices?.[0]?.message?.content;
+          if (content) {
+            return new Response(JSON.stringify({ report: content }), {
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
+          }
+        }
+
+        console.error("AI gateway non-ok:", aiResponse.status, await aiResponse.text());
+      } catch (aiErr) {
+        console.error("AI gateway error, falling back:", aiErr);
+      }
+    }
+
+    // Fallback: programmatic report
+    const report = generateFallbackReport(report_type || "general", sales, products, financial);
     return new Response(JSON.stringify({ report }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
