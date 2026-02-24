@@ -97,20 +97,105 @@ function generateFallbackReport(reportType: string, sales: any[], products: any[
   const despesas = financial.filter((f) => f.type === "despesa" && f.status === "pago").reduce((s, f) => s + Number(f.amount || 0), 0);
   const lucro = receitas - despesas;
   const margem = receitas > 0 ? ((lucro / receitas) * 100).toFixed(1) : "0.0";
+  const totalOverdue = overdue.reduce((s: number, f: any) => s + Number(f.amount || 0), 0);
 
+  const paymentMethods: Record<string, number> = {};
+  sales.forEach((s) => {
+    try {
+      const payments = Array.isArray(s.payments) ? s.payments : typeof s.payments === "string" ? JSON.parse(s.payments) : [];
+      payments.forEach((p: any) => {
+        const method = p.method || "outros";
+        paymentMethods[method] = (paymentMethods[method] || 0) + Number(p.amount || s.total || 0);
+      });
+    } catch {}
+  });
+
+  const productsWithMargin = products.filter((p) => p.sale_price > 0 && p.cost_price > 0);
+  const avgMargin = productsWithMargin.length > 0
+    ? productsWithMargin.reduce((s, p) => s + ((p.sale_price - p.cost_price) / p.sale_price) * 100, 0) / productsWithMargin.length
+    : 0;
+  const lowMarginProducts = productsWithMargin.filter(p => ((p.sale_price - p.cost_price) / p.sale_price) * 100 < 15);
+
+  // --- QUICK INSIGHT ---
   if (reportType === "quick") {
-    if (lowStock.length > 5) return `⚠️ **Atenção ao estoque!** ${lowStock.length} produtos com estoque baixo ou zerado.`;
-    if (overdue.length > 0) return `⚠️ **${overdue.length} conta(s) vencida(s)** pendentes. Regularize o fluxo de caixa.`;
-    if (lucro < 0) return `📉 **Resultado negativo:** despesas (${formatBRL(despesas)}) superaram receitas (${formatBRL(receitas)}).`;
-    return `✅ **Resumo:** ${sales.length} vendas = ${formatBRL(totalSales)}. Ticket médio: ${formatBRL(ticketMedio)}. Margem: ${margem}%.`;
+    const alerts: string[] = [];
+    if (overdue.length > 3) alerts.push(`🔴 **${overdue.length} contas vencidas** somando ${formatBRL(totalOverdue)} — regularize para evitar juros e manter o fluxo de caixa saudável.`);
+    else if (overdue.length > 0) alerts.push(`⚠️ **${overdue.length} conta(s) vencida(s)** (${formatBRL(totalOverdue)}). Quite antes que virem bola de neve.`);
+    if (lucro < 0) alerts.push(`📉 **Resultado negativo de ${formatBRL(Math.abs(lucro))}** — despesas superaram receitas. Revise custos fixos e negocie com fornecedores.`);
+    if (lowStock.length > 5) alerts.push(`📦 **${lowStock.length} produtos com estoque crítico** — risco de perder vendas por ruptura. Priorize reposição dos mais vendidos.`);
+    else if (lowStock.length > 0) alerts.push(`📦 ${lowStock.length} produto(s) com estoque baixo: ${lowStock.slice(0, 3).map(p => p.name).join(", ")}.`);
+    if (lowMarginProducts.length > 3) alerts.push(`💡 **${lowMarginProducts.length} produtos com margem abaixo de 15%** — considere reajustar preços ou renegociar custos.`);
+    if (ticketMedio > 0 && ticketMedio < 20) alerts.push(`🎯 Ticket médio de ${formatBRL(ticketMedio)} está baixo. Estratégias de upsell e combos podem aumentar o faturamento.`);
+
+    if (alerts.length === 0) {
+      if (sales.length === 0) return `📊 Nenhuma venda registrada no período. Cadastre vendas para receber insights personalizados.`;
+      return `✅ **Negócio saudável!** ${sales.length} vendas totalizando ${formatBRL(totalSales)}, ticket médio de ${formatBRL(ticketMedio)}, margem de ${margem}%. Continue monitorando!`;
+    }
+    return alerts.slice(0, 2).join("\n\n");
   }
 
-  const sections: string[] = [];
-  sections.push(`## Relatório Executivo\n`);
-  sections.push(`### 📊 Vendas\n- **Total:** ${formatBRL(totalSales)} (${sales.length})\n- **Ticket médio:** ${formatBRL(ticketMedio)}\n`);
-  sections.push(`### 📦 Estoque\n- **Produtos:** ${products.length}\n- **Zerado:** ${zeroStock.length}\n- **Baixo:** ${lowStock.length}\n`);
-  sections.push(`### 💰 Financeiro\n- **Receitas:** ${formatBRL(receitas)}\n- **Despesas:** ${formatBRL(despesas)}\n- **Resultado:** ${formatBRL(lucro)} (${margem}%)\n- **Vencidas:** ${overdue.length}\n`);
-  return sections.join("\n");
+  // --- FULL REPORT ---
+  const s: string[] = [];
+  s.push(`## 📋 Relatório Executivo — Mês Atual\n`);
+
+  // Resumo
+  s.push(`### 🎯 Resumo Executivo\n`);
+  if (lucro > 0) s.push(`O negócio apresenta resultado **positivo** de **${formatBRL(lucro)}** com margem de **${margem}%**. `);
+  else if (lucro < 0) s.push(`⚠️ O negócio está com resultado **negativo** de **${formatBRL(Math.abs(lucro))}**. Ação imediata necessária para reverter. `);
+  else s.push(`O resultado do período é **neutro** — receitas e despesas estão equilibradas. `);
+  s.push(`Foram realizadas **${sales.length} vendas** totalizando **${formatBRL(totalSales)}** com ticket médio de **${formatBRL(ticketMedio)}**.\n`);
+
+  // Vendas
+  s.push(`### 📊 Vendas\n`);
+  s.push(`| Indicador | Valor |`);
+  s.push(`|-----------|-------|`);
+  s.push(`| Total de vendas | ${sales.length} transações |`);
+  s.push(`| Faturamento | ${formatBRL(totalSales)} |`);
+  s.push(`| Ticket médio | ${formatBRL(ticketMedio)} |`);
+  if (Object.keys(paymentMethods).length > 0) {
+    s.push(`\n**Formas de pagamento:**`);
+    Object.entries(paymentMethods).sort((a, b) => b[1] - a[1]).forEach(([m, v]) => {
+      const pct = totalSales > 0 ? ((v / totalSales) * 100).toFixed(0) : "0";
+      s.push(`- ${m}: ${formatBRL(v)} (${pct}%)`);
+    });
+  }
+
+  // Estoque
+  s.push(`\n### 📦 Estoque\n`);
+  s.push(`- **${products.length}** produtos cadastrados`);
+  s.push(`- **${zeroStock.length}** com estoque zerado`);
+  s.push(`- **${lowStock.length}** com estoque abaixo do mínimo`);
+  s.push(`- Margem média dos produtos: **${avgMargin.toFixed(1)}%**`);
+  if (lowStock.length > 0) {
+    s.push(`\n**🔴 Reposição urgente:**`);
+    lowStock.slice(0, 8).forEach(p => s.push(`- ${p.name}: ${p.stock_quantity ?? 0}/${p.min_stock} un.`));
+  }
+  if (lowMarginProducts.length > 0) {
+    s.push(`\n**⚠️ Produtos com margem < 15%:** ${lowMarginProducts.slice(0, 5).map(p => p.name).join(", ")}`);
+  }
+
+  // Financeiro
+  s.push(`\n### 💰 Financeiro\n`);
+  s.push(`| Indicador | Valor |`);
+  s.push(`|-----------|-------|`);
+  s.push(`| Receitas pagas | ${formatBRL(receitas)} |`);
+  s.push(`| Despesas pagas | ${formatBRL(despesas)} |`);
+  s.push(`| Resultado | ${formatBRL(lucro)} |`);
+  s.push(`| Margem operacional | ${margem}% |`);
+  s.push(`| Contas vencidas | ${overdue.length} (${formatBRL(totalOverdue)}) |`);
+
+  // Recomendações
+  s.push(`\n### 💡 Recomendações\n`);
+  const recs: string[] = [];
+  if (lucro < 0) recs.push(`1. **Urgente:** Reduza despesas ou aumente preços — o resultado está negativo.`);
+  if (overdue.length > 0) recs.push(`${recs.length + 1}. Regularize as **${overdue.length} contas vencidas** (${formatBRL(totalOverdue)}) para evitar juros.`);
+  if (lowStock.length > 0) recs.push(`${recs.length + 1}. Reponha os **${lowStock.length} produtos** com estoque crítico para não perder vendas.`);
+  if (lowMarginProducts.length > 0) recs.push(`${recs.length + 1}. Revise preços dos **${lowMarginProducts.length} produtos** com margem abaixo de 15%.`);
+  if (ticketMedio < 50 && sales.length > 0) recs.push(`${recs.length + 1}. Implemente combos e promoções para elevar o ticket médio de ${formatBRL(ticketMedio)}.`);
+  if (recs.length === 0) recs.push(`1. Continue monitorando os indicadores. O negócio está em boa saúde!`);
+  s.push(recs.join("\n"));
+
+  return s.join("\n");
 }
 
 async function callGeminiWithRetry(apiKey: string, systemPrompt: string, dataSummary: string, isQuick: boolean, maxRetries = 2): Promise<string | null> {
