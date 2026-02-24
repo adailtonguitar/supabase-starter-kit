@@ -6,7 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
 export function SubscriptionBanner() {
-  const { subscribed, planKey, daysUntilExpiry, gracePeriodActive, graceDaysLeft, trialActive, trialDaysLeft, createCheckout } = useSubscription();
+  const { subscribed, planKey, daysUntilExpiry, gracePeriodActive, graceDaysLeft, trialActive, trialDaysLeft, createCheckout, loading: subLoading } = useSubscription();
   const { isSuperAdmin, loading: adminLoading } = useAdminRole();
   const [dismissed, setDismissed] = useState(() => {
     try { return sessionStorage.getItem("sub_banner_dismissed") === "1"; } catch { return false; }
@@ -25,7 +25,7 @@ export function SubscriptionBanner() {
     }
   };
 
-  if (adminLoading) return null;
+  if (adminLoading || subLoading) return null;
   if (dismissed || isSuperAdmin) return null;
 
   const dismiss = () => {
