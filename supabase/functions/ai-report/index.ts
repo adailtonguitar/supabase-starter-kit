@@ -165,17 +165,9 @@ function generateFallbackReport(reportType: string, sales: any[], products: any[
       return `✅ **Tudo em ordem!** ${sales.length} vendas, ${formatBRL(totalSales)} faturado, ticket médio ${formatBRL(ticketMedio)}. Seu negócio está saudável!`;
     }
 
-    // Rotacionar insights baseado no dia + hora para variar a cada visita
-    const now = new Date();
-    const seed = now.getDate() * 24 + now.getHours() + now.getMinutes();
-    const startIdx = seed % allInsights.length;
-    const selected = [allInsights[startIdx]];
-    if (allInsights.length > 1) {
-      const secondIdx = (startIdx + 1 + (now.getMinutes() % Math.max(allInsights.length - 1, 1))) % allInsights.length;
-      if (secondIdx !== startIdx) selected.push(allInsights[secondIdx]);
-      else if (allInsights.length > 1) selected.push(allInsights[(startIdx + 1) % allInsights.length]);
-    }
-    return selected.join("\n\n");
+    // Selecionar aleatoriamente para variar a cada clique
+    const shuffled = allInsights.sort(() => Math.random() - 0.5);
+    return shuffled.slice(0, Math.min(2, shuffled.length)).join("\n\n");
   }
 
   // --- FULL REPORT ---
