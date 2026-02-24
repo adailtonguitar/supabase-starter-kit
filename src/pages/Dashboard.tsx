@@ -9,6 +9,7 @@ import { Link } from "react-router-dom";
 import { QuickAccessCards } from "@/components/dashboard/QuickAccessCards";
 import { SalesChart } from "@/components/dashboard/SalesChart";
 import { TopProductsList } from "@/components/dashboard/TopProductsList";
+import { AiInsightWidget } from "@/components/dashboard/AiInsightWidget";
 
 const fade = (delay = 0) => ({
   initial: { opacity: 0, y: 16 },
@@ -57,6 +58,9 @@ export default function Dashboard() {
 
       {/* Quick Access */}
       <QuickAccessCards />
+
+      {/* AI Insight */}
+      <AiInsightWidget />
 
       {isLoading ? (
         <div className="flex items-center justify-center py-20">
