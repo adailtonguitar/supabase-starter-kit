@@ -71,11 +71,8 @@ export function AiInsightWidget() {
     }
   }, [companyId]);
 
-  useEffect(() => {
-    if (companyId) {
-      fetchInsight();
-    }
-  }, [companyId, fetchInsight]);
+  // Don't auto-fetch on mount to avoid rate limits
+  // User must click "Atualizar" to generate insight
 
   return (
     <div className="bg-gradient-to-br from-primary/10 to-primary/5 rounded-xl p-5 border border-primary/20">
