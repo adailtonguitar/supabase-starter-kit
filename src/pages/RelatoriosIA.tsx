@@ -32,19 +32,33 @@ export default function RelatoriosIA() {
     setCollapsed(false);
 
     try {
-      const { data, error } = await supabase.functions.invoke("ai-report", {
-        body: { report_type: type, company_id: companyId },
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "https://fsvxpxziotklbxkivyug.supabase.co";
+      const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZzdnhweHppb3RrbGJ4a2l2eXVnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE3ODU5NTMsImV4cCI6MjA4NzM2MTk1M30.8I3ABsRZBZuE1IpK_g9z3PdRUd9Omt_F5qNx0Pgqvyo";
+
+      const resp = await fetch(`${supabaseUrl}/functions/v1/ai-report`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${anonKey}`,
+          "apikey": anonKey,
+        },
+        body: JSON.stringify({ report_type: type, company_id: companyId }),
       });
 
-      if (error) throw error;
-      if (data?.error) {
-        toast.error(data.error);
+      const data = await resp.json();
+
+      if (!resp.ok) {
+        toast.error(data?.error || `Erro ${resp.status}. Tente novamente.`);
         return;
       }
 
-      setReport(data.report);
-      setGeneratedAt(new Date());
-      toast.success("Relatório gerado com sucesso!");
+      if (data?.report) {
+        setReport(data.report);
+        setGeneratedAt(new Date());
+        toast.success("Relatório gerado com sucesso!");
+      } else {
+        toast.error("Resposta inesperada da edge function.");
+      }
     } catch (err: any) {
       console.error("Report error:", err);
       toast.error("Erro ao gerar relatório. Tente novamente.");
