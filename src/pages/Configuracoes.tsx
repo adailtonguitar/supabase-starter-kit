@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useSubscription, PLANS } from "@/hooks/useSubscription";
+import { useAdminRole } from "@/hooks/useAdminRole";
 import { useCompany } from "@/hooks/useCompany";
 
 function WhatsAppSupportSection() {
@@ -187,9 +188,11 @@ const planFeatures: Record<string, string[]> = {
 
 function MyPlanSection() {
   const { subscribed, planKey, trialActive, trialDaysLeft, subscriptionEnd, createCheckout, loading } = useSubscription();
+  const { isSuperAdmin, loading: adminLoading } = useAdminRole();
   const [upgrading, setUpgrading] = useState(false);
 
-  if (loading) return null;
+  if (loading || adminLoading) return null;
+  if (isSuperAdmin) return null;
 
   const currentPlan = planKey && PLANS[planKey as keyof typeof PLANS] ? PLANS[planKey as keyof typeof PLANS] : null;
   const isEssencial = planKey === "essencial";
