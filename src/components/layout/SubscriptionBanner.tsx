@@ -8,7 +8,9 @@ import { toast } from "sonner";
 export function SubscriptionBanner() {
   const { subscribed, planKey, daysUntilExpiry, gracePeriodActive, graceDaysLeft, trialActive, trialDaysLeft, createCheckout } = useSubscription();
   const { isSuperAdmin, loading: adminLoading } = useAdminRole();
-  const [dismissed, setDismissed] = useState(false);
+  const [dismissed, setDismissed] = useState(() => {
+    try { return sessionStorage.getItem("sub_banner_dismissed") === "1"; } catch { return false; }
+  });
   const [renewing, setRenewing] = useState(false);
   const navigate = useNavigate();
 
@@ -26,6 +28,11 @@ export function SubscriptionBanner() {
   if (adminLoading) return null;
   if (dismissed || isSuperAdmin) return null;
 
+  const dismiss = () => {
+    setDismissed(true);
+    try { sessionStorage.setItem("sub_banner_dismissed", "1"); } catch { /* */ }
+  };
+
   if (subscribed && daysUntilExpiry !== null && daysUntilExpiry <= 5) {
     return (
       <div className="bg-warning/10 border-b border-warning/30 px-4 py-2 flex items-center justify-between gap-3">
@@ -39,7 +46,7 @@ export function SubscriptionBanner() {
             </button>
           </span>
         </div>
-        <button onClick={() => setDismissed(true)} className="text-muted-foreground hover:text-foreground">
+        <button onClick={dismiss} className="text-muted-foreground hover:text-foreground">
           <X className="w-4 h-4" />
         </button>
       </div>
@@ -75,7 +82,7 @@ export function SubscriptionBanner() {
             </button>
           </span>
         </div>
-        <button onClick={() => setDismissed(true)} className="text-muted-foreground hover:text-foreground">
+        <button onClick={dismiss} className="text-muted-foreground hover:text-foreground">
           <X className="w-4 h-4" />
         </button>
       </div>
@@ -94,7 +101,7 @@ export function SubscriptionBanner() {
             </button>
           </span>
         </div>
-        <button onClick={() => setDismissed(true)} className="text-muted-foreground hover:text-foreground">
+        <button onClick={dismiss} className="text-muted-foreground hover:text-foreground">
           <X className="w-3.5 h-3.5" />
         </button>
       </div>
