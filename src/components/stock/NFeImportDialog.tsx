@@ -188,7 +188,7 @@ export function NFeImportDialog({ open, onOpenChange }: NFeImportDialogProps) {
               stock_quantity: newStock,
               cost_price: p.unitPrice,
             }).eq("id", existing.id);
-            if (error) { errors++; } else { imported++; }
+            if (error) { console.error("[NFeImport] update error:", error.message, error.details); errors++; } else { imported++; }
           } else {
             imported++; // counted as processed
           }
@@ -209,7 +209,7 @@ export function NFeImportDialog({ open, onOpenChange }: NFeImportDialogProps) {
         company_id: companyId,
         is_active: true,
       });
-      if (error) { errors++; } else { imported++; }
+      if (error) { console.error("[NFeImport] insert error:", error.message, error.details, error.code); errors++; } else { imported++; }
     }
 
     setResult({ imported, errors });
