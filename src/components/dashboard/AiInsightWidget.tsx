@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Sparkles, Loader2, RefreshCw, AlertCircle } from "lucide-react";
+import ReactMarkdown from "react-markdown";
 import { useCompany } from "@/hooks/useCompany";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -110,7 +111,9 @@ export function AiInsightWidget() {
       )}
 
       {!loading && !errorMsg && insight && (
-        <p className="text-sm text-foreground whitespace-pre-wrap">{insight}</p>
+        <div className="text-sm text-foreground prose prose-sm max-w-none">
+          <ReactMarkdown>{insight}</ReactMarkdown>
+        </div>
       )}
 
       {!loading && !errorMsg && !insight && (
