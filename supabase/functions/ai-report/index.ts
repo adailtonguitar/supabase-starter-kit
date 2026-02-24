@@ -86,7 +86,7 @@ Estruture em markdown com: Resumo Executivo, Indicadores Chave, Análise Detalha
 Use linguagem profissional mas acessível. Valores em R$.`;
 }
 
-function generateFallbackReport(reportType: string, sales: any[], products: any[], financial: any[]) {
+function generateFallbackReport(reportType: string, sales: any[], products: any[], financial: any[], prevSales: any[] = []) {
   const totalSales = sales.reduce((s, r) => s + Number(r.total || 0), 0);
   const ticketMedio = sales.length > 0 ? totalSales / sales.length : 0;
   const lowStock = products.filter((p) => p.min_stock > 0 && (p.stock_quantity ?? 0) <= p.min_stock);
@@ -186,8 +186,89 @@ function generateFallbackReport(reportType: string, sales: any[], products: any[
   else s.push(`O resultado do período é **neutro** — receitas e despesas estão equilibradas. `);
   s.push(`Foram realizadas **${sales.length} vendas** totalizando **${formatBRL(totalSales)}** com ticket médio de **${formatBRL(ticketMedio)}**.\n`);
 
-  // Vendas
-  s.push(`### 📊 Vendas\n`);
+  // --- MoM Comparison ---
+  const prevTotalSales = prevSales.reduce((sum: number, r: any) => sum + Number(r.total || 0), 0);
+  const prevTicket = prevSales.length > 0 ? prevTotalSales / prevSales.length : 0;
+  const revenueChange = prevTotalSales > 0 ? ((totalSales - prevTotalSales) / prevTotalSales * 100).toFixed(1) : null;
+  const countChange = prevSales.length > 0 ? ((sales.length - prevSales.length) / prevSales.length * 100).toFixed(1) : null;
+
+  s.push(`### 📅 Comparativo Mês a Mês\n`);
+  s.push(`| Indicador | Mês Anterior | Mês Atual | Variação |`);
+  s.push(`|-----------|-------------|-----------|----------|`);
+  s.push(`| Faturamento | ${formatBRL(prevTotalSales)} | ${formatBRL(totalSales)} | ${revenueChange ? `${Number(revenueChange) >= 0 ? "+" : ""}${revenueChange}%` : "—"} |`);
+  s.push(`| Nº Vendas | ${prevSales.length} | ${sales.length} | ${countChange ? `${Number(countChange) >= 0 ? "+" : ""}${countChange}%` : "—"} |`);
+  s.push(`| Ticket Médio | ${formatBRL(prevTicket)} | ${formatBRL(ticketMedio)} | ${prevTicket > 0 ? `${((ticketMedio - prevTicket) / prevTicket * 100).toFixed(1)}%` : "—"} |`);
+
+  // --- Top 5 Products ---
+  const productSalesMap: Record<string, { name: string; qty: number; revenue: number }> = {};
+  for (const sale of sales) {
+    const items = Array.isArray(sale.items) ? sale.items : [];
+    for (const item of items) {
+      const key = item.product_id || item.name || "unknown";
+      const name = item.name || "Produto";
+      const qty = Number(item.quantity || 1);
+      const rev = Number(item.unit_price || item.price || 0) * qty;
+      if (!productSalesMap[key]) productSalesMap[key] = { name, qty: 0, revenue: 0 };
+      productSalesMap[key].qty += qty;
+      productSalesMap[key].revenue += rev;
+    }
+  }
+  const topProducts = Object.values(productSalesMap).sort((a, b) => b.revenue - a.revenue).slice(0, 5);
+
+  if (topProducts.length > 0) {
+    s.push(`\n### 🏆 Top 5 Produtos Mais Vendidos\n`);
+    s.push(`| # | Produto | Qtd | Receita |`);
+    s.push(`|---|---------|-----|---------|`);
+    topProducts.forEach((p, i) => {
+      s.push(`| ${i + 1} | ${p.name} | ${p.qty} un. | ${formatBRL(p.revenue)} |`);
+    });
+  }
+
+  // --- Best Categories ---
+  const categorySalesMap: Record<string, { qty: number; revenue: number }> = {};
+  for (const sale of sales) {
+    const items = Array.isArray(sale.items) ? sale.items : [];
+    for (const item of items) {
+      const cat = item.category || "Sem categoria";
+      const qty = Number(item.quantity || 1);
+      const rev = Number(item.unit_price || item.price || 0) * qty;
+      if (!categorySalesMap[cat]) categorySalesMap[cat] = { qty: 0, revenue: 0 };
+      categorySalesMap[cat].qty += qty;
+      categorySalesMap[cat].revenue += rev;
+    }
+  }
+  // Also try product catalog categories
+  if (Object.keys(categorySalesMap).length <= 1) {
+    const prodCatMap: Record<string, string> = {};
+    products.forEach((p: any) => { if (p.name && p.category) prodCatMap[p.name] = p.category; });
+    for (const sale of sales) {
+      const items = Array.isArray(sale.items) ? sale.items : [];
+      for (const item of items) {
+        const cat = prodCatMap[item.name] || item.category || "Sem categoria";
+        const qty = Number(item.quantity || 1);
+        const rev = Number(item.unit_price || item.price || 0) * qty;
+        if (!categorySalesMap[cat]) categorySalesMap[cat] = { qty: 0, revenue: 0 };
+        categorySalesMap[cat].qty += qty;
+        categorySalesMap[cat].revenue += rev;
+      }
+    }
+  }
+  const topCategories = Object.entries(categorySalesMap)
+    .filter(([cat]) => cat !== "Sem categoria")
+    .sort((a, b) => b[1].revenue - a[1].revenue)
+    .slice(0, 5);
+
+  if (topCategories.length > 0) {
+    s.push(`\n### 📂 Melhores Categorias\n`);
+    s.push(`| Categoria | Itens | Receita |`);
+    s.push(`|-----------|-------|---------|`);
+    topCategories.forEach(([cat, data]) => {
+      s.push(`| ${cat} | ${data.qty} un. | ${formatBRL(data.revenue)} |`);
+    });
+  }
+
+  // Vendas summary
+  s.push(`\n### 📊 Vendas\n`);
   s.push(`| Indicador | Valor |`);
   s.push(`|-----------|-------|`);
   s.push(`| Total de vendas | ${sales.length} transações |`);
@@ -199,6 +280,21 @@ function generateFallbackReport(reportType: string, sales: any[], products: any[
       const pct = totalSales > 0 ? ((v / totalSales) * 100).toFixed(0) : "0";
       s.push(`- ${m}: ${formatBRL(v)} (${pct}%)`);
     });
+  }
+
+  // --- Trend Insights ---
+  s.push(`\n### 📈 Tendências\n`);
+  const diasNoMes = new Date().getDate();
+  const mediaDiaria = diasNoMes > 0 ? totalSales / diasNoMes : 0;
+  const projecaoMensal = mediaDiaria * 30;
+  s.push(`- Média diária: **${formatBRL(mediaDiaria)}** (${(sales.length / Math.max(diasNoMes, 1)).toFixed(1)} vendas/dia)`);
+  s.push(`- Projeção mensal: **${formatBRL(projecaoMensal)}**`);
+  if (revenueChange) {
+    const rc = Number(revenueChange);
+    if (rc > 10) s.push(`- 🟢 **Crescimento de ${revenueChange}%** em relação ao mês anterior — bom desempenho!`);
+    else if (rc > 0) s.push(`- 🟡 Crescimento modesto de ${revenueChange}%. Busque ações para acelerar.`);
+    else if (rc > -10) s.push(`- 🟠 Queda leve de ${revenueChange}%. Monitore e ajuste estratégias.`);
+    else s.push(`- 🔴 **Queda de ${revenueChange}%!** Ação urgente necessária.`);
   }
 
   // Estoque
@@ -233,6 +329,7 @@ function generateFallbackReport(reportType: string, sales: any[], products: any[
   if (lowStock.length > 0) recs.push(`${recs.length + 1}. Reponha os **${lowStock.length} produtos** com estoque crítico para não perder vendas.`);
   if (lowMarginProducts.length > 0) recs.push(`${recs.length + 1}. Revise preços dos **${lowMarginProducts.length} produtos** com margem abaixo de 15%.`);
   if (ticketMedio < 50 && sales.length > 0) recs.push(`${recs.length + 1}. Implemente combos e promoções para elevar o ticket médio de ${formatBRL(ticketMedio)}.`);
+  if (topProducts.length > 0) recs.push(`${recs.length + 1}. Garanta estoque do seu top produto (**${topProducts[0].name}**) — ele é o carro-chefe.`);
   if (recs.length === 0) recs.push(`1. Continue monitorando os indicadores. O negócio está em boa saúde!`);
   s.push(recs.join("\n"));
 
@@ -311,15 +408,23 @@ Deno.serve(async (req) => {
     const today = new Date().toISOString().split("T")[0];
     const monthStart = today.slice(0, 7) + "-01";
 
-    const [salesRes, productsRes, financialRes] = await Promise.all([
-      supabase.from("sales").select("total, created_at, payments, status").eq("company_id", company_id).gte("created_at", monthStart + "T00:00:00").order("created_at", { ascending: false }).limit(200),
-      supabase.from("products").select("name, stock_quantity, min_stock, sale_price, cost_price").eq("company_id", company_id).limit(200),
+    // Calculate previous month range for MoM comparison
+    const thisMonthDate = new Date(today);
+    const prevMonthDate = new Date(thisMonthDate.getFullYear(), thisMonthDate.getMonth() - 1, 1);
+    const prevMonthStart = prevMonthDate.toISOString().split("T")[0];
+    const prevMonthEnd = new Date(thisMonthDate.getFullYear(), thisMonthDate.getMonth(), 0).toISOString().split("T")[0];
+
+    const [salesRes, productsRes, financialRes, prevSalesRes] = await Promise.all([
+      supabase.from("sales").select("total, created_at, payments, status, items").eq("company_id", company_id).gte("created_at", monthStart + "T00:00:00").order("created_at", { ascending: false }).limit(500),
+      supabase.from("products").select("name, stock_quantity, min_stock, sale_price, cost_price, category").eq("company_id", company_id).limit(500),
       supabase.from("financial_entries").select("type, amount, status, due_date, description").eq("company_id", company_id).gte("due_date", monthStart).limit(200),
+      supabase.from("sales").select("total, created_at, payments, items").eq("company_id", company_id).gte("created_at", prevMonthStart + "T00:00:00").lte("created_at", prevMonthEnd + "T23:59:59").limit(500),
     ]);
 
     const sales = salesRes.data || [];
     const products = productsRes.data || [];
     const financial = financialRes.data || [];
+    const prevSales = prevSalesRes.data || [];
     const isQuick = report_type === "quick";
 
     const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
@@ -343,7 +448,7 @@ Deno.serve(async (req) => {
     }
 
     // Fallback
-    const report = generateFallbackReport(report_type || "general", sales, products, financial);
+    const report = generateFallbackReport(report_type || "general", sales, products, financial, prevSales);
     return new Response(JSON.stringify({ report }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
