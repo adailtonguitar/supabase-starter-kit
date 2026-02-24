@@ -1,16 +1,29 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Sparkles, Loader2, RefreshCw, AlertCircle } from "lucide-react";
 import { useCompany } from "@/hooks/useCompany";
 import { supabase } from "@/integrations/supabase/client";
+
+const COOLDOWN_MS = 30_000; // 30s entre chamadas
 
 export function AiInsightWidget() {
   const { companyId } = useCompany();
   const [insight, setInsight] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [cooldown, setCooldown] = useState(false);
+  const lastCallRef = useRef(0);
 
   const fetchInsight = useCallback(async () => {
     if (!companyId) return;
+
+    const now = Date.now();
+    if (now - lastCallRef.current < COOLDOWN_MS) {
+      setCooldown(true);
+      setTimeout(() => setCooldown(false), COOLDOWN_MS - (now - lastCallRef.current));
+      return;
+    }
+    lastCallRef.current = now;
+
     setLoading(true);
     setErrorMsg(null);
     setInsight(null);
@@ -67,8 +80,9 @@ export function AiInsightWidget() {
         {companyId && (
           <button
             onClick={fetchInsight}
-            disabled={loading}
-            className="text-xs text-muted-foreground hover:text-primary transition-colors flex items-center gap-1"
+            disabled={loading || cooldown}
+            title={cooldown ? "Aguarde 30s entre atualizações" : ""}
+            className="text-xs text-muted-foreground hover:text-primary transition-colors flex items-center gap-1 disabled:opacity-50"
           >
             <RefreshCw className={`w-3 h-3 ${loading ? "animate-spin" : ""}`} />
             Atualizar
