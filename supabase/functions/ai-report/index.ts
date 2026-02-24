@@ -146,28 +146,56 @@ function generateFallbackReport(reportType: string, sales: any[], products: any[
     if (lowMarginProducts.length > 3) warnings.push(`💸 **${lowMarginProducts.length} produtos com margem < 15%.** Exemplos: ${lowMarginProducts.slice(0, 3).map(p => `${p.name} (${(((p.sale_price - p.cost_price) / p.sale_price) * 100).toFixed(0)}%)`).join(", ")}. Renegocie custos ou ajuste preços.`);
 
     // OPORTUNIDADES
-    if (ticketMedio > 0 && ticketMedio < 30) opportunities.push(`🎯 **Ticket médio de ${formatBRL(ticketMedio)} pode crescer.** Dica: crie combos de produtos complementares ou ofereça desconto progressivo (leve 3 pague 2).`);
-    if (highMarginProducts.length > 0) opportunities.push(`💎 **${highMarginProducts.length} produto(s) com margem acima de 40%!** Destaque-os: ${highMarginProducts.slice(0, 3).map(p => p.name).join(", ")}. Coloque em promoção visível para aumentar o giro.`);
-    if (topPayment && Number(topPaymentPct) > 70) opportunities.push(`💳 **${topPaymentPct}% das vendas são via ${topPayment[0]}.** Diversifique: ofereça desconto para Pix ou parcele no cartão para atrair outros perfis de cliente.`);
-    if (projecaoMensal > 0 && sales.length > 5) opportunities.push(`📈 **Projeção mensal: ${formatBRL(projecaoMensal)}** com base nos ${diasNoMes} dias já decorridos. ${projecaoMensal > totalSales * 1.1 ? "Tendência de crescimento!" : "Mantenha o ritmo."}`);
-    if (stockValue > 0) opportunities.push(`🏪 **Seu estoque vale ${formatBRL(stockValue)}** (custo) e pode gerar até **${formatBRL(potentialRevenue)}** em vendas. Giro rápido = mais caixa.`);
+    if (ticketMedio > 0 && ticketMedio < 30) opportunities.push(`🎯 Ticket médio de ${formatBRL(ticketMedio)}. Crie combos de produtos complementares para elevar o valor por venda.`);
+    if (ticketMedio > 0 && ticketMedio < 30) opportunities.push(`🛒 Com ticket de ${formatBRL(ticketMedio)}, experimente "leve 3 pague 2" nos itens de maior giro para subir o ticket.`);
+    if (ticketMedio > 0 && ticketMedio < 30) opportunities.push(`💡 Dica: posicione produtos de impulso (doces, bebidas) próximo ao caixa. Isso pode aumentar o ticket médio de ${formatBRL(ticketMedio)} em até 20%.`);
+    if (highMarginProducts.length > 0) opportunities.push(`💎 **${highMarginProducts.length} produto(s) com margem acima de 40%!** Destaque-os: ${highMarginProducts.slice(0, 3).map(p => p.name).join(", ")}. Coloque em promoção visível.`);
+    if (topPayment && Number(topPaymentPct) > 70) opportunities.push(`💳 **${topPaymentPct}% das vendas são via ${topPayment[0]}.** Diversifique: ofereça desconto para Pix ou parcele no cartão.`);
+    if (projecaoMensal > 0 && sales.length > 5) opportunities.push(`📈 **Projeção mensal: ${formatBRL(projecaoMensal)}** com base nos ${diasNoMes} dias já decorridos.`);
+    if (stockValue > 0) opportunities.push(`🏪 Seu estoque vale ${formatBRL(stockValue)} (custo) e pode gerar até ${formatBRL(potentialRevenue)} em vendas.`);
 
     // POSITIVOS
-    if (lucro > 0 && Number(margem) > 20) positives.push(`✅ **Margem de ${margem}% é excelente!** Lucro de ${formatBRL(lucro)} no período. Reinvista em estoque dos produtos mais vendidos.`);
-    else if (lucro > 0) positives.push(`✅ Resultado positivo de ${formatBRL(lucro)} (margem ${margem}%). Continue monitorando para manter a saúde financeira.`);
-    if (sales.length > 20) positives.push(`🔥 **${sales.length} vendas no mês!** Boa movimentação. Faturamento de ${formatBRL(totalSales)}.`);
+    if (lucro > 0 && Number(margem) > 20) positives.push(`✅ **Margem de ${margem}% é excelente!** Lucro de ${formatBRL(lucro)} no período.`);
+    else if (lucro > 0) positives.push(`✅ Resultado positivo de ${formatBRL(lucro)} (margem ${margem}%).`);
+    if (sales.length > 20) positives.push(`🔥 **${sales.length} vendas no mês!** Faturamento de ${formatBRL(totalSales)}.`);
+    if (sales.length > 0) positives.push(`📊 Você já fez **${sales.length} venda(s)** este mês, totalizando **${formatBRL(totalSales)}**.`);
 
-    // Selecionar os 2 melhores insights por prioridade
+    // DICAS GERAIS (sempre disponíveis para garantir rotação)
+    const tips: string[] = [
+      `🧠 **Dica:** Clientes recorrentes gastam até 67% mais. Use o módulo Fidelidade para premiar quem volta.`,
+      `📱 **Dica:** Divulgue promoções no WhatsApp. Mensagens diretas têm taxa de abertura de 98%.`,
+      `🏷️ **Dica:** Etiquetas de preço bem visíveis aumentam vendas em até 30%. Use o módulo Etiquetas para padronizar.`,
+      `⏰ **Dica:** Identifique seus horários de pico e reforce o atendimento nesses momentos.`,
+      `📋 **Dica:** Faça inventário mensal para evitar rupturas e perdas por vencimento.`,
+      `💰 **Dica:** Negocie prazos maiores com fornecedores para melhorar seu fluxo de caixa.`,
+      `🎯 **Dica:** Produtos perto do vencimento? Faça promoção relâmpago e evite perdas.`,
+      `📦 **Dica:** Revise seu mix de produtos. Itens sem giro ocupam espaço e capital parado.`,
+      `🤝 **Dica:** Ofereça desconto para pagamento em Pix — você recebe na hora e sem taxas.`,
+      `📈 **Dica:** Analise o relatório de Curva ABC para focar nos 20% dos produtos que geram 80% do faturamento.`,
+      `🔔 **Dica:** Configure alertas financeiros para nunca perder o vencimento de uma conta.`,
+      `🛍️ **Dica:** Cross-selling funciona: quem compra pão, leva manteiga. Posicione produtos relacionados juntos.`,
+    ];
+
     const allInsights = [...critical, ...warnings, ...opportunities, ...positives];
 
-    if (allInsights.length === 0) {
-      if (sales.length === 0) return `📊 **Nenhuma venda registrada ainda este mês.** Cadastre suas vendas no PDV para receber análises personalizadas do seu negócio.`;
-      return `✅ **Tudo em ordem!** ${sales.length} vendas, ${formatBRL(totalSales)} faturado, ticket médio ${formatBRL(ticketMedio)}. Seu negócio está saudável!`;
+    if (allInsights.length === 0 && sales.length === 0) {
+      return `📊 **Nenhuma venda registrada ainda este mês.** Cadastre suas vendas no PDV para receber análises personalizadas do seu negócio.`;
     }
 
-    // Selecionar aleatoriamente para variar a cada clique
-    const shuffled = allInsights.sort(() => Math.random() - 0.5);
-    return shuffled.slice(0, Math.min(2, shuffled.length)).join("\n\n");
+    // Sempre misturar pelo menos 1 dica geral para garantir variedade
+    const pool = allInsights.length > 0 ? [...allInsights] : [];
+    // Add 3 random tips to the pool
+    const shuffledTips = tips.sort(() => Math.random() - 0.5);
+    pool.push(...shuffledTips.slice(0, 3));
+
+    // Pick 2 random non-duplicate insights
+    const finalPool = pool.sort(() => Math.random() - 0.5);
+    const picked: string[] = [];
+    for (const item of finalPool) {
+      if (picked.length >= 2) break;
+      if (!picked.includes(item)) picked.push(item);
+    }
+    return picked.join("\n\n");
   }
 
   // --- FULL REPORT ---
