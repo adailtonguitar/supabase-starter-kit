@@ -33,19 +33,22 @@ async function getNuvemFiscalToken(): Promise<string> {
   return data.access_token;
 }
 
+function jsonResponse(body: object, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
 
   try {
-    // Auth check
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
-      return new Response(JSON.stringify({ error: "Não autorizado" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return jsonResponse({ error: "Não autorizado" }, 401);
     }
 
     const supabase = createClient(
@@ -54,25 +57,153 @@ Deno.serve(async (req) => {
       { global: { headers: { Authorization: authHeader } } }
     );
 
-    const { data: claimsData, error: claimsError } = await supabase.auth.getUser();
-    if (claimsError || !claimsData?.user) {
-      return new Response(JSON.stringify({ error: "Não autorizado" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    const { data: userData, error: userErr } = await supabase.auth.getUser();
+    if (userErr || !userData?.user) {
+      return jsonResponse({ error: "Não autorizado" }, 401);
     }
 
     const body = await req.json();
-    const { sale_id, company_id, config_id, form } = body;
+    const action = body.action || "emit";
 
-    if (!sale_id || !company_id || !config_id || !form) {
-      return new Response(JSON.stringify({ error: "Dados incompletos" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+    // ─── DOWNLOAD PDF (DANFE) ───
+    if (action === "download_pdf") {
+      const { access_key, doc_type } = body;
+      if (!access_key) return jsonResponse({ error: "Chave de acesso obrigatória" }, 400);
+
+      const token = await getNuvemFiscalToken();
+      const endpoint = doc_type === "nfe" ? "nfe" : "nfce";
+
+      // First find the document by access key
+      const searchResp = await fetch(
+        `${NUVEM_FISCAL_API}/${endpoint}?chave=${access_key}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      if (!searchResp.ok) {
+        const errData = await searchResp.json();
+        return jsonResponse({
+          error: errData?.mensagem || `Documento não encontrado [${searchResp.status}]`,
+        });
+      }
+
+      const searchData = await searchResp.json();
+      const docId = searchData?.data?.[0]?.id || searchData?.id;
+
+      if (!docId) {
+        return jsonResponse({ error: "Documento não encontrado na Nuvem Fiscal" });
+      }
+
+      // Download PDF
+      const pdfResp = await fetch(
+        `${NUVEM_FISCAL_API}/${endpoint}/${docId}/pdf`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      if (!pdfResp.ok) {
+        const errText = await pdfResp.text();
+        return jsonResponse({ error: `Erro ao gerar PDF [${pdfResp.status}]: ${errText}` });
+      }
+
+      const pdfBuffer = await pdfResp.arrayBuffer();
+      const pdfBytes = new Uint8Array(pdfBuffer);
+      let binaryStr = "";
+      for (let i = 0; i < pdfBytes.length; i++) {
+        binaryStr += String.fromCharCode(pdfBytes[i]);
+      }
+      const pdfBase64 = btoa(binaryStr);
+
+      return jsonResponse({ success: true, pdf_base64: pdfBase64 });
+    }
+
+    // ─── CANCEL NFC-e / NF-e ───
+    if (action === "cancel") {
+      const { doc_id, access_key, doc_type, justificativa } = body;
+      if (!access_key && !doc_id) {
+        return jsonResponse({ error: "Chave de acesso ou ID do documento obrigatório" }, 400);
+      }
+      if (!justificativa || justificativa.length < 15) {
+        return jsonResponse({ error: "Justificativa deve ter no mínimo 15 caracteres" }, 400);
+      }
+
+      const token = await getNuvemFiscalToken();
+      const endpoint = doc_type === "nfe" ? "nfe" : "nfce";
+
+      // Find document ID if not provided
+      let nuvemId = doc_id;
+      if (!nuvemId && access_key) {
+        const searchResp = await fetch(
+          `${NUVEM_FISCAL_API}/${endpoint}?chave=${access_key}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        if (searchResp.ok) {
+          const searchData = await searchResp.json();
+          nuvemId = searchData?.data?.[0]?.id || searchData?.id;
+        }
+      }
+
+      if (!nuvemId) {
+        return jsonResponse({ error: "Documento não encontrado na Nuvem Fiscal" });
+      }
+
+      // Cancel
+      const cancelResp = await fetch(
+        `${NUVEM_FISCAL_API}/${endpoint}/${nuvemId}/cancelamento`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ justificativa }),
+        }
+      );
+
+      const cancelData = await cancelResp.json();
+
+      if (!cancelResp.ok) {
+        console.error("Cancel error:", JSON.stringify(cancelData));
+        return jsonResponse({
+          success: false,
+          error: cancelData?.mensagem || cancelData?.message || `Erro ao cancelar [${cancelResp.status}]`,
+          details: cancelData,
+        });
+      }
+
+      // Update local DB
+      if (body.fiscal_doc_id) {
+        await supabase
+          .from("fiscal_documents")
+          .update({ status: "cancelada" })
+          .eq("id", body.fiscal_doc_id);
+      } else if (access_key) {
+        await supabase
+          .from("fiscal_documents")
+          .update({ status: "cancelada" })
+          .eq("access_key", access_key);
+      }
+
+      // Update sale if linked
+      if (body.sale_id) {
+        await supabase
+          .from("sales")
+          .update({ status: "cancelada" })
+          .eq("id", body.sale_id);
+      }
+
+      return jsonResponse({
+        success: true,
+        status: "cancelada",
+        protocol: cancelData?.protocolo || cancelData?.numero_protocolo || null,
       });
     }
 
-    // Load fiscal config
+    // ─── EMIT NFC-e (default) ───
+    const { sale_id, company_id, config_id, form } = body;
+
+    if (!sale_id || !company_id || !config_id || !form) {
+      return jsonResponse({ error: "Dados incompletos" }, 400);
+    }
+
     const { data: config, error: cfgErr } = await supabase
       .from("fiscal_configs")
       .select("*")
@@ -80,13 +211,9 @@ Deno.serve(async (req) => {
       .single();
 
     if (cfgErr || !config) {
-      return new Response(JSON.stringify({ error: "Configuração fiscal não encontrada" }), {
-        status: 404,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return jsonResponse({ error: "Configuração fiscal não encontrada" }, 404);
     }
 
-    // Load company
     const { data: company } = await supabase
       .from("companies")
       .select("name, trade_name, cnpj, state_registration, address_street, address_number, address_complement, address_neighborhood, address_city, address_city_code, address_state, address_zip")
@@ -94,14 +221,9 @@ Deno.serve(async (req) => {
       .single();
 
     if (!company) {
-      return new Response(JSON.stringify({ error: "Empresa não encontrada" }), {
-        status: 404,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return jsonResponse({ error: "Empresa não encontrada" }, 404);
     }
 
-    // Build NFC-e payload for Nuvem Fiscal
-    const now = new Date();
     const items = (form.items || []).map((item: any, idx: number) => ({
       numero_item: idx + 1,
       codigo_produto: String(idx + 1).padStart(5, "0"),
@@ -117,10 +239,7 @@ Deno.serve(async (req) => {
       valor_unitario_tributavel: item.unit_price || 0,
       valor_desconto: item.discount || 0,
       imposto: {
-        icms: {
-          csosn: item.cst || "102",
-          origem: "0",
-        },
+        icms: { csosn: item.cst || "102", origem: "0" },
         pis: { cst: "49" },
         cofins: { cst: "49" },
       },
@@ -139,10 +258,10 @@ Deno.serve(async (req) => {
     const nfcePayload = {
       ambiente: config.environment === "producao" ? "producao" : "homologacao",
       natureza_operacao: form.nat_op || "VENDA DE MERCADORIA",
-      tipo_documento: 1, // saída
-      finalidade_emissao: 1, // normal
+      tipo_documento: 1,
+      finalidade_emissao: 1,
       consumidor_final: 1,
-      presenca_comprador: 1, // presencial
+      presenca_comprador: 1,
       notas_referenciadas: [],
       emitente: {
         cnpj: company.cnpj?.replace(/\D/g, ""),
@@ -161,7 +280,7 @@ Deno.serve(async (req) => {
           codigo_pais: "1058",
           pais: "BRASIL",
         },
-        crt: 1, // Simples Nacional
+        crt: 1,
       },
       destinatario: form.customer_doc
         ? {
@@ -186,10 +305,8 @@ Deno.serve(async (req) => {
       },
     };
 
-    // Get Nuvem Fiscal token
     const token = await getNuvemFiscalToken();
 
-    // Emit NFC-e
     const emitResp = await fetch(`${NUVEM_FISCAL_API}/nfce`, {
       method: "POST",
       headers: {
@@ -203,17 +320,13 @@ Deno.serve(async (req) => {
 
     if (!emitResp.ok) {
       console.error("Nuvem Fiscal error:", JSON.stringify(emitData));
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: emitData?.mensagem || emitData?.message || `Erro Nuvem Fiscal [${emitResp.status}]`,
-          details: emitData,
-        }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return jsonResponse({
+        success: false,
+        error: emitData?.mensagem || emitData?.message || `Erro Nuvem Fiscal [${emitResp.status}]`,
+        details: emitData,
+      });
     }
 
-    // Save fiscal document
     const accessKey = emitData.chave || emitData.chave_acesso || null;
     const docNumber = emitData.numero || config.next_number || null;
     const status = emitData.status === "autorizada" ? "autorizada" : emitData.status || "pendente";
@@ -236,34 +349,26 @@ Deno.serve(async (req) => {
       nuvem_fiscal_id: emitData.id || null,
     });
 
-    // Update sale status
     await supabase
       .from("sales")
       .update({ status: "autorizada", access_key: accessKey, number: docNumber })
       .eq("id", sale_id);
 
-    // Increment next_number
     await supabase
       .from("fiscal_configs")
       .update({ next_number: (config.next_number || 1) + 1 })
       .eq("id", config_id);
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        access_key: accessKey,
-        number: docNumber,
-        status,
-        nuvem_fiscal_id: emitData.id,
-      }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return jsonResponse({
+      success: true,
+      access_key: accessKey,
+      number: docNumber,
+      status,
+      nuvem_fiscal_id: emitData.id,
+    });
   } catch (err: unknown) {
     console.error("emit-nfce error:", err);
     const message = err instanceof Error ? err.message : "Erro interno";
-    return new Response(JSON.stringify({ success: false, error: message }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return jsonResponse({ success: false, error: message }, 500);
   }
 });

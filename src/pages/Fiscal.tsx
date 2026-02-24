@@ -60,6 +60,9 @@ export default function Fiscal() {
   const [docs, setDocs] = useState<FiscalDoc[]>([]);
   const [loading, setLoading] = useState(true);
   const [printingDanfe, setPrintingDanfe] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+  const [cancelJustificativa, setCancelJustificativa] = useState("");
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
   const loadDocs = useCallback(async () => {
     if (!companyId) return;
@@ -481,11 +484,61 @@ export default function Fiscal() {
                 </button>
               )}
               {selectedDoc.status === "autorizada" && (
-                <button className="flex-1 py-2.5 rounded-xl bg-destructive text-destructive-foreground text-sm font-medium hover:opacity-90 transition-all">
+                <button
+                  onClick={() => { setCancelJustificativa(""); setShowCancelConfirm(true); }}
+                  className="flex-1 py-2.5 rounded-xl bg-destructive text-destructive-foreground text-sm font-medium hover:opacity-90 transition-all"
+                >
                   Cancelar
                 </button>
               )}
             </div>
+
+            {/* Cancel confirmation */}
+            {showCancelConfirm && (
+              <div className="mt-4 p-4 rounded-xl bg-destructive/5 border border-destructive/20 space-y-3">
+                <p className="text-sm font-medium text-foreground">Justificativa do cancelamento</p>
+                <textarea
+                  value={cancelJustificativa}
+                  onChange={(e) => setCancelJustificativa(e.target.value)}
+                  placeholder="Mínimo 15 caracteres. Ex: Erro na emissão do documento fiscal..."
+                  rows={3}
+                  className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm text-foreground resize-none focus:outline-none focus:ring-2 focus:ring-destructive/30"
+                />
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setShowCancelConfirm(false)}
+                    className="flex-1 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:bg-muted transition-colors"
+                  >
+                    Voltar
+                  </button>
+                  <button
+                    disabled={cancelling || cancelJustificativa.length < 15}
+                    onClick={async () => {
+                      setCancelling(true);
+                      const result = await FiscalEmissionService.cancelDocument({
+                        accessKey: selectedDoc.access_key || undefined,
+                        fiscalDocId: selectedDoc.id,
+                        docType: selectedDoc.doc_type as "nfce" | "nfe",
+                        justificativa: cancelJustificativa,
+                      });
+                      if (result.success) {
+                        toast.success("Documento cancelado com sucesso!");
+                        setSelectedDoc(null);
+                        setShowCancelConfirm(false);
+                        loadDocs();
+                      } else {
+                        toast.error(result.error || "Erro ao cancelar");
+                      }
+                      setCancelling(false);
+                    }}
+                    className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg bg-destructive text-destructive-foreground text-sm font-medium hover:opacity-90 transition-all disabled:opacity-50"
+                  >
+                    {cancelling && <Loader2 className="w-4 h-4 animate-spin" />}
+                    Confirmar Cancelamento
+                  </button>
+                </div>
+              </div>
+            )}
           </motion.div>
         </div>
       )}
