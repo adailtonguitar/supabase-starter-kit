@@ -23,6 +23,7 @@ export function AiInsightWidget() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "Authorization": `Bearer ${anonKey}`,
           "apikey": anonKey,
         },
         body: JSON.stringify({ report_type: "quick", company_id: companyId }),
