@@ -199,7 +199,7 @@ export function NFeImportDialog({ open, onOpenChange }: NFeImportDialogProps) {
       // Create new product
       const { error } = await supabase.from("products").insert({
         name: p.name,
-        sku: "",
+        sku: null,
         barcode: p.barcode || null,
         ncm: p.ncm || null,
         price: p.unitPrice,
