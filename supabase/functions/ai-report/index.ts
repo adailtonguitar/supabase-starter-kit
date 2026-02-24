@@ -202,12 +202,9 @@ Deno.serve(async (req) => {
         );
 
         if (aiResponse.status === 429) {
-          return new Response(JSON.stringify({ error: "Limite de requisições excedido. Tente novamente em alguns minutos." }), {
-            status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
-
-        if (aiResponse.ok) {
+          console.warn("Gemini 429 rate limit, using fallback report");
+          // Fall through to programmatic fallback
+        } else if (aiResponse.ok) {
           const aiData = await aiResponse.json();
           const content = aiData.candidates?.[0]?.content?.parts?.[0]?.text;
           if (content) {
@@ -215,9 +212,9 @@ Deno.serve(async (req) => {
               headers: { ...corsHeaders, "Content-Type": "application/json" },
             });
           }
+        } else {
+          console.error("Gemini API error:", aiResponse.status, await aiResponse.text());
         }
-
-        console.error("Gemini API error:", aiResponse.status, await aiResponse.text());
       } catch (aiErr) {
         console.error("Gemini API error, falling back:", aiErr);
       }
