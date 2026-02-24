@@ -2,6 +2,18 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "./useCompany";
 
+interface DailySales {
+  date: string;
+  total: number;
+  count: number;
+}
+
+interface TopProduct {
+  name: string;
+  quantity: number;
+  revenue: number;
+}
+
 interface DashboardStats {
   salesToday: number;
   salesCountToday: number;
@@ -12,6 +24,11 @@ interface DashboardStats {
   activeAlerts: number;
   healthScore: number;
   fiscalProtected: boolean;
+  totalProducts: number;
+  totalClients: number;
+  salesGrowth: number;
+  last7Days: DailySales[];
+  topProducts: TopProduct[];
   recentSales: Array<{
     id: string;
     number: number | null;
@@ -20,6 +37,7 @@ interface DashboardStats {
     status: string;
   }>;
 }
+
 function extractPaymentMethod(payments: any): string {
   try {
     const arr = Array.isArray(payments) ? payments : typeof payments === "string" ? JSON.parse(payments) : [];
@@ -39,18 +57,37 @@ export function useDashboardStats() {
       const today = new Date().toISOString().split("T")[0];
       const monthStart = today.slice(0, 7) + "-01";
 
-      const [salesResult, monthResult, recentResult, productsResult, alertsResult, fiscalResult, financialResult] = await Promise.all([
+      // Last 7 days range
+      const d7 = new Date();
+      d7.setDate(d7.getDate() - 6);
+      const sevenDaysAgo = d7.toISOString().split("T")[0];
+
+      // Previous period for growth calc
+      const d14 = new Date();
+      d14.setDate(d14.getDate() - 13);
+      const fourteenDaysAgo = d14.toISOString().split("T")[0];
+
+      const [
+        salesResult, monthResult, recentResult, productsResult, alertsResult,
+        fiscalResult, financialResult, last7Result, prevPeriodResult,
+        totalProductsResult, totalClientsResult, saleItemsResult
+      ] = await Promise.all([
         supabase.from("sales").select("total").eq("company_id", companyId).gte("created_at", today + "T00:00:00"),
         supabase.from("sales").select("total").eq("company_id", companyId).gte("created_at", monthStart + "T00:00:00"),
         supabase.from("sales").select("id, sale_number, payments, total, status").eq("company_id", companyId).order("created_at", { ascending: false }).limit(5),
-        // Products at risk: stock_quantity <= min_stock
         supabase.from("products").select("id, stock_quantity, min_stock").eq("company_id", companyId),
-        // Active financial alerts
         supabase.from("financial_entries").select("id").eq("company_id", companyId).eq("status", "pendente").lte("due_date", today),
-        // Fiscal config check
         supabase.from("fiscal_configs").select("id").eq("company_id", companyId).eq("is_active", true).limit(1),
-        // Financial entries for real profit calc (month)
         supabase.from("financial_entries").select("type, amount").eq("company_id", companyId).eq("status", "pago").gte("due_date", monthStart),
+        // Last 7 days sales
+        supabase.from("sales").select("total, created_at").eq("company_id", companyId).gte("created_at", sevenDaysAgo + "T00:00:00").order("created_at", { ascending: true }),
+        // Previous 7 days for growth
+        supabase.from("sales").select("total").eq("company_id", companyId).gte("created_at", fourteenDaysAgo + "T00:00:00").lt("created_at", sevenDaysAgo + "T00:00:00"),
+        // Total counts
+        supabase.from("products").select("id", { count: "exact", head: true }).eq("company_id", companyId),
+        supabase.from("clients").select("id", { count: "exact", head: true }).eq("company_id", companyId),
+        // Top products from sale_items
+        supabase.from("sale_items").select("product_name, quantity, unit_price, sale_id").eq("company_id", companyId).gte("created_at", monthStart + "T00:00:00").limit(500),
       ]);
 
       const todaySales = salesResult.data || [];
@@ -61,29 +98,62 @@ export function useDashboardStats() {
       const ticketMedio = salesCountToday > 0 ? salesToday / salesCountToday : 0;
       const monthRevenue = monthSales.reduce((sum, s: any) => sum + Number(s.total || 0), 0);
 
-      // Products at risk (stock <= min_stock and min_stock > 0)
       const products = productsResult.data || [];
       const productsAtRisk = products.filter((p: any) => p.min_stock > 0 && (p.stock_quantity ?? 0) <= p.min_stock).length;
-
-      // Overdue financial entries
       const activeAlerts = (alertsResult.data || []).length;
-
-      // Fiscal protection
       const fiscalProtected = (fiscalResult.data || []).length > 0;
 
-      // Real profit: receitas - despesas from financial_entries
       const financialEntries = financialResult.data || [];
       const receitas = financialEntries.filter((e: any) => e.type === "receita").reduce((s: number, e: any) => s + Number(e.amount || 0), 0);
       const despesas = financialEntries.filter((e: any) => e.type === "despesa").reduce((s: number, e: any) => s + Number(e.amount || 0), 0);
       const monthProfit = receitas > 0 || despesas > 0 ? receitas - despesas : monthRevenue * 0.3;
 
-      // Health score based on real data
       let healthScore = 50;
       if (monthRevenue > 0) healthScore += 15;
       if (productsAtRisk === 0) healthScore += 15;
       if (activeAlerts === 0) healthScore += 10;
       if (fiscalProtected) healthScore += 10;
       healthScore = Math.min(100, healthScore);
+
+      // Last 7 days aggregation
+      const last7Data = last7Result.data || [];
+      const dayMap: Record<string, { total: number; count: number }> = {};
+      for (let i = 0; i < 7; i++) {
+        const d = new Date();
+        d.setDate(d.getDate() - (6 - i));
+        const key = d.toISOString().split("T")[0];
+        dayMap[key] = { total: 0, count: 0 };
+      }
+      last7Data.forEach((s: any) => {
+        const key = (s.created_at || "").split("T")[0];
+        if (dayMap[key]) {
+          dayMap[key].total += Number(s.total || 0);
+          dayMap[key].count += 1;
+        }
+      });
+      const last7Days: DailySales[] = Object.entries(dayMap).map(([date, v]) => ({
+        date,
+        total: v.total,
+        count: v.count,
+      }));
+
+      // Sales growth
+      const currentPeriodTotal = last7Data.reduce((s: number, r: any) => s + Number(r.total || 0), 0);
+      const prevPeriodTotal = (prevPeriodResult.data || []).reduce((s: number, r: any) => s + Number(r.total || 0), 0);
+      const salesGrowth = prevPeriodTotal > 0 ? ((currentPeriodTotal - prevPeriodTotal) / prevPeriodTotal) * 100 : 0;
+
+      // Top products
+      const productMap: Record<string, { quantity: number; revenue: number }> = {};
+      (saleItemsResult.data || []).forEach((item: any) => {
+        const name = item.product_name || "Sem nome";
+        if (!productMap[name]) productMap[name] = { quantity: 0, revenue: 0 };
+        productMap[name].quantity += Number(item.quantity || 0);
+        productMap[name].revenue += Number(item.quantity || 0) * Number(item.unit_price || 0);
+      });
+      const topProducts: TopProduct[] = Object.entries(productMap)
+        .map(([name, v]) => ({ name, ...v }))
+        .sort((a, b) => b.revenue - a.revenue)
+        .slice(0, 5);
 
       return {
         salesToday,
@@ -95,6 +165,11 @@ export function useDashboardStats() {
         activeAlerts,
         healthScore,
         fiscalProtected,
+        totalProducts: totalProductsResult.count || 0,
+        totalClients: totalClientsResult.count || 0,
+        salesGrowth,
+        last7Days,
+        topProducts,
         recentSales: (recentResult.data || []).map((row: any) => ({
           id: row.id,
           number: row.sale_number || row.number,

@@ -1,10 +1,20 @@
-import { TrendingUp, ShoppingBag, DollarSign, AlertTriangle, Shield, Heart, Target } from "lucide-react";
+import {
+  TrendingUp, TrendingDown, ShoppingBag, DollarSign, AlertTriangle,
+  Shield, Heart, Target, Package, Users, ArrowUpRight, ArrowDownRight,
+} from "lucide-react";
 import { formatCurrency } from "@/lib/mock-data";
 import { motion } from "framer-motion";
 import { useDashboardStats } from "@/hooks/useDashboardStats";
 import { Link } from "react-router-dom";
 import { QuickAccessCards } from "@/components/dashboard/QuickAccessCards";
-import { AiInsightWidget } from "@/components/dashboard/AiInsightWidget";
+import { SalesChart } from "@/components/dashboard/SalesChart";
+import { TopProductsList } from "@/components/dashboard/TopProductsList";
+
+const fade = (delay = 0) => ({
+  initial: { opacity: 0, y: 16 },
+  animate: { opacity: 1, y: 0 },
+  transition: { duration: 0.01, delay },
+});
 
 export default function Dashboard() {
   const { data: stats, isLoading } = useDashboardStats();
@@ -22,13 +32,30 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="p-3 sm:p-6 space-y-4 sm:space-y-6 max-w-7xl mx-auto min-w-0 overflow-x-hidden">
-
-      <div>
-        <h1 className="text-xl sm:text-2xl font-bold text-foreground">Dashboard</h1>
-        <p className="text-sm text-muted-foreground mt-1">Resumo inteligente da sua empresa</p>
+    <div className="p-3 sm:p-6 space-y-4 sm:space-y-5 max-w-7xl mx-auto min-w-0 overflow-x-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-bold text-foreground">Dashboard</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">Resumo inteligente da sua empresa</p>
+        </div>
+        {stats && (
+          <div className="hidden sm:flex items-center gap-2 text-xs text-muted-foreground">
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-border bg-card">
+              <Package className="w-3.5 h-3.5" />
+              <span className="font-mono font-semibold text-foreground">{stats.totalProducts}</span>
+              <span>produtos</span>
+            </div>
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-border bg-card">
+              <Users className="w-3.5 h-3.5" />
+              <span className="font-mono font-semibold text-foreground">{stats.totalClients}</span>
+              <span>clientes</span>
+            </div>
+          </div>
+        )}
       </div>
 
+      {/* Quick Access */}
       <QuickAccessCards />
 
       {isLoading ? (
@@ -37,25 +64,55 @@ export default function Dashboard() {
         </div>
       ) : stats ? (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className={`rounded-xl p-5 border card-shadow ${stats.fiscalProtected ? "bg-success/10 border-success/30" : "bg-destructive/10 border-destructive/30"}`}>
+          {/* KPI Cards */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            {[
+              { title: "Vendas Hoje", value: formatCurrency(stats.salesToday), sub: `${stats.salesCountToday} vendas`, icon: DollarSign, accent: "text-primary" },
+              { title: "Ticket Médio", value: formatCurrency(stats.ticketMedio), sub: "por venda", icon: ShoppingBag, accent: "text-blue-500" },
+              { title: "Receita do Mês", value: formatCurrency(stats.monthRevenue), sub: `Lucro: ${formatCurrency(stats.monthProfit)}`, icon: TrendingUp, accent: "text-success" },
+              {
+                title: "Crescimento",
+                value: `${stats.salesGrowth >= 0 ? "+" : ""}${stats.salesGrowth.toFixed(1)}%`,
+                sub: "vs semana anterior",
+                icon: stats.salesGrowth >= 0 ? ArrowUpRight : ArrowDownRight,
+                accent: stats.salesGrowth >= 0 ? "text-success" : "text-destructive",
+              },
+            ].map((kpi, i) => (
+              <motion.div key={kpi.title} {...fade(i * 0.03)} className="bg-card rounded-xl p-4 sm:p-5 border border-border card-shadow">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs text-muted-foreground">{kpi.title}</span>
+                  <kpi.icon className={`w-4 h-4 ${kpi.accent}`} />
+                </div>
+                <p className="text-lg sm:text-2xl font-bold font-mono text-foreground">{kpi.value}</p>
+                <p className="text-[11px] text-muted-foreground mt-1">{kpi.sub}</p>
+              </motion.div>
+            ))}
+          </div>
+
+          {/* Status Row */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {/* Fiscal */}
+            <motion.div {...fade(0.12)} className={`rounded-xl p-4 border ${stats.fiscalProtected ? "bg-success/10 border-success/30" : "bg-destructive/10 border-destructive/30"}`}>
               <div className="flex items-center gap-3">
-                <Shield className={`w-6 h-6 ${stats.fiscalProtected ? "text-success" : "text-destructive"}`} />
+                <Shield className={`w-5 h-5 ${stats.fiscalProtected ? "text-success" : "text-destructive"}`} />
                 <div>
                   <p className={`text-sm font-bold ${stats.fiscalProtected ? "text-success" : "text-destructive"}`}>
-                    {stats.fiscalProtected ? "Empresa Protegida" : "Proteção Desativada"}
+                    {stats.fiscalProtected ? "Proteção Ativa" : "Sem Proteção"}
                   </p>
-                  <p className="text-xs text-muted-foreground">{stats.fiscalProtected ? "Escudo Fiscal ativo" : "Ative o Modo Seguro Fiscal"}</p>
+                  <p className="text-xs text-muted-foreground">{stats.fiscalProtected ? "Escudo Fiscal ativo" : "Ative o Modo Seguro"}</p>
                 </div>
               </div>
             </motion.div>
 
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className="bg-card rounded-xl p-5 border border-border card-shadow">
-              <div className="flex items-center gap-3 mb-3">
-                <Heart className={`w-6 h-6 ${healthColor(stats.healthScore)}`} />
-                <div>
-                  <p className="text-sm font-medium text-foreground">Saúde Financeira</p>
-                  <p className={`text-2xl font-bold font-mono ${healthColor(stats.healthScore)}`}>{stats.healthScore}/100</p>
+            {/* Health */}
+            <motion.div {...fade(0.14)} className="bg-card rounded-xl p-4 border border-border card-shadow">
+              <div className="flex items-center gap-3 mb-2">
+                <Heart className={`w-5 h-5 ${healthColor(stats.healthScore)}`} />
+                <div className="flex-1">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-medium text-foreground">Saúde Financeira</p>
+                    <p className={`text-lg font-bold font-mono ${healthColor(stats.healthScore)}`}>{stats.healthScore}</p>
+                  </div>
                 </div>
               </div>
               <div className="h-2 bg-muted rounded-full overflow-hidden">
@@ -63,50 +120,44 @@ export default function Dashboard() {
               </div>
             </motion.div>
 
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="bg-card rounded-xl p-5 border border-border card-shadow">
-              <div className="flex items-center gap-3 mb-3">
-                <Target className="w-6 h-6 text-primary" />
-                <p className="text-sm font-medium text-foreground">Resumo Rápido</p>
+            {/* Alerts */}
+            <motion.div {...fade(0.16)} className="bg-card rounded-xl p-4 border border-border card-shadow">
+              <div className="flex items-center gap-3">
+                <Target className="w-5 h-5 text-primary" />
+                <p className="text-sm font-medium text-foreground">Resumo</p>
               </div>
-              <div className="space-y-1.5 text-xs">
+              <div className="mt-2 space-y-1.5 text-xs">
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Lucro do mês</span>
-                  <span className={`font-bold font-mono ${stats.monthProfit >= 0 ? "text-success" : "text-destructive"}`}>{formatCurrency(stats.monthProfit)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Produtos com risco</span>
+                  <span className="text-muted-foreground">Produtos em risco</span>
                   <span className={`font-bold ${stats.productsAtRisk > 0 ? "text-destructive" : "text-success"}`}>{stats.productsAtRisk}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Alertas ativos</span>
                   <Link to="/alertas" className={`font-bold hover:underline ${stats.activeAlerts > 0 ? "text-warning" : "text-success"}`}>{stats.activeAlerts}</Link>
                 </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Lucro do mês</span>
+                  <span className={`font-bold font-mono ${stats.monthProfit >= 0 ? "text-success" : "text-destructive"}`}>{formatCurrency(stats.monthProfit)}</span>
+                </div>
               </div>
             </motion.div>
           </div>
 
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-            {[
-              { title: "Vendas Hoje", value: formatCurrency(stats.salesToday), icon: DollarSign },
-              { title: "Nº de Vendas", value: String(stats.salesCountToday), icon: ShoppingBag },
-              { title: "Ticket Médio", value: formatCurrency(stats.ticketMedio), icon: TrendingUp },
-              { title: "Receita do Mês", value: formatCurrency(stats.monthRevenue), icon: DollarSign },
-            ].map((stat, i) => (
-              <motion.div key={stat.title} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 + i * 0.05 }} className="bg-card rounded-xl p-3 sm:p-5 card-shadow border border-border">
-                <div className="flex items-center justify-between mb-2 sm:mb-3">
-                  <span className="text-xs sm:text-sm text-muted-foreground">{stat.title}</span>
-                  <stat.icon className="w-4 h-4 sm:w-5 sm:h-5 text-muted-foreground" />
-                </div>
-                <span className="text-lg sm:text-2xl font-bold font-mono text-foreground">{stat.value}</span>
-              </motion.div>
-            ))}
+          {/* Chart + Top Products */}
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+            <motion.div {...fade(0.18)} className="lg:col-span-3">
+              <SalesChart data={stats.last7Days} />
+            </motion.div>
+            <motion.div {...fade(0.2)} className="lg:col-span-2">
+              <TopProductsList products={stats.topProducts} />
+            </motion.div>
           </div>
 
-          <AiInsightWidget />
-
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="bg-card rounded-xl card-shadow border border-border overflow-hidden">
-            <div className="px-3 sm:px-5 py-3 sm:py-4 border-b border-border">
-              <h2 className="text-sm sm:text-base font-semibold text-foreground">Últimas Vendas</h2>
+          {/* Recent Sales */}
+          <motion.div {...fade(0.22)} className="bg-card rounded-xl card-shadow border border-border overflow-hidden">
+            <div className="px-4 sm:px-5 py-3 border-b border-border flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-foreground">Últimas Vendas</h2>
+              <Link to="/vendas" className="text-xs text-primary hover:underline font-medium">Ver todas →</Link>
             </div>
             <div className="sm:hidden divide-y divide-border">
               {stats.recentSales.length === 0 ? (
@@ -119,7 +170,7 @@ export default function Dashboard() {
                       <p className="text-xs text-muted-foreground capitalize">{sale.payment_method || "—"}</p>
                     </div>
                     <div className="text-right shrink-0 ml-3">
-                      <p className="text-sm font-mono font-semibold text-primary">{formatCurrency(Number(sale.total_value))}</p>
+                      <p className="text-sm font-mono font-semibold text-primary">{formatCurrency(sale.total_value)}</p>
                       <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium ${sale.status === "autorizado" ? "bg-success/10 text-success" : sale.status === "rejeitado" ? "bg-destructive/10 text-destructive" : "bg-warning/10 text-warning"}`}>
                         {sale.status === "autorizado" ? "Autorizado" : sale.status === "rejeitado" ? "Rejeitado" : "Pendente"}
                       </span>
@@ -146,7 +197,7 @@ export default function Dashboard() {
                       <tr key={sale.id} className="border-b border-border last:border-0 hover:bg-muted/50 transition-colors">
                         <td className="px-5 py-3 font-mono text-foreground">{sale.number ? String(sale.number).padStart(6, "0") : sale.id.slice(0, 8)}</td>
                         <td className="px-5 py-3 text-foreground capitalize">{sale.payment_method || "—"}</td>
-                        <td className="px-5 py-3 text-right font-mono font-semibold text-primary">{formatCurrency(Number(sale.total_value))}</td>
+                        <td className="px-5 py-3 text-right font-mono font-semibold text-primary">{formatCurrency(sale.total_value)}</td>
                         <td className="px-5 py-3 text-center">
                           <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${sale.status === "autorizado" ? "bg-success/10 text-success" : sale.status === "rejeitado" ? "bg-destructive/10 text-destructive" : "bg-warning/10 text-warning"}`}>
                             {sale.status === "autorizado" ? "Autorizado" : sale.status === "rejeitado" ? "Rejeitado" : "Pendente"}
