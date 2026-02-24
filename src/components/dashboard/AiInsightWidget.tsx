@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Sparkles, Loader2, RefreshCw } from "lucide-react";
+import { Sparkles, Loader2, RefreshCw, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
 import ReactMarkdown from "react-markdown";
@@ -43,7 +43,7 @@ export function AiInsightWidget() {
           <Sparkles className="w-4 h-4 text-primary" />
           Insight IA
         </h3>
-        {insight && (
+        {companyId && (
           <button
             onClick={fetchInsight}
             disabled={loading}
@@ -63,11 +63,14 @@ export function AiInsightWidget() {
       )}
 
       {!loading && error && (
-        <div className="text-sm text-muted-foreground">
-          <p>Não foi possível gerar o insight.</p>
-          <button onClick={fetchInsight} className="text-primary text-xs hover:underline mt-1">
-            Tentar novamente
-          </button>
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <AlertCircle className="w-4 h-4 text-destructive" />
+          <div>
+            <p>Não foi possível gerar o insight.</p>
+            <button onClick={fetchInsight} className="text-primary text-xs hover:underline mt-1">
+              Tentar novamente
+            </button>
+          </div>
         </div>
       )}
 
@@ -77,8 +80,12 @@ export function AiInsightWidget() {
         </div>
       )}
 
-      {!loading && !error && !insight && !companyId && (
-        <p className="text-sm text-muted-foreground">Conecte-se para receber insights personalizados.</p>
+      {!loading && !error && !insight && (
+        <p className="text-sm text-muted-foreground">
+          {companyId
+            ? "Clique em Atualizar para gerar um insight sobre seu negócio."
+            : "Conecte-se para receber insights personalizados."}
+        </p>
       )}
     </div>
   );
