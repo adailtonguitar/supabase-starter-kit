@@ -12,3 +12,9 @@ verify_jwt = false
 
 [functions.create-checkout-v2]
 verify_jwt = false
+
+[functions.emit-nfce]
+verify_jwt = false
+
+[functions.generate-sped]
+verify_jwt = false
