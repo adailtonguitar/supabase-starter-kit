@@ -114,7 +114,7 @@ function generateFallbackReport(reportType: string, sales: any[], products: any[
 }
 
 async function callGeminiWithRetry(apiKey: string, systemPrompt: string, dataSummary: string, isQuick: boolean, maxRetries = 2): Promise<string | null> {
-  const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+  const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
   
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     if (attempt > 0) {
