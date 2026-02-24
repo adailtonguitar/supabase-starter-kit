@@ -21,3 +21,6 @@ verify_jwt = false
 
 [functions.tef-gateway]
 verify_jwt = false
+
+[functions.ai-report]
+verify_jwt = false
