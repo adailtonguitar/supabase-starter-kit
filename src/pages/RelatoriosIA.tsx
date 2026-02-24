@@ -1,67 +1,56 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useCompany } from "@/hooks/useCompany";
-import { supabase } from "@/integrations/supabase/client";
+import { generateAIReport, type AIReportResult } from "@/services/aiReportService";
 import { toast } from "sonner";
-import { Brain, TrendingUp, Package, Wallet, Sparkles, Loader2, RefreshCw, FileText, ChevronUp, ChevronDown } from "lucide-react";
+import { Brain, Sparkles, Loader2, RefreshCw, ChevronUp, ChevronDown, Calendar, FileText, AlertCircle } from "lucide-react";
 import ReactMarkdown from "react-markdown";
-
-type ReportType = "general" | "sales" | "stock" | "financial";
-
-const reportOptions: { type: ReportType; label: string; description: string; icon: React.ReactNode }[] = [
-  { type: "general", label: "Visão Geral", description: "Análise completa de vendas, estoque e finanças", icon: <Brain className="w-5 h-5" /> },
-  { type: "sales", label: "Vendas", description: "Performance de vendas, ticket médio e tendências", icon: <TrendingUp className="w-5 h-5" /> },
-  { type: "stock", label: "Estoque", description: "Alertas de ruptura, giro e oportunidades", icon: <Package className="w-5 h-5" /> },
-  { type: "financial", label: "Financeiro", description: "Fluxo de caixa, inadimplência e projeções", icon: <Wallet className="w-5 h-5" /> },
-];
+import { format, subDays, startOfMonth } from "date-fns";
 
 export default function RelatoriosIA() {
   const { companyId } = useCompany();
   const [loading, setLoading] = useState(false);
-  const [report, setReport] = useState<string | null>(null);
-  const [selectedType, setSelectedType] = useState<ReportType>("general");
+  const [result, setResult] = useState<AIReportResult | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [generatedAt, setGeneratedAt] = useState<Date | null>(null);
   const [collapsed, setCollapsed] = useState(false);
 
-  const generateReport = async (type: ReportType) => {
-    if (!companyId) return;
+  // Default: first of current month to today
+  const today = format(new Date(), "yyyy-MM-dd");
+  const monthStart = format(startOfMonth(new Date()), "yyyy-MM-dd");
+  const [startDate, setStartDate] = useState(monthStart);
+  const [endDate, setEndDate] = useState(today);
+
+  const handleGenerate = async () => {
+    if (!companyId) {
+      toast.error("Empresa não identificada. Faça login novamente.");
+      return;
+    }
+    if (!startDate || !endDate) {
+      toast.error("Selecione o período de análise.");
+      return;
+    }
+    if (startDate > endDate) {
+      toast.error("Data inicial não pode ser maior que a final.");
+      return;
+    }
+
     setLoading(true);
-    setSelectedType(type);
-    setReport(null);
+    setResult(null);
+    setErrorMsg(null);
     setCollapsed(false);
 
     try {
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "https://fsvxpxziotklbxkivyug.supabase.co";
-      const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZzdnhweHppb3RrbGJ4a2l2eXVnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE3ODU5NTMsImV4cCI6MjA4NzM2MTk1M30.8I3ABsRZBZuE1IpK_g9z3PdRUd9Omt_F5qNx0Pgqvyo";
-
-      const resp = await fetch(`${supabaseUrl}/functions/v1/ai-report`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${anonKey}`,
-          "apikey": anonKey,
-        },
-        body: JSON.stringify({ report_type: type, company_id: companyId }),
-      });
-
-      const data = await resp.json();
-
-      if (!resp.ok) {
-        toast.error(data?.error || `Erro ${resp.status}. Tente novamente.`);
-        return;
-      }
-
-      if (data?.report) {
-        setReport(data.report);
-        setGeneratedAt(new Date());
-        toast.success("Relatório gerado com sucesso!");
-      } else {
-        toast.error("Resposta inesperada da edge function.");
-      }
+      const data = await generateAIReport(companyId, startDate, endDate);
+      setResult(data);
+      setGeneratedAt(new Date());
+      toast.success("Relatório gerado com sucesso!");
     } catch (err: any) {
-      console.error("Report error:", err);
-      toast.error("Erro ao gerar relatório. Tente novamente.");
+      console.error("[RelatoriosIA] Error:", err?.message || err);
+      setErrorMsg(err?.message || "Erro ao gerar relatório.");
+      toast.error(err?.message || "Erro ao gerar relatório.");
     } finally {
       setLoading(false);
     }
@@ -70,39 +59,94 @@ export default function RelatoriosIA() {
   return (
     <div className="p-6 space-y-6 max-w-5xl mx-auto">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-            <Sparkles className="w-6 h-6 text-primary" />
-            Relatórios Inteligentes
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Análises automatizadas com inteligência artificial sobre seu negócio
-          </p>
-        </div>
+      <div>
+        <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+          <Sparkles className="w-6 h-6 text-primary" />
+          Relatórios Inteligentes
+        </h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          Análises com IA baseadas em dados reais do seu negócio
+        </p>
       </div>
 
-      {/* Report type cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        {reportOptions.map((opt) => (
-          <button
-            key={opt.type}
-            onClick={() => generateReport(opt.type)}
-            disabled={loading}
-            className={`text-left p-4 rounded-xl border transition-all ${
-              selectedType === opt.type && report
-                ? "border-primary bg-primary/5 shadow-sm"
-                : "border-border hover:border-primary/40 hover:bg-accent"
-            } ${loading ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
-          >
-            <div className={`mb-2 ${selectedType === opt.type && report ? "text-primary" : "text-muted-foreground"}`}>
-              {opt.icon}
+      {/* Date range + Generate button */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex flex-col sm:flex-row items-end gap-4">
+            <div className="flex-1 w-full">
+              <label className="text-sm font-medium text-foreground mb-1.5 flex items-center gap-1.5">
+                <Calendar className="w-4 h-4 text-muted-foreground" />
+                Período de análise
+              </label>
+              <div className="flex gap-2">
+                <Input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="flex-1"
+                />
+                <span className="self-center text-muted-foreground text-sm">até</span>
+                <Input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="flex-1"
+                />
+              </div>
             </div>
-            <p className="text-sm font-semibold text-foreground">{opt.label}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">{opt.description}</p>
-          </button>
-        ))}
-      </div>
+            <Button
+              onClick={handleGenerate}
+              disabled={loading || !companyId}
+              className="w-full sm:w-auto"
+              size="lg"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Gerando...
+                </>
+              ) : (
+                <>
+                  <Brain className="w-4 h-4" />
+                  Gerar Relatório IA
+                </>
+              )}
+            </Button>
+          </div>
+          <div className="flex gap-2 mt-3">
+            <button
+              type="button"
+              onClick={() => {
+                setStartDate(format(subDays(new Date(), 7), "yyyy-MM-dd"));
+                setEndDate(today);
+              }}
+              className="text-xs text-muted-foreground hover:text-primary transition-colors underline-offset-2 hover:underline"
+            >
+              Últimos 7 dias
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setStartDate(format(subDays(new Date(), 30), "yyyy-MM-dd"));
+                setEndDate(today);
+              }}
+              className="text-xs text-muted-foreground hover:text-primary transition-colors underline-offset-2 hover:underline"
+            >
+              Últimos 30 dias
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setStartDate(monthStart);
+                setEndDate(today);
+              }}
+              className="text-xs text-muted-foreground hover:text-primary transition-colors underline-offset-2 hover:underline"
+            >
+              Mês atual
+            </button>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Loading */}
       {loading && (
@@ -113,15 +157,33 @@ export default function RelatoriosIA() {
               <Loader2 className="w-6 h-6 text-primary animate-spin absolute -top-1 -right-1" />
             </div>
             <div className="text-center">
-              <p className="text-sm font-medium text-foreground">A IA está analisando seus dados...</p>
-              <p className="text-xs text-muted-foreground mt-1">Gerando relatório executivo detalhado com base nos últimos 30 dias</p>
+              <p className="text-sm font-medium text-foreground">
+                A IA está analisando seus dados reais...
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Buscando vendas, produtos, clientes e financeiro de {startDate} a {endDate}
+              </p>
             </div>
           </CardContent>
         </Card>
       )}
 
+      {/* Error */}
+      {!loading && errorMsg && (
+        <Card className="border-destructive/30">
+          <CardContent className="py-8 flex flex-col items-center gap-3 text-center">
+            <AlertCircle className="w-10 h-10 text-destructive" />
+            <p className="text-sm font-medium text-foreground">{errorMsg}</p>
+            <Button variant="outline" size="sm" onClick={handleGenerate}>
+              <RefreshCw className="w-4 h-4 mr-1.5" />
+              Tentar novamente
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Report result */}
-      {!loading && report && (
+      {!loading && !errorMsg && result && (
         <Card className="border-primary/20 shadow-sm">
           <CardHeader className="pb-3 border-b border-border">
             <div className="flex items-center justify-between">
@@ -130,21 +192,33 @@ export default function RelatoriosIA() {
                   <Sparkles className="w-5 h-5 text-primary" />
                 </div>
                 <div>
-                  <CardTitle className="text-base">Análise Inteligente</CardTitle>
-                  <CardDescription className="text-xs">Powered by IA</CardDescription>
+                  <CardTitle className="text-base">Relatório Executivo</CardTitle>
+                  <CardDescription className="text-xs">
+                    {result.source === "gemini" ? "Powered by Gemini AI" : "Gerado por IA"} •{" "}
+                    {result.data_summary?.period}
+                  </CardDescription>
                 </div>
               </div>
               <div className="flex items-center gap-2">
+                {result.data_summary && (
+                  <span className="text-xs text-muted-foreground hidden sm:inline">
+                    {result.data_summary.sales_count} vendas · {result.data_summary.products_count} produtos · {result.data_summary.clients_count} clientes
+                  </span>
+                )}
                 <button
                   onClick={() => setCollapsed(!collapsed)}
                   className="p-1.5 rounded-md hover:bg-accent transition-colors"
                 >
-                  {collapsed ? <ChevronDown className="w-4 h-4 text-muted-foreground" /> : <ChevronUp className="w-4 h-4 text-muted-foreground" />}
+                  {collapsed ? (
+                    <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                  ) : (
+                    <ChevronUp className="w-4 h-4 text-muted-foreground" />
+                  )}
                 </button>
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => generateReport(selectedType)}
+                  onClick={handleGenerate}
                   disabled={loading}
                   className="text-muted-foreground hover:text-primary"
                 >
@@ -161,8 +235,8 @@ export default function RelatoriosIA() {
           </CardHeader>
           {!collapsed && (
             <CardContent className="pt-6">
-              <div className="prose prose-sm dark:prose-invert max-w-none prose-headings:text-foreground prose-p:text-muted-foreground prose-strong:text-foreground prose-li:text-muted-foreground">
-                <ReactMarkdown>{report}</ReactMarkdown>
+              <div className="prose prose-sm dark:prose-invert max-w-none prose-headings:text-foreground prose-p:text-muted-foreground prose-strong:text-foreground prose-li:text-muted-foreground prose-table:text-sm">
+                <ReactMarkdown>{result.report}</ReactMarkdown>
               </div>
             </CardContent>
           )}
@@ -170,14 +244,16 @@ export default function RelatoriosIA() {
       )}
 
       {/* Empty state */}
-      {!loading && !report && (
+      {!loading && !errorMsg && !result && (
         <Card>
           <CardContent className="py-16 flex flex-col items-center gap-4 text-center">
             <Brain className="w-12 h-12 text-muted-foreground/30" />
             <div>
-              <p className="text-sm font-medium text-foreground">Selecione um tipo de relatório</p>
+              <p className="text-sm font-medium text-foreground">
+                Selecione o período e clique em "Gerar Relatório IA"
+              </p>
               <p className="text-xs text-muted-foreground mt-1">
-                Clique em uma das opções acima para gerar um relatório executivo com IA
+                A IA analisará dados reais de vendas, estoque, clientes e finanças
               </p>
             </div>
           </CardContent>
