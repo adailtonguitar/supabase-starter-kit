@@ -1,5 +1,5 @@
-import { useState, useRef } from "react";
-import { Upload, FileText, AlertCircle, CheckCircle2, Loader2, Package } from "lucide-react";
+import { useState, useRef, useCallback } from "react";
+import { Upload, FileText, AlertCircle, CheckCircle2, Loader2, Package, Pencil, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
 import { useQueryClient } from "@tanstack/react-query";
@@ -113,7 +113,35 @@ export function NFeImportDialog({ open, onOpenChange }: NFeImportDialogProps) {
   const [result, setResult] = useState<{ imported: number; errors: number }>({ imported: 0, errors: 0 });
   const [updateStock, setUpdateStock] = useState(true);
 
-  const reset = () => { setStep("upload"); setNfeInfo(null); setResult({ imported: 0, errors: 0 }); };
+  const reset = () => { setStep("upload"); setNfeInfo(null); setResult({ imported: 0, errors: 0 }); setEditingIndex(null); };
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+
+  const updateProduct = useCallback((index: number, field: keyof NFeProduct, value: string | number) => {
+    if (!nfeInfo) return;
+    setNfeInfo(prev => {
+      if (!prev) return prev;
+      const updated = { ...prev, products: [...prev.products] };
+      const p = { ...updated.products[index] };
+      if (field === "name") p.name = value as string;
+      else if (field === "ncm") p.ncm = value as string;
+      else if (field === "quantity") { p.quantity = Number(value) || 0; p.totalPrice = p.quantity * p.unitPrice; }
+      else if (field === "unitPrice") { p.unitPrice = Number(value) || 0; p.totalPrice = p.quantity * p.unitPrice; }
+      else if (field === "unit") p.unit = (value as string).toUpperCase();
+      p.valid = !!p.name && p.unitPrice > 0;
+      p.error = !p.name ? "Nome vazio" : p.unitPrice <= 0 ? "Preço unitário inválido" : undefined;
+      updated.products[index] = p;
+      return updated;
+    });
+  }, [nfeInfo]);
+
+  const removeProduct = useCallback((index: number) => {
+    if (!nfeInfo) return;
+    setNfeInfo(prev => {
+      if (!prev) return prev;
+      return { ...prev, products: prev.products.filter((_, i) => i !== index) };
+    });
+    setEditingIndex(null);
+  }, [nfeInfo]);
 
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -252,33 +280,87 @@ export function NFeImportDialog({ open, onOpenChange }: NFeImportDialogProps) {
                 {invalidCount > 0 && <span className="flex items-center gap-1.5 text-destructive"><AlertCircle className="w-4 h-4" /> {invalidCount} com erro</span>}
               </div>
 
-              {/* Products table */}
-              <div className="border border-border rounded-lg overflow-x-auto max-h-52">
+              {/* Products table - editable */}
+              <div className="border border-border rounded-lg overflow-x-auto max-h-64">
                 <table className="w-full text-xs">
                   <thead className="bg-muted/50 sticky top-0">
                     <tr>
-                      <th className="px-3 py-2 text-left text-muted-foreground">Status</th>
-                      <th className="px-3 py-2 text-left text-muted-foreground">Produto</th>
-                      <th className="px-3 py-2 text-left text-muted-foreground">NCM</th>
-                      <th className="px-3 py-2 text-right text-muted-foreground">Qtd</th>
-                      <th className="px-3 py-2 text-right text-muted-foreground">Vlr Unit</th>
-                      <th className="px-3 py-2 text-left text-muted-foreground">UN</th>
+                      <th className="px-2 py-2 text-left text-muted-foreground w-8"></th>
+                      <th className="px-2 py-2 text-left text-muted-foreground">Produto</th>
+                      <th className="px-2 py-2 text-left text-muted-foreground w-24">NCM</th>
+                      <th className="px-2 py-2 text-right text-muted-foreground w-16">Qtd</th>
+                      <th className="px-2 py-2 text-right text-muted-foreground w-24">Vlr Unit</th>
+                      <th className="px-2 py-2 text-left text-muted-foreground w-14">UN</th>
+                      <th className="px-2 py-2 text-center text-muted-foreground w-16">Ações</th>
                     </tr>
                   </thead>
                   <tbody>
                     {nfeInfo.products.map((p, i) => (
-                      <tr key={i} className={`border-t border-border ${!p.valid ? "bg-destructive/5" : ""}`}>
-                        <td className="px-3 py-1.5">{p.valid ? <CheckCircle2 className="w-3.5 h-3.5 text-success" /> : <AlertCircle className="w-3.5 h-3.5 text-destructive" />}</td>
-                        <td className="px-3 py-1.5 text-foreground truncate max-w-[200px]">{p.name}</td>
-                        <td className="px-3 py-1.5 text-muted-foreground font-mono">{p.ncm || "—"}</td>
-                        <td className="px-3 py-1.5 text-right text-foreground font-mono">{p.quantity}</td>
-                        <td className="px-3 py-1.5 text-right text-foreground font-mono">R$ {p.unitPrice.toFixed(2).replace(".", ",")}</td>
-                        <td className="px-3 py-1.5 text-muted-foreground">{p.unit}</td>
+                      <tr key={i} className={`border-t border-border ${!p.valid ? "bg-destructive/5" : ""} ${editingIndex === i ? "bg-primary/5" : ""}`}>
+                        <td className="px-2 py-1.5">{p.valid ? <CheckCircle2 className="w-3.5 h-3.5 text-success" /> : <AlertCircle className="w-3.5 h-3.5 text-destructive" />}</td>
+                        <td className="px-2 py-1.5">
+                          {editingIndex === i ? (
+                            <input value={p.name} onChange={(e) => updateProduct(i, "name", e.target.value)}
+                              className="w-full bg-background border border-border rounded px-1.5 py-0.5 text-xs text-foreground" />
+                          ) : (
+                            <span className="text-foreground truncate block max-w-[200px]">{p.name}</span>
+                          )}
+                        </td>
+                        <td className="px-2 py-1.5">
+                          {editingIndex === i ? (
+                            <input value={p.ncm} onChange={(e) => updateProduct(i, "ncm", e.target.value)}
+                              className="w-full bg-background border border-border rounded px-1.5 py-0.5 text-xs text-foreground font-mono" />
+                          ) : (
+                            <span className="text-muted-foreground font-mono">{p.ncm || "—"}</span>
+                          )}
+                        </td>
+                        <td className="px-2 py-1.5 text-right">
+                          {editingIndex === i ? (
+                            <input type="number" value={p.quantity} onChange={(e) => updateProduct(i, "quantity", e.target.value)}
+                              className="w-full bg-background border border-border rounded px-1.5 py-0.5 text-xs text-foreground font-mono text-right" />
+                          ) : (
+                            <span className="text-foreground font-mono">{p.quantity}</span>
+                          )}
+                        </td>
+                        <td className="px-2 py-1.5 text-right">
+                          {editingIndex === i ? (
+                            <input type="number" step="0.01" value={p.unitPrice} onChange={(e) => updateProduct(i, "unitPrice", e.target.value)}
+                              className="w-full bg-background border border-border rounded px-1.5 py-0.5 text-xs text-foreground font-mono text-right" />
+                          ) : (
+                            <span className="text-foreground font-mono">R$ {p.unitPrice.toFixed(2).replace(".", ",")}</span>
+                          )}
+                        </td>
+                        <td className="px-2 py-1.5">
+                          {editingIndex === i ? (
+                            <input value={p.unit} onChange={(e) => updateProduct(i, "unit", e.target.value)}
+                              className="w-full bg-background border border-border rounded px-1.5 py-0.5 text-xs text-foreground" maxLength={5} />
+                          ) : (
+                            <span className="text-muted-foreground">{p.unit}</span>
+                          )}
+                        </td>
+                        <td className="px-2 py-1.5 text-center">
+                          <div className="flex items-center justify-center gap-1">
+                            <button onClick={() => setEditingIndex(editingIndex === i ? null : i)}
+                              className={`p-1 rounded hover:bg-accent transition-colors ${editingIndex === i ? "text-primary" : "text-muted-foreground"}`}
+                              title={editingIndex === i ? "Concluir edição" : "Editar produto"}>
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                            <button onClick={() => removeProduct(i)}
+                              className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                              title="Remover produto">
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
+
+              <p className="text-xs text-muted-foreground">
+                💡 Clique no ícone de lápis para editar um produto antes de importar.
+              </p>
             </div>
           )}
 
