@@ -198,41 +198,66 @@ function generateFallbackReport(reportType: string, sales: any[], products: any[
   return s.join("\n");
 }
 
-async function callGeminiWithRetry(apiKey: string, systemPrompt: string, dataSummary: string, isQuick: boolean, maxRetries = 2): Promise<string | null> {
-  const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-  
+async function callAIWithRetry(apiKey: string, systemPrompt: string, dataSummary: string, isQuick: boolean, maxRetries = 2): Promise<string | null> {
+  const gatewayUrl = "https://ai.gateway.lovable.dev/v1/chat/completions";
+
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     if (attempt > 0) {
-      const delay = Math.pow(2, attempt) * 1000; // 2s, 4s
+      const delay = Math.pow(2, attempt) * 1000;
       console.log(`[ai-report] Retry ${attempt}, waiting ${delay}ms...`);
       await new Promise(r => setTimeout(r, delay));
     }
 
     try {
-      const resp = await fetch(geminiUrl, {
+      const resp = await fetch(gatewayUrl, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${apiKey}`,
+        },
         body: JSON.stringify({
-          contents: [{ role: "user", parts: [{ text: `${systemPrompt}\n\n${dataSummary}` }] }],
-          generationConfig: { maxOutputTokens: isQuick ? 200 : 2048, temperature: 0.7 },
+          model: "google/gemini-3-flash-preview",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: dataSummary },
+          ],
+          max_tokens: isQuick ? 200 : 2048,
+          temperature: 0.7,
         }),
       });
 
-      console.log(`[ai-report] Gemini attempt ${attempt} status: ${resp.status}`);
+      console.log(`[ai-report] Gateway attempt ${attempt} status: ${resp.status}`);
 
       if (resp.status === 429) {
         console.warn("[ai-report] Rate limited, will retry...");
-        await resp.text(); // consume body
+        await resp.text();
         continue;
+      }
+
+      if (resp.status === 402) {
+        console.warn("[ai-report] Payment required - credits exhausted");
+        await resp.text();
+        return null;
       }
 
       if (resp.ok) {
         const data = await resp.json();
-        const content = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        const content = data.choices?.[0]?.message?.content;
         if (content) return content;
         console.error("[ai-report] No content:", JSON.stringify(data).substring(0, 300));
         return null;
       }
+
+      const errText = await resp.text();
+      console.error("[ai-report] Gateway error:", resp.status, errText.substring(0, 200));
+      return null;
+    } catch (err: any) {
+      console.error("[ai-report] Fetch error:", err?.message);
+      if (attempt === maxRetries) return null;
+    }
+  }
+  return null;
+}
 
       const errText = await resp.text();
       console.error("[ai-report] Gemini error:", resp.status, errText.substring(0, 200));
@@ -274,14 +299,14 @@ Deno.serve(async (req) => {
     const financial = financialRes.data || [];
     const isQuick = report_type === "quick";
 
-    const GOOGLE_GEMINI_KEY = Deno.env.get("GOOGLE_GEMINI_KEY");
-    console.log("[ai-report] GOOGLE_GEMINI_KEY present:", !!GOOGLE_GEMINI_KEY, "length:", GOOGLE_GEMINI_KEY?.length || 0);
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    console.log("[ai-report] LOVABLE_API_KEY present:", !!LOVABLE_API_KEY);
 
-    if (GOOGLE_GEMINI_KEY) {
+    if (LOVABLE_API_KEY) {
       const dataSummary = buildDataSummary(report_type || "general", sales, products, financial);
       const systemPrompt = getSystemPrompt(report_type || "general", isQuick);
 
-      const aiContent = await callGeminiWithRetry(GOOGLE_GEMINI_KEY, systemPrompt, dataSummary, isQuick);
+      const aiContent = await callAIWithRetry(LOVABLE_API_KEY, systemPrompt, dataSummary, isQuick);
       
       if (aiContent) {
         return new Response(JSON.stringify({ report: aiContent }), {
@@ -289,9 +314,9 @@ Deno.serve(async (req) => {
         });
       }
       
-      console.warn("[ai-report] All Gemini attempts failed, using fallback");
+      console.warn("[ai-report] All AI attempts failed, using fallback");
     } else {
-      console.warn("[ai-report] GOOGLE_GEMINI_KEY not found");
+      console.warn("[ai-report] LOVABLE_API_KEY not found");
     }
 
     // Fallback
