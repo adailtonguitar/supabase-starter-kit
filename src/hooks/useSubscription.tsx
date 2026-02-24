@@ -83,7 +83,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
   const { user } = useAuth();
   const [state, setState] = useState<SubscriptionState>(() => {
     const cached = getCachedSubState();
-    return cached ? { ...cached, loading: false } : defaultState;
+    return cached ? { ...cached, loading: true } : defaultState;
   });
 
   const checkSubscription = useCallback(async () => {
