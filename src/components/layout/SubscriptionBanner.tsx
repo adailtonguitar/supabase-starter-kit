@@ -1,7 +1,7 @@
 import { AlertTriangle, Clock, Crown, X, Loader2 } from "lucide-react";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useAdminRole } from "@/hooks/useAdminRole";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
@@ -25,15 +25,39 @@ export function SubscriptionBanner() {
     }
   };
 
-  if (adminLoading || subLoading) return null;
-  if (dismissed || isSuperAdmin) return null;
 
   const dismiss = () => {
     setDismissed(true);
     try { sessionStorage.setItem("sub_banner_dismissed", "1"); } catch { /* */ }
   };
 
-  if (subscribed && daysUntilExpiry !== null && daysUntilExpiry <= 5) {
+  const bannerType = useMemo(() => {
+    if (subscribed && daysUntilExpiry !== null && daysUntilExpiry <= 5) return "expiry";
+    if (gracePeriodActive && graceDaysLeft !== null) return "grace";
+    if (trialActive && trialDaysLeft !== null && trialDaysLeft <= 3) return "trial";
+    if (subscribed && planKey === "essencial") return "upgrade";
+    return null;
+  }, [subscribed, daysUntilExpiry, gracePeriodActive, graceDaysLeft, trialActive, trialDaysLeft, planKey]);
+
+  const [visibleBannerType, setVisibleBannerType] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!bannerType) {
+      setVisibleBannerType(null);
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setVisibleBannerType(bannerType);
+    }, 700);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [bannerType]);
+
+  if (adminLoading || subLoading) return null;
+  if (dismissed || isSuperAdmin) return null;
+
+  if (visibleBannerType === "expiry") {
     return (
       <div className="bg-warning/10 border-b border-warning/30 px-4 py-2 flex items-center justify-between gap-3">
         <div className="flex items-center gap-2 text-sm">
@@ -53,7 +77,7 @@ export function SubscriptionBanner() {
     );
   }
 
-  if (gracePeriodActive && graceDaysLeft !== null) {
+  if (visibleBannerType === "grace") {
     return (
       <div className="bg-destructive/10 border-b border-destructive/30 px-4 py-2 flex items-center justify-between gap-3">
         <div className="flex items-center gap-2 text-sm">
@@ -70,7 +94,7 @@ export function SubscriptionBanner() {
     );
   }
 
-  if (trialActive && trialDaysLeft !== null && trialDaysLeft <= 3) {
+  if (visibleBannerType === "trial") {
     return (
       <div className="bg-warning/10 border-b border-warning/30 px-4 py-2 flex items-center justify-between gap-3">
         <div className="flex items-center gap-2 text-sm">
@@ -89,7 +113,7 @@ export function SubscriptionBanner() {
     );
   }
 
-  if (subscribed && planKey === "essencial") {
+  if (visibleBannerType === "upgrade") {
     return (
       <div className="bg-primary/5 border-b border-primary/20 px-4 py-1.5 flex items-center justify-between gap-3">
         <div className="flex items-center gap-2 text-sm">
