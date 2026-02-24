@@ -197,9 +197,10 @@ export function NFeImportDialog({ open, onOpenChange }: NFeImportDialogProps) {
       }
 
       // Create new product
+      const autoSku = `NFE-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
       const { error } = await supabase.from("products").insert({
         name: p.name,
-        sku: null,
+        sku: autoSku,
         barcode: p.barcode || null,
         ncm: p.ncm || null,
         price: p.unitPrice,
