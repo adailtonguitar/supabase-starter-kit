@@ -179,15 +179,18 @@ Deno.serve(async (req) => {
 
     // Try Google Gemini API
     const GOOGLE_GEMINI_KEY = Deno.env.get("GOOGLE_GEMINI_KEY");
-    console.log("[ai-report] GOOGLE_GEMINI_KEY present:", !!GOOGLE_GEMINI_KEY, "length:", GOOGLE_GEMINI_KEY?.length || 0);
+    const debugInfo = `[DEBUG] Key present: ${!!GOOGLE_GEMINI_KEY}, length: ${GOOGLE_GEMINI_KEY?.length || 0}, starts: ${GOOGLE_GEMINI_KEY?.substring(0, 4) || "N/A"}`;
+    console.log(debugInfo);
+    
     if (GOOGLE_GEMINI_KEY) {
       try {
         const dataSummary = buildDataSummary(report_type || "general", sales, products, financial);
         const systemPrompt = getSystemPrompt(report_type || "general", isQuick);
 
-        const aiResponse = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GOOGLE_GEMINI_KEY}`,
-          {
+        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GOOGLE_GEMINI_KEY}`;
+        console.log("[ai-report] Calling Gemini API...");
+        
+        const aiResponse = await fetch(geminiUrl, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -202,9 +205,10 @@ Deno.serve(async (req) => {
           }
         );
 
+        console.log("[ai-report] Gemini status:", aiResponse.status);
+
         if (aiResponse.status === 429) {
           console.warn("Gemini 429 rate limit, using fallback report");
-          // Fall through to programmatic fallback
         } else if (aiResponse.ok) {
           const aiData = await aiResponse.json();
           const content = aiData.candidates?.[0]?.content?.parts?.[0]?.text;
@@ -213,12 +217,33 @@ Deno.serve(async (req) => {
               headers: { ...corsHeaders, "Content-Type": "application/json" },
             });
           }
+          console.error("[ai-report] No content in Gemini response:", JSON.stringify(aiData).substring(0, 500));
         } else {
-          console.error("Gemini API error:", aiResponse.status, await aiResponse.text());
+          const errText = await aiResponse.text();
+          console.error("Gemini API error:", aiResponse.status, errText);
+          // Return error details so user can diagnose
+          return new Response(JSON.stringify({ 
+            report: null, 
+            error: `Gemini API erro ${aiResponse.status}: ${errText.substring(0, 200)}`,
+            debug: debugInfo
+          }), {
+            status: 200,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
         }
       } catch (aiErr) {
         console.error("Gemini API error, falling back:", aiErr);
       }
+    } else {
+      // No key - return debug info
+      return new Response(JSON.stringify({ 
+        report: null, 
+        error: "GOOGLE_GEMINI_KEY não encontrada nas secrets do Supabase.",
+        debug: debugInfo
+      }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     // Fallback: programmatic report
