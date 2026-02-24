@@ -259,16 +259,6 @@ async function callAIWithRetry(apiKey: string, systemPrompt: string, dataSummary
   return null;
 }
 
-      const errText = await resp.text();
-      console.error("[ai-report] Gemini error:", resp.status, errText.substring(0, 200));
-      return null;
-    } catch (err: any) {
-      console.error("[ai-report] Fetch error:", err?.message);
-      if (attempt === maxRetries) return null;
-    }
-  }
-  return null;
-}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
