@@ -94,6 +94,8 @@ export function BatchMovementMode({ products, onClose }: Props) {
     }));
   };
 
+  const [marginEntries, setMarginEntries] = useState<Record<string, string>>({});
+
   const updatePriceEntry = (productId: string, field: keyof PriceEntry, value: string) => {
     const num = parseFloat(value);
     setPriceEntries((prev) => ({
@@ -103,6 +105,18 @@ export function BatchMovementMode({ products, onClose }: Props) {
         [field]: isNaN(num) ? undefined : num,
       },
     }));
+  };
+
+  const updateMarginForProduct = (productId: string, marginStr: string, cost: number) => {
+    setMarginEntries((prev) => ({ ...prev, [productId]: marginStr }));
+    const margin = parseFloat(marginStr);
+    if (!isNaN(margin) && cost > 0) {
+      const newPrice = Math.round(cost * (1 + margin / 100) * 100) / 100;
+      setPriceEntries((prev) => ({
+        ...prev,
+        [productId]: { ...prev[productId], price: newPrice },
+      }));
+    }
   };
 
   const handleSaveStock = async (type: "entrada" | "saida") => {
@@ -317,6 +331,11 @@ export function BatchMovementMode({ products, onClose }: Props) {
                 ) : (
                   <div className="grid grid-cols-2 gap-2 pt-2 border-t border-border">
                     <div>
+                      <label className="text-[10px] text-muted-foreground">Margem %</label>
+                      <Input type="number" step="0.5" min="0" placeholder="Ex: 30" className="h-8 text-sm"
+                        value={marginEntries[product.id] ?? ""} onChange={(e) => updateMarginForProduct(product.id, e.target.value, product.cost_price ?? 0)} />
+                    </div>
+                    <div>
                       <label className="text-[10px] text-muted-foreground">Preço atual: {formatCurrency(product.price)}</label>
                       <Input type="number" step="0.01" min="0" placeholder={product.price.toString()} className="h-8 text-sm"
                         value={priceEntry?.price ?? ""} onChange={(e) => updatePriceEntry(product.id, "price", e.target.value)} />
@@ -357,7 +376,7 @@ export function BatchMovementMode({ products, onClose }: Props) {
                   <>
                     <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Preço Atual</th>
                     <th className="text-center px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Novo Preço</th>
-                    <th className="text-center px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Margem</th>
+                    <th className="text-center px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Margem %</th>
                     <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Custo Atual</th>
                     <th className="text-center px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Novo Custo</th>
                   </>
@@ -404,20 +423,9 @@ export function BatchMovementMode({ products, onClose }: Props) {
                           <Input type="number" step="0.01" min="0" placeholder={product.price.toString()} className="w-28 mx-auto text-center h-8"
                             value={priceEntry?.price ?? ""} onChange={(e) => updatePriceEntry(product.id, "price", e.target.value)} />
                         </td>
-                        <td className="px-4 py-2.5 text-center">
-                          {(() => {
-                            const cost = priceEntry?.cost_price ?? product.cost_price ?? 0;
-                            const price = priceEntry?.price ?? product.price;
-                            if (cost > 0) {
-                              const margin = ((price - cost) / cost) * 100;
-                              return (
-                                <span className={`text-xs font-mono font-semibold ${margin > 0 ? "text-emerald-600" : margin < 0 ? "text-destructive" : "text-muted-foreground"}`}>
-                                  {margin.toFixed(1)}%
-                                </span>
-                              );
-                            }
-                            return <span className="text-xs text-muted-foreground">—</span>;
-                          })()}
+                        <td className="px-4 py-2.5">
+                          <Input type="number" step="0.5" min="0" placeholder="%" className="w-20 mx-auto text-center h-8"
+                            value={marginEntries[product.id] ?? ""} onChange={(e) => updateMarginForProduct(product.id, e.target.value, product.cost_price ?? 0)} />
                         </td>
                         <td className="px-4 py-2.5 text-right font-mono text-muted-foreground">{formatCurrency(product.cost_price ?? 0)}</td>
                         <td className="px-4 py-2.5">
