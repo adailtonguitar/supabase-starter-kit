@@ -9,8 +9,8 @@ import { QuickAccessCards } from "@/components/dashboard/QuickAccessCards";
 import { AiInsightWidget } from "@/components/dashboard/AiInsightWidget";
 
 export default function Dashboard() {
-  const { trialActive, trialDaysLeft, subscribed } = useSubscription();
-  const { isSuperAdmin } = useAdminRole();
+  const { trialActive, trialDaysLeft, subscribed, loading: subLoading } = useSubscription();
+  const { isSuperAdmin, loading: adminLoading } = useAdminRole();
   const { data: stats, isLoading } = useDashboardStats();
 
   const healthColor = (score: number) => {
@@ -27,7 +27,7 @@ export default function Dashboard() {
 
   return (
     <div className="p-3 sm:p-6 space-y-4 sm:space-y-6 max-w-7xl mx-auto min-w-0 overflow-x-hidden">
-      {trialActive && !subscribed && !isSuperAdmin && trialDaysLeft !== null && (
+      {!subLoading && !adminLoading && trialActive && !subscribed && !isSuperAdmin && trialDaysLeft !== null && (
         <div className="flex items-center gap-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3">
           <Clock className="w-5 h-5 text-amber-600 flex-shrink-0" />
           <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
