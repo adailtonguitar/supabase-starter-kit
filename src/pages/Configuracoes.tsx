@@ -104,21 +104,50 @@ const roleLabels: Record<string, string> = {
   caixa: "Caixa",
 };
 
+const DEFAULT_LIMITS = [
+  { role: "admin", max_discount_percent: 100 },
+  { role: "gerente", max_discount_percent: 15 },
+  { role: "supervisor", max_discount_percent: 10 },
+  { role: "caixa", max_discount_percent: 5 },
+];
+
 function DiscountLimitsSection() {
   const { role } = usePermissions();
+  const { companyId } = useCompany();
   const [limits, setLimits] = useState<{ id: string; role: string; max_discount_percent: number }[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [edited, setEdited] = useState<Record<string, number>>({});
 
   useEffect(() => {
+    if (!companyId) return;
     const load = async () => {
-      const { data } = await supabase.from("discount_limits").select("id, role, max_discount_percent").order("max_discount_percent", { ascending: false });
-      if (data) setLimits(data);
+      const { data } = await supabase
+        .from("discount_limits")
+        .select("id, role, max_discount_percent")
+        .eq("company_id", companyId)
+        .order("max_discount_percent", { ascending: false });
+
+      if (data && data.length > 0) {
+        setLimits(data);
+      } else {
+        // Seed default limits for this company
+        const toInsert = DEFAULT_LIMITS.map((d) => ({ ...d, company_id: companyId }));
+        const { data: inserted, error } = await supabase
+          .from("discount_limits")
+          .insert(toInsert)
+          .select("id, role, max_discount_percent");
+        if (!error && inserted) {
+          setLimits(inserted);
+        } else {
+          // If table doesn't exist or insert fails, show local defaults
+          setLimits(DEFAULT_LIMITS.map((d, i) => ({ id: `local-${i}`, ...d })));
+        }
+      }
       setLoading(false);
     };
     load();
-  }, []);
+  }, [companyId]);
 
   const handleChange = (id: string, value: number) => {
     setEdited((prev) => ({ ...prev, [id]: Math.min(100, Math.max(0, value)) }));
@@ -128,6 +157,7 @@ function DiscountLimitsSection() {
     setSaving(true);
     try {
       for (const [id, val] of Object.entries(edited)) {
+        if (id.startsWith("local-")) continue;
         const { error } = await supabase.from("discount_limits").update({ max_discount_percent: val }).eq("id", id);
         if (error) throw error;
       }
@@ -150,15 +180,17 @@ function DiscountLimitsSection() {
         <h2 className="text-base font-semibold text-foreground">Limites de Desconto por Cargo</h2>
       </div>
       <div className="p-5 space-y-4">
-        <p className="text-sm text-muted-foreground">Defina o percentual máximo de desconto que cada cargo pode aplicar no PDV.</p>
+        <p className="text-sm text-muted-foreground">Defina o percentual máximo de desconto que cada cargo pode aplicar no PDV (por item ou no total).</p>
         {loading ? (
           <div className="flex items-center justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>
+        ) : limits.length === 0 ? (
+          <p className="text-sm text-muted-foreground py-4 text-center">Nenhum limite configurado.</p>
         ) : (
           <div className="space-y-3">
             {limits.map((limit) => {
               const val = edited[limit.id] ?? limit.max_discount_percent;
               return (
-                <div key={limit.id} className="flex items-center justify-between py-2 px-3 rounded-lg bg-muted/50 border border-border">
+                <div key={limit.id} className="flex items-center justify-between py-3 px-4 rounded-xl bg-muted/50 border border-border">
                   <span className="text-sm font-medium text-foreground">{roleLabels[limit.role] || limit.role}</span>
                   <div className="flex items-center gap-2">
                     <input type="number" min={0} max={100} step={1} value={val} onChange={(e) => handleChange(limit.id, Number(e.target.value))}
