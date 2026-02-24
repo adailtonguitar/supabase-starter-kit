@@ -16,16 +16,28 @@ export function AiInsightWidget() {
     setError(false);
 
     try {
-      const { data, error: fnError } = await supabase.functions.invoke("ai-report", {
+      const result = await supabase.functions.invoke("ai-report", {
         body: { report_type: "quick", company_id: companyId },
       });
 
-      if (fnError) throw fnError;
-      if (data?.error) throw new Error(data.error);
+      console.log("AI insight result:", JSON.stringify(result));
 
-      setInsight(data.report);
-    } catch (err) {
-      console.error("AI insight error:", err);
+      if (result.error) {
+        console.error("AI insight fn error:", result.error);
+        setError(true);
+        return;
+      }
+
+      const data = result.data;
+      if (!data || data.error) {
+        console.error("AI insight data error:", data?.error);
+        setError(true);
+        return;
+      }
+
+      setInsight(data.report || "Sem dados disponíveis.");
+    } catch (err: any) {
+      console.error("AI insight catch error:", err?.message || err);
       setError(true);
     } finally {
       setLoading(false);
