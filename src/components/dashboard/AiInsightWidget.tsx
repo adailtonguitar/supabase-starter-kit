@@ -1,43 +1,61 @@
 import { useState, useEffect, useCallback } from "react";
 import { Sparkles, Loader2, RefreshCw, AlertCircle } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
+import { supabase } from "@/integrations/supabase/client";
 
 export function AiInsightWidget() {
   const { companyId } = useCompany();
   const [insight, setInsight] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const fetchInsight = useCallback(async () => {
     if (!companyId) return;
     setLoading(true);
-    setError(false);
+    setErrorMsg(null);
     setInsight(null);
 
     try {
-      const result = await supabase.functions.invoke("ai-report", {
-        body: { report_type: "quick", company_id: companyId },
-      });
+      // Get session token
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
 
-      console.log("[AiInsight] response:", JSON.stringify(result?.data));
-
-      if (result?.error) {
-        console.error("[AiInsight] fn error:", result.error);
-        setError(true);
+      if (!token) {
+        setErrorMsg("Faça login para usar o Insight IA.");
+        setLoading(false);
         return;
       }
 
-      const report = result?.data?.report;
-      if (report && typeof report === "string") {
-        setInsight(report);
-      } else {
-        console.warn("[AiInsight] no report in response:", result?.data);
-        setError(true);
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "https://fsvxpxziotklbxkivyug.supabase.co";
+      const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZzdnhweHppb3RrbGJ4a2l2eXVnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE3ODU5NTMsImV4cCI6MjA4NzM2MTk1M30.8I3ABsRZBZuE1IpK_g9z3PdRUd9Omt_F5qNx0Pgqvyo";
+
+      const resp = await fetch(`${supabaseUrl}/functions/v1/ai-report`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+          "apikey": anonKey,
+        },
+        body: JSON.stringify({ report_type: "quick", company_id: companyId }),
+      });
+
+      if (!resp.ok) {
+        const text = await resp.text();
+        console.error("[AiInsight] HTTP error:", resp.status, text);
+        setErrorMsg(`Erro ${resp.status}. Verifique o deploy da edge function.`);
+        setLoading(false);
+        return;
       }
-    } catch (err) {
-      console.error("[AiInsight] catch:", err);
-      setError(true);
+
+      const data = await resp.json();
+      if (data?.report && typeof data.report === "string") {
+        setInsight(data.report);
+      } else {
+        setErrorMsg("Resposta inesperada da edge function.");
+      }
+    } catch (err: any) {
+      console.error("[AiInsight] error:", err?.message || err);
+      setErrorMsg("Falha na conexão com a edge function.");
     } finally {
       setLoading(false);
     }
@@ -75,11 +93,11 @@ export function AiInsightWidget() {
         </div>
       )}
 
-      {!loading && error && (
+      {!loading && errorMsg && (
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <AlertCircle className="w-4 h-4 text-warning shrink-0" />
           <div>
-            <p>Edge function indisponível. Verifique o deploy no Supabase.</p>
+            <p>{errorMsg}</p>
             <button onClick={fetchInsight} className="text-primary text-xs hover:underline mt-1">
               Tentar novamente
             </button>
@@ -87,15 +105,13 @@ export function AiInsightWidget() {
         </div>
       )}
 
-      {!loading && !error && insight && (
+      {!loading && !errorMsg && insight && (
         <p className="text-sm text-foreground whitespace-pre-wrap">{insight}</p>
       )}
 
-      {!loading && !error && !insight && (
+      {!loading && !errorMsg && !insight && (
         <p className="text-sm text-muted-foreground">
-          {companyId
-            ? "Clique em Atualizar para gerar um insight."
-            : "Conecte-se para receber insights."}
+          {companyId ? "Clique em Atualizar para gerar um insight." : "Conecte-se para receber insights."}
         </p>
       )}
     </div>
