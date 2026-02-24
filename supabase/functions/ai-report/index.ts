@@ -198,9 +198,7 @@ function generateFallbackReport(reportType: string, sales: any[], products: any[
   return s.join("\n");
 }
 
-async function callAIWithRetry(apiKey: string, systemPrompt: string, dataSummary: string, isQuick: boolean, maxRetries = 2): Promise<string | null> {
-  const gatewayUrl = "https://ai.gateway.lovable.dev/v1/chat/completions";
-
+async function callOpenAI(apiKey: string, systemPrompt: string, dataSummary: string, isQuick: boolean, maxRetries = 2): Promise<string | null> {
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     if (attempt > 0) {
       const delay = Math.pow(2, attempt) * 1000;
@@ -209,14 +207,14 @@ async function callAIWithRetry(apiKey: string, systemPrompt: string, dataSummary
     }
 
     try {
-      const resp = await fetch(gatewayUrl, {
+      const resp = await fetch("https://api.openai.com/v1/chat/completions", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
-          model: "google/gemini-3-flash-preview",
+          model: "gpt-4o-mini",
           messages: [
             { role: "system", content: systemPrompt },
             { role: "user", content: dataSummary },
@@ -226,18 +224,12 @@ async function callAIWithRetry(apiKey: string, systemPrompt: string, dataSummary
         }),
       });
 
-      console.log(`[ai-report] Gateway attempt ${attempt} status: ${resp.status}`);
+      console.log(`[ai-report] OpenAI attempt ${attempt} status: ${resp.status}`);
 
       if (resp.status === 429) {
         console.warn("[ai-report] Rate limited, will retry...");
         await resp.text();
         continue;
-      }
-
-      if (resp.status === 402) {
-        console.warn("[ai-report] Payment required - credits exhausted");
-        await resp.text();
-        return null;
       }
 
       if (resp.ok) {
@@ -249,7 +241,7 @@ async function callAIWithRetry(apiKey: string, systemPrompt: string, dataSummary
       }
 
       const errText = await resp.text();
-      console.error("[ai-report] Gateway error:", resp.status, errText.substring(0, 200));
+      console.error("[ai-report] OpenAI error:", resp.status, errText.substring(0, 200));
       return null;
     } catch (err: any) {
       console.error("[ai-report] Fetch error:", err?.message);
@@ -289,14 +281,14 @@ Deno.serve(async (req) => {
     const financial = financialRes.data || [];
     const isQuick = report_type === "quick";
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    console.log("[ai-report] LOVABLE_API_KEY present:", !!LOVABLE_API_KEY);
+    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+    console.log("[ai-report] OPENAI_API_KEY present:", !!OPENAI_API_KEY);
 
-    if (LOVABLE_API_KEY) {
+    if (OPENAI_API_KEY) {
       const dataSummary = buildDataSummary(report_type || "general", sales, products, financial);
       const systemPrompt = getSystemPrompt(report_type || "general", isQuick);
 
-      const aiContent = await callAIWithRetry(LOVABLE_API_KEY, systemPrompt, dataSummary, isQuick);
+      const aiContent = await callOpenAI(OPENAI_API_KEY, systemPrompt, dataSummary, isQuick);
       
       if (aiContent) {
         return new Response(JSON.stringify({ report: aiContent }), {
@@ -304,9 +296,9 @@ Deno.serve(async (req) => {
         });
       }
       
-      console.warn("[ai-report] All AI attempts failed, using fallback");
+      console.warn("[ai-report] All OpenAI attempts failed, using fallback");
     } else {
-      console.warn("[ai-report] LOVABLE_API_KEY not found");
+      console.warn("[ai-report] OPENAI_API_KEY not found — add it in Supabase Dashboard > Edge Functions > Secrets");
     }
 
     // Fallback
