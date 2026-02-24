@@ -16,9 +16,16 @@ interface DashboardStats {
     id: string;
     number: number | null;
     payment_method: string | null;
-    total_value: string;
+    total_value: number;
     status: string;
   }>;
+}
+function extractPaymentMethod(payments: any): string {
+  try {
+    const arr = Array.isArray(payments) ? payments : typeof payments === "string" ? JSON.parse(payments) : [];
+    if (arr.length > 0) return arr[0].method || "";
+  } catch {}
+  return "";
 }
 
 export function useDashboardStats() {
@@ -33,11 +40,11 @@ export function useDashboardStats() {
       const monthStart = today.slice(0, 7) + "-01";
 
       const [salesResult, monthResult, recentResult, productsResult, alertsResult, fiscalResult, financialResult] = await Promise.all([
-        supabase.from("sales").select("total_value").eq("company_id", companyId).gte("created_at", today + "T00:00:00"),
-        supabase.from("sales").select("total_value").eq("company_id", companyId).gte("created_at", monthStart + "T00:00:00"),
-        supabase.from("sales").select("id, number, payment_method, total_value, status").eq("company_id", companyId).order("created_at", { ascending: false }).limit(5),
-        // Products at risk: stock <= min_stock
-        supabase.from("products").select("id, stock, min_stock").eq("company_id", companyId),
+        supabase.from("sales").select("total").eq("company_id", companyId).gte("created_at", today + "T00:00:00"),
+        supabase.from("sales").select("total").eq("company_id", companyId).gte("created_at", monthStart + "T00:00:00"),
+        supabase.from("sales").select("id, sale_number, payments, total, status").eq("company_id", companyId).order("created_at", { ascending: false }).limit(5),
+        // Products at risk: stock_quantity <= min_stock
+        supabase.from("products").select("id, stock_quantity, min_stock").eq("company_id", companyId),
         // Active financial alerts
         supabase.from("financial_entries").select("id").eq("company_id", companyId).eq("status", "pendente").lte("due_date", today),
         // Fiscal config check
@@ -49,14 +56,14 @@ export function useDashboardStats() {
       const todaySales = salesResult.data || [];
       const monthSales = monthResult.data || [];
 
-      const salesToday = todaySales.reduce((sum, s) => sum + Number(s.total_value || 0), 0);
+      const salesToday = todaySales.reduce((sum, s: any) => sum + Number(s.total || 0), 0);
       const salesCountToday = todaySales.length;
       const ticketMedio = salesCountToday > 0 ? salesToday / salesCountToday : 0;
-      const monthRevenue = monthSales.reduce((sum, s) => sum + Number(s.total_value || 0), 0);
+      const monthRevenue = monthSales.reduce((sum, s: any) => sum + Number(s.total || 0), 0);
 
       // Products at risk (stock <= min_stock and min_stock > 0)
       const products = productsResult.data || [];
-      const productsAtRisk = products.filter((p: any) => p.min_stock > 0 && (p.stock ?? 0) <= p.min_stock).length;
+      const productsAtRisk = products.filter((p: any) => p.min_stock > 0 && (p.stock_quantity ?? 0) <= p.min_stock).length;
 
       // Overdue financial entries
       const activeAlerts = (alertsResult.data || []).length;
@@ -88,7 +95,13 @@ export function useDashboardStats() {
         activeAlerts,
         healthScore,
         fiscalProtected,
-        recentSales: (recentResult.data || []) as any,
+        recentSales: (recentResult.data || []).map((row: any) => ({
+          id: row.id,
+          number: row.sale_number || row.number,
+          payment_method: extractPaymentMethod(row.payments),
+          total_value: row.total ?? 0,
+          status: row.status || "completed",
+        })),
       };
     },
     enabled: !!companyId,
