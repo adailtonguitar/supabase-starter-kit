@@ -179,6 +179,7 @@ Deno.serve(async (req) => {
 
     // Try Google Gemini API
     const GOOGLE_GEMINI_KEY = Deno.env.get("GOOGLE_GEMINI_KEY");
+    console.log("[ai-report] GOOGLE_GEMINI_KEY present:", !!GOOGLE_GEMINI_KEY, "length:", GOOGLE_GEMINI_KEY?.length || 0);
     if (GOOGLE_GEMINI_KEY) {
       try {
         const dataSummary = buildDataSummary(report_type || "general", sales, products, financial);
