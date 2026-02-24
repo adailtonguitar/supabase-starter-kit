@@ -5,8 +5,31 @@ import { useAuth } from "./useAuth";
 import { toast } from "sonner";
 import { CashSessionService } from "@/services/CashSessionService";
 
-export type FinancialEntry = any;
-export type FinancialEntryInsert = any;
+export interface FinancialEntry {
+  id: string;
+  company_id: string;
+  type: "pagar" | "receber";
+  description: string;
+  category?: string;
+  reference?: string;
+  amount: number;
+  due_date: string;
+  paid_date?: string | null;
+  paid_amount?: number | null;
+  payment_method?: string | null;
+  status: string;
+  notes?: string | null;
+  created_by: string;
+  created_at: string;
+  updated_at?: string;
+  cost_center_id?: string | null;
+  recurrence?: string | null;
+  recurrence_end?: string | null;
+  parent_entry_id?: string | null;
+  bank_account?: string | null;
+}
+
+export type FinancialEntryInsert = Omit<FinancialEntry, "id" | "created_at" | "updated_at">;
 
 export function useFinancialEntries(filters?: {
   type?: "pagar" | "receber";

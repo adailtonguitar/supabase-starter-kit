@@ -37,7 +37,7 @@ export function useInventoryCounts() {
     queryFn: async () => {
       if (!companyId) return [];
       const { data, error } = await supabase
-        .from("inventory_counts" as any)
+        .from("inventory_counts")
         .select("*")
         .eq("company_id", companyId)
         .order("created_at", { ascending: false });
@@ -56,7 +56,7 @@ export function useInventoryItems(inventoryId?: string) {
     queryFn: async () => {
       if (!companyId || !inventoryId) return [];
       const { data, error } = await supabase
-        .from("inventory_count_items" as any)
+        .from("inventory_count_items")
         .select("*, products(name, sku, unit)")
         .eq("inventory_id", inventoryId)
         .order("created_at", { ascending: true });
@@ -77,7 +77,7 @@ export function useCreateInventory() {
       if (!companyId || !user) throw new Error("Sem permissão");
 
       const { data: inventory, error } = await supabase
-        .from("inventory_counts" as any)
+        .from("inventory_counts")
         .insert({
           company_id: companyId,
           name: params.name,
@@ -102,7 +102,7 @@ export function useCreateInventory() {
           product_id: p.id,
           system_quantity: Number(p.stock_quantity),
         }));
-        const { error: iErr } = await supabase.from("inventory_count_items" as any).insert(items);
+        const { error: iErr } = await supabase.from("inventory_count_items").insert(items);
         if (iErr) throw iErr;
       }
 
@@ -122,7 +122,7 @@ export function useUpdateInventoryItem() {
   return useMutation({
     mutationFn: async (params: { id: string; counted_quantity: number; notes?: string }) => {
       const { error } = await supabase
-        .from("inventory_count_items" as any)
+        .from("inventory_count_items")
         .update({
           counted_quantity: params.counted_quantity,
           notes: params.notes,
@@ -144,7 +144,7 @@ export function useFinishInventory() {
   return useMutation({
     mutationFn: async (inventoryId: string) => {
       const { error } = await supabase
-        .from("inventory_counts" as any)
+        .from("inventory_counts")
         .update({ status: "finalizado", finished_at: new Date().toISOString() })
         .eq("id", inventoryId);
       if (error) throw error;
