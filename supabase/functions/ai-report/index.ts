@@ -116,22 +116,63 @@ function generateFallbackReport(reportType: string, sales: any[], products: any[
     : 0;
   const lowMarginProducts = productsWithMargin.filter(p => ((p.sale_price - p.cost_price) / p.sale_price) * 100 < 15);
 
-  // --- QUICK INSIGHT ---
+  // --- QUICK INSIGHT (rotativo e mais inteligente) ---
   if (reportType === "quick") {
-    const alerts: string[] = [];
-    if (overdue.length > 3) alerts.push(`🔴 **${overdue.length} contas vencidas** somando ${formatBRL(totalOverdue)} — regularize para evitar juros e manter o fluxo de caixa saudável.`);
-    else if (overdue.length > 0) alerts.push(`⚠️ **${overdue.length} conta(s) vencida(s)** (${formatBRL(totalOverdue)}). Quite antes que virem bola de neve.`);
-    if (lucro < 0) alerts.push(`📉 **Resultado negativo de ${formatBRL(Math.abs(lucro))}** — despesas superaram receitas. Revise custos fixos e negocie com fornecedores.`);
-    if (lowStock.length > 5) alerts.push(`📦 **${lowStock.length} produtos com estoque crítico** — risco de perder vendas por ruptura. Priorize reposição dos mais vendidos.`);
-    else if (lowStock.length > 0) alerts.push(`📦 ${lowStock.length} produto(s) com estoque baixo: ${lowStock.slice(0, 3).map(p => p.name).join(", ")}.`);
-    if (lowMarginProducts.length > 3) alerts.push(`💡 **${lowMarginProducts.length} produtos com margem abaixo de 15%** — considere reajustar preços ou renegociar custos.`);
-    if (ticketMedio > 0 && ticketMedio < 20) alerts.push(`🎯 Ticket médio de ${formatBRL(ticketMedio)} está baixo. Estratégias de upsell e combos podem aumentar o faturamento.`);
+    // Calcular métricas avançadas
+    const diasNoMes = new Date().getDate();
+    const mediaDiaria = diasNoMes > 0 ? totalSales / diasNoMes : 0;
+    const projecaoMensal = mediaDiaria * 30;
+    const topPayment = Object.entries(paymentMethods).sort((a, b) => b[1] - a[1])[0];
+    const topPaymentPct = topPayment && totalSales > 0 ? ((topPayment[1] / totalSales) * 100).toFixed(0) : "0";
+    const highMarginProducts = productsWithMargin.filter(p => ((p.sale_price - p.cost_price) / p.sale_price) * 100 > 40);
+    const stockValue = products.reduce((s, p) => s + (p.stock_quantity || 0) * (p.cost_price || 0), 0);
+    const potentialRevenue = products.reduce((s, p) => s + (p.stock_quantity || 0) * (p.sale_price || 0), 0);
 
-    if (alerts.length === 0) {
-      if (sales.length === 0) return `📊 Nenhuma venda registrada no período. Cadastre vendas para receber insights personalizados.`;
-      return `✅ **Negócio saudável!** ${sales.length} vendas totalizando ${formatBRL(totalSales)}, ticket médio de ${formatBRL(ticketMedio)}, margem de ${margem}%. Continue monitorando!`;
+    // Montar pool de insights priorizados por urgência
+    const critical: string[] = [];
+    const warnings: string[] = [];
+    const opportunities: string[] = [];
+    const positives: string[] = [];
+
+    // CRÍTICOS
+    if (lucro < 0) critical.push(`🚨 **Alerta: Prejuízo de ${formatBRL(Math.abs(lucro))}!** Despesas (${formatBRL(despesas)}) superaram receitas (${formatBRL(receitas)}). Ação: revise os 3 maiores custos fixos e negocie prazos com fornecedores.`);
+    if (overdue.length > 3) critical.push(`🔴 **${overdue.length} contas vencidas** totalizando ${formatBRL(totalOverdue)}. Isso pode gerar juros de até ${formatBRL(totalOverdue * 0.1)}/mês. Priorize a quitação imediata.`);
+    if (zeroStock.length > products.length * 0.3 && products.length > 0) critical.push(`🚫 **${zeroStock.length} de ${products.length} produtos sem estoque** (${((zeroStock.length / products.length) * 100).toFixed(0)}%). Você está perdendo vendas por falta de reposição.`);
+
+    // AVISOS
+    if (overdue.length > 0 && overdue.length <= 3) warnings.push(`⚠️ **${overdue.length} conta(s) vencida(s)** (${formatBRL(totalOverdue)}). Regularize antes que acumulem juros.`);
+    if (lowStock.length > 5) warnings.push(`📦 **${lowStock.length} produtos com estoque crítico.** Os mais urgentes: ${lowStock.slice(0, 3).map(p => `${p.name} (${p.stock_quantity ?? 0}/${p.min_stock})`).join(", ")}. Faça pedido de compra hoje.`);
+    else if (lowStock.length > 0) warnings.push(`📦 Estoque baixo em ${lowStock.length} produto(s): ${lowStock.slice(0, 3).map(p => p.name).join(", ")}. Programe reposição.`);
+    if (lowMarginProducts.length > 3) warnings.push(`💸 **${lowMarginProducts.length} produtos com margem < 15%.** Exemplos: ${lowMarginProducts.slice(0, 3).map(p => `${p.name} (${(((p.sale_price - p.cost_price) / p.sale_price) * 100).toFixed(0)}%)`).join(", ")}. Renegocie custos ou ajuste preços.`);
+
+    // OPORTUNIDADES
+    if (ticketMedio > 0 && ticketMedio < 30) opportunities.push(`🎯 **Ticket médio de ${formatBRL(ticketMedio)} pode crescer.** Dica: crie combos de produtos complementares ou ofereça desconto progressivo (leve 3 pague 2).`);
+    if (highMarginProducts.length > 0) opportunities.push(`💎 **${highMarginProducts.length} produto(s) com margem acima de 40%!** Destaque-os: ${highMarginProducts.slice(0, 3).map(p => p.name).join(", ")}. Coloque em promoção visível para aumentar o giro.`);
+    if (topPayment && Number(topPaymentPct) > 70) opportunities.push(`💳 **${topPaymentPct}% das vendas são via ${topPayment[0]}.** Diversifique: ofereça desconto para Pix ou parcele no cartão para atrair outros perfis de cliente.`);
+    if (projecaoMensal > 0 && sales.length > 5) opportunities.push(`📈 **Projeção mensal: ${formatBRL(projecaoMensal)}** com base nos ${diasNoMes} dias já decorridos. ${projecaoMensal > totalSales * 1.1 ? "Tendência de crescimento!" : "Mantenha o ritmo."}`);
+    if (stockValue > 0) opportunities.push(`🏪 **Seu estoque vale ${formatBRL(stockValue)}** (custo) e pode gerar até **${formatBRL(potentialRevenue)}** em vendas. Giro rápido = mais caixa.`);
+
+    // POSITIVOS
+    if (lucro > 0 && Number(margem) > 20) positives.push(`✅ **Margem de ${margem}% é excelente!** Lucro de ${formatBRL(lucro)} no período. Reinvista em estoque dos produtos mais vendidos.`);
+    else if (lucro > 0) positives.push(`✅ Resultado positivo de ${formatBRL(lucro)} (margem ${margem}%). Continue monitorando para manter a saúde financeira.`);
+    if (sales.length > 20) positives.push(`🔥 **${sales.length} vendas no mês!** Boa movimentação. Faturamento de ${formatBRL(totalSales)}.`);
+
+    // Selecionar os 2 melhores insights por prioridade
+    const allInsights = [...critical, ...warnings, ...opportunities, ...positives];
+
+    if (allInsights.length === 0) {
+      if (sales.length === 0) return `📊 **Nenhuma venda registrada ainda este mês.** Cadastre suas vendas no PDV para receber análises personalizadas do seu negócio.`;
+      return `✅ **Tudo em ordem!** ${sales.length} vendas, ${formatBRL(totalSales)} faturado, ticket médio ${formatBRL(ticketMedio)}. Seu negócio está saudável!`;
     }
-    return alerts.slice(0, 2).join("\n\n");
+
+    // Rotacionar insights baseado no dia para variar a cada visita
+    const dayOfMonth = new Date().getDate();
+    const startIdx = dayOfMonth % allInsights.length;
+    const selected = [allInsights[startIdx]];
+    if (allInsights.length > 1) {
+      selected.push(allInsights[(startIdx + 1) % allInsights.length]);
+    }
+    return selected.join("\n\n");
   }
 
   // --- FULL REPORT ---
