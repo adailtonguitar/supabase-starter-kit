@@ -58,10 +58,14 @@ export function AiInsightWidget() {
       }
 
       const data = await resp.json();
-      if (data?.report && typeof data.report === "string") {
+      console.log("[AiInsight] Full response:", JSON.stringify(data));
+      
+      if (data?.error) {
+        setErrorMsg(`[DEBUG] ${data.error} | ${data.debug || ""}`);
+      } else if (data?.report && typeof data.report === "string") {
         setInsight(data.report);
       } else {
-        setErrorMsg("Resposta inesperada da edge function.");
+        setErrorMsg("Resposta inesperada: " + JSON.stringify(data).substring(0, 200));
       }
     } catch (err: any) {
       console.error("[AiInsight] error:", err?.message || err);
