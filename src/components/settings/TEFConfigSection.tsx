@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { CreditCard, Save, Loader2, Eye, EyeOff, CheckCircle2, AlertCircle, Pencil } from "lucide-react";
+import { CreditCard, Save, Loader2, Eye, EyeOff, CheckCircle2, AlertCircle, Pencil, HelpCircle, ExternalLink } from "lucide-react";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
@@ -12,6 +12,59 @@ const PROVIDERS = [
   { id: "stone", name: "Stone / Pagar.me", fields: [{ key: "api_key", label: "API Key (Secret Key)", secret: true }] },
   { id: "mercadopago", name: "Mercado Pago", fields: [{ key: "api_key", label: "Access Token", secret: true }] },
 ] as const;
+
+const PROVIDER_GUIDES: Record<string, { steps: string[]; url: string; urlLabel: string }> = {
+  cielo: {
+    steps: [
+      "Acesse o portal Cielo: minhaconta.cielo.com.br",
+      "Vá em Configurações → Dados Cadastrais",
+      "Copie o Merchant ID e o Merchant Key",
+      "Para sandbox, cadastre-se em desenvolvedores.cielo.com.br",
+    ],
+    url: "https://desenvolvedores.cielo.com.br",
+    urlLabel: "Portal Cielo Developers",
+  },
+  rede: {
+    steps: [
+      "Acesse o portal e.Rede: userede.com.br",
+      "Vá em e.Rede → Configurações → Token de Integração",
+      "Copie o Nº do Estabelecimento (PV) e a Integration Key",
+      "Solicite ativação do e-commerce ao seu gerente Rede se necessário",
+    ],
+    url: "https://www.userede.com.br",
+    urlLabel: "Portal e.Rede",
+  },
+  pagseguro: {
+    steps: [
+      "Acesse pagseguro.uol.com.br e faça login",
+      "Vá em Integrações → Gerar Token",
+      "Copie o Access Token gerado",
+      "Para sandbox, use sandbox.pagseguro.uol.com.br",
+    ],
+    url: "https://pagseguro.uol.com.br",
+    urlLabel: "Painel PagSeguro",
+  },
+  stone: {
+    steps: [
+      "Acesse o Dashboard Pagar.me: dashboard.pagar.me",
+      "Vá em Configurações → Chaves da API",
+      "Copie a Secret Key (API Key)",
+      "Use a Test Key para ambiente sandbox",
+    ],
+    url: "https://dashboard.pagar.me",
+    urlLabel: "Dashboard Pagar.me",
+  },
+  mercadopago: {
+    steps: [
+      "Acesse developers.mercadopago.com.br",
+      "Vá em Suas Integrações → Criar aplicação (ou selecione existente)",
+      "Em Credenciais de Produção, copie o Access Token",
+      "Para sandbox, use as Credenciais de Teste",
+    ],
+    url: "https://www.mercadopago.com.br/developers",
+    urlLabel: "Mercado Pago Developers",
+  },
+};
 
 type ProviderKey = (typeof PROVIDERS)[number]["id"];
 
@@ -216,6 +269,30 @@ export function TEFConfigSection() {
                 className="w-full px-3 py-2.5 rounded-xl bg-background border border-border text-foreground placeholder:text-muted-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all disabled:opacity-60 disabled:cursor-not-allowed font-mono"
               />
             </div>
+
+            {/* Provider guide */}
+            {PROVIDER_GUIDES[form.provider] && (
+              <div className="mt-4 p-4 rounded-xl bg-primary/5 border border-primary/10">
+                <div className="flex items-center gap-2 mb-2">
+                  <HelpCircle className="w-4 h-4 text-primary" />
+                  <span className="text-sm font-semibold text-foreground">Como obter as credenciais</span>
+                </div>
+                <ol className="space-y-1.5 ml-6 list-decimal">
+                  {PROVIDER_GUIDES[form.provider].steps.map((step, i) => (
+                    <li key={i} className="text-sm text-muted-foreground">{step}</li>
+                  ))}
+                </ol>
+                <a
+                  href={PROVIDER_GUIDES[form.provider].url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 mt-3 text-xs font-medium text-primary hover:underline"
+                >
+                  <ExternalLink className="w-3 h-3" />
+                  {PROVIDER_GUIDES[form.provider].urlLabel}
+                </a>
+              </div>
+            )}
           </div>
         )}
 
