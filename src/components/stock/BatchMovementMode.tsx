@@ -1,5 +1,5 @@
-import { useState, useMemo } from "react";
-import { Search, Save, PackagePlus, PackageMinus, DollarSign, X, ArrowUpDown } from "lucide-react";
+import { useState, useMemo, useCallback } from "react";
+import { Search, Save, PackagePlus, PackageMinus, DollarSign, X, ArrowUpDown, Percent } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -45,6 +45,25 @@ export function BatchMovementMode({ products, onClose }: Props) {
   const [stockEntries, setStockEntries] = useState<Record<string, StockEntry>>({});
   const [priceEntries, setPriceEntries] = useState<Record<string, PriceEntry>>({});
   const [saving, setSaving] = useState(false);
+  const [globalMargin, setGlobalMargin] = useState<string>("");
+
+  const applyGlobalMargin = useCallback(() => {
+    const margin = parseFloat(globalMargin);
+    if (isNaN(margin) || margin <= 0) {
+      toast.warning("Informe uma margem válida (ex: 30 para 30%)");
+      return;
+    }
+    const newEntries: Record<string, PriceEntry> = { ...priceEntries };
+    for (const p of products) {
+      const cost = p.cost_price ?? 0;
+      if (cost > 0) {
+        const newPrice = Math.round(cost * (1 + margin / 100) * 100) / 100;
+        newEntries[p.id] = { ...newEntries[p.id], price: newPrice };
+      }
+    }
+    setPriceEntries(newEntries);
+    toast.success(`Margem de ${margin}% aplicada a ${Object.keys(newEntries).length} produto(s)`);
+  }, [globalMargin, priceEntries, products]);
 
   const createMovement = useCreateStockMovement();
 
@@ -222,6 +241,32 @@ export function BatchMovementMode({ products, onClose }: Props) {
         />
       </div>
 
+      {/* Global margin for price tab */}
+      {tab === "preco" && (
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 p-3 bg-muted/50 rounded-xl border border-border">
+          <div className="flex items-center gap-2 text-sm text-foreground font-medium">
+            <Percent className="w-4 h-4 text-primary" />
+            Margem de lucro global:
+          </div>
+          <div className="flex items-center gap-2">
+            <Input
+              type="number"
+              step="0.5"
+              min="0"
+              placeholder="Ex: 30"
+              className="w-24 h-8 text-sm text-center"
+              value={globalMargin}
+              onChange={(e) => setGlobalMargin(e.target.value)}
+            />
+            <span className="text-sm text-muted-foreground">%</span>
+            <Button size="sm" variant="secondary" onClick={applyGlobalMargin} className="h-8 text-xs">
+              Aplicar a todos
+            </Button>
+          </div>
+          <span className="text-[10px] text-muted-foreground">Calcula: Custo × (1 + margem%)</span>
+        </div>
+      )}
+
       {/* Mobile cards */}
       <div className="sm:hidden space-y-2">
         {filtered.length === 0 ? (
@@ -312,6 +357,7 @@ export function BatchMovementMode({ products, onClose }: Props) {
                   <>
                     <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Preço Atual</th>
                     <th className="text-center px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Novo Preço</th>
+                    <th className="text-center px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Margem</th>
                     <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Custo Atual</th>
                     <th className="text-center px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Novo Custo</th>
                   </>
@@ -358,6 +404,21 @@ export function BatchMovementMode({ products, onClose }: Props) {
                           <Input type="number" step="0.01" min="0" placeholder={product.price.toString()} className="w-28 mx-auto text-center h-8"
                             value={priceEntry?.price ?? ""} onChange={(e) => updatePriceEntry(product.id, "price", e.target.value)} />
                         </td>
+                        <td className="px-4 py-2.5 text-center">
+                          {(() => {
+                            const cost = priceEntry?.cost_price ?? product.cost_price ?? 0;
+                            const price = priceEntry?.price ?? product.price;
+                            if (cost > 0) {
+                              const margin = ((price - cost) / cost) * 100;
+                              return (
+                                <span className={`text-xs font-mono font-semibold ${margin > 0 ? "text-emerald-600" : margin < 0 ? "text-destructive" : "text-muted-foreground"}`}>
+                                  {margin.toFixed(1)}%
+                                </span>
+                              );
+                            }
+                            return <span className="text-xs text-muted-foreground">—</span>;
+                          })()}
+                        </td>
                         <td className="px-4 py-2.5 text-right font-mono text-muted-foreground">{formatCurrency(product.cost_price ?? 0)}</td>
                         <td className="px-4 py-2.5">
                           <Input type="number" step="0.01" min="0" placeholder={(product.cost_price ?? 0).toString()} className="w-28 mx-auto text-center h-8"
@@ -370,7 +431,7 @@ export function BatchMovementMode({ products, onClose }: Props) {
               })}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={tab === "entrada" ? 6 : tab === "saida" ? 5 : 7} className="px-4 py-12 text-center text-muted-foreground">
+                  <td colSpan={tab === "entrada" ? 6 : tab === "saida" ? 5 : 8} className="px-4 py-12 text-center text-muted-foreground">
                     Nenhum produto encontrado.
                   </td>
                 </tr>
