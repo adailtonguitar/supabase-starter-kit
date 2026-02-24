@@ -46,19 +46,16 @@ function buildDataSummary(
   lines.push(`Dados do último mês da empresa:`);
   lines.push(`- Total de vendas: ${sales.length} transações, totalizando ${formatBRL(totalSales)}`);
   lines.push(`- Ticket médio: ${formatBRL(ticketMedio)}`);
-  
   if (Object.keys(paymentMethods).length > 0) {
     lines.push(`- Formas de pagamento: ${Object.entries(paymentMethods).map(([m, v]) => `${m}: ${formatBRL(v)}`).join(", ")}`);
   }
-
   lines.push(`- Produtos cadastrados: ${products.length}`);
   lines.push(`- Produtos com estoque zerado: ${zeroStock.length}`);
-  lines.push(`- Produtos com estoque baixo (abaixo do mínimo): ${lowStock.length}`);
+  lines.push(`- Produtos com estoque baixo: ${lowStock.length}`);
   if (lowStock.length > 0) {
-    lines.push(`- Produtos que precisam reposição: ${lowStock.slice(0, 10).map((p) => `${p.name} (${p.stock_quantity ?? 0}/${p.min_stock})`).join(", ")}`);
+    lines.push(`- Reposição urgente: ${lowStock.slice(0, 10).map((p) => `${p.name} (${p.stock_quantity ?? 0}/${p.min_stock})`).join(", ")}`);
   }
   lines.push(`- Margem média dos produtos: ${avgMargin.toFixed(0)}%`);
-
   lines.push(`- Receitas pagas: ${formatBRL(receitas)}`);
   lines.push(`- Despesas pagas: ${formatBRL(despesas)}`);
   lines.push(`- Resultado operacional: ${formatBRL(lucro)} (margem ${margem}%)`);
@@ -67,7 +64,6 @@ function buildDataSummary(
     const totalOverdue = overdue.reduce((s: number, f: any) => s + Number(f.amount || 0), 0);
     lines.push(`- Valor total vencido: ${formatBRL(totalOverdue)}`);
   }
-
   return lines.join("\n");
 }
 
@@ -77,42 +73,17 @@ function getSystemPrompt(reportType: string, isQuick: boolean) {
 Gere um insight CURTO (máximo 2 frases) sobre o ponto mais importante dos dados. 
 Use emojis. Seja direto e acionável. Responda apenas com o insight, sem título.`;
   }
-
   const focusMap: Record<string, string> = {
     general: "vendas, estoque e financeiro de forma integrada",
     sales: "performance de vendas, tendências, ticket médio e formas de pagamento",
     stock: "gestão de estoque, rupturas, giro de produtos e oportunidades de reposição",
     financial: "fluxo de caixa, inadimplência, margem operacional e projeções",
   };
-
   return `Você é um consultor de negócios sênior especializado em pequenas e médias empresas brasileiras.
-Gere um **Relatório Executivo** profissional e detalhado focando em: ${focusMap[reportType] || focusMap.general}.
+Gere um **Relatório Executivo** profissional focando em: ${focusMap[reportType] || focusMap.general}.
 
-Estruture o relatório EXATAMENTE neste formato markdown:
-
-## Relatório Executivo - Desempenho dos Últimos 30 Dias
-
-Um parágrafo introdutório resumindo a situação geral da empresa.
-
-### 1. Resumo Executivo
-Análise geral do período em 1-2 parágrafos.
-
-### 2. Indicadores Chave
-Liste os indicadores mais relevantes em negrito com valores.
-
-### 3. Análise Detalhada
-Análise aprofundada com observações estratégicas sobre os dados.
-
-### 4. Pontos de Atenção
-⚠️ Liste problemas identificados que precisam de ação urgente.
-
-### 5. Recomendações Estratégicas
-Recomendações numeradas, práticas e acionáveis para melhorar os resultados.
-
-### 6. Conclusão
-Parágrafo final com perspectiva geral e próximos passos sugeridos.
-
-Use linguagem profissional mas acessível. Valores monetários em R$ formatados. Seja específico com os dados fornecidos.`;
+Estruture em markdown com: Resumo Executivo, Indicadores Chave, Análise Detalhada, Pontos de Atenção, Recomendações e Conclusão.
+Use linguagem profissional mas acessível. Valores em R$.`;
 }
 
 function generateFallbackReport(reportType: string, sales: any[], products: any[], financial: any[]) {
@@ -128,18 +99,65 @@ function generateFallbackReport(reportType: string, sales: any[], products: any[
   const margem = receitas > 0 ? ((lucro / receitas) * 100).toFixed(1) : "0.0";
 
   if (reportType === "quick") {
-    if (lowStock.length > 5) return `⚠️ **Atenção ao estoque!** ${lowStock.length} produtos estão com estoque baixo ou zerado. Reponha para evitar perda de vendas.`;
-    if (overdue.length > 0) return `⚠️ **${overdue.length} conta(s) vencida(s)** pendentes. Regularize para manter o fluxo de caixa saudável.`;
-    if (lucro < 0) return `📉 **Resultado negativo no mês:** despesas (${formatBRL(despesas)}) superaram receitas (${formatBRL(receitas)}). Revise custos.`;
-    return `✅ **Resumo do mês:** ${sales.length} vendas totalizando ${formatBRL(totalSales)}. Ticket médio: ${formatBRL(ticketMedio)}. Margem: ${margem}%.`;
+    if (lowStock.length > 5) return `⚠️ **Atenção ao estoque!** ${lowStock.length} produtos com estoque baixo ou zerado.`;
+    if (overdue.length > 0) return `⚠️ **${overdue.length} conta(s) vencida(s)** pendentes. Regularize o fluxo de caixa.`;
+    if (lucro < 0) return `📉 **Resultado negativo:** despesas (${formatBRL(despesas)}) superaram receitas (${formatBRL(receitas)}).`;
+    return `✅ **Resumo:** ${sales.length} vendas = ${formatBRL(totalSales)}. Ticket médio: ${formatBRL(ticketMedio)}. Margem: ${margem}%.`;
   }
 
   const sections: string[] = [];
-  sections.push(`## Relatório Executivo - Desempenho dos Últimos 30 Dias\n`);
-  sections.push(`### 📊 Vendas\n- **Total:** ${formatBRL(totalSales)} (${sales.length} vendas)\n- **Ticket médio:** ${formatBRL(ticketMedio)}\n`);
-  sections.push(`### 📦 Estoque\n- **Produtos:** ${products.length}\n- **Estoque zerado:** ${zeroStock.length}\n- **Estoque baixo:** ${lowStock.length}\n`);
-  sections.push(`### 💰 Financeiro\n- **Receitas:** ${formatBRL(receitas)}\n- **Despesas:** ${formatBRL(despesas)}\n- **Resultado:** ${formatBRL(lucro)} (margem ${margem}%)\n- **Contas vencidas:** ${overdue.length}\n`);
+  sections.push(`## Relatório Executivo\n`);
+  sections.push(`### 📊 Vendas\n- **Total:** ${formatBRL(totalSales)} (${sales.length})\n- **Ticket médio:** ${formatBRL(ticketMedio)}\n`);
+  sections.push(`### 📦 Estoque\n- **Produtos:** ${products.length}\n- **Zerado:** ${zeroStock.length}\n- **Baixo:** ${lowStock.length}\n`);
+  sections.push(`### 💰 Financeiro\n- **Receitas:** ${formatBRL(receitas)}\n- **Despesas:** ${formatBRL(despesas)}\n- **Resultado:** ${formatBRL(lucro)} (${margem}%)\n- **Vencidas:** ${overdue.length}\n`);
   return sections.join("\n");
+}
+
+async function callGeminiWithRetry(apiKey: string, systemPrompt: string, dataSummary: string, isQuick: boolean, maxRetries = 2): Promise<string | null> {
+  const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+  
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    if (attempt > 0) {
+      const delay = Math.pow(2, attempt) * 1000; // 2s, 4s
+      console.log(`[ai-report] Retry ${attempt}, waiting ${delay}ms...`);
+      await new Promise(r => setTimeout(r, delay));
+    }
+
+    try {
+      const resp = await fetch(geminiUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ role: "user", parts: [{ text: `${systemPrompt}\n\n${dataSummary}` }] }],
+          generationConfig: { maxOutputTokens: isQuick ? 200 : 2048, temperature: 0.7 },
+        }),
+      });
+
+      console.log(`[ai-report] Gemini attempt ${attempt} status: ${resp.status}`);
+
+      if (resp.status === 429) {
+        console.warn("[ai-report] Rate limited, will retry...");
+        await resp.text(); // consume body
+        continue;
+      }
+
+      if (resp.ok) {
+        const data = await resp.json();
+        const content = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (content) return content;
+        console.error("[ai-report] No content:", JSON.stringify(data).substring(0, 300));
+        return null;
+      }
+
+      const errText = await resp.text();
+      console.error("[ai-report] Gemini error:", resp.status, errText.substring(0, 200));
+      return null;
+    } catch (err: any) {
+      console.error("[ai-report] Fetch error:", err?.message);
+      if (attempt === maxRetries) return null;
+    }
+  }
+  return null;
 }
 
 Deno.serve(async (req) => {
@@ -171,81 +189,24 @@ Deno.serve(async (req) => {
     const financial = financialRes.data || [];
     const isQuick = report_type === "quick";
 
-    // Use Lovable AI Gateway (LOVABLE_API_KEY is auto-provisioned)
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    console.log("[ai-report] LOVABLE_API_KEY present:", !!LOVABLE_API_KEY);
+    const GOOGLE_GEMINI_KEY = Deno.env.get("GOOGLE_GEMINI_KEY");
+    console.log("[ai-report] GOOGLE_GEMINI_KEY present:", !!GOOGLE_GEMINI_KEY, "length:", GOOGLE_GEMINI_KEY?.length || 0);
 
-    if (LOVABLE_API_KEY) {
-      try {
-        const dataSummary = buildDataSummary(report_type || "general", sales, products, financial);
-        const systemPrompt = getSystemPrompt(report_type || "general", isQuick);
+    if (GOOGLE_GEMINI_KEY) {
+      const dataSummary = buildDataSummary(report_type || "general", sales, products, financial);
+      const systemPrompt = getSystemPrompt(report_type || "general", isQuick);
 
-        console.log("[ai-report] Calling Lovable AI Gateway...");
-
-        const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${LOVABLE_API_KEY}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model: "google/gemini-3-flash-preview",
-            messages: [
-              { role: "system", content: systemPrompt },
-              { role: "user", content: dataSummary },
-            ],
-            max_tokens: isQuick ? 200 : 2048,
-            temperature: 0.7,
-          }),
-        });
-
-        console.log("[ai-report] Gateway status:", aiResponse.status);
-
-        if (aiResponse.status === 429) {
-          console.warn("[ai-report] Rate limited, using fallback");
-          const report = generateFallbackReport(report_type || "general", sales, products, financial);
-          return new Response(JSON.stringify({ report, debug: "Rate limit 429 - usando fallback" }), {
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
-
-        if (aiResponse.status === 402) {
-          console.warn("[ai-report] Payment required");
-          const report = generateFallbackReport(report_type || "general", sales, products, financial);
-          return new Response(JSON.stringify({ report, debug: "Créditos insuficientes (402)" }), {
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
-
-        if (aiResponse.ok) {
-          const aiData = await aiResponse.json();
-          const content = aiData.choices?.[0]?.message?.content;
-          if (content) {
-            return new Response(JSON.stringify({ report: content }), {
-              headers: { ...corsHeaders, "Content-Type": "application/json" },
-            });
-          }
-          console.error("[ai-report] No content in response:", JSON.stringify(aiData).substring(0, 500));
-        } else {
-          const errText = await aiResponse.text();
-          console.error("[ai-report] Gateway error:", aiResponse.status, errText);
-          return new Response(JSON.stringify({
-            report: null,
-            error: `AI Gateway erro ${aiResponse.status}: ${errText.substring(0, 200)}`,
-          }), {
-            status: 200,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
-      } catch (aiErr: any) {
-        console.error("[ai-report] AI exception:", aiErr);
-        const report = generateFallbackReport(report_type || "general", sales, products, financial);
-        return new Response(JSON.stringify({ report, debug: `Exception: ${aiErr?.message || aiErr}` }), {
+      const aiContent = await callGeminiWithRetry(GOOGLE_GEMINI_KEY, systemPrompt, dataSummary, isQuick);
+      
+      if (aiContent) {
+        return new Response(JSON.stringify({ report: aiContent }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
+      
+      console.warn("[ai-report] All Gemini attempts failed, using fallback");
     } else {
-      console.warn("[ai-report] LOVABLE_API_KEY not found");
+      console.warn("[ai-report] GOOGLE_GEMINI_KEY not found");
     }
 
     // Fallback
