@@ -63,7 +63,7 @@ export function AiInsightWidget() {
       if (data?.error) {
         setErrorMsg(`[DEBUG] ${data.error} | ${data.debug || ""}`);
       } else if (data?.report && typeof data.report === "string") {
-        setInsight(data.report);
+        setInsight(data.debug ? `${data.report}\n\n_[Debug: ${data.debug}]_` : data.report);
       } else {
         setErrorMsg("Resposta inesperada: " + JSON.stringify(data).substring(0, 200));
       }
