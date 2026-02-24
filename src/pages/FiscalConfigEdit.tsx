@@ -59,7 +59,7 @@ export default function FiscalConfigEdit() {
   const [satActivation, setSatActivation] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-
+  const [crt, setCrt] = useState<number>(1);
   const [a3Certificates, setA3Certificates] = useState<CertificateInfo[]>([]);
   const [a3SelectedThumbprint, setA3SelectedThumbprint] = useState("");
   const [a3Loading, setA3Loading] = useState(false);
@@ -110,6 +110,9 @@ export default function FiscalConfigEdit() {
             setSatSerial(satConfig.sat_serial_number || "");
             setSatActivation(satConfig.sat_activation_code || "");
           }
+          // Load CRT from first config
+          const firstConfig = data[0];
+          if ((firstConfig as any).crt) setCrt((firstConfig as any).crt);
         }
       } catch (err: any) {
         toast.error(`Erro ao carregar configurações: ${err.message}`);
@@ -142,6 +145,7 @@ export default function FiscalConfigEdit() {
           a3_subject_name: certType === "A3" ? (a3Certificates.find(c => c.thumbprint === a3SelectedThumbprint)?.subjectName || null) : null,
           sat_serial_number: config.docType === "sat" ? satSerial || null : null,
           sat_activation_code: config.docType === "sat" ? satActivation || null : null,
+          crt: crt,
           updated_at: new Date().toISOString(),
         };
         if (config.id) {
@@ -364,6 +368,32 @@ export default function FiscalConfigEdit() {
                 O certificado A3 requer o assinador digital instalado e o token/smartcard conectado durante a emissão.
               </div>
             </>
+          )}
+        </div>
+      </motion.div>
+
+      {/* Regime Tributário (CRT) */}
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}
+        className="bg-card rounded-xl card-shadow border border-border overflow-hidden">
+        <div className="px-5 py-4 border-b border-border flex items-center gap-2">
+          <Shield className="w-4 h-4 text-primary" />
+          <h2 className="text-base font-semibold text-foreground">Regime Tributário (CRT)</h2>
+        </div>
+        <div className="p-5 space-y-3">
+          <p className="text-xs text-muted-foreground">
+            O CRT define como os impostos são calculados na nota fiscal. Selecionar o regime errado pode causar rejeição ou multa na SEFAZ.
+          </p>
+          <select value={crt} onChange={(e) => setCrt(Number(e.target.value))}
+            className="w-full px-4 py-2.5 rounded-xl bg-background border border-border text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all">
+            <option value={1}>1 — Simples Nacional</option>
+            <option value={2}>2 — Simples Nacional (Excesso de Sublimite)</option>
+            <option value={3}>3 — Regime Normal (Lucro Presumido / Real)</option>
+          </select>
+          {crt === 3 && (
+            <div className="flex items-center gap-2 p-3 rounded-lg bg-warning/10 text-warning text-xs">
+              <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+              Regime Normal requer CST (não CSOSN) nos itens da nota. Certifique-se de que os produtos estão com CST correto.
+            </div>
           )}
         </div>
       </motion.div>

@@ -104,7 +104,7 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
         name: item.name || item.product_name || "Produto",
         ncm: item.ncm || "",
         cfop: item.cfop || "5102",
-        cst: item.cst || item.csosn || "102",
+        cst: item.cst || item.csosn || "",
         unit: item.unit || "UN",
         qty,
         unitPrice,
@@ -147,7 +147,7 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
   const addItem = () => {
     setForm((prev) => ({
       ...prev,
-      items: [...prev.items, { name: "", ncm: "", cfop: "5102", cst: "102", unit: "UN", qty: 1, unitPrice: 0, discount: 0, total: 0 }],
+      items: [...prev.items, { name: "", ncm: "", cfop: "5102", cst: "", unit: "UN", qty: 1, unitPrice: 0, discount: 0, total: 0 }],
     }));
   };
 
@@ -162,9 +162,19 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
       toast.error("Preencha o nome de todos os itens.");
       return;
     }
-    const emptyNcm = form.items.some((it) => !it.ncm.trim());
+    const emptyNcm = form.items.some((it) => !it.ncm.trim() || it.ncm.replace(/\D/g, "").length < 4);
     if (emptyNcm) {
-      toast.error("Preencha o NCM de todos os itens.");
+      toast.error("Preencha o NCM válido de todos os itens (mín. 4 dígitos). NCM incorreto gera multa na SEFAZ.");
+      return;
+    }
+    const emptyCfop = form.items.some((it) => !it.cfop.trim() || it.cfop.length !== 4);
+    if (emptyCfop) {
+      toast.error("Preencha o CFOP válido de todos os itens (4 dígitos).");
+      return;
+    }
+    const emptyCst = form.items.some((it) => !it.cst.trim());
+    if (emptyCst) {
+      toast.error("Preencha o CST/CSOSN de todos os itens.");
       return;
     }
 
