@@ -224,12 +224,31 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "Empresa não encontrada" }, 404);
     }
 
-    const items = (form.items || []).map((item: any, idx: number) => ({
+    // ── Validate items before building payload ──
+    const formItems = form.items || [];
+    for (let i = 0; i < formItems.length; i++) {
+      const it = formItems[i];
+      const ncmClean = (it.ncm || "").replace(/\D/g, "");
+      if (!ncmClean || ncmClean === "00000000" || ncmClean.length < 4) {
+        return jsonResponse({ error: `Item ${i + 1} ("${it.name || ""}"): NCM inválido ou não informado. NCM é obrigatório para evitar multa na SEFAZ.` }, 400);
+      }
+      if (!it.cfop || it.cfop.length !== 4) {
+        return jsonResponse({ error: `Item ${i + 1} ("${it.name || ""}"): CFOP inválido ou não informado.` }, 400);
+      }
+      if (!it.cst) {
+        return jsonResponse({ error: `Item ${i + 1} ("${it.name || ""}"): CST/CSOSN não informado.` }, 400);
+      }
+    }
+
+    // Determine CRT from config or form (1=Simples, 2=Simples Excesso, 3=Regime Normal)
+    const crt = form.crt || config.crt || 1;
+
+    const items = formItems.map((item: any, idx: number) => ({
       numero_item: idx + 1,
-      codigo_produto: String(idx + 1).padStart(5, "0"),
+      codigo_produto: item.product_code || String(idx + 1).padStart(5, "0"),
       descricao: item.name,
-      ncm: item.ncm?.replace(/\D/g, "") || "00000000",
-      cfop: item.cfop || "5102",
+      ncm: item.ncm.replace(/\D/g, ""),
+      cfop: item.cfop,
       unidade_comercial: item.unit || "UN",
       quantidade_comercial: item.qty || 1,
       valor_unitario_comercial: item.unit_price || 0,
@@ -239,9 +258,11 @@ Deno.serve(async (req) => {
       valor_unitario_tributavel: item.unit_price || 0,
       valor_desconto: item.discount || 0,
       imposto: {
-        icms: { csosn: item.cst || "102", origem: "0" },
-        pis: { cst: "49" },
-        cofins: { cst: "49" },
+        icms: crt === 1 || crt === 2
+          ? { csosn: item.cst, origem: item.origem || "0" }
+          : { cst: item.cst, origem: item.origem || "0" },
+        pis: { cst: item.pis_cst || "49" },
+        cofins: { cst: item.cofins_cst || "49" },
       },
     }));
 
@@ -280,7 +301,7 @@ Deno.serve(async (req) => {
           codigo_pais: "1058",
           pais: "BRASIL",
         },
-        crt: 1,
+        crt: crt,
       },
       destinatario: form.customer_doc
         ? {
