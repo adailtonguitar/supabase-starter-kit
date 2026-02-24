@@ -1,8 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Sparkles, Loader2, RefreshCw, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
-import ReactMarkdown from "react-markdown";
 
 export function AiInsightWidget() {
   const { companyId } = useCompany();
@@ -10,43 +9,45 @@ export function AiInsightWidget() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
 
-  const fetchInsight = async () => {
+  const fetchInsight = useCallback(async () => {
     if (!companyId) return;
     setLoading(true);
     setError(false);
+    setInsight(null);
 
     try {
       const result = await supabase.functions.invoke("ai-report", {
         body: { report_type: "quick", company_id: companyId },
       });
 
-      console.log("AI insight result:", JSON.stringify(result));
+      console.log("[AiInsight] response:", JSON.stringify(result?.data));
 
-      if (result.error) {
-        console.error("AI insight fn error:", result.error);
+      if (result?.error) {
+        console.error("[AiInsight] fn error:", result.error);
         setError(true);
         return;
       }
 
-      const data = result.data;
-      if (!data || data.error) {
-        console.error("AI insight data error:", data?.error);
+      const report = result?.data?.report;
+      if (report && typeof report === "string") {
+        setInsight(report);
+      } else {
+        console.warn("[AiInsight] no report in response:", result?.data);
         setError(true);
-        return;
       }
-
-      setInsight(data.report || "Sem dados disponíveis.");
-    } catch (err: any) {
-      console.error("AI insight catch error:", err?.message || err);
+    } catch (err) {
+      console.error("[AiInsight] catch:", err);
       setError(true);
     } finally {
       setLoading(false);
     }
-  };
+  }, [companyId]);
 
   useEffect(() => {
-    if (companyId) fetchInsight();
-  }, [companyId]);
+    if (companyId) {
+      fetchInsight();
+    }
+  }, [companyId, fetchInsight]);
 
   return (
     <div className="bg-gradient-to-br from-primary/10 to-primary/5 rounded-xl p-5 border border-primary/20">
@@ -76,9 +77,9 @@ export function AiInsightWidget() {
 
       {!loading && error && (
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <AlertCircle className="w-4 h-4 text-destructive" />
+          <AlertCircle className="w-4 h-4 text-warning shrink-0" />
           <div>
-            <p>Não foi possível gerar o insight.</p>
+            <p>Edge function indisponível. Verifique o deploy no Supabase.</p>
             <button onClick={fetchInsight} className="text-primary text-xs hover:underline mt-1">
               Tentar novamente
             </button>
@@ -87,16 +88,14 @@ export function AiInsightWidget() {
       )}
 
       {!loading && !error && insight && (
-        <div className="prose prose-sm dark:prose-invert max-w-none text-sm">
-          <ReactMarkdown>{insight}</ReactMarkdown>
-        </div>
+        <p className="text-sm text-foreground whitespace-pre-wrap">{insight}</p>
       )}
 
       {!loading && !error && !insight && (
         <p className="text-sm text-muted-foreground">
           {companyId
-            ? "Clique em Atualizar para gerar um insight sobre seu negócio."
-            : "Conecte-se para receber insights personalizados."}
+            ? "Clique em Atualizar para gerar um insight."
+            : "Conecte-se para receber insights."}
         </p>
       )}
     </div>
