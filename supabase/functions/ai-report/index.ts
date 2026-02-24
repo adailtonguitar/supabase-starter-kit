@@ -177,43 +177,39 @@ Deno.serve(async (req) => {
     const financial = financialRes.data || [];
     const isQuick = report_type === "quick";
 
-    // Try Lovable AI
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (LOVABLE_API_KEY) {
+    // Try Google Gemini API
+    const GOOGLE_GEMINI_KEY = Deno.env.get("GOOGLE_GEMINI_KEY");
+    if (GOOGLE_GEMINI_KEY) {
       try {
         const dataSummary = buildDataSummary(report_type || "general", sales, products, financial);
         const systemPrompt = getSystemPrompt(report_type || "general", isQuick);
 
-        const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${LOVABLE_API_KEY}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model: "google/gemini-3-flash-preview",
-            messages: [
-              { role: "system", content: systemPrompt },
-              { role: "user", content: dataSummary },
-            ],
-            stream: false,
-          }),
-        });
+        const aiResponse = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GOOGLE_GEMINI_KEY}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              contents: [
+                { role: "user", parts: [{ text: `${systemPrompt}\n\n${dataSummary}` }] },
+              ],
+              generationConfig: {
+                maxOutputTokens: isQuick ? 200 : 2048,
+                temperature: 0.7,
+              },
+            }),
+          }
+        );
 
         if (aiResponse.status === 429) {
           return new Response(JSON.stringify({ error: "Limite de requisições excedido. Tente novamente em alguns minutos." }), {
             status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }
-        if (aiResponse.status === 402) {
-          return new Response(JSON.stringify({ error: "Créditos de IA esgotados. Adicione créditos no workspace." }), {
-            status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
 
         if (aiResponse.ok) {
           const aiData = await aiResponse.json();
-          const content = aiData.choices?.[0]?.message?.content;
+          const content = aiData.candidates?.[0]?.content?.parts?.[0]?.text;
           if (content) {
             return new Response(JSON.stringify({ report: content }), {
               headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -221,9 +217,9 @@ Deno.serve(async (req) => {
           }
         }
 
-        console.error("AI gateway non-ok:", aiResponse.status, await aiResponse.text());
+        console.error("Gemini API error:", aiResponse.status, await aiResponse.text());
       } catch (aiErr) {
-        console.error("AI gateway error, falling back:", aiErr);
+        console.error("Gemini API error, falling back:", aiErr);
       }
     }
 
