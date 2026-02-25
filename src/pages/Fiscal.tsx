@@ -14,12 +14,14 @@ import {
   Loader2,
   Download,
   FileSpreadsheet,
+  ShieldAlert,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/mock-data";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
 import { FiscalEmissionService } from "@/services/FiscalEmissionService";
+import { useGapDetection, type NumberingGap } from "@/hooks/useGapDetection";
 import { toast } from "sonner";
 
 type DocType = "nfce" | "nfe" | "sat";
@@ -70,6 +72,7 @@ export default function Fiscal() {
   const [inutNumFinal, setInutNumFinal] = useState(1);
   const [inutJustificativa, setInutJustificativa] = useState("");
   const [inutLoading, setInutLoading] = useState(false);
+  const { gaps, loading: gapsLoading, refresh: refreshGaps } = useGapDetection();
 
   const loadDocs = useCallback(async () => {
     if (!companyId) return;
@@ -338,6 +341,7 @@ export default function Fiscal() {
                 toast.success(result.message || "Numeração inutilizada com sucesso!");
                 setShowInutPanel(false);
                 loadDocs();
+                refreshGaps();
               } else {
                 toast.error(result.error || "Erro ao inutilizar");
               }
@@ -348,6 +352,55 @@ export default function Fiscal() {
             {inutLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RotateCcw className="w-4 h-4" />}
             Inutilizar na SEFAZ
           </button>
+        </motion.div>
+      )}
+
+      {/* ── Gap Detection Alert ── */}
+      {gaps.length > 0 && (
+        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
+          className="bg-destructive/5 rounded-xl border border-destructive/30 p-4 sm:p-5"
+        >
+          <div className="flex items-center gap-2 mb-3">
+            <ShieldAlert className="w-5 h-5 text-destructive" />
+            <h2 className="text-sm sm:text-base font-semibold text-destructive">
+              {gaps.length} gap{gaps.length > 1 ? "s" : ""} de numeração detectado{gaps.length > 1 ? "s" : ""}
+            </h2>
+          </div>
+          <p className="text-xs text-muted-foreground mb-3">
+            Números fiscais não utilizados devem ser inutilizados na SEFAZ para evitar multa (Art. 199 do RICMS). Clique para preencher automaticamente.
+          </p>
+          <div className="space-y-2">
+            {gaps.map((gap, i) => (
+              <div key={i} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-lg bg-card border border-border">
+                <div className="flex items-center gap-3">
+                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-secondary text-secondary-foreground">
+                    {gap.docType === "nfce" ? "NFC-e" : "NF-e"}
+                  </span>
+                  <span className="text-sm font-mono text-foreground">
+                    Série {gap.serie}: <strong>#{gap.start}</strong> → <strong>#{gap.end}</strong>
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    ({gap.count} número{gap.count > 1 ? "s" : ""})
+                  </span>
+                </div>
+                <button
+                  onClick={() => {
+                    setInutDocType(gap.docType);
+                    setInutSerie(gap.serie);
+                    setInutNumInicial(gap.start);
+                    setInutNumFinal(gap.end);
+                    setInutJustificativa("Quebra de sequência numérica detectada automaticamente pelo sistema.");
+                    setShowInutPanel(true);
+                    toast.info(`Formulário preenchido com gap ${gap.start}–${gap.end}. Confirme a inutilização.`);
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-warning/10 text-warning text-xs font-medium hover:bg-warning/20 transition-all self-start sm:self-auto"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  Inutilizar
+                </button>
+              </div>
+            ))}
+          </div>
         </motion.div>
       )}
 
