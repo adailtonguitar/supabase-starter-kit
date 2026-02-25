@@ -619,10 +619,61 @@ Deno.serve(async (req) => {
     }
 
     // ─── EMIT NFC-e (default) ───
-    const { sale_id, company_id, config_id, form } = body;
+    const { sale_id, config_id, form } = body;
+    let company_id = body.company_id;
 
-    if (!sale_id || !company_id || !config_id || !form) {
+    if (!sale_id || !config_id || !form) {
       return jsonResponse({ error: "Dados incompletos" }, 400);
+    }
+
+    // ── Resolve company_id via employees table (employees.user_id → employees.company_id → companies.id) ──
+    const authHeader = req.headers.get("authorization") || "";
+    const jwtToken = authHeader.replace("Bearer ", "");
+
+    async function resolveCompanyViaEmployee(): Promise<string | null> {
+      if (!jwtToken) return null;
+      try {
+        const { data: { user: authUser } } = await supabase.auth.getUser(jwtToken);
+        if (!authUser?.id) return null;
+        const { data: emp } = await supabase
+          .from("employees")
+          .select("company_id")
+          .eq("user_id", authUser.id)
+          .limit(1)
+          .maybeSingle();
+        return emp?.company_id || null;
+      } catch { return null; }
+    }
+
+    // Try employee-based lookup first, then fallback to body company_id
+    let company: any = null;
+
+    // Strategy 1: Use provided company_id
+    if (company_id) {
+      const { data } = await supabase
+        .from("companies")
+        .select("name, trade_name, cnpj, state_registration, address_street, address_number, address_complement, address_neighborhood, address_city, address_city_code, address_state, address_zip")
+        .eq("id", company_id)
+        .single();
+      company = data;
+    }
+
+    // Strategy 2: Resolve via employees table
+    if (!company) {
+      const empCompanyId = await resolveCompanyViaEmployee();
+      if (empCompanyId) {
+        company_id = empCompanyId;
+        const { data } = await supabase
+          .from("companies")
+          .select("name, trade_name, cnpj, state_registration, address_street, address_number, address_complement, address_neighborhood, address_city, address_city_code, address_state, address_zip")
+          .eq("id", empCompanyId)
+          .single();
+        company = data;
+      }
+    }
+
+    if (!company || !company_id) {
+      return jsonResponse({ error: "Empresa não encontrada. Verifique se o usuário está vinculado na tabela employees." }, 404);
     }
 
     const { data: config, error: cfgErr } = await supabase
@@ -633,16 +684,6 @@ Deno.serve(async (req) => {
 
     if (cfgErr || !config) {
       return jsonResponse({ error: "Configuração fiscal não encontrada" }, 404);
-    }
-
-    const { data: company } = await supabase
-      .from("companies")
-      .select("name, trade_name, cnpj, state_registration, address_street, address_number, address_complement, address_neighborhood, address_city, address_city_code, address_state, address_zip")
-      .eq("id", company_id)
-      .single();
-
-    if (!company) {
-      return jsonResponse({ error: "Empresa não encontrada" }, 404);
     }
 
     // ── Validate items before building payload ──
