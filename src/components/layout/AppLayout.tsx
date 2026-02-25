@@ -37,30 +37,12 @@ export function AppLayout({ children }: AppLayoutProps) {
   const isMobile = useIsMobile();
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  // Hide Tawk.to chat widget inside the app (only show on public pages)
+  // Ensure Tawk.to stays hidden inside the app (CSS handles initial hide)
   useEffect(() => {
-    const hide = () => {
-      if ((window as any).Tawk_API?.hideWidget) {
-        (window as any).Tawk_API.hideWidget();
-      }
-    };
-    hide();
-    // Tawk may load late — keep trying every 500ms for 10s
-    const interval = setInterval(hide, 500);
-    const stopTimer = setTimeout(() => clearInterval(interval), 10000);
-
-    // Also listen for Tawk onLoad event
-    if ((window as any).Tawk_API) {
-      (window as any).Tawk_API.onLoad = hide;
+    document.body.classList.remove('tawk-show');
+    if ((window as any).Tawk_API?.hideWidget) {
+      (window as any).Tawk_API.hideWidget();
     }
-
-    return () => {
-      clearInterval(interval);
-      clearTimeout(stopTimer);
-      if ((window as any).Tawk_API?.showWidget) {
-        (window as any).Tawk_API.showWidget();
-      }
-    };
   }, []);
 
   return (

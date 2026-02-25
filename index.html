@@ -23,9 +23,17 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
-    <!--Start of Tawk.to Script-->
+    <!-- Tawk.to: hidden by default, shown only on public pages via JS -->
+    <style>
+      .tawk-min-container, .tawk-button-circle, #tawk-bubble-container,
+      iframe[title="chat widget"], .widget-visible { display: none !important; }
+      body.tawk-show .tawk-min-container, body.tawk-show .tawk-button-circle,
+      body.tawk-show #tawk-bubble-container, body.tawk-show iframe[title="chat widget"],
+      body.tawk-show .widget-visible { display: block !important; }
+    </style>
     <script type="text/javascript">
     var Tawk_API=Tawk_API||{}, Tawk_LoadStart=new Date();
+    Tawk_API.onLoad = function(){ Tawk_API.hideWidget(); };
     (function(){
     var s1=document.createElement("script"),s0=document.getElementsByTagName("script")[0];
     s1.async=true;
@@ -35,6 +43,5 @@
     s0.parentNode.insertBefore(s1,s0);
     })();
     </script>
-    <!--End of Tawk.to Script-->
   </body>
 </html>
