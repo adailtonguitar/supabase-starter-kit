@@ -213,21 +213,11 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return jsonResponse({ error: "Não autorizado" }, 401);
-    }
-
+    // Use SERVICE_ROLE_KEY for server-side operations (verify_jwt = false in config.toml)
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: authHeader } } }
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
-
-    const { data: userData, error: userErr } = await supabase.auth.getUser();
-    if (userErr || !userData?.user) {
-      return jsonResponse({ error: "Não autorizado" }, 401);
-    }
 
     const body = await req.json();
     const action = body.action || "emit";
