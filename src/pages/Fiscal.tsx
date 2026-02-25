@@ -15,6 +15,7 @@ import {
   Download,
   FileSpreadsheet,
   ShieldAlert,
+  HardDrive,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/mock-data";
 import { motion } from "framer-motion";
@@ -72,6 +73,7 @@ export default function Fiscal() {
   const [inutNumFinal, setInutNumFinal] = useState(1);
   const [inutJustificativa, setInutJustificativa] = useState("");
   const [inutLoading, setInutLoading] = useState(false);
+  const [backupLoading, setBackupLoading] = useState(false);
   const { gaps, loading: gapsLoading, refresh: refreshGaps } = useGapDetection();
 
   const loadDocs = useCallback(async () => {
@@ -219,6 +221,25 @@ export default function Fiscal() {
           >
             <RotateCcw className="w-4 h-4" />
             <span className="hidden sm:inline">Inutilizar</span>
+          </button>
+          <button
+            onClick={async () => {
+              if (!companyId) return;
+              setBackupLoading(true);
+              const result = await FiscalEmissionService.backupXmls(companyId);
+              if (result.success) {
+                toast.success(result.message || `Backup concluído: ${result.backed} XMLs salvos.`);
+              } else {
+                toast.error(result.error || "Erro ao fazer backup");
+              }
+              setBackupLoading(false);
+            }}
+            disabled={backupLoading}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-accent text-accent-foreground text-xs sm:text-sm font-medium hover:opacity-90 transition-all disabled:opacity-50"
+          >
+            {backupLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <HardDrive className="w-4 h-4" />}
+            <span className="hidden sm:inline">Backup XMLs</span>
+            <span className="sm:hidden">XML</span>
           </button>
           <button
             onClick={() => setShowSpedPanel(!showSpedPanel)}
