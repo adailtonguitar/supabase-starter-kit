@@ -616,34 +616,46 @@ export default function PDV() {
         </div>
       </div>
 
-      {/* ════════ BARCODE INPUT - LARGEST ELEMENT ════════ */}
-      {/* Hide on mobile when editing qty/discount to prevent focus stealing */}
-      <div className={`flex items-center gap-2 lg:gap-3 px-3 lg:px-4 py-2 lg:py-3 bg-card border-b-2 border-primary flex-shrink-0 ${
+      {/* ════════ BARCODE INPUT - PREMIUM ════════ */}
+      <div className={`flex items-center gap-3 lg:gap-4 px-3 lg:px-5 py-3 lg:py-4 bg-gradient-to-r from-primary/10 via-card to-primary/10 border-b-2 border-primary flex-shrink-0 shadow-[0_2px_12px_-4px_hsl(var(--primary)/0.25)] ${
         (editingQtyItemId || editingItemDiscountId || editingGlobalDiscount) ? "hidden lg:flex" : "flex"
       }`}>
-        <span className="text-xs lg:text-sm font-bold text-muted-foreground whitespace-nowrap">CÓDIGO:</span>
-        <input
-          ref={barcodeInputRef}
-          type="text"
-          value={barcodeInput}
-          onChange={(e) => setBarcodeInput(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              e.stopPropagation();
-              if (!barcodeInput.trim()) {
-                setShowProductList((p) => !p);
-              } else {
-                handleBarcodeSubmit();
+        <div className="flex items-center gap-2 bg-primary/15 rounded-lg px-3 py-2">
+          <Search className="w-5 h-5 text-primary" />
+          <span className="text-xs lg:text-sm font-extrabold text-primary tracking-wide whitespace-nowrap">CÓDIGO</span>
+        </div>
+        <div className="relative flex-1">
+          <input
+            ref={barcodeInputRef}
+            type="text"
+            value={barcodeInput}
+            onChange={(e) => setBarcodeInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                e.stopPropagation();
+                if (!barcodeInput.trim()) {
+                  setShowProductList((p) => !p);
+                } else {
+                  handleBarcodeSubmit();
+                }
               }
-            }
-          }}
-          placeholder="Leia ou digite o código de barras... (ex: 5*789123 para multiplicar)"
-          className="flex-1 px-3 lg:px-4 py-2 lg:py-3 rounded-lg bg-background border-2 border-border text-foreground text-lg lg:text-xl font-mono font-bold focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/30 placeholder:text-muted-foreground/50 placeholder:text-xs lg:placeholder:text-sm placeholder:font-normal"
-          autoComplete="off"
-          autoCorrect="off"
-          spellCheck={false}
-        />
+            }}
+            placeholder="Leia ou digite o código de barras... (ex: 5*789123 para multiplicar)"
+            className="w-full px-4 lg:px-5 py-2.5 lg:py-3.5 rounded-xl bg-background border-2 border-primary/40 text-foreground text-lg lg:text-2xl font-mono font-bold tracking-wider focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/20 focus:shadow-[0_0_20px_-4px_hsl(var(--primary)/0.3)] placeholder:text-muted-foreground/40 placeholder:text-xs lg:placeholder:text-sm placeholder:font-normal placeholder:tracking-normal transition-all duration-200"
+            autoComplete="off"
+            autoCorrect="off"
+            spellCheck={false}
+          />
+          {barcodeInput && (
+            <button
+              onClick={() => setBarcodeInput("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full bg-muted hover:bg-destructive/20 transition-colors"
+            >
+              <X className="w-4 h-4 text-muted-foreground" />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* ════════ MAIN CONTENT: 70% items | 30% totals ════════ */}
