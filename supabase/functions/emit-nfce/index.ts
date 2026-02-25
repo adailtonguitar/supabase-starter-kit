@@ -400,6 +400,49 @@ Deno.serve(async (req) => {
       });
     }
 
+    // ─── EMIT CONTINGENCY NFC-e (post-sync) ───
+    if (action === "emit_contingency") {
+      const { sale_id, company_id, config_id, contingency_number, serie, form: contForm } = body;
+
+      if (!company_id || !contForm) {
+        return jsonResponse({ error: "Dados de contingência incompletos" }, 400);
+      }
+
+      // Get config
+      let configData = null;
+      if (config_id) {
+        const { data } = await supabase
+          .from("fiscal_configs")
+          .select("*")
+          .eq("id", config_id)
+          .single();
+        configData = data;
+      }
+      if (!configData) {
+        const { data } = await supabase
+          .from("fiscal_configs")
+          .select("*")
+          .eq("company_id", company_id)
+          .eq("doc_type", "nfce")
+          .eq("is_active", true)
+          .single();
+        configData = data;
+      }
+
+      if (!configData) {
+        return jsonResponse({ error: "Configuração fiscal NFC-e não encontrada para contingência" }, 404);
+      }
+
+      // Now emit as a normal NFC-e but with contingency reference
+      // Re-use the emit logic by setting body fields and falling through
+      body.sale_id = sale_id;
+      body.company_id = company_id;
+      body.config_id = configData.id;
+      body.form = contForm;
+      body.form.inf_adic = `NFC-e emitida em contingência offline. Nº contingência: ${contingency_number}. ${contForm.inf_adic || ""}`.trim();
+      // Fall through to normal emit below
+    }
+
     // ─── EMIT NFC-e (default) ───
     const { sale_id, company_id, config_id, form } = body;
 

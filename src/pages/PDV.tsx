@@ -45,6 +45,7 @@ export default function PDV() {
     total: number;
     payments: TEFResult[];
     nfceNumber: string;
+    isContingency?: boolean;
   } | null>(null);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showProductList, setShowProductList] = useState(false);
@@ -429,6 +430,7 @@ export default function PDV() {
         setReceipt({
           items: savedItems, total: savedTotal,
           payments: tefResults, nfceNumber: result.nfceNumber,
+          isContingency: result.isContingency,
         });
         setSelectedClient(null);
         // Increment sale number
@@ -476,6 +478,7 @@ export default function PDV() {
         items: savedItems, total: savedTotal,
         payments: [{ method: "prazo" as any, approved: true, amount: savedTotal }],
         nfceNumber: result.nfceNumber,
+        isContingency: result.isContingency,
       });
       toast.success(`Venda a prazo registrada para ${client.name}`, { duration: 1500 });
       setSelectedClient(null);
@@ -583,6 +586,16 @@ export default function PDV() {
           >
             {isFullscreen ? <Minimize className="w-3.5 h-3.5" /> : <Maximize className="w-3.5 h-3.5" />}
           </button>
+          {pdv.contingencyMode && (
+            <span className="flex items-center gap-1 font-bold text-warning animate-pulse">
+              <AlertTriangle className="w-3 h-3" /> CONTINGÊNCIA
+            </span>
+          )}
+          {pdv.syncStats.pending > 0 && (
+            <span className="text-xs font-mono opacity-80">
+              📤 {pdv.syncStats.pending} pendente{pdv.syncStats.pending > 1 ? "s" : ""}
+            </span>
+          )}
           <span className="flex items-center gap-1">
             {pdv.isOnline ? <Wifi className="w-3 h-3" /> : <WifiOff className="w-3 h-3" />}
             <span className="font-bold hidden sm:inline">{pdv.isOnline ? "Online" : "Offline"}</span>
@@ -1169,6 +1182,7 @@ export default function PDV() {
             sku: i.sku, ncm: i.ncm || "", unit: i.unit, stock: i.stock_quantity, quantity: i.quantity,
           }))}
           total={receipt.total} payments={receipt.payments} nfceNumber={receipt.nfceNumber}
+          isContingency={receipt.isContingency}
           slogan={slogan || undefined} logoUrl={logoUrl || undefined} companyName={companyName || undefined}
           onClose={() => setReceipt(null)}
         />

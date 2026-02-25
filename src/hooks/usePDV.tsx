@@ -1,6 +1,8 @@
 import { useState, useCallback, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
+import { useSync } from "@/hooks/useSync";
+import { buildContingencyPayload } from "@/services/ContingencyService";
 import type { PaymentResult } from "@/services/types";
 
 export interface PDVProduct {
@@ -29,6 +31,7 @@ interface CashSession {
 
 export function usePDV() {
   const { companyId } = useCompany();
+  const { queueOperation, stats: syncStats, syncing: syncingSales } = useSync();
   const [products, setProducts] = useState<PDVProduct[]>([]);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [loadingProducts, setLoadingProducts] = useState(true);
@@ -39,6 +42,8 @@ export function usePDV() {
   const [globalDiscountPercent, setGlobalDiscountPercent] = useState(0);
   const [itemDiscounts, setItemDiscounts] = useState<Record<string, number>>({});
   const [trainingMode] = useState(false);
+  const [contingencyMode, setContingencyMode] = useState(false);
+  const [contingencySaleIds, setContingencySaleIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const on = () => setIsOnline(true);
@@ -146,29 +151,101 @@ export function usePDV() {
       subtotal: item.price * (1 - (itemDiscounts[item.id] || 0) / 100) * item.quantity,
     }));
 
-    const { data, error } = await supabase.from("sales").insert({
-      company_id: companyId,
-      terminal_id: currentSession.terminal_id,
-      session_id: currentSession.id,
-      items: saleItems,
-      subtotal,
-      discount_percent: globalDiscountPercent,
-      discount_value: globalDiscountValue,
-      total,
-      payments: payments.map(p => ({ method: p.method, amount: p.amount, approved: p.approved })),
-      status: "completed",
-    } as any).select("id").single();
+    // Try normal online sale first
+    try {
+      const { data, error } = await supabase.from("sales").insert({
+        company_id: companyId,
+        terminal_id: currentSession.terminal_id,
+        session_id: currentSession.id,
+        items: saleItems,
+        subtotal,
+        discount_percent: globalDiscountPercent,
+        discount_value: globalDiscountValue,
+        total,
+        payments: payments.map(p => ({ method: p.method, amount: p.amount, approved: p.approved })),
+        status: "completed",
+      } as any).select("id").single();
 
-    if (error) throw error;
+      if (error) throw error;
 
-    // Decrement stock
-    for (const item of cartItems) {
-      try { await supabase.rpc("decrement_stock", { p_product_id: item.id, p_quantity: item.quantity }); } catch { /* ignore */ }
+      // Decrement stock
+      for (const item of cartItems) {
+        try { await supabase.rpc("decrement_stock", { p_product_id: item.id, p_quantity: item.quantity }); } catch { /* ignore */ }
+      }
+
+      clearCart();
+      setContingencyMode(false);
+      return { saleId: data?.id, nfceNumber: "", fiscalDocId: undefined, isContingency: false };
+    } catch (onlineErr: any) {
+      // ── CONTINGENCY FALLBACK ──
+      // If we can't reach the server, enqueue for later sync
+      console.warn("[PDV] Online sale failed, entering contingency:", onlineErr.message);
+      setContingencyMode(true);
+
+      const offlineSaleId = crypto.randomUUID();
+
+      // Get fiscal config for contingency payload
+      let configId = "";
+      let serie = 1;
+      try {
+        const { data: configs } = await supabase
+          .from("fiscal_configs")
+          .select("id, serie")
+          .eq("company_id", companyId)
+          .eq("doc_type", "nfce")
+          .eq("is_active", true)
+          .limit(1);
+        if (configs && configs.length > 0) {
+          configId = configs[0].id;
+          serie = configs[0].serie || 1;
+        }
+      } catch { /* ignore - use defaults */ }
+
+      // Build contingency NFC-e payload
+      const contingencyPayload = await buildContingencyPayload({
+        saleId: offlineSaleId,
+        companyId,
+        configId,
+        serie,
+        form: {
+          nat_op: "VENDA DE MERCADORIA",
+          payment_method: payments[0]?.method === "dinheiro" ? "01" : payments[0]?.method === "pix" ? "17" : "99",
+          payment_value: total,
+          change: payments[0]?.change_amount || 0,
+          items: cartItems.map(item => ({
+            name: item.name,
+            ncm: item.ncm || "",
+            cfop: "5102",
+            cst: "",
+            unit: item.unit || "UN",
+            qty: item.quantity,
+            unit_price: item.price,
+            discount: item.price * (itemDiscounts[item.id] || 0) / 100 * item.quantity,
+            pis_cst: "49",
+            cofins_cst: "49",
+            icms_aliquota: 0,
+          })),
+        },
+      });
+
+      // Enqueue for sync when online
+      await queueOperation("fiscal_contingency", contingencyPayload as unknown as Record<string, unknown>, 1, 5);
+
+      // Also enqueue the sale data
+      await queueOperation("sale", {
+        company_id: companyId,
+        total,
+        payment_method: payments[0]?.method || "outros",
+        items: saleItems,
+        user_id: "",
+        created_at: new Date().toISOString(),
+      }, 2, 3);
+
+      setContingencySaleIds(prev => new Set(prev).add(offlineSaleId));
+      clearCart();
+      return { saleId: offlineSaleId, nfceNumber: `CONT-${contingencyPayload.contingency_number}`, fiscalDocId: undefined, isContingency: true };
     }
-
-    clearCart();
-    return { saleId: data?.id, nfceNumber: "", fiscalDocId: undefined };
-  }, [companyId, currentSession, cartItems, subtotal, globalDiscountPercent, globalDiscountValue, total, itemDiscounts, clearCart]);
+  }, [companyId, currentSession, cartItems, subtotal, globalDiscountPercent, globalDiscountValue, total, itemDiscounts, clearCart, queueOperation]);
 
   const repeatLastSale = useCallback(() => {
     // TODO: implement repeat last sale
@@ -179,6 +256,7 @@ export function usePDV() {
   return {
     products, cartItems, loadingProducts, currentSession, loadingSession, sessionEverLoaded,
     isOnline, globalDiscountPercent, globalDiscountValue, itemDiscounts, trainingMode,
+    contingencyMode, syncStats, contingencySaleIds,
     subtotal, total, promoSavings,
     addToCart, removeItem, updateQuantity, clearCart, setGlobalDiscountPercent,
     setItemDiscount, handleBarcodeScan, finalizeSale, reloadSession, repeatLastSale,

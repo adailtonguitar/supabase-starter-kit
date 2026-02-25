@@ -61,6 +61,24 @@ const processors: Record<string, SyncProcessor> = {
     });
     if (error) throw new Error(error.message);
   },
+  fiscal_contingency: async (item) => {
+    // Transmit contingency NFC-e to SEFAZ via edge function
+    const p = item.payload;
+    const { data, error } = await supabase.functions.invoke("emit-nfce", {
+      body: {
+        action: "emit_contingency",
+        sale_id: p.sale_id as string,
+        company_id: p.company_id as string,
+        config_id: p.config_id as string,
+        contingency_number: p.contingency_number as number,
+        serie: p.serie as number,
+        form: p.form,
+      },
+    });
+    if (error) throw new Error(error.message);
+    if (data && !data.success) throw new Error(data.error || "Erro ao transmitir NFC-e de contingência");
+    // Success — the edge function updates fiscal_documents and sales
+  },
 };
 
 export function useSync() {
