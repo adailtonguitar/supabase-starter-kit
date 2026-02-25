@@ -27,6 +27,7 @@ CREATE INDEX IF NOT EXISTS idx_payments_mp_payment ON public.payments(mp_payment
 ALTER TABLE public.payments ENABLE ROW LEVEL SECURITY;
 
 -- Users can see their company's payments
+DROP POLICY IF EXISTS "Users see own company payments" ON public.payments;
 CREATE POLICY "Users see own company payments" ON public.payments
   FOR SELECT TO authenticated
   USING (
@@ -37,6 +38,7 @@ CREATE POLICY "Users see own company payments" ON public.payments
   );
 
 -- Super admins can see all
+DROP POLICY IF EXISTS "Super admins manage payments" ON public.payments;
 CREATE POLICY "Super admins manage payments" ON public.payments
   FOR ALL TO authenticated
   USING (
