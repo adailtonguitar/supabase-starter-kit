@@ -202,12 +202,26 @@ export function usePDV() {
           .maybeSingle();
 
         if (fiscalConfig) {
+          // Build fiscal items with CST/CSOSN from product data
+          const fiscalItems = cartItems.map(item => ({
+            product_id: item.id,
+            name: item.name,
+            ncm: item.ncm || "",
+            cfop: "5102",
+            cst: "102",
+            origem: "0",
+            unit: item.unit || "UN",
+            qty: item.quantity,
+            unit_price: item.price,
+            discount: item.price * (itemDiscounts[item.id] || 0) / 100 * item.quantity,
+          }));
+
           const { data: fiscalData, error: fiscalErr } = await supabase.functions.invoke("emit-nfce", {
             body: {
               action: "emit",
               sale_id: saleId,
               company_id: companyId,
-              items: saleItems,
+              items: fiscalItems,
               total,
               payments: paymentsSummary,
             },
