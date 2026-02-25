@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from "react";
+import anthoLogo from "@/assets/logo-as.png";
 import { motion } from "framer-motion";
 import { isScaleBarcode } from "@/lib/scale-barcode";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -659,7 +660,7 @@ export default function PDV() {
                         {logoUrl ? (
                           <img src={logoUrl} alt={companyName || "Logo"} className="h-44 object-contain" />
                         ) : (
-                          <img src="/logo-as.png" alt="AnthoSystem" className="h-36 object-contain opacity-70" />
+                          <img src={anthoLogo} alt="AnthoSystem" className="h-36 object-contain opacity-70" />
                         )}
                         {companyName && (
                           <span className="text-lg font-bold text-foreground/60">{companyName}</span>
