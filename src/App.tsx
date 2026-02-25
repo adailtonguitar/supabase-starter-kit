@@ -13,6 +13,7 @@ import { PlanProvider } from "@/hooks/usePlanFeatures";
 import { LocalDBProvider } from "@/components/providers/LocalDBProvider";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { useSessionControl } from "@/hooks/useSessionControl";
 import { ScrollToTop } from "@/components/ScrollToTop";
 import { OnboardingWizard } from "@/components/onboarding/OnboardingWizard";
 import { useTermsAcceptance } from "@/hooks/useTermsAcceptance";
@@ -100,6 +101,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { subscribed, trialExpired, subscriptionOverdue, blocked, loading: subLoading } = useSubscription();
   const { isSuperAdmin, loading: adminLoading } = useAdminRole();
   const { accepted: termsAccepted, loading: termsLoading } = useTermsAcceptance();
+  useSessionControl(); // Anti-sharing session control
   const hasSignedOut = useRef(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [companyCheckDone, setCompanyCheckDone] = useState(false);

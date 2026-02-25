@@ -99,6 +99,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signOut = async () => {
+    // Invalidate session token before signing out
+    try {
+      const token = sessionStorage.getItem("as_session_token");
+      if (token) {
+        await supabase.rpc("invalidate_session", { p_session_token: token });
+        sessionStorage.removeItem("as_session_token");
+      }
+    } catch { /* best effort */ }
     cacheUser(null);
     localStorage.removeItem("as_cached_company");
     await supabase.auth.signOut();
