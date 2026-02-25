@@ -1,12 +1,27 @@
 import { useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { FileText, ArrowLeft } from "lucide-react";
+import { FileText, ArrowLeft, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 
 export default function ContratoSaaS() {
   const navigate = useNavigate();
+
+  const handleDownloadPDF = () => {
+    const style = document.createElement("style");
+    style.id = "print-style";
+    style.textContent = `
+      @media print {
+        body * { visibility: hidden; }
+        .contract-content, .contract-content * { visibility: visible; }
+        .contract-content { position: absolute; left: 0; top: 0; width: 100%; padding: 40px; }
+        .no-print { display: none !important; }
+      }
+    `;
+    document.head.appendChild(style);
+    window.print();
+    setTimeout(() => document.getElementById("print-style")?.remove(), 1000);
+  };
 
   useEffect(() => {
     const root = document.getElementById("root");
@@ -41,7 +56,7 @@ export default function ContratoSaaS() {
           </p>
         </CardHeader>
         <CardContent>
-          <div className="prose prose-sm dark:prose-invert max-w-none space-y-6 text-foreground/90">
+          <div className="contract-content prose prose-sm dark:prose-invert max-w-none space-y-6 text-foreground/90">
 
             <p className="text-center text-xs text-muted-foreground">
               Versão 1.0 — Vigente a partir da data de assinatura ou aceite digital.
@@ -67,7 +82,6 @@ export default function ContratoSaaS() {
 
             <hr className="border-border" />
 
-            {/* CLÁUSULA 1 */}
             <section>
               <h3 className="font-bold text-base">CLÁUSULA 1ª — DO OBJETO</h3>
               <p>
@@ -90,7 +104,6 @@ export default function ContratoSaaS() {
               </p>
             </section>
 
-            {/* CLÁUSULA 2 */}
             <section>
               <h3 className="font-bold text-base">CLÁUSULA 2ª — DA RESPONSABILIDADE TRIBUTÁRIA</h3>
               <p>
@@ -117,198 +130,155 @@ export default function ContratoSaaS() {
               </p>
             </section>
 
-            {/* CLÁUSULA 3 */}
             <section>
               <h3 className="font-bold text-base">CLÁUSULA 3ª — DA RESPONSABILIDADE PELO CADASTRO DE PRODUTOS E PARAMETRIZAÇÃO FISCAL</h3>
               <p>
                 3.1. O CONTRATANTE é o <strong>único e exclusivo responsável</strong> pelo cadastro correto, completo e atualizado de seus produtos, serviços e operações no sistema, incluindo os seguintes campos de natureza fiscal obrigatória:
               </p>
               <ul className="list-disc pl-5 space-y-1">
-                <li><strong>NCM</strong> (Nomenclatura Comum do Mercosul) — conforme Tabela de Incidência do IPI (TIPI) vigente, aprovada pelo Decreto Federal aplicável;</li>
-                <li><strong>CEST</strong> (Código Especificador da Substituição Tributária) — quando exigível conforme Convênio ICMS 142/2018 e atualizações;</li>
-                <li><strong>CST</strong> (Código de Situação Tributária) — compatível com o regime de apuração normal do ICMS; ou <strong>CSOSN</strong> (Código de Situação da Operação do Simples Nacional) — para optantes pelo Simples Nacional, conforme Resolução CGSN nº 140/2018;</li>
-                <li><strong>CFOP</strong> (Código Fiscal de Operações e Prestações) — adequado à natureza da operação (venda, devolução, transferência, remessa, etc.);</li>
-                <li><strong>Alíquotas de ICMS</strong> — conforme legislação estadual da UF do estabelecimento emissor;</li>
-                <li><strong>Alíquotas de PIS e COFINS</strong> — conforme regime de apuração (cumulativo ou não cumulativo);</li>
-                <li><strong>FCP</strong> (Fundo de Combate à Pobreza) — quando previsto pela legislação estadual;</li>
-                <li><strong>Unidade comercial e tributável</strong>, <strong>EAN/GTIN</strong>, <strong>valor unitário</strong> e demais campos exigidos pelo leiaute da NF-e/NFC-e.</li>
+                <li><strong>NCM</strong> (Nomenclatura Comum do Mercosul) — conforme Tabela de Incidência do IPI (TIPI) vigente;</li>
+                <li><strong>CEST</strong> (Código Especificador da Substituição Tributária) — quando exigível conforme Convênio ICMS 142/2018;</li>
+                <li><strong>CST</strong> (Código de Situação Tributária) ou <strong>CSOSN</strong> (Código de Situação da Operação do Simples Nacional);</li>
+                <li><strong>CFOP</strong> (Código Fiscal de Operações e Prestações);</li>
+                <li><strong>Alíquotas de ICMS</strong> — conforme legislação estadual;</li>
+                <li><strong>Alíquotas de PIS e COFINS</strong> — conforme regime de apuração;</li>
+                <li><strong>FCP</strong> (Fundo de Combate à Pobreza) — quando previsto;</li>
+                <li><strong>Unidade comercial e tributável</strong>, <strong>EAN/GTIN</strong>, <strong>valor unitário</strong> e demais campos exigidos.</li>
               </ul>
               <p>
-                3.2. O sistema disponibiliza mecanismos auxiliares de validação, incluindo: validação cruzada CST×CRT, verificação de NCM contra tabela TIPI, detecção de NCMs expirados e cálculo automático de ICMS-ST. Tais mecanismos são <strong>meramente auxiliares e não substituem</strong> a análise técnica de profissional contábil.
+                3.2. O sistema disponibiliza mecanismos auxiliares de validação. Tais mecanismos são <strong>meramente auxiliares e não substituem</strong> a análise técnica de profissional contábil.
               </p>
               <p>
-                3.3. Erros decorrentes de cadastro incorreto, incompleto ou desatualizado pelo CONTRATANTE, incluindo a emissão de documentos fiscais com informações tributárias equivocadas, <strong>não geram direito a indenização, ressarcimento ou qualquer responsabilização da CONTRATADA</strong>.
+                3.3. Erros decorrentes de cadastro incorreto pelo CONTRATANTE <strong>não geram direito a indenização ou responsabilização da CONTRATADA</strong>.
               </p>
             </section>
 
-            {/* CLÁUSULA 4 */}
             <section>
               <h3 className="font-bold text-base">CLÁUSULA 4ª — DA DEPENDÊNCIA DE SERVIÇOS EXTERNOS</h3>
               <p>
-                4.1. O CONTRATANTE reconhece e concorda que o funcionamento pleno das funcionalidades fiscais do sistema depende da disponibilidade de serviços de terceiros, sobre os quais a CONTRATADA não possui controle ou gerência, incluindo:
+                4.1. O CONTRATANTE reconhece que o funcionamento pleno das funcionalidades fiscais depende da disponibilidade de serviços de terceiros, incluindo:
               </p>
               <ul className="list-disc pl-5 space-y-1">
-                <li><strong>SEFAZ</strong> (Secretaria da Fazenda) das Unidades Federativas — para autorização, cancelamento e inutilização de documentos fiscais eletrônicos;</li>
-                <li><strong>Nuvem Fiscal</strong> ou outro intermediador de comunicação com webservices da SEFAZ — para transmissão e consulta de documentos;</li>
-                <li><strong>Provedores de acesso à internet</strong> — para conectividade de rede do estabelecimento;</li>
-                <li><strong>Autoridades Certificadoras</strong> credenciadas pela ICP-Brasil — para emissão e manutenção de certificados digitais A1 ou A3;</li>
-                <li><strong>Provedores de infraestrutura em nuvem</strong> — para hospedagem do banco de dados e aplicação.</li>
+                <li><strong>SEFAZ</strong> — para autorização de documentos fiscais eletrônicos;</li>
+                <li><strong>Nuvem Fiscal</strong> — para transmissão e consulta de documentos;</li>
+                <li><strong>Provedores de internet</strong> — para conectividade;</li>
+                <li><strong>Autoridades Certificadoras</strong> credenciadas pela ICP-Brasil;</li>
+                <li><strong>Provedores de infraestrutura em nuvem</strong>.</li>
               </ul>
               <p>
-                4.2. O sistema implementa mecanismo de <strong>contingência offline</strong> (tpEmis=9), conforme previsto no Ajuste SINIEF 07/05 e no Manual de Orientação do Contribuinte, permitindo a continuidade das operações de venda e a emissão de documentos fiscais em modo offline, com transmissão posterior automática quando a conectividade for restabelecida.
+                4.2. O sistema implementa mecanismo de <strong>contingência offline</strong> (tpEmis=9), conforme Ajuste SINIEF 07/05.
               </p>
               <p>
-                4.3. A CONTRATADA não garante a disponibilidade ininterrupta dos serviços de terceiros mencionados nesta cláusula e não se responsabiliza por indisponibilidades, lentidão ou falhas desses serviços.
+                4.3. A CONTRATADA não garante a disponibilidade ininterrupta dos serviços de terceiros.
               </p>
             </section>
 
-            {/* CLÁUSULA 5 */}
             <section>
               <h3 className="font-bold text-base">CLÁUSULA 5ª — DA LIMITAÇÃO DE RESPONSABILIDADE</h3>
               <p>
-                5.1. A responsabilidade total e cumulativa da CONTRATADA perante o CONTRATANTE, por quaisquer danos diretos, comprovados e decorrentes <strong>exclusivamente de falha do software</strong> (bug de programação), fica <strong>limitada ao valor equivalente à última mensalidade efetivamente paga</strong> pelo CONTRATANTE na data da ocorrência do evento danoso.
+                5.1. A responsabilidade total da CONTRATADA fica <strong>limitada ao valor equivalente à última mensalidade efetivamente paga</strong>.
               </p>
               <p>
                 5.2. Em nenhuma hipótese a CONTRATADA será responsável por:
               </p>
               <ul className="list-disc pl-5 space-y-1">
                 <li>Danos indiretos, incidentais, consequenciais ou punitivos;</li>
-                <li>Lucros cessantes, perda de receita ou perda de oportunidade de negócio;</li>
-                <li>Perda de dados tributários decorrente de parametrização incorreta pelo CONTRATANTE;</li>
-                <li>Multas, autuações fiscais ou penalidades de qualquer natureza impostas por autoridades tributárias;</li>
-                <li>Danos decorrentes de caso fortuito, força maior, ato de terceiros, falha de energia elétrica, desastre natural, pandemia, guerra, greve ou qualquer evento fora do controle razoável da CONTRATADA;</li>
-                <li>Indisponibilidade ou perda de dados resultante de cancelamento da assinatura pelo CONTRATANTE.</li>
+                <li>Lucros cessantes, perda de receita ou perda de oportunidade;</li>
+                <li>Perda de dados tributários decorrente de parametrização incorreta;</li>
+                <li>Multas ou autuações fiscais de qualquer natureza;</li>
+                <li>Danos decorrentes de caso fortuito ou força maior;</li>
+                <li>Indisponibilidade ou perda de dados resultante de cancelamento da assinatura.</li>
               </ul>
-              <p>
-                5.3. A limitação prevista nesta cláusula aplica-se independentemente da teoria legal invocada (contratual, extracontratual, responsabilidade objetiva ou subjetiva) e prevalecerá mesmo que a CONTRATADA tenha sido advertida sobre a possibilidade de tais danos.
-              </p>
             </section>
 
-            {/* CLÁUSULA 6 */}
             <section>
               <h3 className="font-bold text-base">CLÁUSULA 6ª — DA POLÍTICA DE BACKUP E ARMAZENAMENTO DE XML</h3>
               <p>
-                6.1. A CONTRATADA armazena os arquivos XML dos documentos fiscais eletrônicos (NF-e e NFC-e) emitidos pelo CONTRATANTE em conformidade com o art. 174 do Ajuste SINIEF 07/05, que estabelece a obrigatoriedade de guarda pelo prazo mínimo de <strong>5 (cinco) anos</strong>, contados a partir do primeiro dia do exercício seguinte ao da emissão do documento.
+                6.1. A CONTRATADA armazena os arquivos XML pelo prazo mínimo de <strong>5 (cinco) anos</strong>, conforme art. 174 do Ajuste SINIEF 07/05.
               </p>
               <p>
-                6.2. Os XMLs são armazenados em:
+                6.2. Os XMLs são armazenados em banco de dados com proteção contra exclusão e em bucket de backup redundante.
               </p>
-              <ul className="list-disc pl-5 space-y-1">
-                <li><strong>Banco de dados principal</strong> — com proteção contra exclusão acidental ou maliciosa mediante triggers de banco de dados e políticas de segurança em nível de linha (RLS);</li>
-                <li><strong>Bucket de backup redundante</strong> — com bloqueio de operações de exclusão (delete), garantindo a integridade dos arquivos durante todo o prazo legal.</li>
-              </ul>
               <p>
-                6.3. O CONTRATANTE reconhece que é de sua responsabilidade:
+                6.3. O CONTRATANTE é responsável por manter a assinatura ativa durante o período legal de guarda e realizar download periódico dos XMLs.
               </p>
-              <ul className="list-disc pl-5 space-y-1">
-                <li>Manter a assinatura do sistema ativa durante todo o período legal de guarda dos documentos;</li>
-                <li>Realizar download periódico dos XMLs para manutenção de cópia de segurança própria, conforme exigido pela legislação;</li>
-                <li>Verificar periodicamente a integridade dos documentos emitidos.</li>
-              </ul>
               <p>
-                6.4. A CONTRATADA <strong>não se responsabiliza pela perda de acesso aos documentos fiscais</strong> armazenados em caso de cancelamento da assinatura pelo CONTRATANTE antes do decurso do prazo legal de guarda. Nessa hipótese, o CONTRATANTE deverá solicitar a exportação de seus dados antes da efetivação do cancelamento.
+                6.4. A CONTRATADA <strong>não se responsabiliza pela perda de acesso</strong> em caso de cancelamento da assinatura antes do prazo legal.
               </p>
             </section>
 
-            {/* CLÁUSULA 7 */}
             <section>
               <h3 className="font-bold text-base">CLÁUSULA 7ª — DA POLÍTICA DE DISPONIBILIDADE (SLA)</h3>
               <p>
-                7.1. A CONTRATADA compromete-se a envidar seus melhores esforços para manter a disponibilidade do sistema em <strong>99,5% (noventa e nove vírgula cinco por cento)</strong> do tempo, calculado mensalmente, excluindo-se:
-              </p>
-              <ul className="list-disc pl-5 space-y-1">
-                <li>Janelas de manutenção programada, comunicadas com antecedência mínima de 24 (vinte e quatro) horas;</li>
-                <li>Indisponibilidades decorrentes de serviços de terceiros (SEFAZ, provedores de internet, certificadoras digitais, infraestrutura em nuvem);</li>
-                <li>Caso fortuito ou força maior;</li>
-                <li>Uso indevido ou em desacordo com as especificações técnicas do sistema pelo CONTRATANTE.</li>
-              </ul>
-              <p>
-                7.2. Em caso de indisponibilidade superior ao percentual acordado, a compensação ao CONTRATANTE será limitada a crédito proporcional ao período de indisponibilidade, aplicado na fatura subsequente, não cabendo indenização adicional.
+                7.1. A CONTRATADA compromete-se a manter disponibilidade de <strong>99,5%</strong> do tempo mensal, excluindo manutenção programada, indisponibilidade de terceiros e caso fortuito.
               </p>
               <p>
-                7.3. A CONTRATADA realizará atualizações e melhorias no sistema de forma contínua, sem custo adicional ao CONTRATANTE, desde que mantida a assinatura vigente. Atualizações que alterem significativamente funcionalidades existentes serão comunicadas com antecedência razoável.
+                7.2. Compensação limitada a crédito proporcional na fatura subsequente.
+              </p>
+              <p>
+                7.3. Atualizações e melhorias contínuas sem custo adicional, desde que mantida a assinatura.
               </p>
             </section>
 
-            {/* CLÁUSULA 8 */}
             <section>
               <h3 className="font-bold text-base">CLÁUSULA 8ª — DA ISENÇÃO POR FALHAS GOVERNAMENTAIS</h3>
               <p>
-                8.1. A CONTRATADA <strong>está isenta de qualquer responsabilidade</strong> por indisponibilidades, lentidão, rejeições indevidas, instabilidades ou falhas nos webservices da Secretaria da Fazenda (SEFAZ) de qualquer Unidade Federativa, da Receita Federal do Brasil (RFB), ou de quaisquer outros órgãos governamentais que impossibilitem, retardem ou prejudiquem:
-              </p>
-              <ul className="list-disc pl-5 space-y-1">
-                <li>A emissão, autorização, cancelamento ou inutilização de documentos fiscais eletrônicos;</li>
-                <li>A consulta de cadastro de contribuintes;</li>
-                <li>A transmissão de obrigações acessórias (SPED, EFD, etc.);</li>
-                <li>Qualquer outra operação que dependa de comunicação com servidores governamentais.</li>
-              </ul>
-              <p>
-                8.2. Em caso de contingência declarada pela SEFAZ (tpEmis=3 ou tpEmis=4), o sistema oferece modo de operação offline (tpEmis=9) para garantir a continuidade das vendas. A transmissão posterior dos documentos será realizada automaticamente quando a comunicação for restabelecida.
+                8.1. A CONTRATADA <strong>está isenta de qualquer responsabilidade</strong> por falhas nos webservices da SEFAZ, Receita Federal ou quaisquer órgãos governamentais.
               </p>
               <p>
-                8.3. O CONTRATANTE deve consultar o portal do contribuinte de seu estado para verificar procedimentos alternativos aplicáveis em caso de manutenção programada ou contingência declarada pela SEFAZ.
+                8.2. Em caso de contingência declarada pela SEFAZ, o sistema oferece modo offline (tpEmis=9).
+              </p>
+              <p>
+                8.3. O CONTRATANTE deve consultar o portal do contribuinte de seu estado para procedimentos alternativos.
               </p>
             </section>
 
-            {/* CLÁUSULA 9 */}
             <section>
               <h3 className="font-bold text-base">CLÁUSULA 9ª — DA VIGÊNCIA E RESCISÃO</h3>
               <p>
-                9.1. O presente contrato entra em vigor na data de sua assinatura ou aceite digital e vigorará por prazo indeterminado, renovando-se automaticamente a cada período de cobrança (mensal ou anual, conforme o plano contratado).
+                9.1. Contrato por prazo indeterminado, renovando-se automaticamente a cada período de cobrança.
               </p>
               <p>
-                9.2. O CONTRATANTE poderá rescindir o presente contrato a qualquer tempo, mediante notificação com antecedência mínima de <strong>30 (trinta) dias</strong>, ficando responsável pelo pagamento das mensalidades vencidas e proporcionais até a data efetiva da rescisão.
+                9.2. Rescisão pelo CONTRATANTE com antecedência mínima de <strong>30 dias</strong>.
               </p>
               <p>
-                9.3. A CONTRATADA poderá rescindir ou suspender o presente contrato, independentemente de notificação prévia, nas seguintes hipóteses:
-              </p>
-              <ul className="list-disc pl-5 space-y-1">
-                <li>Inadimplemento do CONTRATANTE por período superior a <strong>15 (quinze) dias</strong> após o vencimento da fatura;</li>
-                <li>Uso do sistema para fins ilícitos, fraudulentos ou em desacordo com a legislação vigente;</li>
-                <li>Tentativa de engenharia reversa, descompilação, cópia ou violação da propriedade intelectual do sistema;</li>
-                <li>Compartilhamento de credenciais de acesso com terceiros não autorizados;</li>
-                <li>Qualquer conduta que comprometa a segurança, estabilidade ou reputação da plataforma.</li>
-              </ul>
-              <p>
-                9.4. Em caso de rescisão por qualquer motivo, o CONTRATANTE terá o prazo de <strong>30 (trinta) dias</strong> para solicitar a exportação de seus dados, incluindo XMLs de documentos fiscais. Após esse prazo, a CONTRATADA não se obriga a manter os dados disponíveis para acesso.
+                9.3. A CONTRATADA poderá rescindir em caso de inadimplemento superior a 15 dias, uso ilícito, engenharia reversa ou compartilhamento de credenciais.
               </p>
               <p>
-                9.5. A rescisão do contrato não exonera as partes das obrigações vencidas e não cumpridas, nem prejudica os direitos adquiridos durante a vigência contratual.
+                9.4. Prazo de <strong>30 dias</strong> para exportação de dados após rescisão.
               </p>
             </section>
 
-            {/* CLÁUSULA 10 */}
             <section>
               <h3 className="font-bold text-base">CLÁUSULA 10ª — DAS DISPOSIÇÕES GERAIS</h3>
               <p>
-                10.1. O presente contrato constitui a totalidade do acordo entre as partes em relação ao seu objeto, substituindo quaisquer entendimentos, propostas ou contratos anteriores, verbais ou escritos.
+                10.1. Este contrato constitui a totalidade do acordo entre as partes.
               </p>
               <p>
-                10.2. A tolerância de qualquer das partes quanto ao descumprimento de cláusulas deste contrato não implicará renúncia ao direito de exigir o seu cumprimento, nem constituirá novação.
+                10.2. Tolerância não implica renúncia.
               </p>
               <p>
-                10.3. A CONTRATADA reserva-se o direito de alterar os termos deste contrato, mediante notificação ao CONTRATANTE com antecedência mínima de 30 (trinta) dias. A continuidade do uso do sistema após a notificação implica aceite tácito das novas condições.
+                10.3. Alterações com antecedência de 30 dias; uso continuado implica aceite.
               </p>
               <p>
-                10.4. Se qualquer disposição deste contrato for considerada inválida, ilegal ou inexequível por autoridade competente, as demais disposições permanecerão em pleno vigor e efeito.
+                10.4. Cláusula de independência: invalidade parcial não afeta o restante.
               </p>
               <p>
-                10.5. O CONTRATANTE não poderá ceder ou transferir os direitos e obrigações decorrentes deste contrato sem o consentimento prévio e por escrito da CONTRATADA.
+                10.5. Cessão vedada sem consentimento prévio da CONTRATADA.
               </p>
             </section>
 
-            {/* CLÁUSULA 11 */}
             <section>
               <h3 className="font-bold text-base">CLÁUSULA 11ª — DO FORO</h3>
               <p>
-                11.1. As partes elegem o foro da Comarca da sede da CONTRATADA para dirimir quaisquer controvérsias oriundas do presente instrumento, com renúncia expressa a qualquer outro, por mais privilegiado que seja.
+                11.1. Foro da Comarca da sede da CONTRATADA, com renúncia a qualquer outro.
               </p>
             </section>
 
             <hr className="border-border" />
 
             <p className="text-center text-sm text-muted-foreground mt-8">
-              E, por estarem assim justas e contratadas, as partes firmam o presente instrumento em 2 (duas) vias de igual teor e forma, na presença de 2 (duas) testemunhas abaixo assinadas, ou mediante aceite digital com registro de data, hora e IP.
+              E, por estarem assim justas e contratadas, as partes firmam o presente instrumento em 2 (duas) vias de igual teor e forma, ou mediante aceite digital com registro de data, hora e IP.
             </p>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 mt-8 text-center text-sm">
@@ -347,10 +317,14 @@ export default function ContratoSaaS() {
 
           </div>
 
-          <div className="flex justify-center mt-8">
+          <div className="flex justify-center gap-4 mt-8 no-print">
             <Button variant="outline" onClick={() => navigate(-1)}>
               <ArrowLeft className="w-4 h-4 mr-2" />
               Voltar
+            </Button>
+            <Button onClick={handleDownloadPDF}>
+              <Download className="w-4 h-4 mr-2" />
+              Baixar PDF
             </Button>
           </div>
         </CardContent>
