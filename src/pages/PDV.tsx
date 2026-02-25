@@ -77,7 +77,7 @@ export default function PDV() {
   const [pendingQuoteId, setPendingQuoteId] = useState<string | null>(null);
   const [lastAddedItem, setLastAddedItem] = useState<{ name: string; price: number } | null>(null);
   const lastAddedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [finalizingSale, setFinalizingSale] = useState(false);
+  const finalizingSale = pdv.finalizingSale;
 
   const toggleFullscreen = useCallback(() => {
     if (!document.fullscreenElement) {
@@ -427,8 +427,7 @@ export default function PDV() {
   const handleTEFComplete = async (tefResults: TEFResult[]) => {
     const allApproved = tefResults.every((r) => r.approved);
     if (allApproved) {
-      if (finalizingSale) return; // guard double-click
-      setFinalizingSale(true);
+      if (finalizingSale) return;
       try {
         const paymentResults: PaymentResult[] = tefResults.map((r) => ({
           method: r.method as PaymentResult["method"],
@@ -448,12 +447,10 @@ export default function PDV() {
           isContingency: result.isContingency,
         });
         setSelectedClient(null);
-        // Increment sale number
         const newNum = saleNumber + 1;
         setSaleNumber(newNum);
         localStorage.setItem("pdv_sale_number", String(newNum));
         checkLowStockAfterSale(savedItems);
-        // Mark quote as converted if this sale came from a quote
         if (pendingQuoteId) {
           updateQuoteStatus(pendingQuoteId, "convertido").catch(() => {});
           setPendingQuoteId(null);
@@ -465,8 +462,6 @@ export default function PDV() {
       } catch (err: any) {
         playErrorSound();
         toast.error(`Erro ao finalizar venda: ${err.message}`);
-      } finally {
-        setFinalizingSale(false);
       }
     }
     setShowTEF(false);
@@ -481,8 +476,7 @@ export default function PDV() {
 
   const handleCreditSaleConfirmed = async (client: CreditClient, mode: "fiado" | "parcelado", installments: number) => {
     setShowClientSelector(false);
-    if (finalizingSale) return; // guard double-click
-    setFinalizingSale(true);
+    if (finalizingSale) return;
     try {
       const paymentResults: PaymentResult[] = [{
         method: "prazo", approved: true, amount: pdv.total,
@@ -516,8 +510,6 @@ export default function PDV() {
     } catch (err: any) {
       playErrorSound();
       toast.error(`Erro ao finalizar venda a prazo: ${err.message}`);
-    } finally {
-      setFinalizingSale(false);
     }
   };
 
