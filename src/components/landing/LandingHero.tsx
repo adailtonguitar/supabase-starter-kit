@@ -99,7 +99,11 @@ export function LandingHero() {
             transition={{ duration: 0.8, delay: 0.2 }}
             className="relative"
           >
-            <div className="relative rounded-2xl overflow-hidden shadow-2xl shadow-primary/10 border border-border/50">
+            <motion.div
+              animate={{ y: [0, -8, 0] }}
+              transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+              className="relative rounded-2xl overflow-hidden shadow-2xl shadow-primary/10 border border-border/50"
+            >
               <img
                 src={heroDashboard}
                 alt="Dashboard AnthoSystem — PDV e gestão para supermercados"
@@ -108,9 +112,13 @@ export function LandingHero() {
               />
               {/* Gradient overlay */}
               <div className="absolute inset-0 bg-gradient-to-t from-background/20 to-transparent pointer-events-none" />
-            </div>
+            </motion.div>
             {/* Floating stat card */}
-            <div className="absolute -bottom-4 -left-4 bg-card border border-border rounded-xl p-3 shadow-lg flex items-center gap-3">
+            <motion.div
+              animate={{ y: [0, -5, 0] }}
+              transition={{ duration: 3, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
+              className="absolute -bottom-4 -left-4 bg-card border border-border rounded-xl p-3 shadow-lg flex items-center gap-3"
+            >
               <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
                 <span className="text-primary font-bold text-sm">📈</span>
               </div>
@@ -118,7 +126,7 @@ export function LandingHero() {
                 <p className="text-xs text-muted-foreground">Vendas hoje</p>
                 <p className="text-sm font-bold text-foreground">R$ 12.450,00</p>
               </div>
-            </div>
+            </motion.div>
           </motion.div>
         </div>
       </div>

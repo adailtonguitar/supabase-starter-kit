@@ -2,11 +2,13 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Menu, X } from "lucide-react";
+import logoAs from "@/assets/logo-as.png";
 
 const links = [
   { label: "Recursos", href: "#recursos" },
   { label: "Vantagens", href: "#vantagens" },
   { label: "Planos", href: "#planos" },
+  { label: "FAQ", href: "#faq" },
 ];
 
 export function LandingNav() {
@@ -16,9 +18,7 @@ export function LandingNav() {
     <nav className="sticky top-0 z-50 backdrop-blur-2xl bg-background/70 border-b border-border/50">
       <div className="max-w-7xl mx-auto flex items-center justify-between px-6 h-16">
         <Link to="/" className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-            <span className="text-primary-foreground font-black text-sm">A</span>
-          </div>
+          <img src={logoAs} alt="AnthoSystem" className="w-8 h-8 rounded-lg object-contain" />
           <span className="text-lg font-extrabold tracking-tight">
             <span className="text-primary">Antho</span>
             <span className="text-foreground">System</span>

@@ -4,7 +4,10 @@ import { LandingHero } from "@/components/landing/LandingHero";
 import { LandingFeatures } from "@/components/landing/LandingFeatures";
 import { LandingAnalytics } from "@/components/landing/LandingAnalytics";
 import { LandingAdvantages } from "@/components/landing/LandingAdvantages";
+import { LandingHowItWorks } from "@/components/landing/LandingHowItWorks";
+import { LandingTestimonials } from "@/components/landing/LandingTestimonials";
 import { LandingPricing } from "@/components/landing/LandingPricing";
+import { LandingFAQ } from "@/components/landing/LandingFAQ";
 import { LandingCTA } from "@/components/landing/LandingCTA";
 import { LandingFooter } from "@/components/landing/LandingFooter";
 import { WhatsAppFloatingButton } from "@/components/layout/WhatsAppFloatingButton";
@@ -16,9 +19,12 @@ export default function LandingPage() {
       <LandingNav />
       <LandingHero />
       <LandingFeatures />
+      <LandingHowItWorks />
       <LandingAnalytics />
       <LandingAdvantages />
+      <LandingTestimonials />
       <LandingPricing />
+      <LandingFAQ />
       <LandingCTA />
       <LandingFooter />
       <WhatsAppFloatingButton />

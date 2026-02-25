@@ -1,12 +1,46 @@
-import { motion } from "framer-motion";
+import { motion, useMotionValue, useTransform, animate } from "framer-motion";
 import { TrendingDown, Zap, Smartphone, Headphones } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+
+function AnimatedStat({ value, suffix = "" }: { value: string; suffix?: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [displayed, setDisplayed] = useState(value);
+  const hasAnimated = useRef(false);
+
+  useEffect(() => {
+    if (!ref.current) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && !hasAnimated.current) {
+          hasAnimated.current = true;
+          const num = parseInt(value);
+          if (!isNaN(num)) {
+            const mv = { val: 0 };
+            const controls = animate(mv, { val: num }, {
+              duration: 1.5,
+              ease: "easeOut",
+              onUpdate: () => setDisplayed(Math.round(mv.val) + suffix),
+            });
+            return () => controls.stop();
+          }
+        }
+      },
+      { threshold: 0.5 }
+    );
+    observer.observe(ref.current);
+    return () => observer.disconnect();
+  }, [value, suffix]);
+
+  return <div ref={ref} className="text-3xl font-black text-primary mb-1">{displayed}</div>;
+}
 
 const advantages = [
   {
     icon: TrendingDown,
     title: "Reduza perdas em até 30%",
     desc: "Controle de validade e lotes evita que produtos vençam na prateleira sem que você perceba.",
-    stat: "30%",
+    stat: "30",
+    statSuffix: "%",
     statLabel: "menos perdas",
   },
   {
@@ -14,6 +48,7 @@ const advantages = [
     title: "Caixa 2x mais rápido",
     desc: "PDV otimizado para supermercados com atalhos, leitor e pesagem. Menos fila, mais vendas.",
     stat: "2x",
+    statSuffix: "",
     statLabel: "mais velocidade",
   },
   {
@@ -21,6 +56,7 @@ const advantages = [
     title: "Acesse de qualquer lugar",
     desc: "Acompanhe vendas, estoque e financeiro pelo celular ou computador em tempo real.",
     stat: "24/7",
+    statSuffix: "",
     statLabel: "disponível",
   },
   {
@@ -28,6 +64,7 @@ const advantages = [
     title: "Suporte especializado",
     desc: "Equipe que entende a rotina de supermercado. Atendimento rápido por WhatsApp.",
     stat: "<2h",
+    statSuffix: "",
     statLabel: "tempo de resposta",
   },
 ];
@@ -62,7 +99,11 @@ export function LandingAdvantages() {
               <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
                 <a.icon className="w-7 h-7 text-primary" />
               </div>
-              <div className="text-3xl font-black text-primary mb-1">{a.stat}</div>
+              {a.stat.match(/^\d+$/) ? (
+                <AnimatedStat value={a.stat} suffix={a.statSuffix} />
+              ) : (
+                <div className="text-3xl font-black text-primary mb-1">{a.stat}</div>
+              )}
               <div className="text-xs text-muted-foreground uppercase tracking-wider font-medium mb-4">{a.statLabel}</div>
               <h3 className="font-bold text-base">{a.title}</h3>
               <p className="mt-2 text-sm text-muted-foreground leading-relaxed">{a.desc}</p>
