@@ -63,6 +63,13 @@ export default function Fiscal() {
   const [cancelling, setCancelling] = useState(false);
   const [cancelJustificativa, setCancelJustificativa] = useState("");
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [showInutPanel, setShowInutPanel] = useState(false);
+  const [inutDocType, setInutDocType] = useState<"nfce" | "nfe">("nfce");
+  const [inutSerie, setInutSerie] = useState(1);
+  const [inutNumInicial, setInutNumInicial] = useState(1);
+  const [inutNumFinal, setInutNumFinal] = useState(1);
+  const [inutJustificativa, setInutJustificativa] = useState("");
+  const [inutLoading, setInutLoading] = useState(false);
 
   const loadDocs = useCallback(async () => {
     if (!companyId) return;
@@ -204,6 +211,13 @@ export default function Fiscal() {
         </div>
         <div className="flex gap-2 self-start sm:self-auto">
           <button
+            onClick={() => setShowInutPanel(!showInutPanel)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-warning/10 text-warning text-xs sm:text-sm font-medium hover:bg-warning/20 transition-all"
+          >
+            <RotateCcw className="w-4 h-4" />
+            <span className="hidden sm:inline">Inutilizar</span>
+          </button>
+          <button
             onClick={() => setShowSpedPanel(!showSpedPanel)}
             className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-secondary text-secondary-foreground text-xs sm:text-sm font-medium hover:opacity-90 transition-all"
           >
@@ -263,6 +277,77 @@ export default function Fiscal() {
               <p className="text-xs text-muted-foreground mt-1">Processando documentos fiscais do período...</p>
             </div>
           )}
+        </motion.div>
+      )}
+
+      {showInutPanel && (
+        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="bg-card rounded-xl card-shadow border border-border p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <RotateCcw className="w-5 h-5 text-warning" />
+            <h2 className="text-base font-semibold text-foreground">Inutilização de Numeração</h2>
+          </div>
+          <p className="text-sm text-muted-foreground mb-4">
+            Inutilize faixas de numeração quando houver quebra na sequência. Obrigatório para evitar multa por numeração não utilizada.
+          </p>
+          <div className="flex flex-wrap items-end gap-4">
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">Tipo</label>
+              <select value={inutDocType} onChange={(e) => setInutDocType(e.target.value as "nfce" | "nfe")}
+                className="px-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm">
+                <option value="nfce">NFC-e</option>
+                <option value="nfe">NF-e</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">Série</label>
+              <input type="number" value={inutSerie} onChange={(e) => setInutSerie(Number(e.target.value))} min={1}
+                className="w-20 px-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm font-mono" />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">Nº Inicial</label>
+              <input type="number" value={inutNumInicial} onChange={(e) => setInutNumInicial(Number(e.target.value))} min={1}
+                className="w-28 px-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm font-mono" />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">Nº Final</label>
+              <input type="number" value={inutNumFinal} onChange={(e) => setInutNumFinal(Number(e.target.value))} min={1}
+                className="w-28 px-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm font-mono" />
+            </div>
+          </div>
+          <div className="mt-4">
+            <label className="text-xs font-medium text-muted-foreground mb-1 block">Justificativa (mín. 15 caracteres)</label>
+            <textarea value={inutJustificativa} onChange={(e) => setInutJustificativa(e.target.value)}
+              placeholder="Ex: Quebra de sequência por falha no sistema..."
+              rows={2}
+              className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm text-foreground resize-none focus:outline-none focus:ring-2 focus:ring-warning/30" />
+          </div>
+          <button
+            disabled={inutLoading || inutJustificativa.length < 15 || inutNumFinal < inutNumInicial}
+            onClick={async () => {
+              if (!companyId) return;
+              setInutLoading(true);
+              const result = await FiscalEmissionService.inutilizeNumbers({
+                companyId,
+                docType: inutDocType,
+                serie: inutSerie,
+                numeroInicial: inutNumInicial,
+                numeroFinal: inutNumFinal,
+                justificativa: inutJustificativa,
+              });
+              if (result.success) {
+                toast.success(result.message || "Numeração inutilizada com sucesso!");
+                setShowInutPanel(false);
+                loadDocs();
+              } else {
+                toast.error(result.error || "Erro ao inutilizar");
+              }
+              setInutLoading(false);
+            }}
+            className="mt-4 flex items-center gap-2 px-5 py-2.5 rounded-xl bg-warning text-warning-foreground text-sm font-medium hover:opacity-90 transition-all disabled:opacity-50"
+          >
+            {inutLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RotateCcw className="w-4 h-4" />}
+            Inutilizar na SEFAZ
+          </button>
         </motion.div>
       )}
 
@@ -483,14 +568,24 @@ export default function Fiscal() {
                   DANFE indisponível
                 </button>
               )}
-              {selectedDoc.status === "autorizada" && (
-                <button
-                  onClick={() => { setCancelJustificativa(""); setShowCancelConfirm(true); }}
-                  className="flex-1 py-2.5 rounded-xl bg-destructive text-destructive-foreground text-sm font-medium hover:opacity-90 transition-all"
-                >
-                  Cancelar
-                </button>
-              )}
+              {selectedDoc.status === "autorizada" && (() => {
+                const deadline = FiscalEmissionService.isCancelDeadlineExpired(
+                  selectedDoc.created_at,
+                  selectedDoc.doc_type as "nfce" | "nfe"
+                );
+                return deadline.expired ? (
+                  <div className="flex-1 py-2.5 rounded-xl bg-destructive/10 text-destructive text-xs font-medium text-center px-2">
+                    Prazo expirado ({deadline.hoursElapsed}h / máx {deadline.maxHours}h)
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => { setCancelJustificativa(""); setShowCancelConfirm(true); }}
+                    className="flex-1 py-2.5 rounded-xl bg-destructive text-destructive-foreground text-sm font-medium hover:opacity-90 transition-all"
+                  >
+                    Cancelar ({deadline.maxHours - deadline.hoursElapsed}h restantes)
+                  </button>
+                );
+              })()}
             </div>
 
             {/* Cancel confirmation */}
