@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 const EXPECTED_PRICES: Record<string, number> = {
-  teste: 1.0,
+  
   essencial: 149.9,
   profissional: 199.9,
 };
