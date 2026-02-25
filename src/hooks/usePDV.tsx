@@ -151,165 +151,131 @@ export function usePDV() {
     }
   }, [products, addToCart]);
 
-  // ── Emissão fiscal assíncrona (não bloqueia a venda) ──
-  const emitFiscalAsync = useCallback(async (saleId: string, items: CartItem[], payments: PaymentResult[], saleTotal: number) => {
+  // ── Enfileirar emissão fiscal na fiscal_queue ──
+  const enqueueFiscal = useCallback(async (saleId: string) => {
+    if (!companyId) return;
     try {
-      const { data: fiscalConfig } = await supabase
-        .from("fiscal_configs")
-        .select("id, crt")
-        .eq("company_id", companyId!)
-        .eq("doc_type", "nfce")
-        .eq("is_active", true)
-        .limit(1)
-        .maybeSingle();
-
-      if (!fiscalConfig) {
-        console.log("[PDV] NFC-e skipped: no active fiscal config found");
-        return { nfceNumber: "", fiscalDocId: undefined };
-      }
-
-      // Marcar como pendente_fiscal antes de tentar
-      await supabase.from("sales").update({ status: "pendente_fiscal" } as any).eq("id", saleId).throwOnError();
-
-      const crt = fiscalConfig.crt || 1;
-      const defaultCst = (crt === 1 || crt === 2) ? "102" : "00";
-
-      const fiscalItems = items.map(item => ({
-        product_id: item.id,
-        name: item.name,
-        ncm: item.ncm || "",
-        cfop: "5102",
-        cst: defaultCst,
-        origem: "0",
-        unit: item.unit || "UN",
-        qty: item.quantity,
-        unit_price: item.price,
-        discount: item.price * (itemDiscounts[item.id] || 0) / 100 * item.quantity,
-        pis_cst: "49",
-        cofins_cst: "49",
-      }));
-
-      const paymentMethodMap: Record<string, string> = {
-        dinheiro: "01", credito: "03", debito: "04", pix: "17", voucher: "05",
-      };
-
-      const { data: fiscalData, error: fiscalErr } = await supabase.functions.invoke("emit-nfce", {
-        body: {
-          action: "emit",
-          sale_id: saleId,
-          company_id: companyId,
-          config_id: fiscalConfig.id,
-          form: {
-            nat_op: "VENDA DE MERCADORIA",
-            crt,
-            payment_method: paymentMethodMap[payments[0]?.method] || "99",
-            payment_value: saleTotal,
-            change: payments[0]?.change_amount || 0,
-            items: fiscalItems,
-          },
-        },
-      });
-
-      if (fiscalErr || !fiscalData?.success) {
-        console.warn("[PDV] NFC-e emission failed, kept as pendente_fiscal:", fiscalErr?.message || fiscalData?.error);
-        return { nfceNumber: "", fiscalDocId: undefined, fiscalPending: true };
-      }
-
-      // Sucesso: atualizar status para emitida
-      const nfceNumber = fiscalData.nfce_number || fiscalData.numero || "";
-      const fiscalDocId = fiscalData.fiscal_doc_id || fiscalData.id;
-      await supabase.from("sales").update({ status: "emitida" } as any).eq("id", saleId);
-
-      return { nfceNumber, fiscalDocId };
+      await supabase.from("fiscal_queue").insert({
+        sale_id: saleId,
+        company_id: companyId,
+        status: "pending",
+        attempts: 0,
+      } as any);
+      console.log("[PDV] Fiscal enqueued for sale:", saleId);
     } catch (err: any) {
-      console.warn("[PDV] Fiscal emission error:", err.message);
-      return { nfceNumber: "", fiscalDocId: undefined, fiscalPending: true };
+      console.warn("[PDV] Failed to enqueue fiscal:", err.message);
     }
-  }, [companyId, itemDiscounts]);
+  }, [companyId]);
 
-  // ── Reprocessar fiscal para vendas pendentes ──
-  const reprocessFiscal = useCallback(async (saleId: string) => {
+  // ── Processar emissão fiscal (usada tanto pelo enqueue quanto pelo reprocess) ──
+  const processFiscalEmission = useCallback(async (saleId: string, queueId?: string) => {
     if (!companyId) throw new Error("Empresa não identificada");
-    try {
-      const { data: fiscalConfig } = await supabase
-        .from("fiscal_configs")
-        .select("id, crt")
-        .eq("company_id", companyId)
-        .eq("doc_type", "nfce")
-        .eq("is_active", true)
-        .limit(1)
-        .maybeSingle();
 
-      if (!fiscalConfig) throw new Error("Nenhuma configuração fiscal ativa encontrada");
+    const { data: fiscalConfig } = await supabase
+      .from("fiscal_configs")
+      .select("id, crt")
+      .eq("company_id", companyId)
+      .eq("doc_type", "nfce")
+      .eq("is_active", true)
+      .limit(1)
+      .maybeSingle();
 
-      // Buscar sale_items do banco (fonte única de verdade)
-      const { data: saleItems, error: itemsErr } = await supabase
-        .from("sale_items")
-        .select("*")
-        .eq("sale_id", saleId);
+    if (!fiscalConfig) throw new Error("Nenhuma configuração fiscal ativa");
 
-      if (itemsErr || !saleItems?.length) throw new Error("Itens da venda não encontrados");
+    // Marcar sale como pendente_fiscal
+    await supabase.from("sales").update({ status: "pendente_fiscal" } as any).eq("id", saleId);
 
-      const { data: sale } = await supabase
-        .from("sales")
-        .select("total, payments")
-        .eq("id", saleId)
-        .single();
+    // Atualizar queue status
+    if (queueId) {
+      await supabase.from("fiscal_queue").update({ status: "processing", attempts: 1 } as any).eq("id", queueId);
+    }
 
-      if (!sale) throw new Error("Venda não encontrada");
+    // Buscar sale_items do banco (fonte única de verdade)
+    const { data: saleItems } = await supabase
+      .from("sale_items")
+      .select("*")
+      .eq("sale_id", saleId);
 
-      const crt = fiscalConfig.crt || 1;
-      const defaultCst = (crt === 1 || crt === 2) ? "102" : "00";
-      const payments = (sale.payments as any[]) || [];
+    if (!saleItems?.length) throw new Error("Itens da venda não encontrados");
 
-      const paymentMethodMap: Record<string, string> = {
-        dinheiro: "01", credito: "03", debito: "04", pix: "17", voucher: "05",
-      };
+    const { data: sale } = await supabase
+      .from("sales")
+      .select("total, payments")
+      .eq("id", saleId)
+      .single();
 
-      const fiscalItems = saleItems.map((item: any) => ({
-        product_id: item.product_id,
-        name: item.product_name || item.name,
-        ncm: item.ncm || "",
-        cfop: "5102",
-        cst: defaultCst,
-        origem: "0",
-        unit: item.unit || "UN",
-        qty: item.quantity,
-        unit_price: item.unit_price,
-        discount: (item.discount_percent || 0) / 100 * item.unit_price * item.quantity,
-        pis_cst: "49",
-        cofins_cst: "49",
-      }));
+    if (!sale) throw new Error("Venda não encontrada");
 
-      const { data: fiscalData, error: fiscalErr } = await supabase.functions.invoke("emit-nfce", {
-        body: {
-          action: "emit",
-          sale_id: saleId,
-          company_id: companyId,
-          config_id: fiscalConfig.id,
-          form: {
-            nat_op: "VENDA DE MERCADORIA",
-            crt,
-            payment_method: paymentMethodMap[payments[0]?.method] || "99",
-            payment_value: sale.total,
-            change: payments[0]?.change_amount || 0,
-            items: fiscalItems,
-          },
+    const crt = fiscalConfig.crt || 1;
+    const defaultCst = (crt === 1 || crt === 2) ? "102" : "00";
+    const payments = (sale.payments as any[]) || [];
+    const paymentMethodMap: Record<string, string> = {
+      dinheiro: "01", credito: "03", debito: "04", pix: "17", voucher: "05",
+    };
+
+    const fiscalItems = saleItems.map((item: any) => ({
+      product_id: item.product_id,
+      name: item.product_name || item.name,
+      ncm: item.ncm || "",
+      cfop: "5102",
+      cst: defaultCst,
+      origem: "0",
+      unit: item.unit || "UN",
+      qty: item.quantity,
+      unit_price: item.unit_price,
+      discount: (item.discount_percent || 0) / 100 * item.unit_price * item.quantity,
+      pis_cst: "49",
+      cofins_cst: "49",
+    }));
+
+    const { data: fiscalData, error: fiscalErr } = await supabase.functions.invoke("emit-nfce", {
+      body: {
+        action: "emit",
+        sale_id: saleId,
+        company_id: companyId,
+        config_id: fiscalConfig.id,
+        form: {
+          nat_op: "VENDA DE MERCADORIA",
+          crt,
+          payment_method: paymentMethodMap[payments[0]?.method] || "99",
+          payment_value: sale.total,
+          change: payments[0]?.change_amount || 0,
+          items: fiscalItems,
         },
-      });
+      },
+    });
 
-      if (fiscalErr || !fiscalData?.success) {
-        throw new Error(fiscalData?.error || fiscalErr?.message || "Falha na emissão");
+    if (fiscalErr || !fiscalData?.success) {
+      const errorMsg = fiscalData?.error || fiscalErr?.message || "Falha na emissão";
+      if (queueId) {
+        await supabase.from("fiscal_queue").update({ status: "error", last_error: errorMsg } as any).eq("id", queueId);
       }
+      throw new Error(errorMsg);
+    }
 
-      await supabase.from("sales").update({ status: "emitida" } as any).eq("id", saleId);
+    // Sucesso
+    await supabase.from("sales").update({ status: "emitida" } as any).eq("id", saleId);
+    if (queueId) {
+      await supabase.from("fiscal_queue").update({ status: "done", processed_at: new Date().toISOString() } as any).eq("id", queueId);
+    }
+
+    return {
+      nfceNumber: fiscalData.nfce_number || fiscalData.numero || "",
+      fiscalDocId: fiscalData.fiscal_doc_id || fiscalData.id,
+    };
+  }, [companyId]);
+
+  // ── Reprocessar fiscal para vendas pendentes (usa processFiscalEmission) ──
+  const reprocessFiscal = useCallback(async (saleId: string) => {
+    try {
+      const result = await processFiscalEmission(saleId);
       toast.success("NFC-e emitida com sucesso!");
-      return { nfceNumber: fiscalData.nfce_number || fiscalData.numero, fiscalDocId: fiscalData.fiscal_doc_id || fiscalData.id };
+      return result;
     } catch (err: any) {
       toast.error(`Erro ao reprocessar fiscal: ${err.message}`);
       throw err;
     }
-  }, [companyId]);
+  }, [processFiscalEmission]);
 
   const finalizeSale = useCallback(async (payments: PaymentResult[], options?: { skipFiscal?: boolean }) => {
     // ── Guard contra double-click (ref + state) ──
@@ -374,22 +340,16 @@ export function usePDV() {
       clearCart();
       setContingencyMode(false);
 
-      // ── Fiscal assíncrono (fire-and-forget, não bloqueia retorno) ──
-      let nfceNumber = "";
-      let fiscalDocId: string | undefined;
-
+      // ── Fiscal: enfileira na fiscal_queue (fire-and-forget) ──
       if (!options?.skipFiscal) {
-        // Não bloqueia: emite em background
-        emitFiscalAsync(saleId, savedItems, payments, total)
-          .then(fiscalResult => {
-            if (fiscalResult.nfceNumber) {
-              console.log("[PDV] NFC-e emitida:", fiscalResult.nfceNumber);
-            }
-          })
+        enqueueFiscal(saleId);
+        // Tenta processar em background sem bloquear
+        processFiscalEmission(saleId)
+          .then(r => r?.nfceNumber && console.log("[PDV] NFC-e emitida:", r.nfceNumber))
           .catch(err => console.warn("[PDV] Fiscal async error:", err));
       }
 
-      return { saleId, nfceNumber, fiscalDocId, isContingency: false };
+      return { saleId, nfceNumber: "", fiscalDocId: undefined, isContingency: false };
     } catch (onlineErr: any) {
       // ── CONTINGENCY FALLBACK ──
       console.warn("[PDV] Online sale failed, entering contingency:", onlineErr.message);
@@ -504,7 +464,7 @@ export function usePDV() {
       finalizingRef.current = false;
       setFinalizingSale(false);
     }
-  }, [companyId, currentSession, cartItems, subtotal, globalDiscountPercent, globalDiscountValue, total, itemDiscounts, clearCart, queueOperation, emitFiscalAsync]);
+  }, [companyId, currentSession, cartItems, subtotal, globalDiscountPercent, globalDiscountValue, total, itemDiscounts, clearCart, queueOperation, enqueueFiscal, processFiscalEmission]);
 
   const repeatLastSale = useCallback(() => {
     toast.info("Funcionalidade em desenvolvimento", { duration: 1500 });
