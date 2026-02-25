@@ -1,10 +1,11 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import { Upload, FileText, AlertCircle, CheckCircle2, Loader2, Package, Pencil, Trash2, Factory, Plus, Link } from "lucide-react";
+import { Upload, FileText, AlertCircle, CheckCircle2, Loader2, Package, Pencil, Trash2, Factory, Plus, Link, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
 import { useSuppliers } from "@/hooks/useSuppliers";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
 
 interface NFeImportDialogProps {
   open: boolean;
@@ -21,6 +22,11 @@ interface NFeProduct {
   totalPrice: number;
   valid: boolean;
   error?: string;
+  // New fields
+  existingProductId?: string | null;
+  currentStock?: number;
+  margin: number;       // percentage
+  salePrice: number;    // calculated from unitPrice + margin
 }
 
 interface NFeInfo {
@@ -41,7 +47,6 @@ function parseNFeXML(xmlText: string): NFeInfo | null {
     const parseError = doc.querySelector("parsererror");
     if (parseError) return null;
 
-    // Handle namespace - try both with and without namespace
     const ns = "http://www.portalfiscal.inf.br/nfe";
     const getEl = (parent: Element | Document, tag: string): Element | null => {
       return parent.getElementsByTagNameNS(ns, tag)[0] || parent.getElementsByTagName(tag)[0] || null;
@@ -83,6 +88,7 @@ function parseNFeXML(xmlText: string): NFeInfo | null {
       const unitPrice = parseFloat(getText(prod, "vUnCom") || getText(prod, "vUnTrib")) || 0;
       const totalPrice = parseFloat(getText(prod, "vProd")) || 0;
 
+      const defaultMargin = 30;
       const product: NFeProduct = {
         name,
         ncm,
@@ -93,6 +99,10 @@ function parseNFeXML(xmlText: string): NFeInfo | null {
         totalPrice,
         valid: !!name && unitPrice > 0,
         error: !name ? "Nome vazio" : unitPrice <= 0 ? "Preço unitário inválido" : undefined,
+        existingProductId: null,
+        currentStock: 0,
+        margin: defaultMargin,
+        salePrice: parseFloat((unitPrice * (1 + defaultMargin / 100)).toFixed(2)),
       };
 
       nfeInfo.products.push(product);
@@ -112,9 +122,10 @@ export function NFeImportDialog({ open, onOpenChange }: NFeImportDialogProps) {
   const [step, setStep] = useState<"upload" | "preview" | "done">("upload");
   const [nfeInfo, setNfeInfo] = useState<NFeInfo | null>(null);
   const [importing, setImporting] = useState(false);
-  const [result, setResult] = useState<{ imported: number; errors: number }>({ imported: 0, errors: 0 });
+  const [result, setResult] = useState<{ imported: number; errors: number; updated: number }>({ imported: 0, errors: 0, updated: 0 });
   const [updateStock, setUpdateStock] = useState(true);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [checkingStock, setCheckingStock] = useState(false);
 
   // Supplier linking state
   const [supplierId, setSupplierId] = useState<string | null>(null);
@@ -122,8 +133,8 @@ export function NFeImportDialog({ open, onOpenChange }: NFeImportDialogProps) {
   const [creatingSupplier, setCreatingSupplier] = useState(false);
 
   const reset = () => {
-    setStep("upload"); setNfeInfo(null); setResult({ imported: 0, errors: 0 });
-    setEditingIndex(null); setSupplierId(null); setSupplierStatus("checking");
+    setStep("upload"); setNfeInfo(null); setResult({ imported: 0, errors: 0, updated: 0 });
+    setEditingIndex(null); setSupplierId(null); setSupplierStatus("checking"); setCheckingStock(false);
   };
 
   // Auto-detect supplier when preview loads
@@ -142,6 +153,52 @@ export function NFeImportDialog({ open, onOpenChange }: NFeImportDialogProps) {
       setSupplierStatus("not_found");
     }
   }, [step, nfeInfo?.supplierCnpj, suppliers]);
+
+  // Check existing products by barcode when preview loads
+  useEffect(() => {
+    if (step !== "preview" || !nfeInfo || !companyId) return;
+
+    const checkExistingProducts = async () => {
+      setCheckingStock(true);
+      const barcodes = nfeInfo.products
+        .map(p => p.barcode)
+        .filter(Boolean);
+
+      if (barcodes.length === 0) {
+        setCheckingStock(false);
+        return;
+      }
+
+      const { data: existing } = await supabase
+        .from("products")
+        .select("id, barcode, stock_quantity, price")
+        .eq("company_id", companyId)
+        .in("barcode", barcodes);
+
+      if (existing && existing.length > 0) {
+        setNfeInfo(prev => {
+          if (!prev) return prev;
+          const updatedProducts = prev.products.map(p => {
+            if (!p.barcode) return p;
+            const match = existing.find(e => e.barcode === p.barcode);
+            if (match) {
+              return {
+                ...p,
+                existingProductId: match.id,
+                currentStock: match.stock_quantity || 0,
+                salePrice: match.price || p.salePrice,
+              };
+            }
+            return p;
+          });
+          return { ...prev, products: updatedProducts };
+        });
+      }
+      setCheckingStock(false);
+    };
+
+    checkExistingProducts();
+  }, [step, companyId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleCreateSupplier = async () => {
     if (!companyId || !nfeInfo) return;
@@ -164,7 +221,7 @@ export function NFeImportDialog({ open, onOpenChange }: NFeImportDialogProps) {
     }
   };
 
-  const updateProduct = useCallback((index: number, field: keyof NFeProduct, value: string | number) => {
+  const updateProduct = useCallback((index: number, field: keyof NFeProduct | "margin" | "salePrice", value: string | number) => {
     if (!nfeInfo) return;
     setNfeInfo(prev => {
       if (!prev) return prev;
@@ -173,8 +230,20 @@ export function NFeImportDialog({ open, onOpenChange }: NFeImportDialogProps) {
       if (field === "name") p.name = value as string;
       else if (field === "ncm") p.ncm = value as string;
       else if (field === "quantity") { p.quantity = Number(value) || 0; p.totalPrice = p.quantity * p.unitPrice; }
-      else if (field === "unitPrice") { p.unitPrice = Number(value) || 0; p.totalPrice = p.quantity * p.unitPrice; }
+      else if (field === "unitPrice") {
+        p.unitPrice = Number(value) || 0;
+        p.totalPrice = p.quantity * p.unitPrice;
+        p.salePrice = parseFloat((p.unitPrice * (1 + p.margin / 100)).toFixed(2));
+      }
       else if (field === "unit") p.unit = (value as string).toUpperCase();
+      else if (field === "margin") {
+        p.margin = Number(value) || 0;
+        p.salePrice = parseFloat((p.unitPrice * (1 + p.margin / 100)).toFixed(2));
+      }
+      else if (field === "salePrice") {
+        p.salePrice = Number(value) || 0;
+        p.margin = p.unitPrice > 0 ? parseFloat((((p.salePrice / p.unitPrice) - 1) * 100).toFixed(1)) : 0;
+      }
       p.valid = !!p.name && p.unitPrice > 0;
       p.error = !p.name ? "Nome vazio" : p.unitPrice <= 0 ? "Preço unitário inválido" : undefined;
       updated.products[index] = p;
@@ -215,10 +284,10 @@ export function NFeImportDialog({ open, onOpenChange }: NFeImportDialogProps) {
     const validProducts = nfeInfo.products.filter((p) => p.valid);
     let imported = 0;
     let errors = 0;
+    let updated = 0;
 
     for (const p of validProducts) {
       // Check if product exists by barcode
-      let existingId: string | null = null;
       if (p.barcode) {
         const { data: existing } = await supabase
           .from("products")
@@ -229,16 +298,19 @@ export function NFeImportDialog({ open, onOpenChange }: NFeImportDialogProps) {
           .maybeSingle();
 
         if (existing) {
-          existingId = existing.id;
           if (updateStock) {
             const newStock = (existing.stock_quantity || 0) + p.quantity;
-            const { error } = await supabase.from("products").update({
+            const updateData: Record<string, any> = {
               stock_quantity: newStock,
               cost_price: p.unitPrice,
-            }).eq("id", existing.id);
-            if (error) { console.error("[NFeImport] update error:", error.message, error.details); errors++; } else { imported++; }
+              price: p.salePrice,
+            };
+            if (supplierId) updateData.supplier_id = supplierId;
+
+            const { error } = await supabase.from("products").update(updateData).eq("id", existing.id);
+            if (error) { console.error("[NFeImport] update error:", error.message); errors++; } else { updated++; }
           } else {
-            imported++; // counted as processed
+            updated++;
           }
           continue;
         }
@@ -246,26 +318,30 @@ export function NFeImportDialog({ open, onOpenChange }: NFeImportDialogProps) {
 
       // Create new product
       const autoSku = `NFE-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-      const { error } = await supabase.from("products").insert({
+      const insertData: Record<string, any> = {
         name: p.name,
         sku: autoSku,
         barcode: p.barcode || null,
         ncm: p.ncm || null,
-        price: p.unitPrice,
+        price: p.salePrice,
         cost_price: p.unitPrice,
         stock_quantity: p.quantity,
         unit: p.unit,
         company_id: companyId,
         is_active: true,
-      });
+      };
+      if (supplierId) insertData.supplier_id = supplierId;
+
+      const { error } = await supabase.from("products").insert(insertData);
       if (error) { console.error("[NFeImport] insert error:", error.message, error.details, error.code); errors++; } else { imported++; }
     }
 
-    setResult({ imported, errors });
+    setResult({ imported, errors, updated });
     setStep("done");
     setImporting(false);
     queryClient.invalidateQueries({ queryKey: ["products"] });
-    if (imported > 0) toast.success(`${imported} produto(s) importado(s) da NF-e!`);
+    const total = imported + updated;
+    if (total > 0) toast.success(`${imported} novo(s), ${updated} atualizado(s)!`);
     if (errors > 0) toast.error(`${errors} produto(s) com erro`);
   };
 
@@ -273,10 +349,12 @@ export function NFeImportDialog({ open, onOpenChange }: NFeImportDialogProps) {
 
   const validCount = nfeInfo?.products.filter((p) => p.valid).length || 0;
   const invalidCount = nfeInfo?.products.filter((p) => !p.valid).length || 0;
+  const existingCount = nfeInfo?.products.filter((p) => p.existingProductId).length || 0;
+  const newCount = validCount - existingCount;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => { reset(); onOpenChange(false); }}>
-      <div className="bg-card rounded-xl border border-border max-w-2xl w-full mx-4 max-h-[80vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-card rounded-xl border border-border max-w-3xl w-full mx-4 max-h-[85vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
         <div className="px-5 py-4 border-b border-border flex items-center justify-between">
           <h2 className="text-lg font-semibold text-foreground">Importar NF-e (XML)</h2>
           <button onClick={() => { reset(); onOpenChange(false); }} className="text-muted-foreground hover:text-foreground text-xl leading-none">&times;</button>
@@ -337,7 +415,7 @@ export function NFeImportDialog({ open, onOpenChange }: NFeImportDialogProps) {
                 {supplierStatus === "not_found" && (
                   <div className="flex items-center gap-3">
                     <span className="text-sm text-muted-foreground">
-                      Fornecedor <strong className="text-foreground">{nfeInfo.supplierName}</strong> (CNPJ: {nfeInfo.supplierCnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5")}) não cadastrado.
+                      Fornecedor <strong className="text-foreground">{nfeInfo.supplierName}</strong> não cadastrado.
                     </span>
                     <button
                       onClick={handleCreateSupplier}
@@ -362,43 +440,53 @@ export function NFeImportDialog({ open, onOpenChange }: NFeImportDialogProps) {
               </label>
 
               {/* Product counts */}
-              <div className="flex items-center gap-4 text-sm">
+              <div className="flex items-center gap-4 text-sm flex-wrap">
                 <span className="flex items-center gap-1.5 text-success"><CheckCircle2 className="w-4 h-4" /> {validCount} válido(s)</span>
                 {invalidCount > 0 && <span className="flex items-center gap-1.5 text-destructive"><AlertCircle className="w-4 h-4" /> {invalidCount} com erro</span>}
+                {checkingStock ? (
+                  <span className="flex items-center gap-1.5 text-muted-foreground"><RefreshCw className="w-4 h-4 animate-spin" /> Verificando estoque...</span>
+                ) : (
+                  <>
+                    {existingCount > 0 && <Badge variant="secondary" className="text-xs">{existingCount} já cadastrado(s)</Badge>}
+                    {newCount > 0 && <Badge variant="outline" className="text-xs">{newCount} novo(s)</Badge>}
+                  </>
+                )}
               </div>
 
-              {/* Products table - editable */}
-              <div className="border border-border rounded-lg overflow-x-auto max-h-64">
+              {/* Products table */}
+              <div className="border border-border rounded-lg overflow-x-auto max-h-72">
                 <table className="w-full text-xs">
                   <thead className="bg-muted/50 sticky top-0">
                     <tr>
                       <th className="px-2 py-2 text-left text-muted-foreground w-8"></th>
                       <th className="px-2 py-2 text-left text-muted-foreground">Produto</th>
-                      <th className="px-2 py-2 text-left text-muted-foreground w-24">NCM</th>
-                      <th className="px-2 py-2 text-right text-muted-foreground w-16">Qtd</th>
-                      <th className="px-2 py-2 text-right text-muted-foreground w-24">Vlr Unit</th>
+                      <th className="px-2 py-2 text-right text-muted-foreground w-14">Qtd</th>
+                      <th className="px-2 py-2 text-right text-muted-foreground w-20">Custo</th>
+                      <th className="px-2 py-2 text-right text-muted-foreground w-16">Margem%</th>
+                      <th className="px-2 py-2 text-right text-muted-foreground w-20">Venda</th>
                       <th className="px-2 py-2 text-left text-muted-foreground w-14">UN</th>
                       <th className="px-2 py-2 text-center text-muted-foreground w-16">Ações</th>
                     </tr>
                   </thead>
                   <tbody>
                     {nfeInfo.products.map((p, i) => (
-                      <tr key={i} className={`border-t border-border ${!p.valid ? "bg-destructive/5" : ""} ${editingIndex === i ? "bg-primary/5" : ""}`}>
-                        <td className="px-2 py-1.5">{p.valid ? <CheckCircle2 className="w-3.5 h-3.5 text-success" /> : <AlertCircle className="w-3.5 h-3.5 text-destructive" />}</td>
+                      <tr key={i} className={`border-t border-border ${!p.valid ? "bg-destructive/5" : ""} ${editingIndex === i ? "bg-primary/5" : ""} ${p.existingProductId ? "bg-accent/30" : ""}`}>
+                        <td className="px-2 py-1.5">
+                          {p.valid ? <CheckCircle2 className="w-3.5 h-3.5 text-success" /> : <AlertCircle className="w-3.5 h-3.5 text-destructive" />}
+                        </td>
                         <td className="px-2 py-1.5">
                           {editingIndex === i ? (
                             <input value={p.name} onChange={(e) => updateProduct(i, "name", e.target.value)}
                               className="w-full bg-background border border-border rounded px-1.5 py-0.5 text-xs text-foreground" />
                           ) : (
-                            <span className="text-foreground truncate block max-w-[200px]">{p.name}</span>
-                          )}
-                        </td>
-                        <td className="px-2 py-1.5">
-                          {editingIndex === i ? (
-                            <input value={p.ncm} onChange={(e) => updateProduct(i, "ncm", e.target.value)}
-                              className="w-full bg-background border border-border rounded px-1.5 py-0.5 text-xs text-foreground font-mono" />
-                          ) : (
-                            <span className="text-muted-foreground font-mono">{p.ncm || "—"}</span>
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-foreground truncate block max-w-[180px]">{p.name}</span>
+                              {p.existingProductId && (
+                                <Badge variant="secondary" className="text-[10px] px-1.5 py-0 shrink-0">
+                                  Estoque: {p.currentStock}
+                                </Badge>
+                              )}
+                            </div>
                           )}
                         </td>
                         <td className="px-2 py-1.5 text-right">
@@ -414,7 +502,23 @@ export function NFeImportDialog({ open, onOpenChange }: NFeImportDialogProps) {
                             <input type="number" step="0.01" value={p.unitPrice} onChange={(e) => updateProduct(i, "unitPrice", e.target.value)}
                               className="w-full bg-background border border-border rounded px-1.5 py-0.5 text-xs text-foreground font-mono text-right" />
                           ) : (
-                            <span className="text-foreground font-mono">R$ {p.unitPrice.toFixed(2).replace(".", ",")}</span>
+                            <span className="text-foreground font-mono">{p.unitPrice.toFixed(2).replace(".", ",")}</span>
+                          )}
+                        </td>
+                        <td className="px-2 py-1.5 text-right">
+                          {editingIndex === i ? (
+                            <input type="number" step="0.1" value={p.margin} onChange={(e) => updateProduct(i, "margin", e.target.value)}
+                              className="w-full bg-background border border-border rounded px-1.5 py-0.5 text-xs text-foreground font-mono text-right" />
+                          ) : (
+                            <span className="text-muted-foreground font-mono">{p.margin}%</span>
+                          )}
+                        </td>
+                        <td className="px-2 py-1.5 text-right">
+                          {editingIndex === i ? (
+                            <input type="number" step="0.01" value={p.salePrice} onChange={(e) => updateProduct(i, "salePrice", e.target.value)}
+                              className="w-full bg-background border border-border rounded px-1.5 py-0.5 text-xs text-foreground font-mono text-right" />
+                          ) : (
+                            <span className="text-foreground font-mono font-semibold">{p.salePrice.toFixed(2).replace(".", ",")}</span>
                           )}
                         </td>
                         <td className="px-2 py-1.5">
@@ -446,7 +550,7 @@ export function NFeImportDialog({ open, onOpenChange }: NFeImportDialogProps) {
               </div>
 
               <p className="text-xs text-muted-foreground">
-                💡 Clique no ícone de lápis para editar um produto antes de importar.
+                💡 Clique no lápis para editar custo, margem e preço de venda antes de importar. Produtos com fundo destacado já existem no estoque.
               </p>
             </div>
           )}
@@ -455,7 +559,12 @@ export function NFeImportDialog({ open, onOpenChange }: NFeImportDialogProps) {
             <div className="text-center py-8 space-y-3">
               <Package className="w-12 h-12 text-success mx-auto" />
               <p className="text-lg font-semibold text-foreground">Importação da NF-e concluída!</p>
-              <p className="text-sm text-muted-foreground">{result.imported} produto(s) importado(s)/atualizado(s){result.errors > 0 ? `, ${result.errors} com erro` : ""}.</p>
+              <p className="text-sm text-muted-foreground">
+                {result.imported > 0 && `${result.imported} produto(s) novo(s) cadastrado(s)`}
+                {result.imported > 0 && result.updated > 0 && ", "}
+                {result.updated > 0 && `${result.updated} atualizado(s)`}
+                {result.errors > 0 ? `, ${result.errors} com erro` : ""}.
+              </p>
             </div>
           )}
         </div>
