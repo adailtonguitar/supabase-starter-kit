@@ -616,13 +616,13 @@ export default function PDV() {
         </div>
       </div>
 
-      {/* ════════ BARCODE INPUT - PREMIUM ════════ */}
-      <div className={`flex items-center gap-3 lg:gap-4 px-3 lg:px-5 py-3 lg:py-4 bg-gradient-to-r from-primary/10 via-card to-primary/10 border-b-2 border-primary flex-shrink-0 shadow-[0_2px_12px_-4px_hsl(var(--primary)/0.25)] ${
+      {/* ════════ BARCODE INPUT - ELITE ════════ */}
+      <div className={`flex items-center gap-3 lg:gap-4 px-3 lg:px-5 py-3.5 lg:py-5 bg-gradient-to-r from-primary/15 via-card to-primary/15 border-b-[3px] border-primary flex-shrink-0 shadow-[0_4px_20px_-6px_hsl(var(--primary)/0.35)] ${
         (editingQtyItemId || editingItemDiscountId || editingGlobalDiscount) ? "hidden lg:flex" : "flex"
       }`}>
-        <div className="flex items-center gap-2 bg-primary/15 rounded-lg px-3 py-2">
-          <Search className="w-5 h-5 text-primary" />
-          <span className="text-xs lg:text-sm font-extrabold text-primary tracking-wide whitespace-nowrap">CÓDIGO</span>
+        <div className="flex items-center gap-2 bg-primary/20 rounded-xl px-3.5 py-2.5 shadow-sm">
+          <Search className="w-5 h-5 lg:w-6 lg:h-6 text-primary" />
+          <span className="text-xs lg:text-sm font-black text-primary tracking-widest whitespace-nowrap uppercase">Código</span>
         </div>
         <div className="relative flex-1">
           <input
@@ -642,7 +642,7 @@ export default function PDV() {
               }
             }}
             placeholder="Leia ou digite o código de barras... (ex: 5*789123 para multiplicar)"
-            className="w-full px-4 lg:px-5 py-2.5 lg:py-3.5 rounded-xl bg-background border-2 border-primary/40 text-foreground text-lg lg:text-2xl font-mono font-bold tracking-wider focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/20 focus:shadow-[0_0_20px_-4px_hsl(var(--primary)/0.3)] placeholder:text-muted-foreground/40 placeholder:text-xs lg:placeholder:text-sm placeholder:font-normal placeholder:tracking-normal transition-all duration-200"
+            className="w-full px-4 lg:px-6 py-3 lg:py-4 rounded-xl bg-background border-[3px] border-primary/50 text-foreground text-lg lg:text-2xl xl:text-3xl font-mono font-black tracking-widest focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/25 focus:shadow-[0_0_30px_-4px_hsl(var(--primary)/0.4)] placeholder:text-muted-foreground/35 placeholder:text-xs lg:placeholder:text-sm placeholder:font-normal placeholder:tracking-normal transition-all duration-300"
             autoComplete="off"
             autoCorrect="off"
             spellCheck={false}
@@ -650,7 +650,7 @@ export default function PDV() {
           {barcodeInput && (
             <button
               onClick={() => setBarcodeInput("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full bg-muted hover:bg-destructive/20 transition-colors"
+              className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-muted hover:bg-destructive/20 transition-colors"
             >
               <X className="w-4 h-4 text-muted-foreground" />
             </button>
@@ -663,16 +663,16 @@ export default function PDV() {
 
         {/* LEFT: Items Table (70%) */}
         <div className="flex-1 lg:flex-[7] flex flex-col min-w-0 border-r border-border min-h-0 max-h-[40vh] lg:max-h-none">
-          <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto">
             <table className="w-full text-xs">
-              <thead className="sticky top-0 z-10 bg-muted">
-                <tr className="text-muted-foreground text-left uppercase tracking-wider">
-                  <th className="px-2 py-2 font-bold w-10 text-center">#</th>
-                  <th className="px-2 py-2 font-bold w-28">Código</th>
-                  <th className="px-2 py-2 font-bold">Descrição</th>
-                  <th className="px-2 py-2 font-bold text-center w-24">Qtd</th>
-                  <th className="px-2 py-2 font-bold text-right w-24">Unitário</th>
-                  <th className="px-2 py-2 font-bold text-right w-28">Subtotal</th>
+              <thead className="sticky top-0 z-10 bg-muted/90 backdrop-blur-sm shadow-sm">
+                <tr className="text-muted-foreground text-left uppercase tracking-widest">
+                  <th className="px-2 py-2.5 font-black w-10 text-center text-[10px]">#</th>
+                  <th className="px-2 py-2.5 font-black w-28 text-[10px]">Código</th>
+                  <th className="px-2 py-2.5 font-black text-[10px]">Descrição</th>
+                  <th className="px-2 py-2.5 font-black text-center w-24 text-[10px]">Qtd</th>
+                  <th className="px-2 py-2.5 font-black text-right w-24 text-[10px]">Unitário</th>
+                  <th className="px-2 py-2.5 font-black text-right w-28 text-[10px]">Subtotal</th>
                 </tr>
               </thead>
               <tbody>
@@ -767,23 +767,23 @@ export default function PDV() {
           </div>
         </div>
 
-        {/* RIGHT: Totals Sidebar (30%) */}
-        <div className="shrink-0 lg:shrink lg:flex-[3] flex flex-col bg-card lg:min-w-[240px] lg:max-w-[360px] min-h-0">
+        {/* RIGHT: Totals Sidebar (30%) — ELITE */}
+        <div className="shrink-0 lg:shrink lg:flex-[3] flex flex-col bg-muted/40 lg:min-w-[260px] lg:max-w-[380px] min-h-0 lg:border-l-2 lg:border-primary/20">
           {/* Info rows */}
-          <div className="flex-1 flex flex-col p-1.5 lg:p-3 gap-0.5 lg:gap-2 overflow-y-auto">
-            <div className="flex justify-between items-center py-1.5 lg:py-2 border-b border-border">
-              <span className="text-xs font-bold text-muted-foreground uppercase">Itens</span>
-              <span className="text-base lg:text-lg font-bold text-foreground font-mono">{totalItems}</span>
+          <div className="flex-1 flex flex-col p-2 lg:p-4 gap-1 lg:gap-1 overflow-y-auto">
+            <div className="flex justify-between items-center py-2 lg:py-3 border-b-2 border-border/60 px-1">
+              <span className="text-[11px] lg:text-xs font-black text-muted-foreground uppercase tracking-widest">Itens</span>
+              <span className="text-lg lg:text-xl font-black text-foreground font-mono tabular-nums">{totalItems}</span>
             </div>
-            <div className="flex justify-between items-center py-1.5 lg:py-2 border-b border-border">
-              <span className="text-xs font-bold text-muted-foreground uppercase">Qtd Total</span>
-              <span className="text-base lg:text-lg font-bold text-foreground font-mono">
+            <div className="flex justify-between items-center py-2 lg:py-3 border-b-2 border-border/60 px-1">
+              <span className="text-[11px] lg:text-xs font-black text-muted-foreground uppercase tracking-widest">Qtd Total</span>
+              <span className="text-lg lg:text-xl font-black text-foreground font-mono tabular-nums">
                 {Number.isInteger(totalQty) ? totalQty : totalQty.toFixed(3)}
               </span>
             </div>
-            <div className="flex justify-between items-center py-1.5 lg:py-2 border-b border-border">
-              <span className="text-xs font-bold text-muted-foreground uppercase">Subtotal</span>
-              <span className="text-base lg:text-lg font-bold text-foreground font-mono">{formatCurrency(pdv.subtotal)}</span>
+            <div className="flex justify-between items-center py-2 lg:py-3 border-b-2 border-border/60 px-1">
+              <span className="text-[11px] lg:text-xs font-black text-muted-foreground uppercase tracking-widest">Subtotal</span>
+              <span className="text-lg lg:text-xl font-black text-foreground font-mono tabular-nums">{formatCurrency(pdv.subtotal)}</span>
             </div>
 
             {/* Last added item highlight */}
@@ -983,21 +983,30 @@ export default function PDV() {
             )}
           </div>
 
-          {/* TOTAL — BIG DISPLAY */}
+          {/* TOTAL — ELITE DISPLAY */}
           <div
-            className="p-2 lg:p-4 xl:p-5 mt-auto border-t-4 transition-colors duration-300 flex-shrink-0 overflow-hidden"
+            className="p-3 lg:p-5 xl:p-6 mt-auto border-t-4 transition-all duration-500 flex-shrink-0 overflow-hidden relative"
             style={{
-              backgroundColor: totalFinal > 0 ? "hsl(0, 72%, 40%)" : "hsl(142, 72%, 32%)",
-              borderTopColor: totalFinal > 0 ? "hsl(0, 72%, 50%)" : "hsl(142, 72%, 45%)",
+              backgroundColor: totalFinal > 0 ? "hsl(0, 72%, 38%)" : "hsl(142, 76%, 30%)",
+              borderTopColor: totalFinal > 0 ? "hsl(0, 80%, 55%)" : "hsl(142, 80%, 48%)",
+              boxShadow: `inset 0 4px 20px rgba(0,0,0,0.3), 0 -2px 15px ${totalFinal > 0 ? "hsla(0, 72%, 40%, 0.3)" : "hsla(142, 72%, 32%, 0.3)"}`,
             }}
           >
-            <div className="text-center">
-              <span className="text-[10px] lg:text-sm font-bold uppercase tracking-[0.3em] block mb-0.5 lg:mb-2" style={{ color: "rgba(255,255,255,0.8)" }}>
+            <div className="absolute inset-0 bg-gradient-to-b from-white/[0.06] to-transparent pointer-events-none" />
+            <div className="text-center relative">
+              <span className="text-[10px] lg:text-sm font-black uppercase tracking-[0.4em] block mb-1 lg:mb-2" style={{ color: "rgba(255,255,255,0.85)" }}>
                 {totalFinal > 0 ? "TOTAL A PAGAR" : "TOTAL DA VENDA"}
               </span>
-              <span className="text-3xl lg:text-4xl xl:text-5xl 2xl:text-6xl font-black font-mono tracking-tight block leading-none truncate" style={{ color: "#ffffff", textShadow: "0 4px 16px rgba(0,0,0,0.5)" }}>
+              <motion.span
+                key={totalFinal}
+                initial={{ scale: 1.08, opacity: 0.7 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ duration: 0.3, ease: "easeOut" }}
+                className="text-4xl lg:text-5xl xl:text-6xl 2xl:text-7xl font-black font-mono tracking-tight block leading-none truncate"
+                style={{ color: "#ffffff", textShadow: "0 4px 24px rgba(0,0,0,0.6), 0 0 40px rgba(255,255,255,0.1)" }}
+              >
                 {formatCurrency(totalFinal)}
-              </span>
+              </motion.span>
             </div>
           </div>
         </div>
@@ -1083,27 +1092,29 @@ export default function PDV() {
         </button>
       </div>
 
-      {/* ════════ BOTTOM PAYMENT BAR ════════ */}
-      <div className="flex flex-col flex-shrink-0 border-t border-border bg-card">
+      {/* ════════ BOTTOM PAYMENT BAR — ELITE ════════ */}
+      <div className="flex flex-col flex-shrink-0 border-t-2 border-primary/30 bg-card shadow-[0_-4px_16px_-6px_rgba(0,0,0,0.15)]">
         {/* Payment method buttons */}
-        <div className="flex items-stretch gap-0.5 lg:gap-1 px-1 lg:px-2 py-1 lg:py-1.5 overflow-x-auto scrollbar-none">
+        <div className="flex items-stretch gap-1 lg:gap-1.5 px-1.5 lg:px-3 py-1.5 lg:py-2 overflow-x-auto scrollbar-none">
           {[
-            { id: "dinheiro", label: "Dinheiro", icon: Banknote, colorClass: "bg-emerald-900/60 hover:bg-emerald-800/70 text-emerald-100 border border-emerald-700/40" },
-            { id: "debito", label: "Débito", icon: CreditCard, colorClass: "bg-blue-900/60 hover:bg-blue-800/70 text-blue-100 border border-blue-700/40" },
-            { id: "credito", label: "Crédito", icon: Wallet, colorClass: "bg-violet-900/60 hover:bg-violet-800/70 text-violet-100 border border-violet-700/40" },
-            { id: "pix", label: "PIX", icon: QrCode, colorClass: "bg-teal-900/60 hover:bg-teal-800/70 text-teal-100 border border-teal-700/40" },
-            { id: "voucher", label: "Voucher", icon: Ticket, colorClass: "bg-amber-900/60 hover:bg-amber-800/70 text-amber-100 border border-amber-700/40" },
-            { id: "prazo", label: "A Prazo", icon: ClockIcon, colorClass: "bg-orange-900/60 hover:bg-orange-800/70 text-orange-100 border border-orange-700/40" },
-            { id: "multi", label: "Múltiplas", icon: MoreHorizontal, colorClass: "bg-orange-900/60 hover:bg-orange-800/70 text-orange-100 border border-orange-700/40" },
+            { id: "dinheiro", label: "Dinheiro", icon: Banknote, colorClass: "bg-emerald-900/70 hover:bg-emerald-800/80 text-emerald-50 border border-emerald-600/50 shadow-sm" },
+            { id: "debito", label: "Débito", icon: CreditCard, colorClass: "bg-blue-900/70 hover:bg-blue-800/80 text-blue-50 border border-blue-600/50 shadow-sm" },
+            { id: "credito", label: "Crédito", icon: Wallet, colorClass: "bg-violet-900/70 hover:bg-violet-800/80 text-violet-50 border border-violet-600/50 shadow-sm" },
+            { id: "pix", label: "PIX", icon: QrCode, colorClass: "bg-teal-900/70 hover:bg-teal-800/80 text-teal-50 border border-teal-600/50 shadow-sm" },
+            { id: "voucher", label: "Voucher", icon: Ticket, colorClass: "bg-amber-900/70 hover:bg-amber-800/80 text-amber-50 border border-amber-600/50 shadow-sm" },
+            { id: "prazo", label: "A Prazo", icon: ClockIcon, colorClass: "bg-orange-900/70 hover:bg-orange-800/80 text-orange-50 border border-orange-600/50 shadow-sm" },
+            { id: "multi", label: "Múltiplas", icon: MoreHorizontal, colorClass: "bg-orange-900/70 hover:bg-orange-800/80 text-orange-50 border border-orange-600/50 shadow-sm" },
           ].map(({ id, label, icon: Icon, colorClass }, idx) => (
             <motion.button
               key={id}
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: idx * 0.03, duration: 0.2 }}
+              whileHover={{ scale: 1.04, y: -1 }}
+              whileTap={{ scale: 0.96 }}
               onClick={() => handleDirectPayment(id)}
               disabled={pdv.cartItems.length === 0}
-              className={`flex-1 min-w-[48px] flex flex-col items-center justify-center gap-0.5 py-1.5 lg:py-2 xl:py-2.5 rounded-lg text-sm font-extrabold tracking-wide transition-all active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed ${colorClass}`}
+              className={`flex-1 min-w-[52px] flex flex-col items-center justify-center gap-0.5 py-2 lg:py-2.5 xl:py-3 rounded-xl text-sm font-extrabold tracking-wide transition-all disabled:opacity-30 disabled:cursor-not-allowed ${colorClass}`}
             >
               <Icon className="w-4 h-4 lg:w-5 lg:h-5 xl:w-6 xl:h-6" />
               <span className="text-[10px] lg:text-[11px] xl:text-xs font-bold">{label}</span>
@@ -1123,25 +1134,48 @@ export default function PDV() {
             <span>Emitir NFC-e</span>
           </label>
         </div>
-        <div className="hidden lg:flex items-center justify-center gap-1.5 xl:gap-2 px-2 py-1 xl:py-1.5 bg-muted/70 border-t border-border flex-wrap">
-          {[
-            { key: "F3", label: "Buscar", color: "bg-sidebar-background hover:bg-sidebar-accent text-sidebar-foreground border border-sidebar-border", action: () => setShowProductList((p) => !p) },
-            { key: "F5", label: "Cliente", color: "bg-sidebar-background hover:bg-sidebar-accent text-sidebar-foreground border border-sidebar-border", action: () => setShowLoyaltyClientSelector(true) },
-            { key: "F6", label: "Cancelar", color: "bg-destructive/80 hover:bg-destructive text-white border border-destructive/50", action: () => { if (pdv.cartItems.length > 0) { pdv.clearCart(); setSelectedClient(null); setSelectedCartItemId(null); toast.info("Venda cancelada"); } } },
-            { key: "F7", label: "Desc.Item", color: "bg-sidebar-background hover:bg-sidebar-accent text-sidebar-foreground border border-sidebar-border", action: () => { if (selectedCartItemId) { setEditingItemDiscountId(selectedCartItemId); } else if (pdv.cartItems.length > 0) { const firstId = pdv.cartItems[0].id; setSelectedCartItemId(firstId); setEditingItemDiscountId(firstId); } } },
-            { key: "F8", label: "Desc.Total", color: "bg-sidebar-background hover:bg-sidebar-accent text-sidebar-foreground border border-sidebar-border", action: () => setEditingGlobalDiscount(true) },
-            { key: "F9", label: "Qtd", color: "bg-sidebar-background hover:bg-sidebar-accent text-sidebar-foreground border border-sidebar-border", action: () => { if (selectedCartItemId) { setEditingQtyItemId(selectedCartItemId); setEditingQtyValue(String(pdv.cartItems.find(i => i.id === selectedCartItemId)?.quantity || 1)); } else if (pdv.cartItems.length > 0) { const firstId = pdv.cartItems[0].id; setSelectedCartItemId(firstId); setEditingQtyItemId(firstId); setEditingQtyValue(String(pdv.cartItems.find(i => i.id === firstId)?.quantity || 1)); } } },
-            { key: "DEL", label: "Remover", color: "bg-destructive/80 hover:bg-destructive text-white border border-destructive/50", action: () => { if (selectedCartItemId) { pdv.removeItem(selectedCartItemId); setSelectedCartItemId(null); } } },
-            { key: "+", label: "Repetir Último", color: "bg-sidebar-background hover:bg-sidebar-accent text-sidebar-foreground border border-sidebar-border", action: () => { if (pdv.cartItems.length > 0) { const lastItem = pdv.cartItems[pdv.cartItems.length - 1]; const product = pdv.products.find(p => p.id === lastItem.id); if (product) pdv.addToCart(product); } } },
-            { key: "F10", label: "Consulta", color: "bg-sidebar-background hover:bg-sidebar-accent text-sidebar-foreground border border-sidebar-border", action: () => { setShowPriceLookup(true); setPriceLookupQuery(""); } },
-            { key: "F11", label: "Rep.Venda", color: "bg-sidebar-background hover:bg-sidebar-accent text-sidebar-foreground border border-sidebar-border", action: () => pdv.repeatLastSale() },
-            { key: "F12", label: "Finalizar", color: "bg-primary hover:bg-primary/90 text-primary-foreground border border-primary/50", action: () => handleCheckout() },
-          ].map(({ key, label, color, action }) => (
-            <button key={key} onClick={action} className={`flex items-center gap-1 font-bold text-xs cursor-pointer rounded px-1.5 py-1 transition-all active:scale-95 ${color}`}>
-              <span className="font-mono font-black px-1.5 py-0.5 rounded bg-black/20 text-[10px] border border-white/30">{key}</span>
-              {label}
-            </button>
-          ))}
+        <div className="hidden lg:flex items-center justify-center gap-1 xl:gap-1.5 px-2 py-1.5 xl:py-2 bg-muted/80 border-t-2 border-border/60 flex-wrap">
+          {/* Grupo: Operações */}
+          <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-lg bg-background/50 border border-border/40">
+            {[
+              { key: "F3", label: "Buscar", color: "bg-sidebar-background hover:bg-sidebar-accent text-sidebar-foreground border border-sidebar-border", action: () => setShowProductList((p) => !p) },
+              { key: "F5", label: "Cliente", color: "bg-sidebar-background hover:bg-sidebar-accent text-sidebar-foreground border border-sidebar-border", action: () => setShowLoyaltyClientSelector(true) },
+              { key: "F10", label: "Consulta", color: "bg-sidebar-background hover:bg-sidebar-accent text-sidebar-foreground border border-sidebar-border", action: () => { setShowPriceLookup(true); setPriceLookupQuery(""); } },
+              { key: "+", label: "Repetir", color: "bg-sidebar-background hover:bg-sidebar-accent text-sidebar-foreground border border-sidebar-border", action: () => { if (pdv.cartItems.length > 0) { const lastItem = pdv.cartItems[pdv.cartItems.length - 1]; const product = pdv.products.find(p => p.id === lastItem.id); if (product) pdv.addToCart(product); } } },
+              { key: "F11", label: "Rep.Venda", color: "bg-sidebar-background hover:bg-sidebar-accent text-sidebar-foreground border border-sidebar-border", action: () => pdv.repeatLastSale() },
+            ].map(({ key, label, color, action }) => (
+              <button key={key} onClick={action} className={`flex items-center gap-1 font-bold text-xs cursor-pointer rounded-lg px-1.5 py-1 transition-all hover:scale-[1.03] active:scale-95 ${color}`}>
+                <span className="font-mono font-black px-1.5 py-0.5 rounded bg-black/25 text-[10px] border border-white/20 shadow-sm">{key}</span>
+                {label}
+              </button>
+            ))}
+          </div>
+          {/* Grupo: Descontos & Edição */}
+          <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-lg bg-background/50 border border-border/40">
+            {[
+              { key: "F7", label: "Desc.Item", color: "bg-sidebar-background hover:bg-sidebar-accent text-sidebar-foreground border border-sidebar-border", action: () => { if (selectedCartItemId) { setEditingItemDiscountId(selectedCartItemId); } else if (pdv.cartItems.length > 0) { const firstId = pdv.cartItems[0].id; setSelectedCartItemId(firstId); setEditingItemDiscountId(firstId); } } },
+              { key: "F8", label: "Desc.Total", color: "bg-sidebar-background hover:bg-sidebar-accent text-sidebar-foreground border border-sidebar-border", action: () => setEditingGlobalDiscount(true) },
+              { key: "F9", label: "Qtd", color: "bg-sidebar-background hover:bg-sidebar-accent text-sidebar-foreground border border-sidebar-border", action: () => { if (selectedCartItemId) { setEditingQtyItemId(selectedCartItemId); setEditingQtyValue(String(pdv.cartItems.find(i => i.id === selectedCartItemId)?.quantity || 1)); } else if (pdv.cartItems.length > 0) { const firstId = pdv.cartItems[0].id; setSelectedCartItemId(firstId); setEditingQtyItemId(firstId); setEditingQtyValue(String(pdv.cartItems.find(i => i.id === firstId)?.quantity || 1)); } } },
+              { key: "DEL", label: "Remover", color: "bg-destructive/80 hover:bg-destructive text-white border border-destructive/50", action: () => { if (selectedCartItemId) { pdv.removeItem(selectedCartItemId); setSelectedCartItemId(null); } } },
+            ].map(({ key, label, color, action }) => (
+              <button key={key} onClick={action} className={`flex items-center gap-1 font-bold text-xs cursor-pointer rounded-lg px-1.5 py-1 transition-all hover:scale-[1.03] active:scale-95 ${color}`}>
+                <span className="font-mono font-black px-1.5 py-0.5 rounded bg-black/25 text-[10px] border border-white/20 shadow-sm">{key}</span>
+                {label}
+              </button>
+            ))}
+          </div>
+          {/* Grupo: Finalização */}
+          <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-lg bg-primary/10 border border-primary/30">
+            {[
+              { key: "F6", label: "Cancelar", color: "bg-destructive/80 hover:bg-destructive text-white border border-destructive/50", action: () => { if (pdv.cartItems.length > 0) { pdv.clearCart(); setSelectedClient(null); setSelectedCartItemId(null); toast.info("Venda cancelada"); } } },
+              { key: "F12", label: "FINALIZAR", color: "bg-primary hover:bg-primary/90 text-primary-foreground border border-primary/50 shadow-md shadow-primary/20", action: () => handleCheckout() },
+            ].map(({ key, label, color, action }) => (
+              <button key={key} onClick={action} className={`flex items-center gap-1 font-black text-xs cursor-pointer rounded-lg px-2 py-1.5 transition-all hover:scale-[1.05] active:scale-95 ${color}`}>
+                <span className="font-mono font-black px-1.5 py-0.5 rounded bg-black/25 text-[10px] border border-white/20 shadow-sm">{key}</span>
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
