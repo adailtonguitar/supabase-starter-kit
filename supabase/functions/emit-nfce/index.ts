@@ -784,7 +784,7 @@ Deno.serve(async (req) => {
         cnpj: company.cnpj?.replace(/\D/g, ""),
         nome: company.name,
         nome_fantasia: company.trade_name || company.name,
-        inscricao_estadual: company.state_registration?.replace(/\D/g, "") || "",
+        inscricao_estadual: company.ie?.replace(/\D/g, "") || "",
         endereco: {
           logradouro: company.address_street || "",
           numero: company.address_number || "S/N",
