@@ -127,7 +127,7 @@ BEGIN
     'Venda PDV #' || LEFT(v_sale_id::text, 8),
     v_sale_id::text, p_total, CURRENT_DATE, CURRENT_DATE, p_total,
     COALESCE(p_payments->0->>'method', 'outros'), 'pago',
-    COALESCE(p_sold_by::text, 'system')
+    p_sold_by
   );
 
   RETURN jsonb_build_object('success', true, 'sale_id', v_sale_id, 'message', 'Venda finalizada com sucesso');
