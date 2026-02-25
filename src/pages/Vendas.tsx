@@ -8,6 +8,10 @@ import { useTEFConfig } from "@/hooks/useTEFConfig";
 import { MercadoPagoTEFService } from "@/services/MercadoPagoTEFService";
 import { NfceEmissionDialog } from "@/components/fiscal/NfceEmissionDialog";
 import { toast } from "sonner";
+import { FiscalDashboard } from "@/components/FiscalDashboard";
+import { useFiscalDashboard } from "@/hooks/useFiscalDashboard";
+
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,9 +36,11 @@ const paymentLabels: Record<string, string> = {
 export default function Vendas() {
   const { data: sales = [], isLoading, refetch } = useSales(100);
   const { config } = useTEFConfig();
+  
   const [refundingSaleId, setRefundingSaleId] = useState<string | null>(null);
   const [emissionSale, setEmissionSale] = useState<Sale | null>(null);
   const [confirmRefund, setConfirmRefund] = useState<{ saleId: string; paymentId: string; amount: number } | null>(null);
+  const { metrics, isLoadingMetrics, queueMap, processQueue, isProcessing } = useFiscalDashboard();
 
   const getTefPayments = (sale: Sale) => {
     try {
@@ -83,6 +89,12 @@ export default function Vendas() {
           </button>
         </div>
       </div>
+      <FiscalDashboard
+        metrics={metrics}
+        isLoading={isLoadingMetrics}
+        isProcessing={isProcessing}
+        onProcessQueue={processQueue}
+      />
 
       {isLoading ? (
         <div className="space-y-3">
@@ -119,6 +131,7 @@ export default function Vendas() {
             const tefPayments = getTefPayments(sale);
             const isMPProvider = config?.provider === "mercadopago" && !!config?.api_key;
             const isRefunding = refundingSaleId === sale.id;
+            const queueEntry = queueMap.get(sale.id);
 
             return (
               <motion.div
@@ -200,15 +213,35 @@ export default function Vendas() {
                           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-success/10 text-success">
                             Concluída
                           </span>
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-warning/10 text-warning">
-                            Pendente NFC-e
-                          </span>
+                          {queueEntry?.status === "processing" ? (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-primary/10 text-primary">
+                              <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                              Processando
+                            </span>
+                          ) : queueEntry?.status === "error" ? (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-destructive/10 text-destructive cursor-help">
+                                    Erro Fiscal
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent className="max-w-xs">
+                                  <p className="text-xs">{queueEntry.last_error || "Erro desconhecido"}</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          ) : (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-warning/10 text-warning">
+                              Pendente NFC-e
+                            </span>
+                          )}
                           <button
                             onClick={(e) => { e.stopPropagation(); setEmissionSale(sale); }}
                             className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-primary text-primary-foreground text-[10px] font-medium hover:opacity-90 transition-all"
                           >
                             <Send className="w-3 h-3" />
-                            Emitir
+                            {queueEntry?.status === "error" ? "Reemitir" : "Emitir"}
                           </button>
                         </>
                       ) : sale.status === "erro_fiscal" ? (
@@ -216,9 +249,18 @@ export default function Vendas() {
                           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-success/10 text-success">
                             Concluída
                           </span>
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-destructive/10 text-destructive">
-                            Erro NFC-e
-                          </span>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-destructive/10 text-destructive cursor-help">
+                                  Erro NFC-e
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent className="max-w-xs">
+                                <p className="text-xs">{queueEntry?.last_error || "Erro na emissão"}</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
                           <button
                             onClick={(e) => { e.stopPropagation(); setEmissionSale(sale); }}
                             className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-primary text-primary-foreground text-[10px] font-medium hover:opacity-90 transition-all"
