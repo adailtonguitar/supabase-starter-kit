@@ -1,5 +1,6 @@
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { formatCurrency } from "@/lib/mock-data";
+import { BarChart3 } from "lucide-react";
 
 interface Props {
   data: { date: string; total: number; count: number }[];
@@ -22,39 +23,44 @@ export function SalesChart({ data }: Props) {
   const hasData = data.some((d) => d.total > 0);
 
   return (
-    <div className="bg-card rounded-xl border border-border card-shadow p-4 sm:p-5">
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h3 className="text-sm font-semibold text-foreground">Vendas — Últimos 7 dias</h3>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Total: {formatCurrency(data.reduce((s, d) => s + d.total, 0))}
-          </p>
+    <div className="bg-card rounded-2xl border border-border p-5 sm:p-6">
+      <div className="flex items-center justify-between mb-5">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+            <BarChart3 className="w-4 h-4 text-primary" />
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-foreground">Vendas — Últimos 7 dias</h3>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Total: {formatCurrency(data.reduce((s, d) => s + d.total, 0))}
+            </p>
+          </div>
         </div>
-        <div className="text-xs text-muted-foreground">
+        <div className="text-xs font-mono font-semibold text-muted-foreground bg-muted px-2.5 py-1 rounded-full">
           {data.reduce((s, d) => s + d.count, 0)} vendas
         </div>
       </div>
       {hasData ? (
-        <ResponsiveContainer width="100%" height={200}>
+        <ResponsiveContainer width="100%" height={220}>
           <AreaChart data={chartData}>
             <defs>
               <linearGradient id="salesGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="hsl(168, 72%, 36%)" stopOpacity={0.3} />
-                <stop offset="100%" stopColor="hsl(168, 72%, 36%)" stopOpacity={0} />
+                <stop offset="0%" stopColor="hsl(168, 72%, 36%)" stopOpacity={0.4} />
+                <stop offset="100%" stopColor="hsl(168, 72%, 36%)" stopOpacity={0.02} />
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="hsl(220, 16%, 90%)" strokeOpacity={0.5} />
-            <XAxis dataKey="name" tick={{ fontSize: 11 }} stroke="hsl(220, 10%, 46%)" />
-            <YAxis tick={{ fontSize: 11 }} stroke="hsl(220, 10%, 46%)" tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} width={50} />
+            <CartesianGrid strokeDasharray="3 3" stroke="hsl(220, 16%, 90%)" strokeOpacity={0.4} />
+            <XAxis dataKey="name" tick={{ fontSize: 11, fontWeight: 500 }} stroke="hsl(220, 10%, 70%)" tickLine={false} axisLine={false} />
+            <YAxis tick={{ fontSize: 11 }} stroke="hsl(220, 10%, 70%)" tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} width={50} tickLine={false} axisLine={false} />
             <Tooltip
               formatter={(value: number) => [formatCurrency(value), "Vendas"]}
-              contentStyle={{ borderRadius: 8, border: "1px solid hsl(220, 16%, 90%)", fontSize: 12 }}
+              contentStyle={{ borderRadius: 12, border: "1px solid hsl(220, 16%, 90%)", fontSize: 12, boxShadow: "0 4px 12px rgba(0,0,0,0.1)" }}
             />
-            <Area type="monotone" dataKey="vendas" stroke="hsl(168, 72%, 36%)" strokeWidth={2.5} fill="url(#salesGrad)" />
+            <Area type="monotone" dataKey="vendas" stroke="hsl(168, 72%, 36%)" strokeWidth={2.5} fill="url(#salesGrad)" dot={{ r: 3, fill: "hsl(168, 72%, 36%)", strokeWidth: 2, stroke: "white" }} activeDot={{ r: 5, strokeWidth: 2 }} />
           </AreaChart>
         </ResponsiveContainer>
       ) : (
-        <div className="h-[200px] flex items-center justify-center text-sm text-muted-foreground">
+        <div className="h-[220px] flex items-center justify-center text-sm text-muted-foreground">
           Nenhuma venda nos últimos 7 dias
         </div>
       )}

@@ -1,10 +1,9 @@
-import { useState, useEffect, useCallback, useRef } from "react";
-import { Sparkles, Loader2, RefreshCw, AlertCircle } from "lucide-react";
+import { useState, useCallback, useRef } from "react";
+import { Sparkles, Loader2, RefreshCw, AlertCircle, BrainCircuit } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { useCompany } from "@/hooks/useCompany";
-import { supabase } from "@/integrations/supabase/client";
 
-const COOLDOWN_MS = 30_000; // 30s entre chamadas
+const COOLDOWN_MS = 30_000;
 
 export function AiInsightWidget() {
   const { companyId } = useCompany();
@@ -75,14 +74,16 @@ export function AiInsightWidget() {
     }
   }, [companyId]);
 
-  // Don't auto-fetch on mount to avoid rate limits
-  // User must click "Atualizar" to generate insight
-
   return (
-    <div className="bg-gradient-to-br from-primary/10 to-primary/5 rounded-xl p-5 border border-primary/20">
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-          <Sparkles className="w-4 h-4 text-primary" />
+    <div className="relative bg-gradient-to-br from-primary/8 via-primary/4 to-transparent rounded-2xl p-5 border border-primary/15 overflow-hidden">
+      {/* Decorative background */}
+      <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-3xl -translate-y-12 translate-x-12" />
+      
+      <div className="relative flex items-center justify-between mb-3">
+        <h3 className="text-sm font-bold text-foreground flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-xl bg-primary/15 flex items-center justify-center">
+            <BrainCircuit className="w-4 h-4 text-primary" />
+          </div>
           Insight IA
         </h3>
         {companyId && (
@@ -90,27 +91,27 @@ export function AiInsightWidget() {
             onClick={fetchInsight}
             disabled={loading || cooldown}
             title={cooldown ? "Aguarde 30s entre atualizações" : ""}
-            className="text-xs text-muted-foreground hover:text-primary transition-colors flex items-center gap-1 disabled:opacity-50"
+            className="text-xs text-muted-foreground hover:text-primary transition-colors flex items-center gap-1.5 disabled:opacity-50 px-3 py-1.5 rounded-full hover:bg-primary/10"
           >
-            <RefreshCw className={`w-3 h-3 ${loading ? "animate-spin" : ""}`} />
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
             Atualizar
           </button>
         )}
       </div>
 
       {loading && (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <div className="flex items-center gap-2.5 text-sm text-muted-foreground py-2">
           <Loader2 className="w-4 h-4 animate-spin text-primary" />
           Analisando seus dados...
         </div>
       )}
 
       {!loading && errorMsg && (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <AlertCircle className="w-4 h-4 text-warning shrink-0" />
+        <div className="flex items-start gap-2.5 text-sm text-muted-foreground">
+          <AlertCircle className="w-4 h-4 text-warning shrink-0 mt-0.5" />
           <div>
             <p>{errorMsg}</p>
-            <button onClick={fetchInsight} className="text-primary text-xs hover:underline mt-1">
+            <button onClick={fetchInsight} className="text-primary text-xs hover:underline mt-1.5 font-medium">
               Tentar novamente
             </button>
           </div>
