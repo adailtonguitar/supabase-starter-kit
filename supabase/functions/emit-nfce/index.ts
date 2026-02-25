@@ -79,10 +79,31 @@ const ICMS_RATES_BY_STATE: Record<string, number> = {
   SE: 19, SP: 18, TO: 20,
 };
 
-// ── CSTs that are tax-exempt (no ICMS calculation needed) ──
+// ── FCP (Fundo de Combate à Pobreza) rates by state ──
+// Only states that currently charge FCP on consumer goods
+const FCP_RATES_BY_STATE: Record<string, number> = {
+  AC: 0, AL: 1, AM: 2, AP: 0, BA: 2, CE: 0, DF: 2, ES: 0,
+  GO: 2, MA: 2, MG: 2, MS: 2, MT: 2, PA: 0, PB: 2, PE: 2,
+  PI: 2, PR: 0, RJ: 2, RN: 2, RO: 2, RR: 2, RS: 0, SC: 0,
+  SE: 2, SP: 0, TO: 2,
+};
+
+// ── CSTs that are tax-exempt (no ICMS/FCP calculation needed) ──
 const EXEMPT_CST = new Set(["40", "41", "50", "300", "400", "500"]);
 
-// ── Calculate ICMS for an item based on CST/CSOSN and state ──
+// ── Helper: compute FCP for an item ──
+function computeFcp(baseCalc: number, uf: string, itemFcpAliquota?: number): { percentual_fcp: number; valor_fcp: number; valor_base_calculo_fcp: number } | null {
+  const fcpRate = itemFcpAliquota ?? FCP_RATES_BY_STATE[uf] ?? 0;
+  if (fcpRate <= 0) return null;
+  const valorFcp = baseCalc * (fcpRate / 100);
+  return {
+    percentual_fcp: fcpRate,
+    valor_fcp: Math.round(valorFcp * 100) / 100,
+    valor_base_calculo_fcp: Math.round(baseCalc * 100) / 100,
+  };
+}
+
+// ── Calculate ICMS + FCP for an item based on CST/CSOSN and state ──
 function calculateIcmsForItem(item: any, uf: string, crt: number) {
   const cstCode = String(item.cst || "").trim();
   const isSimples = crt === 1 || crt === 2;
@@ -96,15 +117,18 @@ function calculateIcmsForItem(item: any, uf: string, crt: number) {
     if (["201", "202", "203"].includes(cstCode)) {
       return { csosn: cstCode, origem: item.origem || "0" };
     }
-    // CSOSN 900 = Outros - may need aliquota
+    // CSOSN 900 = Outros - may need aliquota + FCP
     if (cstCode === "900") {
       const aliq = item.icms_aliquota || ICMS_RATES_BY_STATE[uf] || 18;
-      const valor = ((item.qty || 1) * (item.unit_price || 0) - (item.discount || 0)) * (aliq / 100);
+      const baseCalc = (item.qty || 1) * (item.unit_price || 0) - (item.discount || 0);
+      const valor = baseCalc * (aliq / 100);
+      const fcp = computeFcp(baseCalc, uf, item.fcp_aliquota);
       return {
         csosn: "900",
         origem: item.origem || "0",
         aliquota: aliq,
         valor: Math.round(valor * 100) / 100,
+        ...(fcp ? fcp : {}),
       };
     }
     return { csosn: cstCode, origem: item.origem || "0" };
@@ -116,6 +140,7 @@ function calculateIcmsForItem(item: any, uf: string, crt: number) {
   }
 
   const baseCalc = (item.qty || 1) * (item.unit_price || 0) - (item.discount || 0);
+  const fcp = computeFcp(baseCalc, uf, item.fcp_aliquota);
 
   if (cstCode === "00") {
     // Tributada integralmente
@@ -128,6 +153,7 @@ function calculateIcmsForItem(item: any, uf: string, crt: number) {
       valor_base_calculo: Math.round(baseCalc * 100) / 100,
       aliquota: aliq,
       valor: Math.round(valor * 100) / 100,
+      ...(fcp ? fcp : {}),
     };
   }
 
@@ -137,6 +163,7 @@ function calculateIcmsForItem(item: any, uf: string, crt: number) {
     const reducao = item.icms_reducao || 0;
     const baseReduzida = baseCalc * (1 - reducao / 100);
     const valor = baseReduzida * (aliq / 100);
+    const fcpReduzido = computeFcp(baseReduzida, uf, item.fcp_aliquota);
     return {
       cst: "20",
       origem: item.origem || "0",
@@ -145,6 +172,7 @@ function calculateIcmsForItem(item: any, uf: string, crt: number) {
       valor_base_calculo: Math.round(baseReduzida * 100) / 100,
       aliquota: aliq,
       valor: Math.round(valor * 100) / 100,
+      ...(fcpReduzido ? fcpReduzido : {}),
     };
   }
 
@@ -160,6 +188,7 @@ function calculateIcmsForItem(item: any, uf: string, crt: number) {
         valor_base_calculo: Math.round(baseCalc * 100) / 100,
         aliquota: aliq,
         valor: Math.round(valor * 100) / 100,
+        ...(fcp ? fcp : {}),
       } : {}),
     };
   }
@@ -174,6 +203,7 @@ function calculateIcmsForItem(item: any, uf: string, crt: number) {
     valor_base_calculo: Math.round(baseCalc * 100) / 100,
     aliquota: aliq,
     valor: Math.round(valor * 100) / 100,
+    ...(fcp ? fcp : {}),
   };
 }
 
