@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,6 +8,32 @@ import { toast } from "sonner";
 import { Shield, FileText } from "lucide-react";
 
 export default function TermosFiscais() {
+  // Override body overflow:hidden so the page can scroll
+  useEffect(() => {
+    const root = document.getElementById("root");
+    const body = document.body;
+    const html = document.documentElement;
+    
+    body.style.overflow = "auto";
+    body.style.height = "auto";
+    html.style.overflow = "auto";
+    html.style.height = "auto";
+    if (root) {
+      root.style.overflow = "auto";
+      root.style.height = "auto";
+    }
+    
+    return () => {
+      body.style.overflow = "";
+      body.style.height = "";
+      html.style.overflow = "";
+      html.style.height = "";
+      if (root) {
+        root.style.overflow = "";
+        root.style.height = "";
+      }
+    };
+  }, []);
   const { acceptTerms } = useTermsAcceptance();
   const [checked, setChecked] = useState(false);
   const [submitting, setSubmitting] = useState(false);
