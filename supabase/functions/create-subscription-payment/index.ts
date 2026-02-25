@@ -1,0 +1,151 @@
+import { createClient } from "npm:@supabase/supabase-js@2.49.1";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+};
+
+const PLANS: Record<string, { title: string; price: number }> = {
+  essencial: { title: "Renovação Licença — Essencial", price: 149.9 },
+  profissional: { title: "Renovação Licença — Profissional", price: 199.9 },
+};
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    // Auth
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      { global: { headers: { Authorization: authHeader } } }
+    );
+
+    const token = authHeader.replace("Bearer ", "");
+    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
+    if (userError || !user) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const userId = user.id;
+    const userEmail = user.email ?? user.user_metadata?.email ?? null;
+    if (!userEmail) {
+      return new Response(
+        JSON.stringify({ error: "Usuário sem e-mail" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Get company_id
+    const { data: companyUser } = await supabase
+      .from("company_users")
+      .select("company_id")
+      .eq("user_id", userId)
+      .eq("is_active", true)
+      .limit(1)
+      .maybeSingle();
+
+    const companyId = companyUser?.company_id;
+
+    const { planKey } = await req.json();
+    const plan = PLANS[planKey];
+    if (!plan) {
+      return new Response(JSON.stringify({ error: "Plano inválido" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const MP_ACCESS_TOKEN =
+      Deno.env.get("MERCADOPAGO_ACCESS_TOKEN") ||
+      Deno.env.get("MERCADO_PAGO_ACCESS_TOKEN") ||
+      Deno.env.get("MP_ACCESS_TOKEN");
+
+    if (!MP_ACCESS_TOKEN) {
+      throw new Error("MERCADOPAGO_ACCESS_TOKEN not configured");
+    }
+
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const webhookUrl = `${supabaseUrl}/functions/v1/mercadopago-webhook`;
+
+    const origin =
+      req.headers.get("origin") ||
+      req.headers.get("referer") ||
+      "https://anthosystemcombr.lovable.app";
+
+    const preferenceBody = {
+      items: [
+        {
+          title: plan.title,
+          quantity: 1,
+          unit_price: plan.price,
+          currency_id: "BRL",
+        },
+      ],
+      payer: { email: userEmail },
+      external_reference: JSON.stringify({
+        user_id: userId,
+        company_id: companyId,
+        plan_key: planKey,
+        type: "subscription_renewal",
+      }),
+      notification_url: webhookUrl,
+      back_urls: {
+        success: `${origin}/dashboard?payment=success`,
+        failure: `${origin}/renovar?payment=failure`,
+        pending: `${origin}/renovar?payment=pending`,
+      },
+      auto_return: "approved",
+      payment_methods: { installments: 1 },
+    };
+
+    console.log("[create-subscription-payment] Creating preference with webhook:", webhookUrl);
+
+    const mpResponse = await fetch(
+      "https://api.mercadopago.com/checkout/preferences",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${MP_ACCESS_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(preferenceBody),
+      }
+    );
+
+    if (!mpResponse.ok) {
+      const mpError = await mpResponse.text();
+      console.error("[create-subscription-payment] MP error:", mpError);
+      throw new Error(`Mercado Pago error [${mpResponse.status}]`);
+    }
+
+    const mpData = await mpResponse.json();
+    console.log("[create-subscription-payment] Preference created:", mpData.id);
+
+    return new Response(
+      JSON.stringify({ url: mpData.init_point, preference_id: mpData.id }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  } catch (error: unknown) {
+    console.error("[create-subscription-payment] Error:", error);
+    const msg = error instanceof Error ? error.message : "Erro interno";
+    return new Response(JSON.stringify({ error: msg }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+});
