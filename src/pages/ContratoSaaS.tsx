@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { FileText, ArrowLeft } from "lucide-react";
@@ -6,6 +7,24 @@ import { useNavigate } from "react-router-dom";
 
 export default function ContratoSaaS() {
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const root = document.getElementById("root");
+    const body = document.body;
+    const html = document.documentElement;
+    body.style.overflow = "auto";
+    body.style.height = "auto";
+    html.style.overflow = "auto";
+    html.style.height = "auto";
+    if (root) { root.style.overflow = "auto"; root.style.height = "auto"; }
+    return () => {
+      body.style.overflow = "";
+      body.style.height = "";
+      html.style.overflow = "";
+      html.style.height = "";
+      if (root) { root.style.overflow = ""; root.style.height = ""; }
+    };
+  }, []);
 
   return (
     <div className="min-h-screen bg-background py-8 px-4 overflow-y-auto">
