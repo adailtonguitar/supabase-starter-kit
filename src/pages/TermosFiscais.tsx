@@ -5,7 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useTermsAcceptance } from "@/hooks/useTermsAcceptance";
 import { toast } from "sonner";
-import { Shield, FileText } from "lucide-react";
+import { Shield, FileText, ExternalLink } from "lucide-react";
+import { Link } from "react-router-dom";
 
 export default function TermosFiscais() {
   // Override body overflow:hidden so the page can scroll
@@ -213,6 +214,13 @@ export default function TermosFiscais() {
               Responsabilidade Fiscal do ANTHOSYSTEM, declarando estar ciente de
               que a responsabilidade tributária é exclusiva do meu estabelecimento.
             </label>
+          </div>
+
+          <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+            <ExternalLink className="w-4 h-4" />
+            <Link to="/contrato" target="_blank" className="text-primary hover:underline">
+              Consultar contrato completo (PDF disponível para download)
+            </Link>
           </div>
 
           <Button
