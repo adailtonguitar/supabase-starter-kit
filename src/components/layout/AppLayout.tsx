@@ -45,10 +45,18 @@ export function AppLayout({ children }: AppLayoutProps) {
       }
     };
     hide();
-    // Tawk may load after mount
-    const timer = setTimeout(hide, 2000);
+    // Tawk may load late — keep trying every 500ms for 10s
+    const interval = setInterval(hide, 500);
+    const stopTimer = setTimeout(() => clearInterval(interval), 10000);
+
+    // Also listen for Tawk onLoad event
+    if ((window as any).Tawk_API) {
+      (window as any).Tawk_API.onLoad = hide;
+    }
+
     return () => {
-      clearTimeout(timer);
+      clearInterval(interval);
+      clearTimeout(stopTimer);
       if ((window as any).Tawk_API?.showWidget) {
         (window as any).Tawk_API.showWidget();
       }
