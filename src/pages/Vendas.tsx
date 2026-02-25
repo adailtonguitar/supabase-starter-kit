@@ -177,30 +177,76 @@ export default function Vendas() {
                         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-destructive/10 text-destructive">
                           Cancelada
                         </span>
-                      ) : (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-success/10 text-success">
-                          Concluída
-                        </span>
-                      )}
-                      {sale.status !== "cancelada" && (
-                        isNfceEmitida ? (
+                      ) : sale.status === "autorizada" || isNfceEmitida ? (
+                        <>
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-success/10 text-success">
+                            Concluída
+                          </span>
                           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-primary/10 text-primary">
                             NFC-e Emitida
                           </span>
-                        ) : (
-                          <>
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-warning/10 text-warning">
-                              Pendente NFC-e
-                            </span>
-                            <button
-                              onClick={(e) => { e.stopPropagation(); setEmissionSale(sale); }}
-                              className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-primary text-primary-foreground text-[10px] font-medium hover:opacity-90 transition-all"
-                            >
-                              <Send className="w-3 h-3" />
-                              Emitir
-                            </button>
-                          </>
-                        )
+                        </>
+                      ) : sale.status === "emitida" ? (
+                        <>
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-success/10 text-success">
+                            Concluída
+                          </span>
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-primary/10 text-primary">
+                            NFC-e Emitida
+                          </span>
+                        </>
+                      ) : sale.status === "pendente_fiscal" ? (
+                        <>
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-success/10 text-success">
+                            Concluída
+                          </span>
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-warning/10 text-warning">
+                            Pendente NFC-e
+                          </span>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setEmissionSale(sale); }}
+                            className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-primary text-primary-foreground text-[10px] font-medium hover:opacity-90 transition-all"
+                          >
+                            <Send className="w-3 h-3" />
+                            Emitir
+                          </button>
+                        </>
+                      ) : sale.status === "erro_fiscal" ? (
+                        <>
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-success/10 text-success">
+                            Concluída
+                          </span>
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-destructive/10 text-destructive">
+                            Erro NFC-e
+                          </span>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setEmissionSale(sale); }}
+                            className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-primary text-primary-foreground text-[10px] font-medium hover:opacity-90 transition-all"
+                          >
+                            <Send className="w-3 h-3" />
+                            Reemitir
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-success/10 text-success">
+                            Concluída
+                          </span>
+                          {!isNfceEmitida && (
+                            <>
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-muted text-muted-foreground">
+                                Sem NFC-e
+                              </span>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setEmissionSale(sale); }}
+                                className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-primary text-primary-foreground text-[10px] font-medium hover:opacity-90 transition-all"
+                              >
+                                <Send className="w-3 h-3" />
+                                Emitir
+                              </button>
+                            </>
+                          )}
+                        </>
                       )}
                     </div>
                   </div>
