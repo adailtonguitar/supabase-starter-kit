@@ -236,84 +236,95 @@ export function usePDV() {
       setContingencyMode(true);
 
       const offlineSaleId = crypto.randomUUID();
+      let contingencyNumber = "900001";
 
-      let configId = "";
-      let serie = 1;
-      let emitente: { cnpj: string; name: string; ie: string; uf: string; crt: number } | undefined;
-      let environment: "homologacao" | "producao" = "homologacao";
       try {
-        const { data: configs } = await supabase
-          .from("fiscal_configs")
-          .select("id, serie, environment, crt")
-          .eq("company_id", companyId)
-          .eq("doc_type", "nfce")
-          .eq("is_active", true)
-          .limit(1);
-        if (configs && configs.length > 0) {
-          configId = configs[0].id;
-          serie = configs[0].serie || 1;
-          environment = configs[0].environment || "homologacao";
-        }
+        let configId = "";
+        let serie = 1;
+        let emitente: { cnpj: string; name: string; ie: string; uf: string; crt: number } | undefined;
+        let environment: "homologacao" | "producao" = "homologacao";
+        try {
+          const { data: configs } = await supabase
+            .from("fiscal_configs")
+            .select("id, serie, environment, crt")
+            .eq("company_id", companyId)
+            .eq("doc_type", "nfce")
+            .eq("is_active", true)
+            .limit(1);
+          if (configs && configs.length > 0) {
+            configId = configs[0].id;
+            serie = configs[0].serie || 1;
+            environment = configs[0].environment || "homologacao";
+          }
 
-        const { data: company } = await supabase
-          .from("companies")
-          .select("cnpj, name, state_registration, address_state")
-          .eq("id", companyId)
-          .single();
+          const { data: company } = await supabase
+            .from("companies")
+            .select("cnpj, name, state_registration, address_state")
+            .eq("id", companyId)
+            .single();
 
-        if (company) {
-          emitente = {
-            cnpj: company.cnpj || "",
-            name: company.name || "",
-            ie: company.state_registration || "",
-            uf: company.address_state || "SP",
-            crt: configs?.[0]?.crt || 1,
-          };
-        }
-      } catch { /* use defaults */ }
+          if (company) {
+            emitente = {
+              cnpj: company.cnpj || "",
+              name: company.name || "",
+              ie: company.state_registration || "",
+              uf: company.address_state || "SP",
+              crt: configs?.[0]?.crt || 1,
+            };
+          }
+        } catch { /* use defaults */ }
 
-      const contingencyPayload = await buildContingencyPayload({
-        saleId: offlineSaleId,
-        companyId,
-        configId,
-        serie,
-        emitente,
-        environment,
-        form: {
-          nat_op: "VENDA DE MERCADORIA",
-          payment_method: payments[0]?.method === "dinheiro" ? "01" : payments[0]?.method === "pix" ? "17" : "99",
-          payment_value: total,
-          change: payments[0]?.change_amount || 0,
-          items: cartItems.map(item => ({
-            name: item.name,
-            ncm: item.ncm || "",
-            cfop: "5102",
-            cst: "",
-            unit: item.unit || "UN",
-            qty: item.quantity,
-            unit_price: item.price,
-            discount: item.price * (itemDiscounts[item.id] || 0) / 100 * item.quantity,
-            pis_cst: "49",
-            cofins_cst: "49",
-            icms_aliquota: 0,
-          })),
-        },
-      });
+        const contingencyPayload = await buildContingencyPayload({
+          saleId: offlineSaleId,
+          companyId,
+          configId,
+          serie,
+          emitente,
+          environment,
+          form: {
+            nat_op: "VENDA DE MERCADORIA",
+            payment_method: payments[0]?.method === "dinheiro" ? "01" : payments[0]?.method === "pix" ? "17" : "99",
+            payment_value: total,
+            change: payments[0]?.change_amount || 0,
+            items: cartItems.map(item => ({
+              name: item.name,
+              ncm: item.ncm || "",
+              cfop: "5102",
+              cst: "",
+              unit: item.unit || "UN",
+              qty: item.quantity,
+              unit_price: item.price,
+              discount: item.price * (itemDiscounts[item.id] || 0) / 100 * item.quantity,
+              pis_cst: "49",
+              cofins_cst: "49",
+              icms_aliquota: 0,
+            })),
+          },
+        });
 
-      await queueOperation("fiscal_contingency", contingencyPayload as unknown as Record<string, unknown>, 1, 5);
+        contingencyNumber = String(contingencyPayload.contingency_number || contingencyNumber);
 
-      await queueOperation("sale", {
-        company_id: companyId,
-        total,
-        payment_method: payments[0]?.method || "outros",
-        items: saleItems,
-        user_id: userId,
-        created_at: new Date().toISOString(),
-      }, 2, 3);
+        await queueOperation("fiscal_contingency", contingencyPayload as unknown as Record<string, unknown>, 1, 5);
+      } catch (contErr: any) {
+        console.error("[PDV] Contingency payload failed:", contErr.message);
+      }
+
+      try {
+        await queueOperation("sale", {
+          company_id: companyId,
+          total,
+          payment_method: payments[0]?.method || "outros",
+          items: saleItems,
+          user_id: userId,
+          created_at: new Date().toISOString(),
+        }, 2, 3);
+      } catch (queueErr: any) {
+        console.error("[PDV] Queue sale failed:", queueErr.message);
+      }
 
       setContingencySaleIds(prev => new Set(prev).add(offlineSaleId));
       clearCart();
-      return { saleId: offlineSaleId, nfceNumber: `CONT-${contingencyPayload.contingency_number}`, fiscalDocId: undefined, isContingency: true };
+      return { saleId: offlineSaleId, nfceNumber: `CONT-${contingencyNumber}`, fiscalDocId: undefined, isContingency: true };
     }
   }, [companyId, currentSession, cartItems, subtotal, globalDiscountPercent, globalDiscountValue, total, itemDiscounts, clearCart, queueOperation]);
 
