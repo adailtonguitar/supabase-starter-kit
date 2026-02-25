@@ -493,12 +493,77 @@ Deno.serve(async (req) => {
 
     // ─── EMIT CONTINGENCY NFC-e (post-sync) ───
     if (action === "emit_contingency") {
-      const { sale_id, company_id, config_id, contingency_number, serie, form: contForm } = body;
+      const { sale_id, company_id, config_id, contingency_number, serie, form: contForm, signed_xml } = body;
 
       if (!company_id || !contForm) {
         return jsonResponse({ error: "Dados de contingência incompletos" }, 400);
       }
 
+      // If we have a locally signed XML, save it directly and skip Nuvem Fiscal emission
+      if (signed_xml) {
+        console.log(`[Contingency] Received locally signed XML for contingency #${contingency_number}`);
+
+        // Get config for metadata
+        let configData = null;
+        if (config_id) {
+          const { data } = await supabase
+            .from("fiscal_configs")
+            .select("*")
+            .eq("id", config_id)
+            .single();
+          configData = data;
+        }
+        if (!configData) {
+          const { data } = await supabase
+            .from("fiscal_configs")
+            .select("*")
+            .eq("company_id", company_id)
+            .eq("doc_type", "nfce")
+            .eq("is_active", true)
+            .single();
+          configData = data;
+        }
+
+        // Extract access key from signed XML
+        const keyMatch = (signed_xml as string).match(/Id="NFe(\d{44})"/);
+        const accessKey = keyMatch ? keyMatch[1] : null;
+
+        const totalValue = (contForm.items || []).reduce(
+          (sum: number, it: any) => sum + (it.qty || 1) * (it.unit_price || 0) - (it.discount || 0),
+          0
+        );
+
+        // Store the signed XML as fiscal document
+        await supabase.from("fiscal_documents").insert({
+          company_id,
+          sale_id: sale_id || null,
+          doc_type: "nfce",
+          number: contingency_number,
+          serie: serie || configData?.serie || 1,
+          access_key: accessKey,
+          status: "contingencia",
+          total_value: totalValue,
+          customer_name: contForm.customer_name || null,
+          customer_cpf_cnpj: contForm.customer_doc?.replace(/\D/g, "") || null,
+          payment_method: contForm.payment_method,
+          environment: configData?.environment || "homologacao",
+          is_contingency: true,
+          xml_content: signed_xml,
+        });
+
+        // Backup the signed XML
+        await backupXml(supabase, company_id, "nfce", accessKey, contingency_number, signed_xml, "emissao");
+
+        return jsonResponse({
+          success: true,
+          access_key: accessKey,
+          number: contingency_number,
+          status: "contingencia",
+          signed_locally: true,
+        });
+      }
+
+      // No signed XML — fall through to normal emit via Nuvem Fiscal
       // Get config
       let configData = null;
       if (config_id) {
@@ -525,7 +590,6 @@ Deno.serve(async (req) => {
       }
 
       // Now emit as a normal NFC-e but with contingency reference
-      // Re-use the emit logic by setting body fields and falling through
       body.sale_id = sale_id;
       body.company_id = company_id;
       body.config_id = configData.id;
