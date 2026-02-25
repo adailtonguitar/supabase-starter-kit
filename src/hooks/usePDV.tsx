@@ -139,7 +139,7 @@ export function usePDV() {
     }
   }, [products, addToCart]);
 
-  const finalizeSale = useCallback(async (payments: PaymentResult[]) => {
+  const finalizeSale = useCallback(async (payments: PaymentResult[], options?: { skipFiscal?: boolean }) => {
     if (!companyId || !currentSession) throw new Error("Sessão de caixa não encontrada");
 
     // Get user_id
@@ -190,6 +190,7 @@ export function usePDV() {
       let fiscalDocId: string | undefined;
       let fiscalPending = false;
 
+      if (!options?.skipFiscal) {
       try {
         // Only attempt NFC-e if fiscal config exists for this company
         const { data: fiscalConfig } = await supabase
@@ -264,6 +265,7 @@ export function usePDV() {
           await supabase.from("sales").update({ status: "pendente_fiscal" } as any).eq("id", saleId);
         } catch { /* best effort */ }
       }
+      } // end skipFiscal check
 
       // Update local product stock state
       setProducts(prev => prev.map(p => {
