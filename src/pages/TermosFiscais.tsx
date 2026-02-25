@@ -30,7 +30,7 @@ export default function TermosFiscais() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
+    <div className="min-h-screen bg-background flex items-center justify-center p-4 overflow-y-auto">
       <Card className="w-full max-w-3xl">
         <CardHeader className="text-center space-y-2">
           <div className="flex justify-center">
