@@ -7,6 +7,7 @@ const corsHeaders = {
 };
 
 const PLANS: Record<string, { title: string; price: number }> = {
+  teste: { title: "Teste de Pagamento", price: 1.0 },
   essencial: { title: "Renovação Licença — Essencial", price: 149.9 },
   profissional: { title: "Renovação Licença — Profissional", price: 199.9 },
 };
