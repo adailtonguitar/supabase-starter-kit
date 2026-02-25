@@ -9,6 +9,7 @@ import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { useCompany } from "@/hooks/useCompany";
 import { useAdminRole } from "@/hooks/useAdminRole";
 import { SubscriptionProvider, useSubscription } from "@/hooks/useSubscription";
+import { PlanProvider } from "@/hooks/usePlanFeatures";
 import { LocalDBProvider } from "@/components/providers/LocalDBProvider";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -392,9 +393,11 @@ const App = () => (
           <ScrollToTop />
           <AuthProvider>
             <SubscriptionProvider>
-              <LocalDBProvider>
-                <AppRoutes />
-              </LocalDBProvider>
+              <PlanProvider>
+                <LocalDBProvider>
+                  <AppRoutes />
+                </LocalDBProvider>
+              </PlanProvider>
             </SubscriptionProvider>
           </AuthProvider>
         </BrowserRouter>
