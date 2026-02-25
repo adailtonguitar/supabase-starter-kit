@@ -4,6 +4,7 @@ import { CreditCard, Clock, Shield, CheckCircle, ArrowRight, Loader2, Zap } from
 import { Button } from "@/components/ui/button";
 import { PLANS, useSubscription } from "@/hooks/useSubscription";
 import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Navigate } from "react-router-dom";
 import { format } from "date-fns";
@@ -12,7 +13,7 @@ import { ptBR } from "date-fns/locale";
 export default function Renovar() {
   const { user, signOut } = useAuth();
   const {
-    subscribed, planKey, subscriptionEnd, createCheckout,
+    subscribed, planKey, subscriptionEnd,
     trialActive, trialDaysLeft, wasSubscriber,
     gracePeriodActive, graceDaysLeft, subscriptionOverdue,
     loading: subLoading,
@@ -28,7 +29,14 @@ export default function Renovar() {
   const handleRenew = async (key: string) => {
     try {
       setLoadingPlan(key);
-      await createCheckout(key);
+      // Use dedicated subscription payment function (sets notification_url for webhook)
+      const { data, error } = await supabase.functions.invoke("create-subscription-payment", {
+        body: { planKey: key },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      if (!data?.url) throw new Error("URL de pagamento não retornada");
+      window.location.href = data.url;
     } catch (err: any) {
       toast.error(err?.message || "Erro ao iniciar pagamento. Tente novamente.");
     } finally {
