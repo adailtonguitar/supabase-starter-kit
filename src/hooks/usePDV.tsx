@@ -194,7 +194,7 @@ export function usePDV() {
         // Only attempt NFC-e if fiscal config exists for this company
         const { data: fiscalConfig } = await supabase
           .from("fiscal_configs")
-          .select("id")
+          .select("id, crt")
           .eq("company_id", companyId)
           .eq("doc_type", "nfce")
           .eq("is_active", true)
@@ -202,28 +202,42 @@ export function usePDV() {
           .maybeSingle();
 
         if (fiscalConfig) {
-          // Build fiscal items with CST/CSOSN from product data
+          const crt = fiscalConfig.crt || 1;
+          const defaultCst = (crt === 1 || crt === 2) ? "102" : "00";
+
           const fiscalItems = cartItems.map(item => ({
             product_id: item.id,
             name: item.name,
             ncm: item.ncm || "",
             cfop: "5102",
-            cst: "102",
+            cst: defaultCst,
             origem: "0",
             unit: item.unit || "UN",
             qty: item.quantity,
             unit_price: item.price,
             discount: item.price * (itemDiscounts[item.id] || 0) / 100 * item.quantity,
+            pis_cst: "49",
+            cofins_cst: "49",
           }));
+
+          const paymentMethodMap: Record<string, string> = {
+            dinheiro: "01", credito: "03", debito: "04", pix: "17", voucher: "05",
+          };
 
           const { data: fiscalData, error: fiscalErr } = await supabase.functions.invoke("emit-nfce", {
             body: {
               action: "emit",
               sale_id: saleId,
               company_id: companyId,
-              items: fiscalItems,
-              total,
-              payments: paymentsSummary,
+              config_id: fiscalConfig.id,
+              form: {
+                nat_op: "VENDA DE MERCADORIA",
+                crt,
+                payment_method: paymentMethodMap[payments[0]?.method] || "99",
+                payment_value: total,
+                change: payments[0]?.change_amount || 0,
+                items: fiscalItems,
+              },
             },
           });
 
