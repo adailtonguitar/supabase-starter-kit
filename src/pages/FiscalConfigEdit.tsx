@@ -20,6 +20,7 @@ import {
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { localSignerService, type CertificateInfo } from "@/services/WebPKIService";
+import { storeCertificateA1 } from "@/services/LocalXmlSigner";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
 import forge from "node-forge";
@@ -292,7 +293,19 @@ export default function FiscalConfigEdit() {
                             setCertExpiry(validTo.toISOString().split("T")[0]);
                           }
                           setCertFile(file.name);
-                          toast.success("Certificado A1 validado com sucesso!");
+
+                          // Store in IndexedDB for offline contingency signing
+                          if (companyId) {
+                            const storeResult = await storeCertificateA1(arrayBuffer, certPassword, companyId);
+                            if (storeResult.success) {
+                              toast.success(`Certificado A1 validado e armazenado para contingência offline! (${storeResult.subject})`);
+                            } else {
+                              toast.success("Certificado A1 validado!");
+                              toast.warning(`Aviso: não foi possível armazenar para contingência: ${storeResult.error}`);
+                            }
+                          } else {
+                            toast.success("Certificado A1 validado com sucesso!");
+                          }
                         } catch {
                           toast.error("Senha incorreta ou certificado inválido.");
                           e.target.value = "";
@@ -305,7 +318,7 @@ export default function FiscalConfigEdit() {
               </div>
               <div className="flex items-center gap-2 p-3 rounded-lg bg-primary/10 text-primary text-xs">
                 <Shield className="w-4 h-4 flex-shrink-0" />
-                O certificado A1 é validado localmente. A senha e os dados são usados para autenticar a emissão de documentos fiscais.
+                O certificado A1 é validado e armazenado localmente (IndexedDB) para assinatura digital em modo contingência offline. A chave privada nunca sai do navegador.
               </div>
             </>
           ) : (

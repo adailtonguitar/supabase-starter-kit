@@ -187,10 +187,12 @@ export function usePDV() {
       // Get fiscal config for contingency payload
       let configId = "";
       let serie = 1;
+      let emitente: { cnpj: string; name: string; ie: string; uf: string; crt: number } | undefined;
+      let environment: "homologacao" | "producao" = "homologacao";
       try {
         const { data: configs } = await supabase
           .from("fiscal_configs")
-          .select("id, serie")
+          .select("id, serie, environment, crt")
           .eq("company_id", companyId)
           .eq("doc_type", "nfce")
           .eq("is_active", true)
@@ -198,15 +200,35 @@ export function usePDV() {
         if (configs && configs.length > 0) {
           configId = configs[0].id;
           serie = configs[0].serie || 1;
+          environment = configs[0].environment || "homologacao";
+        }
+
+        // Get company data for XML signing
+        const { data: company } = await supabase
+          .from("companies")
+          .select("cnpj, name, state_registration, address_state")
+          .eq("id", companyId)
+          .single();
+
+        if (company) {
+          emitente = {
+            cnpj: company.cnpj || "",
+            name: company.name || "",
+            ie: company.state_registration || "",
+            uf: company.address_state || "SP",
+            crt: configs?.[0]?.crt || 1,
+          };
         }
       } catch { /* ignore - use defaults */ }
 
-      // Build contingency NFC-e payload
+      // Build contingency NFC-e payload (with local XML signing if A1 cert available)
       const contingencyPayload = await buildContingencyPayload({
         saleId: offlineSaleId,
         companyId,
         configId,
         serie,
+        emitente,
+        environment,
         form: {
           nat_op: "VENDA DE MERCADORIA",
           payment_method: payments[0]?.method === "dinheiro" ? "01" : payments[0]?.method === "pix" ? "17" : "99",
