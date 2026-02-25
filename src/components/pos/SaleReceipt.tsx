@@ -35,6 +35,9 @@ export function SaleReceipt({ items, total, payments, onClose, companyName, nfce
     const changeHtml = changeAmount > 0 ? `<div class="row bold"><span>Troco</span><span>${formatCurrency(changeAmount)}</span></div>` : "";
     const nfceHtml = nfceNumber ? `<p class="center">NFC-e: ${nfceNumber}</p>` : "";
 
+    const now = new Date().toLocaleString("pt-BR");
+    const qtyTotal = (items || []).reduce((s: number, i: any) => s + (i.quantity || 1), 0);
+
     const printWindow = window.open("", "_blank", "width=320,height=600");
     if (!printWindow) return;
 
@@ -43,26 +46,38 @@ export function SaleReceipt({ items, total, payments, onClose, companyName, nfce
         <head>
           <title>Cupom</title>
           <style>
-            body { font-family: monospace; font-size: 12px; width: 280px; margin: 0 auto; padding: 10px; }
+            @page { size: 80mm auto; margin: 0; }
+            * { box-sizing: border-box; margin: 0; padding: 0; }
+            body { font-family: 'Courier New', monospace; font-size: 11px; width: 72mm; max-width: 72mm; margin: 0 auto; padding: 2mm; line-height: 1.4; color: #000; }
             .center { text-align: center; }
             .bold { font-weight: bold; }
-            .line { border-top: 1px dashed #000; margin: 6px 0; }
-            .row { display: flex; justify-content: space-between; }
-            .total { font-size: 16px; font-weight: bold; margin: 8px 0; }
-            h2 { margin: 4px 0; font-size: 14px; }
-            p { margin: 2px 0; }
+            .dashed { border-top: 1px dashed #000; margin: 3px 0; }
+            .row { display: flex; justify-content: space-between; gap: 4px; }
+            .row span:last-child { text-align: right; white-space: nowrap; }
+            .item-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+            .total-row { font-size: 14px; font-weight: bold; margin: 4px 0; }
+            .sm { font-size: 9px; }
+            h2 { font-size: 13px; margin: 2px 0; }
           </style>
         </head>
         <body>
-          <div class="center"><h2>${companyName || "Cupom de Venda"}</h2><div class="line"></div></div>
+          <div class="center">
+            <h2>${companyName || "CUPOM DE VENDA"}</h2>
+            <p class="sm">${now}</p>
+          </div>
+          <div class="dashed"></div>
+          <div class="row bold"><span>QTD ITEM</span><span>VALOR</span></div>
+          <div class="dashed"></div>
           ${itemsHtml}
-          <div class="line"></div>
-          <div class="center total">TOTAL: ${formatCurrency(total)}</div>
+          <div class="dashed"></div>
+          <div class="row total-row"><span>TOTAL</span><span>${formatCurrency(total)}</span></div>
+          <div class="dashed"></div>
           ${paymentsHtml}
           ${changeHtml}
-          <div class="line"></div>
+          <div class="dashed"></div>
+          <p class="center sm">Qtd. total de itens: ${qtyTotal}</p>
           ${nfceHtml}
-          <p class="center" style="margin-top:8px;font-size:10px">Obrigado pela preferência!</p>
+          <p class="center sm" style="margin-top:4px">Obrigado pela preferência!</p>
           <script>window.onload = function() { window.print(); window.close(); }<\/script>
         </body>
       </html>
