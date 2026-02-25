@@ -14,6 +14,7 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { ScrollToTop } from "@/components/ScrollToTop";
 import { OnboardingWizard } from "@/components/onboarding/OnboardingWizard";
+import { useTermsAcceptance } from "@/hooks/useTermsAcceptance";
 import { toast } from "sonner";
 
 // Lazy-loaded pages for code splitting
@@ -72,6 +73,7 @@ const Terminais = lazy(() => import("./pages/Terminais"));
 const Admin = lazy(() => import("./pages/Admin"));
 const Ajuda = lazy(() => import("./pages/Ajuda"));
 const Renovar = lazy(() => import("./pages/Renovar"));
+const TermosFiscais = lazy(() => import("./pages/TermosFiscais"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -95,6 +97,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { companyId, loading: companyLoading } = useCompany();
   const { subscribed, trialExpired, subscriptionOverdue, blocked, loading: subLoading } = useSubscription();
   const { isSuperAdmin, loading: adminLoading } = useAdminRole();
+  const { accepted: termsAccepted, loading: termsLoading } = useTermsAcceptance();
   const hasSignedOut = useRef(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [companyCheckDone, setCompanyCheckDone] = useState(false);
@@ -157,7 +160,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     }
   }, [user]);
 
-  const isStillLoading = loading || companyLoading || subLoading || adminLoading || (!companyId && !companyCheckDone);
+  const isStillLoading = loading || companyLoading || subLoading || adminLoading || termsLoading || (!companyId && !companyCheckDone);
 
   if (isStillLoading && !timedOut) {
     return (
@@ -174,6 +177,15 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   }
 
   if (!companyId && !showOnboarding) return <Navigate to="/" replace />;
+
+  // Block until terms are accepted (super_admin bypasses)
+  if (!isSuperAdmin && !termsAccepted) {
+    return (
+      <Suspense fallback={<PageSpinner />}>
+        <TermosFiscais />
+      </Suspense>
+    );
+  }
 
   // Kill switch or subscription block (super_admin bypasses)
   if (!isSuperAdmin && (blocked || (trialExpired && !subscribed) || subscriptionOverdue)) {
