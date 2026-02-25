@@ -227,6 +227,15 @@ export default function Vendas() {
                             Reemitir
                           </button>
                         </>
+                      ) : sale.status === "contingencia" ? (
+                        <>
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-success/10 text-success">
+                            Concluída
+                          </span>
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-orange-500/10 text-orange-500">
+                            Contingência
+                          </span>
+                        </>
                       ) : (
                         <>
                           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-success/10 text-success">
