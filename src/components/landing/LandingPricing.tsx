@@ -9,14 +9,12 @@ import { toast } from "sonner";
 
 const plans = [
   {
-    name: "Essencial",
-    price: "149,90",
-    desc: "Para minimercados e mercearias",
+    name: "Starter",
+    price: "99,90",
+    desc: "Para pequenos comércios e mercearias",
     icon: Zap,
     features: [
-      "1 terminal PDV",
-      "Até 500 produtos",
-      "Até 200 NFC-e/mês",
+      "3 sessões simultâneas",
       "Controle de estoque e validade",
       "Financeiro básico",
       "Relatórios de vendas",
@@ -24,26 +22,40 @@ const plans = [
       "Suporte por e-mail",
     ],
     highlighted: false,
-    planKey: PLANS.essencial.key,
+    planKey: PLANS.starter.key,
   },
   {
-    name: "Profissional",
+    name: "Business",
     price: "199,90",
     desc: "Para supermercados em crescimento",
     icon: Star,
     features: [
-      "Até 5 terminais PDV",
-      "Produtos ilimitados",
-      "NF-e + NFC-e ilimitadas",
-      "Controle de lotes e validade",
-      "Relatórios com IA",
+      "8 sessões simultâneas",
+      "Emissão de NFC-e",
+      "Análise Inteligente com IA",
       "Multi-usuários e permissões",
       "Programa de fidelidade",
       "Curva ABC e painel de lucro",
       "Suporte prioritário WhatsApp",
     ],
     highlighted: true,
-    planKey: PLANS.profissional.key,
+    planKey: PLANS.business.key,
+  },
+  {
+    name: "Pro",
+    price: "349,90",
+    desc: "Para redes e operações avançadas",
+    icon: Star,
+    features: [
+      "Sessões ilimitadas",
+      "Todos os módulos inclusos",
+      "NF-e + NFC-e ilimitadas",
+      "Relatórios avançados com IA",
+      "Controle de lotes e validade",
+      "Suporte dedicado",
+    ],
+    highlighted: false,
+    planKey: PLANS.pro.key,
   },
 ];
 
@@ -87,7 +99,7 @@ export function LandingPricing() {
           </motion.div>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-6 max-w-3xl mx-auto items-start">
+        <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto items-start">
           {plans.map((plan, i) => (
             <motion.div
               key={plan.name}
