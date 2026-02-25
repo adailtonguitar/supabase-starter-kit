@@ -7,13 +7,14 @@ const corsHeaders = {
 };
 
 const NUVEM_FISCAL_API = "https://api.nuvemfiscal.com.br";
+const NUVEM_FISCAL_AUTH = "https://auth.nuvemfiscal.com.br";
 
 async function getNuvemFiscalToken(): Promise<string> {
   const clientId = Deno.env.get("NUVEM_FISCAL_CLIENT_ID");
   const clientSecret = Deno.env.get("NUVEM_FISCAL_CLIENT_SECRET");
   if (!clientId || !clientSecret) throw new Error("Credenciais Nuvem Fiscal não configuradas");
 
-  const resp = await fetch(`${NUVEM_FISCAL_API}/auth/token`, {
+  const resp = await fetch(`${NUVEM_FISCAL_AUTH}/oauth/token`, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
