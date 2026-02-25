@@ -42,7 +42,18 @@ AS $$
 DECLARE
   v_company_id UUID;
   v_plan TEXT;
+  v_is_super_admin BOOLEAN;
 BEGIN
+  -- Check if user is super_admin → unlimited sessions
+  SELECT EXISTS(
+    SELECT 1 FROM public.admin_roles
+    WHERE user_id = p_user_id AND role = 'super_admin'
+  ) INTO v_is_super_admin;
+
+  IF v_is_super_admin THEN
+    RETURN 0; -- unlimited
+  END IF;
+
   -- Get user's company
   SELECT company_id INTO v_company_id
   FROM public.company_users
@@ -50,7 +61,7 @@ BEGIN
   LIMIT 1;
 
   IF v_company_id IS NULL THEN
-    RETURN 1; -- Default: 1 session
+    RETURN 1;
   END IF;
 
   -- Get company plan
@@ -64,7 +75,7 @@ BEGIN
   ELSIF v_plan = 'business' THEN
     RETURN 3;
   ELSIF v_plan = 'pro' THEN
-    RETURN 0; -- 0 = unlimited
+    RETURN 0;
   END IF;
 
   RETURN 1;
