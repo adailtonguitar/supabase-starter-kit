@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import {
   FileText, Send, Loader2, CheckCircle, AlertTriangle, X,
-  Plus, Trash2, User, Package, CreditCard, Receipt, Info, ShieldAlert
+  Plus, Trash2, User, Package, CreditCard, Receipt, Info, ShieldAlert, Lock
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
@@ -9,6 +9,7 @@ import { formatCurrency } from "@/lib/mock-data";
 import { toast } from "sonner";
 import { validateCstCsosn, getSuggestedCodes, type TaxRegime, type CstCsosnCode } from "@/lib/cst-csosn-validator";
 import { parseSefazRejection, type SefazRejection } from "@/lib/sefaz-rejection-parser";
+import { usePlanFeatures } from "@/hooks/usePlanFeatures";
 
 interface NfceEmissionDialogProps {
   sale: any;
@@ -68,6 +69,7 @@ const mapPaymentToFiscal = (method: string): string => {
 
 export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: NfceEmissionDialogProps) {
   const { companyId } = useCompany();
+  const plan = usePlanFeatures();
   const [emitting, setEmitting] = useState(false);
   const [step, setStep] = useState<"edit" | "success" | "error">("edit");
   const [errorMsg, setErrorMsg] = useState("");
@@ -158,6 +160,19 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
   }, [open, sale]);
 
   if (!open || !sale) return null;
+
+  if (!plan.canUseFiscal()) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => onOpenChange(false)}>
+        <div className="bg-card rounded-xl border border-border w-full max-w-md p-8 flex flex-col items-center gap-4 text-center" onClick={(e) => e.stopPropagation()}>
+          <Lock className="w-12 h-12 text-muted-foreground" />
+          <h3 className="text-lg font-semibold text-foreground">Emissão Fiscal Bloqueada</h3>
+          <p className="text-sm text-muted-foreground">Seu plano atual (<strong>{plan.plan.toUpperCase()}</strong>) não inclui emissão de NFC-e. Faça upgrade para o plano Business ou Pro.</p>
+          <button onClick={() => onOpenChange(false)} className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity">Entendi</button>
+        </div>
+      </div>
+    );
+  }
 
   const totalItems = form.items.reduce((sum, it) => sum + it.total, 0);
 
