@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Banknote, CreditCard, Wallet, QrCode, Ticket, Clock as ClockIcon, X, Check, ChevronLeft, Loader2, Copy, Layers, AlertCircle, Delete } from "lucide-react";
+import { Banknote, CreditCard, Wallet, QrCode, Ticket, Clock as ClockIcon, X, Check, ChevronLeft, Loader2, Copy, Layers, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { generatePixPayload } from "@/lib/pix-brcode";
 import { QRCodeSVG } from "qrcode.react";
@@ -45,55 +45,6 @@ const methods = [
   { id: "voucher" as const, label: "Voucher", shortcut: "5", icon: Ticket, bgClass: "bg-amber-600 hover:bg-amber-500", borderClass: "border-amber-400/40" },
   { id: "multi" as const, label: "Múltiplas", shortcut: "6", icon: Layers, bgClass: "bg-orange-600 hover:bg-orange-500", borderClass: "border-orange-400/40" },
 ];
-
-// ── On-Screen Numpad ──
-function Numpad({ onDigit, onClear, onBackspace, onConfirm, confirmDisabled, confirmLabel }: {
-  onDigit: (d: string) => void;
-  onClear: () => void;
-  onBackspace: () => void;
-  onConfirm: () => void;
-  confirmDisabled?: boolean;
-  confirmLabel?: string;
-}) {
-  return (
-    <div className="grid grid-cols-4 gap-1.5">
-      {["7", "8", "9"].map(d => (
-        <button key={d} onClick={() => onDigit(d)} className="h-14 lg:h-16 rounded-xl bg-muted hover:bg-accent text-foreground text-xl font-bold font-mono transition-all active:scale-95 border border-border">
-          {d}
-        </button>
-      ))}
-      <button onClick={onBackspace} className="h-14 lg:h-16 rounded-xl bg-muted hover:bg-accent text-foreground flex items-center justify-center transition-all active:scale-95 border border-border">
-        <Delete className="w-5 h-5" />
-      </button>
-      {["4", "5", "6"].map(d => (
-        <button key={d} onClick={() => onDigit(d)} className="h-14 lg:h-16 rounded-xl bg-muted hover:bg-accent text-foreground text-xl font-bold font-mono transition-all active:scale-95 border border-border">
-          {d}
-        </button>
-      ))}
-      <button onClick={onClear} className="h-14 lg:h-16 rounded-xl bg-destructive/20 hover:bg-destructive/30 text-destructive text-sm font-bold transition-all active:scale-95 border border-destructive/30">
-        LIMPAR
-      </button>
-      {["1", "2", "3"].map(d => (
-        <button key={d} onClick={() => onDigit(d)} className="h-14 lg:h-16 rounded-xl bg-muted hover:bg-accent text-foreground text-xl font-bold font-mono transition-all active:scale-95 border border-border">
-          {d}
-        </button>
-      ))}
-      <button
-        onClick={onConfirm}
-        disabled={confirmDisabled}
-        className="row-span-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:bg-muted disabled:text-muted-foreground text-white text-sm font-bold transition-all active:scale-95 flex items-center justify-center gap-1.5 border border-emerald-400/40 disabled:border-border"
-      >
-        <Check className="w-5 h-5" />
-        <span className="hidden lg:inline">{confirmLabel || "OK"}</span>
-      </button>
-      {["0", "00", ","].map(d => (
-        <button key={d} onClick={() => onDigit(d === "," ? "," : d)} className="h-14 lg:h-16 rounded-xl bg-muted hover:bg-accent text-foreground text-xl font-bold font-mono transition-all active:scale-95 border border-border">
-          {d}
-        </button>
-      ))}
-    </div>
-  );
-}
 
 export function TEFProcessor({ total, onComplete, onCancel, onPrazoRequested, defaultMethod, pixConfig }: TEFProcessorProps) {
   const [selected, setSelected] = useState<PayMethod>((defaultMethod as PayMethod) || null);
@@ -211,17 +162,6 @@ export function TEFProcessor({ total, onComplete, onCancel, onPrazoRequested, de
     setMultiPayments([]);
   };
 
-  // Numpad helpers for cash
-  const handleCashDigit = (d: string) => {
-    setCashReceived(prev => prev + d);
-  };
-  const handleCashBackspace = () => {
-    setCashReceived(prev => prev.slice(0, -1));
-  };
-  const handleCashClear = () => {
-    setCashReceived("");
-  };
-
   const parseCash = (v: string) => parseFloat(v.replace(",", ".")) || 0;
 
   // Quick cash values
@@ -301,18 +241,6 @@ export function TEFProcessor({ total, onComplete, onCancel, onPrazoRequested, de
           </button>
         </div>
 
-        {/* Right: Numpad (hidden on very small screens) */}
-        <div className="hidden sm:flex flex-col gap-2 lg:w-[280px]">
-          <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider text-center">Teclado Numérico</p>
-          <Numpad
-            onDigit={handleCashDigit}
-            onClear={handleCashClear}
-            onBackspace={handleCashBackspace}
-            onConfirm={() => { if (canConfirm) confirmPayment({ changeAmount: change > 0 ? change : 0 }); }}
-            confirmDisabled={!canConfirm || processing}
-            confirmLabel="Confirmar"
-          />
-        </div>
       </div>
     );
   };
