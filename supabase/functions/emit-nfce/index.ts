@@ -774,9 +774,14 @@ Deno.serve(async (req) => {
 
     if (!emitResp.ok) {
       console.error("Nuvem Fiscal error:", JSON.stringify(emitData));
+      // Extract rejection code from Nuvem Fiscal response
+      const rejCode = emitData?.codigo_status || emitData?.cStat || emitData?.status_sefaz?.cStat || null;
+      const rejMsg = emitData?.motivo_status || emitData?.xMotivo || emitData?.status_sefaz?.xMotivo || null;
       return jsonResponse({
         success: false,
         error: emitData?.mensagem || emitData?.message || `Erro Nuvem Fiscal [${emitResp.status}]`,
+        rejection_code: rejCode ? String(rejCode) : null,
+        rejection_reason: rejMsg || null,
         details: emitData,
       });
     }
