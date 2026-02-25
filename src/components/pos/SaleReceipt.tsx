@@ -1,5 +1,6 @@
-import { AlertTriangle, Printer } from "lucide-react";
+import { AlertTriangle, Printer, FileText, Receipt } from "lucide-react";
 import { useCallback } from "react";
+import { toast } from "sonner";
 
 interface SaleReceiptProps {
   items: any[];
@@ -155,15 +156,32 @@ export function SaleReceipt({ items, total, payments, onClose, companyName, nfce
         )}
 
         {/* Action buttons */}
-        <div className="mt-6 flex gap-2">
-          <button
-            onClick={handlePrint}
-            className="flex-1 py-2.5 rounded-xl border-2 border-border text-foreground text-sm font-bold hover:bg-muted transition-all active:scale-95 flex items-center justify-center gap-2"
-          >
-            <Printer className="w-4 h-4" />
-            Imprimir Cupom
-          </button>
-          <button onClick={onClose} className="flex-1 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-bold active:scale-95 transition-all">
+        <div className="mt-5 space-y-2">
+          {/* Print options */}
+          <div className="flex gap-2">
+            <button
+              onClick={() => {
+                if (nfceNumber) {
+                  handlePrint();
+                } else {
+                  toast.info("NFC-e não disponível para esta venda. Configure a integração fiscal para emitir cupom fiscal.", { duration: 3000 });
+                }
+              }}
+              className="flex-1 py-2.5 rounded-xl border-2 border-primary/30 text-primary text-xs font-bold hover:bg-primary/10 transition-all active:scale-95 flex items-center justify-center gap-1.5"
+            >
+              <FileText className="w-4 h-4" />
+              Cupom Fiscal
+            </button>
+            <button
+              onClick={handlePrint}
+              className="flex-1 py-2.5 rounded-xl border-2 border-border text-foreground text-xs font-bold hover:bg-muted transition-all active:scale-95 flex items-center justify-center gap-1.5"
+            >
+              <Receipt className="w-4 h-4" />
+              Não Fiscal
+            </button>
+          </div>
+          {/* New sale */}
+          <button onClick={onClose} className="w-full py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-bold active:scale-95 transition-all">
             Nova Venda (ESC)
           </button>
         </div>
