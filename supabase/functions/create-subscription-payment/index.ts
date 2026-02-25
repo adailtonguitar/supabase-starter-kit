@@ -97,7 +97,7 @@ Deno.serve(async (req) => {
           currency_id: "BRL",
         },
       ],
-      payer: { email: userEmail },
+      // payer email omitted to avoid self-payment block on MP
       external_reference: JSON.stringify({
         user_id: userId,
         company_id: companyId,
