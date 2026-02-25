@@ -32,6 +32,7 @@ interface NFeProduct {
 interface NFeInfo {
   number: string;
   series: string;
+  accessKey: string;
   issueDate: string;
   supplierName: string;
   supplierCnpj: string;
@@ -65,9 +66,24 @@ function parseNFeXML(xmlText: string): NFeInfo | null {
     const emit = getEl(doc, "emit");
     const total = getEl(doc, "ICMSTot") || getEl(doc, "total");
 
+    // Extract access key from protNFe > infProt > chNFe or from infNFe Id attribute
+    let accessKey = "";
+    const chNFeEl = getEl(doc, "chNFe");
+    if (chNFeEl?.textContent) {
+      accessKey = chNFeEl.textContent.trim();
+    } else {
+      // Fallback: infNFe Id attribute (format: "NFe" + 44 digits)
+      const infNFe = getEl(doc, "infNFe");
+      const idAttr = infNFe?.getAttribute("Id") || "";
+      if (idAttr.length >= 44) {
+        accessKey = idAttr.replace(/^NFe/, "");
+      }
+    }
+
     const nfeInfo: NFeInfo = {
       number: ide ? getText(ide, "nNF") : "",
       series: ide ? getText(ide, "serie") : "",
+      accessKey,
       issueDate: ide ? getText(ide, "dhEmi").slice(0, 10) : "",
       supplierName: emit ? getText(emit, "xNome") : "",
       supplierCnpj: emit ? getText(emit, "CNPJ") : "",
@@ -260,17 +276,34 @@ export function NFeImportDialog({ open, onOpenChange }: NFeImportDialogProps) {
     setEditingIndex(null);
   }, [nfeInfo]);
 
-  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = (ev) => {
+    reader.onload = async (ev) => {
       const text = ev.target?.result as string;
       const parsed = parseNFeXML(text);
       if (!parsed || parsed.products.length === 0) {
         toast.error("Arquivo XML inválido ou sem produtos");
         return;
       }
+
+      // Check for duplicate import
+      if (parsed.accessKey && companyId) {
+        const { data: existing } = await supabase
+          .from("nfe_imports")
+          .select("id, imported_at")
+          .eq("company_id", companyId)
+          .eq("access_key", parsed.accessKey)
+          .maybeSingle();
+
+        if (existing) {
+          const importedDate = new Date(existing.imported_at).toLocaleDateString("pt-BR");
+          toast.error(`Esta NF-e já foi importada em ${importedDate}. Importação bloqueada para evitar duplicidade.`);
+          return;
+        }
+      }
+
       setNfeInfo(parsed);
       setStep("preview");
     };
@@ -334,6 +367,19 @@ export function NFeImportDialog({ open, onOpenChange }: NFeImportDialogProps) {
 
       const { error } = await supabase.from("products").insert(insertData);
       if (error) { console.error("[NFeImport] insert error:", error.message, error.details, error.code); errors++; } else { imported++; }
+    }
+
+    // Register NF-e as imported to prevent duplicates
+    if (nfeInfo.accessKey && (imported + updated) > 0) {
+      await supabase.from("nfe_imports").insert({
+        company_id: companyId,
+        access_key: nfeInfo.accessKey,
+        nfe_number: nfeInfo.number,
+        supplier_name: nfeInfo.supplierName,
+        supplier_cnpj: nfeInfo.supplierCnpj,
+        total_value: nfeInfo.totalValue,
+        products_count: imported + updated,
+      });
     }
 
     setResult({ imported, errors, updated });
