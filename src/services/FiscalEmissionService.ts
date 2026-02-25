@@ -39,4 +39,46 @@ export class FiscalEmissionService {
       return { success: false, error: err?.message || "Erro ao cancelar documento" };
     }
   }
+
+  /**
+   * Check if a document is within the legal cancellation deadline.
+   * NFC-e: 24 hours | NF-e: 720 hours (30 days)
+   */
+  static isCancelDeadlineExpired(createdAt: string, docType: "nfce" | "nfe"): { expired: boolean; hoursElapsed: number; maxHours: number } {
+    const created = new Date(createdAt).getTime();
+    const now = Date.now();
+    const hoursElapsed = (now - created) / (1000 * 60 * 60);
+    const maxHours = docType === "nfce" ? 24 : 720;
+    return { expired: hoursElapsed > maxHours, hoursElapsed: Math.round(hoursElapsed), maxHours };
+  }
+
+  /**
+   * Inutilizar faixa de numeração na SEFAZ.
+   */
+  static async inutilizeNumbers(params: {
+    companyId: string;
+    docType: "nfce" | "nfe";
+    serie: number;
+    numeroInicial: number;
+    numeroFinal: number;
+    justificativa: string;
+  }) {
+    try {
+      const { data, error } = await supabase.functions.invoke("emit-nfce", {
+        body: {
+          action: "inutilize",
+          company_id: params.companyId,
+          doc_type: params.docType,
+          serie: params.serie,
+          numero_inicial: params.numeroInicial,
+          numero_final: params.numeroFinal,
+          justificativa: params.justificativa,
+        },
+      });
+      if (error) return { success: false, error: error.message };
+      return data;
+    } catch (err: any) {
+      return { success: false, error: err?.message || "Erro ao inutilizar numeração" };
+    }
+  }
 }

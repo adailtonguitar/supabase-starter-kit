@@ -25,6 +25,9 @@ interface NfceItem {
   unitPrice: number;
   discount: number;
   total: number;
+  pisCst: string;
+  cofinsCst: string;
+  icmsAliquota: number;
 }
 
 interface NfceFormData {
@@ -110,6 +113,9 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
         unitPrice,
         discount,
         total: qty * unitPrice - discount,
+        pisCst: item.pis_cst || "49",
+        cofinsCst: item.cofins_cst || "49",
+        icmsAliquota: item.icms_aliquota || 0,
       };
     });
 
@@ -147,7 +153,7 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
   const addItem = () => {
     setForm((prev) => ({
       ...prev,
-      items: [...prev.items, { name: "", ncm: "", cfop: "5102", cst: "", unit: "UN", qty: 1, unitPrice: 0, discount: 0, total: 0 }],
+      items: [...prev.items, { name: "", ncm: "", cfop: "5102", cst: "", unit: "UN", qty: 1, unitPrice: 0, discount: 0, total: 0, pisCst: "49", cofinsCst: "49", icmsAliquota: 0 }],
     }));
   };
 
@@ -226,6 +232,9 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
               qty: it.qty,
               unit_price: it.unitPrice,
               discount: it.discount,
+              pis_cst: it.pisCst,
+              cofins_cst: it.cofinsCst,
+              icms_aliquota: it.icmsAliquota || undefined,
             })),
           },
         },
@@ -375,7 +384,44 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
                         </div>
                       </div>
 
-                      {/* Row 3: Unit, Qty, Price, Discount */}
+                      {/* Row 3: PIS, COFINS, ICMS Aliq */}
+                      <div className="grid grid-cols-3 gap-2">
+                        <div>
+                          <label className="text-xs text-muted-foreground">PIS CST</label>
+                          <input
+                            value={item.pisCst}
+                            onChange={(e) => updateItem(idx, "pisCst", e.target.value)}
+                            className="w-full mt-1 px-3 py-2 rounded-lg border border-border bg-background text-sm text-foreground font-mono focus:outline-none focus:ring-2 focus:ring-primary/30"
+                            placeholder="49"
+                            maxLength={2}
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs text-muted-foreground">COFINS CST</label>
+                          <input
+                            value={item.cofinsCst}
+                            onChange={(e) => updateItem(idx, "cofinsCst", e.target.value)}
+                            className="w-full mt-1 px-3 py-2 rounded-lg border border-border bg-background text-sm text-foreground font-mono focus:outline-none focus:ring-2 focus:ring-primary/30"
+                            placeholder="49"
+                            maxLength={2}
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs text-muted-foreground">ICMS %</label>
+                          <input
+                            type="number"
+                            value={item.icmsAliquota}
+                            onChange={(e) => updateItem(idx, "icmsAliquota", parseFloat(e.target.value) || 0)}
+                            className="w-full mt-1 px-3 py-2 rounded-lg border border-border bg-background text-sm text-foreground font-mono focus:outline-none focus:ring-2 focus:ring-primary/30"
+                            placeholder="18"
+                            min="0"
+                            max="100"
+                            step="0.01"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Row 4: Unit, Qty, Price, Discount */}
                       <div className="grid grid-cols-4 gap-2">
                         <div>
                           <label className="text-xs text-muted-foreground">Unidade</label>

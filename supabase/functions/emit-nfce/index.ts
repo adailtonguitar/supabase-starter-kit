@@ -40,6 +40,112 @@ function jsonResponse(body: object, status = 200) {
   });
 }
 
+// ── ICMS rate table by state (alíquota interna padrão) ──
+const ICMS_RATES_BY_STATE: Record<string, number> = {
+  AC: 19, AL: 19, AM: 20, AP: 18, BA: 20.5, CE: 20, DF: 20, ES: 17,
+  GO: 19, MA: 22, MG: 18, MS: 17, MT: 17, PA: 19, PB: 20, PE: 20.5,
+  PI: 21, PR: 19.5, RJ: 22, RN: 18, RO: 19.5, RR: 20, RS: 17, SC: 17,
+  SE: 19, SP: 18, TO: 20,
+};
+
+// ── CSTs that are tax-exempt (no ICMS calculation needed) ──
+const EXEMPT_CST = new Set(["40", "41", "50", "300", "400", "500"]);
+
+// ── Calculate ICMS for an item based on CST/CSOSN and state ──
+function calculateIcmsForItem(item: any, uf: string, crt: number) {
+  const cstCode = String(item.cst || "").trim();
+  const isSimples = crt === 1 || crt === 2;
+
+  // For Simples Nacional with common CSOSNs, no ICMS calc needed on NFC-e
+  if (isSimples) {
+    if (["101", "102", "103", "300", "400", "500"].includes(cstCode)) {
+      return { csosn: cstCode, origem: item.origem || "0" };
+    }
+    // CSOSN 201/202/203 = with ST
+    if (["201", "202", "203"].includes(cstCode)) {
+      return { csosn: cstCode, origem: item.origem || "0" };
+    }
+    // CSOSN 900 = Outros - may need aliquota
+    if (cstCode === "900") {
+      const aliq = item.icms_aliquota || ICMS_RATES_BY_STATE[uf] || 18;
+      const valor = ((item.qty || 1) * (item.unit_price || 0) - (item.discount || 0)) * (aliq / 100);
+      return {
+        csosn: "900",
+        origem: item.origem || "0",
+        aliquota: aliq,
+        valor: Math.round(valor * 100) / 100,
+      };
+    }
+    return { csosn: cstCode, origem: item.origem || "0" };
+  }
+
+  // Regime Normal (Lucro Presumido / Real)
+  if (EXEMPT_CST.has(cstCode)) {
+    return { cst: cstCode, origem: item.origem || "0" };
+  }
+
+  const baseCalc = (item.qty || 1) * (item.unit_price || 0) - (item.discount || 0);
+
+  if (cstCode === "00") {
+    // Tributada integralmente
+    const aliq = item.icms_aliquota || ICMS_RATES_BY_STATE[uf] || 18;
+    const valor = baseCalc * (aliq / 100);
+    return {
+      cst: "00",
+      origem: item.origem || "0",
+      modalidade_base_calculo: 3,
+      valor_base_calculo: Math.round(baseCalc * 100) / 100,
+      aliquota: aliq,
+      valor: Math.round(valor * 100) / 100,
+    };
+  }
+
+  if (cstCode === "20") {
+    // Redução de base
+    const aliq = item.icms_aliquota || ICMS_RATES_BY_STATE[uf] || 18;
+    const reducao = item.icms_reducao || 0;
+    const baseReduzida = baseCalc * (1 - reducao / 100);
+    const valor = baseReduzida * (aliq / 100);
+    return {
+      cst: "20",
+      origem: item.origem || "0",
+      modalidade_base_calculo: 3,
+      percentual_reducao: reducao,
+      valor_base_calculo: Math.round(baseReduzida * 100) / 100,
+      aliquota: aliq,
+      valor: Math.round(valor * 100) / 100,
+    };
+  }
+
+  if (["10", "30", "60", "70"].includes(cstCode)) {
+    // ST-related CSTs
+    const aliq = item.icms_aliquota || ICMS_RATES_BY_STATE[uf] || 18;
+    const valor = cstCode === "60" ? 0 : baseCalc * (aliq / 100);
+    return {
+      cst: cstCode,
+      origem: item.origem || "0",
+      ...(cstCode !== "60" ? {
+        modalidade_base_calculo: 3,
+        valor_base_calculo: Math.round(baseCalc * 100) / 100,
+        aliquota: aliq,
+        valor: Math.round(valor * 100) / 100,
+      } : {}),
+    };
+  }
+
+  // CST 51 (Diferimento), 90 (Outros)
+  const aliq = item.icms_aliquota || ICMS_RATES_BY_STATE[uf] || 18;
+  const valor = baseCalc * (aliq / 100);
+  return {
+    cst: cstCode || "00",
+    origem: item.origem || "0",
+    modalidade_base_calculo: 3,
+    valor_base_calculo: Math.round(baseCalc * 100) / 100,
+    aliquota: aliq,
+    valor: Math.round(valor * 100) / 100,
+  };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -73,7 +179,6 @@ Deno.serve(async (req) => {
       const token = await getNuvemFiscalToken();
       const endpoint = doc_type === "nfe" ? "nfe" : "nfce";
 
-      // First find the document by access key
       const searchResp = await fetch(
         `${NUVEM_FISCAL_API}/${endpoint}?chave=${access_key}`,
         { headers: { Authorization: `Bearer ${token}` } }
@@ -93,7 +198,6 @@ Deno.serve(async (req) => {
         return jsonResponse({ error: "Documento não encontrado na Nuvem Fiscal" });
       }
 
-      // Download PDF
       const pdfResp = await fetch(
         `${NUVEM_FISCAL_API}/${endpoint}/${docId}/pdf`,
         { headers: { Authorization: `Bearer ${token}` } }
@@ -117,7 +221,7 @@ Deno.serve(async (req) => {
 
     // ─── CANCEL NFC-e / NF-e ───
     if (action === "cancel") {
-      const { doc_id, access_key, doc_type, justificativa } = body;
+      const { doc_id, access_key, doc_type, justificativa, fiscal_doc_id, sale_id } = body;
       if (!access_key && !doc_id) {
         return jsonResponse({ error: "Chave de acesso ou ID do documento obrigatório" }, 400);
       }
@@ -125,10 +229,32 @@ Deno.serve(async (req) => {
         return jsonResponse({ error: "Justificativa deve ter no mínimo 15 caracteres" }, 400);
       }
 
+      // ── PRAZO LEGAL: verificar se está dentro do prazo de cancelamento ──
+      if (fiscal_doc_id) {
+        const { data: fiscalDoc } = await supabase
+          .from("fiscal_documents")
+          .select("created_at, doc_type")
+          .eq("id", fiscal_doc_id)
+          .single();
+
+        if (fiscalDoc) {
+          const createdAt = new Date(fiscalDoc.created_at).getTime();
+          const now = Date.now();
+          const hoursElapsed = (now - createdAt) / (1000 * 60 * 60);
+          const maxHours = fiscalDoc.doc_type === "nfce" ? 24 : 720; // NFC-e=24h, NF-e=30 dias
+
+          if (hoursElapsed > maxHours) {
+            return jsonResponse({
+              success: false,
+              error: `Prazo de cancelamento expirado. ${fiscalDoc.doc_type === "nfce" ? "NFC-e pode ser cancelada em até 24 horas" : "NF-e pode ser cancelada em até 720 horas (30 dias)"}. Documento emitido há ${Math.round(hoursElapsed)} horas.`,
+            }, 400);
+          }
+        }
+      }
+
       const token = await getNuvemFiscalToken();
       const endpoint = doc_type === "nfe" ? "nfe" : "nfce";
 
-      // Find document ID if not provided
       let nuvemId = doc_id;
       if (!nuvemId && access_key) {
         const searchResp = await fetch(
@@ -145,7 +271,6 @@ Deno.serve(async (req) => {
         return jsonResponse({ error: "Documento não encontrado na Nuvem Fiscal" });
       }
 
-      // Cancel
       const cancelResp = await fetch(
         `${NUVEM_FISCAL_API}/${endpoint}/${nuvemId}/cancelamento`,
         {
@@ -169,12 +294,11 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Update local DB
-      if (body.fiscal_doc_id) {
+      if (fiscal_doc_id) {
         await supabase
           .from("fiscal_documents")
           .update({ status: "cancelada" })
-          .eq("id", body.fiscal_doc_id);
+          .eq("id", fiscal_doc_id);
       } else if (access_key) {
         await supabase
           .from("fiscal_documents")
@@ -182,18 +306,97 @@ Deno.serve(async (req) => {
           .eq("access_key", access_key);
       }
 
-      // Update sale if linked
-      if (body.sale_id) {
+      if (sale_id) {
         await supabase
           .from("sales")
           .update({ status: "cancelada" })
-          .eq("id", body.sale_id);
+          .eq("id", sale_id);
       }
 
       return jsonResponse({
         success: true,
         status: "cancelada",
         protocol: cancelData?.protocolo || cancelData?.numero_protocolo || null,
+      });
+    }
+
+    // ─── INUTILIZAR NUMERAÇÃO ───
+    if (action === "inutilize") {
+      const { company_id, doc_type, serie, numero_inicial, numero_final, justificativa: inutJust } = body;
+      if (!company_id || !doc_type || !serie || !numero_inicial || !numero_final) {
+        return jsonResponse({ error: "Dados incompletos para inutilização" }, 400);
+      }
+      if (!inutJust || inutJust.length < 15) {
+        return jsonResponse({ error: "Justificativa deve ter no mínimo 15 caracteres" }, 400);
+      }
+
+      const { data: company } = await supabase
+        .from("companies")
+        .select("cnpj, address_state")
+        .eq("id", company_id)
+        .single();
+
+      if (!company) return jsonResponse({ error: "Empresa não encontrada" }, 404);
+
+      const { data: config } = await supabase
+        .from("fiscal_configs")
+        .select("environment")
+        .eq("company_id", company_id)
+        .eq("doc_type", doc_type)
+        .eq("is_active", true)
+        .single();
+
+      const token = await getNuvemFiscalToken();
+      const endpoint = doc_type === "nfe" ? "nfe" : "nfce";
+
+      const inutPayload = {
+        ambiente: config?.environment === "producao" ? "producao" : "homologacao",
+        cnpj: company.cnpj?.replace(/\D/g, ""),
+        ano: new Date().getFullYear() % 100,
+        serie: serie,
+        numero_inicial: numero_inicial,
+        numero_final: numero_final,
+        justificativa: inutJust,
+      };
+
+      const inutResp = await fetch(`${NUVEM_FISCAL_API}/${endpoint}/inutilizacoes`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(inutPayload),
+      });
+
+      const inutData = await inutResp.json();
+
+      if (!inutResp.ok) {
+        console.error("Inutilização error:", JSON.stringify(inutData));
+        return jsonResponse({
+          success: false,
+          error: inutData?.mensagem || inutData?.message || `Erro na inutilização [${inutResp.status}]`,
+          details: inutData,
+        });
+      }
+
+      // Register each number as inutilized in fiscal_documents
+      for (let n = numero_inicial; n <= numero_final; n++) {
+        await supabase.from("fiscal_documents").insert({
+          company_id,
+          doc_type,
+          number: n,
+          serie,
+          status: "inutilizada",
+          total_value: 0,
+          environment: config?.environment || "homologacao",
+          is_contingency: false,
+        });
+      }
+
+      return jsonResponse({
+        success: true,
+        message: `Numeração ${numero_inicial} a ${numero_final} inutilizada com sucesso.`,
+        protocol: inutData?.protocolo || inutData?.numero_protocolo || null,
       });
     }
 
@@ -240,31 +443,33 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Determine CRT from config or form (1=Simples, 2=Simples Excesso, 3=Regime Normal)
     const crt = form.crt || config.crt || 1;
+    const uf = (company.address_state || "SP").toUpperCase();
 
-    const items = formItems.map((item: any, idx: number) => ({
-      numero_item: idx + 1,
-      codigo_produto: item.product_code || String(idx + 1).padStart(5, "0"),
-      descricao: item.name,
-      ncm: item.ncm.replace(/\D/g, ""),
-      cfop: item.cfop,
-      unidade_comercial: item.unit || "UN",
-      quantidade_comercial: item.qty || 1,
-      valor_unitario_comercial: item.unit_price || 0,
-      valor_bruto: (item.qty || 1) * (item.unit_price || 0),
-      unidade_tributavel: item.unit || "UN",
-      quantidade_tributavel: item.qty || 1,
-      valor_unitario_tributavel: item.unit_price || 0,
-      valor_desconto: item.discount || 0,
-      imposto: {
-        icms: crt === 1 || crt === 2
-          ? { csosn: item.cst, origem: item.origem || "0" }
-          : { cst: item.cst, origem: item.origem || "0" },
-        pis: { cst: item.pis_cst || "49" },
-        cofins: { cst: item.cofins_cst || "49" },
-      },
-    }));
+    const items = formItems.map((item: any, idx: number) => {
+      const icmsCalc = calculateIcmsForItem(item, uf, crt);
+
+      return {
+        numero_item: idx + 1,
+        codigo_produto: item.product_code || String(idx + 1).padStart(5, "0"),
+        descricao: item.name,
+        ncm: item.ncm.replace(/\D/g, ""),
+        cfop: item.cfop,
+        unidade_comercial: item.unit || "UN",
+        quantidade_comercial: item.qty || 1,
+        valor_unitario_comercial: item.unit_price || 0,
+        valor_bruto: (item.qty || 1) * (item.unit_price || 0),
+        unidade_tributavel: item.unit || "UN",
+        quantidade_tributavel: item.qty || 1,
+        valor_unitario_tributavel: item.unit_price || 0,
+        valor_desconto: item.discount || 0,
+        imposto: {
+          icms: icmsCalc,
+          pis: { cst: item.pis_cst || "49" },
+          cofins: { cst: item.cofins_cst || "49" },
+        },
+      };
+    });
 
     const totalValue = items.reduce(
       (sum: number, it: any) => sum + it.valor_bruto - (it.valor_desconto || 0),
@@ -296,7 +501,7 @@ Deno.serve(async (req) => {
           bairro: company.address_neighborhood || "",
           codigo_municipio: company.address_city_code || "",
           nome_municipio: company.address_city || "",
-          uf: company.address_state || "",
+          uf: uf,
           cep: company.address_zip?.replace(/\D/g, "") || "",
           codigo_pais: "1058",
           pais: "BRASIL",
