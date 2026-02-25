@@ -1070,7 +1070,7 @@ export default function PDV() {
             { id: "pix", label: "PIX", icon: QrCode, colorClass: "bg-teal-900/60 hover:bg-teal-800/70 text-teal-100 border border-teal-700/40" },
             { id: "voucher", label: "Voucher", icon: Ticket, colorClass: "bg-amber-900/60 hover:bg-amber-800/70 text-amber-100 border border-amber-700/40" },
             { id: "prazo", label: "A Prazo", icon: ClockIcon, colorClass: "bg-orange-900/60 hover:bg-orange-800/70 text-orange-100 border border-orange-700/40" },
-            { id: "outros", label: "Outros", icon: MoreHorizontal, colorClass: "bg-sidebar-background hover:bg-sidebar-accent text-sidebar-foreground border border-sidebar-border" },
+            { id: "multi", label: "Múltiplas", icon: MoreHorizontal, colorClass: "bg-orange-900/60 hover:bg-orange-800/70 text-orange-100 border border-orange-700/40" },
           ].map(({ id, label, icon: Icon, colorClass }, idx) => (
             <motion.button
               key={id}
