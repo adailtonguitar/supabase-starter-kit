@@ -720,6 +720,10 @@ Deno.serve(async (req) => {
 
     // ── Validate items before building payload ──
     const formItems = form.items || [];
+    const crt = form.crt || config.crt || 1;
+    const isSimples = crt === 1 || crt === 2;
+    const defaultCst = isSimples ? "102" : "00";
+
     for (let i = 0; i < formItems.length; i++) {
       const it = formItems[i];
       const ncmClean = (it.ncm || "").replace(/\D/g, "");
@@ -729,12 +733,15 @@ Deno.serve(async (req) => {
       if (!it.cfop || it.cfop.length !== 4) {
         return jsonResponse({ error: `Item ${i + 1} ("${it.name || ""}"): CFOP inválido ou não informado.` }, 400);
       }
+      // Auto-fill CST/CSOSN if missing, based on CRT
       if (!it.cst) {
-        return jsonResponse({ error: `Item ${i + 1} ("${it.name || ""}"): CST/CSOSN não informado.` }, 400);
+        it.cst = defaultCst;
+        it.origem = it.origem || "0";
+        console.log(`[emit-nfce] Item ${i + 1}: CST/CSOSN ausente, aplicando padrão "${defaultCst}" (CRT=${crt})`);
       }
     }
 
-    const crt = form.crt || config.crt || 1;
+    // crt already declared above
     const uf = (company.address_state || "SP").toUpperCase();
 
     const items = formItems.map((item: any, idx: number) => {
