@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useState, useCallback } from "rea
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
-const TRIAL_DAYS = 8;
+const TRIAL_DAYS = 15;
 const GRACE_PERIOD_DAYS = 3;
 
 export const PLANS = {
