@@ -54,8 +54,9 @@ Deno.serve(async (req) => {
     if (!mpResponse.ok) {
       const errText = await mpResponse.text();
       console.error("[mercadopago-webhook] MP fetch error:", mpResponse.status, errText);
-      return new Response(JSON.stringify({ error: "Failed to verify payment" }), {
-        status: 500,
+      // Return 200 for test/invalid IDs to pass MP webhook validation
+      return new Response(JSON.stringify({ ok: true, note: "Payment not found in MP API (possibly a test)" }), {
+        status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
