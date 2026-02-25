@@ -77,6 +77,7 @@ export default function PDV() {
   const [pendingQuoteId, setPendingQuoteId] = useState<string | null>(null);
   const [lastAddedItem, setLastAddedItem] = useState<{ name: string; price: number } | null>(null);
   const lastAddedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [finalizingSale, setFinalizingSale] = useState(false);
 
   const toggleFullscreen = useCallback(() => {
     if (!document.fullscreenElement) {
@@ -186,15 +187,25 @@ export default function PDV() {
       setShowCashRegister(true);
       return;
     }
-    if (pdv.cartItems.length > 0) {
-      setTefDefaultMethod(defaultMethod || null);
-      setShowTEF(true);
+    if (pdv.cartItems.length === 0) {
+      toast.warning("Adicione itens ao carrinho primeiro", { duration: 1200 });
+      return;
     }
-  }, [pdv.cartItems.length, pdv.currentSession]);
+    if (finalizingSale) {
+      toast.warning("Venda em processamento, aguarde...", { duration: 1200 });
+      return;
+    }
+    setTefDefaultMethod(defaultMethod || null);
+    setShowTEF(true);
+  }, [pdv.cartItems.length, pdv.currentSession, finalizingSale]);
 
   const handleDirectPayment = useCallback((method: string) => {
     if (pdv.cartItems.length === 0) {
       toast.warning("Adicione itens ao carrinho primeiro", { duration: 1200 });
+      return;
+    }
+    if (finalizingSale) {
+      toast.warning("Venda em processamento, aguarde...", { duration: 1200 });
       return;
     }
     if (method === "prazo") {
@@ -202,7 +213,7 @@ export default function PDV() {
       return;
     }
     handleCheckout(method);
-  }, [pdv.cartItems.length, handleCheckout]);
+  }, [pdv.cartItems.length, handleCheckout, finalizingSale]);
 
   // Barcode manual input with multiplication support (e.g. 5*789123456789)
   const handleBarcodeSubmit = () => {
@@ -416,6 +427,8 @@ export default function PDV() {
   const handleTEFComplete = async (tefResults: TEFResult[]) => {
     const allApproved = tefResults.every((r) => r.approved);
     if (allApproved) {
+      if (finalizingSale) return; // guard double-click
+      setFinalizingSale(true);
       try {
         const paymentResults: PaymentResult[] = tefResults.map((r) => ({
           method: r.method as PaymentResult["method"],
@@ -452,6 +465,8 @@ export default function PDV() {
       } catch (err: any) {
         playErrorSound();
         toast.error(`Erro ao finalizar venda: ${err.message}`);
+      } finally {
+        setFinalizingSale(false);
       }
     }
     setShowTEF(false);
@@ -466,6 +481,8 @@ export default function PDV() {
 
   const handleCreditSaleConfirmed = async (client: CreditClient, mode: "fiado" | "parcelado", installments: number) => {
     setShowClientSelector(false);
+    if (finalizingSale) return; // guard double-click
+    setFinalizingSale(true);
     try {
       const paymentResults: PaymentResult[] = [{
         method: "prazo", approved: true, amount: pdv.total,
@@ -488,7 +505,6 @@ export default function PDV() {
       setSaleNumber(newNum);
       localStorage.setItem("pdv_sale_number", String(newNum));
       checkLowStockAfterSale(savedItems);
-      // Mark quote as converted if this sale came from a quote
       if (pendingQuoteId) {
         updateQuoteStatus(pendingQuoteId, "convertido").catch(() => {});
         setPendingQuoteId(null);
@@ -500,6 +516,8 @@ export default function PDV() {
     } catch (err: any) {
       playErrorSound();
       toast.error(`Erro ao finalizar venda a prazo: ${err.message}`);
+    } finally {
+      setFinalizingSale(false);
     }
   };
 

@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from "react";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
 import { useSync } from "@/hooks/useSync";
@@ -91,14 +92,23 @@ export function usePDV() {
   }, [companyId]);
 
   const addToCart = useCallback((product: PDVProduct) => {
+    let added = false;
     setCartItems(prev => {
       const existing = prev.find(i => i.id === product.id);
+      const currentQty = existing ? existing.quantity : 0;
+      if (currentQty + 1 > product.stock_quantity) {
+        return prev; // will signal not added
+      }
+      added = true;
       if (existing) {
         return prev.map(i => i.id === product.id ? { ...i, quantity: i.quantity + 1 } : i);
       }
       return [...prev, { ...product, quantity: 1 }];
     });
-    return true;
+    if (!added) {
+      toast.warning(`Estoque insuficiente para "${product.name}" (disponível: ${product.stock_quantity})`, { duration: 2000 });
+    }
+    return added;
   }, []);
 
   const removeItem = useCallback((id: string) => {
@@ -375,7 +385,7 @@ export function usePDV() {
   }, [companyId, currentSession, cartItems, subtotal, globalDiscountPercent, globalDiscountValue, total, itemDiscounts, clearCart, queueOperation]);
 
   const repeatLastSale = useCallback(() => {
-    // TODO: implement repeat last sale
+    toast.info("Funcionalidade em desenvolvimento", { duration: 1500 });
   }, []);
 
   const refreshProducts = useCallback(() => { loadProducts(); }, [loadProducts]);
