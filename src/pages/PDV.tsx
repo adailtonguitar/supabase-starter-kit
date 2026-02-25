@@ -40,6 +40,7 @@ export default function PDV() {
   const [quoteNotes, setQuoteNotes] = useState("");
   const [showTEF, setShowTEF] = useState(false);
   const [tefDefaultMethod, setTefDefaultMethod] = useState<string | null>(null);
+  const [skipFiscalEmission, setSkipFiscalEmission] = useState(false);
   const [showCashRegister, setShowCashRegister] = useState(false);
   const [receipt, setReceipt] = useState<{
     items: typeof pdv.cartItems;
@@ -426,7 +427,7 @@ export default function PDV() {
         const savedItems = [...pdv.cartItems];
         const savedTotal = pdv.total;
         const savedClient = selectedClient;
-        const result = await pdv.finalizeSale(paymentResults);
+        const result = await pdv.finalizeSale(paymentResults, { skipFiscal: skipFiscalEmission });
         playSaleCompleteSound();
         setReceipt({
           items: savedItems, total: savedTotal,
@@ -473,7 +474,7 @@ export default function PDV() {
       }];
       const savedItems = [...pdv.cartItems];
       const savedTotal = pdv.total;
-      const result = await pdv.finalizeSale(paymentResults);
+      const result = await pdv.finalizeSale(paymentResults, { skipFiscal: skipFiscalEmission });
       playSaleCompleteSound();
       setReceipt({
         items: savedItems, total: savedTotal,
@@ -1087,7 +1088,19 @@ export default function PDV() {
             </motion.button>
           ))}
         </div>
-        {/* Shortcut hints row */}
+        {/* Fiscal emission toggle */}
+        <div className="flex items-center justify-end px-2 py-0.5 bg-muted/40 border-t border-border">
+          <label className="flex items-center gap-1.5 cursor-pointer text-xs text-muted-foreground select-none">
+            <input
+              type="checkbox"
+              checked={!skipFiscalEmission}
+              onChange={(e) => setSkipFiscalEmission(!e.target.checked)}
+              className="w-3.5 h-3.5 rounded border-border accent-primary"
+            />
+            <FileText className="w-3 h-3" />
+            <span>Emitir NFC-e</span>
+          </label>
+        </div>
         <div className="hidden lg:flex items-center justify-center gap-1.5 xl:gap-2 px-2 py-1 xl:py-1.5 bg-muted/70 border-t border-border flex-wrap">
           {[
             { key: "F3", label: "Buscar", color: "bg-sidebar-background hover:bg-sidebar-accent text-sidebar-foreground border border-sidebar-border", action: () => setShowProductList((p) => !p) },
