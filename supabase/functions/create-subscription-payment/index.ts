@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 const PLANS: Record<string, { title: string; price: number }> = {
-  teste: { title: "Teste de Pagamento", price: 1.0 },
+  
   essencial: { title: "Renovação Licença — Essencial", price: 149.9 },
   profissional: { title: "Renovação Licença — Profissional", price: 199.9 },
 };
@@ -97,7 +97,7 @@ Deno.serve(async (req) => {
           currency_id: "BRL",
         },
       ],
-      // payer email omitted to avoid self-payment block on MP
+      payer: { email: userEmail },
       external_reference: JSON.stringify({
         user_id: userId,
         company_id: companyId,
