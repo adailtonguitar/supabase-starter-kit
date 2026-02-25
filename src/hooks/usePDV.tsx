@@ -141,7 +141,14 @@ export function usePDV() {
 
   const finalizeSale = useCallback(async (payments: PaymentResult[]) => {
     if (!companyId || !currentSession) throw new Error("Sessão de caixa não encontrada");
-    
+
+    // Get user_id from Supabase auth
+    let userId = "";
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      userId = user?.id || "";
+    } catch { /* offline fallback */ }
+
     const saleItems = cartItems.map(item => ({
       product_id: item.id,
       product_name: item.name,
@@ -151,9 +158,19 @@ export function usePDV() {
       subtotal: item.price * (1 - (itemDiscounts[item.id] || 0) / 100) * item.quantity,
     }));
 
+    const paymentsSummary = payments.map(p => ({ method: p.method, amount: p.amount, approved: p.approved }));
+
+    // ── Map payment totals by method ──
+    const paymentTotals: Record<string, number> = {};
+    for (const p of payments) {
+      const key = p.method === "credito" || p.method === "debito" ? p.method : p.method;
+      paymentTotals[key] = (paymentTotals[key] || 0) + p.amount;
+    }
+
     // Try normal online sale first
     try {
-      const { data, error } = await supabase.from("sales").insert({
+      // ── STEP 1: Insert sale ──
+      const { data: saleData, error: saleError } = await supabase.from("sales").insert({
         company_id: companyId,
         terminal_id: currentSession.terminal_id,
         session_id: currentSession.id,
@@ -162,29 +179,155 @@ export function usePDV() {
         discount_percent: globalDiscountPercent,
         discount_value: globalDiscountValue,
         total,
-        payments: payments.map(p => ({ method: p.method, amount: p.amount, approved: p.approved })),
+        payments: paymentsSummary,
         status: "completed",
+        sold_by: userId || undefined,
       } as any).select("id").single();
 
-      if (error) throw error;
+      if (saleError) throw saleError;
+      const saleId = saleData?.id;
 
-      // Decrement stock
-      for (const item of cartItems) {
-        try { await supabase.rpc("decrement_stock", { p_product_id: item.id, p_quantity: item.quantity }); } catch { /* ignore */ }
+      // ── STEP 2: Decrement stock (with rollback on failure) ──
+      const decrementedItems: { id: string; quantity: number }[] = [];
+      try {
+        for (const item of cartItems) {
+          const { error: stockErr } = await supabase.rpc("decrement_stock", { p_product_id: item.id, p_quantity: item.quantity });
+          if (stockErr) {
+            throw new Error(`Falha ao reduzir estoque de "${item.name}": ${stockErr.message}`);
+          }
+          decrementedItems.push({ id: item.id, quantity: item.quantity });
+        }
+      } catch (stockError: any) {
+        // ROLLBACK: reverse stock decrements already done
+        for (const dec of decrementedItems) {
+          try { await supabase.rpc("decrement_stock", { p_product_id: dec.id, p_quantity: -dec.quantity }); } catch { /* best effort */ }
+        }
+        // ROLLBACK: delete the sale
+        if (saleId) {
+          try { await supabase.from("sales").delete().eq("id", saleId); } catch { /* best effort */ }
+        }
+        throw new Error(`Venda cancelada — ${stockError.message}`);
       }
+
+      // ── STEP 3: Update cash session totals ──
+      try {
+        const { data: sessionData } = await supabase
+          .from("cash_sessions")
+          .select("total_vendas, total_dinheiro, total_debito, total_credito, total_pix, total_voucher, total_outros, sales_count")
+          .eq("id", currentSession.id)
+          .single();
+
+        if (sessionData) {
+          const updates: Record<string, number> = {
+            total_vendas: Number(sessionData.total_vendas || 0) + total,
+            sales_count: Number(sessionData.sales_count || 0) + 1,
+          };
+
+          // Increment per-method totals
+          for (const [method, amount] of Object.entries(paymentTotals)) {
+            const fieldMap: Record<string, string> = {
+              dinheiro: "total_dinheiro",
+              debito: "total_debito",
+              credito: "total_credito",
+              pix: "total_pix",
+              voucher: "total_voucher",
+            };
+            const field = fieldMap[method] || "total_outros";
+            updates[field] = Number((sessionData as any)[field] || 0) + amount;
+          }
+
+          const { error: sessErr } = await supabase
+            .from("cash_sessions")
+            .update(updates)
+            .eq("id", currentSession.id);
+
+          if (sessErr) console.error("[PDV] Erro ao atualizar sessão de caixa:", sessErr.message);
+        }
+      } catch (sessError: any) {
+        console.error("[PDV] Erro ao atualizar sessão:", sessError.message);
+        // Non-blocking: sale already saved, just log the error
+      }
+
+      // ── STEP 4: Create financial entry ──
+      try {
+        const primaryMethod = payments[0]?.method || "outros";
+        const { error: finErr } = await supabase.from("financial_entries").insert({
+          company_id: companyId,
+          type: "receber",
+          description: `Venda PDV #${saleId?.slice(0, 8) || "N/A"}`,
+          reference: saleId,
+          amount: total,
+          due_date: new Date().toISOString().split("T")[0],
+          paid_date: new Date().toISOString().split("T")[0],
+          paid_amount: total,
+          payment_method: primaryMethod,
+          status: "pago",
+          created_by: userId || "system",
+        } as any);
+
+        if (finErr) console.error("[PDV] Erro ao criar lançamento financeiro:", finErr.message);
+      } catch (finError: any) {
+        console.error("[PDV] Erro financeiro:", finError.message);
+        // Non-blocking: sale already saved
+      }
+
+      // ── STEP 5: Try to emit NFC-e ──
+      let nfceNumber = "";
+      let fiscalDocId: string | undefined;
+      let fiscalPending = false;
+      try {
+        const { data: fiscalData, error: fiscalErr } = await supabase.functions.invoke("emit-nfce", {
+          body: {
+            action: "emit",
+            sale_id: saleId,
+            company_id: companyId,
+            items: saleItems,
+            total,
+            payments: paymentsSummary,
+          },
+        });
+
+        if (fiscalErr) {
+          console.warn("[PDV] NFC-e emission failed:", fiscalErr.message);
+          fiscalPending = true;
+        } else if (fiscalData?.success) {
+          nfceNumber = fiscalData.nfce_number || fiscalData.numero || "";
+          fiscalDocId = fiscalData.fiscal_doc_id || fiscalData.id;
+        } else {
+          console.warn("[PDV] NFC-e emission returned error:", fiscalData?.error);
+          fiscalPending = true;
+        }
+      } catch (fiscalError: any) {
+        console.warn("[PDV] NFC-e call failed:", fiscalError.message);
+        fiscalPending = true;
+      }
+
+      // Mark sale as fiscal pending if emission failed
+      if (fiscalPending && saleId) {
+        try {
+          await supabase.from("sales").update({ status: "pendente_fiscal" } as any).eq("id", saleId);
+        } catch { /* best effort */ }
+      }
+
+      // ── STEP 6: Update local product stock ──
+      setProducts(prev => prev.map(p => {
+        const cartItem = cartItems.find(c => c.id === p.id);
+        if (cartItem) {
+          return { ...p, stock_quantity: Math.max(0, p.stock_quantity - cartItem.quantity) };
+        }
+        return p;
+      }));
 
       clearCart();
       setContingencyMode(false);
-      return { saleId: data?.id, nfceNumber: "", fiscalDocId: undefined, isContingency: false };
+      return { saleId, nfceNumber, fiscalDocId, isContingency: false };
     } catch (onlineErr: any) {
       // ── CONTINGENCY FALLBACK ──
-      // If we can't reach the server, enqueue for later sync
       console.warn("[PDV] Online sale failed, entering contingency:", onlineErr.message);
       setContingencyMode(true);
 
       const offlineSaleId = crypto.randomUUID();
 
-      // Get fiscal config for contingency payload
       let configId = "";
       let serie = 1;
       let emitente: { cnpj: string; name: string; ie: string; uf: string; crt: number } | undefined;
@@ -203,7 +346,6 @@ export function usePDV() {
           environment = configs[0].environment || "homologacao";
         }
 
-        // Get company data for XML signing
         const { data: company } = await supabase
           .from("companies")
           .select("cnpj, name, state_registration, address_state")
@@ -219,9 +361,8 @@ export function usePDV() {
             crt: configs?.[0]?.crt || 1,
           };
         }
-      } catch { /* ignore - use defaults */ }
+      } catch { /* use defaults */ }
 
-      // Build contingency NFC-e payload (with local XML signing if A1 cert available)
       const contingencyPayload = await buildContingencyPayload({
         saleId: offlineSaleId,
         companyId,
@@ -250,16 +391,14 @@ export function usePDV() {
         },
       });
 
-      // Enqueue for sync when online
       await queueOperation("fiscal_contingency", contingencyPayload as unknown as Record<string, unknown>, 1, 5);
 
-      // Also enqueue the sale data
       await queueOperation("sale", {
         company_id: companyId,
         total,
         payment_method: payments[0]?.method || "outros",
         items: saleItems,
-        user_id: "",
+        user_id: userId,
         created_at: new Date().toISOString(),
       }, 2, 3);
 
