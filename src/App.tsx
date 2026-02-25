@@ -178,8 +178,8 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   if (!companyId && !showOnboarding) return <Navigate to="/" replace />;
 
-  // Block until terms are accepted (super_admin bypasses)
-  if (!isSuperAdmin && !termsAccepted) {
+  // Block until terms are accepted (TEMP: bypass removed for testing)
+  if (!termsAccepted) {
     return (
       <Suspense fallback={<PageSpinner />}>
         <TermosFiscais />
