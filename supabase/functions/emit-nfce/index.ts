@@ -626,55 +626,87 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "Dados incompletos" }, 400);
     }
 
-    // ── Resolve company_id via employees table (employees.user_id → employees.company_id → companies.id) ──
+    // ── Resolve company + debug logging ──
     const authHeader = req.headers.get("authorization") || "";
     const jwtToken = authHeader.replace("Bearer ", "");
 
-    async function resolveCompanyViaEmployee(): Promise<string | null> {
+    // Helper: get authenticated user_id from JWT
+    async function getAuthUserId(): Promise<string | null> {
       if (!jwtToken) return null;
       try {
         const { data: { user: authUser } } = await supabase.auth.getUser(jwtToken);
-        if (!authUser?.id) return null;
-        const { data: emp } = await supabase
-          .from("employees")
-          .select("company_id")
-          .eq("user_id", authUser.id)
-          .limit(1)
-          .maybeSingle();
-        return emp?.company_id || null;
+        return authUser?.id || null;
       } catch { return null; }
     }
 
-    // Try employee-based lookup first, then fallback to body company_id
+    // Helper: find company_id via employees or company_users
+    async function resolveCompanyFromUser(userId: string): Promise<string | null> {
+      // Try employees first
+      const { data: emp } = await supabase
+        .from("employees")
+        .select("company_id")
+        .eq("user_id", userId)
+        .limit(1)
+        .maybeSingle();
+      if (emp?.company_id) {
+        console.log(`[emit-nfce] Found company via employees: ${emp.company_id}`);
+        return emp.company_id;
+      }
+      // Try company_users as fallback
+      const { data: cu } = await supabase
+        .from("company_users")
+        .select("company_id")
+        .eq("user_id", userId)
+        .eq("is_active", true)
+        .limit(1)
+        .maybeSingle();
+      if (cu?.company_id) {
+        console.log(`[emit-nfce] Found company via company_users: ${cu.company_id}`);
+        return cu.company_id;
+      }
+      return null;
+    }
+
     let company: any = null;
+    console.log(`[emit-nfce] Received company_id from body: ${company_id}`);
 
     // Strategy 1: Use provided company_id
     if (company_id) {
-      const { data } = await supabase
+      const { data, error: compErr } = await supabase
         .from("companies")
         .select("name, trade_name, cnpj, state_registration, address_street, address_number, address_complement, address_neighborhood, address_city, address_city_code, address_state, address_zip")
         .eq("id", company_id)
         .single();
       company = data;
+      if (!data) console.warn(`[emit-nfce] company_id ${company_id} not found in companies table. Error: ${compErr?.message}`);
     }
 
-    // Strategy 2: Resolve via employees table
+    // Strategy 2: Resolve via authenticated user → employees/company_users → companies
     if (!company) {
-      const empCompanyId = await resolveCompanyViaEmployee();
-      if (empCompanyId) {
-        company_id = empCompanyId;
-        const { data } = await supabase
-          .from("companies")
-          .select("name, trade_name, cnpj, state_registration, address_street, address_number, address_complement, address_neighborhood, address_city, address_city_code, address_state, address_zip")
-          .eq("id", empCompanyId)
-          .single();
-        company = data;
+      const userId = await getAuthUserId();
+      console.log(`[emit-nfce] Auth user_id: ${userId}`);
+      if (userId) {
+        const resolvedId = await resolveCompanyFromUser(userId);
+        if (resolvedId) {
+          company_id = resolvedId;
+          const { data } = await supabase
+            .from("companies")
+            .select("name, trade_name, cnpj, state_registration, address_street, address_number, address_complement, address_neighborhood, address_city, address_city_code, address_state, address_zip")
+            .eq("id", resolvedId)
+            .single();
+          company = data;
+        }
       }
     }
 
     if (!company || !company_id) {
-      return jsonResponse({ error: "Empresa não encontrada. Verifique se o usuário está vinculado na tabela employees." }, 404);
+      return jsonResponse({
+        error: "Empresa não encontrada. Verifique se o usuário está vinculado nas tabelas employees ou company_users.",
+        debug_company_id_received: body.company_id || null,
+      }, 404);
     }
+
+    console.log(`[emit-nfce] Using company: ${company_id} (${company.name})`);
 
     const { data: config, error: cfgErr } = await supabase
       .from("fiscal_configs")
