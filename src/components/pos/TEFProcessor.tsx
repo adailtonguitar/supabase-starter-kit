@@ -174,18 +174,15 @@ export function TEFProcessor({ total, onComplete, onCancel, onPrazoRequested, de
     const canConfirm = received >= total;
 
     return (
-      <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 h-full">
-        {/* Left: Total + Input + Change */}
-        <div className="flex-1 flex flex-col gap-4">
-          {/* Total */}
-          <div className="rounded-2xl p-4 text-center" style={{ backgroundColor: "hsl(0, 72%, 40%)" }}>
-            <p className="text-xs font-bold uppercase tracking-widest text-white/70">TOTAL A PAGAR</p>
-            <p className="text-4xl lg:text-5xl font-black font-mono text-white" style={{ textShadow: "0 4px 16px rgba(0,0,0,0.5)" }}>{fmt(total)}</p>
+      <div className="flex flex-col gap-2">
+        {/* Total + Input lado a lado */}
+        <div className="flex gap-3 items-stretch">
+          <div className="rounded-xl p-3 text-center flex-1" style={{ backgroundColor: "hsl(0, 72%, 40%)" }}>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-white/70">TOTAL</p>
+            <p className="text-2xl font-black font-mono text-white">{fmt(total)}</p>
           </div>
-
-          {/* Valor recebido */}
-          <div className="space-y-2">
-            <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Valor Recebido</label>
+          <div className="flex-1 flex flex-col justify-center">
+            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Recebido</label>
             <input
               ref={cashInputRef}
               type="text"
@@ -193,54 +190,53 @@ export function TEFProcessor({ total, onComplete, onCancel, onPrazoRequested, de
               value={cashReceived}
               onChange={e => setCashReceived(e.target.value)}
               placeholder="0,00"
-              className="w-full text-center text-3xl lg:text-4xl font-black font-mono h-16 lg:h-20 bg-background border-2 border-border rounded-2xl focus:outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/20 text-foreground"
+              className="w-full text-center text-2xl font-black font-mono h-12 bg-background border-2 border-border rounded-xl focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 text-foreground"
               onKeyDown={e => { if (e.key === "Enter" && canConfirm) confirmPayment({ changeAmount: change > 0 ? change : 0 }); }}
             />
           </div>
+        </div>
 
-          {/* Quick values */}
-          <div className="grid grid-cols-4 gap-1.5">
-            {quickCashValues.map(v => (
-              <button key={v} onClick={() => setCashReceived(v.toFixed(2).replace(".", ","))}
-                className="py-3 rounded-xl bg-muted hover:bg-accent text-foreground font-bold text-sm font-mono transition-all active:scale-95 border border-border">
-                R${v}
-              </button>
-            ))}
-            <button onClick={() => setCashReceived(total.toFixed(2).replace(".", ","))}
-              className="col-span-2 py-3 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 font-bold text-sm transition-all active:scale-95 border border-emerald-500/30">
-              Valor Exato
+        {/* Quick values */}
+        <div className="grid grid-cols-5 gap-1">
+          {quickCashValues.map(v => (
+            <button key={v} onClick={() => setCashReceived(v.toFixed(2).replace(".", ","))}
+              className="py-2 rounded-lg bg-muted hover:bg-accent text-foreground font-bold text-xs font-mono transition-all active:scale-95 border border-border">
+              R${v}
             </button>
-          </div>
-
-          {/* Troco / Falta */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: received > 0 ? 1 : 0.3 }}
-            className={`rounded-2xl p-4 text-center border-2 ${
-              canConfirm
-                ? "bg-emerald-500/10 border-emerald-500/30"
-                : "bg-destructive/10 border-destructive/30"
-            }`}
-          >
-            <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-              {canConfirm ? "TROCO" : "FALTA"}
-            </p>
-            <p className={`text-3xl lg:text-4xl font-black font-mono ${canConfirm ? "text-emerald-500" : "text-destructive"}`}>
-              {fmt(Math.abs(change))}
-            </p>
-          </motion.div>
-
-          {/* Confirm */}
-          <button
-            onClick={() => confirmPayment({ changeAmount: change > 0 ? change : 0 })}
-            disabled={!canConfirm || processing}
-            className="w-full h-14 lg:h-16 rounded-2xl bg-emerald-600 hover:bg-emerald-500 disabled:bg-muted disabled:text-muted-foreground text-white text-lg font-black transition-all active:scale-[0.98] flex items-center justify-center gap-2 border border-emerald-400/40 disabled:border-border shadow-lg"
-          >
-            {processing ? <Loader2 className="w-6 h-6 animate-spin" /> : <Check className="w-6 h-6" />}
-            {processing ? "Processando..." : "Confirmar Pagamento"}
+          ))}
+          <button onClick={() => setCashReceived(total.toFixed(2).replace(".", ","))}
+            className="col-span-2 py-2 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 font-bold text-xs transition-all active:scale-95 border border-emerald-500/30">
+            Exato
           </button>
         </div>
 
+        {/* Troco / Falta */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: received > 0 ? 1 : 0.3 }}
+          className={`rounded-xl p-3 text-center border-2 ${
+            canConfirm
+              ? "bg-emerald-500/10 border-emerald-500/30"
+              : "bg-destructive/10 border-destructive/30"
+          }`}
+        >
+          <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+            {canConfirm ? "TROCO" : "FALTA"}
+          </p>
+          <p className={`text-2xl font-black font-mono ${canConfirm ? "text-emerald-500" : "text-destructive"}`}>
+            {fmt(Math.abs(change))}
+          </p>
+        </motion.div>
+
+        {/* Confirm */}
+        <button
+          onClick={() => confirmPayment({ changeAmount: change > 0 ? change : 0 })}
+          disabled={!canConfirm || processing}
+          className="w-full h-12 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:bg-muted disabled:text-muted-foreground text-white text-base font-black transition-all active:scale-[0.98] flex items-center justify-center gap-2 border border-emerald-400/40 disabled:border-border shadow-lg"
+        >
+          {processing ? <Loader2 className="w-5 h-5 animate-spin" /> : <Check className="w-5 h-5" />}
+          {processing ? "Processando..." : "Confirmar Pagamento"}
+        </button>
       </div>
     );
   };
