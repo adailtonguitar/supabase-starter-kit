@@ -674,11 +674,11 @@ Deno.serve(async (req) => {
     if (company_id) {
       const { data, error: compErr } = await supabase
         .from("companies")
-        .select("name, trade_name, cnpj, state_registration, address_street, address_number, address_complement, address_neighborhood, address_city, address_city_code, address_state, address_zip")
+        .select("*")
         .eq("id", company_id)
         .single();
       company = data;
-      if (!data) console.warn(`[emit-nfce] company_id ${company_id} not found in companies table. Error: ${compErr?.message}`);
+      if (!data) console.warn(`[emit-nfce] company_id ${company_id} not found. Error: ${compErr?.message}`);
     }
 
     // Strategy 2: Resolve via authenticated user → employees/company_users → companies
@@ -691,7 +691,7 @@ Deno.serve(async (req) => {
           company_id = resolvedId;
           const { data } = await supabase
             .from("companies")
-            .select("name, trade_name, cnpj, state_registration, address_street, address_number, address_complement, address_neighborhood, address_city, address_city_code, address_state, address_zip")
+            .select("*")
             .eq("id", resolvedId)
             .single();
           company = data;
