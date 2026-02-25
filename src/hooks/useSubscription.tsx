@@ -6,7 +6,7 @@ const TRIAL_DAYS = 15;
 const GRACE_PERIOD_DAYS = 3;
 
 export const PLANS = {
-  starter: { key: "starter", name: "Starter", price: 99.90 },
+  starter: { key: "starter", name: "Starter", price: 149.90 },
   business: { key: "business", name: "Business", price: 199.90 },
   pro: { key: "pro", name: "Pro", price: 349.90 },
 } as const;

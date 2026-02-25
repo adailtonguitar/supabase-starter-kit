@@ -48,7 +48,7 @@ export default function Renovar() {
     {
       key: "starter",
       name: "Starter",
-      price: "99,90",
+      price: "149,90",
       features: ["3 sessões simultâneas", "Controle de estoque", "Financeiro básico", "Relatórios de vendas"],
     },
     {

@@ -10,7 +10,7 @@ import { toast } from "sonner";
 const plans = [
   {
     name: "Starter",
-    price: "99,90",
+    price: "149,90",
     desc: "Para pequenos comércios e mercearias",
     icon: Zap,
     features: [
