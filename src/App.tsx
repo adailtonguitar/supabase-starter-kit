@@ -48,6 +48,7 @@ const PDV = lazy(() => import("./pages/PDV"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const Instalar = lazy(() => import("./pages/Instalar"));
 const Termos = lazy(() => import("./pages/Termos"));
+const ContratoSaaS = lazy(() => import("./pages/ContratoSaaS"));
 const Privacidade = lazy(() => import("./pages/Privacidade"));
 const PainelLucro = lazy(() => import("./pages/PainelLucro"));
 const LucroDiario = lazy(() => import("./pages/LucroDiario"));
@@ -226,6 +227,7 @@ function AppRoutes() {
         <Route path="/landing" element={user ? <Navigate to="/dashboard" replace /> : <LandingPage />} />
         <Route path="/install" element={<Instalar />} />
         <Route path="/termos" element={<Termos />} />
+        <Route path="/contrato" element={<ContratoSaaS />} />
         <Route path="/privacidade" element={<Privacidade />} />
         <Route path="/trial-expirado" element={user ? <TrialExpirado /> : <Navigate to="/" replace />} />
         <Route path="/renovar" element={user ? <Renovar /> : <Navigate to="/auth" replace />} />
