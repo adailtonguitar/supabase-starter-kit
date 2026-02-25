@@ -1,167 +1,125 @@
-import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { useState, useCallback, useRef } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { useCompany } from "@/hooks/useCompany";
-import { generateAIReport, type AIReportResult } from "@/services/aiReportService";
-import { toast } from "sonner";
-import { Brain, Sparkles, Loader2, RefreshCw, ChevronUp, ChevronDown, Calendar, FileText, AlertCircle } from "lucide-react";
+import { BrainCircuit, Sparkles, Loader2, RefreshCw, AlertCircle } from "lucide-react";
 import ReactMarkdown from "react-markdown";
-import { format, subDays, startOfMonth } from "date-fns";
+
+const COOLDOWN_MS = 30_000;
 
 export default function RelatoriosIA() {
   const { companyId } = useCompany();
+  const [insight, setInsight] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<AIReportResult | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [cooldown, setCooldown] = useState(false);
   const [generatedAt, setGeneratedAt] = useState<Date | null>(null);
-  const [collapsed, setCollapsed] = useState(false);
+  const lastCallRef = useRef(0);
 
-  // Default: first of current month to today
-  const today = format(new Date(), "yyyy-MM-dd");
-  const monthStart = format(startOfMonth(new Date()), "yyyy-MM-dd");
-  const [startDate, setStartDate] = useState(monthStart);
-  const [endDate, setEndDate] = useState(today);
+  const fetchInsight = useCallback(async () => {
+    if (!companyId) return;
 
-  const handleGenerate = async () => {
-    if (!companyId) {
-      toast.error("Empresa não identificada. Faça login novamente.");
+    const now = Date.now();
+    if (now - lastCallRef.current < COOLDOWN_MS) {
+      setCooldown(true);
+      setTimeout(() => setCooldown(false), COOLDOWN_MS - (now - lastCallRef.current));
       return;
     }
-    if (!startDate || !endDate) {
-      toast.error("Selecione o período de análise.");
-      return;
-    }
-    if (startDate > endDate) {
-      toast.error("Data inicial não pode ser maior que a final.");
-      return;
-    }
+    lastCallRef.current = now;
 
     setLoading(true);
-    setResult(null);
     setErrorMsg(null);
-    setCollapsed(false);
+    setInsight(null);
 
     try {
-      const data = await generateAIReport(companyId, startDate, endDate);
-      setResult(data);
-      setGeneratedAt(new Date());
-      toast.success("Relatório gerado com sucesso!");
-    } catch (err: any) {
-      console.error("[RelatoriosIA] Error:", err?.message || err);
-      setErrorMsg(err?.message || "Erro ao gerar relatório.");
-      toast.error(err?.message || "Erro ao gerar relatório.");
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "https://fsvxpxziotklbxkivyug.supabase.co";
+      const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZzdnhweHppb3RrbGJ4a2l2eXVnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE3ODU5NTMsImV4cCI6MjA4NzM2MTk1M30.8I3ABsRZBZuE1IpK_g9z3PdRUd9Omt_F5qNx0Pgqvyo";
+
+      const resp = await fetch(`${supabaseUrl}/functions/v1/ai-report`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${anonKey}`,
+          "apikey": anonKey,
+        },
+        body: JSON.stringify({ report_type: "quick", company_id: companyId }),
+      });
+
+      if (!resp.ok) {
+        let msg = `Erro ${resp.status}.`;
+        try {
+          const errData = await resp.json();
+          if (errData?.error) msg = errData.error;
+        } catch {
+          await resp.text();
+        }
+        setErrorMsg(msg);
+        setLoading(false);
+        return;
+      }
+
+      const data = await resp.json();
+      if (data?.error) {
+        setErrorMsg(data.error);
+      } else if (data?.report && typeof data.report === "string") {
+        setInsight(data.report);
+        setGeneratedAt(new Date());
+      } else {
+        setErrorMsg("Resposta inesperada do servidor.");
+      }
+    } catch {
+      setErrorMsg("Falha na conexão com o servidor.");
     } finally {
       setLoading(false);
     }
-  };
+  }, [companyId]);
 
   return (
     <div className="p-6 space-y-6 max-w-5xl mx-auto">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-          <Sparkles className="w-6 h-6 text-primary" />
-          Relatórios Inteligentes
-        </h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Análises com IA baseadas em dados reais do seu negócio
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+            <Sparkles className="w-6 h-6 text-primary" />
+            Análise Inteligente
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Insights gerados por IA com base nos dados reais do seu negócio
+          </p>
+        </div>
+        <Button
+          onClick={fetchInsight}
+          disabled={loading || cooldown || !companyId}
+          size="lg"
+        >
+          {loading ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Analisando...
+            </>
+          ) : (
+            <>
+              <BrainCircuit className="w-4 h-4" />
+              {insight ? "Atualizar Análise" : "Gerar Análise"}
+            </>
+          )}
+        </Button>
       </div>
-
-      {/* Date range + Generate button */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex flex-col sm:flex-row items-end gap-4">
-            <div className="flex-1 w-full">
-              <label className="text-sm font-medium text-foreground mb-1.5 flex items-center gap-1.5">
-                <Calendar className="w-4 h-4 text-muted-foreground" />
-                Período de análise
-              </label>
-              <div className="flex gap-2">
-                <Input
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  className="flex-1"
-                />
-                <span className="self-center text-muted-foreground text-sm">até</span>
-                <Input
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  className="flex-1"
-                />
-              </div>
-            </div>
-            <Button
-              onClick={handleGenerate}
-              disabled={loading || !companyId}
-              className="w-full sm:w-auto"
-              size="lg"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Gerando...
-                </>
-              ) : (
-                <>
-                  <Brain className="w-4 h-4" />
-                  Gerar Relatório IA
-                </>
-              )}
-            </Button>
-          </div>
-          <div className="flex gap-2 mt-3">
-            <button
-              type="button"
-              onClick={() => {
-                setStartDate(format(subDays(new Date(), 7), "yyyy-MM-dd"));
-                setEndDate(today);
-              }}
-              className="text-xs text-muted-foreground hover:text-primary transition-colors underline-offset-2 hover:underline"
-            >
-              Últimos 7 dias
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setStartDate(format(subDays(new Date(), 30), "yyyy-MM-dd"));
-                setEndDate(today);
-              }}
-              className="text-xs text-muted-foreground hover:text-primary transition-colors underline-offset-2 hover:underline"
-            >
-              Últimos 30 dias
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setStartDate(monthStart);
-                setEndDate(today);
-              }}
-              className="text-xs text-muted-foreground hover:text-primary transition-colors underline-offset-2 hover:underline"
-            >
-              Mês atual
-            </button>
-          </div>
-        </CardContent>
-      </Card>
 
       {/* Loading */}
       {loading && (
         <Card className="border-primary/20">
           <CardContent className="py-16 flex flex-col items-center gap-4">
             <div className="relative">
-              <Brain className="w-12 h-12 text-primary animate-pulse" />
+              <BrainCircuit className="w-12 h-12 text-primary animate-pulse" />
               <Loader2 className="w-6 h-6 text-primary animate-spin absolute -top-1 -right-1" />
             </div>
             <div className="text-center">
               <p className="text-sm font-medium text-foreground">
-                A IA está analisando seus dados reais...
+                A IA está analisando seus dados...
               </p>
               <p className="text-xs text-muted-foreground mt-1">
-                Buscando vendas, produtos, clientes e financeiro de {startDate} a {endDate}
+                Vendas, produtos, estoque e financeiro sendo processados
               </p>
             </div>
           </CardContent>
@@ -174,7 +132,7 @@ export default function RelatoriosIA() {
           <CardContent className="py-8 flex flex-col items-center gap-3 text-center">
             <AlertCircle className="w-10 h-10 text-destructive" />
             <p className="text-sm font-medium text-foreground">{errorMsg}</p>
-            <Button variant="outline" size="sm" onClick={handleGenerate}>
+            <Button variant="outline" size="sm" onClick={fetchInsight}>
               <RefreshCw className="w-4 h-4 mr-1.5" />
               Tentar novamente
             </Button>
@@ -182,8 +140,8 @@ export default function RelatoriosIA() {
         </Card>
       )}
 
-      {/* Report result */}
-      {!loading && !errorMsg && result && (
+      {/* Result */}
+      {!loading && !errorMsg && insight && (
         <Card className="border-primary/20 shadow-sm">
           <CardHeader className="pb-3 border-b border-border">
             <div className="flex items-center justify-between">
@@ -192,72 +150,55 @@ export default function RelatoriosIA() {
                   <Sparkles className="w-5 h-5 text-primary" />
                 </div>
                 <div>
-                  <CardTitle className="text-base">Relatório Executivo</CardTitle>
-                  <CardDescription className="text-xs">
-                    {result.source === "gemini" ? "Powered by Gemini AI" : "Gerado por IA"} •{" "}
-                    {result.data_summary?.period}
-                  </CardDescription>
+                  <CardTitle className="text-base">Insight do Negócio</CardTitle>
+                  {generatedAt && (
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Gerado em {generatedAt.toLocaleString("pt-BR")}
+                    </p>
+                  )}
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                {result.data_summary && (
-                  <span className="text-xs text-muted-foreground hidden sm:inline">
-                    {result.data_summary.sales_count} vendas · {result.data_summary.products_count} produtos · {result.data_summary.clients_count} clientes
-                  </span>
-                )}
-                <button
-                  onClick={() => setCollapsed(!collapsed)}
-                  className="p-1.5 rounded-md hover:bg-accent transition-colors"
-                >
-                  {collapsed ? (
-                    <ChevronDown className="w-4 h-4 text-muted-foreground" />
-                  ) : (
-                    <ChevronUp className="w-4 h-4 text-muted-foreground" />
-                  )}
-                </button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleGenerate}
-                  disabled={loading}
-                  className="text-muted-foreground hover:text-primary"
-                >
-                  <RefreshCw className="w-4 h-4 mr-1.5" />
-                  Atualizar
-                </Button>
-              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={fetchInsight}
+                disabled={loading || cooldown}
+                className="text-muted-foreground hover:text-primary"
+              >
+                <RefreshCw className="w-4 h-4 mr-1.5" />
+                Atualizar
+              </Button>
             </div>
-            {generatedAt && (
-              <p className="text-xs text-muted-foreground mt-2">
-                Gerado em {generatedAt.toLocaleString("pt-BR")}
-              </p>
-            )}
           </CardHeader>
-          {!collapsed && (
-            <CardContent className="pt-6">
-              <div className="prose prose-sm dark:prose-invert max-w-none prose-headings:text-foreground prose-p:text-muted-foreground prose-strong:text-foreground prose-li:text-muted-foreground prose-table:text-sm">
-                <ReactMarkdown>{result.report}</ReactMarkdown>
-              </div>
-            </CardContent>
-          )}
+          <CardContent className="pt-6">
+            <div className="prose prose-sm dark:prose-invert max-w-none prose-headings:text-foreground prose-p:text-muted-foreground prose-strong:text-foreground prose-li:text-muted-foreground">
+              <ReactMarkdown>{insight}</ReactMarkdown>
+            </div>
+          </CardContent>
         </Card>
       )}
 
       {/* Empty state */}
-      {!loading && !errorMsg && !result && (
+      {!loading && !errorMsg && !insight && (
         <Card>
           <CardContent className="py-16 flex flex-col items-center gap-4 text-center">
-            <Brain className="w-12 h-12 text-muted-foreground/30" />
+            <BrainCircuit className="w-12 h-12 text-muted-foreground/30" />
             <div>
               <p className="text-sm font-medium text-foreground">
-                Selecione o período e clique em "Gerar Relatório IA"
+                Clique em "Gerar Análise" para receber insights da IA
               </p>
               <p className="text-xs text-muted-foreground mt-1">
-                A IA analisará dados reais de vendas, estoque, clientes e finanças
+                A IA analisará vendas, estoque, produtos e finanças do seu negócio
               </p>
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {cooldown && (
+        <p className="text-xs text-muted-foreground text-center">
+          Aguarde 30 segundos entre atualizações.
+        </p>
       )}
     </div>
   );
