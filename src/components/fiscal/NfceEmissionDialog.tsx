@@ -1,12 +1,13 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   FileText, Send, Loader2, CheckCircle, AlertTriangle, X,
-  Plus, Trash2, User, Package, CreditCard, Receipt
+  Plus, Trash2, User, Package, CreditCard, Receipt, Info
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
 import { formatCurrency } from "@/lib/mock-data";
 import { toast } from "sonner";
+import { validateCstCsosn, getSuggestedCodes, type TaxRegime, type CstCsosnCode } from "@/lib/cst-csosn-validator";
 
 interface NfceEmissionDialogProps {
   sale: any;
@@ -70,6 +71,8 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
   const [step, setStep] = useState<"edit" | "success" | "error">("edit");
   const [errorMsg, setErrorMsg] = useState("");
   const [activeTab, setActiveTab] = useState<"items" | "customer" | "payment">("items");
+  const [companyCrt, setCompanyCrt] = useState<number>(1);
+  const [cstValidationErrors, setCstValidationErrors] = useState<Record<number, string[]>>({});
 
   const [form, setForm] = useState<NfceFormData>({
     customerName: "",
@@ -81,6 +84,27 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
     paymentValue: 0,
     change: 0,
   });
+
+  // Load CRT from fiscal config
+  useEffect(() => {
+    if (!open || !companyId) return;
+    supabase
+      .from("fiscal_configs")
+      .select("crt")
+      .eq("company_id", companyId)
+      .eq("doc_type", "nfce")
+      .eq("is_active", true)
+      .limit(1)
+      .then(({ data }) => {
+        if (data && data.length > 0) {
+          setCompanyCrt((data[0] as any).crt || 1);
+        }
+      });
+  }, [open, companyId]);
+
+  const taxRegime: TaxRegime = companyCrt === 1 || companyCrt === 2 ? "simples_nacional" : companyCrt === 3 ? "lucro_presumido" : "lucro_real";
+  const regimeLabel = taxRegime === "simples_nacional" ? "Simples Nacional" : taxRegime === "lucro_presumido" ? "Lucro Presumido" : "Lucro Real";
+  const suggestedCodes = useMemo(() => getSuggestedCodes(taxRegime), [taxRegime]);
 
   // Parse sale data into form on open
   useEffect(() => {
@@ -181,6 +205,31 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
     const emptyCst = form.items.some((it) => !it.cst.trim());
     if (emptyCst) {
       toast.error("Preencha o CST/CSOSN de todos os itens.");
+      return;
+    }
+
+    // ── VALIDAÇÃO CRUZADA CST × CRT ──
+    const validationErrors: Record<number, string[]> = {};
+    let hasBlockingError = false;
+    for (let i = 0; i < form.items.length; i++) {
+      const item = form.items[i];
+      const isSN = taxRegime === "simples_nacional";
+      const result = validateCstCsosn({
+        regime: taxRegime,
+        csosn: isSN ? item.cst : undefined,
+        cstIcms: isSN ? undefined : item.cst,
+      });
+      if (!result.valid) {
+        validationErrors[i] = result.errors.map(e => e.message);
+        hasBlockingError = true;
+      } else if (result.warnings.length > 0) {
+        validationErrors[i] = result.warnings.map(w => `⚠️ ${w.message}`);
+      }
+    }
+    setCstValidationErrors(validationErrors);
+    if (hasBlockingError) {
+      toast.error(`Erro de CST/CSOSN × Regime Tributário (${regimeLabel}). Verifique os itens destacados em vermelho.`);
+      setActiveTab("items");
       return;
     }
 
@@ -314,6 +363,17 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
             <div className="flex-1 overflow-y-auto p-5">
               {activeTab === "items" && (
                 <div className="space-y-3">
+                  {/* Regime indicator */}
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/50 border border-border">
+                    <Info className="w-4 h-4 text-primary shrink-0" />
+                    <div className="text-xs">
+                      <span className="font-semibold text-foreground">Regime: {regimeLabel}</span>
+                      <span className="text-muted-foreground ml-1">
+                        — Use {taxRegime === "simples_nacional" ? "CSOSN" : "CST ICMS"}: {suggestedCodes.map(c => c.code).join(", ")}
+                      </span>
+                    </div>
+                  </div>
+
                   <div className="flex items-center justify-between">
                     <p className="text-sm font-medium text-foreground">
                       {form.items.length} {form.items.length === 1 ? "item" : "itens"}
@@ -373,14 +433,29 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
                           />
                         </div>
                         <div>
-                          <label className="text-xs text-muted-foreground">CST/CSOSN</label>
+                          <label className="text-xs text-muted-foreground">
+                            {taxRegime === "simples_nacional" ? "CSOSN" : "CST ICMS"} *
+                          </label>
                           <input
                             value={item.cst}
-                            onChange={(e) => updateItem(idx, "cst", e.target.value)}
-                            className="w-full mt-1 px-3 py-2 rounded-lg border border-border bg-background text-sm text-foreground font-mono focus:outline-none focus:ring-2 focus:ring-primary/30"
-                            placeholder="102"
+                            onChange={(e) => {
+                              updateItem(idx, "cst", e.target.value);
+                              // Clear validation error on edit
+                              setCstValidationErrors(prev => { const n = { ...prev }; delete n[idx]; return n; });
+                            }}
+                            className={`w-full mt-1 px-3 py-2 rounded-lg border bg-background text-sm text-foreground font-mono focus:outline-none focus:ring-2 focus:ring-primary/30 ${
+                              cstValidationErrors[idx] ? "border-destructive ring-2 ring-destructive/30" : "border-border"
+                            }`}
+                            placeholder={taxRegime === "simples_nacional" ? "102" : "00"}
                             maxLength={4}
                           />
+                          {cstValidationErrors[idx] && (
+                            <div className="mt-1 space-y-0.5">
+                              {cstValidationErrors[idx].map((err, ei) => (
+                                <p key={ei} className="text-[10px] text-destructive leading-tight">{err}</p>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       </div>
 
