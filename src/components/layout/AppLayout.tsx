@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { AppSidebar } from "./AppSidebar";
 import { UpdateNoticeModal } from "@/components/UpdateNoticeModal";
 import { SubscriptionBanner } from "./SubscriptionBanner";
@@ -37,13 +37,6 @@ export function AppLayout({ children }: AppLayoutProps) {
   const isMobile = useIsMobile();
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  // Ensure Tawk.to stays hidden inside the app (CSS handles initial hide)
-  useEffect(() => {
-    document.body.classList.remove('tawk-show');
-    if ((window as any).Tawk_API?.hideWidget) {
-      (window as any).Tawk_API.hideWidget();
-    }
-  }, []);
 
   return (
     <div className="flex h-screen overflow-hidden max-w-full">
