@@ -7,6 +7,7 @@ import { LandingAdvantages } from "@/components/landing/LandingAdvantages";
 import { LandingPricing } from "@/components/landing/LandingPricing";
 import { LandingCTA } from "@/components/landing/LandingCTA";
 import { LandingFooter } from "@/components/landing/LandingFooter";
+import { WhatsAppFloatingButton } from "@/components/layout/WhatsAppFloatingButton";
 
 export default function LandingPage() {
   return (
@@ -20,6 +21,7 @@ export default function LandingPage() {
       <LandingPricing />
       <LandingCTA />
       <LandingFooter />
+      <WhatsAppFloatingButton />
     </div>
   );
 }
