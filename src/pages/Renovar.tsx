@@ -23,8 +23,8 @@ export default function Renovar() {
   if (!user) return <Navigate to="/auth" replace />;
   if (!subLoading && subscribed) return <Navigate to="/dashboard" replace />;
 
-  const currentPlanKey = planKey || "essencial";
-  const currentPlan = PLANS[currentPlanKey as keyof typeof PLANS] || PLANS.essencial;
+  const currentPlanKey = planKey || "starter";
+  const currentPlan = PLANS[currentPlanKey as keyof typeof PLANS] || PLANS.starter;
 
   const handleRenew = async (key: string) => {
     try {
@@ -46,17 +46,23 @@ export default function Renovar() {
 
   const plans = [
     {
-      key: "essencial",
-      name: "Essencial",
-      price: "149,90",
-      features: ["1 terminal PDV", "Até 500 produtos", "Controle de estoque", "Financeiro básico"],
+      key: "starter",
+      name: "Starter",
+      price: "99,90",
+      features: ["3 sessões simultâneas", "Controle de estoque", "Financeiro básico", "Relatórios de vendas"],
     },
     {
-      key: "profissional",
-      name: "Profissional",
+      key: "business",
+      name: "Business",
       price: "199,90",
-      features: ["Até 5 terminais", "Produtos ilimitados", "NF-e + NFC-e", "Relatórios com IA", "Multi-usuários"],
+      features: ["8 sessões simultâneas", "NFC-e", "IA integrada", "Multi-usuários"],
       highlighted: true,
+    },
+    {
+      key: "pro",
+      name: "Pro",
+      price: "349,90",
+      features: ["Sessões ilimitadas", "Todos os módulos", "NF-e + NFC-e", "Suporte dedicado"],
     },
   ];
 
@@ -102,7 +108,7 @@ export default function Renovar() {
       </motion.div>
 
       {/* Plans */}
-      <div className="grid sm:grid-cols-2 gap-6 max-w-2xl w-full mx-auto mb-8">
+      <div className="grid sm:grid-cols-3 gap-6 max-w-4xl w-full mx-auto mb-8">
         {plans.map((plan, i) => (
           <motion.div
             key={plan.key}

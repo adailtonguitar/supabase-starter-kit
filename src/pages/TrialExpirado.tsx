@@ -9,38 +9,49 @@ import { Navigate } from "react-router-dom";
 
 const plans = [
   {
-    name: "Essencial",
-    price: "149,90",
+    name: "Starter",
+    price: "99,90",
     desc: "Para pequenos comércios",
     features: [
-      "1 terminal PDV",
-      "Até 500 produtos",
-      "Até 200 notas/mês",
+      "3 sessões simultâneas",
       "Controle de estoque",
       "Financeiro básico",
       "Relatórios de vendas",
       "Suporte por e-mail",
     ],
     highlighted: false,
-    planKey: "essencial",
+    planKey: "starter",
   },
   {
-    name: "Profissional",
+    name: "Business",
     price: "199,90",
     desc: "Para negócios em crescimento",
     features: [
-      "Até 5 terminais PDV",
-      "Produtos ilimitados",
-      "NF-e + NFC-e",
-      "Relatórios avançados com IA",
-      "Programa de fidelidade",
+      "8 sessões simultâneas",
+      "Emissão de NFC-e",
+      "Análise Inteligente com IA",
       "Multi-usuários e permissões",
-      "Orçamentos e cotações",
+      "Programa de fidelidade",
       "Curva ABC e painel de lucro",
       "Suporte prioritário",
     ],
     highlighted: true,
-    planKey: "profissional",
+    planKey: "business",
+  },
+  {
+    name: "Pro",
+    price: "349,90",
+    desc: "Para redes e operações avançadas",
+    features: [
+      "Sessões ilimitadas",
+      "Todos os módulos inclusos",
+      "NF-e + NFC-e ilimitadas",
+      "Relatórios avançados com IA",
+      "Controle de lotes e validade",
+      "Suporte dedicado",
+    ],
+    highlighted: false,
+    planKey: "pro",
   },
 ];
 
@@ -143,7 +154,7 @@ export default function TrialExpirado() {
         )}
       </motion.div>
 
-      <div className="grid md:grid-cols-2 gap-6 max-w-3xl w-full mx-auto">
+      <div className="grid md:grid-cols-3 gap-6 max-w-5xl w-full mx-auto">
         {plans.map((plan, i) => (
           <motion.div
             key={plan.name}
