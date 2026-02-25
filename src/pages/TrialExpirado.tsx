@@ -10,7 +10,7 @@ import { Navigate } from "react-router-dom";
 const plans = [
   {
     name: "Starter",
-    price: "99,90",
+    price: "149,90",
     desc: "Para pequenos comércios",
     features: [
       "3 sessões simultâneas",
