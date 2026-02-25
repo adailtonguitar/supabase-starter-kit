@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AppSidebar } from "./AppSidebar";
 import { UpdateNoticeModal } from "@/components/UpdateNoticeModal";
 import { SubscriptionBanner } from "./SubscriptionBanner";
@@ -36,6 +36,24 @@ interface AppLayoutProps {
 export function AppLayout({ children }: AppLayoutProps) {
   const isMobile = useIsMobile();
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  // Hide Tawk.to chat widget inside the app (only show on public pages)
+  useEffect(() => {
+    const hide = () => {
+      if ((window as any).Tawk_API?.hideWidget) {
+        (window as any).Tawk_API.hideWidget();
+      }
+    };
+    hide();
+    // Tawk may load after mount
+    const timer = setTimeout(hide, 2000);
+    return () => {
+      clearTimeout(timer);
+      if ((window as any).Tawk_API?.showWidget) {
+        (window as any).Tawk_API.showWidget();
+      }
+    };
+  }, []);
 
   return (
     <div className="flex h-screen overflow-hidden max-w-full">
