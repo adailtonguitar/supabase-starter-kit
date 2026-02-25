@@ -71,9 +71,9 @@ BEGIN
   LIMIT 1;
 
   IF v_plan IS NULL OR v_plan = 'starter' THEN
-    RETURN 1;
-  ELSIF v_plan = 'business' THEN
     RETURN 3;
+  ELSIF v_plan = 'business' THEN
+    RETURN 8;
   ELSIF v_plan = 'pro' THEN
     RETURN 0;
   END IF;
