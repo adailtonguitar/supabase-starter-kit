@@ -184,31 +184,47 @@ export function usePDV() {
 
       const saleId = result.sale_id;
 
-      // ── NFC-e emission (post-transaction, non-blocking for DB) ──
+      // ── NFC-e emission (disabled until Nuvem Fiscal is configured) ──
+      // To re-enable: check fiscal_configs for active nfce config before calling
       let nfceNumber = "";
       let fiscalDocId: string | undefined;
       let fiscalPending = false;
-      try {
-        const { data: fiscalData, error: fiscalErr } = await supabase.functions.invoke("emit-nfce", {
-          body: {
-            action: "emit",
-            sale_id: saleId,
-            company_id: companyId,
-            items: saleItems,
-            total,
-            payments: paymentsSummary,
-          },
-        });
 
-        if (fiscalErr) {
-          console.warn("[PDV] NFC-e emission failed:", fiscalErr.message);
-          fiscalPending = true;
-        } else if (fiscalData?.success) {
-          nfceNumber = fiscalData.nfce_number || fiscalData.numero || "";
-          fiscalDocId = fiscalData.fiscal_doc_id || fiscalData.id;
+      try {
+        // Only attempt NFC-e if fiscal config exists for this company
+        const { data: fiscalConfig } = await supabase
+          .from("fiscal_configs")
+          .select("id")
+          .eq("company_id", companyId)
+          .eq("doc_type", "nfce")
+          .eq("is_active", true)
+          .limit(1)
+          .maybeSingle();
+
+        if (fiscalConfig) {
+          const { data: fiscalData, error: fiscalErr } = await supabase.functions.invoke("emit-nfce", {
+            body: {
+              action: "emit",
+              sale_id: saleId,
+              company_id: companyId,
+              items: saleItems,
+              total,
+              payments: paymentsSummary,
+            },
+          });
+
+          if (fiscalErr) {
+            console.warn("[PDV] NFC-e emission failed:", fiscalErr.message);
+            fiscalPending = true;
+          } else if (fiscalData?.success) {
+            nfceNumber = fiscalData.nfce_number || fiscalData.numero || "";
+            fiscalDocId = fiscalData.fiscal_doc_id || fiscalData.id;
+          } else {
+            console.warn("[PDV] NFC-e returned error:", fiscalData?.error);
+            fiscalPending = true;
+          }
         } else {
-          console.warn("[PDV] NFC-e returned error:", fiscalData?.error);
-          fiscalPending = true;
+          console.log("[PDV] NFC-e skipped: no active fiscal config found");
         }
       } catch (fiscalError: any) {
         console.warn("[PDV] NFC-e call failed:", fiscalError.message);
