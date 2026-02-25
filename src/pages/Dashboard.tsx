@@ -11,6 +11,7 @@ import { QuickAccessCards } from "@/components/dashboard/QuickAccessCards";
 import { SalesChart } from "@/components/dashboard/SalesChart";
 import { TopProductsList } from "@/components/dashboard/TopProductsList";
 import { AiInsightWidget } from "@/components/dashboard/AiInsightWidget";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const container = {
   animate: { transition: { staggerChildren: 0.06 } },
@@ -91,11 +92,41 @@ export default function Dashboard() {
       </motion.div>
 
       {isLoading ? (
-        <div className="flex items-center justify-center py-20">
-          <div className="relative">
-            <div className="w-10 h-10 border-2 border-primary/30 rounded-full" />
-            <div className="w-10 h-10 border-2 border-primary border-t-transparent rounded-full animate-spin absolute inset-0" />
+        <div className="space-y-5 sm:space-y-6">
+          {/* KPI Skeletons */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="bg-card rounded-2xl p-4 sm:p-5 border border-border space-y-3">
+                <div className="flex items-center justify-between">
+                  <Skeleton className="h-3 w-20" />
+                  <Skeleton className="h-8 w-8 rounded-xl" />
+                </div>
+                <Skeleton className="h-7 w-28" />
+                <Skeleton className="h-3 w-16" />
+              </div>
+            ))}
           </div>
+          {/* Status Row Skeletons */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="bg-card rounded-2xl p-4 sm:p-5 border border-border space-y-3">
+                <div className="flex items-center gap-3">
+                  <Skeleton className="h-10 w-10 rounded-xl" />
+                  <div className="space-y-2 flex-1">
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-3 w-32" />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+          {/* Chart + Products Skeletons */}
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+            <Skeleton className="lg:col-span-3 h-64 rounded-2xl" />
+            <Skeleton className="lg:col-span-2 h-64 rounded-2xl" />
+          </div>
+          {/* Recent Sales Skeleton */}
+          <Skeleton className="h-48 w-full rounded-2xl" />
         </div>
       ) : stats ? (
         <>
