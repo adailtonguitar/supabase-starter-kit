@@ -453,6 +453,60 @@ export function NFeImportDialog({ open, onOpenChange }: NFeImportDialogProps) {
                 )}
               </div>
 
+              {/* Batch margin */}
+              <div className="flex items-center gap-3 bg-muted/50 rounded-lg px-4 py-2.5">
+                <span className="text-xs font-medium text-foreground whitespace-nowrap">Margem em lote:</span>
+                <input
+                  type="number"
+                  step="0.1"
+                  placeholder="Ex: 30"
+                  className="w-20 bg-background border border-border rounded px-2 py-1 text-xs text-foreground font-mono text-right"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      const val = parseFloat((e.target as HTMLInputElement).value);
+                      if (!isNaN(val) && nfeInfo) {
+                        setNfeInfo(prev => {
+                          if (!prev) return prev;
+                          return {
+                            ...prev,
+                            products: prev.products.map(p => ({
+                              ...p,
+                              margin: val,
+                              salePrice: parseFloat((p.unitPrice * (1 + val / 100)).toFixed(2)),
+                            })),
+                          };
+                        });
+                        toast.success(`Margem de ${val}% aplicada a todos os produtos`);
+                      }
+                    }
+                  }}
+                />
+                <span className="text-[10px] text-muted-foreground">%</span>
+                <button
+                  onClick={() => {
+                    const input = document.querySelector<HTMLInputElement>('[placeholder="Ex: 30"]');
+                    const val = parseFloat(input?.value || "");
+                    if (!isNaN(val) && nfeInfo) {
+                      setNfeInfo(prev => {
+                        if (!prev) return prev;
+                        return {
+                          ...prev,
+                          products: prev.products.map(p => ({
+                            ...p,
+                            margin: val,
+                            salePrice: parseFloat((p.unitPrice * (1 + val / 100)).toFixed(2)),
+                          })),
+                        };
+                      });
+                      toast.success(`Margem de ${val}% aplicada a todos os produtos`);
+                    }
+                  }}
+                  className="px-3 py-1 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:opacity-90"
+                >
+                  Aplicar
+                </button>
+              </div>
+
               {/* Products table */}
               <div className="border border-border rounded-lg overflow-x-auto max-h-72">
                 <table className="w-full text-xs">
