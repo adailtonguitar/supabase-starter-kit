@@ -1,7 +1,8 @@
-import { useState, useRef, useCallback } from "react";
-import { Upload, FileText, AlertCircle, CheckCircle2, Loader2, Package, Pencil, Trash2 } from "lucide-react";
+import { useState, useRef, useCallback, useEffect } from "react";
+import { Upload, FileText, AlertCircle, CheckCircle2, Loader2, Package, Pencil, Trash2, Factory, Plus, Link } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
+import { useSuppliers } from "@/hooks/useSuppliers";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
@@ -106,15 +107,62 @@ function parseNFeXML(xmlText: string): NFeInfo | null {
 export function NFeImportDialog({ open, onOpenChange }: NFeImportDialogProps) {
   const { companyId } = useCompany();
   const queryClient = useQueryClient();
+  const { data: suppliers = [] } = useSuppliers();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [step, setStep] = useState<"upload" | "preview" | "done">("upload");
   const [nfeInfo, setNfeInfo] = useState<NFeInfo | null>(null);
   const [importing, setImporting] = useState(false);
   const [result, setResult] = useState<{ imported: number; errors: number }>({ imported: 0, errors: 0 });
   const [updateStock, setUpdateStock] = useState(true);
-
-  const reset = () => { setStep("upload"); setNfeInfo(null); setResult({ imported: 0, errors: 0 }); setEditingIndex(null); };
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
+
+  // Supplier linking state
+  const [supplierId, setSupplierId] = useState<string | null>(null);
+  const [supplierStatus, setSupplierStatus] = useState<"checking" | "found" | "not_found" | "created">("checking");
+  const [creatingSupplier, setCreatingSupplier] = useState(false);
+
+  const reset = () => {
+    setStep("upload"); setNfeInfo(null); setResult({ imported: 0, errors: 0 });
+    setEditingIndex(null); setSupplierId(null); setSupplierStatus("checking");
+  };
+
+  // Auto-detect supplier when preview loads
+  useEffect(() => {
+    if (step !== "preview" || !nfeInfo?.supplierCnpj) {
+      setSupplierStatus("checking");
+      return;
+    }
+    const cnpjClean = nfeInfo.supplierCnpj.replace(/\D/g, "");
+    const found = suppliers.find((s: any) => (s.cnpj || "").replace(/\D/g, "") === cnpjClean);
+    if (found) {
+      setSupplierId(found.id);
+      setSupplierStatus("found");
+    } else {
+      setSupplierId(null);
+      setSupplierStatus("not_found");
+    }
+  }, [step, nfeInfo?.supplierCnpj, suppliers]);
+
+  const handleCreateSupplier = async () => {
+    if (!companyId || !nfeInfo) return;
+    setCreatingSupplier(true);
+    try {
+      const { data, error } = await supabase.from("suppliers").insert({
+        company_id: companyId,
+        name: nfeInfo.supplierName,
+        cnpj: nfeInfo.supplierCnpj,
+      }).select("id").single();
+      if (error) throw error;
+      setSupplierId(data.id);
+      setSupplierStatus("created");
+      queryClient.invalidateQueries({ queryKey: ["suppliers"] });
+      toast.success("Fornecedor cadastrado com sucesso!");
+    } catch (err: any) {
+      toast.error("Erro ao cadastrar fornecedor: " + err.message);
+    } finally {
+      setCreatingSupplier(false);
+    }
+  };
 
   const updateProduct = useCallback((index: number, field: keyof NFeProduct, value: string | number) => {
     if (!nfeInfo) return;
@@ -266,6 +314,44 @@ export function NFeImportDialog({ open, onOpenChange }: NFeImportDialogProps) {
                   <div><strong className="text-foreground">Emissão:</strong> {nfeInfo.issueDate ? new Date(nfeInfo.issueDate + "T12:00:00").toLocaleDateString("pt-BR") : "—"}</div>
                   <div><strong className="text-foreground">Total:</strong> R$ {nfeInfo.totalValue.toFixed(2).replace(".", ",")}</div>
                 </div>
+              </div>
+
+              {/* Supplier linking */}
+              <div className="bg-muted/50 rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Factory className="w-4 h-4 text-primary" />
+                  <span className="text-sm font-semibold text-foreground">Fornecedor</span>
+                </div>
+                {supplierStatus === "found" && (
+                  <div className="flex items-center gap-2 text-sm text-success">
+                    <Link className="w-3.5 h-3.5" />
+                    <span>Fornecedor já cadastrado: <strong>{nfeInfo.supplierName}</strong></span>
+                  </div>
+                )}
+                {supplierStatus === "created" && (
+                  <div className="flex items-center gap-2 text-sm text-success">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span>Fornecedor cadastrado: <strong>{nfeInfo.supplierName}</strong></span>
+                  </div>
+                )}
+                {supplierStatus === "not_found" && (
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm text-muted-foreground">
+                      Fornecedor <strong className="text-foreground">{nfeInfo.supplierName}</strong> (CNPJ: {nfeInfo.supplierCnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5")}) não cadastrado.
+                    </span>
+                    <button
+                      onClick={handleCreateSupplier}
+                      disabled={creatingSupplier}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:opacity-90 disabled:opacity-50 whitespace-nowrap"
+                    >
+                      {creatingSupplier ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
+                      Cadastrar
+                    </button>
+                  </div>
+                )}
+                {supplierStatus === "checking" && (
+                  <span className="text-xs text-muted-foreground">Verificando...</span>
+                )}
               </div>
 
               {/* Options */}
