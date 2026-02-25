@@ -46,18 +46,23 @@ export function SaleReceipt({ items, total, payments, onClose, companyName, nfce
         <head>
           <title>Cupom</title>
           <style>
-            @page { size: 80mm auto; margin: 0; }
+            @page { size: 80mm 297mm; margin: 0; }
+            @media print {
+              html, body { width: 80mm; height: auto; margin: 0; padding: 0; }
+              body { page-break-after: avoid; }
+            }
             * { box-sizing: border-box; margin: 0; padding: 0; }
-            body { font-family: 'Courier New', monospace; font-size: 11px; width: 72mm; max-width: 72mm; margin: 0 auto; padding: 2mm; line-height: 1.4; color: #000; }
+            html { width: 80mm; }
+            body { font-family: 'Courier New', monospace; font-size: 11px; width: 80mm; max-width: 80mm; margin: 0; padding: 3mm 4mm; line-height: 1.4; color: #000; }
             .center { text-align: center; }
             .bold { font-weight: bold; }
             .dashed { border-top: 1px dashed #000; margin: 3px 0; }
             .row { display: flex; justify-content: space-between; gap: 4px; }
             .row span:last-child { text-align: right; white-space: nowrap; }
-            .item-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
             .total-row { font-size: 14px; font-weight: bold; margin: 4px 0; }
             .sm { font-size: 9px; }
             h2 { font-size: 13px; margin: 2px 0; }
+            .cut { margin-top: 6px; text-align: center; font-size: 9px; letter-spacing: 2px; }
           </style>
         </head>
         <body>
@@ -78,7 +83,13 @@ export function SaleReceipt({ items, total, payments, onClose, companyName, nfce
           <p class="center sm">Qtd. total de itens: ${qtyTotal}</p>
           ${nfceHtml}
           <p class="center sm" style="margin-top:4px">Obrigado pela preferência!</p>
-          <script>window.onload = function() { window.print(); window.close(); }<\/script>
+          <p class="cut">--------------------------------</p>
+          <script>
+            window.onload = function() {
+              // Pequeno delay para renderizar antes de imprimir
+              setTimeout(function() { window.print(); window.close(); }, 200);
+            }
+          <\/script>
         </body>
       </html>
     `);
