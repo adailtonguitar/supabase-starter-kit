@@ -71,7 +71,7 @@ export interface CashSessionSummary {
 
 export interface SyncQueueItem {
   id: string;
-  entity_type: "sale" | "stock_movement" | "cash_movement" | "fiscal_document";
+  entity_type: "sale" | "stock_movement" | "cash_movement" | "fiscal_document" | "fiscal_contingency";
   payload: Record<string, unknown>;
   priority: number;
   retry_count: number;
