@@ -81,4 +81,19 @@ export class FiscalEmissionService {
       return { success: false, error: err?.message || "Erro ao inutilizar numeração" };
     }
   }
+
+  /**
+   * Backup all existing XMLs to Storage bucket.
+   */
+  static async backupXmls(companyId: string) {
+    try {
+      const { data, error } = await supabase.functions.invoke("emit-nfce", {
+        body: { action: "backup_xmls", company_id: companyId },
+      });
+      if (error) return { success: false, error: error.message };
+      return data;
+    } catch (err: any) {
+      return { success: false, error: err?.message || "Erro ao fazer backup de XMLs" };
+    }
+  }
 }

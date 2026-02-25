@@ -40,6 +40,37 @@ function jsonResponse(body: object, status = 200) {
   });
 }
 
+// ── Upload XML to Storage bucket for 5-year retention ──
+async function backupXml(
+  supabase: any,
+  companyId: string,
+  docType: string,
+  accessKey: string | null,
+  docNumber: number | null,
+  xmlContent: string | null,
+  event: "emissao" | "cancelamento"
+) {
+  if (!xmlContent) return;
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const fileName = `${accessKey || docNumber || now.getTime()}_${event}.xml`;
+  const filePath = `${companyId}/xml/${docType}/${year}/${month}/${fileName}`;
+
+  try {
+    const encoder = new TextEncoder();
+    await supabase.storage
+      .from("company-backups")
+      .upload(filePath, encoder.encode(xmlContent), {
+        contentType: "application/xml",
+        upsert: true,
+      });
+    console.log(`XML backup saved: ${filePath}`);
+  } catch (err: unknown) {
+    console.error("XML backup error:", err);
+  }
+}
+
 // ── ICMS rate table by state (alíquota interna padrão) ──
 const ICMS_RATES_BY_STATE: Record<string, number> = {
   AC: 19, AL: 19, AM: 20, AP: 18, BA: 20.5, CE: 20, DF: 20, ES: 17,
@@ -170,6 +201,61 @@ Deno.serve(async (req) => {
 
     const body = await req.json();
     const action = body.action || "emit";
+
+    // ─── BACKUP ALL EXISTING XMLs ───
+    if (action === "backup_xmls") {
+      const { company_id: bkCompanyId } = body;
+      if (!bkCompanyId) return jsonResponse({ error: "company_id obrigatório" }, 400);
+
+      const { data: xmlDocs, error: xmlErr } = await supabase
+        .from("fiscal_documents")
+        .select("id, doc_type, number, access_key, xml_content, created_at")
+        .eq("company_id", bkCompanyId)
+        .not("xml_content", "is", null)
+        .order("created_at", { ascending: true });
+
+      if (xmlErr) return jsonResponse({ error: xmlErr.message }, 500);
+
+      let backed = 0;
+      let skipped = 0;
+
+      for (const doc of xmlDocs || []) {
+        const dt = new Date(doc.created_at);
+        const year = dt.getFullYear();
+        const month = String(dt.getMonth() + 1).padStart(2, "0");
+        const fileName = `${doc.access_key || doc.number || doc.id}_emissao.xml`;
+        const filePath = `${bkCompanyId}/xml/${doc.doc_type}/${year}/${month}/${fileName}`;
+
+        // Check if already exists
+        const { data: existing } = await supabase.storage
+          .from("company-backups")
+          .list(`${bkCompanyId}/xml/${doc.doc_type}/${year}/${month}`, {
+            search: fileName,
+          });
+
+        if (existing && existing.length > 0) {
+          skipped++;
+          continue;
+        }
+
+        const encoder = new TextEncoder();
+        await supabase.storage
+          .from("company-backups")
+          .upload(filePath, encoder.encode(doc.xml_content), {
+            contentType: "application/xml",
+            upsert: true,
+          });
+        backed++;
+      }
+
+      return jsonResponse({
+        success: true,
+        message: `Backup concluído: ${backed} XMLs salvos, ${skipped} já existiam.`,
+        backed,
+        skipped,
+        total: (xmlDocs || []).length,
+      });
+    }
 
     // ─── DOWNLOAD PDF (DANFE) ───
     if (action === "download_pdf") {
@@ -311,6 +397,11 @@ Deno.serve(async (req) => {
           .from("sales")
           .update({ status: "cancelada" })
           .eq("id", sale_id);
+      }
+
+      // ── Backup cancel XML ──
+      if (cancelData?.xml) {
+        await backupXml(supabase, body.company_id || "", doc_type || "nfce", access_key, null, cancelData.xml, "cancelamento");
       }
 
       return jsonResponse({
@@ -617,6 +708,9 @@ Deno.serve(async (req) => {
       xml_content: emitData.xml || null,
       nuvem_fiscal_id: emitData.id || null,
     });
+
+    // ── Auto-backup XML to Storage ──
+    await backupXml(supabase, company_id, "nfce", accessKey, docNumber, emitData.xml || null, "emissao");
 
     await supabase
       .from("sales")
