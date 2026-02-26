@@ -101,17 +101,15 @@ export function useCreateBranch() {
         throw new Error(companyErr?.message || "Falha ao criar empresa");
       }
 
-      // 2) Link user as admin — safe against duplicates
-      const { error: cuErr } = await supabase
-        .from("company_users")
-        .upsert(
-          { company_id: company.id, user_id: userId, role: "admin", is_active: true },
-          { onConflict: "user_id,company_id", ignoreDuplicates: true }
-        );
+      // 2) Link user as admin via SECURITY DEFINER function (bypasses RLS)
+      const { error: linkErr } = await supabase.rpc("link_user_to_company" as any, {
+        p_company_id: company.id,
+        p_user_id: userId,
+        p_role: "admin",
+      });
 
-      if (cuErr) {
-        // Non-fatal: company was created, log and continue
-        console.warn("[createBranch] company_users upsert warning:", cuErr.message);
+      if (linkErr) {
+        console.warn("[createBranch] link_user_to_company warning:", linkErr.message);
       }
 
       return { id: company.id };
