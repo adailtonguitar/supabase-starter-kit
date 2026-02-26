@@ -95,17 +95,28 @@ export default function PDV() {
 
   useBarcodeScanner(pdv.handleBarcodeScan);
 
+  // Track if user manually dismissed the cash register dialog
+  const cashRegisterDismissedRef = useRef(false);
+
   // Load session for current terminal on mount and terminal change
   useEffect(() => {
+    cashRegisterDismissedRef.current = false;
     pdv.reloadSession(terminalId);
   }, [terminalId]);
 
   // Auto-open cash register dialog if no session is open (only after first load completes)
   useEffect(() => {
-    if (pdv.sessionEverLoaded && !pdv.loadingSession && !pdv.currentSession && !showCashRegister) {
+    console.log("[PDV] Auto-open check:", { 
+      sessionEverLoaded: pdv.sessionEverLoaded, 
+      loadingSession: pdv.loadingSession, 
+      currentSession: !!pdv.currentSession, 
+      showCashRegister, 
+      dismissed: cashRegisterDismissedRef.current 
+    });
+    if (pdv.sessionEverLoaded && !pdv.loadingSession && !pdv.currentSession && !showCashRegister && !cashRegisterDismissedRef.current) {
       setShowCashRegister(true);
     }
-  }, [pdv.sessionEverLoaded, pdv.loadingSession, pdv.currentSession]);
+  }, [pdv.sessionEverLoaded, pdv.loadingSession, pdv.currentSession, showCashRegister]);
 
   // Always re-focus barcode input when no modal is open
   const noModalOpen = !showTEF && !receipt && !showCashRegister && !showProductList && !showShortcuts && !showPriceLookup && !showLoyaltyClientSelector && !showQuickProduct && !showSaveQuote && !showTerminalPicker && !showClientSelector && !showReceiveCredit && !zeroStockProduct && !editingQtyItemId && !editingItemDiscountId && !editingGlobalDiscount;
@@ -1263,12 +1274,11 @@ export default function PDV() {
         <CashRegister
           terminalId={terminalId}
           onClose={async () => {
-            // Always reload session first, then decide if we can close
-            await pdv.reloadSession(terminalId);
-            // Small delay to let state update
-            setTimeout(() => {
-              setShowCashRegister(false);
-            }, 100);
+            console.log("[PDV] CashRegister onClose called");
+            cashRegisterDismissedRef.current = true;
+            setShowCashRegister(false);
+            // Reload session in background
+            pdv.reloadSession(terminalId);
           }}
         />
       )}
