@@ -75,17 +75,46 @@ export function usePDV() {
     setLoadingSession(true);
     try {
       if (!companyId) { setCurrentSession(null); return; }
+      
+      // Try online first
       const { data } = await supabase
         .from("cash_sessions")
         .select("*")
         .eq("company_id", companyId)
         .eq("terminal_id", terminalId)
-        .is("closed_at", null)
+        .eq("status", "aberto")
         .order("opened_at", { ascending: false })
         .limit(1)
         .maybeSingle();
-      setCurrentSession(data as CashSession | null);
+      
+      if (data) {
+        setCurrentSession(data as CashSession | null);
+      } else {
+        // Fallback: check localStorage for offline session
+        try {
+          const raw = localStorage.getItem("as_offline_cash_session");
+          if (raw) {
+            const offlineSession = JSON.parse(raw);
+            if (offlineSession?.company_id === companyId && offlineSession?.terminal_id === terminalId && offlineSession?.status === "aberto") {
+              setCurrentSession(offlineSession as CashSession);
+              return;
+            }
+          }
+        } catch {}
+        setCurrentSession(null);
+      }
     } catch {
+      // Network error — try offline session
+      try {
+        const raw = localStorage.getItem("as_offline_cash_session");
+        if (raw) {
+          const offlineSession = JSON.parse(raw);
+          if (offlineSession?.company_id === companyId && offlineSession?.terminal_id === terminalId && offlineSession?.status === "aberto") {
+            setCurrentSession(offlineSession as CashSession);
+            return;
+          }
+        }
+      } catch {}
       setCurrentSession(null);
     } finally {
       setLoadingSession(false);
