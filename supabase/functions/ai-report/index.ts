@@ -359,7 +359,9 @@ function generateFallbackReport(reportType: string, sales: any[], products: any[
   return s.join("\n");
 }
 
-async function callOpenAI(apiKey: string, systemPrompt: string, dataSummary: string, isQuick: boolean, maxRetries = 2): Promise<string | null> {
+async function callGemini(apiKey: string, systemPrompt: string, dataSummary: string, isQuick: boolean, maxRetries = 2): Promise<string | null> {
+  const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     if (attempt > 0) {
       const delay = Math.pow(2, attempt) * 1000;
@@ -368,24 +370,21 @@ async function callOpenAI(apiKey: string, systemPrompt: string, dataSummary: str
     }
 
     try {
-      const resp = await fetch("https://api.openai.com/v1/chat/completions", {
+      const resp = await fetch(geminiUrl, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${apiKey}`,
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "gpt-4o-mini",
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: dataSummary },
+          contents: [
+            { role: "user", parts: [{ text: `${systemPrompt}\n\n${dataSummary}` }] },
           ],
-          max_tokens: isQuick ? 200 : 2048,
-          temperature: 0.7,
+          generationConfig: {
+            maxOutputTokens: isQuick ? 200 : 2048,
+            temperature: 0.7,
+          },
         }),
       });
 
-      console.log(`[ai-report] OpenAI attempt ${attempt} status: ${resp.status}`);
+      console.log(`[ai-report] Gemini attempt ${attempt} status: ${resp.status}`);
 
       if (resp.status === 429) {
         console.warn("[ai-report] Rate limited, will retry...");
@@ -395,14 +394,14 @@ async function callOpenAI(apiKey: string, systemPrompt: string, dataSummary: str
 
       if (resp.ok) {
         const data = await resp.json();
-        const content = data.choices?.[0]?.message?.content;
+        const content = data?.candidates?.[0]?.content?.parts?.[0]?.text;
         if (content) return content;
         console.error("[ai-report] No content:", JSON.stringify(data).substring(0, 300));
         return null;
       }
 
       const errText = await resp.text();
-      console.error("[ai-report] OpenAI error:", resp.status, errText.substring(0, 200));
+      console.error("[ai-report] Gemini error:", resp.status, errText.substring(0, 200));
       return null;
     } catch (err: any) {
       console.error("[ai-report] Fetch error:", err?.message);
@@ -450,14 +449,14 @@ Deno.serve(async (req) => {
     const prevSales = prevSalesRes.data || [];
     const isQuick = report_type === "quick";
 
-    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
-    console.log("[ai-report] OPENAI_API_KEY present:", !!OPENAI_API_KEY);
+    const GEMINI_KEY = Deno.env.get("GOOGLE_GEMINI_KEY");
+    console.log("[ai-report] GOOGLE_GEMINI_KEY present:", !!GEMINI_KEY);
 
-    if (OPENAI_API_KEY) {
+    if (GEMINI_KEY) {
       const dataSummary = buildDataSummary(report_type || "general", sales, products, financial);
       const systemPrompt = getSystemPrompt(report_type || "general", isQuick);
 
-      const aiContent = await callOpenAI(OPENAI_API_KEY, systemPrompt, dataSummary, isQuick);
+      const aiContent = await callGemini(GEMINI_KEY, systemPrompt, dataSummary, isQuick);
       
       if (aiContent) {
         return new Response(JSON.stringify({ report: aiContent }), {
@@ -465,9 +464,9 @@ Deno.serve(async (req) => {
         });
       }
       
-      console.warn("[ai-report] All OpenAI attempts failed, using fallback");
+      console.warn("[ai-report] All Gemini attempts failed, using fallback");
     } else {
-      console.warn("[ai-report] OPENAI_API_KEY not found — add it in Supabase Dashboard > Edge Functions > Secrets");
+      console.warn("[ai-report] GOOGLE_GEMINI_KEY not found — add it in Supabase Dashboard > Edge Functions > Secrets");
     }
 
     // Fallback
