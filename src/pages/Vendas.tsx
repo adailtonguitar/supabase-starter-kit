@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { FileText, RefreshCw, RotateCcw, Loader2, Send } from "lucide-react";
+import { useState, useMemo } from "react";
+import { FileText, RefreshCw, RotateCcw, Loader2, Send, BarChart3, DollarSign, TrendingDown, TrendingUp } from "lucide-react";
 import { formatCurrency } from "@/lib/mock-data";
 import { motion } from "framer-motion";
 import { useSales, type Sale } from "@/hooks/useSales";
@@ -41,6 +41,29 @@ export default function Vendas() {
   const [emissionSale, setEmissionSale] = useState<Sale | null>(null);
   const [confirmRefund, setConfirmRefund] = useState<{ saleId: string; paymentId: string; amount: number } | null>(null);
   const { metrics, isLoadingMetrics, queueMap, processQueue, isProcessing } = useFiscalDashboard();
+
+  const summaryStats = useMemo(() => {
+    const activeSales = sales.filter(s => s.status !== "cancelada");
+    const totalSales = activeSales.length;
+    const totalRevenue = activeSales.reduce((sum, s) => sum + (s.total_value || 0), 0);
+    let totalCost = 0;
+    activeSales.forEach(sale => {
+      try {
+        const raw = sale.items_json;
+        let items: any[] = [];
+        if (Array.isArray(raw)) items = raw;
+        else if (raw && typeof raw === "object" && (raw as any).items) items = (raw as any).items;
+        else if (typeof raw === "string") { const p = JSON.parse(raw); items = Array.isArray(p) ? p : p?.items || []; }
+        items.forEach(item => {
+          const cost = item.cost_price || item.costPrice || 0;
+          const qty = item.quantity || 1;
+          totalCost += cost * qty;
+        });
+      } catch { /* skip */ }
+    });
+    const totalProfit = totalRevenue - totalCost;
+    return { totalSales, totalRevenue, totalCost, totalProfit };
+  }, [sales]);
 
   const getTefPayments = (sale: Sale) => {
     try {
@@ -89,6 +112,30 @@ export default function Vendas() {
           </button>
         </div>
       </div>
+      {/* Summary Stats Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {[
+          { label: "Vendas", value: String(summaryStats.totalSales), icon: BarChart3, color: "text-primary" },
+          { label: "Receita Total", value: formatCurrency(summaryStats.totalRevenue), icon: DollarSign, color: "text-emerald-500" },
+          { label: "Custo Total", value: formatCurrency(summaryStats.totalCost), icon: TrendingDown, color: "text-destructive" },
+          { label: "Lucro Total", value: formatCurrency(summaryStats.totalProfit), icon: TrendingUp, color: summaryStats.totalProfit >= 0 ? "text-emerald-500" : "text-destructive" },
+        ].map((stat, i) => (
+          <motion.div
+            key={stat.label}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.05 }}
+            className="bg-card rounded-xl border border-border p-4"
+          >
+            <div className="flex items-center gap-2 mb-1">
+              <stat.icon className={`w-4 h-4 ${stat.color}`} />
+              <span className="text-xs text-muted-foreground font-medium">{stat.label}</span>
+            </div>
+            <p className={`text-lg font-bold font-mono ${stat.color}`}>{stat.value}</p>
+          </motion.div>
+        ))}
+      </div>
+
       <FiscalDashboard
         metrics={metrics}
         isLoading={isLoadingMetrics}
