@@ -1,6 +1,6 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { Search, X, Package, AlertTriangle } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 
 interface PDVProductGridProps {
   products: any[];
@@ -15,6 +15,8 @@ const formatCurrency = (value: number) =>
 
 export function PDVProductGrid({ products, loading, onAddToCart }: PDVProductGridProps) {
   const [search, setSearch] = useState("");
+  const [selectedIdx, setSelectedIdx] = useState(0);
+  const listRef = useRef<HTMLDivElement>(null);
 
   const filtered = useMemo(() => {
     if (!search.trim()) return products.slice(0, 80);
@@ -29,8 +31,37 @@ export function PDVProductGrid({ products, loading, onAddToCart }: PDVProductGri
       .slice(0, 80);
   }, [products, search]);
 
+  // Reset selection when search changes
+  useEffect(() => {
+    setSelectedIdx(0);
+  }, [search]);
+
+  // Scroll selected item into view
+  useEffect(() => {
+    if (!listRef.current) return;
+    const el = listRef.current.querySelector(`[data-idx="${selectedIdx}"]`);
+    if (el) el.scrollIntoView({ block: "nearest" });
+  }, [selectedIdx]);
+
+  // Keyboard navigation
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setSelectedIdx((prev) => Math.min(prev + 1, filtered.length - 1));
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setSelectedIdx((prev) => Math.max(prev - 1, 0));
+      } else if (e.key === "Enter" && filtered.length > 0) {
+        e.preventDefault();
+        onAddToCart(filtered[selectedIdx]);
+      }
+    },
+    [filtered, selectedIdx, onAddToCart]
+  );
+
   return (
-    <div className="flex flex-col h-full overflow-hidden bg-background">
+    <div className="flex flex-col h-full overflow-hidden bg-background" onKeyDown={handleKeyDown}>
       {/* ── Search bar ── */}
       <div className="px-3 sm:px-4 py-3 border-b-2 border-primary/20 bg-gradient-to-r from-primary/5 via-card to-primary/5 flex-shrink-0">
         <div className="relative">
@@ -67,7 +98,7 @@ export function PDVProductGrid({ products, loading, onAddToCart }: PDVProductGri
       </div>
 
       {/* ── Content ── */}
-      <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-0">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-0" ref={listRef}>
         {loading ? (
           <div className="flex flex-col items-center justify-center py-16 gap-3">
             <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
@@ -96,12 +127,15 @@ export function PDVProductGrid({ products, loading, onAddToCart }: PDVProductGri
                 return (
                   <motion.button
                     key={p.id}
+                    data-idx={idx}
                     initial={{ opacity: 0, x: -8 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: Math.min(idx * 0.02, 0.3), duration: 0.15 }}
                     onClick={() => onAddToCart(p)}
                     className={`w-full text-left px-3 py-3 border-b border-border/40 active:scale-[0.98] transition-all ${
-                      isOutOfStock
+                      selectedIdx === idx
+                        ? "bg-primary/20 ring-2 ring-primary ring-inset"
+                        : isOutOfStock
                         ? "opacity-50 bg-destructive/5"
                         : "hover:bg-primary/10"
                     }`}
@@ -168,12 +202,15 @@ export function PDVProductGrid({ products, loading, onAddToCart }: PDVProductGri
                   return (
                     <motion.tr
                       key={p.id}
+                      data-idx={idx}
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       transition={{ delay: Math.min(idx * 0.01, 0.2), duration: 0.1 }}
                       onClick={() => onAddToCart(p)}
                       className={`border-b border-border/30 cursor-pointer transition-all duration-150 ${
-                        isOutOfStock
+                        selectedIdx === idx
+                          ? "bg-primary/20 ring-2 ring-primary ring-inset"
+                          : isOutOfStock
                           ? "opacity-50 bg-destructive/5 hover:bg-destructive/10"
                           : idx % 2 === 0
                           ? "bg-card hover:bg-primary/10"
