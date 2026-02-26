@@ -113,3 +113,31 @@ export function useCreateBranch() {
     onError: (e: Error) => toast.error(e.message),
   });
 }
+
+/** Delete a branch company */
+export function useDeleteBranch() {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (companyId: string) => {
+      // Remove user links first
+      const { error: cuErr } = await supabase
+        .from("company_users")
+        .delete()
+        .eq("company_id", companyId);
+      if (cuErr) throw cuErr;
+
+      // Delete the company
+      const { error } = await supabase
+        .from("companies")
+        .delete()
+        .eq("id", companyId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["branches"] });
+      toast.success("Filial excluída com sucesso!");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
