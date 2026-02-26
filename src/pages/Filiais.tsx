@@ -760,20 +760,20 @@ export default function Filiais() {
       <CompanySwitcher />
 
       <Tabs defaultValue="hierarchy" className="w-full">
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: "4px", background: "hsl(var(--muted))", padding: "4px", borderRadius: "8px", marginBottom: "16px" }}>
-          <TabsTrigger value="hierarchy" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "4px", fontSize: "11px", padding: "8px 4px", borderRadius: "6px", fontWeight: 500, cursor: "pointer" }}>
-            <Building2 className="w-3.5 h-3.5" /> Hierarquia
+        <TabsList style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", width: "100%", height: "auto", gap: "4px" }} className="mb-4">
+          <TabsTrigger value="hierarchy" className="text-[11px] py-2">
+            <Building2 className="w-3.5 h-3.5 mr-1" /> Hierarquia
           </TabsTrigger>
-          <TabsTrigger value="transfers" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "4px", fontSize: "11px", padding: "8px 4px", borderRadius: "6px", fontWeight: 500, cursor: "pointer" }}>
-            <ArrowRightLeft className="w-3.5 h-3.5" /> Transf.
+          <TabsTrigger value="transfers" className="text-[11px] py-2">
+            <ArrowRightLeft className="w-3.5 h-3.5 mr-1" /> Transf.
           </TabsTrigger>
-          <TabsTrigger value="consolidated" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "4px", fontSize: "11px", padding: "8px 4px", borderRadius: "6px", fontWeight: 500, cursor: "pointer" }}>
-            <BarChart3 className="w-3.5 h-3.5" /> Consolid.
+          <TabsTrigger value="consolidated" className="text-[11px] py-2">
+            <BarChart3 className="w-3.5 h-3.5 mr-1" /> Consolid.
           </TabsTrigger>
-          <TabsTrigger value="permissions" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "4px", fontSize: "11px", padding: "8px 4px", borderRadius: "6px", fontWeight: 500, cursor: "pointer" }}>
-            <Filter className="w-3.5 h-3.5" /> Permissões
+          <TabsTrigger value="permissions" className="text-[11px] py-2">
+            <Filter className="w-3.5 h-3.5 mr-1" /> Permissões
           </TabsTrigger>
-        </div>
+        </TabsList>
 
         <TabsContent value="hierarchy"><HierarchyTab /></TabsContent>
         <TabsContent value="transfers"><TransfersTab /></TabsContent>
