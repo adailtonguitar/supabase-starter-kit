@@ -760,22 +760,20 @@ export default function Filiais() {
       <CompanySwitcher />
 
       <Tabs defaultValue="hierarchy" className="w-full">
-        <div className="grid grid-cols-4 gap-1 bg-muted p-1 rounded-lg mb-4">
-          <TabsList className="contents">
-            <TabsTrigger value="hierarchy" className="flex items-center justify-center gap-1 text-[11px] px-1 py-2 rounded-md">
-              <Building2 className="w-3.5 h-3.5 shrink-0" /> <span className="hidden sm:inline">Hierarquia</span>
-            </TabsTrigger>
-            <TabsTrigger value="transfers" className="flex items-center justify-center gap-1 text-[11px] px-1 py-2 rounded-md">
-              <ArrowRightLeft className="w-3.5 h-3.5 shrink-0" /> <span className="hidden sm:inline">Transferências</span>
-            </TabsTrigger>
-            <TabsTrigger value="consolidated" className="flex items-center justify-center gap-1 text-[11px] px-1 py-2 rounded-md">
-              <BarChart3 className="w-3.5 h-3.5 shrink-0" /> <span className="hidden sm:inline">Consolidado</span>
-            </TabsTrigger>
-            <TabsTrigger value="permissions" className="flex items-center justify-center gap-1 text-[11px] px-1 py-2 rounded-md">
-              <Filter className="w-3.5 h-3.5 shrink-0" /> <span className="hidden sm:inline">Permissões</span>
-            </TabsTrigger>
-          </TabsList>
-        </div>
+        <TabsList className="w-full grid grid-cols-4 h-auto mb-4">
+          <TabsTrigger value="hierarchy" className="text-[11px] py-2">
+            <Building2 className="w-3.5 h-3.5 mr-1" /> Hierarquia
+          </TabsTrigger>
+          <TabsTrigger value="transfers" className="text-[11px] py-2">
+            <ArrowRightLeft className="w-3.5 h-3.5 mr-1" /> Transf.
+          </TabsTrigger>
+          <TabsTrigger value="consolidated" className="text-[11px] py-2">
+            <BarChart3 className="w-3.5 h-3.5 mr-1" /> Consolid.
+          </TabsTrigger>
+          <TabsTrigger value="permissions" className="text-[11px] py-2">
+            <Filter className="w-3.5 h-3.5 mr-1" /> Permissões
+          </TabsTrigger>
+        </TabsList>
 
         <TabsContent value="hierarchy"><HierarchyTab /></TabsContent>
         <TabsContent value="transfers"><TransfersTab /></TabsContent>
