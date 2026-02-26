@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Download, Upload, Clock, HardDrive, Percent, Save, Loader2, Crown, Check, ArrowRight, MessageCircle, Pencil, Calculator, Send, Mail } from "lucide-react";
+import { Download, Upload, Clock, HardDrive, Percent, Save, Loader2, Crown, Check, ArrowRight, MessageCircle, Pencil, Calculator, Send, Mail, Lock, Eye, EyeOff } from "lucide-react";
 import { TEFConfigSection } from "@/components/settings/TEFConfigSection";
 import { ScaleConfigSection } from "@/components/settings/ScaleConfigSection";
 import { motion } from "framer-motion";
@@ -485,6 +485,63 @@ function AccountantSection() {
   );
 }
 
+function ChangePasswordSection() {
+  const [currentPwd, setCurrentPwd] = useState("");
+  const [newPwd, setNewPwd] = useState("");
+  const [confirmPwd, setConfirmPwd] = useState("");
+  const [showCurrent, setShowCurrent] = useState(false);
+  const [showNew, setShowNew] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  const handleChange = async () => {
+    if (!newPwd || newPwd.length < 6) { toast.warning("A nova senha deve ter pelo menos 6 caracteres"); return; }
+    if (newPwd !== confirmPwd) { toast.warning("As senhas não coincidem"); return; }
+    setSaving(true);
+    try {
+      const { error } = await supabase.auth.updateUser({ password: newPwd });
+      if (error) throw error;
+      toast.success("Senha alterada com sucesso!");
+      setCurrentPwd(""); setNewPwd(""); setConfirmPwd("");
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao alterar senha");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.02 }} className="bg-card rounded-xl card-shadow border border-border overflow-hidden">
+      <div className="px-5 py-4 border-b border-border flex items-center gap-2">
+        <Lock className="w-4 h-4 text-primary" />
+        <h2 className="text-base font-semibold text-foreground">Alterar Senha</h2>
+      </div>
+      <div className="p-5 space-y-4">
+        <p className="text-sm text-muted-foreground">Altere sua senha de acesso ao sistema.</p>
+        <div>
+          <label className="text-xs font-medium text-muted-foreground mb-1 block">Nova Senha</label>
+          <div className="relative">
+            <input type={showNew ? "text" : "password"} value={newPwd} onChange={(e) => setNewPwd(e.target.value)} placeholder="Mínimo 6 caracteres"
+              className="w-full px-3 py-2 pr-10 rounded-lg bg-background border border-border text-foreground placeholder:text-muted-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" />
+            <button type="button" onClick={() => setShowNew(!showNew)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+              {showNew ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
+          </div>
+        </div>
+        <div>
+          <label className="text-xs font-medium text-muted-foreground mb-1 block">Confirmar Nova Senha</label>
+          <input type="password" value={confirmPwd} onChange={(e) => setConfirmPwd(e.target.value)} placeholder="Repita a nova senha"
+            className="w-full px-3 py-2 rounded-lg bg-background border border-border text-foreground placeholder:text-muted-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" />
+        </div>
+        <button onClick={handleChange} disabled={saving || !newPwd || !confirmPwd}
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-all disabled:opacity-50">
+          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Lock className="w-4 h-4" />}
+          {saving ? "Salvando..." : "Alterar Senha"}
+        </button>
+      </div>
+    </motion.div>
+  );
+}
+
 export default function Configuracoes() {
   const [exporting, setExporting] = useState(false);
   const [importing, setImporting] = useState(false);
@@ -554,6 +611,7 @@ export default function Configuracoes() {
         <p className="text-sm text-muted-foreground mt-1">Configurações gerais do sistema</p>
       </div>
 
+      <ChangePasswordSection />
       <MyPlanSection />
       <WhatsAppSupportSection />
       <DiscountLimitsSection />
