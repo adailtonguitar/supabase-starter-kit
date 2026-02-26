@@ -122,13 +122,85 @@ export function useCreateBranch() {
   });
 }
 
+/** Update a branch company name/cnpj */
+export function useUpdateBranch() {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ companyId, name, cnpj }: { companyId: string; name: string; cnpj?: string }) => {
+      const { error } = await supabase
+        .from("companies")
+        .update({ name, cnpj: cnpj || null } as any)
+        .eq("id", companyId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["branches"] });
+      toast.success("Filial atualizada!");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+/** Sync products from parent to branch */
+export function useSyncProducts() {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ fromCompanyId, toCompanyId }: { fromCompanyId: string; toCompanyId: string }) => {
+      // Fetch source products
+      const { data: sourceProducts, error: fetchErr } = await supabase
+        .from("products")
+        .select("*")
+        .eq("company_id", fromCompanyId)
+        .eq("is_active", true);
+
+      if (fetchErr) throw fetchErr;
+      if (!sourceProducts || sourceProducts.length === 0) throw new Error("Nenhum produto encontrado na matriz");
+
+      // Get existing products in target to avoid duplicates
+      const { data: existingProducts } = await supabase
+        .from("products")
+        .select("sku, name")
+        .eq("company_id", toCompanyId);
+
+      const existingSkus = new Set((existingProducts || []).map((p: any) => p.sku).filter(Boolean));
+      const existingNames = new Set((existingProducts || []).map((p: any) => p.name));
+
+      // Filter out duplicates
+      const newProducts = sourceProducts.filter((p: any) => {
+        if (p.sku && existingSkus.has(p.sku)) return false;
+        if (existingNames.has(p.name)) return false;
+        return true;
+      });
+
+      if (newProducts.length === 0) throw new Error("Todos os produtos já existem na filial");
+
+      // Insert products with new company_id
+      const toInsert = newProducts.map((p: any) => {
+        const { id, created_at, updated_at, ...rest } = p;
+        return { ...rest, company_id: toCompanyId };
+      });
+
+      const { error: insertErr } = await supabase.from("products").insert(toInsert);
+      if (insertErr) throw insertErr;
+
+      return { synced: toInsert.length };
+    },
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ["products"] });
+      toast.success(`${data.synced} produtos sincronizados!`);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
 /** Delete a branch company */
 export function useDeleteBranch() {
   const qc = useQueryClient();
 
   return useMutation({
     mutationFn: async (companyId: string) => {
-      // Clean up dependent tables first (while user still has RLS access)
       const dependentTables = [
         "fiscal_categories", "stock_movements", "financial_entries",
         "sales", "products", "clients", "promotions", "employees",
@@ -138,12 +210,9 @@ export function useDeleteBranch() {
       for (const table of dependentTables) {
         try {
           await supabase.from(table).delete().eq("company_id", companyId);
-        } catch {
-          // skip if table doesn't exist
-        }
+        } catch { /* skip */ }
       }
 
-      // Delete the company (user still has access via company_users)
       const { error, data } = await supabase
         .from("companies")
         .delete()
@@ -152,7 +221,6 @@ export function useDeleteBranch() {
       if (error) throw error;
       if (!data || data.length === 0) throw new Error("Falha ao excluir: permissão negada.");
 
-      // Clean up company_users last
       await supabase.from("company_users").delete().eq("company_id", companyId);
     },
     onSuccess: () => {

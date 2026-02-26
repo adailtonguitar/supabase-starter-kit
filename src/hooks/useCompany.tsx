@@ -1,9 +1,9 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
 
 const COMPANY_CACHE_KEY = "as_cached_company";
-
+const SELECTED_COMPANY_KEY = "as_selected_company";
 interface CachedCompany {
   companyId: string;
   companyName: string | null;
@@ -35,6 +35,7 @@ interface CompanyData {
   pixKeyType: string | null;
   pixCity: string | null;
   loading: boolean;
+  switchCompany: (companyId: string) => void;
 }
 
 export function useCompany(): CompanyData {
@@ -83,39 +84,60 @@ export function useCompany(): CompanyData {
 
     let cancelled = false;
 
-    const fetchCompany = async () => {
+    const fetchCompany = async (targetCompanyId?: string) => {
       try {
-        const { data: cuData, error: cuError } = await supabase
-          .from("company_users")
-          .select("company_id")
-          .eq("user_id", user.id)
-          .eq("is_active", true)
-          .limit(1)
-          .single();
+        // If a specific company is selected, use that
+        const selectedId = targetCompanyId || localStorage.getItem(SELECTED_COMPANY_KEY);
+        
+        let resolvedCompanyId: string | null = null;
 
-        if (cancelled) return;
-
-        if (cuError || !cuData?.company_id) {
-          if (retryCount.current < 3) {
-            retryCount.current++;
-            const delay = retryCount.current * 1500;
-            console.warn(`[useCompany] Retry ${retryCount.current}/3 in ${delay}ms`);
-            retryTimer.current = setTimeout(() => {
-              if (!cancelled) fetchCompany();
-            }, delay);
-            return;
-          }
-          setCompanyId(null);
-          setLoading(false);
-          return;
+        if (selectedId) {
+          // Verify user has access to this company
+          const { data: check } = await supabase
+            .from("company_users")
+            .select("company_id")
+            .eq("user_id", user.id)
+            .eq("company_id", selectedId)
+            .eq("is_active", true)
+            .maybeSingle();
+          if (check) resolvedCompanyId = check.company_id;
         }
 
-        setCompanyId(cuData.company_id);
+        if (!resolvedCompanyId) {
+          const { data: cuData, error: cuError } = await supabase
+            .from("company_users")
+            .select("company_id")
+            .eq("user_id", user.id)
+            .eq("is_active", true)
+            .limit(1)
+            .single();
+
+          if (cancelled) return;
+
+          if (cuError || !cuData?.company_id) {
+            if (retryCount.current < 3) {
+              retryCount.current++;
+              const delay = retryCount.current * 1500;
+              console.warn(`[useCompany] Retry ${retryCount.current}/3 in ${delay}ms`);
+              retryTimer.current = setTimeout(() => {
+                if (!cancelled) fetchCompany();
+              }, delay);
+              return;
+            }
+            setCompanyId(null);
+            setLoading(false);
+            return;
+          }
+          resolvedCompanyId = cuData.company_id;
+        }
+
+        if (cancelled) return;
+        setCompanyId(resolvedCompanyId);
 
         const { data: company } = await supabase
           .from("companies")
           .select("name, logo_url, slogan, pix_key, pix_key_type, pix_city, address_city")
-          .eq("id", cuData.company_id)
+          .eq("id", resolvedCompanyId)
           .single();
 
         if (cancelled) return;
@@ -134,9 +156,8 @@ export function useCompany(): CompanyData {
         setPixKeyType(pkt);
         setPixCity(pc);
 
-        // Cache for offline use
         cacheCompany({
-          companyId: cuData.company_id,
+          companyId: resolvedCompanyId,
           companyName: name,
           logoUrl: logo,
           slogan: s,
@@ -153,7 +174,6 @@ export function useCompany(): CompanyData {
           }, retryCount.current * 1500);
           return;
         }
-        // If offline and cached, keep cached values
         if (!navigator.onLine && cached?.companyId) {
           setCompanyId(cached.companyId);
         } else {
@@ -171,5 +191,40 @@ export function useCompany(): CompanyData {
     };
   }, [user]);
 
-  return { companyId, companyName, logoUrl, slogan, pixKey, pixKeyType, pixCity, loading };
+  const switchCompany = useCallback((newCompanyId: string) => {
+    localStorage.setItem(SELECTED_COMPANY_KEY, newCompanyId);
+    // Force re-fetch by updating state
+    setCompanyId(newCompanyId);
+    setLoading(true);
+    // Fetch the new company details
+    (async () => {
+      const { data: company } = await supabase
+        .from("companies")
+        .select("name, logo_url, slogan, pix_key, pix_key_type, pix_city, address_city")
+        .eq("id", newCompanyId)
+        .single();
+      
+      const name = company?.name ?? null;
+      const logo = company?.logo_url ?? null;
+      setCompanyName(name);
+      setLogoUrl(logo);
+      setSlogan((company as any)?.slogan ?? null);
+      setPixKey((company as any)?.pix_key ?? null);
+      setPixKeyType((company as any)?.pix_key_type ?? null);
+      setPixCity((company as any)?.pix_city || (company as any)?.address_city || null);
+      
+      cacheCompany({
+        companyId: newCompanyId,
+        companyName: name,
+        logoUrl: logo,
+        slogan: (company as any)?.slogan ?? null,
+        pixKey: (company as any)?.pix_key ?? null,
+        pixKeyType: (company as any)?.pix_key_type ?? null,
+        pixCity: (company as any)?.pix_city || (company as any)?.address_city || null,
+      });
+      setLoading(false);
+    })();
+  }, []);
+
+  return { companyId, companyName, logoUrl, slogan, pixKey, pixKeyType, pixCity, loading, switchCompany };
 }
