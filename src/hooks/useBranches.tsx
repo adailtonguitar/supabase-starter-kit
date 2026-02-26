@@ -103,35 +103,57 @@ export function useCreateBranch() {
         .from("companies")
         .insert({ name, cnpj: cnpj || null, parent_company_id: parentId } as any)
         .select("id")
-        .single();
-      if (companyErr) throw companyErr;
+        .maybeSingle();
 
-      // 2) Link current user as admin
-      // Check if record already exists (trigger may have created it)
+      // If company insert itself failed with duplicate key from a trigger,
+      // try to find the company that was just created (it might have succeeded
+      // despite the trigger error)
+      let companyId = company?.id;
+
+      if (companyErr) {
+        if (companyErr.message?.includes("company_users")) {
+          // Trigger on companies tried to insert into company_users and failed
+          // The company might still have been created — look it up
+          const { data: found } = await supabase
+            .from("companies")
+            .select("id")
+            .eq("name", name)
+            .eq("parent_company_id", parentId)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          if (found) {
+            companyId = found.id;
+          } else {
+            throw companyErr;
+          }
+        } else {
+          throw companyErr;
+        }
+      }
+
+      if (!companyId) throw new Error("Falha ao criar empresa");
+
+      // 2) Ensure current user is linked as admin
       const { data: existingCU } = await supabase
         .from("company_users")
         .select("id")
-        .eq("company_id", company.id)
+        .eq("company_id", companyId)
         .eq("user_id", userId)
         .maybeSingle();
 
       if (existingCU) {
-        // Already exists (trigger created it) — just ensure role is admin
         await supabase
           .from("company_users")
           .update({ role: "admin", is_active: true })
           .eq("id", existingCU.id);
       } else {
-        // Does not exist — create it
-        const { error: cuErr } = await supabase
+        await supabase
           .from("company_users")
-          .insert({ company_id: company.id, user_id: userId, role: "admin", is_active: true });
-        if (cuErr) {
-          console.warn("[createBranch] company_users insert error (non-fatal):", cuErr.message);
-        }
+          .insert({ company_id: companyId, user_id: userId, role: "admin", is_active: true });
       }
 
-      return company;
+      return { id: companyId };
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["branches"] });
