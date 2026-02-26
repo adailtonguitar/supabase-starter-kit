@@ -90,14 +90,6 @@ export function useCreateBranch() {
 
   return useMutation({
     mutationFn: async ({ name, cnpj, parentId, userId }: { name: string; cnpj?: string; parentId: string; userId: string }) => {
-      // 0) Clean up any orphaned company_users for this user
-      // (from previously deleted companies)
-      try {
-        await supabase.rpc("cleanup_orphan_company_users" as any, { p_user_id: userId });
-      } catch {
-        // RPC might not exist yet — skip
-      }
-
       // 1) Create the company
       const { data: company, error: companyErr } = await supabase
         .from("companies")
@@ -105,52 +97,60 @@ export function useCreateBranch() {
         .select("id")
         .maybeSingle();
 
-      // If company insert itself failed with duplicate key from a trigger,
-      // try to find the company that was just created (it might have succeeded
-      // despite the trigger error)
       let companyId = company?.id;
 
-      if (companyErr) {
-        if (companyErr.message?.includes("company_users")) {
-          // Trigger on companies tried to insert into company_users and failed
-          // The company might still have been created — look it up
-          const { data: found } = await supabase
-            .from("companies")
-            .select("id")
-            .eq("name", name)
-            .eq("parent_company_id", parentId)
-            .order("created_at", { ascending: false })
-            .limit(1)
-            .maybeSingle();
-          if (found) {
-            companyId = found.id;
-          } else {
-            throw companyErr;
-          }
-        } else {
-          throw companyErr;
-        }
+      // If insert returned an error, the company may still have been created
+      // (e.g. a trigger on companies that inserts into company_users may fail
+      //  but the company row itself gets committed)
+      if (!companyId) {
+        // Try to find the company by name + parent
+        const { data: found } = await supabase
+          .from("companies")
+          .select("id")
+          .eq("name", name)
+          .eq("parent_company_id", parentId)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        companyId = found?.id;
       }
 
-      if (!companyId) throw new Error("Falha ao criar empresa");
+      // If we truly couldn't create or find the company, throw
+      if (!companyId) {
+        throw new Error(companyErr?.message || "Falha ao criar empresa");
+      }
 
-      // 2) Ensure current user is linked as admin
-      const { data: existingCU } = await supabase
-        .from("company_users")
-        .select("id")
-        .eq("company_id", companyId)
-        .eq("user_id", userId)
-        .maybeSingle();
+      // 2) Ensure current user is linked as admin (never throw here)
+      try {
+        const { data: existingCU } = await supabase
+          .from("company_users")
+          .select("id")
+          .eq("company_id", companyId)
+          .eq("user_id", userId)
+          .maybeSingle();
 
-      if (existingCU) {
-        await supabase
-          .from("company_users")
-          .update({ role: "admin", is_active: true })
-          .eq("id", existingCU.id);
-      } else {
-        await supabase
-          .from("company_users")
-          .insert({ company_id: companyId, user_id: userId, role: "admin", is_active: true });
+        if (existingCU) {
+          await supabase
+            .from("company_users")
+            .update({ role: "admin", is_active: true })
+            .eq("id", existingCU.id);
+        } else {
+          const { error: cuErr } = await supabase
+            .from("company_users")
+            .insert({ company_id: companyId, user_id: userId, role: "admin", is_active: true });
+          if (cuErr) {
+            // Last resort: try update
+            await supabase
+              .from("company_users")
+              .update({ role: "admin", is_active: true })
+              .eq("company_id", companyId)
+              .eq("user_id", userId);
+          }
+        }
+      } catch {
+        // Non-fatal — company was created
+        console.warn("[createBranch] company_users link failed but company exists");
       }
 
       return { id: companyId };
