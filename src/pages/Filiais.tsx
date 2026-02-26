@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { Building2, Plus, ChevronRight, Pencil, ArrowRightLeft, BarChart3, Shield } from "lucide-react";
+import { Building2, Plus, ChevronRight, Pencil, ArrowRightLeft, BarChart3, Shield, RefreshCw } from "lucide-react";
 import { motion } from "framer-motion";
 import StockTransfersSection from "@/components/filiais/StockTransfersSection";
 import ConsolidatedSection from "@/components/filiais/ConsolidatedSection";
 import PermissionsSection from "@/components/filiais/PermissionsSection";
-import { useBranches, useSetParentCompany, useCreateBranch, useDeleteBranch, useUpdateBranch } from "@/hooks/useBranches";
+import { useBranches, useSetParentCompany, useCreateBranch, useDeleteBranch, useUpdateBranch, useSyncProducts } from "@/hooks/useBranches";
 import { useCompany } from "@/hooks/useCompany";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -17,6 +17,7 @@ export default function Filiais() {
   const createBranch = useCreateBranch();
   const deleteBranch = useDeleteBranch();
   const updateBranch = useUpdateBranch();
+  const syncProducts = useSyncProducts();
   const { companyId, switchCompany } = useCompany();
   const { user } = useAuth();
 
@@ -262,6 +263,17 @@ export default function Filiais() {
                         <p className="text-xs text-muted-foreground">Matriz: {parentName}</p>
                       </div>
                       <div className="flex gap-2 items-center flex-shrink-0">
+                        <button
+                          onClick={() => {
+                            if (!c.parent_company_id) return;
+                            syncProducts.mutate({ fromCompanyId: c.parent_company_id, toCompanyId: c.id });
+                          }}
+                          disabled={syncProducts.isPending}
+                          className="text-xs text-primary hover:underline flex items-center gap-1"
+                          title="Sincronizar produtos da matriz"
+                        >
+                          <RefreshCw className={`w-3 h-3 ${syncProducts.isPending ? "animate-spin" : ""}`} /> Sync
+                        </button>
                         <button onClick={() => handleEdit(c)} className="text-xs text-muted-foreground hover:text-foreground" title="Editar">
                           <Pencil className="w-3.5 h-3.5" />
                         </button>
