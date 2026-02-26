@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Building2, ArrowRightLeft, BarChart3, Plus, Package, Check, X, Truck, ChevronRight } from "lucide-react";
 import { motion } from "framer-motion";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useBranches, useSetParentCompany, useCreateBranch } from "@/hooks/useBranches";
+import { useBranches, useSetParentCompany, useCreateBranch, useDeleteBranch } from "@/hooks/useBranches";
 import { useStockTransfers, useCreateStockTransfer, useReceiveStockTransfer } from "@/hooks/useStockTransfers";
 import { useConsolidatedReport } from "@/hooks/useConsolidatedReport";
 import { useCompany } from "@/hooks/useCompany";
@@ -18,6 +18,7 @@ function HierarchyTab() {
   const { data: branches, isLoading } = useBranches();
   const setParent = useSetParentCompany();
   const createBranch = useCreateBranch();
+  const deleteBranch = useDeleteBranch();
   const { companyId } = useCompany();
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
@@ -126,16 +127,28 @@ function HierarchyTab() {
                     <p className="text-sm font-medium text-foreground">{c.name}</p>
                     <p className="text-xs text-muted-foreground">Matriz: {parentName}</p>
                   </div>
-                  <button
-                    onClick={() => {
-                      if (confirm("Desvincular esta filial da matriz?")) {
-                        setParent.mutate({ companyId: c.id, parentId: null });
-                      }
-                    }}
-                    className="text-xs text-destructive hover:underline"
-                  >
-                    Desvincular
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        if (confirm("Desvincular esta filial da matriz?")) {
+                          setParent.mutate({ companyId: c.id, parentId: null });
+                        }
+                      }}
+                      className="text-xs text-muted-foreground hover:underline"
+                    >
+                      Desvincular
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (confirm(`Excluir a filial "${c.name}" permanentemente? Todos os dados dela serão perdidos.`)) {
+                          deleteBranch.mutate(c.id);
+                        }
+                      }}
+                      className="text-xs text-destructive hover:underline"
+                    >
+                      Excluir
+                    </button>
+                  </div>
                 </div>
               );
             })}
