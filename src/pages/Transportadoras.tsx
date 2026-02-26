@@ -30,6 +30,13 @@ export default function Transportadoras() {
       onUpdate={(d) => update.mutateAsync(d as any)}
       onDelete={(id) => del.mutateAsync(id)}
       searchKeys={["name", "cnpj", "contact_name"]}
+      cnpjFieldMap={{
+        name: "name",
+        trade_name: "trade_name",
+        email: "email",
+        phone: "phone",
+        contact_name: "contact_name",
+      }}
     />
   );
 }

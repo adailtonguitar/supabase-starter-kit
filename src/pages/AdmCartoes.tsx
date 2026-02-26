@@ -31,6 +31,12 @@ export default function AdmCartoes() {
       onUpdate={(d) => update.mutateAsync(d as any)}
       onDelete={(id) => del.mutateAsync(id)}
       searchKeys={["name", "cnpj"]}
+      cnpjFieldMap={{
+        name: "name",
+        email: "email",
+        phone: "phone",
+        contact_name: "contact_name",
+      }}
     />
   );
 }
