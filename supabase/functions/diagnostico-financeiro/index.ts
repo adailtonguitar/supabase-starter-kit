@@ -19,21 +19,90 @@ Estruture em tópicos:
 5. Recomendações
 6. Tendência para próximo mês`;
 
+async function callGeminiWithRetry(apiKey: string, systemPrompt: string, userPrompt: string, maxRetries = 3): Promise<{ content: string | null; error: string | null; status: number }> {
+  const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    if (attempt > 0) {
+      const delay = Math.pow(2, attempt) * 2000; // 4s, 8s
+      console.log(`[diagnostico] Retry ${attempt}/${maxRetries - 1}, aguardando ${delay}ms...`);
+      await new Promise(r => setTimeout(r, delay));
+    }
+
+    console.log(`[diagnostico] Chamando Gemini (tentativa ${attempt + 1}/${maxRetries})...`);
+    const startTime = Date.now();
+
+    try {
+      const resp = await fetch(geminiUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [
+            { role: "user", parts: [{ text: `${systemPrompt}\n\n${userPrompt}` }] },
+          ],
+          generationConfig: { maxOutputTokens: 600, temperature: 0.7 },
+        }),
+      });
+
+      const elapsed = Date.now() - startTime;
+      console.log(`[diagnostico] Gemini respondeu em ${elapsed}ms — status: ${resp.status}`);
+
+      if (resp.status === 429) {
+        const errText = await resp.text();
+        console.warn(`[diagnostico] Rate limit (429). Detalhes: ${errText.substring(0, 200)}`);
+        if (attempt < maxRetries - 1) continue;
+        return { content: null, error: "Limite de requisições do Gemini atingido. Aguarde 1 minuto e tente novamente.", status: 429 };
+      }
+
+      if (resp.status === 403) {
+        const errText = await resp.text();
+        console.error(`[diagnostico] Acesso negado (403): ${errText.substring(0, 200)}`);
+        return { content: null, error: "Chave do Gemini sem permissão. Verifique a GOOGLE_GEMINI_KEY no Supabase.", status: 403 };
+      }
+
+      if (!resp.ok) {
+        const errText = await resp.text();
+        console.error(`[diagnostico] Erro ${resp.status}: ${errText.substring(0, 200)}`);
+        return { content: null, error: `Erro na API Gemini (${resp.status}).`, status: resp.status };
+      }
+
+      const data = await resp.json();
+      const content = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+
+      if (!content) {
+        console.error("[diagnostico] Resposta sem conteúdo:", JSON.stringify(data).substring(0, 300));
+        return { content: null, error: "Resposta vazia da IA.", status: 200 };
+      }
+
+      console.log(`[diagnostico] Sucesso! Conteúdo gerado (${content.length} chars)`);
+      return { content, error: null, status: 200 };
+    } catch (err: any) {
+      console.error(`[diagnostico] Erro de rede (tentativa ${attempt + 1}):`, err?.message);
+      if (attempt < maxRetries - 1) continue;
+      return { content: null, error: "Falha de conexão com a API Gemini.", status: 500 };
+    }
+  }
+
+  return { content: null, error: "Todas as tentativas falharam.", status: 502 };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
+  console.log("[diagnostico] ========== NOVA REQUISIÇÃO ==========");
+
   try {
     const GEMINI_KEY = Deno.env.get("GOOGLE_GEMINI_KEY");
     if (!GEMINI_KEY) {
+      console.error("[diagnostico] GOOGLE_GEMINI_KEY não encontrada");
       return new Response(
-        JSON.stringify({ error: "GOOGLE_GEMINI_KEY não configurada." }),
+        JSON.stringify({ error: "GOOGLE_GEMINI_KEY não configurada. Configure no Supabase Dashboard > Edge Functions > Secrets." }),
         { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Authenticate user
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return new Response(
@@ -59,7 +128,10 @@ Deno.serve(async (req) => {
     }
 
     const userId = claimsData.user.id;
+    console.log("[diagnostico] Usuário autenticado:", userId);
+
     const { mes_referencia } = await req.json();
+    console.log("[diagnostico] Mês solicitado:", mes_referencia);
 
     if (!mes_referencia) {
       return new Response(
@@ -68,9 +140,9 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Fetch financial data
     const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
 
+    console.log("[diagnostico] Buscando dados financeiros...");
     const { data: financeiro, error: fetchError } = await supabaseAdmin
       .from("financeiro_mensal")
       .select("receita, despesas, lucro, inadimplencia, clientes_ativos, percentual_maior_cliente")
@@ -79,7 +151,7 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (fetchError) {
-      console.error("[diagnostico-financeiro] Erro ao buscar dados:", fetchError.message);
+      console.error("[diagnostico] Erro no banco:", fetchError.message);
       return new Response(
         JSON.stringify({ error: "Erro ao buscar dados financeiros." }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -87,13 +159,15 @@ Deno.serve(async (req) => {
     }
 
     if (!financeiro) {
+      console.warn("[diagnostico] Nenhum dado encontrado para", mes_referencia);
       return new Response(
         JSON.stringify({ error: `Nenhum dado financeiro encontrado para ${mes_referencia}.` }),
         { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Build user prompt
+    console.log("[diagnostico] Dados encontrados. Receita:", financeiro.receita, "Despesas:", financeiro.despesas);
+
     const userPrompt = `Analise os seguintes dados financeiros do mês ${mes_referencia}:
 - Receita: R$ ${Number(financeiro.receita).toFixed(2)}
 - Despesas: R$ ${Number(financeiro.despesas).toFixed(2)}
@@ -102,74 +176,34 @@ Deno.serve(async (req) => {
 - Clientes ativos: ${financeiro.clientes_ativos}
 - Percentual do maior cliente: ${Number(financeiro.percentual_maior_cliente).toFixed(1)}%`;
 
-    // Call Google Gemini API
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`;
+    // Chamada única ao Gemini com retry
+    const result = await callGeminiWithRetry(GEMINI_KEY, SYSTEM_PROMPT, userPrompt);
 
-    const aiResp = await fetch(geminiUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [
-          { role: "user", parts: [{ text: `${SYSTEM_PROMPT}\n\n${userPrompt}` }] },
-        ],
-        generationConfig: {
-          maxOutputTokens: 600,
-          temperature: 0.7,
-        },
-      }),
-    });
-
-    if (!aiResp.ok) {
-      const errText = await aiResp.text();
-      console.error("[diagnostico-financeiro] Gemini error:", aiResp.status, errText.substring(0, 300));
-
-      if (aiResp.status === 429) {
-        return new Response(
-          JSON.stringify({ error: "Limite de requisições do Gemini atingido. Tente em alguns minutos." }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
+    if (!result.content) {
+      console.error("[diagnostico] Falha final:", result.error);
       return new Response(
-        JSON.stringify({ error: `Erro na API Gemini (${aiResp.status}).` }),
-        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ error: result.error }),
+        { status: result.status === 429 ? 429 : 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const aiData = await aiResp.json();
-    const conteudo = aiData?.candidates?.[0]?.content?.parts?.[0]?.text;
-
-    if (!conteudo) {
-      return new Response(
-        JSON.stringify({ error: "Resposta vazia da IA." }),
-        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // Save diagnosis
+    // Salvar diagnóstico
+    console.log("[diagnostico] Salvando no banco...");
     const { error: insertError } = await supabaseAdmin
       .from("diagnosticos_financeiros")
-      .insert({
-        user_id: userId,
-        mes_referencia,
-        conteudo,
-        created_at: new Date().toISOString(),
-      });
+      .insert({ user_id: userId, mes_referencia, conteudo: result.content, created_at: new Date().toISOString() });
 
-    if (insertError) {
-      console.error("[diagnostico-financeiro] Erro ao salvar:", insertError.message);
-    }
+    if (insertError) console.error("[diagnostico] Erro ao salvar:", insertError.message);
+    else console.log("[diagnostico] Salvo com sucesso!");
+
+    console.log("[diagnostico] ========== REQUISIÇÃO CONCLUÍDA ==========");
 
     return new Response(
-      JSON.stringify({
-        diagnostico: conteudo,
-        mes_referencia,
-        salvo: !insertError,
-      }),
+      JSON.stringify({ diagnostico: result.content, mes_referencia, salvo: !insertError }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err: any) {
-    console.error("[diagnostico-financeiro] Erro:", err?.message || err);
+    console.error("[diagnostico] Erro fatal:", err?.message || err);
     return new Response(
       JSON.stringify({ error: "Erro interno na edge function." }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
