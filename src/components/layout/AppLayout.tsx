@@ -2,6 +2,7 @@ import { useState } from "react";
 import { AppSidebar } from "./AppSidebar";
 import { UpdateNoticeModal } from "@/components/UpdateNoticeModal";
 import { SubscriptionBanner } from "./SubscriptionBanner";
+import { OnlineStatusIndicator } from "./OnlineStatusIndicator";
 import { useWhatsAppSupport } from "@/hooks/useWhatsAppSupport";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Menu } from "lucide-react";
@@ -43,6 +44,7 @@ export function AppLayout({ children }: AppLayoutProps) {
       <UpdateNoticeModal />
       <AppSidebar mobileOpen={mobileOpen} onMobileClose={() => setMobileOpen(false)} />
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+        <OnlineStatusIndicator />
         <SubscriptionBanner />
         <header className="h-12 border-b border-border bg-card flex items-center justify-between px-2 sm:px-4 shrink-0 gap-2">
           {isMobile ? (
