@@ -1,18 +1,55 @@
 import { useState } from "react";
-import { Building2, ArrowRightLeft, BarChart3, Plus, Package, Check, X, Truck, ChevronRight } from "lucide-react";
+import { Building2, ArrowRightLeft, BarChart3, Plus, Package, Check, X, Truck, ChevronRight, Pencil, RefreshCw, Calendar, Filter, ArrowDownUp } from "lucide-react";
 import { motion } from "framer-motion";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useBranches, useSetParentCompany, useCreateBranch, useDeleteBranch } from "@/hooks/useBranches";
+import { useBranches, useSetParentCompany, useCreateBranch, useDeleteBranch, useUpdateBranch, useSyncProducts } from "@/hooks/useBranches";
 import { useStockTransfers, useCreateStockTransfer, useReceiveStockTransfer } from "@/hooks/useStockTransfers";
 import { useConsolidatedReport } from "@/hooks/useConsolidatedReport";
 import { useCompany } from "@/hooks/useCompany";
 import { useAuth } from "@/hooks/useAuth";
 import { useProducts } from "@/hooks/useProducts";
 import { toast } from "sonner";
-import { format } from "date-fns";
+import { format, startOfMonth, endOfMonth, subMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
+
+// ──── Company Switcher ────
+function CompanySwitcher() {
+  const { data: branches } = useBranches();
+  const { companyId, companyName, switchCompany } = useCompany();
+
+  if (!branches || branches.length <= 1) return null;
+
+  return (
+    <div className="bg-card border border-border rounded-xl p-4 mb-4">
+      <p className="text-xs font-medium text-muted-foreground mb-2">Empresa Ativa</p>
+      <div className="flex flex-wrap gap-2">
+        {branches.map(b => (
+          <button
+            key={b.id}
+            onClick={() => {
+              switchCompany(b.id);
+              toast.success(`Alternado para: ${b.name}`);
+              // Reload page to refresh all data
+              setTimeout(() => window.location.reload(), 500);
+            }}
+            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
+              b.id === companyId
+                ? "bg-primary text-primary-foreground"
+                : "bg-background border border-border text-foreground hover:bg-accent"
+            }`}
+          >
+            <Building2 className="w-3.5 h-3.5" />
+            {b.name}
+            {b.is_parent && <span className="text-[9px] opacity-70">(Matriz)</span>}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 // ──── Hierarquia Tab ────
 function HierarchyTab() {
@@ -20,11 +57,23 @@ function HierarchyTab() {
   const setParent = useSetParentCompany();
   const createBranch = useCreateBranch();
   const deleteBranch = useDeleteBranch();
+  const updateBranch = useUpdateBranch();
+  const syncProducts = useSyncProducts();
   const { companyId } = useCompany();
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [branchName, setBranchName] = useState("");
   const [branchCnpj, setBranchCnpj] = useState("");
+
+  // Edit state
+  const [editOpen, setEditOpen] = useState(false);
+  const [editId, setEditId] = useState("");
+  const [editName, setEditName] = useState("");
+  const [editCnpj, setEditCnpj] = useState("");
+
+  // Sync state
+  const [syncOpen, setSyncOpen] = useState(false);
+  const [syncTargetId, setSyncTargetId] = useState("");
 
   if (isLoading) return <div className="text-center py-8 text-muted-foreground">Carregando...</div>;
 
@@ -32,7 +81,7 @@ function HierarchyTab() {
   const children = (branches || []).filter(b => !b.is_parent);
 
   const handleCreateBranch = () => {
-    if (createBranch.isPending) return; // Prevent double-click
+    if (createBranch.isPending) return;
     if (!branchName.trim() || !companyId || !user) {
       toast.warning("Preencha o nome da filial");
       return;
@@ -51,49 +100,130 @@ function HierarchyTab() {
     });
   };
 
+  const handleEdit = (branch: any) => {
+    setEditId(branch.id);
+    setEditName(branch.name);
+    setEditCnpj(branch.cnpj || "");
+    setEditOpen(true);
+  };
+
+  const handleSaveEdit = () => {
+    if (!editName.trim()) return;
+    updateBranch.mutate({ companyId: editId, name: editName.trim(), cnpj: editCnpj.trim() || undefined }, {
+      onSuccess: () => setEditOpen(false),
+    });
+  };
+
+  const handleSync = () => {
+    if (!companyId || !syncTargetId) return;
+    syncProducts.mutate({ fromCompanyId: companyId, toCompanyId: syncTargetId }, {
+      onSuccess: () => setSyncOpen(false),
+    });
+  };
+
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-wrap justify-between items-center gap-2">
         <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
           <Building2 className="w-4 h-4 text-primary" /> Hierarquia
         </h3>
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <button className="flex items-center gap-1.5 px-3 py-2 bg-primary text-primary-foreground rounded-lg text-xs font-medium hover:opacity-90 transition-all">
-              <Plus className="w-3.5 h-3.5" /> Nova Filial
-            </button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Cadastrar Nova Filial</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 pt-2">
-              <div>
-                <label className="text-xs font-medium text-muted-foreground mb-1 block">Nome da Filial *</label>
-                <input value={branchName} onChange={e => setBranchName(e.target.value)} placeholder="Ex: Loja Centro"
-                  className="w-full px-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm" />
-              </div>
-              <div>
-                <label className="text-xs font-medium text-muted-foreground mb-1 block">CNPJ (opcional)</label>
-                <input value={branchCnpj} onChange={e => setBranchCnpj(e.target.value)} placeholder="00.000.000/0000-00"
-                  className="w-full px-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm" />
-              </div>
-              <p className="text-xs text-muted-foreground">A filial será vinculada automaticamente à sua empresa atual como matriz.</p>
-              <button onClick={handleCreateBranch} disabled={createBranch.isPending}
-                className="w-full py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50">
-                {createBranch.isPending ? "Criando..." : "Criar Filial"}
+        <div className="flex gap-2">
+          {/* Sync Products Button */}
+          {children.length > 0 && (
+            <Dialog open={syncOpen} onOpenChange={setSyncOpen}>
+              <DialogTrigger asChild>
+                <button className="flex items-center gap-1.5 px-3 py-2 bg-accent text-accent-foreground rounded-lg text-xs font-medium hover:opacity-90 transition-all">
+                  <RefreshCw className="w-3.5 h-3.5" /> Sincronizar Produtos
+                </button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Sincronizar Produtos</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 pt-2">
+                  <p className="text-sm text-muted-foreground">Copiar catálogo de produtos da matriz para uma filial. Produtos já existentes serão ignorados.</p>
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground mb-1 block">Filial Destino</label>
+                    <select value={syncTargetId} onChange={e => setSyncTargetId(e.target.value)}
+                      className="w-full px-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm">
+                      <option value="">Selecione...</option>
+                      {children.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                  </div>
+                  <button onClick={handleSync} disabled={syncProducts.isPending || !syncTargetId}
+                    className="w-full py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50">
+                    {syncProducts.isPending ? "Sincronizando..." : "Sincronizar"}
+                  </button>
+                </div>
+              </DialogContent>
+            </Dialog>
+          )}
+
+          {/* New Branch Button */}
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+              <button className="flex items-center gap-1.5 px-3 py-2 bg-primary text-primary-foreground rounded-lg text-xs font-medium hover:opacity-90 transition-all">
+                <Plus className="w-3.5 h-3.5" /> Nova Filial
               </button>
-            </div>
-          </DialogContent>
-        </Dialog>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Cadastrar Nova Filial</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 pt-2">
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Nome da Filial *</label>
+                  <input value={branchName} onChange={e => setBranchName(e.target.value)} placeholder="Ex: Loja Centro"
+                    className="w-full px-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1 block">CNPJ (opcional)</label>
+                  <input value={branchCnpj} onChange={e => setBranchCnpj(e.target.value)} placeholder="00.000.000/0000-00"
+                    className="w-full px-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm" />
+                </div>
+                <p className="text-xs text-muted-foreground">A filial será vinculada automaticamente à sua empresa atual como matriz.</p>
+                <button onClick={handleCreateBranch} disabled={createBranch.isPending}
+                  className="w-full py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50">
+                  {createBranch.isPending ? "Criando..." : "Criar Filial"}
+                </button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
+      {/* Edit Dialog */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar Filial</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">Nome *</label>
+              <input value={editName} onChange={e => setEditName(e.target.value)}
+                className="w-full px-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm" />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">CNPJ</label>
+              <input value={editCnpj} onChange={e => setEditCnpj(e.target.value)}
+                className="w-full px-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm" />
+            </div>
+            <button onClick={handleSaveEdit} disabled={updateBranch.isPending}
+              className="w-full py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50">
+              {updateBranch.isPending ? "Salvando..." : "Salvar"}
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Matrizes */}
       <div className="bg-card rounded-xl border border-border p-5">
         <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
           <Building2 className="w-4 h-4 text-primary" /> Matrizes
         </h3>
         {parents.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Nenhuma matriz encontrada. Cadastre empresas primeiro.</p>
+          <p className="text-sm text-muted-foreground">Nenhuma matriz encontrada.</p>
         ) : (
           <div className="space-y-3">
             {parents.map(p => (
@@ -103,15 +233,21 @@ function HierarchyTab() {
                   <p className="text-sm font-medium text-foreground">{p.name}</p>
                   {p.cnpj && <p className="text-xs text-muted-foreground">{p.cnpj}</p>}
                 </div>
-                {p.id === companyId && (
-                  <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">Atual</span>
-                )}
+                <div className="flex items-center gap-2">
+                  <button onClick={() => handleEdit(p)} className="text-xs text-muted-foreground hover:text-foreground">
+                    <Pencil className="w-3.5 h-3.5" />
+                  </button>
+                  {p.id === companyId && (
+                    <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">Atual</span>
+                  )}
+                </div>
               </div>
             ))}
           </div>
         )}
       </div>
 
+      {/* Filiais */}
       <div className="bg-card rounded-xl border border-border p-5">
         <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
           <ChevronRight className="w-4 h-4 text-primary" /> Filiais
@@ -129,7 +265,10 @@ function HierarchyTab() {
                     <p className="text-sm font-medium text-foreground">{c.name}</p>
                     <p className="text-xs text-muted-foreground">Matriz: {parentName}</p>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 items-center">
+                    <button onClick={() => handleEdit(c)} className="text-xs text-muted-foreground hover:text-foreground" title="Editar">
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
                         <button className="text-xs text-muted-foreground hover:underline">Desvincular</button>
@@ -171,7 +310,7 @@ function HierarchyTab() {
   );
 }
 
-// ──── Transferências Tab ────
+// ──── Transferências Tab (com filtros) ────
 function TransfersTab() {
   const { data: transfers, isLoading } = useStockTransfers();
   const { data: branches } = useBranches();
@@ -186,12 +325,25 @@ function TransfersTab() {
   const [notes, setNotes] = useState("");
   const [searchProduct, setSearchProduct] = useState("");
 
+  // Filters
+  const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [filterDateFrom, setFilterDateFrom] = useState(format(subMonths(new Date(), 1), "yyyy-MM-dd"));
+  const [filterDateTo, setFilterDateTo] = useState(format(new Date(), "yyyy-MM-dd"));
+
   const otherBranches = (branches || []).filter(b => b.id !== companyId);
 
   const filteredProducts = (products || []).filter((p: any) =>
     p.name?.toLowerCase().includes(searchProduct.toLowerCase()) ||
     p.sku?.toLowerCase().includes(searchProduct.toLowerCase())
   ).slice(0, 10);
+
+  const filteredTransfers = (transfers || []).filter(t => {
+    if (filterStatus !== "all" && t.status !== filterStatus) return false;
+    const tDate = new Date(t.created_at);
+    if (filterDateFrom && tDate < new Date(filterDateFrom)) return false;
+    if (filterDateTo && tDate > new Date(filterDateTo + "T23:59:59")) return false;
+    return true;
+  });
 
   const addItem = (product: any) => {
     if (selectedItems.find(i => i.product_id === product.id)) return;
@@ -245,6 +397,32 @@ function TransfersTab() {
         <button onClick={() => setShowForm(!showForm)} className="flex items-center gap-1.5 px-3 py-2 bg-primary text-primary-foreground rounded-lg text-xs font-medium hover:opacity-90 transition-all">
           <Plus className="w-3.5 h-3.5" /> Nova Transferência
         </button>
+      </div>
+
+      {/* Filters */}
+      <div className="bg-card border border-border rounded-xl p-4 flex flex-wrap gap-3 items-end">
+        <div>
+          <label className="text-[10px] font-medium text-muted-foreground block mb-1">Status</label>
+          <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
+            className="px-2 py-1.5 rounded-lg bg-background border border-border text-foreground text-xs">
+            <option value="all">Todos</option>
+            <option value="pending">Pendente</option>
+            <option value="in_transit">Em Trânsito</option>
+            <option value="received">Recebida</option>
+            <option value="cancelled">Cancelada</option>
+          </select>
+        </div>
+        <div>
+          <label className="text-[10px] font-medium text-muted-foreground block mb-1">De</label>
+          <input type="date" value={filterDateFrom} onChange={e => setFilterDateFrom(e.target.value)}
+            className="px-2 py-1.5 rounded-lg bg-background border border-border text-foreground text-xs" />
+        </div>
+        <div>
+          <label className="text-[10px] font-medium text-muted-foreground block mb-1">Até</label>
+          <input type="date" value={filterDateTo} onChange={e => setFilterDateTo(e.target.value)}
+            className="px-2 py-1.5 rounded-lg bg-background border border-border text-foreground text-xs" />
+        </div>
+        <span className="text-[10px] text-muted-foreground">{filteredTransfers.length} resultado(s)</span>
       </div>
 
       {showForm && (
@@ -306,14 +484,14 @@ function TransfersTab() {
 
       {isLoading ? (
         <div className="text-center py-8 text-muted-foreground">Carregando...</div>
-      ) : (transfers || []).length === 0 ? (
+      ) : filteredTransfers.length === 0 ? (
         <div className="text-center py-12 text-muted-foreground">
           <ArrowRightLeft className="w-8 h-8 mx-auto mb-2 opacity-40" />
-          <p className="text-sm">Nenhuma transferência registrada</p>
+          <p className="text-sm">Nenhuma transferência encontrada</p>
         </div>
       ) : (
         <div className="space-y-3">
-          {(transfers || []).map(t => (
+          {filteredTransfers.map(t => (
             <div key={t.id} className="bg-card border border-border rounded-xl p-4">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
@@ -355,17 +533,41 @@ function TransfersTab() {
   );
 }
 
-// ──── Relatório Consolidado Tab ────
+// ──── Relatório Consolidado Tab (com gráficos) ────
 function ConsolidatedTab() {
-  const { data, isLoading } = useConsolidatedReport();
+  const [dateFrom, setDateFrom] = useState(startOfMonth(new Date()));
+  const [dateTo, setDateTo] = useState(endOfMonth(new Date()));
+  const { data, isLoading } = useConsolidatedReport(dateFrom, dateTo);
 
   if (isLoading) return <div className="text-center py-8 text-muted-foreground">Carregando...</div>;
   if (!data || data.branches.length === 0) return <p className="text-sm text-muted-foreground text-center py-8">Nenhuma filial encontrada.</p>;
 
   const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
+  const chartData = data.branches.map(b => ({
+    name: b.companyName.length > 15 ? b.companyName.substring(0, 15) + "..." : b.companyName,
+    faturamento: b.totalSales,
+    vendas: b.salesCount,
+    produtos: b.totalProducts,
+    clientes: b.totalClients,
+  }));
+
   return (
     <div className="space-y-6">
+      {/* Date filters */}
+      <div className="flex flex-wrap gap-3 items-end">
+        <div>
+          <label className="text-[10px] font-medium text-muted-foreground block mb-1">De</label>
+          <input type="date" value={format(dateFrom, "yyyy-MM-dd")} onChange={e => setDateFrom(new Date(e.target.value))}
+            className="px-2 py-1.5 rounded-lg bg-background border border-border text-foreground text-xs" />
+        </div>
+        <div>
+          <label className="text-[10px] font-medium text-muted-foreground block mb-1">Até</label>
+          <input type="date" value={format(dateTo, "yyyy-MM-dd")} onChange={e => setDateTo(new Date(e.target.value))}
+            className="px-2 py-1.5 rounded-lg bg-background border border-border text-foreground text-xs" />
+        </div>
+      </div>
+
       {/* Totais */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
@@ -381,7 +583,37 @@ function ConsolidatedTab() {
         ))}
       </div>
 
-      {/* Por filial */}
+      {/* Chart - Faturamento por Filial */}
+      <div className="bg-card border border-border rounded-xl p-5">
+        <h3 className="text-sm font-semibold text-foreground mb-4">Faturamento por Filial</h3>
+        <ResponsiveContainer width="100%" height={280}>
+          <BarChart data={chartData}>
+            <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+            <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+            <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />
+            <Tooltip formatter={(v: number) => fmt(v)} />
+            <Bar dataKey="faturamento" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+
+      {/* Chart - Vendas vs Clientes */}
+      <div className="bg-card border border-border rounded-xl p-5">
+        <h3 className="text-sm font-semibold text-foreground mb-4">Vendas e Clientes por Filial</h3>
+        <ResponsiveContainer width="100%" height={250}>
+          <BarChart data={chartData}>
+            <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+            <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+            <YAxis tick={{ fontSize: 11 }} />
+            <Tooltip />
+            <Legend />
+            <Bar dataKey="vendas" name="Vendas" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="clientes" name="Clientes" fill="hsl(var(--accent))" radius={[4, 4, 0, 0]} />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+
+      {/* Table */}
       <div className="bg-card border border-border rounded-xl overflow-hidden">
         <div className="px-5 py-3 border-b border-border">
           <h3 className="text-sm font-semibold text-foreground">Detalhamento por Filial</h3>
@@ -415,6 +647,97 @@ function ConsolidatedTab() {
   );
 }
 
+// ──── Permissões Tab ────
+function PermissionsTab() {
+  const { data: branches } = useBranches();
+  const { companyId } = useCompany();
+  const { user } = useAuth();
+  const [users, setUsers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const loadUsers = async () => {
+    if (!companyId) return;
+    setLoading(true);
+    const { data: cuData } = await (await import("@/integrations/supabase/client")).supabase
+      .from("company_users")
+      .select("id, user_id, company_id, role, is_active")
+      .in("company_id", (branches || []).map(b => b.id));
+
+    if (cuData) {
+      const userIds = [...new Set(cuData.map((u: any) => u.user_id))];
+      const { data: profiles } = await (await import("@/integrations/supabase/client")).supabase
+        .from("profiles")
+        .select("id, full_name, email")
+        .in("id", userIds);
+      const profileMap = new Map((profiles || []).map((p: any) => [p.id, p]));
+
+      // Group by user
+      const userMap = new Map<string, any>();
+      for (const cu of cuData) {
+        if (!userMap.has(cu.user_id)) {
+          const profile = profileMap.get(cu.user_id);
+          userMap.set(cu.user_id, {
+            userId: cu.user_id,
+            name: profile?.full_name || profile?.email || "Sem nome",
+            email: profile?.email || "",
+            branches: [],
+          });
+        }
+        userMap.get(cu.user_id).branches.push({
+          companyId: cu.company_id,
+          role: cu.role,
+          isActive: cu.is_active,
+          cuId: cu.id,
+        });
+      }
+      setUsers(Array.from(userMap.values()));
+    }
+    setLoading(false);
+  };
+
+  useState(() => { loadUsers(); });
+
+  if (loading) return <div className="text-center py-8 text-muted-foreground">Carregando...</div>;
+
+  const branchNames = new Map((branches || []).map(b => [b.id, b.name]));
+
+  return (
+    <div className="space-y-4">
+      <h3 className="text-sm font-semibold text-foreground">Permissões por Filial</h3>
+      <p className="text-xs text-muted-foreground">Veja quais filiais cada usuário tem acesso. Para adicionar/remover acesso, use a gestão de usuários em cada filial.</p>
+
+      {users.length === 0 ? (
+        <p className="text-sm text-muted-foreground text-center py-8">Nenhum usuário encontrado.</p>
+      ) : (
+        <div className="space-y-3">
+          {users.map((u: any) => (
+            <div key={u.userId} className="bg-card border border-border rounded-xl p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                  <span className="text-xs font-bold text-primary">{(u.name || "?")[0].toUpperCase()}</span>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-foreground">{u.name}</p>
+                  <p className="text-xs text-muted-foreground">{u.email}</p>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {u.branches.map((b: any) => (
+                  <span key={b.companyId} className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
+                    b.isActive ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground line-through"
+                  }`}>
+                    {branchNames.get(b.companyId) || "?"} ({b.role})
+                  </span>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ──── Main Page ────
 export default function Filiais() {
   return (
@@ -426,8 +749,11 @@ export default function Filiais() {
         <p className="text-sm text-muted-foreground mt-1">Gerencie filiais, transferências e relatórios consolidados</p>
       </div>
 
+      {/* Company Switcher */}
+      <CompanySwitcher />
+
       <Tabs defaultValue="hierarchy" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 mb-4">
+        <TabsList className="grid w-full grid-cols-4 mb-4">
           <TabsTrigger value="hierarchy" className="flex items-center gap-1.5 text-xs">
             <Building2 className="w-3.5 h-3.5" /> Hierarquia
           </TabsTrigger>
@@ -437,11 +763,15 @@ export default function Filiais() {
           <TabsTrigger value="consolidated" className="flex items-center gap-1.5 text-xs">
             <BarChart3 className="w-3.5 h-3.5" /> Consolidado
           </TabsTrigger>
+          <TabsTrigger value="permissions" className="flex items-center gap-1.5 text-xs">
+            <Filter className="w-3.5 h-3.5" /> Permissões
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="hierarchy"><HierarchyTab /></TabsContent>
         <TabsContent value="transfers"><TransfersTab /></TabsContent>
         <TabsContent value="consolidated"><ConsolidatedTab /></TabsContent>
+        <TabsContent value="permissions"><PermissionsTab /></TabsContent>
       </Tabs>
     </motion.div>
   );
