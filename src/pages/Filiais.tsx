@@ -760,7 +760,7 @@ export default function Filiais() {
       <CompanySwitcher />
 
       <Tabs defaultValue="hierarchy" className="w-full">
-        <TabsList style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", width: "100%", height: "auto" }} className="mb-4">
+        <TabsList data-grid="" style={{ gridTemplateColumns: "repeat(4, 1fr)" }} className="mb-4">
           <TabsTrigger value="hierarchy" className="text-[11px] py-2">
             <Building2 className="w-3.5 h-3.5 mr-1" /> Hierarquia
           </TabsTrigger>
