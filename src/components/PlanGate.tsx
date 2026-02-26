@@ -1,5 +1,6 @@
 import { ReactNode } from "react";
 import { usePlanFeatures } from "@/hooks/usePlanFeatures";
+import { useAdminRole } from "@/hooks/useAdminRole";
 import { Lock } from "lucide-react";
 
 interface PlanGateProps {
@@ -10,8 +11,6 @@ interface PlanGateProps {
 
 /**
  * Maps legacy PlanGate feature keys to plan feature checks.
- * Features that require advanced_reports or financial_full are gated;
- * everything else passes through.
  */
 function isFeatureAllowed(feature: string, plan: ReturnType<typeof usePlanFeatures>): boolean {
   const advancedFeatures = [
@@ -23,12 +22,17 @@ function isFeatureAllowed(feature: string, plan: ReturnType<typeof usePlanFeatur
 
   if (fullFinancialFeatures.includes(feature)) return plan.canUseFullFinancial();
   if (advancedFeatures.includes(feature)) return plan.canUseAdvancedReports();
-  // Loyalty, quotes, etc. pass through for now
   return true;
 }
 
 export function PlanGate({ feature, featureName, children }: PlanGateProps) {
   const plan = usePlanFeatures();
+  const { isSuperAdmin } = useAdminRole();
+
+  // Super admins bypass all plan restrictions
+  if (isSuperAdmin) {
+    return <>{children}</>;
+  }
 
   if (plan.loading) {
     return (
