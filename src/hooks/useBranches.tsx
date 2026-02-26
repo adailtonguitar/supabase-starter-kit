@@ -120,20 +120,32 @@ export function useDeleteBranch() {
 
   return useMutation({
     mutationFn: async (companyId: string) => {
-      // Delete the company FIRST (while user still has RLS access via company_users)
+      // Clean up dependent tables first (while user still has RLS access)
+      const dependentTables = [
+        "fiscal_categories", "stock_movements", "financial_entries",
+        "sales", "products", "clients", "promotions", "employees",
+        "suppliers", "purchase_orders", "quotes",
+      ];
+
+      for (const table of dependentTables) {
+        try {
+          await supabase.from(table).delete().eq("company_id", companyId);
+        } catch {
+          // skip if table doesn't exist
+        }
+      }
+
+      // Delete the company (user still has access via company_users)
       const { error, data } = await supabase
         .from("companies")
         .delete()
         .eq("id", companyId)
         .select();
       if (error) throw error;
-      if (!data || data.length === 0) throw new Error("Falha ao excluir: permissão negada pelo banco de dados.");
+      if (!data || data.length === 0) throw new Error("Falha ao excluir: permissão negada.");
 
-      // company_users rows should cascade or we clean up
-      await supabase
-        .from("company_users")
-        .delete()
-        .eq("company_id", companyId);
+      // Clean up company_users last
+      await supabase.from("company_users").delete().eq("company_id", companyId);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["branches"] });
