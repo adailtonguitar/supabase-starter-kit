@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Shield, Users, Check, X, Pencil } from "lucide-react";
-import { useBranches, Branch } from "@/hooks/useBranches";
+import { Shield, Users, Check, X } from "lucide-react";
+import { useBranches } from "@/hooks/useBranches";
 import { useCompany } from "@/hooks/useCompany";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
