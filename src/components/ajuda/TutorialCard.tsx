@@ -112,6 +112,33 @@ export function TutorialCard({ section, isOpen, onToggle }: TutorialCardProps) {
                   </div>
                 </div>
               )}
+
+              {/* Example */}
+              {section.example && (
+                <div className="mt-4 p-4 rounded-xl bg-primary/5 border border-primary/20 space-y-3">
+                  <h4 className="text-sm font-bold text-primary flex items-center gap-2">
+                    🏬 {section.example.title}
+                  </h4>
+                  <p className="text-xs text-muted-foreground">{section.example.description}</p>
+                  <ol className="space-y-2">
+                    {section.example.steps.map((step, i) => (
+                      <li key={i} className="flex gap-3 text-sm">
+                        <span className="w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">
+                          {i + 1}
+                        </span>
+                        <span className="text-foreground/90">{step}</span>
+                      </li>
+                    ))}
+                  </ol>
+                  <div className="pt-2 border-t border-primary/10 space-y-1">
+                    {section.example.conclusion.map((c, i) => (
+                      <p key={i} className="text-sm text-primary font-medium flex gap-2">
+                        <span>✅</span> {c}
+                      </p>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </motion.div>
         )}
