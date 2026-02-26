@@ -20,7 +20,10 @@ function CompanySwitcher() {
   const { data: branches } = useBranches();
   const { companyId, companyName, switchCompany } = useCompany();
 
-  if (!branches || branches.length <= 1) return null;
+  if (!branches || branches.length <= 1) {
+    console.log("[CompanySwitcher] branches:", branches?.length, branches);
+    return null;
+  }
 
   return (
     <div className="bg-card border border-border rounded-xl p-4 mb-4">
@@ -757,7 +760,7 @@ export default function Filiais() {
       <CompanySwitcher />
 
       <Tabs defaultValue="hierarchy" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 mb-4">
+        <TabsList className="flex flex-wrap w-full mb-4 h-auto gap-1">
           <TabsTrigger value="hierarchy" className="flex items-center gap-1.5 text-xs">
             <Building2 className="w-3.5 h-3.5" /> Hierarquia
           </TabsTrigger>
