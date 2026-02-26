@@ -1,9 +1,9 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
-import { Stethoscope, Loader2, RefreshCw, AlertCircle, Calendar, Sparkles } from "lucide-react";
+import { Stethoscope, Loader2, RefreshCw, AlertCircle, Calendar, Sparkles, Clock } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { toast } from "sonner";
 
@@ -18,6 +18,8 @@ function formatMonth(mes: string) {
   return `${months[Number(month) - 1]} ${year}`;
 }
 
+const COOLDOWN_MS = 60_000;
+
 export default function DiagnosticoFinanceiro() {
   const { user } = useAuth();
   const [mesReferencia, setMesReferencia] = useState(getCurrentMonth());
@@ -26,6 +28,8 @@ export default function DiagnosticoFinanceiro() {
   const [loadingExistente, setLoadingExistente] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [geradoEm, setGeradoEm] = useState<string | null>(null);
+  const [cooldownSeconds, setCooldownSeconds] = useState(0);
+  const lastCallRef = useRef(0);
 
   // Load existing diagnosis for the selected month
   const carregarExistente = useCallback(async () => {
@@ -60,7 +64,18 @@ export default function DiagnosticoFinanceiro() {
   }, [carregarExistente]);
 
   const gerarDiagnostico = async () => {
-    if (!user) return;
+    if (!user || loading) return;
+
+    // Cooldown check
+    const now = Date.now();
+    const elapsed = now - lastCallRef.current;
+    if (elapsed < COOLDOWN_MS && lastCallRef.current > 0) {
+      const remaining = Math.ceil((COOLDOWN_MS - elapsed) / 1000);
+      toast.info(`Aguarde ${remaining}s antes de tentar novamente.`);
+      return;
+    }
+    lastCallRef.current = now;
+
     setLoading(true);
     setErrorMsg(null);
 
@@ -84,9 +99,19 @@ export default function DiagnosticoFinanceiro() {
       const data = await resp.json().catch(() => null);
 
       if (!resp.ok) {
-        const msg = data?.error || `Serviço temporariamente indisponível. Tente novamente em 1 minuto.`;
+        const msg = data?.error || "Serviço temporariamente indisponível.";
         setErrorMsg(msg);
         toast.error(msg);
+        // Start visible cooldown on rate limit
+        if (resp.status === 429 || resp.status === 502) {
+          let secs = 60;
+          setCooldownSeconds(secs);
+          const interval = setInterval(() => {
+            secs--;
+            setCooldownSeconds(secs);
+            if (secs <= 0) clearInterval(interval);
+          }, 1000);
+        }
         return;
       }
 
@@ -132,13 +157,18 @@ export default function DiagnosticoFinanceiro() {
 
           <Button
             onClick={gerarDiagnostico}
-            disabled={loading}
+            disabled={loading || cooldownSeconds > 0}
             size="lg"
           >
             {loading ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
                 Analisando...
+              </>
+            ) : cooldownSeconds > 0 ? (
+              <>
+                <Clock className="w-4 h-4" />
+                Aguarde {cooldownSeconds}s
               </>
             ) : diagnostico ? (
               <>
