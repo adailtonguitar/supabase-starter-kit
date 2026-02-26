@@ -25,10 +25,10 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
-    if (!OPENAI_API_KEY) {
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) {
       return new Response(
-        JSON.stringify({ error: "OPENAI_API_KEY não configurada. Configure no Supabase Dashboard > Edge Functions > Secrets." }),
+        JSON.stringify({ error: "LOVABLE_API_KEY não configurada." }),
         { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -102,15 +102,15 @@ Deno.serve(async (req) => {
 - Clientes ativos: ${financeiro.clientes_ativos}
 - Percentual do maior cliente: ${Number(financeiro.percentual_maior_cliente).toFixed(1)}%`;
 
-    // Call OpenAI
-    const openaiResp = await fetch("https://api.openai.com/v1/chat/completions", {
+    // Call Lovable AI Gateway (Google Gemini)
+    const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "gpt-4o-mini",
+        model: "google/gemini-3-flash-preview",
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
           { role: "user", content: userPrompt },
@@ -120,16 +120,30 @@ Deno.serve(async (req) => {
       }),
     });
 
-    if (!openaiResp.ok) {
-      const errText = await openaiResp.text();
-      console.error("[diagnostico-financeiro] OpenAI error:", openaiResp.status, errText.substring(0, 300));
+    if (!aiResp.ok) {
+      const errText = await aiResp.text();
+      console.error("[diagnostico-financeiro] AI Gateway error:", aiResp.status, errText.substring(0, 300));
+      
+      if (aiResp.status === 429) {
+        return new Response(
+          JSON.stringify({ error: "Limite de requisições atingido. Tente novamente em alguns minutos." }),
+          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      if (aiResp.status === 402) {
+        return new Response(
+          JSON.stringify({ error: "Créditos insuficientes. Recarregue seus créditos." }),
+          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      
       return new Response(
-        JSON.stringify({ error: `Erro na API OpenAI (${openaiResp.status}).` }),
+        JSON.stringify({ error: `Erro na API de IA (${aiResp.status}).` }),
         { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const aiData = await openaiResp.json();
+    const aiData = await aiResp.json();
     const conteudo = aiData?.choices?.[0]?.message?.content;
 
     if (!conteudo) {
@@ -151,7 +165,6 @@ Deno.serve(async (req) => {
 
     if (insertError) {
       console.error("[diagnostico-financeiro] Erro ao salvar:", insertError.message);
-      // Return the diagnosis even if saving fails
     }
 
     return new Response(
