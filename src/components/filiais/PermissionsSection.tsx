@@ -61,14 +61,14 @@ export default function PermissionsSection() {
   });
 
   const handleUpdateRole = async (id: string, role: string) => {
-    const { error } = await supabase.from("company_users").update({ role }).eq("id", id);
+    const { error } = await supabase.from("company_users").update({ role } as any).eq("id", id);
     if (error) { toast.error(error.message); return; }
     toast.success("Perfil atualizado");
     qc.invalidateQueries({ queryKey: ["branch-users", activeBranchId] });
   };
 
   const handleToggleActive = async (id: string, currentActive: boolean) => {
-    const { error } = await supabase.from("company_users").update({ is_active: !currentActive }).eq("id", id);
+    const { error } = await supabase.from("company_users").update({ is_active: !currentActive } as any).eq("id", id);
     if (error) { toast.error(error.message); return; }
     toast.success(!currentActive ? "Usuário ativado" : "Usuário inativado");
     qc.invalidateQueries({ queryKey: ["branch-users", activeBranchId] });
