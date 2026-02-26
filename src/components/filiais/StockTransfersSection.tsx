@@ -145,7 +145,7 @@ export default function StockTransfersSection() {
 
       {/* Create Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-md overflow-hidden">
           <DialogHeader>
             <DialogTitle>Nova Transferência</DialogTitle>
           </DialogHeader>
