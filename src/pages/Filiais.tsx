@@ -2,28 +2,89 @@ import { useState } from "react";
 import { Building2, ArrowRightLeft, BarChart3, Plus, Package, Check, X, Truck, ChevronRight } from "lucide-react";
 import { motion } from "framer-motion";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useBranches, useSetParentCompany } from "@/hooks/useBranches";
+import { useBranches, useSetParentCompany, useCreateBranch } from "@/hooks/useBranches";
 import { useStockTransfers, useCreateStockTransfer, useReceiveStockTransfer } from "@/hooks/useStockTransfers";
 import { useConsolidatedReport } from "@/hooks/useConsolidatedReport";
 import { useCompany } from "@/hooks/useCompany";
+import { useAuth } from "@/hooks/useAuth";
 import { useProducts } from "@/hooks/useProducts";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
 // ──── Hierarquia Tab ────
 function HierarchyTab() {
   const { data: branches, isLoading } = useBranches();
   const setParent = useSetParentCompany();
+  const createBranch = useCreateBranch();
   const { companyId } = useCompany();
+  const { user } = useAuth();
+  const [open, setOpen] = useState(false);
+  const [branchName, setBranchName] = useState("");
+  const [branchCnpj, setBranchCnpj] = useState("");
 
   if (isLoading) return <div className="text-center py-8 text-muted-foreground">Carregando...</div>;
 
   const parents = (branches || []).filter(b => b.is_parent);
   const children = (branches || []).filter(b => !b.is_parent);
 
+  const handleCreateBranch = () => {
+    if (!branchName.trim() || !companyId || !user) {
+      toast.warning("Preencha o nome da filial");
+      return;
+    }
+    createBranch.mutate({
+      name: branchName.trim(),
+      cnpj: branchCnpj.trim() || undefined,
+      parentId: companyId,
+      userId: user.id,
+    }, {
+      onSuccess: () => {
+        setOpen(false);
+        setBranchName("");
+        setBranchCnpj("");
+      },
+    });
+  };
+
   return (
     <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+          <Building2 className="w-4 h-4 text-primary" /> Hierarquia
+        </h3>
+        <Dialog open={open} onOpenChange={setOpen}>
+          <DialogTrigger asChild>
+            <button className="flex items-center gap-1.5 px-3 py-2 bg-primary text-primary-foreground rounded-lg text-xs font-medium hover:opacity-90 transition-all">
+              <Plus className="w-3.5 h-3.5" /> Nova Filial
+            </button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Cadastrar Nova Filial</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 pt-2">
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">Nome da Filial *</label>
+                <input value={branchName} onChange={e => setBranchName(e.target.value)} placeholder="Ex: Loja Centro"
+                  className="w-full px-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm" />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">CNPJ (opcional)</label>
+                <input value={branchCnpj} onChange={e => setBranchCnpj(e.target.value)} placeholder="00.000.000/0000-00"
+                  className="w-full px-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm" />
+              </div>
+              <p className="text-xs text-muted-foreground">A filial será vinculada automaticamente à sua empresa atual como matriz.</p>
+              <button onClick={handleCreateBranch} disabled={createBranch.isPending}
+                className="w-full py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50">
+                {createBranch.isPending ? "Criando..." : "Criar Filial"}
+              </button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
+
       <div className="bg-card rounded-xl border border-border p-5">
         <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
           <Building2 className="w-4 h-4 text-primary" /> Matrizes

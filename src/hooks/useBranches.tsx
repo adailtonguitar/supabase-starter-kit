@@ -83,3 +83,33 @@ export function useSetParentCompany() {
     onError: (e: Error) => toast.error(e.message),
   });
 }
+
+/** Create a new branch company linked to the current parent */
+export function useCreateBranch() {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ name, cnpj, parentId, userId }: { name: string; cnpj?: string; parentId: string; userId: string }) => {
+      // 1) Create the company
+      const { data: company, error: companyErr } = await supabase
+        .from("companies")
+        .insert({ name, cnpj: cnpj || null, parent_company_id: parentId } as any)
+        .select("id")
+        .single();
+      if (companyErr) throw companyErr;
+
+      // 2) Link current user as admin
+      const { error: cuErr } = await supabase
+        .from("company_users")
+        .insert({ company_id: company.id, user_id: userId, role: "admin", is_active: true });
+      if (cuErr) throw cuErr;
+
+      return company;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["branches"] });
+      toast.success("Filial criada com sucesso!");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
