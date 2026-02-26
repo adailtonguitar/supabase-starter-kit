@@ -128,11 +128,13 @@ export function useDeleteBranch() {
       if (cuErr) throw cuErr;
 
       // Delete the company
-      const { error } = await supabase
+      const { error, count } = await supabase
         .from("companies")
         .delete()
-        .eq("id", companyId);
+        .eq("id", companyId)
+        .select();
       if (error) throw error;
+      if (count === 0) throw new Error("Não foi possível excluir. Verifique as permissões no banco de dados.");
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["branches"] });
