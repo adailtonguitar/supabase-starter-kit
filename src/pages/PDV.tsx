@@ -73,6 +73,7 @@ export default function PDV() {
   const tableEndRef = useRef<HTMLTableRowElement>(null);
   const [saleNumber, setSaleNumber] = useState(() => Number(localStorage.getItem("pdv_sale_number") || "1"));
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const wantsFullscreenRef = useRef(false);
   const [selectedCartItemId, setSelectedCartItemId] = useState<string | null>(null);
   const [pendingQuoteId, setPendingQuoteId] = useState<string | null>(null);
   const [lastAddedItem, setLastAddedItem] = useState<{ name: string; price: number } | null>(null);
@@ -81,14 +82,29 @@ export default function PDV() {
 
   const toggleFullscreen = useCallback(() => {
     if (!document.fullscreenElement) {
+      wantsFullscreenRef.current = true;
       document.documentElement.requestFullscreen().then(() => setIsFullscreen(true)).catch(() => {});
     } else {
+      wantsFullscreenRef.current = false;
       document.exitFullscreen().then(() => setIsFullscreen(false)).catch(() => {});
     }
   }, []);
 
   useEffect(() => {
-    const handler = () => setIsFullscreen(!!document.fullscreenElement);
+    const handler = () => {
+      const isFull = !!document.fullscreenElement;
+      setIsFullscreen(isFull);
+      // If browser exited fullscreen (e.g. ESC) but user wants to stay fullscreen, re-enter
+      if (!isFull && wantsFullscreenRef.current) {
+        setTimeout(() => {
+          if (!document.fullscreenElement && wantsFullscreenRef.current) {
+            document.documentElement.requestFullscreen().catch(() => {
+              wantsFullscreenRef.current = false;
+            });
+          }
+        }, 300);
+      }
+    };
     document.addEventListener("fullscreenchange", handler);
     return () => document.removeEventListener("fullscreenchange", handler);
   }, []);
@@ -331,11 +347,14 @@ export default function PDV() {
       // Don't intercept in modals (TEF handles its own keys) — but preserve fullscreen
       if (showTEF) {
         if (isEscape && isFullscreen) {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          // Browser exits fullscreen on ESC natively; re-enter after a longer delay
           setTimeout(() => {
             if (!document.fullscreenElement) {
               document.documentElement.requestFullscreen().catch(() => {});
             }
-          }, 50);
+          }, 200);
         }
         return;
       }
@@ -349,7 +368,7 @@ export default function PDV() {
               if (!document.fullscreenElement) {
                 document.documentElement.requestFullscreen().catch(() => {});
               }
-            }, 50);
+            }, 200);
           }
         }
         return;
@@ -363,7 +382,7 @@ export default function PDV() {
               if (!document.fullscreenElement) {
                 document.documentElement.requestFullscreen().catch(() => {});
               }
-            }, 50);
+            }, 200);
           }
         }
         return;
@@ -446,10 +465,17 @@ export default function PDV() {
                 if (!document.fullscreenElement) {
                   document.documentElement.requestFullscreen().catch(() => {});
                 }
-              }, 50);
+              }, 200);
             }
+          } else if (isFullscreen) {
+            // ESC sem modal aberto: re-enter fullscreen (browser exits it natively)
+            e.preventDefault();
+            setTimeout(() => {
+              if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(() => {});
+              }
+            }, 200);
           }
-          // ESC sem modal aberto: deixa o browser sair da tela cheia normalmente
           break;
         }
         case "+":
