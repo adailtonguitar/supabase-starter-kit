@@ -99,10 +99,23 @@ export default function DiagnosticoFinanceiro() {
       const data = await resp.json().catch(() => null);
 
       if (!resp.ok) {
-        const msg = data?.error || "Serviço temporariamente indisponível.";
+        let msg = data?.error || "Serviço temporariamente indisponível.";
+        
+        // Mensagens amigáveis por tipo de erro
+        if (resp.status === 429 || msg.includes("Limite")) {
+          msg = "⏳ O serviço de IA está com muitas solicitações no momento. Aguarde 1 minuto e tente novamente.";
+        } else if (resp.status === 401 || msg.includes("Token") || msg.includes("autorizado")) {
+          msg = "🔒 Sua sessão expirou. Por favor, faça logout e login novamente para continuar.";
+        } else if (resp.status === 404 || msg.includes("Nenhum dado")) {
+          msg = `📊 Ainda não há dados financeiros registrados para ${formatMonth(mesReferencia)}. Cadastre receitas e despesas no módulo Financeiro primeiro.`;
+        } else if (resp.status === 503) {
+          msg = "⚙️ O serviço de IA não está configurado. Entre em contato com o suporte técnico.";
+        } else if (resp.status === 502) {
+          msg = "🤖 O serviço de inteligência artificial está temporariamente indisponível. Tente novamente em alguns instantes.";
+        }
+        
         setErrorMsg(msg);
         toast.error(msg);
-        // Start visible cooldown on rate limit
         if (resp.status === 429 || resp.status === 502) {
           let secs = 60;
           setCooldownSeconds(secs);
