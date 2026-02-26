@@ -145,7 +145,7 @@ export default function StockTransfersSection() {
 
       {/* Create Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-md overflow-hidden">
+        <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Nova Transferência</DialogTitle>
           </DialogHeader>
@@ -177,11 +177,11 @@ export default function StockTransfersSection() {
             {/* Add product */}
             <div className="space-y-2">
               <label className="text-xs font-medium text-muted-foreground block">Produtos</label>
-              <div className="flex gap-2">
+              <div className="flex gap-2 items-end">
                 <select
                   value={tempProductId}
                   onChange={e => setTempProductId(e.target.value)}
-                  className="flex-1 px-2 py-2 rounded-lg bg-background border border-border text-foreground text-xs"
+                  className="min-w-0 flex-1 px-2 py-2 rounded-lg bg-background border border-border text-foreground text-xs truncate"
                 >
                   <option value="">Produto...</option>
                   {(products || []).filter(p => p.stock_quantity > 0).map(p => (
@@ -193,9 +193,9 @@ export default function StockTransfersSection() {
                   min={1}
                   value={tempQty}
                   onChange={e => setTempQty(Number(e.target.value))}
-                  className="w-16 px-2 py-2 rounded-lg bg-background border border-border text-foreground text-xs text-center"
+                  className="w-14 flex-shrink-0 px-2 py-2 rounded-lg bg-background border border-border text-foreground text-xs text-center"
                 />
-                <button onClick={addItem} className="px-3 py-2 bg-accent text-accent-foreground rounded-lg text-xs font-medium hover:opacity-90">
+                <button onClick={addItem} className="flex-shrink-0 px-3 py-2 bg-accent text-accent-foreground rounded-lg text-xs font-medium hover:opacity-90">
                   <Plus className="w-3.5 h-3.5" />
                 </button>
               </div>
