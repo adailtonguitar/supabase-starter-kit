@@ -1,12 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
-import { DollarSign, Lock, Unlock, ArrowDownCircle, ArrowUpCircle, Banknote, CreditCard, QrCode, X, Loader2, Clock, ShoppingCart, Wallet } from "lucide-react";
+import { DollarSign, Lock, Unlock, ArrowDownCircle, ArrowUpCircle, Banknote, CreditCard, QrCode, X, Loader2, Clock, ShoppingCart, Wallet, TrendingUp, ChevronRight } from "lucide-react";
 import { formatCurrency } from "@/lib/mock-data";
 import { CashSessionService } from "@/services";
 import { useAuth } from "@/hooks/useAuth";
 import { useCompany } from "@/hooks/useCompany";
 import { toast } from "sonner";
 import { openCashDrawer } from "@/lib/escpos";
-import { motion, AnimatePresence } from "framer-motion";
 
 const OFFLINE_SESSION_KEY = "as_offline_cash_session";
 
@@ -97,7 +96,7 @@ export function CashRegister({ onClose, terminalId = "01", preventClose = false,
     const online = await canReachServer();
     if (!online) {
       const offlineSession = makeOfflineSession(companyId, user.id, Number(openingBalance) || 0, terminalId);
-      try { localStorage.setItem(OFFLINE_SESSION_KEY, JSON.stringify(offlineSession)); } catch {}
+      try { localStorage.setItem(OFFLINE_SESSION_KEY, JSON.stringify(offlineSession)); } catch { }
       setSession(offlineSession as any); setView("status"); setSubmitting(false);
       toast.success("Caixa aberto offline (sem conexão)"); return;
     }
@@ -106,7 +105,7 @@ export function CashRegister({ onClose, terminalId = "01", preventClose = false,
       setSession(data); setView("status"); toast.success("Caixa aberto com sucesso");
     } catch {
       const offlineSession = makeOfflineSession(companyId, user.id, Number(openingBalance) || 0, terminalId);
-      try { localStorage.setItem(OFFLINE_SESSION_KEY, JSON.stringify(offlineSession)); } catch {}
+      try { localStorage.setItem(OFFLINE_SESSION_KEY, JSON.stringify(offlineSession)); } catch { }
       setSession(offlineSession as any); setView("status"); toast.success("Caixa aberto offline (sem conexão)");
     } finally { setSubmitting(false); }
   };
@@ -135,295 +134,237 @@ export function CashRegister({ onClose, terminalId = "01", preventClose = false,
     finally { setSubmitting(false); }
   };
 
+  const inputClass = "w-full px-4 py-3 rounded-xl bg-background border border-input text-foreground font-mono text-lg font-semibold text-center focus:outline-none focus:ring-2 focus:ring-ring/30 focus:border-ring";
+  const btnSecondary = "flex-1 py-3 rounded-xl bg-secondary text-secondary-foreground text-sm font-semibold hover:bg-secondary/80 active:scale-[0.98]";
+  const btnPrimary = "flex-1 py-3 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:bg-primary/90 active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50";
+
   if (loading) return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="bg-card rounded-2xl border border-border shadow-2xl p-12 flex flex-col items-center gap-3"
-      >
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+      <div className="bg-card rounded-2xl border border-border shadow-2xl p-10 flex flex-col items-center gap-3">
+        <Loader2 className="w-7 h-7 animate-spin text-primary" />
         <span className="text-sm text-muted-foreground">Carregando caixa...</span>
-      </motion.div>
+      </div>
     </div>
   );
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={preventClose ? undefined : onClose}>
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95, y: 20 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95, y: 20 }}
-        transition={{ type: "spring", duration: 0.4 }}
-        className="bg-card rounded-2xl border border-border shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto"
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={preventClose ? undefined : onClose}>
+      <div
+        className="bg-card rounded-2xl shadow-2xl w-full max-w-md mx-4 max-h-[90vh] overflow-hidden flex flex-col border border-border"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
-        <div className="px-5 py-4 border-b border-border flex items-center justify-between sticky top-0 bg-card z-10 rounded-t-2xl">
+        {/* ── Premium Header ── */}
+        <div
+          className="relative px-5 py-4 flex items-center justify-between"
+          style={{ background: "linear-gradient(135deg, hsl(220 25% 14%), hsl(220 30% 20%))" }}
+        >
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-              <DollarSign className="w-5 h-5 text-primary" />
+            <div className="w-10 h-10 rounded-xl bg-white/10 backdrop-blur flex items-center justify-center">
+              <DollarSign className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-foreground">Controle de Caixa</h3>
-              <p className="text-xs text-muted-foreground">Terminal {session?.terminal_id || terminalId}</p>
+              <h3 className="text-base font-bold text-white">Controle de Caixa</h3>
+              <p className="text-xs text-white/60">Terminal {session?.terminal_id || terminalId}</p>
             </div>
           </div>
           {!preventClose && (
-            <button onClick={onClose} className="p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+            <button onClick={onClose} className="p-2 rounded-xl text-white/50 hover:text-white hover:bg-white/10">
               <X className="w-5 h-5" />
             </button>
           )}
         </div>
 
-        <AnimatePresence mode="wait">
+        {/* ── Content ── */}
+        <div className="flex-1 overflow-y-auto">
           {/* STATUS VIEW */}
           {view === "status" && (
-            <motion.div
-              key="status"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="p-5 space-y-5"
-            >
-              {/* Status badge */}
-              <div className={`flex items-center gap-3 p-4 rounded-xl border ${
+            <div className="p-5 space-y-4">
+              {/* Status pill */}
+              <div className={`flex items-center gap-3 px-4 py-3 rounded-xl border ${
                 isOpen
-                  ? "bg-primary/5 border-primary/20"
-                  : "bg-muted/50 border-border"
+                  ? "bg-success/5 border-success/20"
+                  : "bg-muted border-border"
               }`}>
-                <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${
-                  isOpen ? "bg-primary/10" : "bg-muted"
-                }`}>
-                  {isOpen ? <Unlock className="w-5 h-5 text-primary" /> : <Lock className="w-5 h-5 text-muted-foreground" />}
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-bold text-foreground">
-                    {isOpen ? "Caixa Aberto" : "Caixa Fechado"}
-                  </p>
+                {isOpen ? (
+                  <div className="w-8 h-8 rounded-lg bg-success/10 flex items-center justify-center">
+                    <Unlock className="w-4 h-4 text-success" />
+                  </div>
+                ) : (
+                  <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center">
+                    <Lock className="w-4 h-4 text-muted-foreground" />
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold text-foreground">{isOpen ? "Caixa Aberto" : "Caixa Fechado"}</p>
                   {isOpen && session?.opened_at && (
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
-                      <Clock className="w-3 h-3" />
+                    <p className="text-[11px] text-muted-foreground flex items-center gap-1 mt-0.5">
+                      <Clock className="w-3 h-3 flex-shrink-0" />
                       Desde {new Date(session.opened_at).toLocaleString("pt-BR")}
-                    </div>
+                    </p>
                   )}
                 </div>
-                {isOpen && (
-                  <div className="w-2.5 h-2.5 rounded-full bg-primary animate-pulse" />
-                )}
+                {isOpen && <div className="w-2 h-2 rounded-full bg-success animate-pulse flex-shrink-0" />}
               </div>
 
-              {isOpen && (
+              {isOpen ? (
                 <>
-                  {/* Summary cards */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="bg-muted/40 rounded-xl p-4 border border-border/50">
-                      <div className="flex items-center gap-1.5 mb-2">
-                        <Wallet className="w-3.5 h-3.5 text-muted-foreground" />
-                        <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Fundo Inicial</p>
-                      </div>
-                      <p className="text-xl font-black font-mono text-foreground">{formatCurrency(openBalance)}</p>
-                    </div>
-                    <div className="bg-primary/5 rounded-xl p-4 border border-primary/10">
-                      <div className="flex items-center gap-1.5 mb-2">
-                        <ShoppingCart className="w-3.5 h-3.5 text-primary" />
-                        <p className="text-[11px] font-medium text-primary uppercase tracking-wide">Total Vendas</p>
-                      </div>
-                      <p className="text-xl font-black font-mono text-primary">{formatCurrency(totalVendas)}</p>
-                    </div>
-                    <div className="bg-muted/40 rounded-xl p-4 border border-border/50">
-                      <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-2">Nº Vendas</p>
-                      <p className="text-xl font-black font-mono text-foreground">{salesCount}</p>
-                    </div>
-                    <div className="bg-muted/40 rounded-xl p-4 border border-border/50">
-                      <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-2">Dinheiro Esperado</p>
-                      <p className="text-xl font-black font-mono text-foreground">{formatCurrency(expectedCash)}</p>
-                    </div>
-                  </div>
-
-                  {/* Payment methods */}
-                  <div className="space-y-1.5">
-                    <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Formas de Pagamento</p>
+                  {/* KPI Grid */}
+                  <div className="grid grid-cols-2 gap-2.5">
                     {[
-                      { label: "Dinheiro", value: totalDinheiro, icon: Banknote },
-                      { label: "Débito", value: totalDebito, icon: CreditCard },
-                      { label: "Crédito", value: totalCredito, icon: CreditCard },
-                      { label: "PIX", value: totalPix, icon: QrCode },
-                    ].map((pm) => (
-                      <div key={pm.label} className="flex items-center justify-between py-2.5 px-3.5 rounded-lg hover:bg-muted/40 transition-colors">
-                        <div className="flex items-center gap-2.5">
-                          <pm.icon className="w-4 h-4 text-muted-foreground" />
-                          <span className="text-sm text-foreground">{pm.label}</span>
+                      { label: "Fundo Inicial", value: formatCurrency(openBalance), icon: Wallet, accent: false },
+                      { label: "Total Vendas", value: formatCurrency(totalVendas), icon: TrendingUp, accent: true },
+                      { label: "Nº Vendas", value: String(salesCount), icon: ShoppingCart, accent: false },
+                      { label: "Dinheiro Esperado", value: formatCurrency(expectedCash), icon: Banknote, accent: false },
+                    ].map((kpi) => (
+                      <div
+                        key={kpi.label}
+                        className={`rounded-xl p-3.5 border ${
+                          kpi.accent
+                            ? "bg-primary/5 border-primary/15"
+                            : "bg-muted/50 border-border/60"
+                        }`}
+                      >
+                        <div className="flex items-center gap-1.5 mb-1.5">
+                          <kpi.icon className={`w-3.5 h-3.5 ${kpi.accent ? "text-primary" : "text-muted-foreground"}`} />
+                          <span className={`text-[10px] font-semibold uppercase tracking-wider ${kpi.accent ? "text-primary" : "text-muted-foreground"}`}>
+                            {kpi.label}
+                          </span>
                         </div>
-                        <span className="font-mono font-bold text-sm text-foreground">{formatCurrency(pm.value)}</span>
+                        <p className={`text-lg font-black font-mono ${kpi.accent ? "text-primary" : "text-foreground"}`}>
+                          {kpi.value}
+                        </p>
                       </div>
                     ))}
+                  </div>
 
-                    <div className="border-t border-border my-1" />
-
-                    <div className="flex items-center justify-between py-2.5 px-3.5 rounded-lg bg-destructive/5">
-                      <div className="flex items-center gap-2.5">
-                        <ArrowDownCircle className="w-4 h-4 text-destructive" />
-                        <span className="text-sm text-foreground">Sangrias</span>
-                      </div>
-                      <span className="font-mono font-bold text-sm text-destructive">-{formatCurrency(totalSangria)}</span>
+                  {/* Payment breakdown */}
+                  <div className="rounded-xl border border-border overflow-hidden">
+                    <div className="px-4 py-2.5 bg-muted/50 border-b border-border">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Formas de Pagamento</p>
                     </div>
-                    <div className="flex items-center justify-between py-2.5 px-3.5 rounded-lg bg-primary/5">
-                      <div className="flex items-center gap-2.5">
-                        <ArrowUpCircle className="w-4 h-4 text-primary" />
-                        <span className="text-sm text-foreground">Suprimentos</span>
+                    <div className="divide-y divide-border/60">
+                      {[
+                        { label: "Dinheiro", value: totalDinheiro, icon: Banknote },
+                        { label: "Débito", value: totalDebito, icon: CreditCard },
+                        { label: "Crédito", value: totalCredito, icon: CreditCard },
+                        { label: "PIX", value: totalPix, icon: QrCode },
+                      ].map((pm) => (
+                        <div key={pm.label} className="flex items-center justify-between px-4 py-2.5">
+                          <div className="flex items-center gap-2.5">
+                            <pm.icon className="w-4 h-4 text-muted-foreground" />
+                            <span className="text-sm text-foreground">{pm.label}</span>
+                          </div>
+                          <span className="font-mono font-bold text-sm text-foreground">{formatCurrency(pm.value)}</span>
+                        </div>
+                      ))}
+                      {/* Sangria / Suprimento */}
+                      <div className="flex items-center justify-between px-4 py-2.5 bg-destructive/[0.03]">
+                        <div className="flex items-center gap-2.5">
+                          <ArrowDownCircle className="w-4 h-4 text-destructive" />
+                          <span className="text-sm text-foreground">Sangrias</span>
+                        </div>
+                        <span className="font-mono font-bold text-sm text-destructive">-{formatCurrency(totalSangria)}</span>
                       </div>
-                      <span className="font-mono font-bold text-sm text-primary">+{formatCurrency(totalSuprimento)}</span>
+                      <div className="flex items-center justify-between px-4 py-2.5 bg-primary/[0.03]">
+                        <div className="flex items-center gap-2.5">
+                          <ArrowUpCircle className="w-4 h-4 text-primary" />
+                          <span className="text-sm text-foreground">Suprimentos</span>
+                        </div>
+                        <span className="font-mono font-bold text-sm text-primary">+{formatCurrency(totalSuprimento)}</span>
+                      </div>
                     </div>
                   </div>
 
-                  {/* Continue to PDV button */}
                   {preventClose && (
-                    <button
-                      onClick={onClose}
-                      className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:opacity-90 transition-all shadow-lg shadow-primary/20"
-                    >
-                      <Unlock className="w-4 h-4" />
-                      Continuar para o PDV
+                    <button onClick={onClose} className={`${btnPrimary} w-full`}>
+                      <Unlock className="w-4 h-4" /> Continuar para o PDV
                     </button>
                   )}
 
-                  {/* Action buttons */}
-                  <div className="flex gap-2.5 pt-1">
+                  {/* Actions */}
+                  <div className="grid grid-cols-3 gap-2">
                     <button
                       onClick={() => { setMovementType("sangria"); setView("movement"); }}
-                      className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-secondary text-secondary-foreground text-xs font-semibold hover:opacity-90 transition-all border border-border/50"
+                      className="flex flex-col items-center gap-1.5 py-3 rounded-xl bg-secondary hover:bg-secondary/80 active:scale-[0.97] border border-border/50"
                     >
-                      <ArrowDownCircle className="w-4 h-4" />
-                      Sangria
+                      <ArrowDownCircle className="w-5 h-5 text-destructive" />
+                      <span className="text-[11px] font-semibold text-foreground">Sangria</span>
                     </button>
                     <button
                       onClick={() => { setMovementType("suprimento"); setView("movement"); }}
-                      className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-secondary text-secondary-foreground text-xs font-semibold hover:opacity-90 transition-all border border-border/50"
+                      className="flex flex-col items-center gap-1.5 py-3 rounded-xl bg-secondary hover:bg-secondary/80 active:scale-[0.97] border border-border/50"
                     >
-                      <ArrowUpCircle className="w-4 h-4" />
-                      Suprimento
+                      <ArrowUpCircle className="w-5 h-5 text-primary" />
+                      <span className="text-[11px] font-semibold text-foreground">Suprimento</span>
                     </button>
                     <button
                       onClick={() => setView("close")}
-                      className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-destructive text-destructive-foreground text-xs font-semibold hover:opacity-90 transition-all shadow-sm"
+                      className="flex flex-col items-center gap-1.5 py-3 rounded-xl bg-destructive/10 hover:bg-destructive/15 active:scale-[0.97] border border-destructive/20"
                     >
-                      <Lock className="w-4 h-4" />
-                      Fechar
+                      <Lock className="w-5 h-5 text-destructive" />
+                      <span className="text-[11px] font-semibold text-destructive">Fechar Caixa</span>
                     </button>
                   </div>
                 </>
-              )}
-
-              {!isOpen && (
-                <button
-                  onClick={() => setView("open")}
-                  className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:opacity-90 transition-all shadow-lg shadow-primary/20"
-                >
-                  <Unlock className="w-4 h-4" />
-                  Abrir Caixa
+              ) : (
+                <button onClick={() => setView("open")} className={`${btnPrimary} w-full`}>
+                  <Unlock className="w-4 h-4" /> Abrir Caixa
                 </button>
               )}
-            </motion.div>
+            </div>
           )}
 
           {/* OPEN VIEW */}
           {view === "open" && (
-            <motion.div
-              key="open"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              className="p-5 space-y-5"
-            >
-              <h4 className="text-base font-bold text-foreground">Abertura de Caixa</h4>
+            <div className="p-5 space-y-5">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <Unlock className="w-5 h-5 text-primary" />
+                </div>
+                <h4 className="text-base font-bold text-foreground">Abertura de Caixa</h4>
+              </div>
               <div>
-                <label className="text-sm font-medium text-muted-foreground mb-2 block">Fundo de Troco (R$)</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={openingBalance}
-                  onChange={(e) => setOpeningBalance(e.target.value)}
-                  autoFocus
-                  className="w-full px-4 py-3.5 rounded-xl bg-background border-2 border-border text-foreground text-2xl font-mono font-bold text-center focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-                />
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 block">Fundo de Troco (R$)</label>
+                <input type="number" step="0.01" value={openingBalance} onChange={(e) => setOpeningBalance(e.target.value)} autoFocus className={inputClass} />
               </div>
               <div className="flex gap-3">
-                <button onClick={() => setView("status")} className="flex-1 py-3 rounded-xl bg-secondary text-secondary-foreground text-sm font-semibold border border-border/50 hover:opacity-90 transition-all">
-                  Cancelar
-                </button>
-                <button onClick={handleOpen} disabled={submitting} className="flex-1 py-3 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-primary/20 transition-all">
-                  {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
-                  Abrir Caixa
+                <button onClick={() => setView("status")} className={btnSecondary}>Cancelar</button>
+                <button onClick={handleOpen} disabled={submitting} className={btnPrimary}>
+                  {submitting && <Loader2 className="w-4 h-4 animate-spin" />} Abrir Caixa
                 </button>
               </div>
-            </motion.div>
+            </div>
           )}
 
           {/* MOVEMENT VIEW */}
           {view === "movement" && (
-            <motion.div
-              key="movement"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              className="p-5 space-y-5"
-            >
+            <div className="p-5 space-y-5">
               <div className="flex items-center gap-3">
-                <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${
-                  movementType === "sangria" ? "bg-destructive/10" : "bg-primary/10"
-                }`}>
-                  {movementType === "sangria"
-                    ? <ArrowDownCircle className="w-5 h-5 text-destructive" />
-                    : <ArrowUpCircle className="w-5 h-5 text-primary" />
-                  }
+                <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${movementType === "sangria" ? "bg-destructive/10" : "bg-primary/10"}`}>
+                  {movementType === "sangria" ? <ArrowDownCircle className="w-5 h-5 text-destructive" /> : <ArrowUpCircle className="w-5 h-5 text-primary" />}
                 </div>
-                <h4 className="text-base font-bold text-foreground">
-                  {movementType === "sangria" ? "Sangria" : "Suprimento"}
-                </h4>
+                <h4 className="text-base font-bold text-foreground">{movementType === "sangria" ? "Sangria" : "Suprimento"}</h4>
               </div>
               <div>
-                <label className="text-sm font-medium text-muted-foreground mb-2 block">Valor (R$)</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={movementAmount}
-                  onChange={(e) => setMovementAmount(e.target.value)}
-                  autoFocus
-                  className="w-full px-4 py-3.5 rounded-xl bg-background border-2 border-border text-foreground text-2xl font-mono font-bold text-center focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-                />
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 block">Valor (R$)</label>
+                <input type="number" step="0.01" value={movementAmount} onChange={(e) => setMovementAmount(e.target.value)} autoFocus className={inputClass} />
               </div>
               <div>
-                <label className="text-sm font-medium text-muted-foreground mb-2 block">Motivo</label>
-                <input
-                  type="text"
-                  value={movementDesc}
-                  onChange={(e) => setMovementDesc(e.target.value)}
-                  placeholder="Ex: Troco para cliente..."
-                  className="w-full px-4 py-2.5 rounded-xl bg-background border border-border text-foreground placeholder:text-muted-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-                />
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 block">Motivo</label>
+                <input type="text" value={movementDesc} onChange={(e) => setMovementDesc(e.target.value)} placeholder="Ex: Troco para cliente..." className="w-full px-4 py-2.5 rounded-xl bg-background border border-input text-foreground placeholder:text-muted-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring/30 focus:border-ring" />
               </div>
               <div className="flex gap-3">
-                <button onClick={() => setView("status")} className="flex-1 py-3 rounded-xl bg-secondary text-secondary-foreground text-sm font-semibold border border-border/50 hover:opacity-90 transition-all">
-                  Cancelar
-                </button>
-                <button onClick={handleMovement} disabled={!movementAmount || Number(movementAmount) <= 0 || submitting} className="flex-1 py-3 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-primary/20 transition-all">
-                  {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
-                  Confirmar
+                <button onClick={() => setView("status")} className={btnSecondary}>Cancelar</button>
+                <button onClick={handleMovement} disabled={!movementAmount || Number(movementAmount) <= 0 || submitting} className={btnPrimary}>
+                  {submitting && <Loader2 className="w-4 h-4 animate-spin" />} Confirmar
                 </button>
               </div>
-            </motion.div>
+            </div>
           )}
 
           {/* CLOSE VIEW */}
           {view === "close" && (
-            <motion.div
-              key="close"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              className="p-5 space-y-5"
-            >
+            <div className="p-5 space-y-4">
               <div className="flex items-center gap-3">
                 <div className="w-9 h-9 rounded-lg bg-destructive/10 flex items-center justify-center">
                   <Lock className="w-5 h-5 text-destructive" />
@@ -434,80 +375,64 @@ export function CashRegister({ onClose, terminalId = "01", preventClose = false,
                 </div>
               </div>
 
-              <div className="space-y-3">
+              <div className="space-y-2.5">
                 {[
                   { label: "Dinheiro", expected: expectedCash, value: countedDinheiro, setter: setCountedDinheiro, icon: Banknote },
                   { label: "Débito", expected: totalDebito, value: countedDebito, setter: setCountedDebito, icon: CreditCard },
                   { label: "Crédito", expected: totalCredito, value: countedCredito, setter: setCountedCredito, icon: CreditCard },
                   { label: "PIX", expected: totalPix, value: countedPix, setter: setCountedPix, icon: QrCode },
                 ].map((item) => (
-                  <div key={item.label} className="bg-muted/30 rounded-xl p-3.5 border border-border/50">
+                  <div key={item.label} className="rounded-xl border border-border p-3">
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
                         <item.icon className="w-4 h-4 text-muted-foreground" />
                         <span className="text-sm font-medium text-foreground">{item.label}</span>
                       </div>
-                      <span className="text-xs font-mono text-muted-foreground">
-                        Esperado: {formatCurrency(item.expected)}
-                      </span>
+                      <span className="text-[11px] font-mono text-muted-foreground">Esp: {formatCurrency(item.expected)}</span>
                     </div>
                     <input
-                      type="number"
-                      step="0.01"
-                      value={item.value}
+                      type="number" step="0.01" value={item.value}
                       onChange={(e) => item.setter(e.target.value)}
                       placeholder={formatCurrency(item.expected)}
-                      className="w-full px-3 py-2.5 rounded-lg bg-background border border-border text-foreground text-sm font-mono font-bold focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                      className="w-full px-3 py-2 rounded-lg bg-background border border-input text-foreground text-sm font-mono font-bold focus:outline-none focus:ring-2 focus:ring-ring/30 focus:border-ring"
                     />
                   </div>
                 ))}
               </div>
 
               {totalCounted > 0 && (
-                <motion.div
-                  initial={{ opacity: 0, y: 5 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className={`flex justify-between items-center p-4 rounded-xl border ${
-                    Math.abs(difference) < 0.01
-                      ? "bg-primary/5 border-primary/20"
-                      : Math.abs(difference) < 5
-                        ? "bg-warning/10 border-warning/20"
-                        : "bg-destructive/5 border-destructive/20"
-                  }`}
-                >
+                <div className={`flex justify-between items-center p-4 rounded-xl border ${
+                  Math.abs(difference) < 0.01
+                    ? "bg-success/5 border-success/20"
+                    : Math.abs(difference) < 5
+                      ? "bg-warning/10 border-warning/20"
+                      : "bg-destructive/5 border-destructive/20"
+                }`}>
                   <span className="text-sm font-semibold text-foreground">Diferença</span>
                   <span className={`text-xl font-black font-mono ${
-                    Math.abs(difference) < 0.01 ? "text-primary" : Math.abs(difference) < 5 ? "text-warning" : "text-destructive"
+                    Math.abs(difference) < 0.01 ? "text-success" : Math.abs(difference) < 5 ? "text-warning" : "text-destructive"
                   }`}>
                     {difference >= 0 ? "+" : ""}{formatCurrency(difference)}
                   </span>
-                </motion.div>
+                </div>
               )}
 
               <div>
-                <label className="text-sm font-medium text-muted-foreground mb-2 block">Observações</label>
-                <textarea
-                  value={closingNotes}
-                  onChange={(e) => setClosingNotes(e.target.value)}
-                  placeholder="Observações do fechamento..."
-                  rows={2}
-                  className="w-full px-4 py-2.5 rounded-xl bg-background border border-border text-foreground placeholder:text-muted-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary resize-none transition-all"
-                />
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 block">Observações</label>
+                <textarea value={closingNotes} onChange={(e) => setClosingNotes(e.target.value)} placeholder="Observações do fechamento..." rows={2} className="w-full px-4 py-2.5 rounded-xl bg-background border border-input text-foreground placeholder:text-muted-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring/30 focus:border-ring resize-none" />
               </div>
 
               <div className="flex gap-3">
-                <button onClick={() => setView("status")} className="flex-1 py-3 rounded-xl bg-secondary text-secondary-foreground text-sm font-semibold border border-border/50 hover:opacity-90 transition-all">
-                  Voltar
-                </button>
-                <button onClick={handleClose} disabled={submitting} className="flex-1 py-3 rounded-xl bg-destructive text-destructive-foreground text-sm font-bold hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2 shadow-sm transition-all">
-                  {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
-                  Confirmar Fechamento
+                <button onClick={() => setView("status")} className={btnSecondary}>Voltar</button>
+                <button onClick={handleClose} disabled={submitting} className="flex-1 py-3 rounded-xl bg-destructive text-destructive-foreground text-sm font-bold hover:bg-destructive/90 active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50">
+                  {submitting && <Loader2 className="w-4 h-4 animate-spin" />} Confirmar Fechamento
                 </button>
               </div>
-            </motion.div>
+            </div>
           )}
-        </AnimatePresence>
-      </motion.div>
+        </div>
+      </div>
     </div>
   );
 }
+
