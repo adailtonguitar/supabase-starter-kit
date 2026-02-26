@@ -563,7 +563,7 @@ export default function PDV() {
     <div className={`pdv-theme flex flex-col h-screen bg-background text-foreground overflow-hidden select-none ${pdv.trainingMode ? "ring-4 ring-warning/60 ring-inset" : ""}`}>
 
       {/* ════════ TOP BAR ════════ */}
-      <div className="flex items-center justify-between px-3 h-9 bg-primary text-primary-foreground flex-shrink-0 text-xs overflow-x-auto whitespace-nowrap gap-2 scrollbar-none">
+      <div className="flex items-center justify-between px-2 lg:px-3 h-9 bg-primary text-primary-foreground flex-shrink-0 text-xs gap-1 lg:gap-2 overflow-hidden">
         <div className="flex items-center gap-2 sm:gap-4 min-w-0">
           <button
             onClick={() => navigate("/")}
@@ -1024,12 +1024,12 @@ export default function PDV() {
       </div>
 
       {/* ════════ MOBILE ACTION BAR (visible only on mobile) ════════ */}
-      <div className="flex lg:hidden items-center gap-1.5 px-2 py-1.5 border-t border-border bg-muted/50 overflow-x-auto scrollbar-none flex-shrink-0">
+      <div className="flex lg:hidden items-center gap-1 px-1.5 py-1 border-t border-border bg-muted/50 flex-wrap flex-shrink-0">
         <button
           onClick={() => setShowProductList(true)}
-          className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-sidebar-background text-sidebar-foreground border border-sidebar-border text-xs font-bold whitespace-nowrap active:scale-95 transition-transform"
+          className="flex items-center gap-1 px-2.5 py-2 rounded-lg bg-sidebar-background text-sidebar-foreground border border-sidebar-border text-[10px] font-bold whitespace-nowrap active:scale-95 transition-transform"
         >
-          <Search className="w-4 h-4" /> Buscar
+          <Search className="w-3.5 h-3.5" /> Buscar
         </button>
         <button
           onClick={() => {
@@ -1044,9 +1044,9 @@ export default function PDV() {
             }
           }}
           disabled={pdv.cartItems.length === 0}
-          className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-sidebar-background text-sidebar-foreground border border-sidebar-border text-xs font-bold whitespace-nowrap disabled:opacity-30 active:scale-95 transition-transform"
+          className="flex items-center gap-1 px-2.5 py-2 rounded-lg bg-sidebar-background text-sidebar-foreground border border-sidebar-border text-[10px] font-bold whitespace-nowrap disabled:opacity-30 active:scale-95 transition-transform"
         >
-          <Hash className="w-3.5 h-3.5" /> Qtd
+          <Hash className="w-3 h-3" /> Qtd
         </button>
         <button
           onClick={() => {
@@ -1058,16 +1058,16 @@ export default function PDV() {
             }
           }}
           disabled={pdv.cartItems.length === 0}
-          className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-sidebar-background text-sidebar-foreground border border-sidebar-border text-xs font-bold whitespace-nowrap disabled:opacity-30 active:scale-95 transition-transform"
+          className="flex items-center gap-1 px-2.5 py-2 rounded-lg bg-sidebar-background text-sidebar-foreground border border-sidebar-border text-[10px] font-bold whitespace-nowrap disabled:opacity-30 active:scale-95 transition-transform"
         >
-          <Percent className="w-3.5 h-3.5" /> Desc.Item
+          <Percent className="w-3 h-3" /> Desc.Item
         </button>
         <button
           onClick={() => maxDiscountPercent > 0 && setEditingGlobalDiscount(true)}
           disabled={pdv.cartItems.length === 0}
-          className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-sidebar-background text-sidebar-foreground border border-sidebar-border text-xs font-bold whitespace-nowrap disabled:opacity-30 active:scale-95 transition-transform"
+          className="flex items-center gap-1 px-2.5 py-2 rounded-lg bg-sidebar-background text-sidebar-foreground border border-sidebar-border text-[10px] font-bold whitespace-nowrap disabled:opacity-30 active:scale-95 transition-transform"
         >
-          <Percent className="w-3.5 h-3.5" /> Desc.Total
+          <Percent className="w-3 h-3" /> Desc.Total
         </button>
         <button
           onClick={() => {
@@ -1083,9 +1083,9 @@ export default function PDV() {
             }
           }}
           disabled={pdv.cartItems.length === 0}
-          className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-destructive/80 text-white border border-destructive/50 text-xs font-bold whitespace-nowrap disabled:opacity-30 active:scale-95 transition-transform"
+          className="flex items-center gap-1 px-2.5 py-2 rounded-lg bg-destructive/80 text-white border border-destructive/50 text-[10px] font-bold whitespace-nowrap disabled:opacity-30 active:scale-95 transition-transform"
         >
-          <Trash2 className="w-3.5 h-3.5" /> Remover
+          <Trash2 className="w-3 h-3" /> Remover
         </button>
         <button
           onClick={() => {
@@ -1097,16 +1097,16 @@ export default function PDV() {
             }
           }}
           disabled={pdv.cartItems.length === 0}
-          className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-destructive/80 text-white border border-destructive/50 text-xs font-bold whitespace-nowrap disabled:opacity-30 active:scale-95 transition-transform"
+          className="flex items-center gap-1 px-2.5 py-2 rounded-lg bg-destructive/80 text-white border border-destructive/50 text-[10px] font-bold whitespace-nowrap disabled:opacity-30 active:scale-95 transition-transform"
         >
-          <X className="w-3.5 h-3.5" /> Cancelar
+          <X className="w-3 h-3" /> Cancelar
         </button>
       </div>
 
       {/* ════════ BOTTOM PAYMENT BAR — ELITE ════════ */}
       <div className="flex flex-col flex-shrink-0 border-t-2 border-primary/30 bg-card shadow-[0_-4px_16px_-6px_rgba(0,0,0,0.15)]">
         {/* Payment method buttons */}
-        <div className="flex items-stretch gap-1 lg:gap-1.5 px-1.5 lg:px-3 py-1.5 lg:py-2 overflow-x-auto scrollbar-none">
+        <div className="flex items-stretch gap-1 lg:gap-1.5 px-1.5 lg:px-3 py-1 lg:py-2 flex-wrap">
           {[
             { id: "dinheiro", label: "Dinheiro", icon: Banknote, colorClass: "bg-emerald-900/70 hover:bg-emerald-800/80 text-emerald-50 border border-emerald-600/50 shadow-sm" },
             { id: "debito", label: "Débito", icon: CreditCard, colorClass: "bg-blue-900/70 hover:bg-blue-800/80 text-blue-50 border border-blue-600/50 shadow-sm" },
@@ -1125,7 +1125,7 @@ export default function PDV() {
               whileTap={{ scale: 0.96 }}
               onClick={() => handleDirectPayment(id)}
               disabled={pdv.cartItems.length === 0}
-              className={`flex-1 min-w-[56px] flex flex-col items-center justify-center gap-0.5 py-2.5 lg:py-2.5 xl:py-3 rounded-xl text-sm font-extrabold tracking-wide transition-all disabled:opacity-30 disabled:cursor-not-allowed active:scale-95 ${colorClass}`}
+              className={`flex-1 min-w-[44px] basis-[calc(25%-4px)] lg:basis-auto flex flex-col items-center justify-center gap-0.5 py-2 lg:py-2.5 xl:py-3 rounded-lg lg:rounded-xl text-sm font-extrabold tracking-wide transition-all disabled:opacity-30 disabled:cursor-not-allowed active:scale-95 ${colorClass}`}
             >
               <Icon className="w-4 h-4 lg:w-5 lg:h-5 xl:w-6 xl:h-6" />
               <span className="text-[10px] lg:text-[11px] xl:text-xs font-bold">{label}</span>
