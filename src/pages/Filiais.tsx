@@ -81,25 +81,38 @@ export default function Filiais() {
 
       {/* Tab Navigation */}
       <div className="grid grid-cols-4 gap-1">
-        {([
-          { key: "hierarquia" as const, icon: Building2, label: "Hierarquia" },
-          { key: "transferencias" as const, icon: ArrowRightLeft, label: "Transf." },
-          { key: "consolidado" as const, icon: BarChart3, label: "Consolid." },
-          { key: "permissoes" as const, icon: Shield, label: "Permissões" },
-        ]).map(tab => (
-          <button
-            key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
-            className={`flex items-center justify-center gap-1 px-2 py-2 rounded-lg text-[11px] font-medium transition-all ${
-              activeTab === tab.key
-                ? "bg-primary text-primary-foreground"
-                : "bg-card border border-border text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <tab.icon className="w-3.5 h-3.5 flex-shrink-0" />
-            <span className="truncate">{tab.label}</span>
-          </button>
-        ))}
+        <button
+          onClick={() => setActiveTab("hierarquia")}
+          className={`flex items-center justify-center gap-1 px-2 py-2 rounded-lg text-[11px] font-medium transition-all ${
+            activeTab === "hierarquia" ? "bg-primary text-primary-foreground" : "bg-card border border-border text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <Building2 className="w-3.5 h-3.5 flex-shrink-0" /> Hierarquia
+        </button>
+        <button
+          onClick={() => setActiveTab("transferencias")}
+          className={`flex items-center justify-center gap-1 px-2 py-2 rounded-lg text-[11px] font-medium transition-all ${
+            activeTab === "transferencias" ? "bg-primary text-primary-foreground" : "bg-card border border-border text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <ArrowRightLeft className="w-3.5 h-3.5 flex-shrink-0" /> Transf.
+        </button>
+        <button
+          onClick={() => setActiveTab("consolidado")}
+          className={`flex items-center justify-center gap-1 px-2 py-2 rounded-lg text-[11px] font-medium transition-all ${
+            activeTab === "consolidado" ? "bg-primary text-primary-foreground" : "bg-card border border-border text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <BarChart3 className="w-3.5 h-3.5 flex-shrink-0" /> Consolid.
+        </button>
+        <button
+          onClick={() => setActiveTab("permissoes")}
+          className={`flex items-center justify-center gap-1 px-2 py-2 rounded-lg text-[11px] font-medium transition-all ${
+            activeTab === "permissoes" ? "bg-primary text-primary-foreground" : "bg-card border border-border text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <Shield className="w-3.5 h-3.5 flex-shrink-0" /> Permissões
+        </button>
       </div>
 
       {/* Company Switcher */}
