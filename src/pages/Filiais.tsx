@@ -76,7 +76,7 @@ export default function Filiais() {
         <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
           <Building2 className="w-5 h-5 text-primary" /> Filiais
         </h1>
-        <p className="text-sm text-muted-foreground mt-1">Gerencie filiais, transferências e relatórios consolidados</p>
+        <p className="text-sm text-muted-foreground mt-1">Gerencie filiais, transferências, relatórios consolidados e permissões</p>
       </div>
 
       {/* Tab Navigation */}
