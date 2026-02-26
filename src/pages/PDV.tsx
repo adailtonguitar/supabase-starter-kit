@@ -628,7 +628,7 @@ export default function PDV() {
       </div>
 
       {/* ════════ BARCODE INPUT - ELITE ════════ */}
-      <div className={`flex items-center gap-3 lg:gap-4 px-3 lg:px-5 py-3.5 lg:py-5 bg-gradient-to-r from-primary/15 via-card to-primary/15 border-b-[3px] border-primary flex-shrink-0 shadow-[0_4px_20px_-6px_hsl(var(--primary)/0.35)] ${
+      <div data-tour="pdv-search" className={`flex items-center gap-3 lg:gap-4 px-3 lg:px-5 py-3.5 lg:py-5 bg-gradient-to-r from-primary/15 via-card to-primary/15 border-b-[3px] border-primary flex-shrink-0 shadow-[0_4px_20px_-6px_hsl(var(--primary)/0.35)] ${
         (editingQtyItemId || editingItemDiscountId || editingGlobalDiscount) ? "hidden lg:flex" : "flex"
       }`}>
         <div className="flex items-center gap-2 bg-primary/20 rounded-xl px-3.5 py-2.5 shadow-sm">
@@ -673,7 +673,7 @@ export default function PDV() {
       <div className="flex flex-col lg:flex-row flex-1 min-h-0">
 
         {/* LEFT: Items Table (70%) */}
-        <div className="flex-1 lg:flex-[7] flex flex-col min-w-0 border-r border-border min-h-[30vh] lg:min-h-0 lg:max-h-none">
+        <div data-tour="pdv-cart" className="flex-1 lg:flex-[7] flex flex-col min-w-0 border-r border-border min-h-[30vh] lg:min-h-0 lg:max-h-none">
         <div className="flex-1 overflow-y-auto overflow-x-hidden">
             <table className="w-full text-xs table-fixed">
               <thead className="sticky top-0 z-10 bg-muted/90 backdrop-blur-sm shadow-sm">
@@ -1016,6 +1016,7 @@ export default function PDV() {
 
           {/* TOTAL — ELITE DISPLAY */}
           <div
+            data-tour="pdv-total"
             className="p-2 lg:p-5 xl:p-6 mt-auto border-t-4 transition-all duration-500 flex-shrink-0 overflow-hidden relative"
             style={{
               backgroundColor: totalFinal > 0 ? "hsl(0, 72%, 38%)" : "hsl(142, 76%, 30%)",
@@ -1159,7 +1160,7 @@ export default function PDV() {
             <span>Emitir NFC-e</span>
           </label>
         </div>
-        <div className="hidden lg:flex items-center justify-center gap-1 xl:gap-1.5 px-2 py-1.5 xl:py-2 bg-muted/80 border-t-2 border-border/60 flex-wrap">
+        <div data-tour="pdv-shortcuts" className="hidden lg:flex items-center justify-center gap-1 xl:gap-1.5 px-2 py-1.5 xl:py-2 bg-muted/80 border-t-2 border-border/60 flex-wrap">
           {/* Grupo: Operações */}
           <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-lg bg-background/50 border border-border/40">
             {[
