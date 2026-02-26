@@ -442,11 +442,15 @@ function TransfersTab() {
               className="w-full px-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm" />
             {searchProduct && (
               <div className="mt-1 bg-background border border-border rounded-lg max-h-40 overflow-y-auto">
-                {filteredProducts.map((p: any) => (
-                  <button key={p.id} onClick={() => addItem(p)} className="w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors">
-                    {p.name} <span className="text-muted-foreground">({p.sku})</span>
-                  </button>
-                ))}
+                {filteredProducts.length === 0 ? (
+                  <p className="px-3 py-2 text-sm text-muted-foreground">Nenhum produto encontrado</p>
+                ) : (
+                  filteredProducts.map((p: any) => (
+                    <button key={p.id} onClick={() => addItem(p)} className="w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors">
+                      {p.name} <span className="text-muted-foreground">({p.sku})</span>
+                    </button>
+                  ))
+                )}
               </div>
             )}
           </div>
