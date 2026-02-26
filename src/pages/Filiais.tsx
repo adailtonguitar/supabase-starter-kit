@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { Building2, Plus, ChevronRight, Pencil, ArrowRightLeft, BarChart3 } from "lucide-react";
+import { Building2, Plus, ChevronRight, Pencil, ArrowRightLeft, BarChart3, Shield } from "lucide-react";
 import { motion } from "framer-motion";
 import StockTransfersSection from "@/components/filiais/StockTransfersSection";
 import ConsolidatedSection from "@/components/filiais/ConsolidatedSection";
+import PermissionsSection from "@/components/filiais/PermissionsSection";
 import { useBranches, useSetParentCompany, useCreateBranch, useDeleteBranch, useUpdateBranch } from "@/hooks/useBranches";
 import { useCompany } from "@/hooks/useCompany";
 import { useAuth } from "@/hooks/useAuth";
@@ -19,7 +20,7 @@ export default function Filiais() {
   const { companyId, switchCompany } = useCompany();
   const { user } = useAuth();
 
-  const [activeTab, setActiveTab] = useState<"hierarquia" | "transferencias" | "consolidado">("hierarquia");
+  const [activeTab, setActiveTab] = useState<"hierarquia" | "transferencias" | "consolidado" | "permissoes">("hierarquia");
   const [open, setOpen] = useState(false);
   const [branchName, setBranchName] = useState("");
   const [branchCnpj, setBranchCnpj] = useState("");
@@ -108,6 +109,16 @@ export default function Filiais() {
           }`}
         >
           <BarChart3 className="w-3.5 h-3.5" /> Consolidado
+        </button>
+        <button
+          onClick={() => setActiveTab("permissoes")}
+          className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-medium transition-all ${
+            activeTab === "permissoes"
+              ? "bg-primary text-primary-foreground"
+              : "bg-card border border-border text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <Shield className="w-3.5 h-3.5" /> Permissões
         </button>
       </div>
 
@@ -296,6 +307,7 @@ export default function Filiais() {
 
       {activeTab === "transferencias" && <StockTransfersSection />}
       {activeTab === "consolidado" && <ConsolidatedSection />}
+      {activeTab === "permissoes" && <PermissionsSection />}
     </motion.div>
   );
 }
