@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, memo } from "react";
 import { AppSidebar } from "./AppSidebar";
 import { UpdateNoticeModal } from "@/components/UpdateNoticeModal";
 import { SubscriptionBanner } from "./SubscriptionBanner";
@@ -34,7 +34,7 @@ interface AppLayoutProps {
   children: React.ReactNode;
 }
 
-export function AppLayout({ children }: AppLayoutProps) {
+export const AppLayout = memo(function AppLayout({ children }: AppLayoutProps) {
   const isMobile = useIsMobile();
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -64,4 +64,4 @@ export function AppLayout({ children }: AppLayoutProps) {
       </div>
     </div>
   );
-}
+});
