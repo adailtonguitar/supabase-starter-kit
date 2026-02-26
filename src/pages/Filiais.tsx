@@ -760,20 +760,22 @@ export default function Filiais() {
       <CompanySwitcher />
 
       <Tabs defaultValue="hierarchy" className="w-full">
-        <TabsList className="flex flex-wrap w-full mb-4 h-auto gap-1">
-          <TabsTrigger value="hierarchy" className="flex items-center gap-1.5 text-xs">
-            <Building2 className="w-3.5 h-3.5" /> Hierarquia
-          </TabsTrigger>
-          <TabsTrigger value="transfers" className="flex items-center gap-1.5 text-xs">
-            <ArrowRightLeft className="w-3.5 h-3.5" /> Transferências
-          </TabsTrigger>
-          <TabsTrigger value="consolidated" className="flex items-center gap-1.5 text-xs">
-            <BarChart3 className="w-3.5 h-3.5" /> Consolidado
-          </TabsTrigger>
-          <TabsTrigger value="permissions" className="flex items-center gap-1.5 text-xs">
-            <Filter className="w-3.5 h-3.5" /> Permissões
-          </TabsTrigger>
-        </TabsList>
+        <div className="grid grid-cols-4 gap-1 bg-muted p-1 rounded-lg mb-4">
+          <TabsList className="contents">
+            <TabsTrigger value="hierarchy" className="flex items-center justify-center gap-1 text-[11px] px-1 py-2 rounded-md">
+              <Building2 className="w-3.5 h-3.5 shrink-0" /> <span className="hidden sm:inline">Hierarquia</span>
+            </TabsTrigger>
+            <TabsTrigger value="transfers" className="flex items-center justify-center gap-1 text-[11px] px-1 py-2 rounded-md">
+              <ArrowRightLeft className="w-3.5 h-3.5 shrink-0" /> <span className="hidden sm:inline">Transferências</span>
+            </TabsTrigger>
+            <TabsTrigger value="consolidated" className="flex items-center justify-center gap-1 text-[11px] px-1 py-2 rounded-md">
+              <BarChart3 className="w-3.5 h-3.5 shrink-0" /> <span className="hidden sm:inline">Consolidado</span>
+            </TabsTrigger>
+            <TabsTrigger value="permissions" className="flex items-center justify-center gap-1 text-[11px] px-1 py-2 rounded-md">
+              <Filter className="w-3.5 h-3.5 shrink-0" /> <span className="hidden sm:inline">Permissões</span>
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
         <TabsContent value="hierarchy"><HierarchyTab /></TabsContent>
         <TabsContent value="transfers"><TransfersTab /></TabsContent>
