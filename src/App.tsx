@@ -81,9 +81,10 @@ const TermosFiscais = lazy(() => import("./pages/TermosFiscais"));
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 5 * 60 * 1000, // 5 min — avoid refetch on every mount
-      gcTime: 10 * 60 * 1000, // 10 min cache retention
+      staleTime: 10 * 60 * 1000, // 10 min — reduce refetches
+      gcTime: 30 * 60 * 1000, // 30 min cache retention
       refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
       retry: 1,
     },
   },
