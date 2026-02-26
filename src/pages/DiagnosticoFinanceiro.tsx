@@ -65,17 +65,27 @@ export default function DiagnosticoFinanceiro() {
     setErrorMsg(null);
 
     try {
-      const { data, error } = await supabase.functions.invoke("diagnostico-financeiro", {
-        body: { mes_referencia: mesReferencia },
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "https://fsvxpxziotklbxkivyug.supabase.co";
+      const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZzdnhweHppb3RrbGJ4a2l2eXVnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE3ODU5NTMsImV4cCI6MjA4NzM2MTk1M30.8I3ABsRZBZuE1IpK_g9z3PdRUd9Omt_F5qNx0Pgqvyo";
+
+      const session = await supabase.auth.getSession();
+      const accessToken = session?.data?.session?.access_token || anonKey;
+
+      const resp = await fetch(`${supabaseUrl}/functions/v1/diagnostico-financeiro`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${accessToken}`,
+          "apikey": anonKey,
+        },
+        body: JSON.stringify({ mes_referencia: mesReferencia }),
       });
 
-      if (error) {
-        setErrorMsg(error.message || "Erro ao chamar a função.");
-        return;
-      }
+      const data = await resp.json().catch(() => null);
 
-      if (data?.error) {
-        setErrorMsg(data.error);
+      if (!resp.ok) {
+        const msg = data?.error || `Erro ${resp.status}. Verifique os logs da Edge Function.`;
+        setErrorMsg(msg);
         return;
       }
 
@@ -84,16 +94,11 @@ export default function DiagnosticoFinanceiro() {
         setGeradoEm(new Date().toISOString());
         toast.success("Diagnóstico gerado com sucesso!");
       } else {
-        setErrorMsg("Resposta inesperada do servidor.");
+        setErrorMsg(data?.error || "Resposta inesperada do servidor.");
       }
     } catch (err: any) {
-      if (err?.message?.includes("429")) {
-        setErrorMsg("Limite de requisições atingido. Tente novamente em alguns minutos.");
-      } else if (err?.message?.includes("402")) {
-        setErrorMsg("Créditos insuficientes. Recarregue seus créditos para continuar.");
-      } else {
-        setErrorMsg("Falha na conexão com o servidor.");
-      }
+      console.error("[DiagnosticoFinanceiro] Erro:", err);
+      setErrorMsg("Falha na conexão com o servidor.");
     } finally {
       setLoading(false);
     }
