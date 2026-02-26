@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { Building2, Plus, ChevronRight, Pencil } from "lucide-react";
+import { Building2, Plus, ChevronRight, Pencil, ArrowRightLeft } from "lucide-react";
 import { motion } from "framer-motion";
+import StockTransfersSection from "@/components/filiais/StockTransfersSection";
 import { useBranches, useSetParentCompany, useCreateBranch, useDeleteBranch, useUpdateBranch } from "@/hooks/useBranches";
 import { useCompany } from "@/hooks/useCompany";
 import { useAuth } from "@/hooks/useAuth";
@@ -17,6 +18,7 @@ export default function Filiais() {
   const { companyId, switchCompany } = useCompany();
   const { user } = useAuth();
 
+  const [activeTab, setActiveTab] = useState<"hierarquia" | "transferencias">("hierarquia");
   const [open, setOpen] = useState(false);
   const [branchName, setBranchName] = useState("");
   const [branchCnpj, setBranchCnpj] = useState("");
@@ -71,7 +73,31 @@ export default function Filiais() {
         <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
           <Building2 className="w-5 h-5 text-primary" /> Filiais
         </h1>
-        <p className="text-sm text-muted-foreground mt-1">Gerencie filiais e hierarquia de empresas</p>
+        <p className="text-sm text-muted-foreground mt-1">Gerencie filiais, transferências e relatórios consolidados</p>
+      </div>
+
+      {/* Tab Navigation */}
+      <div className="flex gap-2">
+        <button
+          onClick={() => setActiveTab("hierarquia")}
+          className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-medium transition-all ${
+            activeTab === "hierarquia"
+              ? "bg-primary text-primary-foreground"
+              : "bg-card border border-border text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <Building2 className="w-3.5 h-3.5" /> Hierarquia
+        </button>
+        <button
+          onClick={() => setActiveTab("transferencias")}
+          className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-medium transition-all ${
+            activeTab === "transferencias"
+              ? "bg-primary text-primary-foreground"
+              : "bg-card border border-border text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <ArrowRightLeft className="w-3.5 h-3.5" /> Transferências
+        </button>
       </div>
 
       {/* Company Switcher */}
@@ -102,155 +128,162 @@ export default function Filiais() {
         </div>
       )}
 
-      {/* Header + Nova Filial */}
-      <div className="flex flex-wrap justify-between items-center gap-2">
-        <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-          <Building2 className="w-4 h-4 text-primary" /> Hierarquia
-        </h3>
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <button className="flex items-center gap-1.5 px-3 py-2 bg-primary text-primary-foreground rounded-lg text-xs font-medium hover:opacity-90 transition-all">
-              <Plus className="w-3.5 h-3.5" /> Nova Filial
-            </button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Cadastrar Nova Filial</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 pt-2">
-              <div>
-                <label className="text-xs font-medium text-muted-foreground mb-1 block">Nome da Filial *</label>
-                <input value={branchName} onChange={e => setBranchName(e.target.value)} placeholder="Ex: Loja Centro"
-                  className="w-full px-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm" />
-              </div>
-              <div>
-                <label className="text-xs font-medium text-muted-foreground mb-1 block">CNPJ (opcional)</label>
-                <input value={branchCnpj} onChange={e => setBranchCnpj(e.target.value)} placeholder="00.000.000/0000-00"
-                  className="w-full px-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm" />
-              </div>
-              <button onClick={handleCreateBranch} disabled={createBranch.isPending}
-                className="w-full py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50">
-                {createBranch.isPending ? "Criando..." : "Criar Filial"}
-              </button>
-            </div>
-          </DialogContent>
-        </Dialog>
-      </div>
-
-      {/* Edit Dialog */}
-      <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Editar Filial</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 pt-2">
-            <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">Nome *</label>
-              <input value={editName} onChange={e => setEditName(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm" />
-            </div>
-            <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">CNPJ</label>
-              <input value={editCnpj} onChange={e => setEditCnpj(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm" />
-            </div>
-            <button onClick={handleSaveEdit} disabled={updateBranch.isPending}
-              className="w-full py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50">
-              {updateBranch.isPending ? "Salvando..." : "Salvar"}
-            </button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Matrizes */}
-      <div className="bg-card rounded-xl border border-border p-5">
-        <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
-          <Building2 className="w-4 h-4 text-primary" /> Matrizes
-        </h3>
-        {parents.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Nenhuma matriz encontrada.</p>
-        ) : (
-          <div className="space-y-3">
-            {parents.map(p => (
-              <div key={p.id} className="flex items-center gap-3 p-3 rounded-lg bg-background border border-border">
-                <Building2 className="w-5 h-5 text-primary" />
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-foreground">{p.name}</p>
-                  {p.cnpj && <p className="text-xs text-muted-foreground">{p.cnpj}</p>}
-                </div>
-                <div className="flex items-center gap-2">
-                  <button onClick={() => handleEdit(p)} className="text-xs text-muted-foreground hover:text-foreground">
-                    <Pencil className="w-3.5 h-3.5" />
+      {/* Tab Content */}
+      {activeTab === "hierarquia" && (
+        <>
+          {/* Header + Nova Filial */}
+          <div className="flex flex-wrap justify-between items-center gap-2">
+            <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+              <Building2 className="w-4 h-4 text-primary" /> Hierarquia
+            </h3>
+            <Dialog open={open} onOpenChange={setOpen}>
+              <DialogTrigger asChild>
+                <button className="flex items-center gap-1.5 px-3 py-2 bg-primary text-primary-foreground rounded-lg text-xs font-medium hover:opacity-90 transition-all">
+                  <Plus className="w-3.5 h-3.5" /> Nova Filial
+                </button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Cadastrar Nova Filial</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 pt-2">
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground mb-1 block">Nome da Filial *</label>
+                    <input value={branchName} onChange={e => setBranchName(e.target.value)} placeholder="Ex: Loja Centro"
+                      className="w-full px-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground mb-1 block">CNPJ (opcional)</label>
+                    <input value={branchCnpj} onChange={e => setBranchCnpj(e.target.value)} placeholder="00.000.000/0000-00"
+                      className="w-full px-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm" />
+                  </div>
+                  <button onClick={handleCreateBranch} disabled={createBranch.isPending}
+                    className="w-full py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50">
+                    {createBranch.isPending ? "Criando..." : "Criar Filial"}
                   </button>
-                  {p.id === companyId && (
-                    <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">Atual</span>
-                  )}
                 </div>
-              </div>
-            ))}
+              </DialogContent>
+            </Dialog>
           </div>
-        )}
-      </div>
 
-      {/* Filiais */}
-      <div className="bg-card rounded-xl border border-border p-5">
-        <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
-          <ChevronRight className="w-4 h-4 text-primary" /> Filiais
-        </h3>
-        {children.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Nenhuma filial cadastrada ainda.</p>
-        ) : (
-          <div className="space-y-3">
-            {children.map(c => {
-              const parentName = parents.find(p => p.id === c.parent_company_id)?.name || "?";
-              return (
-                <div key={c.id} className="flex items-center gap-3 p-3 rounded-lg bg-background border border-border">
-                  <Building2 className="w-5 h-5 text-muted-foreground" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-foreground">{c.name}</p>
-                    <p className="text-xs text-muted-foreground">Matriz: {parentName}</p>
-                  </div>
-                  <div className="flex gap-2 items-center flex-shrink-0">
-                    <button onClick={() => handleEdit(c)} className="text-xs text-muted-foreground hover:text-foreground" title="Editar">
-                      <Pencil className="w-3.5 h-3.5" />
-                    </button>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <button className="text-xs text-muted-foreground hover:underline">Desvincular</button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Desvincular filial</AlertDialogTitle>
-                          <AlertDialogDescription>A filial "{c.name}" será desvinculada da matriz.</AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => setParent.mutate({ companyId: c.id, parentId: null })}>Desvincular</AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <button className="text-xs text-destructive hover:underline">Excluir</button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Excluir filial permanentemente</AlertDialogTitle>
-                          <AlertDialogDescription>A filial "{c.name}" e todos os dados serão excluídos permanentemente.</AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                          <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => deleteBranch.mutate(c.id)}>Excluir</AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </div>
+          {/* Edit Dialog */}
+          <Dialog open={editOpen} onOpenChange={setEditOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Editar Filial</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 pt-2">
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Nome *</label>
+                  <input value={editName} onChange={e => setEditName(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm" />
                 </div>
-              );
-            })}
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1 block">CNPJ</label>
+                  <input value={editCnpj} onChange={e => setEditCnpj(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm" />
+                </div>
+                <button onClick={handleSaveEdit} disabled={updateBranch.isPending}
+                  className="w-full py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50">
+                  {updateBranch.isPending ? "Salvando..." : "Salvar"}
+                </button>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          {/* Matrizes */}
+          <div className="bg-card rounded-xl border border-border p-5">
+            <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
+              <Building2 className="w-4 h-4 text-primary" /> Matrizes
+            </h3>
+            {parents.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Nenhuma matriz encontrada.</p>
+            ) : (
+              <div className="space-y-3">
+                {parents.map(p => (
+                  <div key={p.id} className="flex items-center gap-3 p-3 rounded-lg bg-background border border-border">
+                    <Building2 className="w-5 h-5 text-primary" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-foreground">{p.name}</p>
+                      {p.cnpj && <p className="text-xs text-muted-foreground">{p.cnpj}</p>}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => handleEdit(p)} className="text-xs text-muted-foreground hover:text-foreground">
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                      {p.id === companyId && (
+                        <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">Atual</span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
-        )}
-      </div>
+
+          {/* Filiais */}
+          <div className="bg-card rounded-xl border border-border p-5">
+            <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
+              <ChevronRight className="w-4 h-4 text-primary" /> Filiais
+            </h3>
+            {children.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Nenhuma filial cadastrada ainda.</p>
+            ) : (
+              <div className="space-y-3">
+                {children.map(c => {
+                  const parentName = parents.find(p => p.id === c.parent_company_id)?.name || "?";
+                  return (
+                    <div key={c.id} className="flex items-center gap-3 p-3 rounded-lg bg-background border border-border">
+                      <Building2 className="w-5 h-5 text-muted-foreground" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-foreground">{c.name}</p>
+                        <p className="text-xs text-muted-foreground">Matriz: {parentName}</p>
+                      </div>
+                      <div className="flex gap-2 items-center flex-shrink-0">
+                        <button onClick={() => handleEdit(c)} className="text-xs text-muted-foreground hover:text-foreground" title="Editar">
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <button className="text-xs text-muted-foreground hover:underline">Desvincular</button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Desvincular filial</AlertDialogTitle>
+                              <AlertDialogDescription>A filial "{c.name}" será desvinculada da matriz.</AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => setParent.mutate({ companyId: c.id, parentId: null })}>Desvincular</AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <button className="text-xs text-destructive hover:underline">Excluir</button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Excluir filial permanentemente</AlertDialogTitle>
+                              <AlertDialogDescription>A filial "{c.name}" e todos os dados serão excluídos permanentemente.</AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => deleteBranch.mutate(c.id)}>Excluir</AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+      {activeTab === "transferencias" && <StockTransfersSection />}
     </motion.div>
   );
 }
