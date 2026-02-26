@@ -1046,12 +1046,6 @@ export default function PDV() {
       {/* ════════ MOBILE ACTION BAR (visible only on mobile) ════════ */}
       <div className="flex lg:hidden items-center gap-1 px-1.5 py-1 border-t border-border bg-muted/50 flex-wrap flex-shrink-0">
         <button
-          onClick={() => setShowProductList(true)}
-          className="flex items-center gap-1 px-2.5 py-2 rounded-lg bg-sidebar-background text-sidebar-foreground border border-sidebar-border text-[10px] font-bold whitespace-nowrap active:scale-95 transition-transform"
-        >
-          <Search className="w-3.5 h-3.5" /> Buscar
-        </button>
-        <button
           onClick={() => {
             if (pdv.cartItems.length > 0) {
               const targetItem = selectedCartItemId
