@@ -115,6 +115,20 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
 
   const checkServerLimit = useCallback(async (feature: string): Promise<{ allowed: boolean; reason?: string }> => {
     if (!companyId) return { allowed: false, reason: "Empresa não identificada." };
+
+    // Check if user is super_admin — bypass all limits
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: adminData } = await supabase
+          .from("admin_roles")
+          .select("role")
+          .eq("user_id", user.id)
+          .maybeSingle();
+        if (adminData?.role === "super_admin") return { allowed: true };
+      }
+    } catch { /* continue with normal check */ }
+
     try {
       const { data, error } = await supabase.rpc("check_plan_limit", {
         p_company_id: companyId,
