@@ -77,7 +77,7 @@ export default function Produtos() {
             {products.length} produtos cadastrados
           </p>
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
+        <div data-tour="product-import" className="flex items-center gap-2 flex-wrap">
           <Button variant="outline" size="sm" onClick={() => setShowNFeImport(true)}>
             <FileText className="w-4 h-4 sm:mr-2" />
             <span className="hidden sm:inline">Importar NF-e</span>
@@ -86,7 +86,7 @@ export default function Produtos() {
             <Upload className="w-4 h-4 sm:mr-2" />
             <span className="hidden sm:inline">Importar CSV</span>
           </Button>
-          <Button size="sm" onClick={() => setShowForm(true)}>
+          <Button data-tour="product-add" size="sm" onClick={() => setShowForm(true)}>
             <Plus className="w-4 h-4 sm:mr-2" />
             <span className="hidden sm:inline">Novo Produto</span>
           </Button>
@@ -96,7 +96,7 @@ export default function Produtos() {
       <LowStockAlert products={products as any} />
 
       {/* Search */}
-      <div className="relative max-w-md">
+      <div data-tour="product-search" className="relative max-w-md">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         <input
           type="text"
