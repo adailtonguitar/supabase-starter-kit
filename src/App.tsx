@@ -17,6 +17,8 @@ import { useSessionControl } from "@/hooks/useSessionControl";
 import { ScrollToTop } from "@/components/ScrollToTop";
 import { OnboardingWizard } from "@/components/onboarding/OnboardingWizard";
 import { useTermsAcceptance } from "@/hooks/useTermsAcceptance";
+import { WalkthroughProvider } from "@/hooks/useWalkthrough";
+import { WalkthroughRunner } from "@/components/WalkthroughRunner";
 import { toast } from "sonner";
 
 // Lazy-loaded pages for code splitting
@@ -398,7 +400,10 @@ const App = () => (
             <SubscriptionProvider>
               <PlanProvider>
                 <LocalDBProvider>
-                  <AppRoutes />
+                  <WalkthroughProvider>
+                    <WalkthroughRunner />
+                    <AppRoutes />
+                  </WalkthroughProvider>
                 </LocalDBProvider>
               </PlanProvider>
             </SubscriptionProvider>

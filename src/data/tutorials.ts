@@ -10,7 +10,8 @@ export interface TutorialSection {
   steps: string[];
   tips?: string[];
   shortcuts?: { key: string; action: string }[];
-  videoUrl?: string; // YouTube embed URL (ex: https://www.youtube.com/embed/VIDEO_ID)
+  videoUrl?: string;
+  walkthroughId?: string; // ID do módulo de walkthrough interativo
 }
 
 export const tutorials: TutorialSection[] = [
@@ -18,7 +19,8 @@ export const tutorials: TutorialSection[] = [
     icon: ShoppingCart,
     title: "PDV — Ponto de Venda",
     description: "Tela principal para realizar vendas rápidas com leitor de código de barras, busca de produtos e múltiplas formas de pagamento.",
-    videoUrl: "", // Cole aqui a URL do YouTube embed
+    videoUrl: "",
+    walkthroughId: "pdv",
     steps: [
       "Abra o caixa informando o saldo inicial (F1 ou botão 'Abrir Caixa').",
       "Adicione produtos digitando o código de barras, SKU ou nome no campo de busca e pressione Enter.",
@@ -55,6 +57,7 @@ export const tutorials: TutorialSection[] = [
     title: "Dashboard",
     description: "Visão geral do negócio com indicadores de vendas, faturamento, estoque baixo e atalhos rápidos.",
     videoUrl: "",
+    walkthroughId: "dashboard",
     steps: [
       "Acesse pelo menu lateral clicando em 'Dashboard'.",
       "Visualize o resumo de vendas do dia, semana e mês.",
@@ -71,6 +74,7 @@ export const tutorials: TutorialSection[] = [
     title: "Estoque",
     description: "Gestão completa de produtos, inventário, curva ABC, lotes, perdas, pedidos de compra, etiquetas e produção.",
     videoUrl: "",
+    walkthroughId: "produtos",
     steps: [
       "Em 'Estoque > Produtos', clique em 'Novo Produto' para cadastrar.",
       "Preencha nome, SKU, preço, unidade, NCM e código de barras.",
@@ -95,6 +99,7 @@ export const tutorials: TutorialSection[] = [
     title: "Vendas",
     description: "Histórico de vendas, promoções, fiado, orçamentos e programa de fidelidade.",
     videoUrl: "",
+    walkthroughId: "vendas",
     steps: [
       "Em 'Vendas > Histórico', consulte todas as vendas realizadas.",
       "Use os filtros de data e forma de pagamento para localizar vendas específicas.",
@@ -130,6 +135,7 @@ export const tutorials: TutorialSection[] = [
     title: "Movimentações",
     description: "Movimentações de estoque, controle de caixa e lançamentos financeiros do dia a dia.",
     videoUrl: "",
+    walkthroughId: "caixa",
     steps: [
       "Em 'Movimentações > Estoque', registre entradas e saídas manuais de produtos.",
       "Em 'Movimentações > Caixa', abra/feche sessões, registre sangrias e suprimentos.",
@@ -146,6 +152,7 @@ export const tutorials: TutorialSection[] = [
     title: "Financeiro (Análises)",
     description: "Lucro diário, painel de lucro, DRE, fluxo de caixa projetado, centro de custo, comissões e conciliação bancária.",
     videoUrl: "",
+    walkthroughId: "financeiro",
     steps: [
       "Em 'Financeiro > Lucro Diário', veja o resultado operacional de cada dia.",
       "Em 'Financeiro > Painel de Lucro', analise a rentabilidade detalhada.",
@@ -186,6 +193,7 @@ export const tutorials: TutorialSection[] = [
     title: "Fiscal",
     description: "Emissão e gestão de documentos fiscais (NFC-e, NF-e, SAT) com integração SEFAZ.",
     videoUrl: "",
+    walkthroughId: "fiscal",
     steps: [
       "Configure o certificado digital em 'Fiscal > Config. Fiscal'.",
       "Informe CSC, série e ambiente (homologação ou produção).",
@@ -204,6 +212,7 @@ export const tutorials: TutorialSection[] = [
     title: "Configurações & Terminais",
     description: "Configurações gerais do sistema, dados da empresa, integrações, terminais de venda e instalação do app.",
     videoUrl: "",
+    walkthroughId: "configuracoes",
     steps: [
       "Em 'Configurações', configure os dados da empresa (nome, CNPJ, endereço, logo).",
       "Configure integrações como TEF (máquinas de cartão) e PIX.",
