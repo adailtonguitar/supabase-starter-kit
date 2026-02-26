@@ -1262,14 +1262,13 @@ export default function PDV() {
       {showCashRegister && (
         <CashRegister
           terminalId={terminalId}
-          onClose={() => {
-            // Only allow closing if there's an active session
-            if (pdv.currentSession) {
+          onClose={async () => {
+            // Always reload session first, then decide if we can close
+            await pdv.reloadSession(terminalId);
+            // Small delay to let state update
+            setTimeout(() => {
               setShowCashRegister(false);
-              pdv.reloadSession(terminalId);
-            } else {
-              toast.warning("Abra o caixa antes de usar o PDV");
-            }
+            }, 100);
           }}
         />
       )}
