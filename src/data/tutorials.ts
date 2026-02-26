@@ -12,7 +12,13 @@ export interface TutorialSection {
   tips?: string[];
   shortcuts?: { key: string; action: string }[];
   videoUrl?: string;
-  walkthroughId?: string; // ID do módulo de walkthrough interativo
+  walkthroughId?: string;
+  example?: {
+    title: string;
+    description: string;
+    steps: string[];
+    conclusion: string[];
+  };
 }
 
 export const tutorials: TutorialSection[] = [
@@ -253,6 +259,28 @@ export const tutorials: TutorialSection[] = [
       "Use o Relatório Consolidado para comparar o desempenho entre lojas.",
       "Transferências de estoque atualizam automaticamente o saldo nas duas pontas.",
     ],
+    example: {
+      title: "Exemplo Prático — Supermercado com Filiais",
+      description: "Veja como o João, dono do 'Supermercado Boa Compra', usa o sistema para gerenciar 3 lojas em bairros diferentes.",
+      steps: [
+        "João tem 3 lojas: Centro (Matriz, CNPJ 11.111.111/0001-01), Vila Nova (Filial, CNPJ 22.222.222/0001-02) e Jardim América (Filial, CNPJ 33.333.333/0001-03).",
+        "Ele cadastra a loja do Centro como empresa principal — ela se torna a Matriz.",
+        "Em 'Filiais → Nova Filial', ele cria 'Vila Nova' e 'Jardim América', cada uma com seu CNPJ.",
+        "Cada loja tem estoque independente: o Centro pode ter 500 unidades de arroz, a Vila Nova só 200.",
+        "O PDV de cada loja registra vendas separadamente, e as NFC-e saem com o CNPJ correto daquela unidade.",
+        "O financeiro (caixa, contas a pagar/receber) também é isolado por loja.",
+        "João, como admin, alterna entre lojas com um clique na seção 'Empresa Ativa'.",
+        "No 'Relatório Consolidado', ele vê o faturamento de TODAS as lojas juntas.",
+        "Ele pode transferir estoque entre lojas: sobrou arroz no Centro? Manda pra Vila Nova pela aba 'Transferências'.",
+        "Com 'Sync Produtos', ao cadastrar um produto novo na matriz, ele replica para todas as filiais.",
+        "Os funcionários têm acesso restrito: o caixa da Vila Nova não vê dados do Centro.",
+      ],
+      conclusion: [
+        "Resumo: Um login, múltiplas lojas, dados isolados, gestão centralizada.",
+        "Cada loja opera de forma independente, mas o dono tem visão total do negócio.",
+        "Ideal para redes de supermercados, farmácias, padarias ou qualquer comércio com mais de uma unidade.",
+      ],
+    },
   },
   {
     icon: HelpCircle,
@@ -263,30 +291,6 @@ export const tutorials: TutorialSection[] = [
       "Use a barra de busca para encontrar tutoriais por palavra-chave.",
       "Clique em uma seção para expandir o passo a passo completo.",
       "Cada tutorial inclui dicas e atalhos quando disponíveis.",
-    ],
-  },
-  {
-    icon: Building2,
-    title: "Exemplo Prático — Supermercado com Filiais",
-    description: "Veja como um dono de supermercado com várias lojas em bairros diferentes usa o sistema no dia a dia.",
-    videoUrl: "",
-    steps: [
-      "João é dono do 'Supermercado Boa Compra' e tem 3 lojas: Centro (Matriz, CNPJ 11.111.111/0001-01), Vila Nova (Filial, CNPJ 22.222.222/0001-02) e Jardim América (Filial, CNPJ 33.333.333/0001-03).",
-      "Ele cadastra a loja do Centro como empresa principal — ela se torna a Matriz.",
-      "Em 'Filiais → Nova Filial', ele cria 'Vila Nova' e 'Jardim América', cada uma com seu CNPJ.",
-      "Cada loja tem estoque independente: o Centro pode ter 500 unidades de arroz, a Vila Nova só 200.",
-      "O PDV de cada loja registra vendas separadamente, e as NFC-e saem com o CNPJ correto daquela unidade.",
-      "O financeiro (caixa, contas a pagar/receber) também é isolado por loja.",
-      "João, como admin, alterna entre lojas com um clique na seção 'Empresa Ativa'.",
-      "No 'Relatório Consolidado', ele vê o faturamento de TODAS as lojas juntas.",
-      "Ele pode transferir estoque entre lojas: sobrou arroz no Centro? Manda pra Vila Nova pela aba 'Transferências'.",
-      "Com 'Sync Produtos', ao cadastrar um produto novo na matriz, ele replica para todas as filiais.",
-      "Os funcionários têm acesso restrito: o caixa da Vila Nova não vê dados do Centro.",
-    ],
-    tips: [
-      "Resumo: Um login, múltiplas lojas, dados isolados, gestão centralizada.",
-      "Cada loja opera de forma independente, mas o dono tem visão total do negócio.",
-      "Ideal para redes de supermercados, farmácias, padarias ou qualquer comércio com mais de uma unidade.",
     ],
   },
 ];
