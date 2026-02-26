@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Download, Upload, Clock, HardDrive, Percent, Save, Loader2, Crown, Check, ArrowRight, MessageCircle, Pencil, Calculator, Send, Mail } from "lucide-react";
 import { TEFConfigSection } from "@/components/settings/TEFConfigSection";
+import { ScaleConfigSection } from "@/components/settings/ScaleConfigSection";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -557,6 +558,7 @@ export default function Configuracoes() {
       <WhatsAppSupportSection />
       <DiscountLimitsSection />
       <TEFConfigSection />
+      <ScaleConfigSection />
       <AccountantSection />
 
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-card rounded-xl card-shadow border border-border overflow-hidden">

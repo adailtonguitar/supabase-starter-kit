@@ -1,6 +1,10 @@
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
+import { loadScaleConfigFromStorage } from "./lib/scale-barcode";
+
+// Load scale config from localStorage on boot
+loadScaleConfigFromStorage();
 
 // PWA service worker is auto-registered by vite-plugin-pwa
 

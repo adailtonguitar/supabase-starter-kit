@@ -5,6 +5,7 @@ import { useCompany } from "@/hooks/useCompany";
 import { useSync } from "@/hooks/useSync";
 import { buildContingencyPayload } from "@/services/ContingencyService";
 import type { PaymentResult } from "@/services/types";
+import { isScaleBarcode, parseScaleBarcode } from "@/lib/scale-barcode";
 
 export interface PDVProduct {
   id: string;
@@ -207,6 +208,41 @@ export function usePDV() {
   const promoSavings = 0;
 
   const handleBarcodeScan = useCallback((barcode: string) => {
+    // Check for scale barcode (EAN-13 prefix 20-29)
+    if (isScaleBarcode(barcode)) {
+      const parsed = parseScaleBarcode(barcode);
+      if (parsed) {
+        // Find product by internal code (last digits of SKU or barcode containing productCode)
+        const product = products.find(
+          (p) => p.sku === parsed.productCode || p.barcode === parsed.productCode ||
+                 p.sku.endsWith(parsed.productCode) || (p.barcode && p.barcode.endsWith(parsed.productCode))
+        );
+        if (product && product.stock_quantity > 0) {
+          if (parsed.mode === "weight") {
+            // Add with specific weight quantity
+            setCartItems((prev) => {
+              const existing = prev.find((i) => i.id === product.id);
+              if (existing) {
+                return prev.map((i) => i.id === product.id ? { ...i, quantity: i.quantity + parsed.value } : i);
+              }
+              return [...prev, { ...product, quantity: parsed.value }];
+            });
+          } else {
+            // Price mode: calculate quantity from price
+            const qty = product.price > 0 ? parsed.value / product.price : 1;
+            setCartItems((prev) => {
+              const existing = prev.find((i) => i.id === product.id);
+              if (existing) {
+                return prev.map((i) => i.id === product.id ? { ...i, quantity: i.quantity + qty } : i);
+              }
+              return [...prev, { ...product, quantity: qty }];
+            });
+          }
+        }
+        return;
+      }
+    }
+
     const product = products.find(p => p.barcode === barcode || p.sku === barcode);
     if (product && product.stock_quantity > 0) {
       addToCart(product);

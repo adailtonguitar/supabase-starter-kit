@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import anthoLogo from "@/assets/logo-as.png";
 import { motion } from "framer-motion";
-import { isScaleBarcode } from "@/lib/scale-barcode";
+import { isScaleBarcode, parseScaleBarcode } from "@/lib/scale-barcode";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useLoyalty } from "@/hooks/useLoyalty";
 import { PDVProductGrid } from "@/components/pdv/PDVProductGrid";
@@ -247,7 +247,7 @@ export default function PDV() {
       query = multiMatch[2].trim();
     }
 
-    // Scale barcode
+    // Scale barcode — handled by usePDV.handleBarcodeScan
     if (isScaleBarcode(query)) {
       pdv.handleBarcodeScan(query);
       playAddSound();
