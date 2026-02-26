@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { usePlanFeatures } from "@/hooks/usePlanFeatures";
+import { useAdminRole } from "@/hooks/useAdminRole";
 import { Lock, Loader2 } from "lucide-react";
 
 interface Props {
@@ -16,23 +17,26 @@ export function InviteUserDialog({ open, onOpenChange }: Props) {
   const [email, setEmail] = useState("");
   const [checking, setChecking] = useState(false);
   const plan = usePlanFeatures();
+  const { isSuperAdmin } = useAdminRole();
 
   const handleInvite = async () => {
     if (!email.trim()) { toast.warning("Informe o email"); return; }
 
-    // Server-side limit check
-    setChecking(true);
-    try {
-      const result = await plan.checkServerLimit("add_user");
-      if (!result.allowed) {
-        toast.error(result.reason || "Limite de usuários atingido no seu plano.");
-        setChecking(false);
-        return;
+    // Super admin bypasses plan limits
+    if (!isSuperAdmin) {
+      setChecking(true);
+      try {
+        const result = await plan.checkServerLimit("add_user");
+        if (!result.allowed) {
+          toast.error(result.reason || "Limite de usuários atingido no seu plano.");
+          setChecking(false);
+          return;
+        }
+      } catch {
+        // Fail open
       }
-    } catch {
-      // Fail open
+      setChecking(false);
     }
-    setChecking(false);
 
     toast.info("Funcionalidade de convite em desenvolvimento");
     onOpenChange(false);
