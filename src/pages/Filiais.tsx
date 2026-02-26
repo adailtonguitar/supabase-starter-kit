@@ -114,7 +114,7 @@ function HierarchyTab() {
           <ChevronRight className="w-4 h-4 text-primary" /> Filiais
         </h3>
         {children.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Nenhuma filial vinculada. Para vincular, defina o <strong>parent_company_id</strong> na empresa filial apontando para a matriz.</p>
+          <p className="text-sm text-muted-foreground">Nenhuma filial cadastrada ainda. Clique em <strong>"Nova Filial"</strong> acima para adicionar sua primeira unidade.</p>
         ) : (
           <div className="space-y-3">
             {children.map(c => {
