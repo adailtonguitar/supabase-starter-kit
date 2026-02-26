@@ -19,39 +19,31 @@ Estruture em tópicos:
 5. Recomendações
 6. Tendência para próximo mês`;
 
-async function callGeminiWithRetry(apiKey: string, systemPrompt: string, userPrompt: string, maxRetries = 3): Promise<{ content: string | null; error: string | null; status: number }> {
-  const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+async function callGemini(apiKey: string, systemPrompt: string, userPrompt: string): Promise<{ content: string | null; error: string | null; status: number }> {
+  // Usar gemini-2.0-flash-lite para ter limite de RPM mais alto
+  const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${apiKey}`;
 
-  for (let attempt = 0; attempt < maxRetries; attempt++) {
-    if (attempt > 0) {
-      const delay = Math.pow(2, attempt) * 2000; // 4s, 8s
-      console.log(`[diagnostico] Retry ${attempt}/${maxRetries - 1}, aguardando ${delay}ms...`);
-      await new Promise(r => setTimeout(r, delay));
-    }
+  console.log(`[diagnostico] Chamando Gemini (1 única tentativa, sem retry)...`);
+  const startTime = Date.now();
 
-    console.log(`[diagnostico] Chamando Gemini (tentativa ${attempt + 1}/${maxRetries})...`);
-    const startTime = Date.now();
+  try {
+    const resp = await fetch(geminiUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [
+          { role: "user", parts: [{ text: `${systemPrompt}\n\n${userPrompt}` }] },
+        ],
+        generationConfig: { maxOutputTokens: 600, temperature: 0.7 },
+      }),
+    });
 
-    try {
-      const resp = await fetch(geminiUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [
-            { role: "user", parts: [{ text: `${systemPrompt}\n\n${userPrompt}` }] },
-          ],
-          generationConfig: { maxOutputTokens: 600, temperature: 0.7 },
-        }),
-      });
+    const elapsed = Date.now() - startTime;
+    console.log(`[diagnostico] Gemini respondeu em ${elapsed}ms — status: ${resp.status}`);
 
-      const elapsed = Date.now() - startTime;
-      console.log(`[diagnostico] Gemini respondeu em ${elapsed}ms — status: ${resp.status}`);
-
-      if (resp.status === 429) {
-        const errText = await resp.text();
-        console.warn(`[diagnostico] Rate limit (429). Detalhes: ${errText.substring(0, 200)}`);
-        if (attempt < maxRetries - 1) continue;
-        return { content: null, error: "Limite de requisições do Gemini atingido. Aguarde 1 minuto e tente novamente.", status: 429 };
+    if (resp.status === 429) {
+      await resp.text();
+      return { content: null, error: "Limite de requisições atingido. Aguarde 1 minuto.", status: 429 };
       }
 
       if (resp.status === 403) {
@@ -77,13 +69,9 @@ async function callGeminiWithRetry(apiKey: string, systemPrompt: string, userPro
       console.log(`[diagnostico] Sucesso! Conteúdo gerado (${content.length} chars)`);
       return { content, error: null, status: 200 };
     } catch (err: any) {
-      console.error(`[diagnostico] Erro de rede (tentativa ${attempt + 1}):`, err?.message);
-      if (attempt < maxRetries - 1) continue;
+      console.error(`[diagnostico] Erro de rede:`, err?.message);
       return { content: null, error: "Falha de conexão com a API Gemini.", status: 500 };
     }
-  }
-
-  return { content: null, error: "Todas as tentativas falharam.", status: 502 };
 }
 
 Deno.serve(async (req) => {
@@ -176,8 +164,8 @@ Deno.serve(async (req) => {
 - Clientes ativos: ${financeiro.clientes_ativos}
 - Percentual do maior cliente: ${Number(financeiro.percentual_maior_cliente).toFixed(1)}%`;
 
-    // Chamada única ao Gemini com retry
-    const result = await callGeminiWithRetry(GEMINI_KEY, SYSTEM_PROMPT, userPrompt);
+    // Chamada única ao Gemini (sem retry para preservar quota)
+    const result = await callGemini(GEMINI_KEY, SYSTEM_PROMPT, userPrompt);
 
     if (!result.content) {
       console.error("[diagnostico] Falha final:", result.error);
