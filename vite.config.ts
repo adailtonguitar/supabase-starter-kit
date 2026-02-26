@@ -16,7 +16,7 @@ export default defineConfig(({ mode }) => ({
   plugins: [
     react(),
     mode === "development" && componentTagger(),
-    VitePWA({
+    mode === "production" && VitePWA({
       registerType: "autoUpdate",
       workbox: {
         globPatterns: ["**/*.{js,css,html,ico,png,svg,jpg,jpeg,woff,woff2}"],
@@ -29,7 +29,7 @@ export default defineConfig(({ mode }) => ({
           },
         ],
       },
-      manifest: false, // usa o manifest.json existente em public/
+      manifest: false,
     }),
   ].filter(Boolean),
   resolve: {
