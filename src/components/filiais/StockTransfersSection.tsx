@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { ArrowRightLeft, Package, Plus, Check, Clock, Truck } from "lucide-react";
-import { useStockTransfers, useCreateStockTransfer, useReceiveStockTransfer, StockTransfer } from "@/hooks/useStockTransfers";
-import { useBranches, Branch } from "@/hooks/useBranches";
-import { useProducts, Product } from "@/hooks/useProducts";
+import { useStockTransfers, useCreateStockTransfer, useReceiveStockTransfer } from "@/hooks/useStockTransfers";
+import { useBranches } from "@/hooks/useBranches";
+import { useProducts } from "@/hooks/useProducts";
 import { useCompany } from "@/hooks/useCompany";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
