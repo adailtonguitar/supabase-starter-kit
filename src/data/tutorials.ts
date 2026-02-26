@@ -1,6 +1,7 @@
 import {
   HelpCircle, ShoppingCart, LayoutDashboard, Package, FileText,
   BarChart3, ArrowUpDown, Landmark, ClipboardList, Receipt, Settings,
+  Building2,
 } from "lucide-react";
 
 export interface TutorialSection {
@@ -227,6 +228,33 @@ export const tutorials: TutorialSection[] = [
     ],
   },
   {
+    icon: Building2,
+    title: "Filiais — Gestão Multilojas",
+    description: "Gerencie múltiplas lojas (matriz e filiais) com CNPJs independentes, estoques separados e visão consolidada.",
+    videoUrl: "",
+    walkthroughId: "filiais",
+    steps: [
+      "Acesse 'Filiais' pelo menu lateral.",
+      "Na aba 'Hierarquia', clique em 'Nova Filial' para cadastrar uma unidade com nome, CNPJ, endereço e telefone próprios.",
+      "Após criar, a filial aparece na lista abaixo da Matriz com seus dados.",
+      "Use o botão 'Sync Produtos' para replicar o catálogo da matriz na filial automaticamente.",
+      "Na aba 'Transferências', movimente estoque entre unidades (ex: enviar produtos da matriz para a filial).",
+      "Na aba 'Consolidado', veja o dashboard com métricas agregadas de todas as lojas (faturamento, vendas, ticket médio).",
+      "Na aba 'Permissões', defina quais usuários têm acesso a cada unidade e com qual perfil (Admin, Gerente, Caixa).",
+      "Para trocar de empresa ativa, vá até 'Filiais' e clique no botão da unidade desejada na seção 'Empresa Ativa'.",
+      "Toda a operação (PDV, Estoque, Financeiro, NFC-e) passa a funcionar na unidade selecionada.",
+    ],
+    tips: [
+      "Cada filial opera de forma 100% independente: estoque, PDV, financeiro e fiscal são isolados.",
+      "O admin da matriz tem acesso automático a todas as filiais.",
+      "Um caixa da Filial A NÃO vê dados da Filial B, a menos que tenha permissão explícita.",
+      "NFC-e e NF-e são emitidas com o CNPJ da unidade ativa, não da matriz.",
+      "A empresa ativa fica salva no navegador — ao voltar, ela continua selecionada.",
+      "Use o Relatório Consolidado para comparar o desempenho entre lojas.",
+      "Transferências de estoque atualizam automaticamente o saldo nas duas pontas.",
+    ],
+  },
+  {
     icon: HelpCircle,
     title: "Ajuda",
     description: "Central de ajuda com tutoriais de todas as funções do sistema.",
@@ -235,6 +263,30 @@ export const tutorials: TutorialSection[] = [
       "Use a barra de busca para encontrar tutoriais por palavra-chave.",
       "Clique em uma seção para expandir o passo a passo completo.",
       "Cada tutorial inclui dicas e atalhos quando disponíveis.",
+    ],
+  },
+  {
+    icon: Building2,
+    title: "Exemplo Prático — Supermercado com Filiais",
+    description: "Veja como um dono de supermercado com várias lojas em bairros diferentes usa o sistema no dia a dia.",
+    videoUrl: "",
+    steps: [
+      "João é dono do 'Supermercado Boa Compra' e tem 3 lojas: Centro (Matriz, CNPJ 11.111.111/0001-01), Vila Nova (Filial, CNPJ 22.222.222/0001-02) e Jardim América (Filial, CNPJ 33.333.333/0001-03).",
+      "Ele cadastra a loja do Centro como empresa principal — ela se torna a Matriz.",
+      "Em 'Filiais → Nova Filial', ele cria 'Vila Nova' e 'Jardim América', cada uma com seu CNPJ.",
+      "Cada loja tem estoque independente: o Centro pode ter 500 unidades de arroz, a Vila Nova só 200.",
+      "O PDV de cada loja registra vendas separadamente, e as NFC-e saem com o CNPJ correto daquela unidade.",
+      "O financeiro (caixa, contas a pagar/receber) também é isolado por loja.",
+      "João, como admin, alterna entre lojas com um clique na seção 'Empresa Ativa'.",
+      "No 'Relatório Consolidado', ele vê o faturamento de TODAS as lojas juntas.",
+      "Ele pode transferir estoque entre lojas: sobrou arroz no Centro? Manda pra Vila Nova pela aba 'Transferências'.",
+      "Com 'Sync Produtos', ao cadastrar um produto novo na matriz, ele replica para todas as filiais.",
+      "Os funcionários têm acesso restrito: o caixa da Vila Nova não vê dados do Centro.",
+    ],
+    tips: [
+      "Resumo: Um login, múltiplas lojas, dados isolados, gestão centralizada.",
+      "Cada loja opera de forma independente, mas o dono tem visão total do negócio.",
+      "Ideal para redes de supermercados, farmácias, padarias ou qualquer comércio com mais de uma unidade.",
     ],
   },
 ];
