@@ -674,38 +674,52 @@ export default function PDV() {
 
         {/* LEFT: Items Table (70%) */}
         <div className="flex-1 lg:flex-[7] flex flex-col min-w-0 border-r border-border min-h-[30vh] lg:min-h-0 lg:max-h-none">
-        <div className="flex-1 overflow-y-auto">
-            <table className="w-full text-xs">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden">
+            <table className="w-full text-xs table-fixed">
               <thead className="sticky top-0 z-10 bg-muted/90 backdrop-blur-sm shadow-sm">
                 <tr className="text-muted-foreground text-left uppercase tracking-widest">
-                  <th className="px-2 py-2.5 font-black w-10 text-center text-[10px]">#</th>
-                  <th className="px-2 py-2.5 font-black w-28 text-[10px]">Código</th>
-                  <th className="px-2 py-2.5 font-black text-[10px]">Descrição</th>
-                  <th className="px-2 py-2.5 font-black text-center w-24 text-[10px]">Qtd</th>
-                  <th className="px-2 py-2.5 font-black text-right w-24 text-[10px]">Unitário</th>
-                  <th className="px-2 py-2.5 font-black text-right w-28 text-[10px]">Subtotal</th>
+                  <th className="px-1 py-2 font-black w-6 lg:w-10 text-center text-[10px]">#</th>
+                  <th className="px-1 py-2 font-black w-16 lg:w-28 text-[10px] hidden sm:table-cell">Código</th>
+                  <th className="px-1 py-2 font-black text-[10px]">Descrição</th>
+                  <th className="px-1 py-2 font-black text-center w-8 lg:w-24 text-[10px]">Qtd</th>
+                  <th className="px-1 py-2 font-black text-right w-16 lg:w-24 text-[10px] hidden sm:table-cell">Unit.</th>
+                  <th className="px-1 py-2 font-black text-right w-16 lg:w-28 text-[10px]">Total</th>
                 </tr>
               </thead>
               <tbody>
                 {pdv.cartItems.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="text-center py-0">
-                      <div className="flex flex-col items-center justify-center py-12 gap-5">
-                        {logoUrl ? (
-                          <img src={logoUrl} alt={companyName || "Logo"} className="h-44 object-contain" />
-                        ) : (
-                          <img src={anthoLogo} alt="AnthoSystem" className="h-36 object-contain opacity-70" />
-                        )}
-                        {companyName && (
-                          <span className="text-lg font-bold text-foreground/60">{companyName}</span>
-                        )}
-                        {slogan && (
-                          <span className="text-sm text-muted-foreground italic">{slogan}</span>
-                        )}
-                        <span className="text-xs text-muted-foreground/50 mt-2">Aguardando leitura de código de barras...</span>
-                      </div>
-                    </td>
-                  </tr>
+                  <>
+                    <tr className="sm:hidden">
+                      <td colSpan={4} className="text-center py-0">
+                        <div className="flex flex-col items-center justify-center py-8 gap-3">
+                          {logoUrl ? (
+                            <img src={logoUrl} alt={companyName || "Logo"} className="h-24 object-contain" />
+                          ) : (
+                            <img src={anthoLogo} alt="AnthoSystem" className="h-20 object-contain opacity-70" />
+                          )}
+                          <span className="text-xs text-muted-foreground/50">Aguardando leitura...</span>
+                        </div>
+                      </td>
+                    </tr>
+                    <tr className="hidden sm:table-row">
+                      <td colSpan={6} className="text-center py-0">
+                        <div className="flex flex-col items-center justify-center py-12 gap-5">
+                          {logoUrl ? (
+                            <img src={logoUrl} alt={companyName || "Logo"} className="h-44 object-contain" />
+                          ) : (
+                            <img src={anthoLogo} alt="AnthoSystem" className="h-36 object-contain opacity-70" />
+                          )}
+                          {companyName && (
+                            <span className="text-lg font-bold text-foreground/60">{companyName}</span>
+                          )}
+                          {slogan && (
+                            <span className="text-sm text-muted-foreground italic">{slogan}</span>
+                          )}
+                          <span className="text-xs text-muted-foreground/50 mt-2">Aguardando leitura de código de barras...</span>
+                        </div>
+                      </td>
+                    </tr>
+                  </>
                 ) : (
                   pdv.cartItems.map((item, idx) => {
                     const isLast = idx === pdv.cartItems.length - 1;
@@ -729,9 +743,9 @@ export default function PDV() {
                             : "bg-muted/30"
                         } hover:bg-accent/50`}
                       >
-                        <td className="px-2 py-2 text-center text-muted-foreground font-mono">{idx + 1}</td>
-                        <td className="px-2 py-2 font-mono text-muted-foreground">{item.sku}</td>
-                        <td className="px-2 py-2 text-foreground">
+                        <td className="px-1 py-1.5 text-center text-muted-foreground font-mono text-[10px]">{idx + 1}</td>
+                        <td className="px-1 py-1.5 font-mono text-muted-foreground text-[10px] truncate hidden sm:table-cell">{item.sku}</td>
+                        <td className="px-1 py-1.5 text-foreground truncate">
                           <div className="flex items-center gap-1">
                             {item.name}
                             {isWeighed && (
@@ -757,16 +771,16 @@ export default function PDV() {
                             })()}
                           </div>
                         </td>
-                        <td className="px-2 py-2 text-center font-mono font-bold text-foreground">
+                        <td className="px-1 py-1.5 text-center font-mono font-bold text-foreground text-[10px]">
                           {isWeighed ? item.quantity.toFixed(3) : item.quantity}
                         </td>
-                        <td className="px-2 py-2 text-right font-mono text-muted-foreground">
+                        <td className="px-1 py-1.5 text-right font-mono text-muted-foreground text-[10px] hidden sm:table-cell">
                           {itemDiscount > 0 && (
                             <span className="line-through opacity-50 mr-1">{formatCurrency(item.price)}</span>
                           )}
                           {formatCurrency(unitPrice)}
                         </td>
-                        <td className="px-2 py-2 text-right font-mono font-bold text-primary text-sm">
+                        <td className="px-1 py-1.5 text-right font-mono font-bold text-primary text-[11px]">
                           {formatCurrency(subtotalItem)}
                         </td>
                       </tr>
