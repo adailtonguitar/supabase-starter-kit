@@ -82,7 +82,7 @@ export default function Dashboard() {
       </motion.div>
 
       {/* Quick Access */}
-      <motion.div variants={item}>
+      <motion.div variants={item} data-tour="quick-access">
         <QuickAccessCards />
       </motion.div>
 
@@ -227,10 +227,10 @@ export default function Dashboard() {
 
           {/* Chart + Top Products */}
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-            <motion.div variants={item} className="lg:col-span-3">
+            <motion.div variants={item} className="lg:col-span-3" data-tour="sales-chart">
               <SalesChart data={stats.last7Days} />
             </motion.div>
-            <motion.div variants={item} className="lg:col-span-2">
+            <motion.div variants={item} className="lg:col-span-2" data-tour="top-products">
               <TopProductsList products={stats.topProducts} />
             </motion.div>
           </div>

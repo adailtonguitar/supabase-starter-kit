@@ -1,6 +1,7 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronRight, Play } from "lucide-react";
 import { TutorialVideoPlayer } from "./TutorialVideoPlayer";
+import { useWalkthrough } from "@/hooks/useWalkthrough";
 import type { TutorialSection } from "@/data/tutorials";
 
 interface TutorialCardProps {
@@ -11,6 +12,7 @@ interface TutorialCardProps {
 
 export function TutorialCard({ section, isOpen, onToggle }: TutorialCardProps) {
   const Icon = section.icon;
+  const { startTour } = useWalkthrough();
 
   return (
     <div className="bg-card border border-border rounded-xl overflow-hidden">
@@ -42,6 +44,17 @@ export function TutorialCard({ section, isOpen, onToggle }: TutorialCardProps) {
             className="overflow-hidden"
           >
             <div className="px-5 pb-5 space-y-4 border-t border-border pt-4">
+              {/* Tour interativo */}
+              {section.walkthroughId && (
+                <button
+                  onClick={() => startTour(section.walkthroughId!)}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-primary text-primary-foreground font-semibold text-sm hover:bg-primary/90 transition-colors"
+                >
+                  <Play className="w-4 h-4" />
+                  Iniciar Tour Interativo
+                </button>
+              )}
+
               {/* Video */}
               <TutorialVideoPlayer videoUrl={section.videoUrl} title={section.title} />
 
