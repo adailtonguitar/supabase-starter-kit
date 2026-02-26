@@ -90,6 +90,14 @@ export function useCreateBranch() {
 
   return useMutation({
     mutationFn: async ({ name, cnpj, parentId, userId }: { name: string; cnpj?: string; parentId: string; userId: string }) => {
+      // 0) Clean up any orphaned company_users for this user
+      // (from previously deleted companies)
+      try {
+        await supabase.rpc("cleanup_orphan_company_users" as any, { p_user_id: userId });
+      } catch {
+        // RPC might not exist yet — skip
+      }
+
       // 1) Create the company
       const { data: company, error: companyErr } = await supabase
         .from("companies")
@@ -98,14 +106,22 @@ export function useCreateBranch() {
         .single();
       if (companyErr) throw companyErr;
 
-      // 2) Link current user as admin (upsert to avoid duplicate key)
+      // 2) Link current user as admin
       const { error: cuErr } = await supabase
         .from("company_users")
-        .upsert(
-          { company_id: company.id, user_id: userId, role: "admin", is_active: true },
-          { onConflict: "user_id,company_id" }
-        );
-      if (cuErr) throw cuErr;
+        .insert({ company_id: company.id, user_id: userId, role: "admin", is_active: true });
+      if (cuErr) {
+        // If duplicate, try updating instead
+        if (cuErr.code === "23505") {
+          await supabase
+            .from("company_users")
+            .update({ role: "admin", is_active: true })
+            .eq("company_id", company.id)
+            .eq("user_id", userId);
+        } else {
+          throw cuErr;
+        }
+      }
 
       return company;
     },
