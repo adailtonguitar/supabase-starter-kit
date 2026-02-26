@@ -1,6 +1,3 @@
-[project]
-id = "fsvxpxziotklbxkivyug"
-
 [functions.create-checkout]
 verify_jwt = false
 
