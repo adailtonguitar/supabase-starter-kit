@@ -120,21 +120,23 @@ export function useDeleteBranch() {
 
   return useMutation({
     mutationFn: async (companyId: string) => {
-      // Remove user links first
-      const { error: cuErr } = await supabase
+      console.log("[DeleteBranch] Deleting company_users for:", companyId);
+      const { error: cuErr, count: cuCount } = await supabase
         .from("company_users")
         .delete()
         .eq("company_id", companyId);
+      console.log("[DeleteBranch] company_users result:", { cuErr, cuCount });
       if (cuErr) throw cuErr;
 
-      // Delete the company
-      const { error, count } = await supabase
+      console.log("[DeleteBranch] Deleting company:", companyId);
+      const { error, data, status } = await supabase
         .from("companies")
         .delete()
         .eq("id", companyId)
         .select();
+      console.log("[DeleteBranch] companies result:", { error, data, status });
       if (error) throw error;
-      if (count === 0) throw new Error("Não foi possível excluir. Verifique as permissões no banco de dados.");
+      if (!data || data.length === 0) throw new Error("Falha ao excluir: permissão negada pelo banco de dados (RLS).");
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["branches"] });
