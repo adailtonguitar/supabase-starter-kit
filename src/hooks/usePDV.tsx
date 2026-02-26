@@ -56,16 +56,49 @@ export function usePDV() {
     return () => { window.removeEventListener("online", on); window.removeEventListener("offline", off); };
   }, []);
 
+  const PRODUCTS_CACHE_KEY = `pdv_products_cache_${companyId}`;
+
   const loadProducts = useCallback(async () => {
     if (!companyId) return;
     setLoadingProducts(true);
-    const { data, error } = await supabase
-      .from("products")
-      .select("id, name, sku, barcode, price, stock_quantity, unit, category, ncm")
-      .eq("company_id", companyId)
-      .order("name");
-    console.log("[PDV] Products loaded:", data?.length ?? 0, "error:", error);
-    if (data) setProducts(data as PDVProduct[]);
+    
+    try {
+      const { data, error } = await supabase
+        .from("products")
+        .select("id, name, sku, barcode, price, stock_quantity, unit, category, ncm")
+        .eq("company_id", companyId)
+        .order("name");
+      
+      console.log("[PDV] Products loaded:", data?.length ?? 0, "error:", error);
+      
+      if (data && data.length > 0) {
+        setProducts(data as PDVProduct[]);
+        // Cache for offline use
+        try { localStorage.setItem(PRODUCTS_CACHE_KEY, JSON.stringify(data)); } catch {}
+      } else if (error) {
+        // Network error — load from cache
+        console.log("[PDV] Loading products from offline cache");
+        try {
+          const cached = localStorage.getItem(PRODUCTS_CACHE_KEY);
+          if (cached) {
+            const parsed = JSON.parse(cached);
+            setProducts(parsed as PDVProduct[]);
+            console.log("[PDV] Loaded", parsed.length, "products from cache");
+          }
+        } catch {}
+      }
+    } catch {
+      // Total failure — try cache
+      console.log("[PDV] Network error, loading from cache");
+      try {
+        const cached = localStorage.getItem(PRODUCTS_CACHE_KEY);
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          setProducts(parsed as PDVProduct[]);
+        }
+      } catch {}
+    }
+    
     setLoadingProducts(false);
   }, [companyId]);
 
