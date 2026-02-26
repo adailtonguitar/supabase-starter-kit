@@ -55,24 +55,18 @@ export function LandingFooter() {
           <div>
             <h4 className="text-sm font-bold mb-3">Redes Sociais</h4>
             <div className="flex gap-3">
-              <a
-                href="https://instagram.com/anthosystem"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-primary/10 transition-colors"
+              <span
+                className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center text-muted-foreground cursor-default"
                 aria-label="Instagram"
               >
                 <InstagramIcon />
-              </a>
-              <a
-                href="https://youtube.com/@anthosystem"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-primary/10 transition-colors"
+              </span>
+              <span
+                className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center text-muted-foreground cursor-default"
                 aria-label="YouTube"
               >
                 <YouTubeIcon />
-              </a>
+              </span>
             </div>
           </div>
         </div>
