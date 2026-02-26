@@ -1,15 +1,12 @@
-const CACHE_NAME = 'antho-v2';
-const PRECACHE_URLS = [
-  '/',
-  '/index.html',
-  '/manifest.json',
-  '/favicon.ico',
-];
+const CACHE_NAME = 'antho-v3';
 
-// Install — precache shell
+// Install — cache minimal shell immediately
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(PRECACHE_URLS))
+    caches.open(CACHE_NAME).then((cache) => 
+      cache.addAll(['/', '/index.html', '/manifest.json', '/favicon.ico'])
+        .catch(() => {}) // Don't fail install if precache fails
+    )
   );
   self.skipWaiting();
 });
@@ -24,49 +21,40 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Fetch — cache-first for assets, network-first for navigation
+// Fetch handler
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   if (request.method !== 'GET') return;
 
   const url = new URL(request.url);
 
-  // Skip Supabase/API calls and OAuth
-  if (url.hostname.includes('supabase') || url.pathname.startsWith('/functions/') || url.pathname.startsWith('/~oauth')) return;
+  // Skip: Supabase API, OAuth, external origins
+  if (url.hostname.includes('supabase')) return;
+  if (url.pathname.startsWith('/~oauth')) return;
+  if (url.origin !== self.location.origin) return;
 
-  // Static assets: cache-first
-  if (url.pathname.match(/\.(js|css|png|jpg|jpeg|svg|ico|woff2?|webp)$/)) {
-    event.respondWith(
-      caches.match(request).then((cached) => {
-        if (cached) return cached;
-        return fetch(request).then((response) => {
-          if (response.ok) {
-            const clone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
-          }
-          return response;
-        }).catch(() => new Response('Offline', { status: 503 }));
-      })
-    );
-    return;
-  }
-
-  // Navigation & other: network-first, fallback to cache
+  // Strategy: StaleWhileRevalidate for everything
+  // Serve from cache immediately, update cache in background
   event.respondWith(
-    fetch(request)
-      .then((response) => {
-        if (response.ok && url.pathname === '/') {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
-        }
-        return response;
-      })
-      .catch(() => {
-        return caches.match(request).then((cached) => {
-          if (cached) return cached;
-          if (request.mode === 'navigate') return caches.match('/index.html');
-          return new Response('Offline', { status: 503 });
+    caches.open(CACHE_NAME).then((cache) => {
+      return cache.match(request).then((cachedResponse) => {
+        const fetchPromise = fetch(request).then((networkResponse) => {
+          // Cache all successful same-origin responses
+          if (networkResponse.ok) {
+            cache.put(request, networkResponse.clone());
+          }
+          return networkResponse;
+        }).catch(() => {
+          // Network failed — for navigation, fallback to cached index.html
+          if (request.mode === 'navigate' && !cachedResponse) {
+            return cache.match('/index.html');
+          }
+          return cachedResponse || new Response('Offline', { status: 503 });
         });
-      })
+
+        // Return cached version immediately if available, otherwise wait for network
+        return cachedResponse || fetchPromise;
+      });
+    })
   );
 });
