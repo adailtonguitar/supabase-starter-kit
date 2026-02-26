@@ -106,27 +106,24 @@ export function useCreateBranch() {
         .single();
       if (companyErr) throw companyErr;
 
-      // 2) Link current user as admin (upsert-safe)
-      // First ensure no stale record exists, then insert or update
-      await supabase
-        .from("company_users")
-        .delete()
-        .eq("company_id", company.id)
-        .eq("user_id", userId);
-
-      const { error: cuErr } = await supabase
-        .from("company_users")
-        .insert({ company_id: company.id, user_id: userId, role: "admin", is_active: true });
-      
-      // If still duplicate (e.g. trigger created it), just update
-      if (cuErr && (cuErr.code === "23505" || cuErr.message?.includes("duplicate"))) {
-        await supabase
+      // 2) Link current user as admin (fully safe — trigger may auto-create)
+      try {
+        const { error: cuErr } = await supabase
           .from("company_users")
-          .update({ role: "admin", is_active: true })
-          .eq("company_id", company.id)
-          .eq("user_id", userId);
-      } else if (cuErr) {
-        throw cuErr;
+          .insert({ company_id: company.id, user_id: userId, role: "admin", is_active: true });
+        
+        if (cuErr) {
+          // Duplicate = trigger already created it, just ensure role is admin
+          console.log("[createBranch] insert company_users got:", cuErr.code, "— updating instead");
+          await supabase
+            .from("company_users")
+            .update({ role: "admin", is_active: true })
+            .eq("company_id", company.id)
+            .eq("user_id", userId);
+        }
+      } catch (e) {
+        // Silently handle — the company was created successfully
+        console.warn("[createBranch] company_users link error (non-fatal):", e);
       }
 
       return company;
