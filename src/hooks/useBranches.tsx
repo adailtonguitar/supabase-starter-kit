@@ -106,21 +106,27 @@ export function useCreateBranch() {
         .single();
       if (companyErr) throw companyErr;
 
-      // 2) Link current user as admin
+      // 2) Link current user as admin (upsert-safe)
+      // First ensure no stale record exists, then insert or update
+      await supabase
+        .from("company_users")
+        .delete()
+        .eq("company_id", company.id)
+        .eq("user_id", userId);
+
       const { error: cuErr } = await supabase
         .from("company_users")
         .insert({ company_id: company.id, user_id: userId, role: "admin", is_active: true });
-      if (cuErr) {
-        // If duplicate, try updating instead
-        if (cuErr.code === "23505") {
-          await supabase
-            .from("company_users")
-            .update({ role: "admin", is_active: true })
-            .eq("company_id", company.id)
-            .eq("user_id", userId);
-        } else {
-          throw cuErr;
-        }
+      
+      // If still duplicate (e.g. trigger created it), just update
+      if (cuErr && (cuErr.code === "23505" || cuErr.message?.includes("duplicate"))) {
+        await supabase
+          .from("company_users")
+          .update({ role: "admin", is_active: true })
+          .eq("company_id", company.id)
+          .eq("user_id", userId);
+      } else if (cuErr) {
+        throw cuErr;
       }
 
       return company;
