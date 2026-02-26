@@ -98,10 +98,13 @@ export function useCreateBranch() {
         .single();
       if (companyErr) throw companyErr;
 
-      // 2) Link current user as admin
+      // 2) Link current user as admin (upsert to avoid duplicate key)
       const { error: cuErr } = await supabase
         .from("company_users")
-        .insert({ company_id: company.id, user_id: userId, role: "admin", is_active: true });
+        .upsert(
+          { company_id: company.id, user_id: userId, role: "admin", is_active: true },
+          { onConflict: "user_id,company_id" }
+        );
       if (cuErr) throw cuErr;
 
       return company;
