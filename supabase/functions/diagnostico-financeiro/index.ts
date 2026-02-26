@@ -20,58 +20,69 @@ Estruture em tópicos:
 6. Tendência para próximo mês`;
 
 async function callGemini(apiKey: string, systemPrompt: string, userPrompt: string): Promise<{ content: string | null; error: string | null; status: number }> {
-  // Usar gemini-2.0-flash-lite para ter limite de RPM mais alto
-  const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${apiKey}`;
+  // Tentar modelos em ordem de preferência (limites maiores primeiro)
+  const models = ["gemini-2.5-flash-lite", "gemini-2.0-flash-lite", "gemini-2.0-flash"];
+  
+  for (const model of models) {
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+    console.log(`[diagnostico] Tentando modelo: ${model}...`);
+    const startTime = Date.now();
 
-  console.log(`[diagnostico] Chamando Gemini (1 única tentativa, sem retry)...`);
-  const startTime = Date.now();
+    try {
+      const resp = await fetch(geminiUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [
+            { role: "user", parts: [{ text: `${systemPrompt}\n\n${userPrompt}` }] },
+          ],
+          generationConfig: { maxOutputTokens: 600, temperature: 0.7 },
+        }),
+      });
 
-  try {
-    const resp = await fetch(geminiUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [
-          { role: "user", parts: [{ text: `${systemPrompt}\n\n${userPrompt}` }] },
-        ],
-        generationConfig: { maxOutputTokens: 600, temperature: 0.7 },
-      }),
-    });
+      const elapsed = Date.now() - startTime;
+      console.log(`[diagnostico] ${model} respondeu em ${elapsed}ms — status: ${resp.status}`);
 
-    const elapsed = Date.now() - startTime;
-    console.log(`[diagnostico] Gemini respondeu em ${elapsed}ms — status: ${resp.status}`);
+      if (resp.status === 429) {
+        const errText = await resp.text();
+        console.warn(`[diagnostico] Rate limit no ${model}: ${errText.substring(0, 200)}`);
+        continue; // tenta próximo modelo
+      }
 
-    if (resp.status === 429) {
-      await resp.text();
-      return { content: null, error: "Limite de requisições atingido. Aguarde 1 minuto.", status: 429 };
+      if (resp.status === 404) {
+        console.warn(`[diagnostico] Modelo ${model} não encontrado, tentando próximo...`);
+        continue;
       }
 
       if (resp.status === 403) {
         const errText = await resp.text();
         console.error(`[diagnostico] Acesso negado (403): ${errText.substring(0, 200)}`);
-        return { content: null, error: "Chave do Gemini sem permissão. Verifique a GOOGLE_GEMINI_KEY no Supabase.", status: 403 };
+        return { content: null, error: `Chave sem permissão (403): ${errText.substring(0, 100)}`, status: 403 };
       }
 
       if (!resp.ok) {
         const errText = await resp.text();
-        console.error(`[diagnostico] Erro ${resp.status}: ${errText.substring(0, 200)}`);
-        return { content: null, error: `Erro na API Gemini (${resp.status}).`, status: resp.status };
+        console.error(`[diagnostico] Erro ${resp.status} no ${model}: ${errText.substring(0, 300)}`);
+        return { content: null, error: `Erro Gemini ${model} (${resp.status}): ${errText.substring(0, 150)}`, status: resp.status };
       }
 
       const data = await resp.json();
       const content = data?.candidates?.[0]?.content?.parts?.[0]?.text;
 
       if (!content) {
-        console.error("[diagnostico] Resposta sem conteúdo:", JSON.stringify(data).substring(0, 300));
-        return { content: null, error: "Resposta vazia da IA.", status: 200 };
+        console.error(`[diagnostico] ${model} sem conteúdo:`, JSON.stringify(data).substring(0, 300));
+        return { content: null, error: `Resposta vazia do ${model}.`, status: 200 };
       }
 
-      console.log(`[diagnostico] Sucesso! Conteúdo gerado (${content.length} chars)`);
+      console.log(`[diagnostico] Sucesso com ${model}! (${content.length} chars)`);
       return { content, error: null, status: 200 };
     } catch (err: any) {
-      console.error(`[diagnostico] Erro de rede:`, err?.message);
-      return { content: null, error: "Falha de conexão com a API Gemini.", status: 500 };
+      console.error(`[diagnostico] Erro de rede no ${model}:`, err?.message);
+      continue; // tenta próximo modelo
     }
+  }
+
+  return { content: null, error: "Todos os modelos Gemini falharam (rate limit). Aguarde 1-2 minutos.", status: 429 };
 }
 
 Deno.serve(async (req) => {
