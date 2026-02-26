@@ -757,7 +757,7 @@ export default function Filiais() {
       <CompanySwitcher />
 
       <Tabs defaultValue="hierarchy" className="w-full">
-        <TabsList className="grid w-full grid-cols-4 mb-4">
+        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 mb-4">
           <TabsTrigger value="hierarchy" className="flex items-center gap-1.5 text-xs">
             <Building2 className="w-3.5 h-3.5" /> Hierarquia
           </TabsTrigger>
