@@ -673,7 +673,7 @@ export default function PDV() {
       <div className="flex flex-col lg:flex-row flex-1 min-h-0">
 
         {/* LEFT: Items Table (70%) */}
-        <div className="flex-1 lg:flex-[7] flex flex-col min-w-0 border-r border-border min-h-0 max-h-[45vh] lg:max-h-none">
+        <div className="flex-1 lg:flex-[7] flex flex-col min-w-0 border-r border-border min-h-[30vh] lg:min-h-0 lg:max-h-none">
         <div className="flex-1 overflow-y-auto">
             <table className="w-full text-xs">
               <thead className="sticky top-0 z-10 bg-muted/90 backdrop-blur-sm shadow-sm">
@@ -780,21 +780,27 @@ export default function PDV() {
 
         {/* RIGHT: Totals Sidebar (30%) — ELITE */}
         <div className="shrink-0 lg:shrink lg:flex-[3] flex flex-col bg-muted/40 lg:min-w-[260px] lg:max-w-[380px] min-h-0 lg:border-l-2 lg:border-primary/20">
-          {/* Info rows */}
-          <div className="flex-1 flex flex-col p-2 lg:p-4 gap-1 lg:gap-1 overflow-y-auto">
-            <div className="flex justify-between items-center py-2 lg:py-3 border-b-2 border-border/60 px-1">
-              <span className="text-[11px] lg:text-xs font-black text-muted-foreground uppercase tracking-widest">Itens</span>
-              <span className="text-lg lg:text-xl font-black text-foreground font-mono tabular-nums">{totalItems}</span>
+          {/* Info rows — compact on mobile */}
+          <div className="flex-1 flex flex-col p-1 lg:p-4 gap-0 lg:gap-1 overflow-y-auto">
+            {/* Mobile: single compact row */}
+            <div className="flex lg:hidden items-center justify-between px-2 py-1.5 border-b border-border/60 text-[10px]">
+              <span className="font-bold text-muted-foreground">{totalItems} itens · Qtd: {Number.isInteger(totalQty) ? totalQty : totalQty.toFixed(3)}</span>
+              <span className="font-bold text-foreground font-mono">Sub: {formatCurrency(pdv.subtotal)}</span>
             </div>
-            <div className="flex justify-between items-center py-2 lg:py-3 border-b-2 border-border/60 px-1">
-              <span className="text-[11px] lg:text-xs font-black text-muted-foreground uppercase tracking-widest">Qtd Total</span>
-              <span className="text-lg lg:text-xl font-black text-foreground font-mono tabular-nums">
+            {/* Desktop: full rows */}
+            <div className="hidden lg:flex justify-between items-center py-3 border-b-2 border-border/60 px-1">
+              <span className="text-xs font-black text-muted-foreground uppercase tracking-widest">Itens</span>
+              <span className="text-xl font-black text-foreground font-mono tabular-nums">{totalItems}</span>
+            </div>
+            <div className="hidden lg:flex justify-between items-center py-3 border-b-2 border-border/60 px-1">
+              <span className="text-xs font-black text-muted-foreground uppercase tracking-widest">Qtd Total</span>
+              <span className="text-xl font-black text-foreground font-mono tabular-nums">
                 {Number.isInteger(totalQty) ? totalQty : totalQty.toFixed(3)}
               </span>
             </div>
-            <div className="flex justify-between items-center py-2 lg:py-3 border-b-2 border-border/60 px-1">
-              <span className="text-[11px] lg:text-xs font-black text-muted-foreground uppercase tracking-widest">Subtotal</span>
-              <span className="text-lg lg:text-xl font-black text-foreground font-mono tabular-nums">{formatCurrency(pdv.subtotal)}</span>
+            <div className="hidden lg:flex justify-between items-center py-3 border-b-2 border-border/60 px-1">
+              <span className="text-xs font-black text-muted-foreground uppercase tracking-widest">Subtotal</span>
+              <span className="text-xl font-black text-foreground font-mono tabular-nums">{formatCurrency(pdv.subtotal)}</span>
             </div>
 
             {/* Last added item highlight */}
@@ -864,7 +870,7 @@ export default function PDV() {
             )}
 
             {/* Desconto global (F8) */}
-            <div className="flex justify-between items-center py-2 border-b border-border">
+            <div className="flex justify-between items-center py-1 lg:py-2 border-b border-border">
               <span className="text-xs font-bold text-muted-foreground uppercase">Desconto</span>
               {editingGlobalDiscount ? (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 lg:relative lg:inset-auto lg:z-auto lg:bg-transparent">
@@ -919,7 +925,7 @@ export default function PDV() {
               ) : (
                 <button
                   onClick={() => maxDiscountPercent > 0 && setEditingGlobalDiscount(true)}
-                  className={`text-lg font-bold font-mono ${pdv.globalDiscountPercent > 0 ? "text-destructive" : "text-muted-foreground"}`}
+                  className={`text-sm lg:text-lg font-bold font-mono ${pdv.globalDiscountPercent > 0 ? "text-destructive" : "text-muted-foreground"}`}
                 >
                   {pdv.globalDiscountPercent > 0 ? `-${formatCurrency(pdv.globalDiscountValue)}` : "R$ 0,00"}
                 </button>
@@ -996,7 +1002,7 @@ export default function PDV() {
 
           {/* TOTAL — ELITE DISPLAY */}
           <div
-            className="p-3 lg:p-5 xl:p-6 mt-auto border-t-4 transition-all duration-500 flex-shrink-0 overflow-hidden relative"
+            className="p-2 lg:p-5 xl:p-6 mt-auto border-t-4 transition-all duration-500 flex-shrink-0 overflow-hidden relative"
             style={{
               backgroundColor: totalFinal > 0 ? "hsl(0, 72%, 38%)" : "hsl(142, 76%, 30%)",
               borderTopColor: totalFinal > 0 ? "hsl(0, 80%, 55%)" : "hsl(142, 80%, 48%)",
@@ -1005,7 +1011,7 @@ export default function PDV() {
           >
             <div className="absolute inset-0 bg-gradient-to-b from-white/[0.06] to-transparent pointer-events-none" />
             <div className="text-center relative">
-              <span className="text-[10px] lg:text-sm font-black uppercase tracking-[0.4em] block mb-1 lg:mb-2" style={{ color: "rgba(255,255,255,0.85)" }}>
+              <span className="text-[9px] lg:text-sm font-black uppercase tracking-[0.4em] block mb-0.5 lg:mb-2" style={{ color: "rgba(255,255,255,0.85)" }}>
                 {totalFinal > 0 ? "TOTAL A PAGAR" : "TOTAL DA VENDA"}
               </span>
               <motion.span
@@ -1013,7 +1019,7 @@ export default function PDV() {
                 initial={{ scale: 1.08, opacity: 0.7 }}
                 animate={{ scale: 1, opacity: 1 }}
                 transition={{ duration: 0.3, ease: "easeOut" }}
-                className="text-4xl lg:text-5xl xl:text-6xl 2xl:text-7xl font-black font-mono tracking-tight block leading-none truncate"
+                className="text-3xl lg:text-5xl xl:text-6xl 2xl:text-7xl font-black font-mono tracking-tight block leading-none truncate"
                 style={{ color: "#ffffff", textShadow: "0 4px 24px rgba(0,0,0,0.6), 0 0 40px rgba(255,255,255,0.1)" }}
               >
                 {formatCurrency(totalFinal)}
