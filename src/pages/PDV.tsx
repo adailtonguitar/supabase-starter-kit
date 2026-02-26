@@ -369,6 +369,9 @@ export default function PDV() {
         return;
       }
 
+      // Skip arrow/enter when product list is open (it handles its own navigation)
+      if (showProductList && (e.key === "ArrowDown" || e.key === "ArrowUp" || e.key === "Enter")) return;
+
       switch (e.key) {
         case "ArrowDown":
           e.preventDefault();
