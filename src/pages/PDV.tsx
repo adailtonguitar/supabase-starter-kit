@@ -328,16 +328,44 @@ export default function PDV() {
       
       if (!isFKey && !isDelete && !isEscape && !isArrow && !isPlus) return;
 
-      // Don't intercept in modals (TEF handles its own keys)
-      if (showTEF) return;
+      // Don't intercept in modals (TEF handles its own keys) — but preserve fullscreen
+      if (showTEF) {
+        if (isEscape && isFullscreen) {
+          setTimeout(() => {
+            if (!document.fullscreenElement) {
+              document.documentElement.requestFullscreen().catch(() => {});
+            }
+          }, 50);
+        }
+        return;
+      }
 
       if (receipt) {
-        if (isEscape) { e.preventDefault(); setReceipt(null); }
+        if (isEscape) {
+          e.preventDefault();
+          setReceipt(null);
+          if (isFullscreen) {
+            setTimeout(() => {
+              if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(() => {});
+              }
+            }, 50);
+          }
+        }
         return;
       }
       if (showCashRegister) {
-        // Only allow closing cash register via ESC if there's an active session
-        if (isEscape && pdv.currentSession) { e.preventDefault(); setShowCashRegister(false); }
+        if (isEscape && pdv.currentSession) {
+          e.preventDefault();
+          setShowCashRegister(false);
+          if (isFullscreen) {
+            setTimeout(() => {
+              if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(() => {});
+              }
+            }, 50);
+          }
+        }
         return;
       }
 
