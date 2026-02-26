@@ -106,24 +106,29 @@ export function useCreateBranch() {
         .single();
       if (companyErr) throw companyErr;
 
-      // 2) Link current user as admin (fully safe — trigger may auto-create)
-      try {
+      // 2) Link current user as admin
+      // Check if record already exists (trigger may have created it)
+      const { data: existingCU } = await supabase
+        .from("company_users")
+        .select("id")
+        .eq("company_id", company.id)
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      if (existingCU) {
+        // Already exists (trigger created it) — just ensure role is admin
+        await supabase
+          .from("company_users")
+          .update({ role: "admin", is_active: true })
+          .eq("id", existingCU.id);
+      } else {
+        // Does not exist — create it
         const { error: cuErr } = await supabase
           .from("company_users")
           .insert({ company_id: company.id, user_id: userId, role: "admin", is_active: true });
-        
         if (cuErr) {
-          // Duplicate = trigger already created it, just ensure role is admin
-          console.log("[createBranch] insert company_users got:", cuErr.code, "— updating instead");
-          await supabase
-            .from("company_users")
-            .update({ role: "admin", is_active: true })
-            .eq("company_id", company.id)
-            .eq("user_id", userId);
+          console.warn("[createBranch] company_users insert error (non-fatal):", cuErr.message);
         }
-      } catch (e) {
-        // Silently handle — the company was created successfully
-        console.warn("[createBranch] company_users link error (non-fatal):", e);
       }
 
       return company;
