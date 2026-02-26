@@ -41,6 +41,13 @@ export default function Fornecedores() {
       onUpdate={(d) => update.mutateAsync(d as any)}
       onDelete={(id) => del.mutateAsync(id)}
       searchKeys={["name", "cnpj", "contact_name"] as any}
+      cnpjFieldMap={{
+        name: "name",
+        trade_name: "trade_name",
+        email: "email",
+        phone: "phone",
+        contact_name: "contact_name",
+      }}
     />
   );
 }

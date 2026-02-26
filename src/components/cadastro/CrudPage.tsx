@@ -1,4 +1,4 @@
-import { ReactNode, useState, useEffect } from "react";
+import { ReactNode, useState, useEffect, useRef } from "react";
 import { Plus, Pencil, Trash2, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -85,23 +85,42 @@ export function CrudPage({
 
   const handleFieldChange = (key: string, value: any) => {
     setFormData((prev) => ({ ...prev, [key]: value }));
+    // Auto CNPJ lookup when field has cnpjLookup and value has 14+ digits
+    const field = activeFields.find(f => f.key === key);
+    if (field?.cnpjLookup && cnpjFieldMap) {
+      const clean = (value || "").replace(/\D/g, "");
+      if (clean.length === 14) {
+        triggerCnpjLookup(key, clean);
+      }
+    }
   };
 
-  const handleCnpjLookup = async () => {
-    const cnpj = (formData.cpf_cnpj || "").replace(/\D/g, "");
-    if (cnpj.length !== 14) {
-      toast.error("CNPJ deve ter 14 dígitos");
-      return;
-    }
-    const result = await lookupCnpj(cnpj);
+  const cnpjLookupDoneRef = useRef<string>("");
+
+  const triggerCnpjLookup = async (fieldKey: string, cleanCnpj: string) => {
+    if (cnpjLookupDoneRef.current === cleanCnpj) return; // avoid duplicate lookups
+    cnpjLookupDoneRef.current = cleanCnpj;
+    const result = await lookupCnpj(cleanCnpj);
     if (result && cnpjFieldMap) {
       const mapped: Record<string, any> = {};
       for (const [apiKey, formKey] of Object.entries(cnpjFieldMap)) {
         if ((result as any)[apiKey]) mapped[formKey] = (result as any)[apiKey];
       }
       setFormData((prev) => ({ ...prev, ...mapped }));
-      toast.success("Dados do CNPJ preenchidos!");
+      toast.success("Dados do CNPJ preenchidos automaticamente!");
     }
+  };
+
+  const handleCnpjLookup = async () => {
+    // Try both cpf_cnpj and cnpj field names
+    const cnpj = (formData.cpf_cnpj || formData.cnpj || "").replace(/\D/g, "");
+    if (cnpj.length !== 14) {
+      toast.error("CNPJ deve ter 14 dígitos");
+      return;
+    }
+    cnpjLookupDoneRef.current = ""; // force re-lookup on manual click
+    const fieldKey = formData.cpf_cnpj ? "cpf_cnpj" : "cnpj";
+    await triggerCnpjLookup(fieldKey, cnpj);
   };
 
   const handleSave = async () => {
