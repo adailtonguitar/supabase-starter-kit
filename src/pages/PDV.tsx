@@ -392,15 +392,35 @@ export default function PDV() {
             if (targetItem) { pdv.removeItem(targetItem.id); setSelectedCartItemId(null); toast.info(`${targetItem.name} removido`, { duration: 1200 }); }
           }
           break;
-        case "Escape":
-          if (showShortcuts) { e.preventDefault(); setShowShortcuts(false); }
-          else if (showPriceLookup) { e.preventDefault(); setShowPriceLookup(false); }
-          else if (showProductList) { e.preventDefault(); setShowProductList(false); }
-          else if (editingQtyItemId) { e.preventDefault(); setEditingQtyItemId(null); }
-          else if (editingItemDiscountId) { e.preventDefault(); setEditingItemDiscountId(null); }
-          else if (editingGlobalDiscount) { e.preventDefault(); setEditingGlobalDiscount(false); }
+        case "Escape": {
+          const anyModalOpen = showShortcuts || showPriceLookup || showProductList || editingQtyItemId || editingItemDiscountId || editingGlobalDiscount || showSaveQuote || showLoyaltyClientSelector || showQuickProduct || showClientSelector || showReceiveCredit || !!zeroStockProduct;
+          if (anyModalOpen) {
+            e.preventDefault();
+            // Close the topmost modal
+            if (showShortcuts) setShowShortcuts(false);
+            else if (showPriceLookup) setShowPriceLookup(false);
+            else if (showProductList) setShowProductList(false);
+            else if (editingQtyItemId) setEditingQtyItemId(null);
+            else if (editingItemDiscountId) setEditingItemDiscountId(null);
+            else if (editingGlobalDiscount) setEditingGlobalDiscount(false);
+            else if (showSaveQuote) setShowSaveQuote(false);
+            else if (showLoyaltyClientSelector) setShowLoyaltyClientSelector(false);
+            else if (showQuickProduct) setShowQuickProduct(false);
+            else if (showClientSelector) setShowClientSelector(false);
+            else if (showReceiveCredit) setShowReceiveCredit(false);
+            else if (zeroStockProduct) setZeroStockProduct(null);
+            // Re-enter fullscreen if browser exited it due to ESC
+            if (isFullscreen) {
+              setTimeout(() => {
+                if (!document.fullscreenElement) {
+                  document.documentElement.requestFullscreen().catch(() => {});
+                }
+              }, 50);
+            }
+          }
           // ESC sem modal aberto: deixa o browser sair da tela cheia normalmente
           break;
+        }
         case "+":
           e.preventDefault();
           if (pdv.cartItems.length > 0) {
