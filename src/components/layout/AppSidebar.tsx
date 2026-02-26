@@ -92,6 +92,7 @@ const navItems: NavEntry[] = [
       { icon: Percent, label: "Comissões", path: "/comissoes" },
       { icon: ArrowRightLeft, label: "Conciliação Bancária", path: "/conciliacao" },
       { icon: AlertTriangleIcon, label: "Alertas Financeiros", path: "/alertas" },
+      { icon: Brain, label: "Diagnóstico IA", path: "/diagnostico-financeiro" },
     ],
   },
   {
