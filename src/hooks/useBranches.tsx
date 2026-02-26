@@ -89,31 +89,32 @@ export function useCreateBranch() {
   const qc = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ name, cnpj, parentId }: { name: string; cnpj?: string; parentId: string; userId: string }) => {
-      // The trigger "auto_assign_company_admin" automatically creates
-      // the company_users record, so we only need to create the company.
+    mutationFn: async ({ name, cnpj, parentId, userId }: { name: string; cnpj?: string; parentId: string; userId: string }) => {
+      // 1) Create the company (trigger was disabled — we handle company_users manually)
       const { data: company, error: companyErr } = await supabase
         .from("companies")
         .insert({ name, cnpj: cnpj || null, parent_company_id: parentId } as any)
         .select("id")
         .maybeSingle();
 
-      if (company?.id) return { id: company.id };
+      if (companyErr || !company?.id) {
+        throw new Error(companyErr?.message || "Falha ao criar empresa");
+      }
 
-      // If PostgREST returned an error, the company might still exist
-      // (trigger warning or partial commit). Try to find it.
-      const { data: found } = await supabase
-        .from("companies")
-        .select("id")
-        .eq("name", name)
-        .eq("parent_company_id", parentId)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+      // 2) Link user as admin — safe against duplicates
+      const { error: cuErr } = await supabase
+        .from("company_users")
+        .upsert(
+          { company_id: company.id, user_id: userId, role: "admin", is_active: true },
+          { onConflict: "user_id,company_id", ignoreDuplicates: true }
+        );
 
-      if (found?.id) return { id: found.id };
+      if (cuErr) {
+        // Non-fatal: company was created, log and continue
+        console.warn("[createBranch] company_users upsert warning:", cuErr.message);
+      }
 
-      throw new Error(companyErr?.message || "Falha ao criar empresa");
+      return { id: company.id };
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["branches"] });
