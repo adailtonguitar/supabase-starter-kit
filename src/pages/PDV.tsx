@@ -1412,15 +1412,15 @@ export default function PDV() {
                   )
                   .slice(0, 10)
                   .map((p) => (
-                    <div key={p.id} className="flex items-center justify-between px-4 py-3 rounded-xl bg-muted/50 border border-border">
-                      <div>
-                        <p className="text-sm font-bold text-foreground">{p.name}</p>
-                        <p className="text-xs text-muted-foreground font-mono">SKU: {p.sku} {p.barcode && `| CB: ${p.barcode}`}</p>
+                    <div key={p.id} className="flex items-center justify-between gap-2 px-3 sm:px-4 py-3 rounded-xl bg-muted/50 border border-border">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-bold text-foreground truncate">{p.name}</p>
+                        <p className="text-xs text-muted-foreground font-mono truncate">SKU: {p.sku} {p.barcode && `| CB: ${p.barcode}`}</p>
                       </div>
-                      <div className="text-right">
-                        <p className="text-lg font-black text-primary font-mono">{formatCurrency(p.price)}</p>
+                      <div className="text-right flex-shrink-0">
+                        <p className="text-base sm:text-lg font-black text-primary font-mono">{formatCurrency(p.price)}</p>
                         <p className={`text-xs font-mono ${p.stock_quantity > 0 ? "text-primary" : "text-destructive"}`}>
-                          Estoque: {p.stock_quantity} {p.unit}
+                          Est: {p.stock_quantity} {p.unit}
                         </p>
                       </div>
                     </div>
