@@ -4,6 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { InviteUserDialog } from "@/components/users/InviteUserDialog";
 import { toast } from "sonner";
 import { Users, Shield, Clock, PenLine, Plus, Trash2, Search, ArrowLeft, Eye } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { useNavigate } from "react-router-dom";
 import { useCompanyUsers, type CompanyUser } from "@/hooks/useCompanyUsers";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -79,7 +80,21 @@ function UsersTab({ users, isLoading, canManage, currentUserId, updateRole, togg
               {canManage && (
                 <div className="flex items-center gap-2">
                   <button onClick={() => isEditing ? setEditingUser(null) : startEdit(u)} className="p-1.5 rounded-lg text-muted-foreground hover:bg-secondary transition-colors"><PenLine className="w-4 h-4" /></button>
-                  <button onClick={() => { if (isSelf) { toast.error("Você não pode remover sua própria conta"); return; } if (confirm("Remover este usuário?")) removeUser(u.id); }} className={`p-1.5 rounded-lg transition-colors ${isSelf ? "opacity-50 cursor-not-allowed" : "text-destructive hover:bg-destructive/10"}`}><Trash2 className="w-4 h-4" /></button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <button disabled={isSelf} className={`p-1.5 rounded-lg transition-colors ${isSelf ? "opacity-50 cursor-not-allowed" : "text-destructive hover:bg-destructive/10"}`}><Trash2 className="w-4 h-4" /></button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Remover usuário</AlertDialogTitle>
+                        <AlertDialogDescription>Tem certeza que deseja remover "{u.profile?.full_name || u.profile?.email}"? O acesso dele ao sistema será revogado.</AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => removeUser(u.id)}>Remover</AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 </div>
               )}
             </div>

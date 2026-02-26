@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 // ──── Hierarquia Tab ────
 function HierarchyTab() {
@@ -128,26 +129,36 @@ function HierarchyTab() {
                     <p className="text-xs text-muted-foreground">Matriz: {parentName}</p>
                   </div>
                   <div className="flex gap-2">
-                    <button
-                      onClick={() => {
-                        if (confirm("Desvincular esta filial da matriz?")) {
-                          setParent.mutate({ companyId: c.id, parentId: null });
-                        }
-                      }}
-                      className="text-xs text-muted-foreground hover:underline"
-                    >
-                      Desvincular
-                    </button>
-                    <button
-                      onClick={() => {
-                        if (confirm(`Excluir a filial "${c.name}" permanentemente? Todos os dados dela serão perdidos.`)) {
-                          deleteBranch.mutate(c.id);
-                        }
-                      }}
-                      className="text-xs text-destructive hover:underline"
-                    >
-                      Excluir
-                    </button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <button className="text-xs text-muted-foreground hover:underline">Desvincular</button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Desvincular filial</AlertDialogTitle>
+                          <AlertDialogDescription>A filial "{c.name}" será desvinculada da matriz, mas continuará existindo como empresa independente.</AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => setParent.mutate({ companyId: c.id, parentId: null })}>Desvincular</AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <button className="text-xs text-destructive hover:underline">Excluir</button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Excluir filial permanentemente</AlertDialogTitle>
+                          <AlertDialogDescription>A filial "{c.name}" e todos os dados associados serão excluídos permanentemente. Esta ação não pode ser desfeita.</AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                          <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => deleteBranch.mutate(c.id)}>Excluir</AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </div>
                 </div>
               );
