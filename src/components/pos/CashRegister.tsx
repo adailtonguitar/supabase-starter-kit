@@ -195,7 +195,7 @@ export function CashRegister({ onClose, terminalId = "01", preventClose = false,
                 <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${
                   isOpen ? "bg-primary/10" : "bg-muted"
                 }`}>
-                  {isOpen ? <Unlock className="w-4.5 h-4.5 text-primary" /> : <Lock className="w-4.5 h-4.5 text-muted-foreground" />}
+                  {isOpen ? <Unlock className="w-5 h-5 text-primary" /> : <Lock className="w-5 h-5 text-muted-foreground" />}
                 </div>
                 <div className="flex-1">
                   <p className="text-sm font-bold text-foreground">
@@ -374,8 +374,8 @@ export function CashRegister({ onClose, terminalId = "01", preventClose = false,
                   movementType === "sangria" ? "bg-destructive/10" : "bg-primary/10"
                 }`}>
                   {movementType === "sangria"
-                    ? <ArrowDownCircle className="w-4.5 h-4.5 text-destructive" />
-                    : <ArrowUpCircle className="w-4.5 h-4.5 text-primary" />
+                    ? <ArrowDownCircle className="w-5 h-5 text-destructive" />
+                    : <ArrowUpCircle className="w-5 h-5 text-primary" />
                   }
                 </div>
                 <h4 className="text-base font-bold text-foreground">
@@ -426,7 +426,7 @@ export function CashRegister({ onClose, terminalId = "01", preventClose = false,
             >
               <div className="flex items-center gap-3">
                 <div className="w-9 h-9 rounded-lg bg-destructive/10 flex items-center justify-center">
-                  <Lock className="w-4.5 h-4.5 text-destructive" />
+                  <Lock className="w-5 h-5 text-destructive" />
                 </div>
                 <div>
                   <h4 className="text-base font-bold text-foreground">Fechamento de Caixa</h4>
