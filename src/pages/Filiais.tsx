@@ -32,6 +32,7 @@ function HierarchyTab() {
   const children = (branches || []).filter(b => !b.is_parent);
 
   const handleCreateBranch = () => {
+    if (createBranch.isPending) return; // Prevent double-click
     if (!branchName.trim() || !companyId || !user) {
       toast.warning("Preencha o nome da filial");
       return;
