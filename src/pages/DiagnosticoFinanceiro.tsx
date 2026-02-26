@@ -84,8 +84,9 @@ export default function DiagnosticoFinanceiro() {
       const data = await resp.json().catch(() => null);
 
       if (!resp.ok) {
-        const msg = data?.error || `Erro ${resp.status}. Verifique os logs da Edge Function.`;
+        const msg = data?.error || `Serviço temporariamente indisponível. Tente novamente em 1 minuto.`;
         setErrorMsg(msg);
+        toast.error(msg);
         return;
       }
 
