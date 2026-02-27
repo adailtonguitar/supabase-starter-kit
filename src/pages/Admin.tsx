@@ -151,14 +151,31 @@ function CompaniesTab() {
       return;
     }
     setDeleting(company.id);
-    const { error } = await supabase.from("companies").delete().eq("id", company.id);
-    setDeleting(null);
-    if (error) {
-      toast.error("Erro ao excluir: " + error.message);
-      return;
+    try {
+      // Delete related records first to avoid foreign key violations
+      const relatedTables = [
+        "cash_sessions", "sale_items", "sales", "stock_movements", "products",
+        "clients", "financial_entries", "promotions", "suppliers", "carriers",
+        "employees", "purchase_orders", "quotes", "inventory_counts",
+        "product_categories", "company_users", "subscriptions", "telemetry",
+        "action_logs", "user_sessions", "branches", "stock_transfers",
+        "fiscal_config", "nfce_queue"
+      ];
+      for (const table of relatedTables) {
+        await supabase.from(table).delete().eq("company_id", company.id);
+      }
+      const { error } = await supabase.from("companies").delete().eq("id", company.id);
+      if (error) {
+        toast.error("Erro ao excluir: " + error.message);
+        return;
+      }
+      toast.success(`${company.name} excluída permanentemente`);
+      fetchCompanies();
+    } catch (err: any) {
+      toast.error("Erro ao excluir: " + (err?.message || "erro desconhecido"));
+    } finally {
+      setDeleting(null);
     }
-    toast.success(`${company.name} excluída permanentemente`);
-    fetchCompanies();
   };
 
   return (
