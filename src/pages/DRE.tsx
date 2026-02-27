@@ -38,18 +38,17 @@ export default function DRE() {
   });
 
   const { data: salesDocs = [], isLoading: loadingSales } = useQuery({
-    queryKey: ["fiscal_documents_dre", companyId, month],
+    queryKey: ["sales_dre", companyId, month],
     queryFn: async () => {
       if (!companyId) return [];
       const { data, error } = await supabase
-        .from("fiscal_documents")
-        .select("total_value, status, created_at, items_json, payment_method")
+        .from("sales")
+        .select("id, total, created_at")
         .eq("company_id", companyId)
-        .in("status", ["autorizada"])
         .gte("created_at", `${month}-01T00:00:00`)
         .lte("created_at", `${month}-31T23:59:59`);
       if (error) throw error;
-      return data || [];
+      return (data || []).map((s: any) => ({ total_value: s.total }));
     },
     enabled: !!companyId,
   });
