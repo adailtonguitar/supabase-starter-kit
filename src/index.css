@@ -230,6 +230,27 @@
   main > div { padding-left: 1.5rem !important; padding-right: 1.5rem !important; }
 }
 
+/* ── Reusable form classes (mobile-first) ── */
+.form-container {
+  @apply w-full space-y-4;
+}
+
+.form-grid {
+  @apply grid grid-cols-1 md:grid-cols-2 gap-4;
+}
+
+.form-input {
+  @apply w-full h-12 px-3 rounded-lg border border-border bg-background text-foreground box-border text-base;
+}
+
+.modal-backdrop {
+  @apply fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4;
+}
+
+.modal-content {
+  @apply w-full max-w-lg bg-background rounded-2xl p-6 max-h-[90vh] overflow-y-auto border border-border shadow-2xl;
+}
+
 @keyframes pulse-once {
   0% { background-color: hsl(168, 72%, 36%, 0.3); }
   50% { background-color: hsl(168, 72%, 36%, 0.15); }

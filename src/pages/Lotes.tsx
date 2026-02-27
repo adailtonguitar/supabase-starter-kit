@@ -217,11 +217,11 @@ export default function Lotes() {
       <Dialog open={showCreate} onOpenChange={setShowCreate}>
         <DialogContent className="max-h-[90vh] flex flex-col">
           <DialogHeader><DialogTitle>Novo Lote</DialogTitle></DialogHeader>
-          <div className="space-y-4 overflow-y-auto flex-1 pr-1">
+          <div className="form-container overflow-y-auto flex-1 pr-1">
             <div>
               <Label>Produto *</Label>
               <Select value={form.product_id} onValueChange={(v) => setForm({ ...form, product_id: v })}>
-                <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                <SelectTrigger className="form-input"><SelectValue placeholder="Selecione..." /></SelectTrigger>
                 <SelectContent>
                   {products.map((p) => (
                     <SelectItem key={p.id} value={p.id}>{p.name} ({p.sku})</SelectItem>
@@ -229,34 +229,34 @@ export default function Lotes() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="form-grid">
               <div>
                 <Label>Nº do Lote *</Label>
-                <Input value={form.lot_number} onChange={(e) => setForm({ ...form, lot_number: e.target.value })} />
+                <Input className="form-input" value={form.lot_number} onChange={(e) => setForm({ ...form, lot_number: e.target.value })} />
               </div>
               <div>
                 <Label>Quantidade *</Label>
-                <Input type="number" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} />
+                <Input className="form-input" type="number" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="form-grid">
               <div>
                 <Label>Data Fabricação</Label>
-                <Input type="date" value={form.manufacture_date} onChange={(e) => setForm({ ...form, manufacture_date: e.target.value })} />
+                <Input className="form-input" type="date" value={form.manufacture_date} onChange={(e) => setForm({ ...form, manufacture_date: e.target.value })} />
               </div>
               <div>
                 <Label>Data Validade</Label>
-                <Input type="date" value={form.expiry_date} onChange={(e) => setForm({ ...form, expiry_date: e.target.value })} />
+                <Input className="form-input" type="date" value={form.expiry_date} onChange={(e) => setForm({ ...form, expiry_date: e.target.value })} />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="form-grid">
               <div>
                 <Label>Custo Unitário</Label>
-                <Input type="number" step="0.01" value={form.unit_cost} onChange={(e) => setForm({ ...form, unit_cost: e.target.value })} />
+                <Input className="form-input" type="number" step="0.01" value={form.unit_cost} onChange={(e) => setForm({ ...form, unit_cost: e.target.value })} />
               </div>
               <div>
                 <Label>Fornecedor</Label>
-                <Input value={form.supplier} onChange={(e) => setForm({ ...form, supplier: e.target.value })} />
+                <Input className="form-input" value={form.supplier} onChange={(e) => setForm({ ...form, supplier: e.target.value })} />
               </div>
             </div>
           </div>
