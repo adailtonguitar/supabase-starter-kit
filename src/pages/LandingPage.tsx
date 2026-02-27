@@ -19,7 +19,7 @@ import { WhatsAppFloatingButton } from "@/components/layout/WhatsAppFloatingButt
 
 export default function LandingPage() {
   return (
-    <div className="landing-animated h-screen overflow-y-auto bg-background text-foreground scroll-smooth">
+    <div className="landing-animated h-screen overflow-y-auto overflow-x-hidden bg-background text-foreground scroll-smooth">
       <UpdateNoticeModal />
       <LandingNav />
       <LandingHero />
