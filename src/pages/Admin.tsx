@@ -100,11 +100,13 @@ export default function Admin() {
 }
 
 function CompaniesTab() {
+  const { user } = useAuth();
   const [companies, setCompanies] = useState<CompanyRow[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [blockReasons, setBlockReasons] = useState<Record<string, string>>({});
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [myCompanyIds, setMyCompanyIds] = useState<string[]>([]);
 
   const fetchCompanies = async () => {
     setLoading(true);
@@ -117,7 +119,15 @@ function CompaniesTab() {
     setLoading(false);
   };
 
-  useEffect(() => { fetchCompanies(); }, []);
+  useEffect(() => {
+    fetchCompanies();
+    if (user) {
+      supabase.from("company_users").select("company_id").eq("user_id", user.id).eq("is_active", true)
+        .then(({ data }) => setMyCompanyIds((data ?? []).map((r: any) => r.company_id)));
+    }
+  }, [user]);
+
+  const isMyCompany = (id: string) => myCompanyIds.includes(id);
 
   const toggleBlock = async (company: CompanyRow) => {
     const newBlocked = !company.is_blocked;
@@ -138,6 +148,10 @@ function CompaniesTab() {
   };
 
   const deleteCompany = async (company: CompanyRow) => {
+    if (isMyCompany(company.id)) {
+      toast.error("Você não pode excluir a empresa vinculada ao seu próprio usuário!");
+      return;
+    }
     setDeleting(company.id);
     const { error } = await supabase.from("companies").delete().eq("id", company.id);
     setDeleting(null);
@@ -202,31 +216,35 @@ function CompaniesTab() {
                     <p className="text-xs text-muted-foreground">Motivo: {c.block_reason}</p>
                   )}
                   <div className="flex items-center justify-between gap-2 pt-1">
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive h-7 px-2">
-                          <Trash2 className="h-3.5 w-3.5 mr-1" /> Excluir
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Excluir empresa permanentemente?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            A empresa <strong>{c.name}</strong> e todos os dados vinculados (usuários, planos, vendas, produtos) serão apagados permanentemente. Esta ação não pode ser desfeita.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                          <AlertDialogAction
-                            onClick={() => deleteCompany(c)}
-                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                            disabled={deleting === c.id}
-                          >
-                            {deleting === c.id ? "Excluindo..." : "Sim, excluir"}
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
+                    {isMyCompany(c.id) ? (
+                      <Badge variant="outline" className="text-xs">Sua empresa</Badge>
+                    ) : (
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive h-7 px-2">
+                            <Trash2 className="h-3.5 w-3.5 mr-1" /> Excluir
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Excluir empresa permanentemente?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              A empresa <strong>{c.name}</strong> e todos os dados vinculados (usuários, planos, vendas, produtos) serão apagados permanentemente. Esta ação não pode ser desfeita.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => deleteCompany(c)}
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              disabled={deleting === c.id}
+                            >
+                              {deleting === c.id ? "Excluindo..." : "Sim, excluir"}
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    )}
                     <div className="flex items-center gap-2">
                       <span className="text-xs text-muted-foreground">{c.is_blocked ? "Bloqueada" : "Ativa"}</span>
                       <Switch checked={c.is_blocked} onCheckedChange={() => toggleBlock(c)} />
@@ -275,31 +293,35 @@ function CompaniesTab() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-2">
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive h-8 w-8">
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Excluir empresa permanentemente?</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  A empresa <strong>{c.name}</strong> e todos os dados vinculados (usuários, planos, vendas, produtos) serão apagados permanentemente. Esta ação não pode ser desfeita.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                <AlertDialogAction
-                                  onClick={() => deleteCompany(c)}
-                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                  disabled={deleting === c.id}
-                                >
-                                  {deleting === c.id ? "Excluindo..." : "Sim, excluir"}
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
+                          {isMyCompany(c.id) ? (
+                            <Badge variant="outline" className="text-xs">Sua empresa</Badge>
+                          ) : (
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive h-8 w-8">
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Excluir empresa permanentemente?</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    A empresa <strong>{c.name}</strong> e todos os dados vinculados (usuários, planos, vendas, produtos) serão apagados permanentemente. Esta ação não pode ser desfeita.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => deleteCompany(c)}
+                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                    disabled={deleting === c.id}
+                                  >
+                                    {deleting === c.id ? "Excluindo..." : "Sim, excluir"}
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          )}
                           <span className="text-xs text-muted-foreground">{c.is_blocked ? "Bloqueada" : "Ativa"}</span>
                           <Switch checked={c.is_blocked} onCheckedChange={() => toggleBlock(c)} />
                         </div>
