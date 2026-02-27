@@ -102,10 +102,10 @@ export default function Producao() {
   const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" }> = { pendente: { label: "Pendente", variant: "secondary" }, concluido: { label: "Concluído", variant: "default" }, cancelado: { label: "Cancelado", variant: "destructive" } };
 
   return (
-    <div className="p-6 space-y-6 max-w-6xl mx-auto">
-      <div className="flex items-center justify-between">
-        <div><h1 className="text-2xl font-bold text-foreground flex items-center gap-2"><ChefHat className="w-6 h-6" /> Produção</h1><p className="text-sm text-muted-foreground mt-1">Gerencie receitas e ordens de produção para açougue e padaria</p></div>
-        <Button onClick={() => { resetRecipeForm(); setShowRecipeDialog(true); }}><Plus className="w-4 h-4 mr-1" /> Nova Receita</Button>
+    <div className="p-4 md:p-6 space-y-6 max-w-6xl mx-auto overflow-hidden">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <div><h1 className="text-xl md:text-2xl font-bold text-foreground flex items-center gap-2"><ChefHat className="w-6 h-6" /> Produção</h1><p className="text-sm text-muted-foreground mt-1">Gerencie receitas e ordens de produção para açougue e padaria</p></div>
+        <Button className="shrink-0" onClick={() => { resetRecipeForm(); setShowRecipeDialog(true); }}><Plus className="w-4 h-4 mr-1" /> Nova Receita</Button>
       </div>
 
       <Tabs defaultValue="recipes">
@@ -115,7 +115,7 @@ export default function Producao() {
         </TabsList>
         <TabsContent value="recipes" className="space-y-4 mt-4">
           {recipes.length === 0 && !loadingRecipes && (<Card className="border-dashed"><CardContent className="py-12 text-center text-muted-foreground"><ChefHat className="w-12 h-12 mx-auto mb-3 opacity-40" /><p className="font-medium">Nenhuma receita cadastrada</p><p className="text-sm mt-1">Crie sua primeira receita para começar a produzir</p></CardContent></Card>)}
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
             {recipes.map((recipe) => {
               const cost = recipe.ingredients.reduce((s, i) => s + i.cost, 0);
               return (
