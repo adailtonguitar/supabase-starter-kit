@@ -128,7 +128,7 @@ export default function PedidosCompra() {
                       <div className="min-w-0"><div className="flex items-center gap-2 flex-wrap"><p className="text-sm font-semibold text-foreground">Pedido #{order.id.slice(0, 8)}</p><Badge className={st.color}>{st.label}</Badge></div><p className="text-xs text-muted-foreground mt-0.5 truncate">{supplierName} • {format(new Date(order.created_at), "dd/MM/yyyy")}</p></div>
                     </div>
                     <div className="flex items-center gap-3">
-                      <p className="text-sm font-bold font-mono text-foreground">{formatCurrency(Number(order.total_value))}</p>
+                      <p className="text-sm font-bold font-mono text-foreground">{formatCurrency(Number(order.total_value || 0))}</p>
                       {order.status === "rascunho" && <Button size="sm" variant="outline" onClick={() => updateStatus.mutate({ id: order.id, status: "enviado" })}><Send className="w-3.5 h-3.5 mr-1" />Enviar</Button>}
                       {order.status === "enviado" && <Button size="sm" onClick={() => updateStatus.mutate({ id: order.id, status: "recebido" })}><Check className="w-3.5 h-3.5 mr-1" />Receber</Button>}
                     </div>

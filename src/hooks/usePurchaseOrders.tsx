@@ -44,10 +44,9 @@ export function useCreatePurchaseOrder() {
   return useMutation({
     mutationFn: async (input: { supplier_id?: string; created_by: string; items: { product_id: string; quantity: number; unit_cost: number }[] }) => {
       if (!companyId) throw new Error("Sem empresa");
-      const totalValue = input.items.reduce((s, i) => s + i.quantity * i.unit_cost, 0);
       const { data: order, error } = await supabase
         .from("purchase_orders")
-        .insert({ company_id: companyId, supplier_id: input.supplier_id || null, status: "rascunho", total_value: totalValue, created_by: input.created_by })
+        .insert({ company_id: companyId, supplier_id: input.supplier_id || null, status: "rascunho", created_by: input.created_by })
         .select()
         .single();
       if (error) throw error;
