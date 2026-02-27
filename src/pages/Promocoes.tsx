@@ -84,16 +84,17 @@ export default function Promocoes() {
 
     setSaving(true);
     try {
-      await createPromotion({
+      // Send only columns that exist in the current DB schema
+      const payload: Record<string, any> = {
         name: name.trim(),
-        description: description.trim() || undefined,
-        promo_type: promoType,
+        description: [promoType, description.trim()].filter(Boolean).join(" — "),
         scope,
-        category_name: scope === "category" ? categoryName : undefined,
         min_quantity: minQty,
         starts_at: new Date(startsAt).toISOString(),
-        ends_at: endsAt ? new Date(endsAt).toISOString() : undefined,
-      });
+      };
+      if (scope === "category" && categoryName) payload.category_name = categoryName;
+      if (endsAt) payload.ends_at = new Date(endsAt).toISOString();
+      await createPromotion(payload);
       setOpen(false);
       resetForm();
     } catch {
@@ -296,7 +297,8 @@ export default function Promocoes() {
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {promotions.map((promo) => {
-            const Icon = PROMO_TYPE_ICONS[promo.promo_type] || Tag;
+            const promoType = promo.promo_type || "percentual";
+            const Icon = PROMO_TYPE_ICONS[promoType] || Tag;
             const isExpired = promo.ends_at && new Date(promo.ends_at) < new Date();
             return (
               <Card key={promo.id} className={!promo.is_active || isExpired ? "opacity-60" : ""}>
@@ -309,7 +311,7 @@ export default function Promocoes() {
                       <div>
                         <CardTitle className="text-sm">{promo.name}</CardTitle>
                         <Badge variant="secondary" className="text-xs mt-0.5">
-                          {PROMO_TYPE_LABELS[promo.promo_type]}
+                          {PROMO_TYPE_LABELS[promoType] || promoType}
                         </Badge>
                       </div>
                     </div>
@@ -320,30 +322,21 @@ export default function Promocoes() {
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-2">
-                  {promo.promo_type === "percentual" && (
-                    <p className="text-lg font-bold text-primary">{promo.discount_percent}% OFF</p>
-                  )}
-                  {promo.promo_type === "preco_fixo" && (
-                    <p className="text-lg font-bold text-primary">R$ {Number(promo.fixed_price).toFixed(2)}</p>
-                  )}
-                  {promo.promo_type === "leve_x_pague_y" && (
-                    <p className="text-lg font-bold text-primary">Leve {promo.buy_quantity} Pague {promo.pay_quantity}</p>
+                  {promo.description && (
+                    <p className="text-sm text-muted-foreground">{promo.description}</p>
                   )}
 
                   <div className="text-xs text-muted-foreground space-y-0.5">
                     <p>
                       {promo.scope === "category"
-                        ? `Categoria: ${promo.category_name}`
-                        : `${promo.product_ids?.length || 0} produto(s)`}
+                        ? `Categoria: ${promo.category_name || "—"}`
+                        : `Escopo: ${promo.scope || "produto"}`}
                     </p>
                     <p className="flex items-center gap-1">
                       <Calendar className="w-3 h-3" />
                       {new Date(promo.starts_at).toLocaleDateString("pt-BR")}
                       {promo.ends_at && ` — ${new Date(promo.ends_at).toLocaleDateString("pt-BR")}`}
                     </p>
-                    {promo.active_days && promo.active_days.length > 0 && (
-                      <p>{promo.active_days.map((d) => DAY_LABELS[d]).join(", ")}</p>
-                    )}
                     {isExpired && <Badge variant="destructive" className="text-xs">Expirada</Badge>}
                   </div>
 
