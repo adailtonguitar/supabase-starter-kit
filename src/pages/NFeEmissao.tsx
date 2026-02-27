@@ -597,7 +597,7 @@ export default function NFeEmissao() {
 
                 <div className="flex items-center justify-between">
                   <p className="text-sm font-medium text-foreground">
-                    {form.items.length} {form.items.length === 1 ? "item" : "itens"} — Total: {formatCurrency(totalItems)}
+                    {form.items.filter(it => it.name.trim()).length} de {form.items.length} {form.items.length === 1 ? "item preenchido" : "itens preenchidos"} — Total: {formatCurrency(totalItems)}
                   </p>
                   <button onClick={addItem} className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:opacity-90 transition-all">
                     <Plus className="w-3.5 h-3.5" /> Adicionar Item
@@ -617,14 +617,25 @@ export default function NFeEmissao() {
                       <div className="sm:col-span-3 relative">
                         <label className="text-xs text-muted-foreground">Descrição * (busque pelo nome ou código)</label>
                         <input
-                          value={productSearch[idx] !== undefined ? productSearch[idx] : item.name}
+                          value={showProductDropdown === idx && productSearch[idx] !== undefined ? productSearch[idx] : item.name}
                           onChange={e => {
-                            setProductSearch(prev => ({ ...prev, [idx]: e.target.value }));
-                            updateItem(idx, "name", e.target.value);
+                            const val = e.target.value;
+                            setProductSearch(prev => ({ ...prev, [idx]: val }));
+                            updateItem(idx, "name", val);
                             setShowProductDropdown(idx);
                           }}
-                          onFocus={() => setShowProductDropdown(idx)}
-                          onBlur={() => setTimeout(() => setShowProductDropdown(null), 200)}
+                          onFocus={() => {
+                            setProductSearch(prev => ({ ...prev, [idx]: item.name }));
+                            setShowProductDropdown(idx);
+                          }}
+                          onBlur={() => setTimeout(() => {
+                            setShowProductDropdown(null);
+                            setProductSearch(prev => {
+                              const next = { ...prev };
+                              delete next[idx];
+                              return next;
+                            });
+                          }, 200)}
                           className="w-full mt-1 px-3 py-2 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
                           placeholder="Digite para buscar produto..."
                         />
