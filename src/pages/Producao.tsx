@@ -143,7 +143,7 @@ export default function Producao() {
       </Tabs>
 
       <Dialog open={showRecipeDialog} onOpenChange={setShowRecipeDialog}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-lg">
           <DialogHeader><DialogTitle>Nova Receita</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div><Label>Nome da receita *</Label><Input value={recipeName} onChange={(e) => setRecipeName(e.target.value)} placeholder="Ex: Pão Francês" /></div>
