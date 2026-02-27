@@ -76,6 +76,12 @@ export function useDeleteProduct() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
+      // Delete dependent records first
+      await supabase.from("product_labels" as any).delete().eq("product_id", id);
+      await supabase.from("stock_movements" as any).delete().eq("product_id", id);
+      await supabase.from("product_lots" as any).delete().eq("product_id", id);
+      await supabase.from("sale_items" as any).delete().eq("product_id", id);
+      
       const { error } = await supabase.from("products").delete().eq("id", id);
       if (error) throw error;
     },
