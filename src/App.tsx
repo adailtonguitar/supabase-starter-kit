@@ -389,7 +389,11 @@ function AppRoutes() {
                         <DiagnosticoFinanceiro />
                       </PlanGate>
                     } />
-                    <Route path="/estoque/ruptura" element={<Ruptura />} />
+                    <Route path="/estoque/ruptura" element={
+                      <PlanGate feature="hasRuptura" featureName="Relatório de Ruptura">
+                        <Ruptura />
+                      </PlanGate>
+                    } />
                     <Route path="/painel-dono" element={<PainelDono />} />
                     <Route path="/sugestao-compra" element={
                       <PlanGate feature="hasAiReports" featureName="Sugestão de Compra por IA">

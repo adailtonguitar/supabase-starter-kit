@@ -3,6 +3,7 @@ import anthoLogo from "@/assets/logo-as.png";
 import { motion } from "framer-motion";
 import { isScaleBarcode, parseScaleBarcode } from "@/lib/scale-barcode";
 import { usePermissions } from "@/hooks/usePermissions";
+import { usePlanFeatures } from "@/hooks/usePlanFeatures";
 import { useLoyalty } from "@/hooks/useLoyalty";
 import { PDVProductGrid } from "@/components/pdv/PDVProductGrid";
 import { PDVLoyaltyClientList } from "@/components/pdv/PDVLoyaltyClientList";
@@ -34,13 +35,15 @@ export default function PDV() {
   const { companyName, companyId, logoUrl, slogan, pixKey, pixKeyType, pixCity } = useCompany();
   const { config: tefConfigData } = useTEFConfig();
   const { maxDiscountPercent } = usePermissions();
+  const planFeatures = usePlanFeatures();
+  const canUseFiscal = planFeatures.canUseFiscal();
   const { earnPoints, isActive: loyaltyActive } = useLoyalty();
   const { createQuote, updateQuoteStatus } = useQuotes({ skipInitialFetch: true });
   const [showSaveQuote, setShowSaveQuote] = useState(false);
   const [quoteNotes, setQuoteNotes] = useState("");
   const [showTEF, setShowTEF] = useState(false);
   const [tefDefaultMethod, setTefDefaultMethod] = useState<string | null>(null);
-  const [skipFiscalEmission, setSkipFiscalEmission] = useState(false);
+  const [skipFiscalEmission, setSkipFiscalEmission] = useState(!canUseFiscal);
   const [showCashRegister, setShowCashRegister] = useState(false);
   const [receipt, setReceipt] = useState<{
     items: typeof pdv.cartItems;
@@ -1225,18 +1228,20 @@ export default function PDV() {
           ))}
         </div>
         {/* Fiscal emission toggle */}
-        <div className="flex items-center justify-end px-2 py-0.5 bg-muted/40 border-t border-border">
-          <label className="flex items-center gap-1.5 cursor-pointer text-xs text-muted-foreground select-none">
-            <input
-              type="checkbox"
-              checked={!skipFiscalEmission}
-              onChange={(e) => setSkipFiscalEmission(!e.target.checked)}
-              className="w-3.5 h-3.5 rounded border-border accent-primary"
-            />
-            <FileText className="w-3 h-3" />
-            <span>Emitir NFC-e</span>
-          </label>
-        </div>
+        {canUseFiscal && (
+          <div className="flex items-center justify-end px-2 py-0.5 bg-muted/40 border-t border-border">
+            <label className="flex items-center gap-1.5 cursor-pointer text-xs text-muted-foreground select-none">
+              <input
+                type="checkbox"
+                checked={!skipFiscalEmission}
+                onChange={(e) => setSkipFiscalEmission(!e.target.checked)}
+                className="w-3.5 h-3.5 rounded border-border accent-primary"
+              />
+              <FileText className="w-3 h-3" />
+              <span>Emitir NFC-e</span>
+            </label>
+          </div>
+        )}
         <div data-tour="pdv-shortcuts" className="hidden lg:flex items-center justify-center gap-1 xl:gap-1.5 px-2 py-1.5 xl:py-2 bg-muted/80 border-t-2 border-border/60 flex-wrap">
           {/* Grupo: Operações */}
           <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-lg bg-background/50 border border-border/40">

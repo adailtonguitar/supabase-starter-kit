@@ -13,19 +13,24 @@ interface PlanGateProps {
  * Maps legacy PlanGate feature keys to plan feature checks.
  */
 function isFeatureAllowed(feature: string, plan: ReturnType<typeof usePlanFeatures>): boolean {
-  // Pro-only features (Filiais, Diagnóstico Financeiro, Relatórios IA completos)
-  const proOnlyFeatures = ["hasBranches", "hasDiagnostico", "hasFullAiReports"];
+  // Pro-only features (Filiais, Diagnóstico Financeiro, Relatórios IA completos, Ruptura, Sugestão Compra)
+  const proOnlyFeatures = ["hasBranches", "hasDiagnostico", "hasFullAiReports", "hasRuptura", "hasSugestaoCompra"];
   if (proOnlyFeatures.includes(feature)) return plan.plan === "pro" && plan.isActive();
 
-  const advancedFeatures = [
-    "hasProfitPanel", "hasFinancialAlerts", "hasDre", "hasCashFlow",
-    "hasCostCenter", "hasCommissions", "hasBankReconciliation",
-    "hasAbcCurve", "hasAiReports",
-  ];
-  const fullFinancialFeatures = ["hasDre", "hasCashFlow", "hasCostCenter", "hasCommissions", "hasBankReconciliation"];
+  // Fiscal features (NFC-e) — Business+ only
+  if (feature === "hasFiscal") return plan.canUseFiscal();
 
+  // Business+ features (Fidelidade, Orçamentos, Relatórios IA básicos, etc.)
+  const businessPlusFeatures = [
+    "hasProfitPanel", "hasFinancialAlerts", "hasAbcCurve", "hasAiReports",
+    "hasLoyalty", "hasQuotes",
+  ];
+  if (businessPlusFeatures.includes(feature)) return plan.canUseAdvancedReports();
+
+  // Full financial features (Pro only via financial_module_level = full)
+  const fullFinancialFeatures = ["hasDre", "hasCashFlow", "hasCostCenter", "hasCommissions", "hasBankReconciliation"];
   if (fullFinancialFeatures.includes(feature)) return plan.canUseFullFinancial();
-  if (advancedFeatures.includes(feature)) return plan.canUseAdvancedReports();
+
   return true;
 }
 
