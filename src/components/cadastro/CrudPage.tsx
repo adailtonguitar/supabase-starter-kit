@@ -234,7 +234,7 @@ export function CrudPage({
 
       {/* Form Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>{editingItem ? "Editar" : "Novo"} {title.replace(/s$/, "")}</DialogTitle>
           </DialogHeader>
