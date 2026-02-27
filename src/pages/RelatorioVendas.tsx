@@ -67,16 +67,22 @@ export default function RelatorioVendas() {
         .gte("created_at", dateRange.from)
         .lte("created_at", dateRange.to)
         .order("created_at", { ascending: false });
-      if (salesError) throw salesError;
+      if (salesError) {
+        console.error("[RelatorioVendas] sales error:", salesError);
+        throw salesError;
+      }
       if (!salesData || salesData.length === 0) return [];
 
       // Fetch sale_items for all sales in the period
       const saleIds = salesData.map((s: any) => s.id);
       const { data: itemsData, error: itemsError } = await supabase
         .from("sale_items")
-        .select("sale_id, product_id, product_name, sku, quantity, unit_price")
+        .select("sale_id, product_id, product_name, quantity, unit_price")
         .in("sale_id", saleIds);
-      if (itemsError) throw itemsError;
+      if (itemsError) {
+        console.error("[RelatorioVendas] sale_items error:", itemsError);
+        throw itemsError;
+      }
 
       // Attach items to each sale
       const itemsBySale: Record<string, any[]> = {};
@@ -84,8 +90,8 @@ export default function RelatorioVendas() {
         if (!itemsBySale[item.sale_id]) itemsBySale[item.sale_id] = [];
         itemsBySale[item.sale_id].push({
           product_id: item.product_id,
-          name: item.product_name,
-          sku: item.sku || "",
+          name: item.product_name || "Produto",
+          sku: "",
           quantity: Number(item.quantity),
           unit_price: Number(item.unit_price),
         });
