@@ -7,6 +7,26 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { toast } from "sonner";
 import { useCnpjLookup } from "@/hooks/useCnpjLookup";
 
+function maskCpfCnpj(value: string): string {
+  const digits = value.replace(/\D/g, "");
+  if (digits.length <= 11) {
+    // CPF: XXX.XXX.XXX-XX
+    return digits
+      .replace(/(\d{3})(\d)/, "$1.$2")
+      .replace(/(\d{3})(\d)/, "$1.$2")
+      .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+  }
+  // CNPJ: XX.XXX.XXX/XXXX-XX
+  return digits
+    .slice(0, 14)
+    .replace(/(\d{2})(\d)/, "$1.$2")
+    .replace(/(\d{3})(\d)/, "$1.$2")
+    .replace(/(\d{3})(\d)/, "$1/$2")
+    .replace(/(\d{4})(\d{1,2})$/, "$1-$2");
+}
+
+const DOC_FIELD_KEYS = ["cnpj", "cpf", "cpf_cnpj"];
+
 export interface FieldConfig {
   key: string;
   label: string;
@@ -79,12 +99,16 @@ export function CrudPage({
 
   const openEdit = (item: any) => {
     setEditingItem(item);
-    setFormData({ ...item });
+    const masked = { ...item };
+    DOC_FIELD_KEYS.forEach((k) => { if (masked[k]) masked[k] = maskCpfCnpj(masked[k]); });
+    setFormData(masked);
     setDialogOpen(true);
   };
 
   const handleFieldChange = (key: string, value: any) => {
-    setFormData((prev) => ({ ...prev, [key]: value }));
+    const isDocField = DOC_FIELD_KEYS.includes(key);
+    const finalValue = isDocField ? maskCpfCnpj(value) : value;
+    setFormData((prev) => ({ ...prev, [key]: finalValue }));
     // Auto CNPJ lookup when field has cnpjLookup and value has 14+ digits
     const field = activeFields.find(f => f.key === key);
     if (field?.cnpjLookup && cnpjFieldMap) {
