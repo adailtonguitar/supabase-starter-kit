@@ -102,7 +102,7 @@ export default function Lotes() {
       )}
 
       {/* Desktop Table */}
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="hidden lg:block bg-card rounded-xl card-shadow border border-border overflow-hidden">
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="hidden xl:block bg-card rounded-xl card-shadow border border-border overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -172,7 +172,7 @@ export default function Lotes() {
       </motion.div>
 
       {/* Mobile cards */}
-      <div className="lg:hidden space-y-2">
+      <div className="xl:hidden space-y-2">
         {isLoading ? (
           [...Array(4)].map((_, i) => <Skeleton key={i} className="h-24 w-full rounded-xl" />)
         ) : lots.length === 0 ? (
