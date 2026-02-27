@@ -95,7 +95,7 @@ export function LandingPricing() {
               Planos que cabem no seu supermercado
             </h2>
             <p className="mt-4 text-muted-foreground text-lg">
-              Teste grátis por 8 dias. Sem cartão de crédito.
+              Teste grátis por 15 dias. Sem cartão de crédito.
             </p>
           </motion.div>
         </div>
