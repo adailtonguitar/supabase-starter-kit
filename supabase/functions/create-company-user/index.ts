@@ -52,6 +52,8 @@ Deno.serve(async (req) => {
           status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
+      // Update password for existing user
+      await supabaseAdmin.auth.admin.updateUserById(userId, { password });
     } else {
       // Create new user with password
       const { data: created, error: createErr } = await supabaseAdmin.auth.admin.createUser({
