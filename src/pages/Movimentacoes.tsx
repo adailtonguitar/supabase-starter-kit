@@ -177,19 +177,20 @@ export default function Movimentacoes() {
 
       {showNewEntry && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-          <div className="bg-card rounded-xl border border-border p-6 w-full max-w-md max-h-[80vh] overflow-y-auto space-y-4">
+          <div className="bg-card rounded-xl border border-border p-6 w-full max-w-xl max-h-[85vh] flex flex-col space-y-4">
             <h2 className="text-lg font-bold text-foreground">Selecione o Produto</h2>
             <input
               type="text"
               placeholder="Buscar produto..."
               value={productSearch}
               onChange={(e) => setProductSearch(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+              className="w-full px-3 py-2.5 rounded-lg bg-background border border-border text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+              autoFocus
             />
-            <div className="space-y-1">
+            <div className="flex-1 overflow-y-auto space-y-1 min-h-0">
               {products
                 .filter(p => p.name.toLowerCase().includes(productSearch.toLowerCase()) || (p.sku || '').toLowerCase().includes(productSearch.toLowerCase()))
-                .slice(0, 20)
+                .slice(0, 30)
                 .map(p => (
                   <button
                     key={p.id}
@@ -199,10 +200,10 @@ export default function Movimentacoes() {
                       setShowNewEntry(false);
                       setTimeout(() => setMovementProduct(p), 50);
                     }}
-                    className="w-full text-left px-3 py-2 rounded-lg hover:bg-muted/50 text-sm text-foreground flex justify-between items-center cursor-pointer"
+                    className="w-full text-left px-4 py-3 rounded-lg hover:bg-muted/50 text-sm text-foreground flex justify-between items-center cursor-pointer transition-colors"
                   >
-                    <span>{p.name}</span>
-                    <span className="text-xs text-muted-foreground">Estoque: {p.stock_quantity}</span>
+                    <span className="font-medium">{p.name}</span>
+                    <span className="text-xs text-muted-foreground shrink-0 ml-3">Estoque: {p.stock_quantity}</span>
                   </button>
                 ))}
             </div>
