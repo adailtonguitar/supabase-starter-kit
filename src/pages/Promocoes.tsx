@@ -84,14 +84,11 @@ export default function Promocoes() {
 
     setSaving(true);
     try {
-      // Send only columns that exist in the current DB schema
+      // Send only columns confirmed to exist in DB schema
       const payload: Record<string, any> = {
         name: name.trim(),
-        scope,
-        min_quantity: minQty,
         starts_at: new Date(startsAt).toISOString(),
       };
-      if (scope === "category" && categoryName) payload.category_name = categoryName;
       if (endsAt) payload.ends_at = new Date(endsAt).toISOString();
       await createPromotion(payload);
       setOpen(false);
