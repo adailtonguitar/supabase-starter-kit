@@ -78,7 +78,20 @@ Use emojis. Seja direto e acionável. Responda apenas com o insight, sem título
     sales: "performance de vendas, tendências, ticket médio e formas de pagamento",
     stock: "gestão de estoque, rupturas, giro de produtos e oportunidades de reposição",
     financial: "fluxo de caixa, inadimplência, margem operacional e projeções",
+    purchase: "sugestão de pedido de compra baseada em estoque atual vs vendas recentes",
   };
+  if (reportType === "purchase") {
+    return `Você é um comprador profissional de supermercados brasileiros.
+Com base nos dados de estoque e vendas dos últimos 30 dias, gere uma **Sugestão de Pedido de Compra** em markdown.
+
+Estruture assim:
+### 🔴 Reposição Urgente (estoque zerado com vendas)
+### 🟡 Reposição Preventiva (estoque abaixo do mínimo)
+### 📦 Quantidades Sugeridas (tabela com nome, estoque atual, vendas/30d, sugestão de compra)
+### 💡 Dicas de Negociação
+
+Use valores em unidades. Sugira quantidades para cobrir pelo menos 15 dias de venda. Seja objetivo.`;
+  }
   return `Você é um consultor de negócios sênior especializado em pequenas e médias empresas brasileiras.
 Gere um **Relatório Executivo** profissional focando em: ${focusMap[reportType] || focusMap.general}.
 
