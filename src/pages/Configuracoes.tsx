@@ -613,7 +613,7 @@ export default function Configuracoes() {
 
       <ChangePasswordSection />
       <MyPlanSection />
-      <WhatsAppSupportSection />
+      {/* WhatsApp Suporte movido para Painel Admin */}
       <DiscountLimitsSection />
       <TEFConfigSection />
       <ScaleConfigSection />

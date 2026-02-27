@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Navigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useCompany } from "@/hooks/useCompany";
 import { useAdminRole } from "@/hooks/useAdminRole";
 import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Shield, Activity, Search, Ban, CheckCircle, LayoutDashboard, Users, CreditCard, FileText, DollarSign, Trash2, FlaskConical } from "lucide-react";
+import { Shield, Activity, Search, Ban, CheckCircle, LayoutDashboard, Users, CreditCard, FileText, DollarSign, Trash2, FlaskConical, MessageCircle, Save, Loader2, Pencil } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { AdminDashboard } from "@/components/admin/AdminDashboard";
 import { AdminSubscriptions } from "@/components/admin/AdminSubscriptions";
@@ -73,6 +74,7 @@ export default function Admin() {
           <TabsTrigger value="logs" className="text-xs sm:text-sm"><FileText className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" /> Logs</TabsTrigger>
           <TabsTrigger value="telemetry" className="text-xs sm:text-sm"><Activity className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" /> <span className="hidden sm:inline">Telemetria</span><span className="sm:hidden">Telem.</span></TabsTrigger>
           <TabsTrigger value="plans" className="text-xs sm:text-sm"><FlaskConical className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" /> Planos</TabsTrigger>
+          <TabsTrigger value="support" className="text-xs sm:text-sm"><MessageCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" /> Suporte</TabsTrigger>
         </TabsList>
 
         <TabsContent value="dashboard">
@@ -99,8 +101,100 @@ export default function Admin() {
         <TabsContent value="plans">
           <AdminPlanTester />
         </TabsContent>
+        <TabsContent value="support">
+          <AdminWhatsAppSupport />
+        </TabsContent>
       </Tabs>
     </div>
+  );
+}
+
+function AdminWhatsAppSupport() {
+  const { companyId } = useCompany();
+  const [number, setNumber] = useState("");
+  const [savedNumber, setSavedNumber] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [editing, setEditing] = useState(false);
+
+  useEffect(() => {
+    if (!companyId) return;
+    const load = async () => {
+      const { data } = await supabase.from("companies").select("whatsapp_support").eq("id", companyId).single();
+      if (data?.whatsapp_support) {
+        setNumber(data.whatsapp_support);
+        setSavedNumber(data.whatsapp_support);
+      }
+      setLoading(false);
+    };
+    load();
+  }, [companyId]);
+
+  const hasSaved = !!savedNumber;
+
+  const handleSave = async () => {
+    if (!companyId) return;
+    setSaving(true);
+    try {
+      const { error } = await supabase.from("companies").update({ whatsapp_support: number || null }).eq("id", companyId);
+      if (error) throw error;
+      setSavedNumber(number);
+      setEditing(false);
+      toast.success("WhatsApp de suporte salvo!");
+    } catch {
+      toast.error("Erro ao salvar");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const isReadOnly = hasSaved && !editing;
+
+  return (
+    <Card>
+      <CardHeader className="p-3 sm:p-6">
+        <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+          <MessageCircle className="h-4 w-4 text-primary" />
+          WhatsApp de Suporte
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0 space-y-4">
+        <p className="text-sm text-muted-foreground">Configure o número de WhatsApp exibido no botão flutuante de suporte para os usuários.</p>
+        {loading ? (
+          <div className="flex justify-center py-8">
+            <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+          </div>
+        ) : (
+          <>
+            <Input
+              value={number}
+              onChange={(e) => setNumber(e.target.value)}
+              placeholder="5511999999999"
+              disabled={isReadOnly}
+              className="max-w-sm"
+            />
+            <div className="flex gap-3">
+              {isReadOnly ? (
+                <Button variant="secondary" size="sm" onClick={() => setEditing(true)} className="gap-1.5">
+                  <Pencil className="w-4 h-4" /> Editar
+                </Button>
+              ) : (
+                <>
+                  <Button size="sm" onClick={handleSave} disabled={saving} className="gap-1.5">
+                    {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Salvar
+                  </Button>
+                  {hasSaved && (
+                    <Button variant="ghost" size="sm" onClick={() => { setNumber(savedNumber); setEditing(false); }}>
+                      Cancelar
+                    </Button>
+                  )}
+                </>
+              )}
+            </div>
+          </>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
