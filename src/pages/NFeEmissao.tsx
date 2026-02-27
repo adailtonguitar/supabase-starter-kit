@@ -595,10 +595,25 @@ export default function NFeEmissao() {
                 </div>
 
                 <div className="flex items-center justify-between">
-                  <p className="text-sm font-medium text-foreground">
-                    {form.items.length} {form.items.length === 1 ? "item" : "itens"} — Total: {formatCurrency(totalItems)}
-                  </p>
-                  <button onClick={addItem} className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:opacity-90 transition-all">
+                  {form.items.length > 0 ? (
+                    <p className="text-sm font-medium text-foreground">
+                      {form.items.length} {form.items.length === 1 ? "item" : "itens"} — Total: {formatCurrency(totalItems)}
+                    </p>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">Nenhum item adicionado</p>
+                  )}
+                  <button onClick={() => {
+                    addItem();
+                    // Focus the new item's search input after render
+                    setTimeout(() => {
+                      const inputs = document.querySelectorAll<HTMLInputElement>('[data-product-search]');
+                      const last = inputs[inputs.length - 1];
+                      if (last) {
+                        last.focus();
+                        last.click();
+                      }
+                    }, 100);
+                  }} className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:opacity-90 transition-all">
                     <Plus className="w-3.5 h-3.5" /> Adicionar Item
                   </button>
                 </div>
@@ -622,6 +637,7 @@ export default function NFeEmissao() {
                       <div className="sm:col-span-3 relative">
                         <label className="text-xs text-muted-foreground">Descrição * (busque pelo nome ou código)</label>
                         <input
+                          data-product-search
                           value={showProductDropdown === idx && productSearch[idx] !== undefined ? productSearch[idx] : item.name}
                           onChange={e => {
                             const val = e.target.value;
