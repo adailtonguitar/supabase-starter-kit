@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { CreditCard, Clock, Shield, CheckCircle, ArrowRight, Loader2, Zap } from "lucide-react";
+import { CreditCard, Clock, Shield, CheckCircle, ArrowRight, Loader2, Zap, ArrowLeft, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PLANS, useSubscription } from "@/hooks/useSubscription";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Navigate } from "react-router-dom";
+import { Navigate, Link } from "react-router-dom";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -63,11 +63,20 @@ export default function Renovar() {
       name: "Pro",
       price: "349,90",
       features: ["Sessões ilimitadas", "Todos os módulos", "NF-e + NFC-e", "Suporte dedicado"],
+      recommended: true,
     },
   ];
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center px-4 py-8 sm:py-12">
+      {/* Botão Voltar */}
+      <div className="w-full max-w-4xl mb-4">
+        <Button asChild variant="ghost" size="sm" className="gap-1.5">
+          <Link to="/dashboard">
+            <ArrowLeft className="w-4 h-4" /> Voltar ao menu
+          </Link>
+        </Button>
+      </div>
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -124,6 +133,11 @@ export default function Renovar() {
             {plan.highlighted && (
               <span className="text-xs font-bold text-primary uppercase tracking-wider mb-2 flex items-center gap-1">
                 <Zap className="w-3 h-3" /> Mais popular
+              </span>
+            )}
+            {(plan as any).recommended && (
+              <span className="text-xs font-bold text-amber-600 uppercase tracking-wider mb-2 flex items-center gap-1">
+                <Star className="w-3 h-3" /> Recomendado
               </span>
             )}
             <h3 className="text-lg font-bold text-foreground">{plan.name}</h3>
