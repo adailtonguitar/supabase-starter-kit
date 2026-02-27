@@ -58,7 +58,12 @@ export default function RelatorioVendas() {
   const { data: sales = [], isLoading: loadingSales } = useQuery({
     queryKey: ["report-sales", companyId, dateRange.from, dateRange.to],
     queryFn: async () => {
-      if (!companyId) return [];
+      if (!companyId) {
+        console.warn("[RelatorioVendas] companyId is null/undefined — cannot fetch sales");
+        return [];
+      }
+      console.log("[RelatorioVendas] Fetching sales for company:", companyId, "from:", dateRange.from, "to:", dateRange.to);
+      
       // Fetch sales from the sales table (source of truth)
       const { data: salesData, error: salesError } = await supabase
         .from("sales")
@@ -68,9 +73,10 @@ export default function RelatorioVendas() {
         .lte("created_at", dateRange.to)
         .order("created_at", { ascending: false });
       if (salesError) {
-        console.error("[RelatorioVendas] sales error:", salesError);
+        console.error("[RelatorioVendas] sales query error:", salesError);
         throw salesError;
       }
+      console.log("[RelatorioVendas] Sales found:", salesData?.length ?? 0);
       if (!salesData || salesData.length === 0) return [];
 
       // Fetch sale_items for all sales in the period
