@@ -6,26 +6,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const SYSTEM_PROMPT = `REGRAS OBRIGATÓRIAS:
-- Resposta com NO MÁXIMO 800 palavras. NUNCA exceda.
-- SEM saudação, SEM introdução, SEM "Prezado". Comece direto no tópico 1.
-- Cada bullet: máximo 1 frase curta (20 palavras).
-- Máximo 3 bullets por seção.
-- Seja telegráfico. Dados numéricos apenas.
-
-Estrutura fixa:
-## 1. Resumo Executivo
-(3 frases curtas)
-## 2. Pontos Positivos
-- bullet curto
-## 3. Pontos de Atenção
-- bullet curto
-## 4. Riscos
-- bullet curto
-## 5. Recomendações
-- bullet curto e prático
-## 6. Tendência próximo mês
-(2 frases)`;
+const SYSTEM_PROMPT = `Consultor financeiro de PMEs. Responda APENAS com a estrutura solicitada, sem nenhum texto antes ou depois.`;
 
 async function callGemini(apiKey: string, systemPrompt: string, userPrompt: string): Promise<{ content: string | null; error: string | null; status: number }> {
   // Tentar modelos em ordem de preferência (limites maiores primeiro)
@@ -44,7 +25,7 @@ async function callGemini(apiKey: string, systemPrompt: string, userPrompt: stri
           contents: [
             { role: "user", parts: [{ text: `${systemPrompt}\n\n${userPrompt}` }] },
           ],
-          generationConfig: { maxOutputTokens: 4096, temperature: 0.7 },
+          generationConfig: { maxOutputTokens: 2048, temperature: 0.5 },
         }),
       });
 
@@ -175,13 +156,35 @@ Deno.serve(async (req) => {
 
     console.log("[diagnostico] Dados encontrados. Receita:", financeiro.receita, "Despesas:", financeiro.despesas);
 
-    const userPrompt = `Analise os seguintes dados financeiros do mês ${mes_referencia}:
+    const userPrompt = `Dados financeiros de ${mes_referencia}:
 - Receita: R$ ${Number(financeiro.receita).toFixed(2)}
 - Despesas: R$ ${Number(financeiro.despesas).toFixed(2)}
 - Lucro: R$ ${Number(financeiro.lucro).toFixed(2)}
 - Inadimplência: ${Number(financeiro.inadimplencia).toFixed(1)}%
 - Clientes ativos: ${financeiro.clientes_ativos}
-- Percentual do maior cliente: ${Number(financeiro.percentual_maior_cliente).toFixed(1)}%`;
+- Maior cliente: ${Number(financeiro.percentual_maior_cliente).toFixed(1)}% da receita
+
+Responda EXATAMENTE neste formato (sem saudação, sem introdução, sem "Prezado"):
+
+## 1. Resumo Executivo
+(máximo 3 frases)
+
+## 2. Pontos Positivos
+- (máximo 3 bullets de 1 frase cada)
+
+## 3. Pontos de Atenção
+- (máximo 2 bullets de 1 frase cada)
+
+## 4. Riscos
+- (máximo 3 bullets de 1 frase cada)
+
+## 5. Recomendações
+- (máximo 4 ações práticas de 1 frase cada)
+
+## 6. Tendência próximo mês
+(máximo 2 frases)
+
+IMPORTANTE: Não ultrapasse 500 palavras no total.`;
 
     // Chamada única ao Gemini (sem retry para preservar quota)
     const result = await callGemini(GEMINI_KEY, SYSTEM_PROMPT, userPrompt);
