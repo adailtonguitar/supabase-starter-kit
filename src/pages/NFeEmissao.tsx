@@ -124,6 +124,23 @@ export default function NFeEmissao() {
   const [activeTab, setActiveTab] = useState<"dest" | "items" | "transport" | "payment">("dest");
   const [companyCrt, setCompanyCrt] = useState<number>(1);
   const [successData, setSuccessData] = useState<any>(null);
+  const [products, setProducts] = useState<any[]>([]);
+  const [productSearch, setProductSearch] = useState<Record<number, string>>({});
+  const [showProductDropdown, setShowProductDropdown] = useState<number | null>(null);
+
+  // Load products from database
+  useEffect(() => {
+    if (!companyId) return;
+    supabase
+      .from("products")
+      .select("id, name, sku, barcode, ncm, cfop, cst_csosn, unit, sale_price, stock_quantity")
+      .eq("company_id", companyId)
+      .eq("is_active", true)
+      .order("name")
+      .then(({ data }) => {
+        if (data) setProducts(data);
+      });
+  }, [companyId]);
 
   useEffect(() => {
     if (!companyId) return;
@@ -177,6 +194,38 @@ export default function NFeEmissao() {
 
   const addItem = () => {
     setForm((prev) => ({ ...prev, items: [...prev.items, emptyItem()] }));
+  };
+
+  const selectProduct = (idx: number, product: any) => {
+    setForm((prev) => {
+      const items = [...prev.items];
+      items[idx] = {
+        ...items[idx],
+        name: product.name || "",
+        productCode: product.sku || product.barcode || "",
+        ncm: product.ncm || "",
+        cfop: product.cfop || items[idx].cfop,
+        cst: product.cst_csosn || "",
+        unit: product.unit || "UN",
+        unitPrice: product.sale_price || 0,
+        qty: 1,
+        discount: 0,
+        total: product.sale_price || 0,
+      };
+      return { ...prev, items };
+    });
+    setProductSearch((prev) => ({ ...prev, [idx]: "" }));
+    setShowProductDropdown(null);
+  };
+
+  const getFilteredProducts = (idx: number) => {
+    const search = (productSearch[idx] || "").toLowerCase();
+    if (!search) return products.slice(0, 10);
+    return products.filter(p =>
+      p.name?.toLowerCase().includes(search) ||
+      p.sku?.toLowerCase().includes(search) ||
+      p.barcode?.includes(search)
+    ).slice(0, 10);
   };
 
   if (!plan.canUseFiscal()) {
@@ -565,10 +614,37 @@ export default function NFeEmissao() {
                       </button>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
-                      <div className="sm:col-span-3">
-                        <label className="text-xs text-muted-foreground">Descrição *</label>
-                        <input value={item.name} onChange={e => updateItem(idx, "name", e.target.value)}
-                          className="w-full mt-1 px-3 py-2 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30" />
+                      <div className="sm:col-span-3 relative">
+                        <label className="text-xs text-muted-foreground">Descrição * (busque pelo nome ou código)</label>
+                        <input
+                          value={productSearch[idx] !== undefined ? productSearch[idx] : item.name}
+                          onChange={e => {
+                            setProductSearch(prev => ({ ...prev, [idx]: e.target.value }));
+                            updateItem(idx, "name", e.target.value);
+                            setShowProductDropdown(idx);
+                          }}
+                          onFocus={() => setShowProductDropdown(idx)}
+                          onBlur={() => setTimeout(() => setShowProductDropdown(null), 200)}
+                          className="w-full mt-1 px-3 py-2 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+                          placeholder="Digite para buscar produto..."
+                        />
+                        {showProductDropdown === idx && getFilteredProducts(idx).length > 0 && (
+                          <div className="absolute z-20 left-0 right-0 mt-1 bg-card border border-border rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                            {getFilteredProducts(idx).map((p) => (
+                              <button
+                                key={p.id}
+                                type="button"
+                                onMouseDown={() => selectProduct(idx, p)}
+                                className="w-full text-left px-3 py-2 hover:bg-muted text-sm flex justify-between items-center transition-colors"
+                              >
+                                <span className="text-foreground truncate">{p.name}</span>
+                                <span className="text-xs text-muted-foreground ml-2 shrink-0">
+                                  {p.sku || p.barcode || ""} — {formatCurrency(p.sale_price || 0)}
+                                </span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
                       </div>
                       <div>
                         <label className="text-xs text-muted-foreground">Cód. Produto</label>
