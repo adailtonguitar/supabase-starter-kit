@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "./useCompany";
+import { toast } from "sonner";
 
 export interface Product {
   id: string;
@@ -78,6 +79,10 @@ export function useDeleteProduct() {
       const { error } = await supabase.from("products").delete().eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["products"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      toast.success("Produto excluído com sucesso");
+    },
+    onError: (e: Error) => toast.error(`Erro ao excluir: ${e.message}`),
   });
 }
