@@ -1,8 +1,9 @@
 import { useState, useEffect, useMemo } from "react";
 import {
   FileText, Send, Loader2, CheckCircle, AlertTriangle, X,
-  Plus, Trash2, User, Package, CreditCard, Truck, Info, Lock, ArrowLeft
+  Plus, Trash2, User, Package, CreditCard, Truck, Info, Lock, ArrowLeft, Search
 } from "lucide-react";
+import { useCnpjLookup } from "@/hooks/useCnpjLookup";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
 import { formatCurrency } from "@/lib/mock-data";
@@ -113,6 +114,7 @@ const emptyForm = (): NFeFormData => ({
 export default function NFeEmissao() {
   const { companyId } = useCompany();
   const plan = usePlanFeatures();
+  const { lookup: cnpjLookup, loading: cnpjLoading } = useCnpjLookup();
 
   const [form, setForm] = useState<NFeFormData>(emptyForm());
   const [emitting, setEmitting] = useState(false);
@@ -437,9 +439,37 @@ export default function NFeEmissao() {
                   </div>
                   <div>
                     <label className="text-xs text-muted-foreground">CPF/CNPJ *</label>
-                    <input value={form.destDoc} onChange={e => setForm(p => ({ ...p, destDoc: e.target.value }))}
-                      className="w-full mt-1 px-3 py-2 rounded-lg border border-border bg-background text-sm font-mono text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
-                      placeholder="00.000.000/0000-00" />
+                    <div className="flex gap-1.5 mt-1">
+                      <input value={form.destDoc} onChange={e => setForm(p => ({ ...p, destDoc: e.target.value }))}
+                        className="flex-1 px-3 py-2 rounded-lg border border-border bg-background text-sm font-mono text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+                        placeholder="00.000.000/0000-00" />
+                      <button
+                        type="button"
+                        disabled={cnpjLoading || form.destDoc.replace(/\D/g, "").length < 14}
+                        onClick={async () => {
+                          const result = await cnpjLookup(form.destDoc);
+                          if (result) {
+                            setForm(p => ({
+                              ...p,
+                              destName: result.name || p.destName,
+                              destEmail: result.email || p.destEmail,
+                              destStreet: result.address_street || p.destStreet,
+                              destNumber: result.address_number || p.destNumber,
+                              destComplement: result.address_complement || p.destComplement,
+                              destNeighborhood: result.address_neighborhood || p.destNeighborhood,
+                              destCity: result.address_city || p.destCity,
+                              destCityCode: result.address_ibge_code || p.destCityCode,
+                              destUF: result.address_state || p.destUF,
+                              destZip: result.address_zip || p.destZip,
+                            }));
+                          }
+                        }}
+                        className="px-3 py-2 rounded-lg border border-border bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-40"
+                        title="Buscar CNPJ"
+                      >
+                        {cnpjLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+                      </button>
+                    </div>
                   </div>
                   <div>
                     <label className="text-xs text-muted-foreground">Inscrição Estadual</label>
