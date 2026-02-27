@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { format, parseISO } from "date-fns";
+import { format, parseISO, startOfMonth, endOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { motion } from "framer-motion";
 import {
@@ -45,12 +45,16 @@ export default function DRE() {
         return [];
       }
       console.log("[DRE] Fetching sales for month:", month, "companyId:", companyId);
+      const monthDate = parseISO(`${month}-01`);
+      const from = startOfMonth(monthDate);
+      const to = endOfMonth(monthDate);
+      console.log("[DRE] Date range:", from.toISOString(), "to", to.toISOString());
       const { data, error } = await supabase
         .from("sales")
         .select("id, total, created_at")
         .eq("company_id", companyId)
-        .gte("created_at", `${month}-01T00:00:00`)
-        .lte("created_at", `${month}-31T23:59:59`);
+        .gte("created_at", from.toISOString())
+        .lte("created_at", to.toISOString());
       if (error) {
         console.error("[DRE] sales error:", error);
         throw error;
