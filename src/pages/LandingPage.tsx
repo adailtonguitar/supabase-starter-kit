@@ -2,6 +2,7 @@ import { UpdateNoticeModal } from "@/components/UpdateNoticeModal";
 import { LandingNav } from "@/components/landing/LandingNav";
 import { LandingHero } from "@/components/landing/LandingHero";
 import { LandingFeatures } from "@/components/landing/LandingFeatures";
+import { LandingMobileShowcase } from "@/components/landing/LandingMobileShowcase";
 import { LandingAnalytics } from "@/components/landing/LandingAnalytics";
 import { LandingAdvantages } from "@/components/landing/LandingAdvantages";
 import { LandingHowItWorks } from "@/components/landing/LandingHowItWorks";
@@ -10,7 +11,7 @@ import { LandingLoyalty } from "@/components/landing/LandingLoyalty";
 import { LandingMultiStore } from "@/components/landing/LandingMultiStore";
 import { LandingCalculator } from "@/components/landing/LandingCalculator";
 import { LandingComparison } from "@/components/landing/LandingComparison";
-import { LandingTestimonials } from "@/components/landing/LandingTestimonials";
+import { LandingAuthority } from "@/components/landing/LandingAuthority";
 import { LandingPricing } from "@/components/landing/LandingPricing";
 import { LandingFAQ } from "@/components/landing/LandingFAQ";
 import { LandingCTA } from "@/components/landing/LandingCTA";
@@ -24,6 +25,7 @@ export default function LandingPage() {
       <LandingNav />
       <LandingHero />
       <LandingFeatures />
+      <LandingMobileShowcase />
       <LandingHowItWorks />
       <LandingLoyalty />
       <LandingAnalytics />
@@ -32,7 +34,7 @@ export default function LandingPage() {
       <LandingCalculator />
       <LandingAdvantages />
       <LandingComparison />
-      <LandingTestimonials />
+      <LandingAuthority />
       <LandingPricing />
       <LandingFAQ />
       <LandingCTA />

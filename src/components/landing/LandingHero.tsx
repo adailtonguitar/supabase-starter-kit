@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowRight, Play, CheckCircle2 } from "lucide-react";
+import { ArrowRight, Play, CheckCircle2, Wifi, MessageCircle, Rocket, ShoppingCart, TrendingUp, Brain, Package } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import heroDashboard from "@/assets/hero-dashboard.png";
 
@@ -8,6 +8,12 @@ const highlights = [
   "PDV com leitor e balança",
   "NFC-e / NF-e automática",
   "Funciona offline",
+];
+
+const trustBadges = [
+  { icon: Wifi, text: "Funciona mesmo sem internet" },
+  { icon: MessageCircle, text: "Suporte rápido via WhatsApp" },
+  { icon: Rocket, text: "Implantação simples" },
 ];
 
 export function LandingHero() {
@@ -45,9 +51,7 @@ export function LandingHero() {
             </h1>
 
             <p className="mt-6 text-lg text-muted-foreground leading-relaxed max-w-lg">
-              PDV rápido, emissão fiscal, estoque com lotes e validade, financeiro completo.
-              Tudo integrado e{" "}
-              <strong className="text-foreground font-semibold">funcionando mesmo sem internet.</strong>
+              Reduza perdas, aumente o lucro e tenha controle total do seu supermercado em um único sistema.
             </p>
 
             <div className="flex flex-wrap gap-4 mt-6">
@@ -62,7 +66,7 @@ export function LandingHero() {
             <div className="flex flex-col sm:flex-row gap-3 mt-10">
               <Button asChild size="lg" className="text-base px-8 h-13 shadow-lg shadow-primary/20 font-semibold">
                 <Link to="/auth">
-                  Começar grátis por 15 dias
+                  Começar teste grátis por 15 dias
                   <ArrowRight className="w-4 h-4 ml-2" />
                 </Link>
               </Button>
@@ -74,8 +78,18 @@ export function LandingHero() {
               </Button>
             </div>
 
+            {/* Trust badges */}
+            <div className="mt-8 flex flex-col sm:flex-row gap-3">
+              {trustBadges.map((b) => (
+                <div key={b.text} className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <b.icon className="w-4 h-4 text-primary flex-shrink-0" />
+                  <span>✔ {b.text}</span>
+                </div>
+              ))}
+            </div>
+
             {/* Social proof */}
-            <div className="mt-10 flex items-center gap-4 text-sm text-muted-foreground">
+            <div className="mt-8 flex items-center gap-4 text-sm text-muted-foreground">
               <div className="flex -space-x-2">
                 {[1, 2, 3, 4].map((i) => (
                   <div
@@ -92,13 +106,14 @@ export function LandingHero() {
             </div>
           </motion.div>
 
-          {/* Right — Hero Image */}
+          {/* Right — Hero Image: Notebook + Phone Mockup */}
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.2 }}
             className="relative"
           >
+            {/* Notebook mockup */}
             <motion.div
               animate={{ y: [0, -8, 0] }}
               transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
@@ -110,9 +125,49 @@ export function LandingHero() {
                 className="w-full h-auto"
                 loading="eager"
               />
-              {/* Gradient overlay */}
               <div className="absolute inset-0 bg-gradient-to-t from-background/20 to-transparent pointer-events-none" />
             </motion.div>
+
+            {/* Phone mockup overlay */}
+            <motion.div
+              animate={{ y: [0, -6, 0] }}
+              transition={{ duration: 3.5, repeat: Infinity, ease: "easeInOut", delay: 0.3 }}
+              className="absolute -bottom-6 -right-4 sm:right-4 w-36 sm:w-44 bg-card border-2 border-border rounded-3xl p-3 shadow-2xl"
+            >
+              <div className="w-10 h-1 bg-muted rounded-full mx-auto mb-2" />
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 bg-primary/10 rounded-lg p-2">
+                  <ShoppingCart className="w-3.5 h-3.5 text-primary" />
+                  <div>
+                    <p className="text-[9px] text-muted-foreground">Vendas hoje</p>
+                    <p className="text-xs font-bold text-foreground">R$ 12.450</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 bg-emerald-500/10 rounded-lg p-2">
+                  <TrendingUp className="w-3.5 h-3.5 text-emerald-500" />
+                  <div>
+                    <p className="text-[9px] text-muted-foreground">Lucro</p>
+                    <p className="text-xs font-bold text-emerald-600">R$ 3.890</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 bg-purple-500/10 rounded-lg p-2">
+                  <Brain className="w-3.5 h-3.5 text-purple-500" />
+                  <div>
+                    <p className="text-[9px] text-muted-foreground">Insight IA</p>
+                    <p className="text-[9px] font-medium text-foreground leading-tight">Promoção sugerida</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 bg-amber-500/10 rounded-lg p-2">
+                  <Package className="w-3.5 h-3.5 text-amber-500" />
+                  <div>
+                    <p className="text-[9px] text-muted-foreground">Estoque</p>
+                    <p className="text-[9px] font-medium text-amber-600">3 alertas</p>
+                  </div>
+                </div>
+              </div>
+              <div className="w-8 h-1 bg-muted rounded-full mx-auto mt-2" />
+            </motion.div>
+
             {/* Floating stat card */}
             <motion.div
               animate={{ y: [0, -5, 0] }}
