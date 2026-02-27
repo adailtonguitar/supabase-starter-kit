@@ -53,7 +53,7 @@ export default function Producao() {
       if (!companyId || !user) throw new Error("Sem empresa");
       if (!recipeName.trim()) throw new Error("Nome obrigatório");
       if (ingredients.length === 0) throw new Error("Adicione pelo menos 1 ingrediente");
-      const { data: recipe, error } = await supabase.from("recipes").insert({ company_id: companyId, name: recipeName.trim(), description: recipeDesc || null, output_product_id: outputProductId || null, output_quantity: outputQty, output_unit: outputUnit }).select().single();
+      const { data: recipe, error } = await supabase.from("recipes").insert({ company_id: companyId, name: recipeName.trim(), output_product_id: outputProductId || null, output_quantity: outputQty, output_unit: outputUnit }).select().single();
       if (error) throw error;
       const ingInserts = ingredients.map((i) => ({ recipe_id: recipe.id, product_id: i.product_id, quantity: i.quantity, unit: i.unit, company_id: companyId }));
       const { error: ingErr } = await supabase.from("recipe_ingredients").insert(ingInserts);
