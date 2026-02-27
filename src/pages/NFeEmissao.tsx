@@ -317,61 +317,75 @@ export default function NFeEmissao() {
         return;
       }
 
-      const { data, error } = await supabase.functions.invoke("emit-nfce", {
-        body: {
-          action: "emit_nfe",
-          company_id: companyId,
-          config_id: nfeConfig.id,
-          form: {
-            nat_op: form.natOp,
-            finalidade: form.finalidade,
-            inf_adic: form.infAdic,
-            // Destinatário
-            dest_name: form.destName,
-            dest_doc: form.destDoc,
-            dest_ie: form.destIE,
-            dest_email: form.destEmail,
-            dest_street: form.destStreet,
-            dest_number: form.destNumber,
-            dest_complement: form.destComplement,
-            dest_neighborhood: form.destNeighborhood,
-            dest_city: form.destCity,
-            dest_city_code: form.destCityCode,
-            dest_uf: form.destUF,
-            dest_zip: form.destZip,
-            // Pagamento
-            payment_method: form.paymentMethod,
-            payment_value: form.paymentValue || totalItems,
-            // Transporte
-            frete: form.frete,
-            transport_name: form.transportName,
-            transport_doc: form.transportDoc,
-            transport_plate: form.transportPlate,
-            transport_uf: form.transportUF,
-            volumes: form.volumes,
-            gross_weight: form.grossWeight,
-            net_weight: form.netWeight,
-            // Itens
-            items: form.items.map((it) => ({
-              name: it.name,
-              product_code: it.productCode,
-              ncm: it.ncm,
-              cfop: it.cfop,
-              cst: it.cst,
-              unit: it.unit,
-              qty: it.qty,
-              unit_price: it.unitPrice,
-              discount: it.discount,
-              pis_cst: it.pisCst,
-              cofins_cst: it.cofinsCst,
-              icms_aliquota: it.icmsAliquota || undefined,
-              origem: it.origem,
-            })),
+      let data: any = null;
+      let invokeError: any = null;
+      
+      try {
+        const result = await supabase.functions.invoke("emit-nfce", {
+          body: {
+            action: "emit_nfe",
+            company_id: companyId,
+            config_id: nfeConfig.id,
+            form: {
+              nat_op: form.natOp,
+              finalidade: form.finalidade,
+              inf_adic: form.infAdic,
+              dest_name: form.destName,
+              dest_doc: form.destDoc,
+              dest_ie: form.destIE,
+              dest_email: form.destEmail,
+              dest_street: form.destStreet,
+              dest_number: form.destNumber,
+              dest_complement: form.destComplement,
+              dest_neighborhood: form.destNeighborhood,
+              dest_city: form.destCity,
+              dest_city_code: form.destCityCode,
+              dest_uf: form.destUF,
+              dest_zip: form.destZip,
+              payment_method: form.paymentMethod,
+              payment_value: form.paymentValue || totalItems,
+              frete: form.frete,
+              transport_name: form.transportName,
+              transport_doc: form.transportDoc,
+              transport_plate: form.transportPlate,
+              transport_uf: form.transportUF,
+              volumes: form.volumes,
+              gross_weight: form.grossWeight,
+              net_weight: form.netWeight,
+              items: form.items.map((it) => ({
+                name: it.name,
+                product_code: it.productCode,
+                ncm: it.ncm,
+                cfop: it.cfop,
+                cst: it.cst,
+                unit: it.unit,
+                qty: it.qty,
+                unit_price: it.unitPrice,
+                discount: it.discount,
+                pis_cst: it.pisCst,
+                cofins_cst: it.cofinsCst,
+                icms_aliquota: it.icmsAliquota || undefined,
+                origem: it.origem,
+              })),
+            },
           },
-        },
-      });
+        });
+        data = result.data;
+        invokeError = result.error;
+      } catch (fetchErr: any) {
+        setStep("error");
+        setErrorMsg(fetchErr?.message || "Erro de comunicação com o servidor fiscal. Verifique se o certificado digital está configurado.");
+        setEmitting(false);
+        return;
+      }
 
-      if (error) throw error;
+      if (invokeError) {
+        setStep("error");
+        const msg = typeof invokeError === "string" ? invokeError : invokeError?.message || "Edge Function retornou erro. Verifique a configuração do certificado digital.";
+        setErrorMsg(msg);
+        setEmitting(false);
+        return;
+      }
 
       if (data?.success) {
         setStep("success");
@@ -379,14 +393,14 @@ export default function NFeEmissao() {
         toast.success("NF-e emitida com sucesso!");
       } else {
         setStep("error");
-        const errText = data?.error || "Erro ao emitir NF-e.";
+        const errText = data?.error || "Erro ao emitir NF-e. Verifique se o certificado digital está configurado.";
         setErrorMsg(errText);
         const rej = parseSefazRejection(errText, data?.details);
         setRejection(rej);
       }
     } catch (err: any) {
       setStep("error");
-      setErrorMsg(err?.message || "Erro de comunicação com o servidor fiscal.");
+      setErrorMsg(err?.message || "Erro inesperado. Verifique a configuração fiscal e o certificado digital.");
     } finally {
       setEmitting(false);
     }
