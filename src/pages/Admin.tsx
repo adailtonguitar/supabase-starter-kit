@@ -12,7 +12,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Shield, Activity, Search, Ban, CheckCircle, LayoutDashboard, Users, CreditCard, FileText, DollarSign } from "lucide-react";
+import { Shield, Activity, Search, Ban, CheckCircle, LayoutDashboard, Users, CreditCard, FileText, DollarSign, Trash2 } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { AdminDashboard } from "@/components/admin/AdminDashboard";
 import { AdminSubscriptions } from "@/components/admin/AdminSubscriptions";
 import { AdminCompanyUsers } from "@/components/admin/AdminCompanyUsers";
@@ -103,6 +104,7 @@ function CompaniesTab() {
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [blockReasons, setBlockReasons] = useState<Record<string, string>>({});
+  const [deleting, setDeleting] = useState<string | null>(null);
 
   const fetchCompanies = async () => {
     setLoading(true);
@@ -132,6 +134,18 @@ function CompaniesTab() {
     }
 
     toast.success(newBlocked ? `${company.name} bloqueada` : `${company.name} desbloqueada`);
+    fetchCompanies();
+  };
+
+  const deleteCompany = async (company: CompanyRow) => {
+    setDeleting(company.id);
+    const { error } = await supabase.from("companies").delete().eq("id", company.id);
+    setDeleting(null);
+    if (error) {
+      toast.error("Erro ao excluir: " + error.message);
+      return;
+    }
+    toast.success(`${company.name} excluída permanentemente`);
     fetchCompanies();
   };
 
@@ -187,9 +201,36 @@ function CompaniesTab() {
                   {c.is_blocked && c.block_reason && (
                     <p className="text-xs text-muted-foreground">Motivo: {c.block_reason}</p>
                   )}
-                  <div className="flex items-center justify-end gap-2 pt-1">
-                    <span className="text-xs text-muted-foreground">{c.is_blocked ? "Bloqueada" : "Ativa"}</span>
-                    <Switch checked={c.is_blocked} onCheckedChange={() => toggleBlock(c)} />
+                  <div className="flex items-center justify-between gap-2 pt-1">
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive h-7 px-2">
+                          <Trash2 className="h-3.5 w-3.5 mr-1" /> Excluir
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Excluir empresa permanentemente?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            A empresa <strong>{c.name}</strong> e todos os dados vinculados (usuários, planos, vendas, produtos) serão apagados permanentemente. Esta ação não pode ser desfeita.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => deleteCompany(c)}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            disabled={deleting === c.id}
+                          >
+                            {deleting === c.id ? "Excluindo..." : "Sim, excluir"}
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">{c.is_blocked ? "Bloqueada" : "Ativa"}</span>
+                      <Switch checked={c.is_blocked} onCheckedChange={() => toggleBlock(c)} />
+                    </div>
                   </div>
                 </div>
               ))}
@@ -234,6 +275,31 @@ function CompaniesTab() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-2">
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive h-8 w-8">
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Excluir empresa permanentemente?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  A empresa <strong>{c.name}</strong> e todos os dados vinculados (usuários, planos, vendas, produtos) serão apagados permanentemente. Esta ação não pode ser desfeita.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => deleteCompany(c)}
+                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                  disabled={deleting === c.id}
+                                >
+                                  {deleting === c.id ? "Excluindo..." : "Sim, excluir"}
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
                           <span className="text-xs text-muted-foreground">{c.is_blocked ? "Bloqueada" : "Ativa"}</span>
                           <Switch checked={c.is_blocked} onCheckedChange={() => toggleBlock(c)} />
                         </div>
