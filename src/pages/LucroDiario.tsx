@@ -24,9 +24,75 @@ export default function LucroDiario() {
     queryKey: ["daily-profit", companyId, dateStr],
     queryFn: async () => {
       if (!companyId) return null;
-      const { data, error } = await supabase.rpc("get_daily_profit_report", { p_company_id: companyId, p_date: dateStr });
-      if (error) throw error;
-      return data?.[0] || null;
+
+      const dayStart = `${dateStr}T00:00:00.000Z`;
+      const dayEnd = `${dateStr}T23:59:59.999Z`;
+
+      // Fetch sales for the day
+      const { data: salesData, error: salesError } = await supabase
+        .from("sales")
+        .select("id, total, payments")
+        .eq("company_id", companyId)
+        .gte("created_at", dayStart)
+        .lte("created_at", dayEnd);
+      if (salesError) { console.error("[LucroDiario] sales error:", salesError); return null; }
+      if (!salesData || salesData.length === 0) return null;
+
+      const saleIds = salesData.map((s: any) => s.id);
+
+      // Fetch sale_items for cost calculation
+      const { data: itemsData } = await supabase
+        .from("sale_items")
+        .select("product_id, quantity, unit_price")
+        .in("sale_id", saleIds);
+
+      // Fetch product costs
+      const productIds = [...new Set((itemsData || []).map((i: any) => i.product_id).filter(Boolean))];
+      let costMap: Record<string, number> = {};
+      if (productIds.length > 0) {
+        const { data: productsData } = await supabase
+          .from("products")
+          .select("id, cost_price")
+          .in("id", productIds);
+        (productsData || []).forEach((p: any) => { costMap[p.id] = Number(p.cost_price || 0); });
+      }
+
+      // Calculate totals
+      const totalRevenue = salesData.reduce((s: number, sale: any) => s + Number(sale.total || 0), 0);
+      let totalCost = 0;
+      let itemsRevenue = 0;
+      (itemsData || []).forEach((item: any) => {
+        itemsRevenue += Number(item.quantity) * Number(item.unit_price);
+        totalCost += Number(item.quantity) * (costMap[item.product_id] || 0);
+      });
+
+      const profit = totalRevenue - totalCost;
+      const margin = totalRevenue > 0 ? (profit / totalRevenue) * 100 : 0;
+
+      // Payment breakdown
+      const byPayment: Record<string, number> = {};
+      salesData.forEach((sale: any) => {
+        const payments = sale.payments;
+        if (Array.isArray(payments)) {
+          payments.forEach((p: any) => {
+            const method = p.method || "outros";
+            byPayment[method] = (byPayment[method] || 0) + Number(p.amount || 0);
+          });
+        } else if (payments && typeof payments === "object") {
+          Object.entries(payments).forEach(([method, amount]) => {
+            byPayment[method] = (byPayment[method] || 0) + Number(amount || 0);
+          });
+        }
+      });
+
+      return {
+        total_sales: salesData.length,
+        total_revenue: totalRevenue,
+        total_cost: totalCost,
+        profit,
+        margin,
+        by_payment: byPayment,
+      };
     },
     enabled: !!companyId,
   });
