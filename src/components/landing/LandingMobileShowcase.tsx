@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import { Smartphone, TrendingUp, DollarSign, BarChart3, AlertTriangle } from "lucide-react";
+import mobileMockup from "@/assets/mobile-mockup.png";
 
 const mobileFeatures = [
   { icon: BarChart3, label: "Painel financeiro", value: "R$ 45.200", color: "bg-primary/10 text-primary" },
@@ -24,63 +25,18 @@ export function LandingMobileShowcase() {
             viewport={{ once: true }}
             className="flex justify-center"
           >
-            <div className="relative">
-              <motion.div
-                animate={{ y: [0, -10, 0] }}
-                transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-                className="w-64 sm:w-72 bg-card border-2 border-border rounded-[2.5rem] p-5 shadow-2xl shadow-primary/10"
-              >
-                {/* Phone notch */}
-                <div className="w-20 h-1.5 bg-muted rounded-full mx-auto mb-4" />
-                
-                {/* Dashboard header */}
-                <div className="mb-4">
-                  <p className="text-xs text-muted-foreground">Bem-vindo de volta 👋</p>
-                  <p className="text-sm font-bold text-foreground">Dashboard</p>
-                </div>
-
-                {/* Stats grid */}
-                <div className="grid grid-cols-2 gap-2 mb-4">
-                  {mobileFeatures.map((f) => (
-                    <div key={f.label} className={`rounded-xl p-3 ${f.color.split(" ")[0]}`}>
-                      <f.icon className={`w-4 h-4 mb-1 ${f.color.split(" ")[1]}`} />
-                      <p className="text-[10px] text-muted-foreground">{f.label}</p>
-                      <p className="text-xs font-bold text-foreground">{f.value}</p>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Mini chart */}
-                <div className="rounded-xl border border-border p-3 mb-3">
-                  <p className="text-[10px] font-semibold text-foreground mb-2">Vendas da semana</p>
-                  <div className="flex items-end gap-1 h-12">
-                    {[40, 65, 45, 80, 55, 90, 70].map((h, i) => (
-                      <div
-                        key={i}
-                        className="flex-1 rounded-sm bg-primary/20"
-                        style={{ height: `${h}%` }}
-                      >
-                        <div
-                          className="w-full rounded-sm bg-primary transition-all"
-                          style={{ height: `${h}%` }}
-                        />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* AI Insight */}
-                <div className="rounded-xl bg-purple-500/10 border border-purple-500/20 p-3">
-                  <p className="text-[10px] font-semibold text-purple-600 mb-1">💡 Insight da IA</p>
-                  <p className="text-[10px] text-muted-foreground leading-relaxed">
-                    Arroz 5kg está com estoque para apenas 3 dias. Sugiro reposição imediata.
-                  </p>
-                </div>
-
-                {/* Phone bottom bar */}
-                <div className="w-12 h-1 bg-muted rounded-full mx-auto mt-4" />
-              </motion.div>
-            </div>
+            <motion.div
+              animate={{ y: [0, -10, 0] }}
+              transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+              className="relative"
+            >
+              <img
+                src={mobileMockup}
+                alt="AnthoSystem no celular — dashboard mobile com vendas, lucro e alertas"
+                className="w-64 sm:w-72 rounded-3xl shadow-2xl shadow-primary/10"
+                loading="lazy"
+              />
+            </motion.div>
           </motion.div>
 
           {/* Text */}

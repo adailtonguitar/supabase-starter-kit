@@ -13,6 +13,8 @@ import {
   Brain,
   CreditCard,
 } from "lucide-react";
+import pdvCashier from "@/assets/pdv-cashier.png";
+import stockEmployee from "@/assets/stock-employee.png";
 
 const features = [
   {
@@ -127,6 +129,35 @@ export function LandingFeatures() {
               <p className="mt-2 text-sm text-muted-foreground leading-relaxed">{f.desc}</p>
             </motion.div>
           ))}
+        </div>
+
+        {/* Contextual images */}
+        <div className="grid md:grid-cols-2 gap-6 mt-16">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="rounded-2xl overflow-hidden border border-border shadow-lg"
+          >
+            <img src={pdvCashier} alt="Operadora de caixa usando o PDV AnthoSystem no supermercado" className="w-full h-auto object-cover" loading="lazy" />
+            <div className="p-4 bg-card">
+              <p className="font-semibold text-sm">PDV rápido e intuitivo</p>
+              <p className="text-xs text-muted-foreground">Operação ágil com leitor, balança e TEF integrados.</p>
+            </div>
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.1 }}
+            className="rounded-2xl overflow-hidden border border-border shadow-lg"
+          >
+            <img src={stockEmployee} alt="Funcionário conferindo estoque com leitor de código de barras" className="w-full h-auto object-cover" loading="lazy" />
+            <div className="p-4 bg-card">
+              <p className="font-semibold text-sm">Controle de estoque real</p>
+              <p className="text-xs text-muted-foreground">Inventário com lotes, validade e alertas automáticos.</p>
+            </div>
+          </motion.div>
         </div>
       </div>
     </section>
