@@ -56,13 +56,13 @@ export default function Renovar() {
       name: "Business",
       price: "199,90",
       features: ["8 sessões simultâneas", "NFC-e", "IA integrada", "Multi-usuários"],
-      highlighted: true,
     },
     {
       key: "pro",
       name: "Pro",
       price: "349,90",
       features: ["Sessões ilimitadas", "Todos os módulos", "NF-e + NFC-e", "Suporte dedicado"],
+      highlighted: true,
       recommended: true,
     },
   ];
