@@ -152,13 +152,28 @@ function CompaniesTab() {
     }
     setDeleting(company.id);
     try {
+      // First, get sale IDs to delete sale_items (which doesn't have company_id)
+      const { data: salesData } = await supabase
+        .from("sales")
+        .select("id")
+        .eq("company_id", company.id);
+      const saleIds = (salesData || []).map((s: any) => s.id);
+
+      // Delete sale_items by sale_id (no company_id column)
+      if (saleIds.length > 0) {
+        // Delete in batches of 100 to avoid URL length limits
+        for (let i = 0; i < saleIds.length; i += 100) {
+          const batch = saleIds.slice(i, i + 100);
+          await supabase.from("sale_items").delete().in("sale_id", batch);
+        }
+      }
+
       // Delete related records in dependency order (children first)
       const relatedTables = [
         "action_logs", "user_sessions", "telemetry",
         "loyalty_transactions", "loyalty_config",
         "nfce_queue", "fiscal_config",
         "cash_sessions",
-        "sale_items",
         "sales",
         "stock_movements", "stock_transfers",
         "financial_entries",
@@ -169,12 +184,28 @@ function CompaniesTab() {
         "company_users", "subscriptions",
         "branches",
       ];
+
+      const failedTables: string[] = [];
       for (const table of relatedTables) {
         const { error: delErr } = await supabase.from(table).delete().eq("company_id", company.id);
         if (delErr) {
           console.warn(`[AdminDelete] Falha ao limpar ${table}:`, delErr.message);
+          failedTables.push(table);
         }
       }
+
+      if (failedTables.length > 0) {
+        console.warn(`[AdminDelete] Tabelas com falha (possivelmente RLS): ${failedTables.join(", ")}`);
+        // Retry failed tables with a different approach - try to select count first
+        for (const table of failedTables) {
+          const { count } = await supabase.from(table).select("*", { count: "exact", head: true }).eq("company_id", company.id);
+          if (count && count > 0) {
+            toast.error(`Não foi possível limpar ${table} (${count} registros). Verifique permissões RLS.`);
+            return;
+          }
+        }
+      }
+
       const { error } = await supabase.from("companies").delete().eq("id", company.id);
       if (error) {
         toast.error("Erro ao excluir: " + error.message);
