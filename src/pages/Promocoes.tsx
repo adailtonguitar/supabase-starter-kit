@@ -87,7 +87,6 @@ export default function Promocoes() {
       // Send only columns that exist in the current DB schema
       const payload: Record<string, any> = {
         name: name.trim(),
-        description: [promoType, description.trim()].filter(Boolean).join(" — "),
         scope,
         min_quantity: minQty,
         starts_at: new Date(startsAt).toISOString(),
