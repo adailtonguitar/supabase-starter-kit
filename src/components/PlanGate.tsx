@@ -13,6 +13,10 @@ interface PlanGateProps {
  * Maps legacy PlanGate feature keys to plan feature checks.
  */
 function isFeatureAllowed(feature: string, plan: ReturnType<typeof usePlanFeatures>): boolean {
+  // Pro-only features (Filiais, Diagnóstico Financeiro, Relatórios IA completos)
+  const proOnlyFeatures = ["hasBranches", "hasDiagnostico", "hasFullAiReports"];
+  if (proOnlyFeatures.includes(feature)) return plan.plan === "pro" && plan.isActive();
+
   const advancedFeatures = [
     "hasProfitPanel", "hasFinancialAlerts", "hasDre", "hasCashFlow",
     "hasCostCenter", "hasCommissions", "hasBankReconciliation",
