@@ -84,6 +84,7 @@ const DiagnosticoFinanceiro = lazy(() => import("./pages/DiagnosticoFinanceiro")
 const Ruptura = lazy(() => import("./pages/Ruptura"));
 const SugestaoCompra = lazy(() => import("./pages/SugestaoCompra"));
 const PainelDono = lazy(() => import("./pages/PainelDono"));
+const NFeEmissao = lazy(() => import("./pages/NFeEmissao"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -286,6 +287,7 @@ function AppRoutes() {
                     <Route path="/fiscal/assinador" element={<AssinadorDownload />} />
                     <Route path="/fiscal/auditoria" element={<AuditLogs />} />
                     <Route path="/fiscal/comparar-xml" element={<CompararXML />} />
+                    <Route path="/fiscal/nfe" element={<NFeEmissao />} />
                     <Route path="/financeiro" element={<Financeiro />} />
                     <Route
                       path="/dre"

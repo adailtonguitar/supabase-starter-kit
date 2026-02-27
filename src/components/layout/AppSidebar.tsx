@@ -117,6 +117,7 @@ const navItems: NavEntry[] = [
     label: "Fiscal",
     children: [
       { icon: Receipt, label: "Documentos", path: "/fiscal" },
+      { icon: FileText, label: "Emitir NF-e", path: "/fiscal/nfe" },
       { icon: Shield, label: "Config. Fiscal", path: "/fiscal/config" },
       { icon: ScrollText, label: "Auditoria", path: "/fiscal/auditoria" },
       { icon: ArrowRightLeft, label: "Comparar XML", path: "/fiscal/comparar-xml" },
