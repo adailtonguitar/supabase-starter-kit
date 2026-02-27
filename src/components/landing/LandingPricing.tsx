@@ -52,6 +52,8 @@ const plans = [
       "Gestão de Filiais",
       "Diagnóstico Financeiro com IA",
       "Relatórios avançados com IA",
+      "Relatório de Ruptura de Estoque",
+      "Sugestão de Compra com IA",
       "NF-e + NFC-e ilimitadas",
       "Suporte dedicado",
     ],
