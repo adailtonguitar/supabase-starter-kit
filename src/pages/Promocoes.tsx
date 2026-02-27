@@ -88,14 +88,11 @@ export default function Promocoes() {
         name: name.trim(),
         description: description.trim() || undefined,
         promo_type: promoType,
-        discount_percent: promoType === "percentual" ? discountPercent : 0,
-        fixed_price: promoType === "preco_fixo" ? fixedPrice : 0,
         scope,
         category_name: scope === "category" ? categoryName : undefined,
         min_quantity: minQty,
         starts_at: new Date(startsAt).toISOString(),
         ends_at: endsAt ? new Date(endsAt).toISOString() : undefined,
-        // active_days not in DB schema — stored locally only
         product_ids: scope === "product" ? selectedProducts : undefined,
       });
       setOpen(false);
