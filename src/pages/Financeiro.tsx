@@ -104,7 +104,7 @@ export default function Financeiro() {
   };
 
   return (
-    <div className="p-3 sm:p-6 space-y-4 sm:space-y-6 max-w-7xl mx-auto">
+    <div className="p-3 sm:p-6 space-y-4 sm:space-y-6 max-w-7xl mx-auto min-w-0 w-full">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-foreground">Financeiro</h1>
@@ -411,14 +411,14 @@ export default function Financeiro() {
 
 function SummaryCard({ icon: Icon, label, value, paid, color }: { icon: any; label: string; value: number; paid?: number; color: string }) {
   return (
-    <div className="bg-card rounded-xl border border-border p-4 card-shadow">
+    <div className="bg-card rounded-xl border border-border p-3 sm:p-4 card-shadow min-w-0 overflow-hidden">
       <div className="flex items-center gap-2 mb-2">
-        <Icon className={`w-4 h-4 ${color}`} />
-        <p className="text-xs text-muted-foreground">{label}</p>
+        <Icon className={`w-4 h-4 ${color} shrink-0`} />
+        <p className="text-[10px] sm:text-xs text-muted-foreground truncate">{label}</p>
       </div>
-      <p className={`text-xl font-bold font-mono ${color}`}>{formatCurrency(value)}</p>
+      <p className={`text-lg sm:text-xl font-bold font-mono ${color} truncate`}>{formatCurrency(value)}</p>
       {paid !== undefined && (
-        <p className="text-xs text-muted-foreground mt-1">Realizado: {formatCurrency(paid)}</p>
+        <p className="text-[10px] sm:text-xs text-muted-foreground mt-1">Realizado: {formatCurrency(paid)}</p>
       )}
     </div>
   );
