@@ -10,7 +10,7 @@ export function LandingCalculator() {
 
   const perdaMensal = (faturamento * perdas) / 100;
   const perdaAnual = perdaMensal * 12;
-  const economiaComSistema = perdaAnual * 0.7; // sistema reduz 70% das perdas
+  const economiaComSistema = perdaAnual * 0.7;
 
   const formatCurrency = (value: number) =>
     value.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
@@ -24,6 +24,11 @@ export function LandingCalculator() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
           >
+            {/* Impact question before calculator */}
+            <p className="text-xl sm:text-2xl font-bold text-foreground mb-6">
+              Você sabe exatamente quanto está perdendo por mês?
+            </p>
+
             <Calculator className="w-8 h-8 text-primary mx-auto mb-3" />
             <span className="text-primary text-sm font-semibold uppercase tracking-wider">
               Calculadora de Economia
@@ -127,6 +132,11 @@ export function LandingCalculator() {
                   </p>
                 </div>
               </div>
+
+              {/* Impact text after results */}
+              <p className="text-center text-sm font-semibold text-destructive/80 italic pt-2">
+                Cada mês sem controle é dinheiro indo embora.
+              </p>
 
               <Button asChild size="lg" className="w-full h-12 font-semibold text-base shadow-lg shadow-primary/20 mt-2">
                 <Link to="/auth">

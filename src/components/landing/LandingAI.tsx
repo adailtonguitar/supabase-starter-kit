@@ -33,6 +33,20 @@ export function LandingAI() {
       </div>
 
       <div className="relative max-w-7xl mx-auto px-6">
+        {/* Impact text before AI section */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="text-center mb-8"
+        >
+          <p className="text-lg sm:text-xl font-semibold text-foreground max-w-3xl mx-auto leading-relaxed">
+            "Enquanto outros sistemas apenas registram dados, o AnthoSystem{" "}
+            <span className="text-purple-500">analisa e entrega decisões prontas</span>{" "}
+            para você lucrar mais."
+          </p>
+        </motion.div>
+
         <div className="text-center mb-16">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -78,7 +92,7 @@ export function LandingAI() {
         </div>
 
         {/* Visual highlight */}
-        <div className="grid md:grid-cols-2 gap-6 max-w-5xl mx-auto">
+        <div className="grid md:grid-cols-2 gap-6 max-w-5xl mx-auto mt-8">
           {/* Insight rápido */}
           <motion.div
             initial={{ opacity: 0, x: -20 }}
