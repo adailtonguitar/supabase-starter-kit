@@ -90,8 +90,6 @@ export default function Promocoes() {
         promo_type: promoType,
         discount_percent: promoType === "percentual" ? discountPercent : 0,
         fixed_price: promoType === "preco_fixo" ? fixedPrice : 0,
-        buy_quantity: promoType === "leve_x_pague_y" ? buyQty : 0,
-        pay_quantity: promoType === "leve_x_pague_y" ? payQty : 0,
         scope,
         category_name: scope === "category" ? categoryName : undefined,
         min_quantity: minQty,
