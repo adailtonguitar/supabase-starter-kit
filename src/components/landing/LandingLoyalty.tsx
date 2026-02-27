@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Gift, Tag, CreditCard, Heart, ArrowRight } from "lucide-react";
+import { Gift, Tag, CreditCard, Star, ArrowRight } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 
@@ -8,8 +8,8 @@ const loyaltyFeatures = [
     icon: Gift,
     title: "Programa de Fidelidade",
     desc: "Clientes acumulam pontos a cada compra e trocam por descontos ou produtos. Retenção automática sem esforço.",
-    color: "from-pink-600 to-rose-500",
-    iconBg: "bg-pink-500/15 text-pink-500",
+    color: "from-amber-600 to-yellow-500",
+    iconBg: "bg-amber-500/15 text-amber-600",
   },
   {
     icon: Tag,
@@ -37,8 +37,8 @@ export function LandingLoyalty() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
           >
-            <Heart className="w-8 h-8 text-pink-500 mx-auto mb-3" />
-            <span className="text-pink-500 text-sm font-semibold uppercase tracking-wider">
+            <Star className="w-8 h-8 text-amber-500 mx-auto mb-3" />
+            <span className="text-amber-500 text-sm font-semibold uppercase tracking-wider">
               Fidelização
             </span>
             <h2 className="mt-3 text-3xl sm:text-4xl font-bold tracking-tight">
@@ -58,7 +58,7 @@ export function LandingLoyalty() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: i * 0.1 }}
-              className="group relative rounded-2xl border border-border bg-card p-7 hover:border-pink-500/30 hover:shadow-xl hover:shadow-pink-500/5 transition-all overflow-hidden"
+              className="group relative rounded-2xl border border-border bg-card p-7 hover:border-amber-500/30 hover:shadow-xl hover:shadow-amber-500/5 transition-all overflow-hidden"
             >
               <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${f.color} opacity-50 group-hover:opacity-100 transition-opacity`} />
 
@@ -78,7 +78,7 @@ export function LandingLoyalty() {
           viewport={{ once: true }}
           className="mt-12 text-center"
         >
-          <Button asChild size="lg" variant="outline" className="text-base px-8 h-13 font-semibold border-pink-500/30 text-pink-600 hover:bg-pink-500/5">
+          <Button asChild size="lg" variant="outline" className="text-base px-8 h-13 font-semibold border-amber-500/30 text-amber-600 hover:bg-amber-500/5">
             <Link to="/auth">
               Experimentar grátis
               <ArrowRight className="w-4 h-4 ml-2" />
