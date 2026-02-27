@@ -8,6 +8,8 @@ import { LandingHowItWorks } from "@/components/landing/LandingHowItWorks";
 import { LandingAI } from "@/components/landing/LandingAI";
 import { LandingLoyalty } from "@/components/landing/LandingLoyalty";
 import { LandingMultiStore } from "@/components/landing/LandingMultiStore";
+import { LandingCalculator } from "@/components/landing/LandingCalculator";
+import { LandingComparison } from "@/components/landing/LandingComparison";
 import { LandingTestimonials } from "@/components/landing/LandingTestimonials";
 import { LandingPricing } from "@/components/landing/LandingPricing";
 import { LandingFAQ } from "@/components/landing/LandingFAQ";
@@ -27,7 +29,9 @@ export default function LandingPage() {
       <LandingAnalytics />
       <LandingAI />
       <LandingMultiStore />
+      <LandingCalculator />
       <LandingAdvantages />
+      <LandingComparison />
       <LandingTestimonials />
       <LandingPricing />
       <LandingFAQ />
