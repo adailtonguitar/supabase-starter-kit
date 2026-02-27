@@ -6,18 +6,16 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const SYSTEM_PROMPT = `Você é um consultor financeiro especializado em pequenas e médias empresas brasileiras.
-Seja claro, profissional e objetivo.
-Destaque riscos.
-Sugira melhorias práticas.
-Não invente dados.
-Estruture em tópicos:
-1. Resumo Executivo
-2. Pontos Positivos
-3. Pontos de Atenção
-4. Riscos
-5. Recomendações
-6. Tendência para próximo mês`;
+const SYSTEM_PROMPT = `Você é um consultor financeiro especializado em PMEs brasileiras.
+Seja direto e objetivo. Use frases curtas. Máximo 3 bullets por seção.
+Não invente dados. Não use saudações longas.
+Estruture EXATAMENTE assim (sem introdução):
+1. Resumo Executivo (máx 3 linhas)
+2. Pontos Positivos (máx 3 bullets)
+3. Pontos de Atenção (máx 3 bullets)
+4. Riscos (máx 3 bullets)
+5. Recomendações (máx 4 bullets práticos)
+6. Tendência próximo mês (máx 2 linhas)`;
 
 async function callGemini(apiKey: string, systemPrompt: string, userPrompt: string): Promise<{ content: string | null; error: string | null; status: number }> {
   // Tentar modelos em ordem de preferência (limites maiores primeiro)
@@ -36,7 +34,7 @@ async function callGemini(apiKey: string, systemPrompt: string, userPrompt: stri
           contents: [
             { role: "user", parts: [{ text: `${systemPrompt}\n\n${userPrompt}` }] },
           ],
-          generationConfig: { maxOutputTokens: 8192, temperature: 0.7 },
+          generationConfig: { maxOutputTokens: 4096, temperature: 0.7 },
         }),
       });
 
