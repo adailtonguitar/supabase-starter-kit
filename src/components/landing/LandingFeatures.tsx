@@ -11,6 +11,7 @@ import {
   Users,
   Tag,
   Brain,
+  CreditCard,
 } from "lucide-react";
 
 const features = [
@@ -76,9 +77,15 @@ const features = [
   },
   {
     icon: Brain,
-    title: "Relatórios por IA",
-    desc: "Inteligência artificial analisa vendas, estoque e finanças e gera insights prontos para decisão.",
+    title: "Inteligência Artificial",
+    desc: "IA analisa vendas, estoque e finanças e gera diagnósticos e insights prontos para decisão.",
     color: "bg-purple-500/10 text-purple-600",
+  },
+  {
+    icon: Monitor,
+    title: "TEF Integrado",
+    desc: "Pagamento por cartão direto no PDV. Cielo, Rede, Stone, PagSeguro e Mercado Pago.",
+    color: "bg-teal-500/10 text-teal-600",
   },
 ];
 
