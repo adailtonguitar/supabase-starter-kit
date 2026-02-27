@@ -191,6 +191,45 @@
   }
 }
 
+/* Tablet breakpoint (768px–1023px) */
+@media (min-width: 768px) and (max-width: 1023px) {
+  /* Prevent grids from cramming too many columns */
+  .grid.grid-cols-3:not(.tablet-keep-grid),
+  .grid.grid-cols-4:not(.tablet-keep-grid) {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  /* Ensure comfortable gap */
+  .grid {
+    gap: 1rem;
+  }
+
+  /* Inputs remain comfortable */
+  input, select, textarea,
+  [role="combobox"] {
+    min-height: 48px;
+    box-sizing: border-box;
+  }
+
+  /* Date/time inputs */
+  input[type="date"],
+  input[type="datetime-local"],
+  input[type="time"] {
+    padding-right: 2.5rem;
+    position: relative;
+  }
+
+  input[type="date"]::-webkit-calendar-picker-indicator,
+  input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+    opacity: 1;
+    position: absolute;
+    right: 0.75rem;
+  }
+
+  /* Dialog sizing for tablet */
+  main > div { padding-left: 1.5rem !important; padding-right: 1.5rem !important; }
+}
+
 @keyframes pulse-once {
   0% { background-color: hsl(168, 72%, 36%, 0.3); }
   50% { background-color: hsl(168, 72%, 36%, 0.15); }
