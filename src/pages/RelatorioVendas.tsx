@@ -135,9 +135,15 @@ export default function RelatorioVendas() {
 
   const { productProfits, totals } = useMemo(() => {
     const byProduct: Record<string, ProductProfit> = {};
+    let fallbackRevenue = 0; // Revenue from sales without item details
 
     for (const sale of sales) {
       const items = (sale.items_json as unknown as SaleItemJson[] | null) || [];
+      if (items.length === 0) {
+        // No item details — use sale total as revenue fallback
+        fallbackRevenue += Number(sale.total_value || 0);
+        continue;
+      }
       for (const item of items) {
         if (!byProduct[item.product_id]) {
           byProduct[item.product_id] = {
@@ -167,10 +173,11 @@ export default function RelatorioVendas() {
     }));
     list.sort((a, b) => b.total_profit - a.total_profit);
 
+    const itemsRevenue = list.reduce((s, p) => s + p.total_revenue, 0);
     const totals = {
-      revenue: list.reduce((s, p) => s + p.total_revenue, 0),
+      revenue: itemsRevenue + fallbackRevenue,
       cost: list.reduce((s, p) => s + p.total_cost, 0),
-      profit: list.reduce((s, p) => s + p.total_profit, 0),
+      profit: list.reduce((s, p) => s + p.total_profit, 0) + fallbackRevenue, // fallback has no cost info
       quantity: list.reduce((s, p) => s + p.total_quantity, 0),
       salesCount: sales.length,
     };
