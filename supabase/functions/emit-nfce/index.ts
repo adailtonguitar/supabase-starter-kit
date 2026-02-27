@@ -223,6 +223,37 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const action = body.action || "emit";
 
+    // ── Shared helpers for company resolution ──
+    const authHeader = req.headers.get("authorization") || "";
+    const jwtToken = authHeader.replace("Bearer ", "");
+
+    async function getAuthUserId(): Promise<string | null> {
+      if (!jwtToken) return null;
+      try {
+        const { data: { user: authUser } } = await supabase.auth.getUser(jwtToken);
+        return authUser?.id || null;
+      } catch { return null; }
+    }
+
+    async function resolveCompanyFromUser(userId: string): Promise<string | null> {
+      const { data: emp } = await supabase
+        .from("employees")
+        .select("company_id")
+        .eq("user_id", userId)
+        .limit(1)
+        .maybeSingle();
+      if (emp?.company_id) return emp.company_id;
+      const { data: cu } = await supabase
+        .from("company_users")
+        .select("company_id")
+        .eq("user_id", userId)
+        .eq("is_active", true)
+        .limit(1)
+        .maybeSingle();
+      if (cu?.company_id) return cu.company_id;
+      return null;
+    }
+
     // ─── BACKUP ALL EXISTING XMLs ───
     if (action === "backup_xmls") {
       const { company_id: bkCompanyId } = body;
@@ -619,6 +650,246 @@ Deno.serve(async (req) => {
       // Fall through to normal emit below
     }
 
+    // ─── EMIT NF-e MODEL 55 ───
+    if (action === "emit_nfe") {
+      const { config_id: nfeConfigId, form: nfeForm } = body;
+      let nfeCompanyId = body.company_id;
+
+      if (!nfeConfigId || !nfeForm) {
+        return jsonResponse({ error: "Dados incompletos para NF-e" }, 400);
+      }
+
+      // Resolve company
+      let nfeCompany: any = null;
+      if (nfeCompanyId) {
+        const { data } = await supabase.from("companies").select("*").eq("id", nfeCompanyId).single();
+        nfeCompany = data;
+      }
+      if (!nfeCompany) {
+        const userId = await getAuthUserId();
+        if (userId) {
+          const resolvedId = await resolveCompanyFromUser(userId);
+          if (resolvedId) {
+            nfeCompanyId = resolvedId;
+            const { data } = await supabase.from("companies").select("*").eq("id", resolvedId).single();
+            nfeCompany = data;
+          }
+        }
+      }
+      if (!nfeCompany || !nfeCompanyId) {
+        return jsonResponse({ error: "Empresa não encontrada." }, 404);
+      }
+
+      const { data: nfeConfig, error: nfeCfgErr } = await supabase
+        .from("fiscal_configs")
+        .select("*")
+        .eq("id", nfeConfigId)
+        .single();
+
+      if (nfeCfgErr || !nfeConfig) {
+        return jsonResponse({ error: "Configuração fiscal não encontrada" }, 404);
+      }
+
+      const nfeCrt = nfeForm.crt || nfeConfig.crt || 1;
+      const nfeIsSimples = nfeCrt === 1 || nfeCrt === 2;
+      const nfeDefaultCst = nfeIsSimples ? "102" : "00";
+      const nfeUf = (nfeCompany.address_state || "SP").toUpperCase();
+
+      const nfeFormItems = nfeForm.items || [];
+      for (let i = 0; i < nfeFormItems.length; i++) {
+        const it = nfeFormItems[i];
+        if (!it.cst) {
+          it.cst = nfeDefaultCst;
+          it.origem = it.origem || "0";
+        }
+      }
+
+      const nfeItems = nfeFormItems.map((item: any, idx: number) => {
+        const icmsCalc = calculateIcmsForItem(item, nfeUf, nfeCrt);
+        return {
+          numero_item: idx + 1,
+          codigo_produto: item.product_code || String(idx + 1).padStart(5, "0"),
+          descricao: item.name,
+          ncm: (item.ncm || "").replace(/\D/g, ""),
+          cfop: item.cfop || "5102",
+          unidade_comercial: item.unit || "UN",
+          quantidade_comercial: item.qty || 1,
+          valor_unitario_comercial: item.unit_price || 0,
+          valor_bruto: (item.qty || 1) * (item.unit_price || 0),
+          unidade_tributavel: item.unit || "UN",
+          quantidade_tributavel: item.qty || 1,
+          valor_unitario_tributavel: item.unit_price || 0,
+          valor_desconto: item.discount || 0,
+          imposto: {
+            icms: icmsCalc,
+            pis: { cst: item.pis_cst || "49" },
+            cofins: { cst: item.cofins_cst || "49" },
+          },
+        };
+      });
+
+      const nfeTotalValue = nfeItems.reduce(
+        (sum: number, it: any) => sum + it.valor_bruto - (it.valor_desconto || 0), 0
+      );
+
+      // Build destinatário
+      const destDocClean = (nfeForm.dest_doc || "").replace(/\D/g, "");
+      const destIsCompany = destDocClean.length > 11;
+      const nfeDestinatario: any = {
+        ...(destIsCompany ? { cnpj: destDocClean } : { cpf: destDocClean }),
+        nome: nfeForm.dest_name || undefined,
+        email: nfeForm.dest_email || undefined,
+        indicador_inscricao_estadual: nfeForm.dest_ie && nfeForm.dest_ie.toLowerCase() !== "isento" ? 1 : 2,
+        inscricao_estadual: nfeForm.dest_ie && nfeForm.dest_ie.toLowerCase() !== "isento" ? nfeForm.dest_ie.replace(/\D/g, "") : undefined,
+        endereco: {
+          logradouro: nfeForm.dest_street || "",
+          numero: nfeForm.dest_number || "S/N",
+          complemento: nfeForm.dest_complement || "",
+          bairro: nfeForm.dest_neighborhood || "",
+          codigo_municipio: nfeForm.dest_city_code || "",
+          nome_municipio: nfeForm.dest_city || "",
+          uf: (nfeForm.dest_uf || "").toUpperCase(),
+          cep: (nfeForm.dest_zip || "").replace(/\D/g, ""),
+          codigo_pais: "1058",
+          pais: "BRASIL",
+        },
+      };
+
+      // Build transporte
+      const nfeTransporte: any = {
+        modalidade_frete: parseInt(nfeForm.frete || "9"),
+      };
+      if (nfeForm.frete !== "9" && nfeForm.transport_name) {
+        const tDocClean = (nfeForm.transport_doc || "").replace(/\D/g, "");
+        nfeTransporte.transportadora = {
+          ...(tDocClean.length > 11 ? { cnpj: tDocClean } : tDocClean.length > 0 ? { cpf: tDocClean } : {}),
+          nome: nfeForm.transport_name,
+        };
+        if (nfeForm.transport_plate) {
+          nfeTransporte.veiculo = {
+            placa: nfeForm.transport_plate,
+            uf: nfeForm.transport_uf || nfeUf,
+          };
+        }
+        if (nfeForm.volumes > 0 || nfeForm.gross_weight > 0) {
+          nfeTransporte.volumes = [{
+            quantidade: nfeForm.volumes || 1,
+            peso_bruto: nfeForm.gross_weight || 0,
+            peso_liquido: nfeForm.net_weight || 0,
+          }];
+        }
+      }
+
+      const paymentMethodMap: Record<string, string> = {
+        "01": "01", "02": "02", "03": "03", "04": "04", "05": "05",
+        "15": "15", "16": "16", "17": "17", "90": "90", "99": "99",
+      };
+
+      const nfePayload = {
+        ambiente: nfeConfig.environment === "producao" ? "producao" : "homologacao",
+        natureza_operacao: nfeForm.nat_op || "VENDA DE MERCADORIA",
+        tipo_documento: 1, // Saída
+        finalidade_emissao: parseInt(nfeForm.finalidade || "1"),
+        consumidor_final: destIsCompany ? 0 : 1,
+        presenca_comprador: 0, // Não se aplica (NF-e)
+        notas_referenciadas: [],
+        emitente: {
+          cnpj: nfeCompany.cnpj?.replace(/\D/g, ""),
+          nome: nfeCompany.name,
+          nome_fantasia: nfeCompany.trade_name || nfeCompany.name,
+          inscricao_estadual: nfeCompany.ie?.replace(/\D/g, "") || "",
+          endereco: {
+            logradouro: nfeCompany.address_street || "",
+            numero: nfeCompany.address_number || "S/N",
+            complemento: nfeCompany.address_complement || "",
+            bairro: nfeCompany.address_neighborhood || "",
+            codigo_municipio: nfeCompany.address_city_code || "",
+            nome_municipio: nfeCompany.address_city || "",
+            uf: nfeUf,
+            cep: nfeCompany.address_zip?.replace(/\D/g, "") || "",
+            codigo_pais: "1058",
+            pais: "BRASIL",
+          },
+          crt: nfeCrt,
+        },
+        destinatario: nfeDestinatario,
+        itens: nfeItems,
+        pagamento: {
+          formas_pagamento: [{
+            tipo: paymentMethodMap[nfeForm.payment_method] || "99",
+            valor: nfeForm.payment_value || nfeTotalValue,
+          }],
+        },
+        transporte: nfeTransporte,
+        informacoes_adicionais: {
+          informacoes_contribuinte: nfeForm.inf_adic || undefined,
+        },
+      };
+
+      const nfeToken = await getNuvemFiscalToken();
+
+      console.log("[emit-nfe] Sending NF-e payload to Nuvem Fiscal");
+      const nfeEmitResp = await fetch(`${NUVEM_FISCAL_API}/nfe`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${nfeToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(nfePayload),
+      });
+
+      const nfeEmitData = await nfeEmitResp.json();
+
+      if (!nfeEmitResp.ok) {
+        console.error("NF-e Nuvem Fiscal error:", JSON.stringify(nfeEmitData));
+        const rejCode = nfeEmitData?.codigo_status || nfeEmitData?.cStat || null;
+        const rejMsg = nfeEmitData?.motivo_status || nfeEmitData?.xMotivo || null;
+        return jsonResponse({
+          success: false,
+          error: nfeEmitData?.mensagem || nfeEmitData?.message || `Erro Nuvem Fiscal [${nfeEmitResp.status}]`,
+          rejection_code: rejCode ? String(rejCode) : null,
+          rejection_reason: rejMsg || null,
+          details: nfeEmitData,
+        });
+      }
+
+      const nfeAccessKey = nfeEmitData.chave || nfeEmitData.chave_acesso || null;
+      const nfeDocNumber = nfeEmitData.numero || nfeConfig.next_number || null;
+      const nfeStatus = nfeEmitData.status === "autorizada" ? "autorizada" : nfeEmitData.status || "pendente";
+
+      await supabase.from("fiscal_documents").insert({
+        company_id: nfeCompanyId,
+        doc_type: "nfe",
+        number: nfeDocNumber,
+        serie: nfeConfig.serie,
+        access_key: nfeAccessKey,
+        status: nfeStatus,
+        total_value: nfeTotalValue,
+        customer_name: nfeForm.dest_name || null,
+        customer_cpf_cnpj: destDocClean || null,
+        payment_method: nfeForm.payment_method,
+        environment: nfeConfig.environment,
+        is_contingency: false,
+        xml_content: nfeEmitData.xml || null,
+        nuvem_fiscal_id: nfeEmitData.id || null,
+      });
+
+      await backupXml(supabase, nfeCompanyId, "nfe", nfeAccessKey, nfeDocNumber, nfeEmitData.xml || null, "emissao");
+
+      await supabase
+        .from("fiscal_configs")
+        .update({ next_number: (nfeConfig.next_number || 1) + 1 })
+        .eq("id", nfeConfigId);
+
+      return jsonResponse({
+        success: true,
+        access_key: nfeAccessKey,
+        number: nfeDocNumber,
+        status: nfeStatus,
+        nuvem_fiscal_id: nfeEmitData.id,
+      });
+    }
+
     // ─── EMIT NFC-e (default) ───
     const { sale_id, config_id, form } = body;
     let company_id = body.company_id;
@@ -628,46 +899,6 @@ Deno.serve(async (req) => {
     }
 
     // ── Resolve company + debug logging ──
-    const authHeader = req.headers.get("authorization") || "";
-    const jwtToken = authHeader.replace("Bearer ", "");
-
-    // Helper: get authenticated user_id from JWT
-    async function getAuthUserId(): Promise<string | null> {
-      if (!jwtToken) return null;
-      try {
-        const { data: { user: authUser } } = await supabase.auth.getUser(jwtToken);
-        return authUser?.id || null;
-      } catch { return null; }
-    }
-
-    // Helper: find company_id via employees or company_users
-    async function resolveCompanyFromUser(userId: string): Promise<string | null> {
-      // Try employees first
-      const { data: emp } = await supabase
-        .from("employees")
-        .select("company_id")
-        .eq("user_id", userId)
-        .limit(1)
-        .maybeSingle();
-      if (emp?.company_id) {
-        console.log(`[emit-nfce] Found company via employees: ${emp.company_id}`);
-        return emp.company_id;
-      }
-      // Try company_users as fallback
-      const { data: cu } = await supabase
-        .from("company_users")
-        .select("company_id")
-        .eq("user_id", userId)
-        .eq("is_active", true)
-        .limit(1)
-        .maybeSingle();
-      if (cu?.company_id) {
-        console.log(`[emit-nfce] Found company via company_users: ${cu.company_id}`);
-        return cu.company_id;
-      }
-      return null;
-    }
-
     let company: any = null;
     console.log(`[emit-nfce] Received company_id from body: ${company_id}`);
 
