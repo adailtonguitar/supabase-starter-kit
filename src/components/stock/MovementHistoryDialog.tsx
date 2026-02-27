@@ -8,8 +8,8 @@ interface MovementHistoryDialogProps {
 export function MovementHistoryDialog({ open, onOpenChange }: MovementHistoryDialogProps) {
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => onOpenChange(false)}>
-      <div className="bg-card rounded-xl p-6 border border-border max-w-md w-full mx-4" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => onOpenChange(false)}>
+      <div className="bg-card rounded-xl p-6 border border-border max-w-md w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <h2 className="text-lg font-semibold text-foreground mb-2">Histórico de Movimentações</h2>
         <p className="text-sm text-muted-foreground">Em desenvolvimento.</p>
         <button onClick={() => onOpenChange(false)} className="mt-4 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm">Fechar</button>

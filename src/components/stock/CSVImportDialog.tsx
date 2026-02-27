@@ -190,8 +190,8 @@ export function CSVImportDialog({ open, onOpenChange }: CSVImportDialogProps) {
   const invalidCount = products.filter((p) => !p.valid).length;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => { reset(); onOpenChange(false); }}>
-      <div className="bg-card rounded-xl border border-border max-w-2xl w-full mx-4 max-h-[80vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => { reset(); onOpenChange(false); }}>
+      <div className="bg-card rounded-xl border border-border max-w-2xl w-full max-h-[85vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
         <div className="px-5 py-4 border-b border-border flex items-center justify-between">
           <h2 className="text-lg font-semibold text-foreground">Importar Produtos via CSV</h2>
           <button onClick={() => { reset(); onOpenChange(false); }} className="text-muted-foreground hover:text-foreground text-xl leading-none">&times;</button>
