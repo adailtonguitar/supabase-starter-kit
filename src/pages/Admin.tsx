@@ -155,8 +155,11 @@ function CompaniesTab() {
       // Delete related records in dependency order (children first)
       const relatedTables = [
         "action_logs", "user_sessions", "telemetry",
+        "loyalty_transactions", "loyalty_config",
+        "nfce_queue", "fiscal_config",
         "cash_sessions",
-        "sale_items", "sales",
+        "sale_items",
+        "sales",
         "stock_movements", "stock_transfers",
         "financial_entries",
         "inventory_counts", "product_lots",
@@ -164,14 +167,12 @@ function CompaniesTab() {
         "clients", "promotions", "suppliers", "carriers",
         "employees", "purchase_orders", "quotes",
         "company_users", "subscriptions",
-        "branches", "fiscal_config", "nfce_queue",
-        "loyalty_config", "loyalty_transactions",
+        "branches",
       ];
       for (const table of relatedTables) {
-        try {
-          await supabase.from(table).delete().eq("company_id", company.id);
-        } catch {
-          // Table may not exist, skip
+        const { error: delErr } = await supabase.from(table).delete().eq("company_id", company.id);
+        if (delErr) {
+          console.warn(`[AdminDelete] Falha ao limpar ${table}:`, delErr.message);
         }
       }
       const { error } = await supabase.from("companies").delete().eq("id", company.id);
