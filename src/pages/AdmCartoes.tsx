@@ -8,10 +8,6 @@ const fields: FieldConfig[] = [
   { key: "credit_fee", label: "Taxa Crédito (%)", type: "number", showInTable: true },
   { key: "debit_fee", label: "Taxa Débito (%)", type: "number", showInTable: true },
   { key: "settlement_days", label: "Prazo Recebimento (dias)", type: "number", showInTable: true },
-  { key: "contact_name", label: "Contato" },
-  { key: "phone", label: "Telefone", type: "tel" },
-  { key: "email", label: "E-mail", type: "email" },
-  { key: "notes", label: "Observações", type: "textarea", colSpan: 2 },
 ];
 
 export default function AdmCartoes() {
@@ -33,9 +29,6 @@ export default function AdmCartoes() {
       searchKeys={["name", "cnpj"]}
       cnpjFieldMap={{
         name: "name",
-        email: "email",
-        phone: "phone",
-        contact_name: "contact_name",
       }}
     />
   );
