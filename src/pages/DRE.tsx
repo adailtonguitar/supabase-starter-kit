@@ -40,14 +40,22 @@ export default function DRE() {
   const { data: salesDocs = [], isLoading: loadingSales } = useQuery({
     queryKey: ["sales_dre", companyId, month],
     queryFn: async () => {
-      if (!companyId) return [];
+      if (!companyId) {
+        console.warn("[DRE] No companyId");
+        return [];
+      }
+      console.log("[DRE] Fetching sales for month:", month, "companyId:", companyId);
       const { data, error } = await supabase
         .from("sales")
         .select("id, total, created_at")
         .eq("company_id", companyId)
         .gte("created_at", `${month}-01T00:00:00`)
         .lte("created_at", `${month}-31T23:59:59`);
-      if (error) throw error;
+      if (error) {
+        console.error("[DRE] sales error:", error);
+        throw error;
+      }
+      console.log("[DRE] Sales found:", data?.length, data);
       return (data || []).map((s: any) => ({ total_value: s.total }));
     },
     enabled: !!companyId,
