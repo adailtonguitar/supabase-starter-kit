@@ -70,7 +70,7 @@ export default function PainelDono() {
     : "0";
 
   return (
-    <div className="space-y-5 max-w-lg mx-auto pb-8">
+    <div className="space-y-5 pb-8">
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}
