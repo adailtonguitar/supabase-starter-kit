@@ -83,6 +83,7 @@ const Filiais = lazy(() => import("./pages/Filiais"));
 const DiagnosticoFinanceiro = lazy(() => import("./pages/DiagnosticoFinanceiro"));
 const Ruptura = lazy(() => import("./pages/Ruptura"));
 const SugestaoCompra = lazy(() => import("./pages/SugestaoCompra"));
+const PainelDono = lazy(() => import("./pages/PainelDono"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -389,6 +390,7 @@ function AppRoutes() {
                       </PlanGate>
                     } />
                     <Route path="/estoque/ruptura" element={<Ruptura />} />
+                    <Route path="/painel-dono" element={<PainelDono />} />
                     <Route path="/sugestao-compra" element={
                       <PlanGate feature="hasAiReports" featureName="Sugestão de Compra por IA">
                         <SugestaoCompra />
