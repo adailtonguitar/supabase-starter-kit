@@ -106,7 +106,11 @@ function CompaniesTab() {
   const [loading, setLoading] = useState(true);
   const [blockReasons, setBlockReasons] = useState<Record<string, string>>({});
   const [deleting, setDeleting] = useState<string | null>(null);
-  const [myCompanyIds, setMyCompanyIds] = useState<string[]>([]);
+
+  // Only protect the currently selected company
+  const selectedCompanyId = (() => {
+    try { return localStorage.getItem("as_selected_company") || ""; } catch { return ""; }
+  })();
 
   const fetchCompanies = async () => {
     setLoading(true);
@@ -119,15 +123,9 @@ function CompaniesTab() {
     setLoading(false);
   };
 
-  useEffect(() => {
-    fetchCompanies();
-    if (user) {
-      supabase.from("company_users").select("company_id").eq("user_id", user.id).eq("is_active", true)
-        .then(({ data }) => setMyCompanyIds((data ?? []).map((r: any) => r.company_id)));
-    }
-  }, [user]);
+  useEffect(() => { fetchCompanies(); }, []);
 
-  const isMyCompany = (id: string) => myCompanyIds.includes(id);
+  const isMyCompany = (id: string) => id === selectedCompanyId;
 
   const toggleBlock = async (company: CompanyRow) => {
     const newBlocked = !company.is_blocked;
