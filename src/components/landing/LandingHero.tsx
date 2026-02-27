@@ -62,7 +62,7 @@ export function LandingHero() {
             <div className="flex flex-col sm:flex-row gap-3 mt-10">
               <Button asChild size="lg" className="text-base px-8 h-13 shadow-lg shadow-primary/20 font-semibold">
                 <Link to="/auth">
-                  Começar grátis por 8 dias
+                  Começar grátis por 15 dias
                   <ArrowRight className="w-4 h-4 ml-2" />
                 </Link>
               </Button>
