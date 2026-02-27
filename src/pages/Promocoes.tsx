@@ -97,7 +97,7 @@ export default function Promocoes() {
         min_quantity: minQty,
         starts_at: new Date(startsAt).toISOString(),
         ends_at: endsAt ? new Date(endsAt).toISOString() : undefined,
-        active_days: activeDays.length > 0 ? activeDays : undefined,
+        // active_days not in DB schema — stored locally only
         product_ids: scope === "product" ? selectedProducts : undefined,
       });
       setOpen(false);
