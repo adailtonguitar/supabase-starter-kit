@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { CSVClientImportDialog } from "@/components/clients/CSVClientImportDialog";
 
 const baseFields: FieldConfig[] = [
+  // Identificação
   {
     key: "tipo_pessoa",
     label: "Tipo de Pessoa",
@@ -23,18 +24,22 @@ const baseFields: FieldConfig[] = [
   { key: "trade_name", label: "Nome Fantasia" },
   { key: "cpf_cnpj", label: "CPF", required: true, showInTable: true },
   { key: "ie", label: "Inscrição Estadual" },
+  // Contato
   { key: "email", label: "E-mail", type: "email", showInTable: true },
   { key: "phone", label: "Telefone", type: "tel", showInTable: true },
   { key: "phone2", label: "Telefone 2", type: "tel" },
+  // Financeiro
   { key: "credit_limit", label: "Limite de Crédito (R$)", type: "currency" },
   { key: "credit_balance", label: "Saldo Devedor (R$)", type: "currency", showInTable: true },
+  // Endereço
+  { key: "address_zip", label: "CEP" },
   { key: "address_street", label: "Rua" },
   { key: "address_number", label: "Número" },
   { key: "address_complement", label: "Complemento" },
   { key: "address_neighborhood", label: "Bairro" },
   { key: "address_city", label: "Cidade", showInTable: true },
   { key: "address_state", label: "UF" },
-  { key: "address_zip", label: "CEP" },
+  // Observações
   { key: "notes", label: "Observações", type: "textarea", colSpan: 2, showInTable: true },
 ];
 

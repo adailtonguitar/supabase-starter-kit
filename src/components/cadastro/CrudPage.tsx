@@ -234,19 +234,21 @@ export function CrudPage({
 
       {/* Form Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl max-w-[calc(100vw-2rem)] max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingItem ? "Editar" : "Novo"} {title.replace(/s$/, "")}</DialogTitle>
           </DialogHeader>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3 py-4">
             {activeFields.map((f) => (
               <div key={f.key} className={f.colSpan === 2 ? "sm:col-span-2" : ""}>
-                <Label className="text-xs text-muted-foreground">{f.label}{f.required ? " *" : ""}</Label>
+                <Label className="text-xs font-medium text-foreground mb-1.5 block">
+                  {f.label}{f.required ? <span className="text-destructive ml-0.5">*</span> : ""}
+                </Label>
                 {f.type === "select" ? (
                   <select
                     value={formData[f.key] || ""}
                     onChange={(e) => handleFieldChange(f.key, e.target.value)}
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground"
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
                   >
                     <option value="">Selecione</option>
                     {f.options?.map((o) => (
@@ -257,21 +259,22 @@ export function CrudPage({
                   <textarea
                     value={formData[f.key] || ""}
                     onChange={(e) => handleFieldChange(f.key, e.target.value)}
-                    className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground"
+                    className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 resize-none"
                     placeholder={f.placeholder}
                   />
                 ) : f.type === "currency" ? (
                   <CurrencyInput value={formData[f.key] || ""} onChange={(v) => handleFieldChange(f.key, v)} />
                 ) : (
-                  <div className="flex gap-1">
+                  <div className="flex gap-2">
                     <Input
                       type={f.type || "text"}
                       value={formData[f.key] || ""}
                       onChange={(e) => handleFieldChange(f.key, e.target.value)}
                       placeholder={f.placeholder}
+                      className="flex-1"
                     />
                     {f.cnpjLookup && (
-                      <Button type="button" variant="outline" size="sm" onClick={handleCnpjLookup} disabled={cnpjLoading} className="shrink-0">
+                      <Button type="button" variant="outline" size="sm" onClick={handleCnpjLookup} disabled={cnpjLoading} className="shrink-0 h-10">
                         {cnpjLoading ? "..." : "Consultar"}
                       </Button>
                     )}
