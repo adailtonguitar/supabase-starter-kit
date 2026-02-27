@@ -40,12 +40,12 @@ export function useProfitAnalytics(dateFrom?: Date, dateTo?: Date) {
     queryFn: async (): Promise<ProfitSummary> => {
       if (!companyId) throw new Error("No company");
 
+      // Fetch sales and products in parallel
       const [salesRes, productsRes] = await Promise.all([
         supabase
-          .from("fiscal_documents")
-          .select("total_value, items_json, payment_method")
+          .from("sales")
+          .select("id, total")
           .eq("company_id", companyId)
-          .eq("doc_type", "nfce")
           .gte("created_at", from.toISOString())
           .lte("created_at", to.toISOString()),
         supabase
@@ -57,6 +57,17 @@ export function useProfitAnalytics(dateFrom?: Date, dateTo?: Date) {
 
       const sales = salesRes.data || [];
       const productsMap = new Map((productsRes.data || []).map(p => [p.id, p]));
+
+      // Fetch sale_items for all sales
+      const saleIds = sales.map((s: any) => s.id);
+      let allItems: any[] = [];
+      if (saleIds.length > 0) {
+        const { data: itemsData } = await supabase
+          .from("sale_items")
+          .select("sale_id, product_id, product_name, quantity, unit_price")
+          .in("sale_id", saleIds);
+        allItems = itemsData || [];
+      }
 
       const productStats = new Map<string, {
         revenue: number;
@@ -71,32 +82,33 @@ export function useProfitAnalytics(dateFrom?: Date, dateTo?: Date) {
       let totalRevenue = 0;
       let totalCosts = 0;
 
-      for (const sale of sales) {
-        totalRevenue += Number(sale.total_value);
-        const items = sale.items_json as any[];
-        if (!items || !Array.isArray(items)) continue;
-
-        for (const item of items) {
+      if (allItems.length > 0) {
+        // Use sale_items for detailed breakdown
+        for (const item of allItems) {
           const productId = item.product_id;
           const prod = productsMap.get(productId);
-          const qty = item.quantity || 1;
-          const revenue = (item.price || item.unit_price || 0) * qty;
-          const cost = (item.cost_price || prod?.cost_price || 0) * qty;
+          const qty = Number(item.quantity || 1);
+          const revenue = Number(item.unit_price || 0) * qty;
+          const cost = (prod?.cost_price || 0) * qty;
 
           const existing = productStats.get(productId) || {
             revenue: 0, cost: 0, units: 0,
-            name: item.name || prod?.name || "Produto",
-            sku: item.sku || prod?.sku || "",
-            price: item.price || prod?.price || 0,
-            cost_price: item.cost_price || prod?.cost_price || 0,
+            name: item.product_name || prod?.name || "Produto",
+            sku: prod?.sku || "",
+            price: Number(item.unit_price || prod?.price || 0),
+            cost_price: prod?.cost_price || 0,
           };
 
           existing.revenue += revenue;
           existing.cost += cost;
           existing.units += qty;
           totalCosts += cost;
+          totalRevenue += revenue;
           productStats.set(productId, existing);
         }
+      } else {
+        // Fallback: use sale totals when no items available
+        totalRevenue = sales.reduce((s: number, sale: any) => s + Number(sale.total || 0), 0);
       }
 
       const estimatedTaxes = totalRevenue * 0.10;
