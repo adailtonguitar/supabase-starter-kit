@@ -93,7 +93,6 @@ export default function Promocoes() {
         min_quantity: minQty,
         starts_at: new Date(startsAt).toISOString(),
         ends_at: endsAt ? new Date(endsAt).toISOString() : undefined,
-        product_ids: scope === "product" ? selectedProducts : undefined,
       });
       setOpen(false);
       resetForm();
