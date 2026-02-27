@@ -152,17 +152,27 @@ function CompaniesTab() {
     }
     setDeleting(company.id);
     try {
-      // Delete related records first to avoid foreign key violations
+      // Delete related records in dependency order (children first)
       const relatedTables = [
-        "cash_sessions", "sale_items", "sales", "stock_movements", "products",
-        "clients", "financial_entries", "promotions", "suppliers", "carriers",
-        "employees", "purchase_orders", "quotes", "inventory_counts",
-        "product_categories", "company_users", "subscriptions", "telemetry",
-        "action_logs", "user_sessions", "branches", "stock_transfers",
-        "fiscal_config", "nfce_queue"
+        "action_logs", "user_sessions", "telemetry",
+        "cash_sessions",
+        "sale_items", "sales",
+        "stock_movements", "stock_transfers",
+        "financial_entries",
+        "inventory_counts", "product_lots",
+        "products", "product_categories",
+        "clients", "promotions", "suppliers", "carriers",
+        "employees", "purchase_orders", "quotes",
+        "company_users", "subscriptions",
+        "branches", "fiscal_config", "nfce_queue",
+        "loyalty_config", "loyalty_transactions",
       ];
       for (const table of relatedTables) {
-        await supabase.from(table).delete().eq("company_id", company.id);
+        try {
+          await supabase.from(table).delete().eq("company_id", company.id);
+        } catch {
+          // Table may not exist, skip
+        }
       }
       const { error } = await supabase.from("companies").delete().eq("id", company.id);
       if (error) {
