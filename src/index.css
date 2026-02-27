@@ -260,28 +260,31 @@
 
 /* ── Print: show only labels ── */
 @media print {
-  body, html, #root { background: white !important; }
+  /* Reset page */
+  @page { margin: 8mm; }
+  body, html, #root { background: white !important; height: auto !important; min-height: 0 !important; overflow: visible !important; }
 
-  /* Hide everything by default */
-  #root > * { display: none !important; }
+  /* Hide everything */
+  body * { visibility: hidden !important; }
 
-  /* Show only the print-label-zone */
+  /* Show only .print-label-zone and its children */
+  .print-label-zone,
+  .print-label-zone * {
+    visibility: visible !important;
+  }
+
   .print-label-zone {
-    display: block !important;
-    position: fixed;
-    inset: 0;
-    z-index: 9999;
-    background: white;
-    padding: 10mm;
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    background: white !important;
   }
 
   .print-label-zone * {
     color: black !important;
-    border-color: #333 !important;
+    border-color: #999 !important;
   }
 
-  /* Hide non-printable elements inside the zone */
-  .print-label-zone .no-print {
-    display: none !important;
-  }
+  .no-print { display: none !important; }
 }
