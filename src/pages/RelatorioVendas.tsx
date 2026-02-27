@@ -59,17 +59,44 @@ export default function RelatorioVendas() {
     queryKey: ["report-sales", companyId, dateRange.from, dateRange.to],
     queryFn: async () => {
       if (!companyId) return [];
-      const { data, error } = await supabase
-        .from("fiscal_documents")
-        .select("id, created_at, total_value, items_json, payment_method, status, customer_name")
+      // Fetch sales from the sales table (source of truth)
+      const { data: salesData, error: salesError } = await supabase
+        .from("sales")
+        .select("id, created_at, total")
         .eq("company_id", companyId)
-        .eq("doc_type", "nfce")
-        .neq("status", "cancelada")
         .gte("created_at", dateRange.from)
         .lte("created_at", dateRange.to)
         .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data;
+      if (salesError) throw salesError;
+      if (!salesData || salesData.length === 0) return [];
+
+      // Fetch sale_items for all sales in the period
+      const saleIds = salesData.map((s: any) => s.id);
+      const { data: itemsData, error: itemsError } = await supabase
+        .from("sale_items")
+        .select("sale_id, product_id, product_name, sku, quantity, unit_price")
+        .in("sale_id", saleIds);
+      if (itemsError) throw itemsError;
+
+      // Attach items to each sale
+      const itemsBySale: Record<string, any[]> = {};
+      (itemsData || []).forEach((item: any) => {
+        if (!itemsBySale[item.sale_id]) itemsBySale[item.sale_id] = [];
+        itemsBySale[item.sale_id].push({
+          product_id: item.product_id,
+          name: item.product_name,
+          sku: item.sku || "",
+          quantity: Number(item.quantity),
+          unit_price: Number(item.unit_price),
+        });
+      });
+
+      return salesData.map((s: any) => ({
+        id: s.id,
+        created_at: s.created_at,
+        total_value: s.total,
+        items_json: itemsBySale[s.id] || [],
+      }));
     },
     enabled: !!companyId,
   });
