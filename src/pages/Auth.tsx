@@ -206,7 +206,8 @@ export default function Auth() {
         localStorage.removeItem("remember-password");
       }
       sessionStorage.removeItem("needs-password-setup");
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      const { data: signInData, error } = await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password });
+      console.log("[Auth] signIn result:", { error: error?.message, status: error?.status, user: signInData?.user?.id });
       if (error) throw error;
       toast.success("Login realizado com sucesso!");
       navigate("/");
