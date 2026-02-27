@@ -376,8 +376,16 @@ function AppRoutes() {
                     <Route path="/fiado" element={<Fiado />} />
                     <Route path="/pedidos-compra" element={<PedidosCompra />} />
                     <Route path="/terminais" element={<Terminais />} />
-                    <Route path="/filiais" element={<Filiais />} />
-                    <Route path="/diagnostico-financeiro" element={<DiagnosticoFinanceiro />} />
+                    <Route path="/filiais" element={
+                      <PlanGate feature="hasBranches" featureName="Gestão de Filiais">
+                        <Filiais />
+                      </PlanGate>
+                    } />
+                    <Route path="/diagnostico-financeiro" element={
+                      <PlanGate feature="hasDiagnostico" featureName="Diagnóstico Financeiro com IA">
+                        <DiagnosticoFinanceiro />
+                      </PlanGate>
+                    } />
                     <Route path="/admin" element={<Admin />} />
                     <Route path="/ajuda" element={<Ajuda />} />
                     <Route path="*" element={<NotFound />} />
