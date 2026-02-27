@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ArrowRight, Play, CheckCircle2, Wifi, MessageCircle, Rocket, ShoppingCart, TrendingUp, Brain, Package } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import heroDashboard from "@/assets/hero-dashboard.png";
+import heroMockup from "@/assets/hero-mockup.png";
 
 const highlights = [
   "PDV com leitor e balança",
@@ -120,8 +120,8 @@ export function LandingHero() {
               className="relative rounded-2xl overflow-hidden shadow-2xl shadow-primary/10 border border-border/50"
             >
               <img
-                src={heroDashboard}
-                alt="Dashboard AnthoSystem — PDV e gestão para supermercados"
+                src={heroMockup}
+                alt="Dashboard AnthoSystem — PDV e gestão para supermercados no notebook e celular"
                 className="w-full h-auto"
                 loading="eager"
               />

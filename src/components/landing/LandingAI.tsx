@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import { Brain, Sparkles, Stethoscope, TrendingUp, Zap } from "lucide-react";
+import financeiroGestor from "@/assets/financeiro-gestor.png";
 
 const aiFeatures = [
   {
@@ -90,6 +91,16 @@ export function LandingAI() {
             </motion.div>
           ))}
         </div>
+
+        {/* Contextual image */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="max-w-3xl mx-auto mt-10 mb-10 rounded-2xl overflow-hidden border border-border shadow-lg"
+        >
+          <img src={financeiroGestor} alt="Gestora analisando dashboard financeiro do AnthoSystem" className="w-full h-auto object-cover" loading="lazy" />
+        </motion.div>
 
         {/* Visual highlight */}
         <div className="grid md:grid-cols-2 gap-6 max-w-5xl mx-auto mt-8">
