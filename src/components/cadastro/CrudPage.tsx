@@ -198,23 +198,23 @@ export function CrudPage({
         </div>
       ) : (
         <div className="bg-card rounded-xl card-shadow border border-border overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+          <div className="overflow-x-auto md:overflow-x-visible">
+            <table className="w-full text-sm table-fixed">
               <thead>
                 <tr className="border-b border-border">
                   {tableFields.map((f) => (
-                    <th key={f.key} className="text-left px-5 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">{f.label}</th>
+                    <th key={f.key} className="text-left px-3 sm:px-5 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider truncate">{f.label}</th>
                   ))}
-                  <th className="text-right px-5 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Ações</th>
+                  <th className="text-right px-3 sm:px-5 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider w-20">Ações</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredData.map((item: any) => (
                   <tr key={item.id} className="border-b border-border last:border-0 hover:bg-muted/50 transition-colors">
                     {tableFields.map((f) => (
-                      <td key={f.key} className="px-5 py-3 text-foreground">{item[f.key] ?? "—"}</td>
+                      <td key={f.key} className="px-3 sm:px-5 py-3 text-foreground truncate">{item[f.key] ?? "—"}</td>
                     ))}
-                    <td className="px-5 py-3 text-right">
+                    <td className="px-3 sm:px-5 py-3 text-right">
                       <div className="flex items-center justify-end gap-1">
                         <button onClick={() => openEdit(item)} className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
                           <Pencil className="w-4 h-4" />
