@@ -12,11 +12,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Shield, Activity, Search, Ban, CheckCircle, LayoutDashboard, Users, CreditCard, FileText } from "lucide-react";
+import { Shield, Activity, Search, Ban, CheckCircle, LayoutDashboard, Users, CreditCard, FileText, DollarSign } from "lucide-react";
 import { AdminDashboard } from "@/components/admin/AdminDashboard";
 import { AdminSubscriptions } from "@/components/admin/AdminSubscriptions";
 import { AdminCompanyUsers } from "@/components/admin/AdminCompanyUsers";
 import { AdminGlobalLogs } from "@/components/admin/AdminGlobalLogs";
+import { AdminRevenue } from "@/components/admin/AdminRevenue";
 
 interface CompanyRow {
   id: string;
@@ -65,6 +66,7 @@ export default function Admin() {
           <TabsTrigger value="dashboard" className="text-xs sm:text-sm"><LayoutDashboard className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" /> <span className="hidden sm:inline">Resumo</span><span className="sm:hidden">Resumo</span></TabsTrigger>
           <TabsTrigger value="companies" className="text-xs sm:text-sm"><Ban className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" /> Empresas</TabsTrigger>
           <TabsTrigger value="subscriptions" className="text-xs sm:text-sm"><CreditCard className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" /> <span className="hidden sm:inline">Assinaturas</span><span className="sm:hidden">Assin.</span></TabsTrigger>
+          <TabsTrigger value="revenue" className="text-xs sm:text-sm"><DollarSign className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" /> Receita</TabsTrigger>
           <TabsTrigger value="users" className="text-xs sm:text-sm"><Users className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" /> Usuários</TabsTrigger>
           <TabsTrigger value="logs" className="text-xs sm:text-sm"><FileText className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" /> Logs</TabsTrigger>
           <TabsTrigger value="telemetry" className="text-xs sm:text-sm"><Activity className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" /> <span className="hidden sm:inline">Telemetria</span><span className="sm:hidden">Telem.</span></TabsTrigger>
@@ -78,6 +80,9 @@ export default function Admin() {
         </TabsContent>
         <TabsContent value="subscriptions">
           <AdminSubscriptions />
+        </TabsContent>
+        <TabsContent value="revenue">
+          <AdminRevenue />
         </TabsContent>
         <TabsContent value="users">
           <AdminCompanyUsers />
