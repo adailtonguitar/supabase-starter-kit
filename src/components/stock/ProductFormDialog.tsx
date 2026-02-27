@@ -17,6 +17,7 @@ import { NCM_TABLE } from "@/lib/ncm-table";
 import { validateNcm, detectNcmDuplicates, getNcmDescription, isValidNcmFormat, type NcmIssue } from "@/lib/ncm-validator";
 import { isTypicalStNcm } from "@/lib/icms-st-engine";
 import { useProducts } from "@/hooks/useProducts";
+import { useSuppliers } from "@/hooks/useSuppliers";
 import { toast } from "sonner";
 
 interface NCMSuggestion {
@@ -49,6 +50,7 @@ const schema = z.object({
   cst_cofins: z.string().trim().max(10).optional(),
   aliq_cofins: z.coerce.number().min(0).optional(),
   gtin_tributavel: z.string().trim().max(20).optional(),
+  supplier_id: z.string().uuid().optional().or(z.literal("")),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -64,6 +66,7 @@ const units = ["UN", "KG", "LT", "MT", "CX", "PCT"];
 
 export function ProductFormDialog({ open, onOpenChange, product }: Props) {
   const { data: fiscalCategories = [] } = useFiscalCategories();
+  const { data: suppliers = [] } = useSuppliers();
   const createProduct = useCreateProduct();
   const updateProduct = useUpdateProduct();
   const { companyId } = useCompany();
@@ -157,6 +160,7 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
       cst_cofins: (product as any)?.cst_cofins ?? "01",
       aliq_cofins: (product as any)?.aliq_cofins ?? 7.60,
       gtin_tributavel: (product as any)?.gtin_tributavel ?? "",
+      supplier_id: (product as any)?.supplier_id ?? "",
     },
   });
 
@@ -186,6 +190,7 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
       const payload = {
         ...rest,
         fiscal_category_id: data.fiscal_category_id || null,
+        supplier_id: data.supplier_id || null,
       };
 
       let savedProduct: any;
@@ -442,6 +447,27 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
                           <SelectItem key={c.id} value={c.id}>
                             {c.name} ({c.cfop} - {c.operation_type})
                           </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+              </div>
+
+              {/* Fornecedor */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                <FormField control={form.control} name="supplier_id" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Fornecedor</FormLabel>
+                    <Select onValueChange={(v) => field.onChange(v === "__none__" ? "" : v)} defaultValue={field.value || "__none__"}>
+                      <FormControl>
+                        <SelectTrigger><SelectValue placeholder="Selecione um fornecedor" /></SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="__none__">Nenhum</SelectItem>
+                        {suppliers.map((s: any) => (
+                          <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
