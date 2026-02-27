@@ -57,8 +57,7 @@ export function useCnpjLookup() {
     }
 
     if (!isValidCnpj(clean)) {
-      toast.error("CNPJ inválido — dígitos verificadores não conferem");
-      return null;
+      toast.warning("CNPJ com dígitos verificadores suspeitos — consultando mesmo assim…");
     }
 
     setLoading(true);
