@@ -1,7 +1,9 @@
 import { ReactNode } from "react";
 import { usePlanFeatures } from "@/hooks/usePlanFeatures";
 import { useAdminRole } from "@/hooks/useAdminRole";
-import { Lock } from "lucide-react";
+import { Lock, ArrowUpRight } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Button } from "@/components/ui/button";
 
 interface PlanGateProps {
   feature: string;
@@ -59,6 +61,9 @@ export function PlanGate({ feature, featureName, children }: PlanGateProps) {
         <p className="text-sm text-muted-foreground max-w-md">
           Sua assinatura está suspensa ou cancelada. Renove para acessar {featureName}.
         </p>
+        <Button asChild size="sm" className="mt-2 gap-1.5">
+          <Link to="/renovar">Renovar Assinatura <ArrowUpRight className="w-4 h-4" /></Link>
+        </Button>
       </div>
     );
   }
@@ -72,6 +77,9 @@ export function PlanGate({ feature, featureName, children }: PlanGateProps) {
           <strong>{featureName}</strong> não está disponível no seu plano atual ({plan.plan.toUpperCase()}).
           Faça upgrade para desbloquear.
         </p>
+        <Button asChild size="sm" className="mt-2 gap-1.5">
+          <Link to="/renovar">Fazer Upgrade <ArrowUpRight className="w-4 h-4" /></Link>
+        </Button>
       </div>
     );
   }
