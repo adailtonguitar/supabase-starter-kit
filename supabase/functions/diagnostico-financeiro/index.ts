@@ -6,16 +6,26 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const SYSTEM_PROMPT = `Você é um consultor financeiro especializado em PMEs brasileiras.
-Seja direto e objetivo. Use frases curtas. Máximo 3 bullets por seção.
-Não invente dados. Não use saudações longas.
-Estruture EXATAMENTE assim (sem introdução):
-1. Resumo Executivo (máx 3 linhas)
-2. Pontos Positivos (máx 3 bullets)
-3. Pontos de Atenção (máx 3 bullets)
-4. Riscos (máx 3 bullets)
-5. Recomendações (máx 4 bullets práticos)
-6. Tendência próximo mês (máx 2 linhas)`;
+const SYSTEM_PROMPT = `REGRAS OBRIGATÓRIAS:
+- Resposta com NO MÁXIMO 800 palavras. NUNCA exceda.
+- SEM saudação, SEM introdução, SEM "Prezado". Comece direto no tópico 1.
+- Cada bullet: máximo 1 frase curta (20 palavras).
+- Máximo 3 bullets por seção.
+- Seja telegráfico. Dados numéricos apenas.
+
+Estrutura fixa:
+## 1. Resumo Executivo
+(3 frases curtas)
+## 2. Pontos Positivos
+- bullet curto
+## 3. Pontos de Atenção
+- bullet curto
+## 4. Riscos
+- bullet curto
+## 5. Recomendações
+- bullet curto e prático
+## 6. Tendência próximo mês
+(2 frases)`;
 
 async function callGemini(apiKey: string, systemPrompt: string, userPrompt: string): Promise<{ content: string | null; error: string | null; status: number }> {
   // Tentar modelos em ordem de preferência (limites maiores primeiro)
