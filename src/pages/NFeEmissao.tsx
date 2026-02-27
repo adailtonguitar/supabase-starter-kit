@@ -127,6 +127,8 @@ export default function NFeEmissao() {
   const [products, setProducts] = useState<any[]>([]);
   const [productSearch, setProductSearch] = useState<Record<number, string>>({});
   const [showProductDropdown, setShowProductDropdown] = useState<number | null>(null);
+  const [showAddSearch, setShowAddSearch] = useState(false);
+  const [addSearchTerm, setAddSearchTerm] = useState("");
 
   // Load products from database
   useEffect(() => {
@@ -195,6 +197,38 @@ export default function NFeEmissao() {
     setForm((prev) => ({ ...prev, items: [...prev.items, emptyItem()] }));
   };
 
+  const addProductAsItem = (product: any) => {
+    const newItem: NFeItem = {
+      name: product.name || "",
+      productCode: product.sku || product.barcode || "",
+      ncm: product.ncm || "",
+      cfop: "5102",
+      cst: "",
+      unit: product.unit || "UN",
+      qty: 1,
+      unitPrice: product.price || 0,
+      discount: 0,
+      total: product.price || 0,
+      pisCst: "49",
+      cofinsCst: "49",
+      icmsAliquota: 0,
+      origem: "0",
+    };
+    setForm((prev) => ({ ...prev, items: [...prev.items, newItem] }));
+    setShowAddSearch(false);
+    setAddSearchTerm("");
+    toast.success(`"${product.name}" adicionado`);
+  };
+
+  const getAddFilteredProducts = () => {
+    const search = addSearchTerm.toLowerCase();
+    if (!search) return products.slice(0, 15);
+    return products.filter(p =>
+      p.name?.toLowerCase().includes(search) ||
+      p.sku?.toLowerCase().includes(search) ||
+      p.barcode?.includes(search)
+    ).slice(0, 15);
+  };
   const selectProduct = (idx: number, product: any) => {
     setForm((prev) => {
       const items = [...prev.items];
@@ -602,25 +636,53 @@ export default function NFeEmissao() {
                   ) : (
                     <p className="text-sm text-muted-foreground">Nenhum item adicionado</p>
                   )}
-                  <button onClick={() => {
-                    addItem();
-                    // Focus the new item's search input after render
-                    setTimeout(() => {
-                      const inputs = document.querySelectorAll<HTMLInputElement>('[data-product-search]');
-                      const last = inputs[inputs.length - 1];
-                      if (last) {
-                        last.focus();
-                        last.click();
-                      }
-                    }, 100);
-                  }} className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:opacity-90 transition-all">
+                  <button onClick={() => setShowAddSearch(true)} className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:opacity-90 transition-all">
                     <Plus className="w-3.5 h-3.5" /> Adicionar Item
                   </button>
                 </div>
 
-                {form.items.length === 0 && (
+                {/* Painel de busca para adicionar produto */}
+                {showAddSearch && (
+                  <div className="border border-primary/30 rounded-lg p-3 bg-muted/30 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-semibold text-foreground">Buscar produto para adicionar:</label>
+                      <button onClick={() => { setShowAddSearch(false); setAddSearchTerm(""); }}
+                        className="p-1 rounded hover:bg-muted text-muted-foreground">
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                    <input
+                      autoFocus
+                      value={addSearchTerm}
+                      onChange={e => setAddSearchTerm(e.target.value)}
+                      className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+                      placeholder="Digite nome, SKU ou código de barras..."
+                    />
+                    <div className="max-h-52 overflow-y-auto rounded-lg border border-border bg-card">
+                      {getAddFilteredProducts().length === 0 ? (
+                        <p className="text-center py-4 text-xs text-muted-foreground">Nenhum produto encontrado</p>
+                      ) : (
+                        getAddFilteredProducts().map((p) => (
+                          <button
+                            key={p.id}
+                            type="button"
+                            onClick={() => addProductAsItem(p)}
+                            className="w-full text-left px-3 py-2.5 hover:bg-muted text-sm flex justify-between items-center transition-colors border-b border-border last:border-b-0"
+                          >
+                            <span className="text-foreground truncate font-medium">{p.name}</span>
+                            <span className="text-xs text-muted-foreground ml-2 shrink-0">
+                              {p.sku || ""} — {formatCurrency(p.price || 0)}
+                            </span>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {form.items.length === 0 && !showAddSearch && (
                   <div className="text-center py-8 text-muted-foreground text-sm border border-dashed border-border rounded-lg">
-                    Nenhum item adicionado. Clique em "Adicionar Item" para começar.
+                    Nenhum item adicionado. Clique em "Adicionar Item" para buscar produtos.
                   </div>
                 )}
 
