@@ -21,7 +21,7 @@ export function LandingCTA() {
         <p className="mt-5 text-lg text-muted-foreground leading-relaxed">
           Cadastre-se em segundos e comece a vender hoje mesmo.
           <br />
-          <strong className="text-foreground font-semibold">8 dias grátis, sem compromisso.</strong>
+          <strong className="text-foreground font-semibold">15 dias grátis, sem compromisso.</strong>
         </p>
         <Button asChild size="lg" className="mt-10 text-base px-10 h-13 font-semibold shadow-lg shadow-primary/25">
           <Link to="/auth">

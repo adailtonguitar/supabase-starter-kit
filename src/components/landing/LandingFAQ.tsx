@@ -21,7 +21,7 @@ const faqs = [
   },
   {
     q: "Como funciona o período de teste?",
-    a: "Você tem 8 dias grátis com acesso completo a todas as funcionalidades. Não precisa cadastrar cartão de crédito. Após o período, escolha o plano que melhor se encaixa.",
+    a: "Você tem 15 dias grátis com acesso completo a todas as funcionalidades. Não precisa cadastrar cartão de crédito. Após o período, escolha o plano que melhor se encaixa.",
   },
   {
     q: "Consigo importar meus produtos de outro sistema?",
