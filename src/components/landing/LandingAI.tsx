@@ -78,21 +78,58 @@ export function LandingAI() {
         </div>
 
         {/* Visual highlight */}
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          whileInView={{ opacity: 1, scale: 1 }}
-          viewport={{ once: true }}
-          className="mt-12 max-w-3xl mx-auto rounded-2xl border border-purple-500/20 bg-gradient-to-br from-purple-500/5 to-pink-500/5 p-8 text-center"
-        >
-          <div className="flex items-center justify-center gap-2 mb-3">
-            <Zap className="w-5 h-5 text-purple-500" />
-            <span className="font-bold text-lg">Exemplo de insight real</span>
-          </div>
-          <p className="text-muted-foreground text-sm italic leading-relaxed">
-            "Seu produto <strong>Leite Integral 1L</strong> teve queda de 18% nas vendas esta semana.
-            Considere uma promoção relâmpago ou reposicionar na gôndola principal para recuperar volume."
-          </p>
-        </motion.div>
+        <div className="grid md:grid-cols-2 gap-6 max-w-5xl mx-auto">
+          {/* Insight rápido */}
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
+            className="rounded-2xl border border-purple-500/20 bg-gradient-to-br from-purple-500/5 to-pink-500/5 p-7"
+          >
+            <div className="flex items-center gap-2 mb-4">
+              <Sparkles className="w-5 h-5 text-purple-500" />
+              <span className="font-bold text-base">Insight IA — Dashboard</span>
+              <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 font-semibold">Todos os planos</span>
+            </div>
+            <div className="bg-background/60 rounded-xl p-4 border border-border">
+              <p className="text-sm text-muted-foreground italic leading-relaxed">
+                "Seu produto <strong className="text-foreground">Leite Integral 1L</strong> teve queda de 18% nas vendas esta semana.
+                Considere uma promoção relâmpago ou reposicionar na gôndola principal para recuperar volume."
+              </p>
+            </div>
+          </motion.div>
+
+          {/* Diagnóstico profundo */}
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
+            className="rounded-2xl border border-purple-500/20 bg-gradient-to-br from-purple-500/5 to-indigo-500/5 p-7"
+          >
+            <div className="flex items-center gap-2 mb-4">
+              <Stethoscope className="w-5 h-5 text-purple-500" />
+              <span className="font-bold text-base">Diagnóstico Financeiro — IA</span>
+              <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-primary/15 text-primary font-semibold">Plano Pro</span>
+            </div>
+            <div className="bg-background/60 rounded-xl p-4 border border-border space-y-3 text-sm">
+              <div>
+                <span className="font-semibold text-foreground">1. Resumo Executivo</span>
+                <p className="text-muted-foreground text-xs mt-1">Lucro de R$ 17.000 com margem de 37,7%. Base de 42 clientes ativos demonstra estabilidade, mas concentração de 22% em um único cliente é risco.</p>
+              </div>
+              <div>
+                <span className="font-semibold text-foreground">2. Pontos de Atenção</span>
+                <p className="text-muted-foreground text-xs mt-1">Inadimplência de 8,5% requer plano de cobrança. Cliente top representa 22,3% da receita — diversificar urgente.</p>
+              </div>
+              <div>
+                <span className="font-semibold text-foreground">3. Recomendações</span>
+                <p className="text-muted-foreground text-xs mt-1">Implementar desconto para pagamento antecipado. Criar campanha para captar 10 novos clientes recorrentes no próximo mês.</p>
+              </div>
+              <div className="pt-2 border-t border-border">
+                <p className="text-[11px] text-muted-foreground italic">+ Riscos, Tendências e mais 3 seções no relatório completo...</p>
+              </div>
+            </div>
+          </motion.div>
+        </div>
       </div>
     </section>
   );
