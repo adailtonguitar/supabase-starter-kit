@@ -105,7 +105,7 @@ const emptyForm = (): NFeFormData => ({
   destStreet: "", destNumber: "", destComplement: "", destNeighborhood: "",
   destCity: "", destCityCode: "", destUF: "", destZip: "",
   natOp: "VENDA DE MERCADORIA", finalidade: "1", infAdic: "",
-  items: [emptyItem()],
+  items: [],
   paymentMethod: "01", paymentValue: 0,
   frete: "9", transportName: "", transportDoc: "", transportPlate: "", transportUF: "",
   volumes: 0, grossWeight: 0, netWeight: 0,
@@ -133,7 +133,7 @@ export default function NFeEmissao() {
     if (!companyId) return;
     supabase
       .from("products")
-      .select("id, name, sku, barcode, ncm, cfop, cst_csosn, unit, sale_price, stock_quantity")
+      .select("id, name, sku, barcode, ncm, unit, price, stock_quantity")
       .eq("company_id", companyId)
       .eq("is_active", true)
       .order("name")
@@ -188,7 +188,6 @@ export default function NFeEmissao() {
   };
 
   const removeItem = (idx: number) => {
-    if (form.items.length <= 1) return;
     setForm((prev) => ({ ...prev, items: prev.items.filter((_, i) => i !== idx) }));
   };
 
@@ -204,13 +203,13 @@ export default function NFeEmissao() {
         name: product.name || "",
         productCode: product.sku || product.barcode || "",
         ncm: product.ncm || "",
-        cfop: product.cfop || items[idx].cfop,
-        cst: product.cst_csosn || "",
+        cfop: items[idx].cfop,
+        cst: "",
         unit: product.unit || "UN",
-        unitPrice: product.sale_price || 0,
+        unitPrice: product.price || 0,
         qty: 1,
         discount: 0,
-        total: product.sale_price || 0,
+        total: product.price || 0,
       };
       return { ...prev, items };
     });
@@ -597,19 +596,25 @@ export default function NFeEmissao() {
 
                 <div className="flex items-center justify-between">
                   <p className="text-sm font-medium text-foreground">
-                    {form.items.filter(it => it.name.trim()).length} de {form.items.length} {form.items.length === 1 ? "item preenchido" : "itens preenchidos"} — Total: {formatCurrency(totalItems)}
+                    {form.items.length} {form.items.length === 1 ? "item" : "itens"} — Total: {formatCurrency(totalItems)}
                   </p>
                   <button onClick={addItem} className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:opacity-90 transition-all">
                     <Plus className="w-3.5 h-3.5" /> Adicionar Item
                   </button>
                 </div>
 
+                {form.items.length === 0 && (
+                  <div className="text-center py-8 text-muted-foreground text-sm border border-dashed border-border rounded-lg">
+                    Nenhum item adicionado. Clique em "Adicionar Item" para começar.
+                  </div>
+                )}
+
                 {form.items.map((item, idx) => (
                   <div key={idx} className="border border-border rounded-lg p-3 space-y-3">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-medium text-muted-foreground">Item {idx + 1}</span>
-                      <button onClick={() => removeItem(idx)} disabled={form.items.length <= 1}
-                        className="p-1 rounded hover:bg-destructive/10 text-destructive transition-colors disabled:opacity-30">
+                      <button onClick={() => removeItem(idx)}
+                        className="p-1 rounded hover:bg-destructive/10 text-destructive transition-colors">
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
@@ -650,7 +655,7 @@ export default function NFeEmissao() {
                               >
                                 <span className="text-foreground truncate">{p.name}</span>
                                 <span className="text-xs text-muted-foreground ml-2 shrink-0">
-                                  {p.sku || p.barcode || ""} — {formatCurrency(p.sale_price || 0)}
+                                  {p.sku || p.barcode || ""} — {formatCurrency(p.price || 0)}
                                 </span>
                               </button>
                             ))}
