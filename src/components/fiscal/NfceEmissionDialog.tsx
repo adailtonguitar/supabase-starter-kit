@@ -868,7 +868,7 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
             <p className="text-xs text-muted-foreground mt-1 mb-4">Documento fiscal emitido com sucesso.</p>
 
             {/* Mini DANFE NFC-e */}
-            <div className="w-full max-w-xs bg-white text-black rounded border border-gray-300 p-3 text-[11px] font-mono leading-tight space-y-2">
+            <div id="nfce-cupom" className="w-full max-w-xs bg-white text-black rounded border border-gray-300 p-3 text-[11px] font-mono leading-tight space-y-2">
               <div className="text-center border-b border-dashed border-gray-400 pb-2">
                 <p className="font-bold text-xs">CUPOM FISCAL ELETRÔNICO</p>
                 <p className="text-[10px]">NFC-e - Documento Auxiliar</p>
@@ -931,9 +931,32 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
               </div>
             </div>
 
-            <button onClick={handleClose} className="mt-4 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-all">
-              Fechar
-            </button>
+            <div className="flex gap-2 mt-4">
+              <button
+                onClick={() => {
+                  const cupom = document.getElementById("nfce-cupom");
+                  if (!cupom) return;
+                  const win = window.open("", "_blank", "width=320,height=600");
+                  if (!win) return;
+                  win.document.write(`
+                    <html><head><title>Cupom NFC-e</title>
+                    <style>
+                      @page { size: 80mm auto; margin: 0; }
+                      body { font-family: 'Courier New', monospace; font-size: 11px; margin: 0; padding: 8px; }
+                      @media print { body { padding: 0; } }
+                    </style></head><body>${cupom.innerHTML}</body></html>
+                  `);
+                  win.document.close();
+                  setTimeout(() => { win.print(); }, 300);
+                }}
+                className="px-4 py-2 rounded-lg border border-border text-sm font-medium text-foreground hover:bg-muted transition-colors"
+              >
+                🖨️ Imprimir
+              </button>
+              <button onClick={handleClose} className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-all">
+                Fechar
+              </button>
+            </div>
           </div>
         )}
 
