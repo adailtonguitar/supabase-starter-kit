@@ -182,7 +182,7 @@ export function SaleReceipt({ items, total, payments, onClose, companyName, nfce
           </div>
           {/* New sale */}
           <button onClick={onClose} className="w-full py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-bold active:scale-95 transition-all">
-            Nova Venda (ESC)
+            Nova Venda (F1)
           </button>
         </div>
 
