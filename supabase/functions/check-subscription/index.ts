@@ -20,13 +20,17 @@ Deno.serve(async (req) => {
       });
     }
 
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
+    // Use SERVICE_ROLE_KEY to bypass any JWT verification issues
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
 
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    // First: resolve the user from the token using anon client
+    const anonClient = createClient(supabaseUrl, anonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+
+    const { data: { user }, error: userError } = await anonClient.auth.getUser();
     if (userError || !user) {
       console.error("[check-subscription] Auth error:", userError);
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
@@ -35,10 +39,15 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Use service role client for DB queries (bypasses RLS)
+    const adminClient = serviceRoleKey
+      ? createClient(supabaseUrl, serviceRoleKey)
+      : anonClient;
+
     const userId = user.id;
 
     // Check subscriptions table
-    const { data: sub } = await supabase
+    const { data: sub } = await adminClient
       .from("subscriptions")
       .select("*")
       .eq("user_id", userId)
@@ -47,7 +56,7 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     // Check if blocked
-    const { data: companyUser } = await supabase
+    const { data: companyUser } = await adminClient
       .from("company_users")
       .select("is_active, company_id")
       .eq("user_id", userId)
@@ -86,8 +95,7 @@ Deno.serve(async (req) => {
 
     const now = new Date();
     const endDate = sub.subscription_end ? new Date(sub.subscription_end) : null;
-    const isActive =
-      sub.status === "active" && endDate && endDate > now;
+    const isActive = sub.status === "active" && endDate && endDate > now;
 
     return new Response(
       JSON.stringify({
