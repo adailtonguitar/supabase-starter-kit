@@ -27,6 +27,7 @@ export function useLocalFinancialEntries(filters?: { type?: "pagar" | "receber";
       if (filters?.startDate) query = query.gte("due_date", filters.startDate);
       if (filters?.endDate) query = query.lte("due_date", filters.endDate);
       const { data, error } = await query.order("due_date", { ascending: false });
+      console.log("[useLocalFinancialEntries] companyId:", companyId, "filters:", filters, "data:", data, "error:", error);
       if (error) throw error;
       return (data || []) as LocalFinancialEntry[];
     },
