@@ -116,19 +116,13 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const [companyCheckDone, setCompanyCheckDone] = useState(false);
   const [timedOut, setTimedOut] = useState(false);
 
-  // Safety timeout: if loading takes more than 12s, force completion
+  // Safety timeout: if loading takes more than 8s, force completion
   useEffect(() => {
     const timer = setTimeout(() => {
       setTimedOut(true);
-      console.warn("[ProtectedRoute] Loading timeout reached", {
-        loading,
-        companyLoading,
-        subLoading,
-        adminLoading,
-        companyId,
-        companyCheckDone,
-      });
-    }, 12000);
+      setCompanyCheckDone(true); // Prevent infinite loop
+      console.warn("[ProtectedRoute] Loading timeout reached — forcing through");
+    }, 8000);
     return () => clearTimeout(timer);
   }, []);
 
@@ -189,7 +183,10 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     return <OnboardingWizard onComplete={() => window.location.reload()} />;
   }
 
-  if (!companyId && !showOnboarding) return <Navigate to="/" replace />;
+  // If no company after timeout, show onboarding instead of redirect loop
+  if (!companyId && !showOnboarding) {
+    return <OnboardingWizard onComplete={() => window.location.reload()} />;
+  }
 
   // Block until terms are accepted (super_admin bypasses)
   if (!isSuperAdmin && !termsAccepted) {
