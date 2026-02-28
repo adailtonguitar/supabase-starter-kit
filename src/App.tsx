@@ -219,10 +219,8 @@ function AppRoutes() {
   return (
     <Suspense fallback={<PageSpinner />}>
       <Routes>
-        {/* Public routes - NEVER blocked by auth loading */}
-        <Route path="/" element={
-          isAuthResolved && user ? <Navigate to="/dashboard" replace /> : <LandingPage />
-        } />
+        {/* TEST: Static route - no auth dependency */}
+        <Route path="/" element={<h1 style={{ padding: 40, fontSize: 32 }}>Landing funcionando</h1>} />
         <Route
           path="/auth"
           element={
