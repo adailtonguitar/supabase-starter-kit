@@ -17,6 +17,7 @@ export interface PDVProduct {
   unit: string;
   category: string;
   ncm: string;
+  image_url?: string;
   reorder_point?: number;
 }
 
@@ -66,7 +67,7 @@ export function usePDV() {
     try {
       const { data, error } = await supabase
         .from("products")
-        .select("id, name, sku, barcode, price, stock_quantity, unit, category, ncm")
+        .select("id, name, sku, barcode, price, stock_quantity, unit, category, ncm, image_url")
         .eq("company_id", companyId)
         .order("name");
       
