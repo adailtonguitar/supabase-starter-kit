@@ -942,8 +942,9 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
                     <html><head><title>Cupom NFC-e</title>
                     <style>
                       @page { size: 80mm auto; margin: 0; }
+                      @media print { @page { size: 80mm auto; margin: 0; } html, body { width: 80mm !important; padding: 2mm !important; } .print-tip { display: none; } }
                       * { box-sizing: border-box; margin: 0; padding: 0; }
-                      html, body { font-family: 'Courier New', monospace; font-size: 11px; line-height: 1.4; padding: 8px; width: 80mm; color: #000; background: #fff !important; color-scheme: light; }
+                      html, body { font-family: 'Courier New', monospace; font-size: 11px; line-height: 1.4; padding: 8px; max-width: 302px; margin: 0 auto; color: #000; background: #fff !important; color-scheme: light; }
                       .cupom-header { text-align: center; border-bottom: 1px dashed #999; padding-bottom: 8px; margin-bottom: 8px; }
                       .cupom-header .title { font-weight: bold; font-size: 12px; }
                       .cupom-header .subtitle { font-size: 10px; }
@@ -960,7 +961,7 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
                       .qr-section svg { margin: 0 auto; }
                       .qr-section .qr-label { font-size: 9px; color: #666; margin-top: 4px; }
                       .footer { text-align: center; font-size: 9px; color: #666; padding-top: 4px; }
-                      @media print { body { padding: 0; } }
+                      .cut-line { border-top: 1px dashed #000; margin-top: 8px; padding-top: 4px; text-align: center; font-size: 8px; color: #999; }
                     </style></head><body>
                     <div class="cupom-header">
                       <div class="title">CUPOM FISCAL ELETRÔNICO</div>
@@ -998,6 +999,11 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
                     <div class="footer">
                       <div>Ambiente: Homologação - Sem valor fiscal</div>
                       <div>${new Date().toLocaleString("pt-BR")}</div>
+                    </div>
+                    <div class="cut-line">✂ --------------------------------- ✂</div>
+                    <div class="print-tip" style="text-align:center;font-size:9px;color:#aaa;margin-top:12px;border-top:1px solid #eee;padding-top:8px;">
+                      💡 Dica: No diálogo de impressão, selecione a impressora térmica<br>
+                      e escolha o tamanho de papel "80mm" ou "Personalizado (80x297mm)"
                     </div>
                     </body></html>
                   `);
