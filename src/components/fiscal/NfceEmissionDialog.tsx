@@ -861,10 +861,65 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
         )}
 
         {step === "success" && (
-          <div className="p-8 flex flex-col items-center text-center">
-            <CheckCircle className="w-12 h-12 text-success mb-3" />
+          <div className="p-4 flex flex-col items-center">
+            <CheckCircle className="w-10 h-10 text-success mb-2" />
             <h3 className="text-base font-semibold text-foreground">NFC-e Emitida!</h3>
-            <p className="text-sm text-muted-foreground mt-1">Documento fiscal emitido com sucesso.</p>
+            <p className="text-xs text-muted-foreground mt-1 mb-4">Documento fiscal emitido com sucesso.</p>
+
+            {/* Mini DANFE NFC-e */}
+            <div className="w-full max-w-xs bg-white text-black rounded border border-gray-300 p-3 text-[11px] font-mono leading-tight space-y-2">
+              <div className="text-center border-b border-dashed border-gray-400 pb-2">
+                <p className="font-bold text-xs">CUPOM FISCAL ELETRÔNICO</p>
+                <p className="text-[10px]">NFC-e - Documento Auxiliar</p>
+                {sale?.id && <p className="text-[9px] text-gray-500 mt-1">Venda: {sale.id.substring(0, 8).toUpperCase()}</p>}
+              </div>
+
+              <div className="border-b border-dashed border-gray-400 pb-2">
+                <p className="font-bold mb-1">ITENS</p>
+                {form.items.map((item, i) => (
+                  <div key={i} className="flex justify-between gap-1">
+                    <span className="truncate flex-1">{i + 1}. {item.name}</span>
+                    <span className="whitespace-nowrap">{formatCurrency(item.total)}</span>
+                  </div>
+                ))}
+                {form.items.length > 0 && (
+                  <div className="flex justify-between gap-1 text-[10px] text-gray-500 mt-0.5">
+                    <span>{form.items.length} item(ns)</span>
+                    <span>Qtd: {form.items.reduce((s, it) => s + it.qty, 0)}</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="border-b border-dashed border-gray-400 pb-2 space-y-0.5">
+                <div className="flex justify-between font-bold text-xs">
+                  <span>TOTAL</span>
+                  <span>{formatCurrency(form.paymentValue)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Pagamento</span>
+                  <span>{PAYMENT_OPTIONS.find(p => p.value === form.paymentMethod)?.label || form.paymentMethod}</span>
+                </div>
+                {form.change > 0 && (
+                  <div className="flex justify-between">
+                    <span>Troco</span>
+                    <span>{formatCurrency(form.change)}</span>
+                  </div>
+                )}
+              </div>
+
+              {form.customerName && (
+                <div className="border-b border-dashed border-gray-400 pb-2">
+                  <p><span className="font-bold">Cliente:</span> {form.customerName}</p>
+                  {form.customerDoc && <p><span className="font-bold">CPF/CNPJ:</span> {form.customerDoc}</p>}
+                </div>
+              )}
+
+              <div className="text-center text-[9px] text-gray-500 pt-1">
+                <p>Ambiente: Homologação - Sem valor fiscal</p>
+                <p className="mt-0.5">{new Date().toLocaleString("pt-BR")}</p>
+              </div>
+            </div>
+
             <button onClick={handleClose} className="mt-4 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-all">
               Fechar
             </button>
