@@ -86,8 +86,8 @@ export function useDashboardStats() {
         // Total counts
         supabase.from("products").select("id", { count: "exact", head: true }).eq("company_id", companyId),
         supabase.from("clients").select("id", { count: "exact", head: true }).eq("company_id", companyId),
-        // Top products from sale_items
-        supabase.from("sale_items").select("product_name, quantity, unit_price, sale_id").eq("company_id", companyId).gte("created_at", monthStart + "T00:00:00").limit(500),
+        // Top products from sale_items (joined through sales)
+        supabase.from("sale_items").select("product_name, quantity, unit_price, sale_id, sales!inner(company_id, created_at)").eq("sales.company_id", companyId).gte("sales.created_at", monthStart + "T00:00:00").limit(500),
       ]);
 
       const todaySales = salesResult.data || [];
