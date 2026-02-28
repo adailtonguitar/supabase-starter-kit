@@ -18,6 +18,8 @@ import { validateNcm, detectNcmDuplicates, getNcmDescription, isValidNcmFormat, 
 import { isTypicalStNcm } from "@/lib/icms-st-engine";
 import { useProducts } from "@/hooks/useProducts";
 import { useSuppliers } from "@/hooks/useSuppliers";
+import { usePlanFeatures } from "@/hooks/usePlanFeatures";
+import { useAdminRole } from "@/hooks/useAdminRole";
 import { toast } from "sonner";
 
 interface NCMSuggestion {
@@ -67,6 +69,9 @@ const units = ["UN", "KG", "LT", "MT", "CX", "PCT"];
 export function ProductFormDialog({ open, onOpenChange, product }: Props) {
   const { data: fiscalCategories = [] } = useFiscalCategories();
   const { data: suppliers = [] } = useSuppliers();
+  const planFeatures = usePlanFeatures();
+  const { isSuperAdmin } = useAdminRole();
+  const canUseAiPhoto = isSuperAdmin || planFeatures.plan === "pro";
   const createProduct = useCreateProduct();
   const updateProduct = useUpdateProduct();
   const { companyId } = useCompany();
@@ -386,7 +391,7 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
                   </div>
 
                   {/* AI Photo Analysis Button */}
-                  {!isEditing && (
+                  {!isEditing && canUseAiPhoto && (
                     <Button
                       type="button"
                       variant="outline"
