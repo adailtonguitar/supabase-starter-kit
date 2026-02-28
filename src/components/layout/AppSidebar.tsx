@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import anthoLogo from "@/assets/logo-as.png";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { Link, useLocation } from "react-router-dom";
 import {
   ShoppingCart, LayoutDashboard, Package, FileText, Settings,
@@ -292,6 +293,9 @@ export function AppSidebar({ mobileOpen, onMobileClose }: AppSidebarProps) {
                     <><WifiOff className="w-3.5 h-3.5 status-offline flex-shrink-0" /><span className="text-[11px] status-offline font-medium">Offline</span></>
                   )}
                 </div>
+                <div className="flex items-center gap-2 px-2 py-1 rounded-lg">
+                  <ThemeToggle />
+                </div>
                 <button onClick={signOut} className="w-full flex items-center gap-2 px-2 py-1 rounded-lg text-sidebar-foreground hover:bg-sidebar-accent transition-colors">
                   <LogOut className="w-3.5 h-3.5 flex-shrink-0" /><span className="text-[11px]">Sair</span>
                 </button>
@@ -419,6 +423,9 @@ export function AppSidebar({ mobileOpen, onMobileClose }: AppSidebarProps) {
           ) : (
             <><WifiOff className="w-3.5 h-3.5 status-offline flex-shrink-0" />{!collapsed && <span className="text-[11px] status-offline font-medium">Offline</span>}</>
           )}
+        </div>
+        <div className={cn("flex items-center gap-2 px-2 py-1 rounded-lg", collapsed && "justify-center")}>
+          <ThemeToggle />
         </div>
         <button onClick={signOut} className={cn("w-full flex items-center gap-2 px-2 py-1 rounded-lg text-sidebar-foreground hover:bg-sidebar-accent transition-colors", collapsed && "justify-center")}>
           <LogOut className="w-3.5 h-3.5 flex-shrink-0" />{!collapsed && <span className="text-[11px]">Sair</span>}
