@@ -1115,7 +1115,7 @@ export default function PDV() {
                 animate={{ scale: 1, opacity: 1 }}
                 transition={{ duration: 0.3, ease: "easeOut" }}
                 className="text-3xl lg:text-5xl xl:text-6xl 2xl:text-7xl font-black font-mono tracking-tight block leading-none truncate"
-                style={{ color: "#ffffff", textShadow: "0 4px 24px rgba(0,0,0,0.6), 0 0 40px rgba(255,255,255,0.1)" }}
+                style={{ color: "hsl(var(--foreground))", textShadow: "0 4px 24px rgba(0,0,0,0.6), 0 0 40px rgba(255,255,255,0.1)" }}
               >
                 {formatCurrency(totalFinal)}
               </motion.span>
