@@ -312,7 +312,15 @@ export default function NFeEmissao() {
 
       if (!nfeConfig) {
         setStep("error");
-        setErrorMsg("Configuração fiscal não encontrada. Acesse Fiscal > Configuração e crie uma config para NF-e.");
+        setErrorMsg("Configuração fiscal não encontrada. Para emitir notas fiscais, acesse Fiscal > Configuração e cadastre os dados da sua empresa, incluindo o certificado digital A1 (.pfx).");
+        setEmitting(false);
+        return;
+      }
+
+      // Verificar se certificado digital está configurado ANTES de chamar a Edge Function
+      if (!nfeConfig.certificate_base64 && !nfeConfig.certificate_uploaded) {
+        setStep("error");
+        setErrorMsg("Certificado digital não configurado. Para transmitir notas fiscais à SEFAZ, é necessário cadastrar o certificado digital A1 (.pfx) da sua empresa. Acesse: Fiscal > Configuração > Certificado Digital.");
         setEmitting(false);
         return;
       }
@@ -405,14 +413,13 @@ export default function NFeEmissao() {
         }
         data = parsed;
       } catch (fetchErr: any) {
-        // FunctionsHttpError is thrown by newer SDK versions
         console.error("[NFeEmissao] invoke threw:", fetchErr?.message || fetchErr);
-        let errMsg = "Erro de comunicação com o servidor fiscal.";
+        let errMsg = "Não foi possível conectar ao servidor fiscal. Verifique sua conexão e se o certificado digital está configurado corretamente.";
         try {
           if (fetchErr && typeof fetchErr.context?.json === "function") {
             const body = await fetchErr.context.json();
             if (body?.error) errMsg = body.error;
-          } else if (typeof fetchErr?.message === "string") {
+          } else if (typeof fetchErr?.message === "string" && !fetchErr.message.includes("non-2xx")) {
             errMsg = fetchErr.message;
           }
         } catch { /* keep default */ }
