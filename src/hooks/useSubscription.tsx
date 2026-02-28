@@ -95,9 +95,13 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
     try { const cuResult = await supabase.from("company_users").select("created_at").eq("user_id", user.id).eq("is_active", true).limit(1).single(); if (cuResult.data?.created_at) createdAt = cuResult.data.created_at; } catch { /* */ }
 
     try {
-      const { data, error } = await supabase.functions.invoke("check-subscription");
-      if (error) {
-        console.warn("[useSubscription] check-subscription error, falling back to trial:", error);
+      const response = await supabase.functions.invoke("check-subscription");
+      const data = response.data;
+      const error = response.error;
+      
+      // Handle any failure: network error, 401, 500, missing data
+      if (error || !data || data?.error || data?.code === 401) {
+        console.warn("[useSubscription] check-subscription failed, falling back to trial:", error || data);
         const trial = calcTrial(createdAt);
         const newState: SubscriptionState = { ...defaultState, loading: false, ...trial };
         setState(newState);
