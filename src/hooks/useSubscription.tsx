@@ -163,7 +163,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
     }
   }, [user]);
 
-  useEffect(() => { checkSubscription(); const interval = setInterval(checkSubscription, 60_000); return () => clearInterval(interval); }, [checkSubscription]);
+  useEffect(() => { checkSubscription(); const interval = setInterval(checkSubscription, 5 * 60_000); return () => clearInterval(interval); }, [checkSubscription]);
 
   const createCheckout = useCallback(async (planKey: string) => {
     console.log("[createCheckout] Starting checkout for plan:", planKey);

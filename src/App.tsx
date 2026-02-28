@@ -89,8 +89,8 @@ const NFeEmissao = lazy(() => import("./pages/NFeEmissao"));
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 10 * 60 * 1000, // 10 min — reduce refetches
-      gcTime: 30 * 60 * 1000, // 30 min cache retention
+      staleTime: 15 * 60 * 1000, // 15 min — reduce refetches
+      gcTime: 60 * 60 * 1000, // 60 min cache retention
       refetchOnWindowFocus: false,
       refetchOnReconnect: false,
       retry: 1,

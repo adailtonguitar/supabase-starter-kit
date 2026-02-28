@@ -5,8 +5,8 @@ import { useCompany } from "@/hooks/useCompany";
 import { toast } from "sonner";
 
 const SESSION_TOKEN_KEY = "as_session_token";
-const HEARTBEAT_INTERVAL = 2 * 60 * 1000; // 2 min
-const VALIDATION_INTERVAL = 3 * 60 * 1000; // 3 min
+const HEARTBEAT_INTERVAL = 5 * 60 * 1000; // 5 min
+const VALIDATION_INTERVAL = 5 * 60 * 1000; // 5 min
 
 function generateSessionToken(): string {
   return crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
