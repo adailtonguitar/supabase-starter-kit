@@ -320,7 +320,47 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
         return;
       }
 
-      if (!nfceConfig.certificate_path && !(nfceConfig as any).a3_thumbprint) {
+      const isHomologacao = nfceConfig.environment === "homologacao";
+      const hasCert = !!(nfceConfig.certificate_path || (nfceConfig as any).a3_thumbprint);
+
+      // Modo teste local: simula emissão em homologação sem certificado
+      if (isHomologacao && !hasCert) {
+        console.log("[NFC-e] Modo teste local — simulando emissão sem envio à SEFAZ");
+        const fakeChave = Array.from({ length: 44 }, () => Math.floor(Math.random() * 10)).join("");
+        const fakeProtocol = Date.now().toString();
+        
+        // Registra como simulação no banco
+        await supabase.from("fiscal_documents").insert({
+          company_id: companyId,
+          sale_id: sale.id,
+          doc_type: "nfce",
+          status: "simulado",
+          access_key: fakeChave,
+          protocol_number: fakeProtocol,
+          environment: "homologacao",
+          serie: nfceConfig.serie,
+          number: nfceConfig.next_number || 1,
+          total_value: form.paymentValue,
+          customer_doc: form.customerDoc || null,
+          customer_name: form.customerName || null,
+        } as any);
+
+        // Incrementa próximo número
+        await supabase.from("fiscal_configs").update({ 
+          next_number: (nfceConfig.next_number || 1) + 1 
+        } as any).eq("id", nfceConfig.id);
+
+        setStep("success");
+        toast.success("✅ Simulação concluída! (modo teste — sem envio à SEFAZ)", {
+          description: `Chave fictícia: ${fakeChave.substring(0, 20)}...`,
+          duration: 6000,
+        });
+        onSuccess?.();
+        setEmitting(false);
+        return;
+      }
+
+      if (!hasCert) {
         setStep("error");
         setErrorMsg("Certificado digital não configurado. Envie seu certificado A1 ou configure o A3.");
         setEmitting(false);
@@ -367,7 +407,6 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
         setStep("error");
         const errText = data?.error || "Erro ao emitir NFC-e.";
         setErrorMsg(errText);
-        // Parse SEFAZ rejection code for actionable guidance
         const rej = parseSefazRejection(errText, data?.details);
         setRejection(rej);
         if (rej?.field === "items") setActiveTab("items");
