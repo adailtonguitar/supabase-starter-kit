@@ -80,6 +80,7 @@ export function useCreateFinancialEntry() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["financial_entries"] });
+      qc.invalidateQueries({ queryKey: ["financial-entries"] });
       toast.success("Lançamento criado");
     },
     onError: (e: Error) => toast.error(`Erro: ${e.message}`),
@@ -102,6 +103,7 @@ export function useUpdateFinancialEntry() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["financial_entries"] });
+      qc.invalidateQueries({ queryKey: ["financial-entries"] });
       toast.success("Lançamento atualizado");
     },
     onError: (e: Error) => toast.error(`Erro: ${e.message}`),
@@ -118,6 +120,7 @@ export function useDeleteFinancialEntry() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["financial_entries"] });
+      qc.invalidateQueries({ queryKey: ["financial-entries"] });
       toast.success("Lançamento excluído");
     },
     onError: (e: Error) => toast.error(`Erro: ${e.message}`),
@@ -198,6 +201,7 @@ export function useMarkAsPaid() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["financial_entries"] });
+      qc.invalidateQueries({ queryKey: ["financial-entries"] });
       qc.invalidateQueries({ queryKey: ["cash_sessions"] });
       qc.invalidateQueries({ queryKey: ["cash_movements"] });
       toast.success("Marcado como pago e registrado no caixa");
