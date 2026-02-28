@@ -182,7 +182,7 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
         name: item.name || item.product_name || "Produto",
         ncm: item.ncm || "",
         cfop: item.cfop || "5102",
-        cst: item.cst || item.csosn || "",
+        cst: item.cst || item.csosn || (companyCrt === 1 || companyCrt === 2 ? "102" : "00"),
         unit: item.unit || "UN",
         qty,
         unitPrice,
