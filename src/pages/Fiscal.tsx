@@ -623,7 +623,59 @@ export default function Fiscal() {
               )}
             </div>
 
-            <div className="flex gap-2 mt-6">
+            {/* XML Download/Save Buttons */}
+            {selectedDoc.status === "autorizada" && selectedDoc.access_key && (
+              <div className="flex gap-2 mt-6">
+                <button
+                  onClick={async () => {
+                    const result = await FiscalEmissionService.downloadXml(selectedDoc.access_key!, selectedDoc.doc_type as "nfce" | "nfe");
+                    const xml = (result as any)?.xml || (result as any)?.xml_content;
+                    if (xml) {
+                      const blob = new Blob([xml], { type: "application/xml" });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement("a");
+                      a.href = url;
+                      a.download = `${selectedDoc.doc_type}_${selectedDoc.number || 0}.xml`;
+                      a.click();
+                      URL.revokeObjectURL(url);
+                      toast.success("XML baixado no seu PC!");
+                    } else {
+                      toast.error((result as any)?.error || "Não foi possível obter o XML.");
+                    }
+                  }}
+                  className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-accent text-accent-foreground text-sm font-medium hover:opacity-90 transition-all"
+                >
+                  <Download className="w-4 h-4" />
+                  Baixar XML (PC)
+                </button>
+                <button
+                  onClick={async () => {
+                    if (!companyId) return;
+                    const result = await FiscalEmissionService.downloadXml(selectedDoc.access_key!, selectedDoc.doc_type as "nfce" | "nfe");
+                    const xml = (result as any)?.xml || (result as any)?.xml_content;
+                    if (!xml) { toast.error((result as any)?.error || "Não foi possível obter o XML."); return; }
+                    const saveResult = await FiscalEmissionService.saveXmlToCloud({
+                      companyId,
+                      accessKey: selectedDoc.access_key!,
+                      docType: selectedDoc.doc_type as "nfce" | "nfe",
+                      number: selectedDoc.number || 0,
+                      xmlContent: xml,
+                    });
+                    if (saveResult.success) {
+                      toast.success(`XML salvo na nuvem: ${saveResult.fileName}`);
+                    } else {
+                      toast.error(saveResult.error || "Erro ao salvar na nuvem");
+                    }
+                  }}
+                  className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-secondary text-secondary-foreground text-sm font-medium hover:opacity-90 transition-all"
+                >
+                  <HardDrive className="w-4 h-4" />
+                  Salvar na Nuvem
+                </button>
+              </div>
+            )}
+
+            <div className="flex gap-2 mt-3">
               {selectedDoc.status === "autorizada" && selectedDoc.access_key && (
                 <button
                   onClick={() => handlePrintDanfe(selectedDoc)}

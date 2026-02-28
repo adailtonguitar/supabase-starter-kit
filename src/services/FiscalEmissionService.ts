@@ -83,6 +83,45 @@ export class FiscalEmissionService {
   }
 
   /**
+   * Download XML of a specific document from Nuvem Fiscal.
+   */
+  static async downloadXml(accessKey: string, docType: "nfce" | "nfe") {
+    try {
+      const { data, error } = await supabase.functions.invoke("emit-nfce", {
+        body: { action: "download_xml", access_key: accessKey, doc_type: docType },
+      });
+      if (error) return { error: error.message };
+      return data;
+    } catch (err: any) {
+      return { error: err?.message || "Erro ao baixar XML" };
+    }
+  }
+
+  /**
+   * Save XML to Supabase Storage bucket for the company.
+   */
+  static async saveXmlToCloud(params: {
+    companyId: string;
+    accessKey: string;
+    docType: "nfce" | "nfe";
+    number: number;
+    xmlContent: string;
+  }) {
+    try {
+      const fileName = `${params.docType}_${params.number}_${params.accessKey.slice(-8)}.xml`;
+      const path = `${params.companyId}/xmls/${params.docType}/${fileName}`;
+      const blob = new Blob([params.xmlContent], { type: "application/xml" });
+      const { error } = await supabase.storage
+        .from("company-backups")
+        .upload(path, blob, { upsert: true, contentType: "application/xml" });
+      if (error) return { success: false, error: error.message };
+      return { success: true, path, fileName };
+    } catch (err: any) {
+      return { success: false, error: err?.message || "Erro ao salvar XML na nuvem" };
+    }
+  }
+
+  /**
    * Backup all existing XMLs to Storage bucket.
    */
   static async backupXmls(companyId: string) {
