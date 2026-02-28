@@ -111,7 +111,7 @@ export default function Produtos() {
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        className="hidden sm:block bg-card rounded-xl card-shadow border border-border overflow-hidden"
+        className="hidden md:block bg-card rounded-xl card-shadow border border-border overflow-hidden"
       >
         <div className="overflow-x-auto scrollbar-thin">
           <table className="w-full text-sm min-w-[700px]">
@@ -200,7 +200,7 @@ export default function Produtos() {
       </motion.div>
 
       {/* Mobile cards */}
-      <div className="sm:hidden space-y-2">
+      <div className="md:hidden space-y-2">
         {isLoading ? (
           [...Array(4)].map((_, i) => <Skeleton key={i} className="h-24 w-full rounded-xl" />)
         ) : filtered.length === 0 ? (
