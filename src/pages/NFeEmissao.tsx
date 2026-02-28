@@ -372,8 +372,16 @@ export default function NFeEmissao() {
             },
           },
         });
-        console.log("[NFeEmissao] invoke result:", JSON.stringify(result, null, 2));
-        data = result?.data;
+        try {
+          console.log("[NFeEmissao] invoke result keys:", result ? Object.keys(result) : "null");
+        } catch { /* non-enumerable */ }
+        
+        // If data is not already parsed JSON, try to parse it
+        let rawData = result?.data;
+        if (rawData && typeof rawData === "object" && typeof rawData.json === "function") {
+          try { rawData = await rawData.json(); } catch { rawData = null; }
+        }
+        data = rawData;
         invokeError = result?.error;
       } catch (fetchErr: any) {
         console.error("[NFeEmissao] invoke threw:", fetchErr);
