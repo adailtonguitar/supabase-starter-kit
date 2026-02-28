@@ -32,6 +32,8 @@ export function useLocalFinancialEntries(filters?: { type?: "pagar" | "receber";
       return (data || []) as LocalFinancialEntry[];
     },
     enabled: !!companyId,
+    refetchOnMount: "always",
+    staleTime: 0,
   });
 }
 
