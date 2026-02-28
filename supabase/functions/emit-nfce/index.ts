@@ -357,6 +357,59 @@ Deno.serve(async (req) => {
       return jsonResponse({ success: true, pdf_base64: pdfBase64 });
     }
 
+    // ─── DOWNLOAD XML ───
+    if (action === "download_xml") {
+      const { access_key, doc_type } = body;
+      if (!access_key) return jsonResponse({ error: "Chave de acesso obrigatória" }, 400);
+
+      // 1. Try local DB first (faster)
+      const { data: localDoc } = await supabase
+        .from("fiscal_documents")
+        .select("xml_content")
+        .eq("access_key", access_key)
+        .maybeSingle();
+
+      if (localDoc?.xml_content) {
+        return jsonResponse({ success: true, xml: localDoc.xml_content });
+      }
+
+      // 2. Fetch from Nuvem Fiscal API
+      const token = await getNuvemFiscalToken();
+      const endpoint = doc_type === "nfe" ? "nfe" : "nfce";
+
+      const searchResp = await fetch(
+        `${NUVEM_FISCAL_API}/${endpoint}?chave=${access_key}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      if (!searchResp.ok) {
+        const errData = await searchResp.json();
+        return jsonResponse({
+          error: errData?.mensagem || `Documento não encontrado [${searchResp.status}]`,
+        });
+      }
+
+      const searchData = await searchResp.json();
+      const docId = searchData?.data?.[0]?.id || searchData?.id;
+
+      if (!docId) {
+        return jsonResponse({ error: "Documento não encontrado na Nuvem Fiscal" });
+      }
+
+      const xmlResp = await fetch(
+        `${NUVEM_FISCAL_API}/${endpoint}/${docId}/xml`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      if (!xmlResp.ok) {
+        const errText = await xmlResp.text();
+        return jsonResponse({ error: `Erro ao obter XML [${xmlResp.status}]: ${errText}` });
+      }
+
+      const xmlContent = await xmlResp.text();
+      return jsonResponse({ success: true, xml: xmlContent });
+    }
+
     // ─── CANCEL NFC-e / NF-e ───
     if (action === "cancel") {
       const { doc_id, access_key, doc_type, justificativa, fiscal_doc_id, sale_id } = body;
