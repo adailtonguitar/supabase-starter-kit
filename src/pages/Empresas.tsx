@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/hooks/useCompany";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -52,6 +53,7 @@ const states = [
 ];
 
 const Empresas = () => {
+  const navigate = useNavigate();
   const { companyId, loading: companyLoading } = useCompany();
   const { user } = useAuth();
   const [form, setForm] = useState<CompanyForm>(emptyForm);
@@ -124,6 +126,7 @@ const Empresas = () => {
       } as any).eq("id", companyId);
       if (error) throw error;
       toast.success("Empresa atualizada com sucesso!");
+      navigate(-1);
     } catch (err: any) {
       toast.error("Erro ao salvar: " + (err.message || "Erro desconhecido"));
     }
