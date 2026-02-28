@@ -211,19 +211,18 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 function AppRoutes() {
   const { user, loading } = useAuth();
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-screen bg-background">
-        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
+  // While auth is loading, show public routes immediately (landing, auth, etc.)
+  // Only block protected routes behind the loading spinner
+  const showUser = !loading ? user : null;
+  const isAuthResolved = !loading;
 
   return (
     <Suspense fallback={<PageSpinner />}>
       <Routes>
-        {/* Public landing page for unauthenticated users */}
-        <Route path="/" element={user ? <Navigate to="/dashboard" replace /> : <LandingPage />} />
+        {/* Public routes - NEVER blocked by auth loading */}
+        <Route path="/" element={
+          isAuthResolved && user ? <Navigate to="/dashboard" replace /> : <LandingPage />
+        } />
         <Route
           path="/auth"
           element={
