@@ -242,16 +242,16 @@ export default function Financeiro() {
         {/* Desktop table */}
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="hidden sm:block bg-card rounded-xl card-shadow border border-border overflow-hidden min-w-0">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full text-sm table-fixed">
               <thead>
                 <tr className="border-b border-border">
-                  <th className="text-left px-5 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Tipo</th>
-                  <th className="text-left px-5 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Descrição</th>
-                  <th className="text-left px-5 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Categoria</th>
-                  <th className="text-left px-5 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Vencimento</th>
-                  <th className="text-right px-5 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Valor</th>
-                  <th className="text-center px-5 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Status</th>
-                  <th className="text-center px-5 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Ações</th>
+                  <th className="text-left px-3 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider w-[80px]">Tipo</th>
+                  <th className="text-left px-3 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Descrição</th>
+                  <th className="text-left px-3 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider w-[100px]">Categoria</th>
+                  <th className="text-left px-3 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider w-[100px]">Vencimento</th>
+                  <th className="text-right px-3 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider w-[100px]">Valor</th>
+                  <th className="text-center px-3 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider w-[90px]">Status</th>
+                  <th className="text-center px-3 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider w-[60px]">Ações</th>
                 </tr>
               </thead>
               <tbody>
@@ -273,30 +273,30 @@ export default function Financeiro() {
                     const StIcon = st.icon;
                     return (
                       <tr key={entry.id} className="border-b border-border last:border-0 hover:bg-muted/50 transition-colors">
-                        <td className="px-5 py-3">
-                          <div className={`flex items-center gap-2 ${entry.type === "pagar" ? "text-destructive" : "text-primary"}`}>
-                            {entry.type === "pagar" ? <ArrowUpCircle className="w-4 h-4" /> : <ArrowDownCircle className="w-4 h-4" />}
+                        <td className="px-3 py-3">
+                          <div className={`flex items-center gap-1.5 ${entry.type === "pagar" ? "text-destructive" : "text-primary"}`}>
+                            {entry.type === "pagar" ? <ArrowUpCircle className="w-3.5 h-3.5 shrink-0" /> : <ArrowDownCircle className="w-3.5 h-3.5 shrink-0" />}
                             <span className="text-xs font-medium">{entry.type === "pagar" ? "Pagar" : "Receber"}</span>
                           </div>
                         </td>
-                        <td className="px-5 py-3">
-                          <p className="font-medium text-foreground">{entry.description}</p>
-                          {entry.counterpart && <p className="text-xs text-muted-foreground">{entry.counterpart}</p>}
+                        <td className="px-3 py-3 min-w-0">
+                          <p className="font-medium text-foreground truncate">{entry.description}</p>
+                          {entry.counterpart && <p className="text-xs text-muted-foreground truncate">{entry.counterpart}</p>}
                         </td>
-                        <td className="px-5 py-3 text-muted-foreground text-xs">{categoryLabels[entry.category] || entry.category}</td>
-                        <td className="px-5 py-3 font-mono text-xs text-muted-foreground">
-                          {format(parseISO(entry.due_date), "dd/MM/yyyy")}
+                        <td className="px-3 py-3 text-muted-foreground text-xs truncate">{categoryLabels[entry.category] || entry.category}</td>
+                        <td className="px-3 py-3 font-mono text-xs text-muted-foreground">
+                          {format(parseISO(entry.due_date), "dd/MM/yy")}
                         </td>
-                        <td className="px-5 py-3 text-right font-mono font-semibold text-foreground">
+                        <td className="px-3 py-3 text-right font-mono font-semibold text-foreground text-xs">
                           {formatCurrency(entry.amount)}
                         </td>
-                        <td className="px-5 py-3 text-center">
-                          <Badge variant={st.variant} className="text-xs gap-1">
-                            <StIcon className="w-3 h-3" />
+                        <td className="px-3 py-3 text-center">
+                          <Badge variant={st.variant} className="text-[10px] gap-0.5 px-1.5">
+                            <StIcon className="w-2.5 h-2.5" />
                             {st.label}
                           </Badge>
                         </td>
-                        <td className="px-5 py-3 text-center">
+                        <td className="px-3 py-3 text-center">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <button className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
