@@ -146,7 +146,7 @@ export default function DiagnosticoFinanceiro() {
   return (
     <div className="p-6 space-y-6 max-w-4xl mx-auto">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col gap-4">
         <div>
           <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
             <Stethoscope className="w-6 h-6 text-primary" />
@@ -157,14 +157,14 @@ export default function DiagnosticoFinanceiro() {
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
           <div className="flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-muted-foreground" />
+            <Calendar className="w-4 h-4 text-muted-foreground flex-shrink-0" />
             <input
               type="month"
               value={mesReferencia}
               onChange={(e) => setMesReferencia(e.target.value)}
-              className="bg-background border border-input rounded-md px-3 py-2 text-sm text-foreground"
+              className="bg-background border border-input rounded-md px-3 py-2 text-sm text-foreground w-full sm:w-auto"
             />
           </div>
 
@@ -172,6 +172,7 @@ export default function DiagnosticoFinanceiro() {
             onClick={gerarDiagnostico}
             disabled={loading || cooldownSeconds > 0}
             size="lg"
+            className="w-full sm:w-auto whitespace-nowrap"
           >
             {loading ? (
               <>
