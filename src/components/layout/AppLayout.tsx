@@ -1,11 +1,11 @@
 import { useState, memo } from "react";
 import { AppSidebar } from "./AppSidebar";
+import { MobileBottomNav } from "./MobileBottomNav";
 import { UpdateNoticeModal } from "@/components/UpdateNoticeModal";
 import { SubscriptionBanner } from "./SubscriptionBanner";
 import { OnlineStatusIndicator } from "./OnlineStatusIndicator";
 import { useWhatsAppSupport } from "@/hooks/useWhatsAppSupport";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { Menu } from "lucide-react";
 
 const WhatsAppIcon = () => (
   <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
@@ -38,7 +38,6 @@ export const AppLayout = memo(function AppLayout({ children }: AppLayoutProps) {
   const isMobile = useIsMobile();
   const [mobileOpen, setMobileOpen] = useState(false);
 
-
   return (
     <div className="flex h-screen overflow-hidden max-w-full">
       <UpdateNoticeModal />
@@ -46,21 +45,13 @@ export const AppLayout = memo(function AppLayout({ children }: AppLayoutProps) {
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         <OnlineStatusIndicator />
         <SubscriptionBanner />
-        <header className="h-12 border-b border-border bg-card flex items-center justify-between px-2 sm:px-4 shrink-0 gap-2">
-          {isMobile ? (
-            <button
-              onClick={() => setMobileOpen(true)}
-              className="p-2 rounded-lg text-foreground hover:bg-muted transition-colors"
-              aria-label="Abrir menu"
-            >
-              <Menu className="w-5 h-5" />
-            </button>
-          ) : (
-            <div />
-          )}
-          <HeaderWhatsAppButton />
-        </header>
-        <main className="flex-1 overflow-auto min-w-0">{children}</main>
+        {!isMobile && (
+          <header className="h-12 border-b border-border bg-card flex items-center justify-end px-2 sm:px-4 shrink-0 gap-2">
+            <HeaderWhatsAppButton />
+          </header>
+        )}
+        <main className={`flex-1 overflow-auto min-w-0 ${isMobile ? "pb-16" : ""}`}>{children}</main>
+        {isMobile && <MobileBottomNav onMenuOpen={() => setMobileOpen(true)} />}
       </div>
     </div>
   );
