@@ -94,21 +94,48 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
     let createdAt = user.created_at;
     try { const cuResult = await supabase.from("company_users").select("created_at").eq("user_id", user.id).eq("is_active", true).limit(1).single(); if (cuResult.data?.created_at) createdAt = cuResult.data.created_at; } catch { /* */ }
 
+    // Try edge function first, fall back to direct DB query
+    let data: any = null;
     try {
       const response = await supabase.functions.invoke("check-subscription");
-      const data = response.data;
-      const error = response.error;
-      
-      // Handle any failure: network error, 401, 500, missing data
-      if (error || !data || data?.error || data?.code === 401) {
-        console.warn("[useSubscription] check-subscription failed, falling back to trial:", error || data);
+      if (!response.error && response.data && !response.data?.error && response.data?.code !== 401) {
+        data = response.data;
+      } else {
+        console.warn("[useSubscription] Edge function failed, querying DB directly:", response.error || response.data);
+      }
+    } catch (e) {
+      console.warn("[useSubscription] Edge function threw, querying DB directly:", e);
+    }
+
+    // Fallback: query subscriptions table directly
+    if (!data) {
+      try {
+        // Check if user is blocked
+        const { data: cu } = await supabase.from("company_users").select("is_active").eq("user_id", user.id).limit(1).maybeSingle();
+        if (cu && !cu.is_active) {
+          setState({ ...defaultState, loading: false, blocked: true, blockReason: "Sua conta foi desativada pelo administrador." });
+          return;
+        }
+
+        const { data: sub } = await supabase.from("subscriptions").select("*").eq("user_id", user.id).order("created_at", { ascending: false }).limit(1).maybeSingle();
+        if (sub) {
+          const now = new Date();
+          const endDate = sub.subscription_end ? new Date(sub.subscription_end) : null;
+          const isActive = sub.status === "active" && endDate && endDate > now;
+          data = { subscribed: isActive, plan_key: sub.plan_key || null, subscription_end: sub.subscription_end || null, was_subscriber: true, last_subscription_end: sub.subscription_end || null };
+        } else {
+          data = { subscribed: false, plan_key: null, subscription_end: null, was_subscriber: false, last_subscription_end: null };
+        }
+      } catch (dbErr) {
+        console.warn("[useSubscription] DB fallback also failed, using trial:", dbErr);
         const trial = calcTrial(createdAt);
         const newState: SubscriptionState = { ...defaultState, loading: false, ...trial };
-        setState(newState);
-        cacheSubState(newState);
+        setState(newState); cacheSubState(newState);
         return;
       }
+    }
 
+    try {
       if (data?.blocked) { setState({ ...defaultState, loading: false, blocked: true, blockReason: data.block_reason || "Acesso bloqueado pelo administrador." }); return; }
 
       const isSubscribed = data?.subscribed ?? false;

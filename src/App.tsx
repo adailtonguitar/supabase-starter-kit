@@ -210,14 +210,8 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
 function AppRoutes() {
   const { user, loading } = useAuth();
-  const [authTimedOut, setAuthTimedOut] = useState(false);
 
-  useEffect(() => {
-    const t = setTimeout(() => setAuthTimedOut(true), 5000);
-    return () => clearTimeout(t);
-  }, []);
-
-  if (loading && !authTimedOut) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center h-screen bg-background">
         <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
