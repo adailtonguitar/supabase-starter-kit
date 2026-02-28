@@ -190,8 +190,11 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
   const onSubmit = async (data: FormData) => {
     try {
       const { reorder_point, reorder_quantity, ...rest } = data as any;
+      // Auto-generate SKU if empty to avoid unique constraint violation
+      const finalSku = data.sku?.trim() || `PRD-${Date.now().toString(36).toUpperCase()}`;
       const payload = {
         ...rest,
+        sku: finalSku,
         fiscal_category_id: data.fiscal_category_id || null,
         supplier_id: data.supplier_id || null,
       };
