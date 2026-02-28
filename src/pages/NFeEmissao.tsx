@@ -272,9 +272,17 @@ export default function NFeEmissao() {
   }
 
   const handleEmit = async () => {
-    // Validations
+    // ========== VALIDAÇÕES OBRIGATÓRIAS SEFAZ - NF-e modelo 55 ==========
+
+    // --- Destinatário ---
     if (!form.destDoc.trim()) {
-      toast.error("CPF/CNPJ do destinatário é obrigatório para NF-e.");
+      toast.error("CPF/CNPJ do destinatário é obrigatório.");
+      setActiveTab("dest");
+      return;
+    }
+    const docDigits = form.destDoc.replace(/\D/g, "");
+    if (docDigits.length !== 11 && docDigits.length !== 14) {
+      toast.error("CPF deve ter 11 dígitos ou CNPJ deve ter 14 dígitos.");
       setActiveTab("dest");
       return;
     }
@@ -283,15 +291,110 @@ export default function NFeEmissao() {
       setActiveTab("dest");
       return;
     }
+    // Endereço completo é obrigatório para NF-e
+    if (!form.destStreet.trim()) {
+      toast.error("Logradouro do destinatário é obrigatório para NF-e.");
+      setActiveTab("dest");
+      return;
+    }
+    if (!form.destNumber.trim()) {
+      toast.error("Número do endereço do destinatário é obrigatório. Use 'S/N' se não houver.");
+      setActiveTab("dest");
+      return;
+    }
+    if (!form.destNeighborhood.trim()) {
+      toast.error("Bairro do destinatário é obrigatório para NF-e.");
+      setActiveTab("dest");
+      return;
+    }
+    if (!form.destCity.trim()) {
+      toast.error("Município do destinatário é obrigatório para NF-e.");
+      setActiveTab("dest");
+      return;
+    }
+    if (!form.destUF.trim() || form.destUF.length !== 2) {
+      toast.error("UF do destinatário é obrigatória (2 letras, ex: SP, RJ).");
+      setActiveTab("dest");
+      return;
+    }
+    if (!form.destZip.trim() || form.destZip.replace(/\D/g, "").length !== 8) {
+      toast.error("CEP do destinatário é obrigatório (8 dígitos).");
+      setActiveTab("dest");
+      return;
+    }
+    // IE obrigatória se destinatário for CNPJ (PJ)
+    if (docDigits.length === 14 && !form.destIE.trim()) {
+      toast.error("Inscrição Estadual é obrigatória para destinatário Pessoa Jurídica. Use 'ISENTO' se o destinatário for isento.");
+      setActiveTab("dest");
+      return;
+    }
+
+    // --- Itens ---
     if (form.items.length === 0) {
       toast.error("Adicione pelo menos um item.");
       setActiveTab("items");
       return;
     }
-    const emptyNames = form.items.some((it) => !it.name.trim());
-    if (emptyNames) { toast.error("Preencha o nome de todos os itens."); setActiveTab("items"); return; }
-    const emptyNcm = form.items.some((it) => !it.ncm.trim() || it.ncm.replace(/\D/g, "").length < 4);
-    if (emptyNcm) { toast.error("Preencha o NCM válido de todos os itens."); setActiveTab("items"); return; }
+
+    for (let i = 0; i < form.items.length; i++) {
+      const it = form.items[i];
+      const label = `Item ${i + 1} (${it.name || "sem nome"})`;
+
+      if (!it.name.trim()) {
+        toast.error(`${label}: Descrição do produto é obrigatória.`);
+        setActiveTab("items");
+        return;
+      }
+      const ncmDigits = it.ncm.replace(/\D/g, "");
+      if (!ncmDigits || ncmDigits.length < 8) {
+        toast.error(`${label}: NCM deve ter 8 dígitos.`);
+        setActiveTab("items");
+        return;
+      }
+      if (!it.cfop.trim() || it.cfop.replace(/\D/g, "").length !== 4) {
+        toast.error(`${label}: CFOP deve ter 4 dígitos (ex: 5102, 6102).`);
+        setActiveTab("items");
+        return;
+      }
+      if (!it.cst.trim()) {
+        toast.error(`${label}: CST/CSOSN é obrigatório. Selecione o código tributário.`);
+        setActiveTab("items");
+        return;
+      }
+      if (!it.unit.trim()) {
+        toast.error(`${label}: Unidade de medida é obrigatória (UN, KG, CX, etc).`);
+        setActiveTab("items");
+        return;
+      }
+      if (it.qty <= 0) {
+        toast.error(`${label}: Quantidade deve ser maior que zero.`);
+        setActiveTab("items");
+        return;
+      }
+      if (it.unitPrice <= 0) {
+        toast.error(`${label}: Valor unitário deve ser maior que zero.`);
+        setActiveTab("items");
+        return;
+      }
+      if (!it.origem && it.origem !== "0") {
+        toast.error(`${label}: Origem da mercadoria é obrigatória (0=Nacional, 1=Estrangeira, etc).`);
+        setActiveTab("items");
+        return;
+      }
+    }
+
+    // --- Pagamento ---
+    if (!form.paymentMethod) {
+      toast.error("Forma de pagamento é obrigatória.");
+      setActiveTab("payment");
+      return;
+    }
+
+    // --- Natureza da Operação ---
+    if (!form.natOp.trim()) {
+      toast.error("Natureza da operação é obrigatória (ex: VENDA DE MERCADORIA).");
+      return;
+    }
 
     setEmitting(true);
     setErrorMsg("");
