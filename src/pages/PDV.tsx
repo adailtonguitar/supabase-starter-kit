@@ -1099,9 +1099,9 @@ export default function PDV() {
             data-tour="pdv-total"
             className="p-2 lg:p-5 xl:p-6 mt-auto border-t-4 transition-all duration-500 flex-shrink-0 overflow-hidden relative"
             style={{
-              backgroundColor: "hsl(var(--primary))",
-              borderTopColor: "hsl(var(--primary))",
-              boxShadow: "inset 0 4px 20px rgba(0,0,0,0.3), 0 -2px 15px hsla(var(--primary) / 0.3)",
+              backgroundColor: totalFinal > 0 ? "hsl(0, 72%, 38%)" : "hsl(142, 76%, 30%)",
+              borderTopColor: totalFinal > 0 ? "hsl(0, 80%, 55%)" : "hsl(142, 80%, 48%)",
+              boxShadow: `inset 0 4px 20px rgba(0,0,0,0.3), 0 -2px 15px ${totalFinal > 0 ? "hsla(0, 72%, 40%, 0.3)" : "hsla(142, 72%, 32%, 0.3)"}`,
             }}
           >
             <div className="absolute inset-0 bg-gradient-to-b from-white/[0.06] to-transparent pointer-events-none" />
@@ -1203,13 +1203,13 @@ export default function PDV() {
         {/* Payment method buttons */}
         <div className="flex items-stretch gap-1 lg:gap-1.5 px-1.5 lg:px-3 py-1 lg:py-2 flex-wrap">
           {[
-            { id: "dinheiro", label: "Dinheiro", icon: Banknote, colorClass: "bg-card hover:bg-accent text-foreground border border-border shadow-sm" },
-            { id: "debito", label: "Débito", icon: CreditCard, colorClass: "bg-card hover:bg-accent text-foreground border border-border shadow-sm" },
-            { id: "credito", label: "Crédito", icon: Wallet, colorClass: "bg-card hover:bg-accent text-foreground border border-border shadow-sm" },
-            { id: "pix", label: "PIX", icon: QrCode, colorClass: "bg-card hover:bg-accent text-foreground border border-border shadow-sm" },
-            { id: "voucher", label: "Voucher", icon: Ticket, colorClass: "bg-card hover:bg-accent text-foreground border border-border shadow-sm" },
-            { id: "prazo", label: "A Prazo", icon: ClockIcon, colorClass: "bg-card hover:bg-accent text-foreground border border-border shadow-sm" },
-            { id: "multi", label: "Múltiplas", icon: MoreHorizontal, colorClass: "bg-card hover:bg-accent text-foreground border border-border shadow-sm" },
+            { id: "dinheiro", label: "Dinheiro", icon: Banknote, colorClass: "bg-emerald-900/70 hover:bg-emerald-800/80 text-emerald-50 border border-emerald-600/50 shadow-sm" },
+            { id: "debito", label: "Débito", icon: CreditCard, colorClass: "bg-blue-900/70 hover:bg-blue-800/80 text-blue-50 border border-blue-600/50 shadow-sm" },
+            { id: "credito", label: "Crédito", icon: Wallet, colorClass: "bg-violet-900/70 hover:bg-violet-800/80 text-violet-50 border border-violet-600/50 shadow-sm" },
+            { id: "pix", label: "PIX", icon: QrCode, colorClass: "bg-teal-900/70 hover:bg-teal-800/80 text-teal-50 border border-teal-600/50 shadow-sm" },
+            { id: "voucher", label: "Voucher", icon: Ticket, colorClass: "bg-amber-900/70 hover:bg-amber-800/80 text-amber-50 border border-amber-600/50 shadow-sm" },
+            { id: "prazo", label: "A Prazo", icon: ClockIcon, colorClass: "bg-orange-900/70 hover:bg-orange-800/80 text-orange-50 border border-orange-600/50 shadow-sm" },
+            { id: "multi", label: "Múltiplas", icon: MoreHorizontal, colorClass: "bg-orange-900/70 hover:bg-orange-800/80 text-orange-50 border border-orange-600/50 shadow-sm" },
           ].map(({ id, label, icon: Icon, colorClass }, idx) => (
             <motion.button
               key={id}
