@@ -12,6 +12,7 @@ import { parseSefazRejection, type SefazRejection } from "@/lib/sefaz-rejection-
 import { usePlanFeatures } from "@/hooks/usePlanFeatures";
 import { NCM_TABLE } from "@/lib/ncm-table";
 import { useProducts } from "@/hooks/useProducts";
+import { QRCodeSVG } from "qrcode.react";
 
 interface NfceEmissionDialogProps {
   sale: any;
@@ -913,6 +914,16 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
                   {form.customerDoc && <p><span className="font-bold">CPF/CNPJ:</span> {form.customerDoc}</p>}
                 </div>
               )}
+
+              {/* QR Code */}
+              <div className="flex flex-col items-center border-b border-dashed border-gray-400 pb-2">
+                <QRCodeSVG
+                  value={`https://www.nfce.fazenda.sp.gov.br/consulta?chave=${sale?.id || "SIMULACAO"}`}
+                  size={100}
+                  level="M"
+                />
+                <p className="text-[9px] text-gray-500 mt-1">Consulte pelo QR Code</p>
+              </div>
 
               <div className="text-center text-[9px] text-gray-500 pt-1">
                 <p>Ambiente: Homologação - Sem valor fiscal</p>
