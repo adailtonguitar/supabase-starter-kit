@@ -126,7 +126,7 @@ const Empresas = () => {
       } as any).eq("id", companyId);
       if (error) throw error;
       toast.success("Empresa atualizada com sucesso!");
-      navigate(-1);
+      setTimeout(() => navigate("/dashboard"), 300);
     } catch (err: any) {
       toast.error("Erro ao salvar: " + (err.message || "Erro desconhecido"));
     }
