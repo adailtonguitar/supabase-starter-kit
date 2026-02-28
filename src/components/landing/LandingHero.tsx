@@ -45,7 +45,7 @@ export function LandingHero() {
               <span className="relative">
                 <span className="text-primary">supermercado</span>
                 <svg className="absolute -bottom-1 left-0 w-full" viewBox="0 0 200 8" fill="none">
-                  <path d="M2 6C50 2 150 2 198 6" stroke="hsl(168 72% 36%)" strokeWidth="3" strokeLinecap="round" />
+                  <path d="M2 6C50 2 150 2 198 6" stroke="hsl(var(--primary))" strokeWidth="3" strokeLinecap="round" />
                 </svg>
               </span>
             </h1>
