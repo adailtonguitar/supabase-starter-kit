@@ -146,7 +146,7 @@ export default function FiscalConfigEdit() {
           a3_subject_name: certType === "A3" ? (a3Certificates.find(c => c.thumbprint === a3SelectedThumbprint)?.subjectName || null) : null,
           sat_serial_number: config.docType === "sat" ? satSerial || null : null,
           sat_activation_code: config.docType === "sat" ? satActivation || null : null,
-          crt: crt,
+          
           updated_at: new Date().toISOString(),
         };
         if (config.id) {
@@ -158,6 +158,8 @@ export default function FiscalConfigEdit() {
           if (data) config.id = data.id;
         }
       }
+      // Save CRT on companies table
+      await supabase.from("companies").update({ crt } as any).eq("id", companyId);
       setConfigs([...configs]);
       toast.success("Configurações fiscais salvas com sucesso!");
       navigate("/fiscal/config");
