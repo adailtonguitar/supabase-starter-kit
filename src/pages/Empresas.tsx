@@ -209,11 +209,11 @@ const Empresas = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Field label="Razão Social *" value={form.name} onChange={v => handleChange("name", v)} />
           <Field label="Nome Fantasia" value={form.trade_name} onChange={v => handleChange("trade_name", v)} />
-          <Field label="CNPJ" value={form.cnpj} onChange={v => handleChange("cnpj", v)} />
-          <Field label="Inscrição Estadual" value={form.ie} onChange={v => handleChange("ie", v)} />
+          <Field label="CNPJ *" value={form.cnpj} onChange={v => handleChange("cnpj", v)} />
+          <Field label="Inscrição Estadual *" value={form.ie} onChange={v => handleChange("ie", v)} />
           <Field label="Inscrição Municipal" value={form.im} onChange={v => handleChange("im", v)} />
-          <Field label="Telefone" value={form.phone} onChange={v => handleChange("phone", v)} />
-          <Field label="E-mail" value={form.email} onChange={v => handleChange("email", v)} />
+          <Field label="Telefone *" value={form.phone} onChange={v => handleChange("phone", v)} />
+          <Field label="E-mail *" value={form.email} onChange={v => handleChange("email", v)} />
           <Field label="Slogan" value={form.slogan} onChange={v => handleChange("slogan", v)} />
         </div>
       </div>
@@ -223,14 +223,14 @@ const Empresas = () => {
         <h2 className="text-sm font-semibold text-foreground uppercase tracking-wider">Endereço</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="sm:col-span-2">
-            <Field label="Rua" value={form.address_street} onChange={v => handleChange("address_street", v)} />
+            <Field label="Rua *" value={form.address_street} onChange={v => handleChange("address_street", v)} />
           </div>
-          <Field label="Número" value={form.address_number} onChange={v => handleChange("address_number", v)} />
+          <Field label="Número *" value={form.address_number} onChange={v => handleChange("address_number", v)} />
           <Field label="Complemento" value={form.address_complement} onChange={v => handleChange("address_complement", v)} />
-          <Field label="Bairro" value={form.address_neighborhood} onChange={v => handleChange("address_neighborhood", v)} />
-          <Field label="Cidade" value={form.address_city} onChange={v => handleChange("address_city", v)} />
+          <Field label="Bairro *" value={form.address_neighborhood} onChange={v => handleChange("address_neighborhood", v)} />
+          <Field label="Cidade *" value={form.address_city} onChange={v => handleChange("address_city", v)} />
           <div>
-            <Label className="text-xs text-muted-foreground">Estado</Label>
+            <Label className="text-xs text-muted-foreground">Estado *</Label>
             <select
               value={form.address_state}
               onChange={e => handleChange("address_state", e.target.value)}
@@ -240,7 +240,7 @@ const Empresas = () => {
               {states.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
-          <Field label="CEP" value={form.address_zip} onChange={v => handleChange("address_zip", v)} />
+          <Field label="CEP *" value={form.address_zip} onChange={v => handleChange("address_zip", v)} />
         </div>
       </div>
 
