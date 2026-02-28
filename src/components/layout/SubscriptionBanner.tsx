@@ -36,7 +36,7 @@ export function SubscriptionBanner() {
     if (isSuperAdmin) return null;
     if (subscribed && daysUntilExpiry !== null && daysUntilExpiry <= 5) return "expiry";
     if (gracePeriodActive && graceDaysLeft !== null) return "grace";
-    if (trialActive && trialDaysLeft !== null && trialDaysLeft <= 3) return "trial";
+    if (trialActive && trialDaysLeft !== null && trialDaysLeft <= 5) return "trial";
     if (subscribed && planKey === "essencial") return "upgrade";
     return null;
   }, [adminLoading, subLoading, isSuperAdmin, subscribed, daysUntilExpiry, gracePeriodActive, graceDaysLeft, trialActive, trialDaysLeft, planKey]);
@@ -97,13 +97,13 @@ export function SubscriptionBanner() {
 
   if (visibleBannerType === "trial") {
     return (
-      <div className="bg-warning/10 border-b border-warning/30 px-4 py-2 flex items-center justify-between gap-3">
+      <div className="bg-gradient-to-r from-primary/10 to-warning/10 border-b border-primary/20 px-4 py-2.5 flex items-center justify-between gap-3">
         <div className="flex items-center gap-2 text-sm">
-          <Clock className="w-4 h-4 text-warning shrink-0" />
-          <span className="text-warning font-medium">
-            Seu teste gratuito expira em {trialDaysLeft} dia{trialDaysLeft !== 1 ? "s" : ""}.{" "}
-            <button onClick={() => navigate("/trial-expirado")} className="underline font-bold">
-              Assinar plano
+          <Crown className="w-4 h-4 text-primary shrink-0" />
+          <span className="text-foreground font-medium">
+            🚀 Você está usando o <strong>plano Pro completo</strong> por mais {trialDaysLeft} dia{trialDaysLeft !== 1 ? "s" : ""}.{" "}
+            <button onClick={() => navigate("/renovar")} className="underline font-bold text-primary">
+              Assinar agora e não perder acesso
             </button>
           </span>
         </div>
