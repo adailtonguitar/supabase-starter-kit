@@ -44,7 +44,7 @@ Deno.serve(async (req) => {
       .from("companies")
       .insert({
         name: name.trim(),
-        cnpj: cnpj?.replace(/\D/g, "") || null,
+        cnpj: cnpj?.replace(/\D/g, "") || "",
         phone: phone?.trim() || null,
       })
       .select("id")
