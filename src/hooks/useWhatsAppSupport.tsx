@@ -1,18 +1,28 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "./useCompany";
 
 const DEFAULT_WHATSAPP = "";
+const WA_CACHE_KEY = "as_cached_whatsapp";
 
 export function useWhatsAppSupport() {
   const { companyId, loading: companyLoading } = useCompany();
-  const [whatsappNumber, setWhatsappNumber] = useState<string | null>(null);
+  const [whatsappNumber, setWhatsappNumber] = useState<string | null>(() => {
+    try { return localStorage.getItem(WA_CACHE_KEY) || null; } catch { return null; }
+  });
   const [loading, setLoading] = useState(true);
+  const fetchedRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (companyLoading) return;
     if (!companyId) {
       setWhatsappNumber(DEFAULT_WHATSAPP || null);
+      setLoading(false);
+      return;
+    }
+
+    // Skip if already fetched for this company
+    if (fetchedRef.current === companyId) {
       setLoading(false);
       return;
     }
@@ -27,6 +37,8 @@ export function useWhatsAppSupport() {
 
         if (company?.whatsapp_support) {
           setWhatsappNumber(company.whatsapp_support);
+          try { localStorage.setItem(WA_CACHE_KEY, company.whatsapp_support); } catch {}
+          fetchedRef.current = companyId;
           setLoading(false);
           return;
         }
@@ -48,11 +60,15 @@ export function useWhatsAppSupport() {
 
           if (reseller?.whatsapp_support) {
             setWhatsappNumber(reseller.whatsapp_support);
+            try { localStorage.setItem(WA_CACHE_KEY, reseller.whatsapp_support); } catch {}
+            fetchedRef.current = companyId;
             setLoading(false);
             return;
           }
           if (reseller?.phone) {
             setWhatsappNumber(reseller.phone);
+            try { localStorage.setItem(WA_CACHE_KEY, reseller.phone); } catch {}
+            fetchedRef.current = companyId;
             setLoading(false);
             return;
           }
@@ -63,6 +79,7 @@ export function useWhatsAppSupport() {
         console.error("[useWhatsAppSupport] Error:", err);
         setWhatsappNumber(DEFAULT_WHATSAPP || null);
       }
+      fetchedRef.current = companyId;
       setLoading(false);
     };
 
