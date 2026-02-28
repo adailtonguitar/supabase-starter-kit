@@ -19,7 +19,7 @@ import { useQuotes } from "@/hooks/useQuotes";
 import { useCompany } from "@/hooks/useCompany";
 import { useBarcodeScanner } from "@/hooks/useBarcodeScanner";
 import { useTEFConfig } from "@/hooks/useTEFConfig";
-import { Wifi, WifiOff, Keyboard, X, Search, Monitor, FileText, User, PackageX, PackagePlus, Maximize, Minimize, Banknote, CreditCard, QrCode, Smartphone, Ticket, MoreHorizontal, Clock as ClockIcon, Trash2, Hash, Percent, AlertTriangle, Plus, Wallet } from "lucide-react";
+import { Wifi, WifiOff, Keyboard, X, Search, Monitor, FileText, User, PackageX, PackagePlus, Package, Maximize, Minimize, Banknote, CreditCard, QrCode, Smartphone, Ticket, MoreHorizontal, Clock as ClockIcon, Trash2, Hash, Percent, AlertTriangle, Plus, Wallet } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import type { PaymentResult } from "@/services/types";
@@ -897,35 +897,30 @@ export default function PDV() {
               <span className="text-xl font-black text-foreground font-mono tabular-nums">{formatCurrency(pdv.subtotal)}</span>
             </div>
 
-            {/* Last added item highlight with product photo */}
-            {lastAddedItem && (
-              <div className="hidden lg:flex flex-col items-center gap-2 py-3 border-b border-primary/30 bg-primary/5 rounded-lg px-2 animate-fade-in">
-                {lastAddedItem.image_url && (
-                  <div className="w-20 h-20 rounded-xl overflow-hidden border-2 border-primary/30 shadow-lg">
-                    <img src={lastAddedItem.image_url} alt={lastAddedItem.name} className="w-full h-full object-cover" />
+            {/* Selected/Active product photo — persistent */}
+            {(() => {
+              const activeItem = selectedCartItemId 
+                ? pdv.cartItems.find(i => i.id === selectedCartItemId) 
+                : pdv.cartItems[pdv.cartItems.length - 1];
+              if (!activeItem) return null;
+              return (
+                <div className="hidden lg:flex flex-col items-center gap-2 py-3 border-b border-primary/30 bg-primary/5 rounded-lg px-2">
+                  {(activeItem as any).image_url ? (
+                    <div className="w-24 h-24 rounded-xl overflow-hidden border-2 border-primary/30 shadow-lg">
+                      <img src={(activeItem as any).image_url} alt={activeItem.name} className="w-full h-full object-cover" />
+                    </div>
+                  ) : (
+                    <div className="w-24 h-24 rounded-xl bg-muted/80 border-2 border-border flex items-center justify-center">
+                      <Package className="w-10 h-10 text-muted-foreground/40" />
+                    </div>
+                  )}
+                  <div className="text-center">
+                    <span className="text-xs font-bold text-foreground block truncate max-w-[200px]">{activeItem.name}</span>
+                    <span className="text-sm font-black text-primary font-mono">{formatCurrency(activeItem.price)}</span>
                   </div>
-                )}
-                <div className="text-center">
-                  <span className="text-xs font-bold text-primary uppercase flex items-center justify-center gap-1">
-                    <Plus className="w-3 h-3" /> Último item
-                  </span>
-                  <span className="text-xs font-bold text-foreground block truncate max-w-[160px]">{lastAddedItem.name}</span>
-                  <span className="text-sm font-black text-primary font-mono">{formatCurrency(lastAddedItem.price)}</span>
                 </div>
-              </div>
-            )}
-            {/* Mobile: compact last item */}
-            {lastAddedItem && (
-              <div className="flex lg:hidden justify-between items-center py-1.5 border-b border-primary/30 bg-primary/5 rounded-lg px-2 animate-fade-in">
-                <span className="text-xs font-bold text-primary uppercase flex items-center gap-1">
-                  <Plus className="w-3 h-3" /> Último
-                </span>
-                <div className="text-right">
-                  <span className="text-xs font-bold text-foreground block truncate max-w-[140px]">{lastAddedItem.name}</span>
-                  <span className="text-xs font-bold text-primary font-mono">{formatCurrency(lastAddedItem.price)}</span>
-                </div>
-              </div>
-            )}
+              );
+            })()}
 
             {/* Desconto item (F7) — mobile: fixed overlay, desktop: inline */}
             {editingItemDiscountId && (
