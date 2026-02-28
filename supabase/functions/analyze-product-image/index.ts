@@ -1,9 +1,52 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
+
+async function callGeminiVision(apiKey: string, contents: any[]): Promise<{ data: any | null; error: string | null; status: number }> {
+  const models = ["gemini-2.5-flash-lite", "gemini-2.0-flash-lite", "gemini-2.0-flash", "gemini-1.5-flash"];
+  
+  for (const model of models) {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+    console.log(`[analyze-product-image] Tentando modelo: ${model}...`);
+    
+    try {
+      const resp = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents,
+          generationConfig: { maxOutputTokens: 500, temperature: 0.2 },
+        }),
+      });
+
+      console.log(`[analyze-product-image] ${model} status: ${resp.status}`);
+
+      if (resp.status === 429 || resp.status === 404) {
+        const errText = await resp.text();
+        console.warn(`[analyze-product-image] ${model} falhou (${resp.status}): ${errText.substring(0, 150)}`);
+        continue;
+      }
+
+      if (!resp.ok) {
+        const errText = await resp.text();
+        console.error(`[analyze-product-image] ${model} erro: ${errText.substring(0, 300)}`);
+        return { data: null, error: `Erro Gemini ${model} (${resp.status})`, status: resp.status };
+      }
+
+      const data = await resp.json();
+      console.log(`[analyze-product-image] Sucesso com ${model}!`);
+      return { data, error: null, status: 200 };
+    } catch (err: any) {
+      console.error(`[analyze-product-image] Erro de rede no ${model}:`, err?.message);
+      continue;
+    }
+  }
+
+  return { data: null, error: "Todos os modelos falharam. Aguarde 1-2 minutos.", status: 429 };
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -85,44 +128,26 @@ ${categoriesHint}
     if (image_base64.startsWith("data:image/png")) mimeType = "image/png";
     else if (image_base64.startsWith("data:image/webp")) mimeType = "image/webp";
 
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`;
-
-    const resp = await fetch(geminiUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [
-          {
-            role: "user",
-            parts: [
-              { text: systemPrompt },
-              {
-                inline_data: {
-                  mime_type: mimeType,
-                  data: imageData,
-                },
-              },
-            ],
-          },
+    const contents = [
+      {
+        role: "user",
+        parts: [
+          { text: systemPrompt },
+          { inline_data: { mime_type: mimeType, data: imageData } },
         ],
-        generationConfig: {
-          maxOutputTokens: 500,
-          temperature: 0.2,
-        },
-      }),
-    });
+      },
+    ];
 
-    if (!resp.ok) {
-      const errText = await resp.text();
-      console.error("[analyze-product-image] Gemini error:", resp.status, errText.substring(0, 300));
-      return new Response(JSON.stringify({ error: "Erro na análise de IA", details: resp.status }), {
-        status: 500,
+    const result = await callGeminiVision(GEMINI_KEY, contents);
+
+    if (!result.data) {
+      return new Response(JSON.stringify({ error: result.error }), {
+        status: result.status === 429 ? 429 : 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const data = await resp.json();
-    const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    const rawText = result.data?.candidates?.[0]?.content?.parts?.[0]?.text;
 
     if (!rawText) {
       console.error("[analyze-product-image] No content from Gemini");
