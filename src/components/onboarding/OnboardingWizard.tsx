@@ -40,48 +40,13 @@ export function OnboardingWizard({ onComplete }: Props) {
     }
     setSaving(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Usuário não autenticado");
+      const { data, error } = await supabase.rpc("create_onboarding_company" as any, {
+        p_name: companyName.trim(),
+        p_cnpj: cnpj.replace(/\D/g, "") || "",
+        p_phone: phone.trim() || null,
+      });
 
-      // Check if user already has a company
-      const { data: existing } = await supabase
-        .from("company_users")
-        .select("company_id")
-        .eq("user_id", user.id)
-        .eq("is_active", true)
-        .limit(1)
-        .maybeSingle();
-
-      if (existing) {
-        toast.info("Você já possui uma empresa cadastrada!");
-        next();
-        return;
-      }
-
-      // Create company directly (RLS allows authenticated users)
-      const { data: company, error: companyErr } = await supabase
-        .from("companies")
-        .insert({
-          name: companyName.trim(),
-          cnpj: cnpj.replace(/\D/g, "") || "",
-          phone: phone.trim() || null,
-        } as any)
-        .select("id")
-        .single();
-
-      if (companyErr) throw companyErr;
-
-      // Link user as admin
-      const { error: linkErr } = await supabase
-        .from("company_users")
-        .insert({
-          company_id: company.id,
-          user_id: user.id,
-          role: "admin",
-          is_active: true,
-        } as any);
-
-      if (linkErr) throw linkErr;
+      if (error) throw error;
 
       toast.success("Empresa criada com sucesso!");
       next();
