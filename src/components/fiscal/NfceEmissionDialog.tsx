@@ -943,7 +943,7 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
                     <style>
                       @page { size: 80mm auto; margin: 0; }
                       * { box-sizing: border-box; margin: 0; padding: 0; }
-                      body { font-family: 'Courier New', monospace; font-size: 11px; line-height: 1.4; padding: 8px; width: 80mm; color: #000; }
+                      html, body { font-family: 'Courier New', monospace; font-size: 11px; line-height: 1.4; padding: 8px; width: 80mm; color: #000; background: #fff !important; color-scheme: light; }
                       .cupom-header { text-align: center; border-bottom: 1px dashed #999; padding-bottom: 8px; margin-bottom: 8px; }
                       .cupom-header .title { font-weight: bold; font-size: 12px; }
                       .cupom-header .subtitle { font-size: 10px; }
