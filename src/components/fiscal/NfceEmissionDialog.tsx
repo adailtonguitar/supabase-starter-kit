@@ -942,9 +942,64 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
                     <html><head><title>Cupom NFC-e</title>
                     <style>
                       @page { size: 80mm auto; margin: 0; }
-                      body { font-family: 'Courier New', monospace; font-size: 11px; margin: 0; padding: 8px; }
+                      * { box-sizing: border-box; margin: 0; padding: 0; }
+                      body { font-family: 'Courier New', monospace; font-size: 11px; line-height: 1.4; padding: 8px; width: 80mm; color: #000; }
+                      .cupom-header { text-align: center; border-bottom: 1px dashed #999; padding-bottom: 8px; margin-bottom: 8px; }
+                      .cupom-header .title { font-weight: bold; font-size: 12px; }
+                      .cupom-header .subtitle { font-size: 10px; }
+                      .cupom-header .venda { font-size: 9px; color: #666; margin-top: 4px; }
+                      .cupom-section { border-bottom: 1px dashed #999; padding-bottom: 8px; margin-bottom: 8px; }
+                      .cupom-section .label { font-weight: bold; margin-bottom: 4px; }
+                      .item-row { display: flex; justify-content: space-between; gap: 4px; }
+                      .item-row .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+                      .item-row .value { white-space: nowrap; }
+                      .item-meta { display: flex; justify-content: space-between; font-size: 10px; color: #666; margin-top: 2px; }
+                      .total-row { display: flex; justify-content: space-between; font-weight: bold; font-size: 12px; }
+                      .pay-row { display: flex; justify-content: space-between; }
+                      .qr-section { text-align: center; border-bottom: 1px dashed #999; padding-bottom: 8px; margin-bottom: 8px; }
+                      .qr-section svg { margin: 0 auto; }
+                      .qr-section .qr-label { font-size: 9px; color: #666; margin-top: 4px; }
+                      .footer { text-align: center; font-size: 9px; color: #666; padding-top: 4px; }
                       @media print { body { padding: 0; } }
-                    </style></head><body>${cupom.innerHTML}</body></html>
+                    </style></head><body>
+                    <div class="cupom-header">
+                      <div class="title">CUPOM FISCAL ELETRÔNICO</div>
+                      <div class="subtitle">NFC-e - Documento Auxiliar</div>
+                      ${sale?.id ? `<div class="venda">Venda: ${sale.id.substring(0, 8).toUpperCase()}</div>` : ""}
+                    </div>
+                    <div class="cupom-section">
+                      <div class="label">ITENS</div>
+                      ${form.items.map((item, i) => `
+                        <div class="item-row">
+                          <span class="name">${i + 1}. ${item.name}</span>
+                          <span class="value">R$ ${item.total.toFixed(2)}</span>
+                        </div>
+                      `).join("")}
+                      <div class="item-meta">
+                        <span>${form.items.length} item(ns)</span>
+                        <span>Qtd: ${form.items.reduce((s, it) => s + it.qty, 0)}</span>
+                      </div>
+                    </div>
+                    <div class="cupom-section">
+                      <div class="total-row"><span>TOTAL</span><span>R$ ${form.paymentValue.toFixed(2)}</span></div>
+                      <div class="pay-row"><span>Pagamento</span><span>${PAYMENT_OPTIONS.find(p => p.value === form.paymentMethod)?.label || form.paymentMethod}</span></div>
+                      ${form.change > 0 ? `<div class="pay-row"><span>Troco</span><span>R$ ${form.change.toFixed(2)}</span></div>` : ""}
+                    </div>
+                    ${form.customerName ? `
+                      <div class="cupom-section">
+                        <div><strong>Cliente:</strong> ${form.customerName}</div>
+                        ${form.customerDoc ? `<div><strong>CPF/CNPJ:</strong> ${form.customerDoc}</div>` : ""}
+                      </div>
+                    ` : ""}
+                    <div class="qr-section">
+                      ${document.getElementById("nfce-cupom")?.querySelector("svg")?.outerHTML || ""}
+                      <div class="qr-label">Consulte pelo QR Code</div>
+                    </div>
+                    <div class="footer">
+                      <div>Ambiente: Homologação - Sem valor fiscal</div>
+                      <div>${new Date().toLocaleString("pt-BR")}</div>
+                    </div>
+                    </body></html>
                   `);
                   win.document.close();
                   setTimeout(() => { win.print(); }, 300);
