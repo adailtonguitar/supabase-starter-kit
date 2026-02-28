@@ -370,15 +370,23 @@ export default function NFeEmissao() {
           },
         });
 
-        // Safely extract data – result.data may be a Response/ReadableStream on non-2xx
+        // Handle error returned by SDK
         if (result?.error) {
-          let errMsg = "Edge Function retornou erro. Verifique a configuração do certificado digital.";
+          let errMsg = "Edge Function retornou erro.";
           try {
             const e = result.error;
-            if (typeof e === "string") errMsg = e;
-            else if (e && typeof e.message === "string") errMsg = e.message;
-            // FunctionsHttpError may have a context with body
-            else if (e && typeof e.context?.body === "string") errMsg = e.context.body;
+            if (typeof e === "string") {
+              errMsg = e;
+            } else if (e && typeof e.message === "string") {
+              errMsg = e.message;
+              // Try to get response body from FunctionsHttpError
+              if (e.context && typeof e.context.json === "function") {
+                try {
+                  const body = await e.context.json();
+                  if (body?.error) errMsg = body.error;
+                } catch { /* ignore */ }
+              }
+            }
           } catch { /* keep default */ }
           setStep("error");
           setErrorMsg(errMsg);
@@ -386,7 +394,7 @@ export default function NFeEmissao() {
           return;
         }
 
-        // Safely parse data
+        // Safely parse data (may be Response object)
         let parsed = result?.data;
         try {
           if (parsed && typeof parsed === "object" && typeof parsed.json === "function") {
@@ -397,9 +405,19 @@ export default function NFeEmissao() {
         }
         data = parsed;
       } catch (fetchErr: any) {
-        console.error("[NFeEmissao] invoke threw:", fetchErr);
+        // FunctionsHttpError is thrown by newer SDK versions
+        console.error("[NFeEmissao] invoke threw:", fetchErr?.message || fetchErr);
+        let errMsg = "Erro de comunicação com o servidor fiscal.";
+        try {
+          if (fetchErr && typeof fetchErr.context?.json === "function") {
+            const body = await fetchErr.context.json();
+            if (body?.error) errMsg = body.error;
+          } else if (typeof fetchErr?.message === "string") {
+            errMsg = fetchErr.message;
+          }
+        } catch { /* keep default */ }
         setStep("error");
-        setErrorMsg("Erro de comunicação com o servidor fiscal. Verifique se o certificado digital está configurado.");
+        setErrorMsg(errMsg);
         setEmitting(false);
         return;
       }
