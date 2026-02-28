@@ -208,19 +208,21 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-function AppRoutes() {
+/** Shows LandingPage immediately; redirects to /dashboard once auth confirms user */
+function LandingRedirectWrapper() {
   const { user, loading } = useAuth();
+  if (!loading && user) return <Navigate to="/dashboard" replace />;
+  return <LandingPage />;
+}
 
-  // While auth is loading, show public routes immediately (landing, auth, etc.)
-  // Only block protected routes behind the loading spinner
-  const showUser = !loading ? user : null;
-  const isAuthResolved = !loading;
+function AppRoutes() {
+  const { user } = useAuth();
 
   return (
     <Suspense fallback={<PageSpinner />}>
       <Routes>
-        {/* TEST: Static route - no auth dependency */}
-        <Route path="/" element={<h1 style={{ padding: 40, fontSize: 32 }}>Landing funcionando</h1>} />
+        {/* Public landing - renders immediately, redirects after auth resolves */}
+        <Route path="/" element={<LandingRedirectWrapper />} />
         <Route
           path="/auth"
           element={
