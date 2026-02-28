@@ -85,6 +85,7 @@ const Ruptura = lazy(() => import("./pages/Ruptura"));
 const SugestaoCompra = lazy(() => import("./pages/SugestaoCompra"));
 const PainelDono = lazy(() => import("./pages/PainelDono"));
 const NFeEmissao = lazy(() => import("./pages/NFeEmissao"));
+const EmissorNFe = lazy(() => import("./pages/EmissorNFe"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -245,6 +246,14 @@ function AppRoutes() {
           element={
             <ProtectedRoute>
               <PDV />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/emissor-nfe"
+          element={
+            <ProtectedRoute>
+              <EmissorNFe />
             </ProtectedRoute>
           }
         />
