@@ -79,7 +79,7 @@ export default function PDV() {
   const wantsFullscreenRef = useRef(false);
   const [selectedCartItemId, setSelectedCartItemId] = useState<string | null>(null);
   const [pendingQuoteId, setPendingQuoteId] = useState<string | null>(null);
-  const [lastAddedItem, setLastAddedItem] = useState<{ name: string; price: number } | null>(null);
+  const [lastAddedItem, setLastAddedItem] = useState<{ name: string; price: number; image_url?: string } | null>(null);
   const lastAddedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const finalizingSale = pdv.finalizingSale;
 
@@ -329,7 +329,7 @@ export default function PDV() {
     if (added) {
       playAddSound();
       // Show last added item highlight for 3s
-      setLastAddedItem({ name: product.name, price: product.price });
+      setLastAddedItem({ name: product.name, price: product.price, image_url: (product as any).image_url });
       if (lastAddedTimerRef.current) clearTimeout(lastAddedTimerRef.current);
       lastAddedTimerRef.current = setTimeout(() => setLastAddedItem(null), 3000);
     }
@@ -900,9 +900,9 @@ export default function PDV() {
             {/* Last added item highlight with product photo */}
             {lastAddedItem && (
               <div className="hidden lg:flex flex-col items-center gap-2 py-3 border-b border-primary/30 bg-primary/5 rounded-lg px-2 animate-fade-in">
-                {(lastAddedItem as any).image_url && (
+                {lastAddedItem.image_url && (
                   <div className="w-20 h-20 rounded-xl overflow-hidden border-2 border-primary/30 shadow-lg">
-                    <img src={(lastAddedItem as any).image_url} alt={lastAddedItem.name} className="w-full h-full object-cover" />
+                    <img src={lastAddedItem.image_url} alt={lastAddedItem.name} className="w-full h-full object-cover" />
                   </div>
                 )}
                 <div className="text-center">
