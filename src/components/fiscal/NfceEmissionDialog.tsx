@@ -1,7 +1,7 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import {
   FileText, Send, Loader2, CheckCircle, AlertTriangle, X,
-  Plus, Trash2, User, Package, CreditCard, Receipt, Info, ShieldAlert, Lock
+  Plus, Trash2, User, Package, CreditCard, Receipt, Info, ShieldAlert, Lock, Search
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
@@ -10,6 +10,8 @@ import { toast } from "sonner";
 import { validateCstCsosn, getSuggestedCodes, type TaxRegime, type CstCsosnCode } from "@/lib/cst-csosn-validator";
 import { parseSefazRejection, type SefazRejection } from "@/lib/sefaz-rejection-parser";
 import { usePlanFeatures } from "@/hooks/usePlanFeatures";
+import { NCM_TABLE } from "@/lib/ncm-table";
+import { useProducts } from "@/hooks/useProducts";
 
 interface NfceEmissionDialogProps {
   sale: any;
@@ -70,6 +72,7 @@ const mapPaymentToFiscal = (method: string): string => {
 export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: NfceEmissionDialogProps) {
   const { companyId } = useCompany();
   const plan = usePlanFeatures();
+  const { data: allProducts = [] } = useProducts();
   const [emitting, setEmitting] = useState(false);
   const [step, setStep] = useState<"edit" | "success" | "error">("edit");
   const [errorMsg, setErrorMsg] = useState("");
@@ -77,7 +80,51 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
   const [activeTab, setActiveTab] = useState<"items" | "customer" | "payment">("items");
   const [companyCrt, setCompanyCrt] = useState<number>(1);
   const [cstValidationErrors, setCstValidationErrors] = useState<Record<number, string[]>>({});
+  const [ncmSearchIdx, setNcmSearchIdx] = useState<number | null>(null);
+  const [ncmSearchText, setNcmSearchText] = useState("");
+  const [productSearchText, setProductSearchText] = useState("");
+  const [showProductSearch, setShowProductSearch] = useState(false);
 
+  const ncmFiltered = useMemo(() => {
+    const q = ncmSearchText.trim().toLowerCase();
+    if (q.length < 2) return [];
+    return NCM_TABLE.filter(
+      (item) => item.ncm.includes(q) || item.description.toLowerCase().includes(q)
+    ).slice(0, 8);
+  }, [ncmSearchText]);
+
+  const productFiltered = useMemo(() => {
+    const q = productSearchText.trim().toLowerCase();
+    if (q.length < 2) return [];
+    return allProducts.filter(
+      (p: any) => p.is_active !== false && (
+        p.name?.toLowerCase().includes(q) ||
+        p.barcode?.includes(q) ||
+        p.sku?.toLowerCase().includes(q)
+      )
+    ).slice(0, 8);
+  }, [productSearchText, allProducts]);
+
+  const addProductFromCatalog = (product: any) => {
+    const newItem: NfceItem = {
+      name: product.name || "",
+      ncm: product.ncm || "",
+      cfop: product.cfop || "5102",
+      cst: product.csosn || product.cst_icms || "",
+      unit: product.unit || "UN",
+      qty: 1,
+      unitPrice: product.price || 0,
+      discount: 0,
+      total: product.price || 0,
+      pisCst: product.cst_pis || "49",
+      cofinsCst: product.cst_cofins || "49",
+      icmsAliquota: product.aliq_icms || 0,
+    };
+    setForm((prev) => ({ ...prev, items: [...prev.items, newItem] }));
+    setProductSearchText("");
+    setShowProductSearch(false);
+    toast.success(`${product.name} adicionado!`);
+  };
   const [form, setForm] = useState<NfceFormData>({
     customerName: "",
     customerDoc: "",
@@ -400,18 +447,60 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between">
                     <p className="text-sm font-medium text-foreground">
                       {form.items.length} {form.items.length === 1 ? "item" : "itens"}
                     </p>
-                    <button
-                      onClick={addItem}
-                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:opacity-90 transition-all"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      Adicionar Item
-                    </button>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setShowProductSearch(!showProductSearch)}
+                        className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-accent text-accent-foreground text-xs font-medium hover:opacity-90 transition-all"
+                      >
+                        <Search className="w-3.5 h-3.5" />
+                        Buscar Produto
+                      </button>
+                      <button
+                        onClick={addItem}
+                        className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:opacity-90 transition-all"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        Item Manual
+                      </button>
+                    </div>
                   </div>
+
+                  {/* Product search */}
+                  {showProductSearch && (
+                    <div className="relative border border-border rounded-lg p-3 bg-muted/30">
+                      <input
+                        value={productSearchText}
+                        onChange={(e) => setProductSearchText(e.target.value)}
+                        className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+                        placeholder="Buscar por nome, código de barras ou SKU..."
+                        autoFocus
+                      />
+                      {productFiltered.length > 0 && (
+                        <div className="mt-2 border border-border rounded-lg overflow-hidden bg-popover max-h-48 overflow-y-auto">
+                          {productFiltered.map((p: any) => (
+                            <button
+                              key={p.id}
+                              onClick={() => addProductFromCatalog(p)}
+                              className="w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors border-b border-border last:border-b-0 flex justify-between items-center"
+                            >
+                              <div>
+                                <span className="font-medium text-foreground">{p.name}</span>
+                                {p.ncm && <span className="ml-2 text-xs text-muted-foreground font-mono">NCM: {p.ncm}</span>}
+                              </div>
+                              <span className="text-xs font-mono text-primary">{formatCurrency(p.price || 0)}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      {productSearchText.length >= 2 && productFiltered.length === 0 && (
+                        <p className="mt-2 text-xs text-muted-foreground text-center">Nenhum produto encontrado</p>
+                      )}
+                    </div>
+                  )}
 
                   {form.items.map((item, idx) => (
                     <div key={idx} className="border border-border rounded-lg p-3 space-y-3">
@@ -438,15 +527,49 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
 
                       {/* Row 2: NCM, CFOP, CST */}
                       <div className="grid grid-cols-3 gap-2">
-                        <div>
+                        <div className="relative">
                           <label className="text-xs text-muted-foreground">NCM *</label>
-                          <input
-                            value={item.ncm}
-                            onChange={(e) => updateItem(idx, "ncm", e.target.value)}
-                            className="w-full mt-1 px-3 py-2 rounded-lg border border-border bg-background text-sm text-foreground font-mono focus:outline-none focus:ring-2 focus:ring-primary/30"
-                            placeholder="00000000"
-                            maxLength={8}
-                          />
+                          <div className="relative">
+                            <input
+                              value={ncmSearchIdx === idx ? ncmSearchText : item.ncm}
+                              onChange={(e) => {
+                                const v = e.target.value;
+                                updateItem(idx, "ncm", v);
+                                setNcmSearchIdx(idx);
+                                setNcmSearchText(v);
+                              }}
+                              onFocus={() => {
+                                setNcmSearchIdx(idx);
+                                setNcmSearchText(item.ncm);
+                              }}
+                              onBlur={() => setTimeout(() => setNcmSearchIdx(null), 200)}
+                              className={`w-full mt-1 px-3 py-2 rounded-lg border bg-background text-sm text-foreground font-mono focus:outline-none focus:ring-2 focus:ring-primary/30 ${
+                                !item.ncm || item.ncm === "00000000" ? "border-warning" : "border-border"
+                              }`}
+                              placeholder="Buscar NCM..."
+                              maxLength={8}
+                            />
+                            <Search className="absolute right-2 top-1/2 mt-0.5 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
+                          </div>
+                          {ncmSearchIdx === idx && ncmFiltered.length > 0 && (
+                            <div className="absolute z-50 left-0 right-0 mt-1 border border-border rounded-lg overflow-hidden bg-popover shadow-lg max-h-48 overflow-y-auto">
+                              {ncmFiltered.map((n) => (
+                                <button
+                                  key={n.ncm}
+                                  onMouseDown={(e) => e.preventDefault()}
+                                  onClick={() => {
+                                    updateItem(idx, "ncm", n.ncm);
+                                    setNcmSearchIdx(null);
+                                    setNcmSearchText("");
+                                  }}
+                                  className="w-full text-left px-3 py-1.5 text-xs hover:bg-muted transition-colors border-b border-border last:border-b-0"
+                                >
+                                  <span className="font-mono font-medium text-foreground">{n.ncm}</span>
+                                  <span className="ml-2 text-muted-foreground">{n.description}</span>
+                                </button>
+                              ))}
+                            </div>
+                          )}
                         </div>
                         <div>
                           <label className="text-xs text-muted-foreground">CFOP</label>
