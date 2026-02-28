@@ -12,7 +12,7 @@ import type { LocalProduct } from "@/hooks/useLocalProducts";
 import { useFiscalCategories } from "@/hooks/useFiscalCategories";
 import { useCompany } from "@/hooks/useCompany";
 import { supabase } from "@/integrations/supabase/client";
-import { Check, Search, Upload, X, Package, AlertTriangle, ShieldAlert, Info } from "lucide-react";
+import { Check, Search, Upload, X, Package, AlertTriangle, ShieldAlert, Info, Camera, Sparkles, Loader2 } from "lucide-react";
 import { NCM_TABLE } from "@/lib/ncm-table";
 import { validateNcm, detectNcmDuplicates, getNcmDescription, isValidNcmFormat, type NcmIssue } from "@/lib/ncm-validator";
 import { isTypicalStNcm } from "@/lib/icms-st-engine";
@@ -82,6 +82,9 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
   const [uploadingImage, setUploadingImage] = useState(false);
   const [ncmIssues, setNcmIssues] = useState<{ errors: NcmIssue[]; warnings: NcmIssue[] }>({ errors: [], warnings: [] });
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const aiFileInputRef = useRef<HTMLInputElement>(null);
+  const [analyzingImage, setAnalyzingImage] = useState(false);
+  const [aiConfidence, setAiConfidence] = useState<number | null>(null);
   const { data: allProducts = [] } = useProducts();
 
   const ncmFiltered = useMemo(() => {
@@ -236,6 +239,78 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
     setImagePreview(URL.createObjectURL(file));
   };
 
+  const handleAiImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Imagem deve ter no máximo 5MB");
+      return;
+    }
+
+    // Also set as product image
+    setImageFile(file);
+    setImagePreview(URL.createObjectURL(file));
+
+    // Convert to base64
+    setAnalyzingImage(true);
+    setAiConfidence(null);
+    try {
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+
+      const { data, error } = await supabase.functions.invoke("analyze-product-image", {
+        body: { image_base64: base64, company_id: companyId },
+      });
+
+      if (error) throw error;
+      
+      // Handle ReadableStream response
+      let result = data;
+      if (data && typeof data === "object" && data.body instanceof ReadableStream) {
+        const text = await new Response(data.body).text();
+        result = JSON.parse(text);
+      }
+
+      if (!result?.success || !result?.product) {
+        throw new Error(result?.error || "Falha na análise");
+      }
+
+      const p = result.product;
+      setAiConfidence(p.confidence || 0);
+
+      if (p.confidence < 0.3) {
+        toast.warning("IA não conseguiu identificar o produto com confiança. Preencha manualmente.", { duration: 4000 });
+        return;
+      }
+
+      // Pre-fill form fields
+      if (p.name) form.setValue("name", p.name);
+      if (p.category && categories.includes(p.category)) form.setValue("category", p.category);
+      else if (p.category) form.setValue("category", p.category);
+      if (p.unit && units.includes(p.unit)) form.setValue("unit", p.unit);
+      if (p.ncm) {
+        form.setValue("ncm", p.ncm);
+        runNcmValidation(p.ncm);
+      }
+      if (p.barcode) form.setValue("barcode", p.barcode);
+      if (p.price_suggestion && p.price_suggestion > 0) form.setValue("price", p.price_suggestion);
+
+      const confidenceLabel = p.confidence >= 0.8 ? "alta" : p.confidence >= 0.5 ? "média" : "baixa";
+      toast.success(`✨ Produto identificado! Confiança: ${confidenceLabel} (${(p.confidence * 100).toFixed(0)}%). Revise os campos.`, { duration: 5000 });
+    } catch (err: any) {
+      console.error("[AI Photo] Error:", err);
+      toast.error(`Erro na análise: ${err.message || "Tente novamente"}`);
+    } finally {
+      setAnalyzingImage(false);
+      // Reset file input
+      if (aiFileInputRef.current) aiFileInputRef.current.value = "";
+    }
+  };
+
   const isPending = createProduct.isPending || updateProduct.isPending || uploadingImage;
 
   if (!open) return null;
@@ -256,11 +331,12 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
             <div>
               <h2 className="text-lg font-semibold text-foreground mb-4">Dados Básicos</h2>
 
-              {/* Product Image Upload */}
-              <div className="mb-4 flex items-center gap-4">
+              {/* AI Photo Analysis + Product Image Upload */}
+              <div className="mb-4 flex flex-col sm:flex-row items-start gap-4">
+                {/* Existing image upload */}
                 <div
                   onClick={() => fileInputRef.current?.click()}
-                  className="w-24 h-24 rounded-xl border-2 border-dashed border-border bg-muted/50 flex items-center justify-center cursor-pointer hover:border-primary/50 transition-colors overflow-hidden relative group"
+                  className="w-24 h-24 rounded-xl border-2 border-dashed border-border bg-muted/50 flex items-center justify-center cursor-pointer hover:border-primary/50 transition-colors overflow-hidden relative group flex-shrink-0"
                 >
                   {imagePreview ? (
                     <>
@@ -283,17 +359,65 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
                   onChange={handleImageSelect}
                   className="hidden"
                 />
-                <div className="text-xs text-muted-foreground space-y-1">
-                  <p>Clique para adicionar uma foto do produto</p>
-                  <p>Formatos: JPG, PNG, WebP • Máx: 5MB</p>
-                  {imagePreview && (
-                    <button
+                <input
+                  ref={aiFileInputRef}
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  onChange={handleAiImageSelect}
+                  className="hidden"
+                />
+                <div className="flex-1 space-y-2">
+                  <div className="text-xs text-muted-foreground space-y-1">
+                    <p>Clique na foto para adicionar imagem do produto</p>
+                    <p>Formatos: JPG, PNG, WebP • Máx: 5MB</p>
+                    {imagePreview && (
+                      <button
+                        type="button"
+                        onClick={() => { setImageFile(null); setImagePreview(null); setAiConfidence(null); }}
+                        className="text-destructive hover:underline flex items-center gap-1"
+                      >
+                        <X className="w-3 h-3" /> Remover foto
+                      </button>
+                    )}
+                  </div>
+
+                  {/* AI Photo Analysis Button */}
+                  {!isEditing && (
+                    <Button
                       type="button"
-                      onClick={() => { setImageFile(null); setImagePreview(null); }}
-                      className="text-destructive hover:underline flex items-center gap-1"
+                      variant="outline"
+                      size="sm"
+                      disabled={analyzingImage}
+                      onClick={() => aiFileInputRef.current?.click()}
+                      className="border-primary/30 hover:border-primary hover:bg-primary/5 gap-2"
                     >
-                      <X className="w-3 h-3" /> Remover foto
-                    </button>
+                      {analyzingImage ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Analisando com IA...
+                        </>
+                      ) : (
+                        <>
+                          <Camera className="w-4 h-4" />
+                          <Sparkles className="w-3.5 h-3.5" />
+                          Cadastrar por Foto (IA)
+                        </>
+                      )}
+                    </Button>
+                  )}
+
+                  {/* AI Confidence Badge */}
+                  {aiConfidence !== null && (
+                    <div className={`inline-flex items-center gap-1.5 text-xs px-2 py-1 rounded-full ${
+                      aiConfidence >= 0.8 ? "bg-green-500/10 text-green-600 dark:text-green-400" :
+                      aiConfidence >= 0.5 ? "bg-amber-500/10 text-amber-600 dark:text-amber-400" :
+                      "bg-destructive/10 text-destructive"
+                    }`}>
+                      <Sparkles className="w-3 h-3" />
+                      Confiança IA: {(aiConfidence * 100).toFixed(0)}%
+                      {aiConfidence >= 0.8 ? " ✓" : aiConfidence >= 0.5 ? " — Revise" : " — Preencha manualmente"}
+                    </div>
                   )}
                 </div>
               </div>
