@@ -318,10 +318,7 @@ export default function NFeEmissao() {
       }
 
       let data: any = null;
-      let invokeError: any = null;
-      
-      console.log("[NFeEmissao] Calling emit-nfce with config_id:", nfeConfig.id);
-      
+
       try {
         const result = await supabase.functions.invoke("emit-nfce", {
           body: {
@@ -372,39 +369,37 @@ export default function NFeEmissao() {
             },
           },
         });
-        try {
-          console.log("[NFeEmissao] invoke result keys:", result ? Object.keys(result) : "null");
-        } catch { /* non-enumerable */ }
-        
-        // If data is not already parsed JSON, try to parse it
-        let rawData = result?.data;
-        if (rawData && typeof rawData === "object" && typeof rawData.json === "function") {
-          try { rawData = await rawData.json(); } catch { rawData = null; }
+
+        // Safely extract data – result.data may be a Response/ReadableStream on non-2xx
+        if (result?.error) {
+          let errMsg = "Edge Function retornou erro. Verifique a configuração do certificado digital.";
+          try {
+            const e = result.error;
+            if (typeof e === "string") errMsg = e;
+            else if (e && typeof e.message === "string") errMsg = e.message;
+            // FunctionsHttpError may have a context with body
+            else if (e && typeof e.context?.body === "string") errMsg = e.context.body;
+          } catch { /* keep default */ }
+          setStep("error");
+          setErrorMsg(errMsg);
+          setEmitting(false);
+          return;
         }
-        data = rawData;
-        invokeError = result?.error;
+
+        // Safely parse data
+        let parsed = result?.data;
+        try {
+          if (parsed && typeof parsed === "object" && typeof parsed.json === "function") {
+            parsed = await parsed.json();
+          }
+        } catch {
+          parsed = null;
+        }
+        data = parsed;
       } catch (fetchErr: any) {
         console.error("[NFeEmissao] invoke threw:", fetchErr);
         setStep("error");
-        setErrorMsg(
-          typeof fetchErr?.message === "string"
-            ? fetchErr.message
-            : "Erro de comunicação com o servidor fiscal. Verifique se o certificado digital está configurado."
-        );
-        setEmitting(false);
-        return;
-      }
-
-      if (invokeError) {
-        console.error("[NFeEmissao] invokeError:", invokeError);
-        setStep("error");
-        let msg = "Edge Function retornou erro. Verifique a configuração do certificado digital.";
-        try {
-          msg = typeof invokeError === "string" ? invokeError
-            : typeof invokeError?.message === "string" ? invokeError.message
-            : JSON.stringify(invokeError);
-        } catch { /* keep default msg */ }
-        setErrorMsg(msg);
+        setErrorMsg("Erro de comunicação com o servidor fiscal. Verifique se o certificado digital está configurado.");
         setEmitting(false);
         return;
       }
@@ -415,23 +410,17 @@ export default function NFeEmissao() {
         toast.success("NF-e emitida com sucesso!");
       } else {
         setStep("error");
-        const errText = data?.error || "Erro ao emitir NF-e. Verifique se o certificado digital está configurado.";
+        const errText = (data && typeof data.error === "string") ? data.error : "Erro ao emitir NF-e. Verifique se o certificado digital está configurado.";
         setErrorMsg(errText);
         try {
           const rej = parseSefazRejection(errText, data?.details);
           setRejection(rej);
-        } catch (parseErr) {
-          console.error("[NFeEmissao] parseSefazRejection threw:", parseErr);
-        }
+        } catch { /* ignore */ }
       }
     } catch (err: any) {
       console.error("[NFeEmissao] outer catch:", err);
       setStep("error");
-      setErrorMsg(
-        typeof err?.message === "string"
-          ? err.message
-          : "Erro inesperado. Verifique a configuração fiscal e o certificado digital."
-      );
+      setErrorMsg("Erro inesperado. Verifique a configuração fiscal e o certificado digital.");
     } finally {
       setEmitting(false);
     }
