@@ -862,7 +862,7 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
         )}
 
         {step === "success" && (
-          <div className="p-4 flex flex-col items-center">
+          <div className="p-4 flex flex-col items-center overflow-y-auto">
             <CheckCircle className="w-10 h-10 text-success mb-2" />
             <h3 className="text-base font-semibold text-foreground">NFC-e Emitida!</h3>
             <p className="text-xs text-muted-foreground mt-1 mb-4">Documento fiscal emitido com sucesso.</p>
