@@ -1,8 +1,8 @@
-import { useState, useEffect, lazy, Suspense } from "react";
+import { useState, useEffect, lazy, Suspense, useMemo } from "react";
 import {
   FileText, Plus, Download, RefreshCw, LogOut, Search,
-  CheckCircle, AlertTriangle, Clock, Loader2, Menu, ChevronLeft,
-  Building2, Filter,
+  CheckCircle, AlertTriangle, Clock, Loader2, ChevronLeft,
+  Building2, Package, Users, BarChart3, Trash2, Edit2, Save, X,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -11,10 +11,14 @@ import { formatCurrency } from "@/lib/mock-data";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 const NFeEmissao = lazy(() => import("./NFeEmissao"));
 
 type ViewMode = "list" | "new";
+type TabId = "notas" | "produtos" | "destinatarios" | "relatorio";
 
 interface FiscalDoc {
   id: string;
@@ -28,6 +32,22 @@ interface FiscalDoc {
   created_at: string;
 }
 
+interface SimpleProduct {
+  id: string;
+  name: string;
+  ncm: string;
+  unit: string;
+  price: number;
+}
+
+interface SimpleRecipient {
+  id: string;
+  name: string;
+  doc: string;
+  ie: string;
+  address: string;
+}
+
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: typeof CheckCircle }> = {
   autorizado: { label: "Autorizada", color: "text-emerald-500 bg-emerald-500/10", icon: CheckCircle },
   cancelado: { label: "Cancelada", color: "text-destructive bg-destructive/10", icon: AlertTriangle },
@@ -36,10 +56,375 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; icon: typeof
   processando: { label: "Processando", color: "text-blue-500 bg-blue-500/10", icon: Loader2 },
 };
 
+const TABS: { id: TabId; label: string; icon: typeof FileText }[] = [
+  { id: "notas", label: "Notas", icon: FileText },
+  { id: "produtos", label: "Produtos", icon: Package },
+  { id: "destinatarios", label: "Destinatários", icon: Users },
+  { id: "relatorio", label: "Relatório", icon: BarChart3 },
+];
+
+// ─── Mini Product CRUD ───────────────────────────────────────────────
+function EmissorProductsTab({ companyId }: { companyId: string }) {
+  const [products, setProducts] = useState<SimpleProduct[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [form, setForm] = useState({ name: "", ncm: "", unit: "UN", price: "" });
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+
+  const fetch = async () => {
+    setLoading(true);
+    const { data } = await supabase
+      .from("products")
+      .select("id, name, ncm, unit, price")
+      .eq("company_id", companyId)
+      .order("name")
+      .limit(500);
+    setProducts((data as any[])?.map(p => ({ id: p.id, name: p.name, ncm: p.ncm || "", unit: p.unit || "UN", price: Number(p.price) || 0 })) || []);
+    setLoading(false);
+  };
+
+  useEffect(() => { fetch(); }, [companyId]);
+
+  const handleSave = async () => {
+    if (!form.name.trim()) { toast.error("Nome é obrigatório"); return; }
+    const payload = {
+      company_id: companyId,
+      name: form.name.trim(),
+      ncm: form.ncm.trim(),
+      unit: form.unit.trim() || "UN",
+      price: parseFloat(form.price) || 0,
+    };
+
+    if (editingId) {
+      const { error } = await supabase.from("products").update(payload).eq("id", editingId);
+      if (error) { toast.error("Erro ao atualizar"); return; }
+      toast.success("Produto atualizado");
+    } else {
+      const { error } = await supabase.from("products").insert(payload);
+      if (error) { toast.error("Erro ao cadastrar"); return; }
+      toast.success("Produto cadastrado");
+    }
+    setForm({ name: "", ncm: "", unit: "UN", price: "" });
+    setEditingId(null);
+    fetch();
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Excluir produto?")) return;
+    await supabase.from("products").delete().eq("id", id);
+    toast.success("Produto excluído");
+    fetch();
+  };
+
+  const filtered = products.filter(p => !search || p.name.toLowerCase().includes(search.toLowerCase()) || p.ncm.includes(search));
+
+  return (
+    <div className="space-y-4">
+      <div className="bg-card rounded-xl border border-border p-4 space-y-3">
+        <h3 className="text-sm font-semibold text-foreground">{editingId ? "Editar Produto" : "Novo Produto"}</h3>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="col-span-2 sm:col-span-1">
+            <Label className="text-xs">Nome *</Label>
+            <Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Nome do produto" />
+          </div>
+          <div>
+            <Label className="text-xs">NCM</Label>
+            <Input value={form.ncm} onChange={e => setForm(f => ({ ...f, ncm: e.target.value }))} placeholder="00000000" maxLength={8} />
+          </div>
+          <div>
+            <Label className="text-xs">Unidade</Label>
+            <Input value={form.unit} onChange={e => setForm(f => ({ ...f, unit: e.target.value }))} placeholder="UN" />
+          </div>
+          <div>
+            <Label className="text-xs">Preço (R$)</Label>
+            <Input type="number" step="0.01" value={form.price} onChange={e => setForm(f => ({ ...f, price: e.target.value }))} placeholder="0,00" />
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <Button size="sm" onClick={handleSave} className="gap-1.5">
+            <Save className="w-3.5 h-3.5" />{editingId ? "Atualizar" : "Cadastrar"}
+          </Button>
+          {editingId && (
+            <Button size="sm" variant="ghost" onClick={() => { setEditingId(null); setForm({ name: "", ncm: "", unit: "UN", price: "" }); }}>
+              <X className="w-3.5 h-3.5" /> Cancelar
+            </Button>
+          )}
+        </div>
+      </div>
+
+      <div className="relative max-w-xs">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar produto..." className="pl-9" />
+      </div>
+
+      {loading ? (
+        <div className="flex justify-center py-10"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>
+      ) : filtered.length === 0 ? (
+        <p className="text-sm text-muted-foreground text-center py-10">Nenhum produto cadastrado.</p>
+      ) : (
+        <div className="bg-card rounded-xl border border-border overflow-hidden">
+          <table className="w-full text-sm">
+            <thead><tr className="border-b border-border bg-muted/30">
+              <th className="text-left px-4 py-2.5 text-[11px] font-semibold text-muted-foreground uppercase">Nome</th>
+              <th className="text-left px-4 py-2.5 text-[11px] font-semibold text-muted-foreground uppercase hidden sm:table-cell">NCM</th>
+              <th className="text-center px-4 py-2.5 text-[11px] font-semibold text-muted-foreground uppercase">Un.</th>
+              <th className="text-right px-4 py-2.5 text-[11px] font-semibold text-muted-foreground uppercase">Preço</th>
+              <th className="w-20" />
+            </tr></thead>
+            <tbody>
+              {filtered.map(p => (
+                <tr key={p.id} className="border-b border-border last:border-0 hover:bg-muted/30">
+                  <td className="px-4 py-2.5 font-medium text-foreground">{p.name}</td>
+                  <td className="px-4 py-2.5 text-muted-foreground font-mono text-xs hidden sm:table-cell">{p.ncm || "—"}</td>
+                  <td className="px-4 py-2.5 text-center text-muted-foreground">{p.unit}</td>
+                  <td className="px-4 py-2.5 text-right font-mono font-bold text-foreground">{formatCurrency(p.price)}</td>
+                  <td className="px-2 py-2.5">
+                    <div className="flex gap-1">
+                      <button onClick={() => { setEditingId(p.id); setForm({ name: p.name, ncm: p.ncm, unit: p.unit, price: String(p.price) }); }} className="p-1.5 rounded hover:bg-muted"><Edit2 className="w-3.5 h-3.5 text-muted-foreground" /></button>
+                      <button onClick={() => handleDelete(p.id)} className="p-1.5 rounded hover:bg-destructive/10"><Trash2 className="w-3.5 h-3.5 text-destructive" /></button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Mini Recipients CRUD ────────────────────────────────────────────
+function EmissorRecipientsTab({ companyId }: { companyId: string }) {
+  const [recipients, setRecipients] = useState<SimpleRecipient[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [form, setForm] = useState({ name: "", doc: "", ie: "", address: "" });
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+
+  const fetch = async () => {
+    setLoading(true);
+    const { data } = await supabase
+      .from("clients")
+      .select("id, name, cpf_cnpj, ie, address_street")
+      .eq("company_id", companyId)
+      .order("name")
+      .limit(500);
+    setRecipients((data as any[])?.map(c => ({
+      id: c.id, name: c.name, doc: c.cpf_cnpj || "", ie: c.ie || "", address: c.address_street || "",
+    })) || []);
+    setLoading(false);
+  };
+
+  useEffect(() => { fetch(); }, [companyId]);
+
+  const handleSave = async () => {
+    if (!form.name.trim()) { toast.error("Nome é obrigatório"); return; }
+    const payload = {
+      company_id: companyId,
+      name: form.name.trim(),
+      cpf_cnpj: form.doc.trim(),
+      ie: form.ie.trim(),
+      address_street: form.address.trim(),
+    };
+
+    if (editingId) {
+      const { error } = await supabase.from("clients").update(payload).eq("id", editingId);
+      if (error) { toast.error("Erro ao atualizar"); return; }
+      toast.success("Destinatário atualizado");
+    } else {
+      const { error } = await supabase.from("clients").insert(payload);
+      if (error) { toast.error("Erro ao cadastrar"); return; }
+      toast.success("Destinatário cadastrado");
+    }
+    setForm({ name: "", doc: "", ie: "", address: "" });
+    setEditingId(null);
+    fetch();
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Excluir destinatário?")) return;
+    await supabase.from("clients").delete().eq("id", id);
+    toast.success("Destinatário excluído");
+    fetch();
+  };
+
+  const filtered = recipients.filter(r => !search || r.name.toLowerCase().includes(search.toLowerCase()) || r.doc.includes(search));
+
+  return (
+    <div className="space-y-4">
+      <div className="bg-card rounded-xl border border-border p-4 space-y-3">
+        <h3 className="text-sm font-semibold text-foreground">{editingId ? "Editar Destinatário" : "Novo Destinatário"}</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+          <div>
+            <Label className="text-xs">Razão Social *</Label>
+            <Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Nome / Razão Social" />
+          </div>
+          <div>
+            <Label className="text-xs">CPF/CNPJ</Label>
+            <Input value={form.doc} onChange={e => setForm(f => ({ ...f, doc: e.target.value }))} placeholder="00.000.000/0000-00" />
+          </div>
+          <div>
+            <Label className="text-xs">Inscrição Estadual</Label>
+            <Input value={form.ie} onChange={e => setForm(f => ({ ...f, ie: e.target.value }))} placeholder="IE" />
+          </div>
+          <div>
+            <Label className="text-xs">Endereço</Label>
+            <Input value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} placeholder="Rua, nº, cidade..." />
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <Button size="sm" onClick={handleSave} className="gap-1.5">
+            <Save className="w-3.5 h-3.5" />{editingId ? "Atualizar" : "Cadastrar"}
+          </Button>
+          {editingId && (
+            <Button size="sm" variant="ghost" onClick={() => { setEditingId(null); setForm({ name: "", doc: "", ie: "", address: "" }); }}>
+              <X className="w-3.5 h-3.5" /> Cancelar
+            </Button>
+          )}
+        </div>
+      </div>
+
+      <div className="relative max-w-xs">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar destinatário..." className="pl-9" />
+      </div>
+
+      {loading ? (
+        <div className="flex justify-center py-10"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>
+      ) : filtered.length === 0 ? (
+        <p className="text-sm text-muted-foreground text-center py-10">Nenhum destinatário cadastrado.</p>
+      ) : (
+        <div className="bg-card rounded-xl border border-border overflow-hidden">
+          <table className="w-full text-sm">
+            <thead><tr className="border-b border-border bg-muted/30">
+              <th className="text-left px-4 py-2.5 text-[11px] font-semibold text-muted-foreground uppercase">Nome</th>
+              <th className="text-left px-4 py-2.5 text-[11px] font-semibold text-muted-foreground uppercase hidden sm:table-cell">CPF/CNPJ</th>
+              <th className="text-left px-4 py-2.5 text-[11px] font-semibold text-muted-foreground uppercase hidden md:table-cell">IE</th>
+              <th className="w-20" />
+            </tr></thead>
+            <tbody>
+              {filtered.map(r => (
+                <tr key={r.id} className="border-b border-border last:border-0 hover:bg-muted/30">
+                  <td className="px-4 py-2.5 font-medium text-foreground">{r.name}</td>
+                  <td className="px-4 py-2.5 text-muted-foreground font-mono text-xs hidden sm:table-cell">{r.doc || "—"}</td>
+                  <td className="px-4 py-2.5 text-muted-foreground text-xs hidden md:table-cell">{r.ie || "—"}</td>
+                  <td className="px-2 py-2.5">
+                    <div className="flex gap-1">
+                      <button onClick={() => { setEditingId(r.id); setForm({ name: r.name, doc: r.doc, ie: r.ie, address: r.address }); }} className="p-1.5 rounded hover:bg-muted"><Edit2 className="w-3.5 h-3.5 text-muted-foreground" /></button>
+                      <button onClick={() => handleDelete(r.id)} className="p-1.5 rounded hover:bg-destructive/10"><Trash2 className="w-3.5 h-3.5 text-destructive" /></button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Basic Fiscal Report ─────────────────────────────────────────────
+function EmissorReportTab({ companyId }: { companyId: string }) {
+  const [docs, setDocs] = useState<FiscalDoc[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [startDate, setStartDate] = useState(() => {
+    const d = new Date(); d.setDate(1);
+    return d.toISOString().split("T")[0];
+  });
+  const [endDate, setEndDate] = useState(() => new Date().toISOString().split("T")[0]);
+
+  const fetch = async () => {
+    setLoading(true);
+    const { data } = await supabase
+      .from("fiscal_documents")
+      .select("id, doc_type, number, status, total_value, dest_name, created_at")
+      .eq("company_id", companyId)
+      .eq("doc_type", "nfe")
+      .gte("created_at", startDate + "T00:00:00")
+      .lte("created_at", endDate + "T23:59:59")
+      .order("created_at", { ascending: false });
+    setDocs((data as any[]) || []);
+    setLoading(false);
+  };
+
+  useEffect(() => { fetch(); }, [companyId, startDate, endDate]);
+
+  const stats = useMemo(() => {
+    const autorizadas = docs.filter(d => d.status === "autorizado");
+    const canceladas = docs.filter(d => d.status === "cancelado");
+    const rejeitadas = docs.filter(d => d.status === "rejeitado");
+    return {
+      total: docs.length,
+      autorizadas: autorizadas.length,
+      canceladas: canceladas.length,
+      rejeitadas: rejeitadas.length,
+      totalValue: autorizadas.reduce((s, d) => s + (d.total_value || 0), 0),
+      canceladoValue: canceladas.reduce((s, d) => s + (d.total_value || 0), 0),
+    };
+  }, [docs]);
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-end gap-3">
+        <div>
+          <Label className="text-xs">Data Início</Label>
+          <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-40" />
+        </div>
+        <div>
+          <Label className="text-xs">Data Fim</Label>
+          <Input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-40" />
+        </div>
+        <Button size="sm" variant="outline" onClick={fetch} className="gap-1.5">
+          <RefreshCw className="w-3.5 h-3.5" /> Atualizar
+        </Button>
+      </div>
+
+      {loading ? (
+        <div className="flex justify-center py-10"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>
+      ) : (
+        <>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <div className="bg-card rounded-xl border border-border p-4">
+              <p className="text-[11px] text-muted-foreground uppercase tracking-wider">Autorizadas</p>
+              <p className="text-2xl font-bold font-mono text-emerald-500">{stats.autorizadas}</p>
+              <p className="text-xs text-muted-foreground mt-1">{formatCurrency(stats.totalValue)}</p>
+            </div>
+            <div className="bg-card rounded-xl border border-border p-4">
+              <p className="text-[11px] text-muted-foreground uppercase tracking-wider">Canceladas</p>
+              <p className="text-2xl font-bold font-mono text-destructive">{stats.canceladas}</p>
+              <p className="text-xs text-muted-foreground mt-1">{formatCurrency(stats.canceladoValue)}</p>
+            </div>
+            <div className="bg-card rounded-xl border border-border p-4">
+              <p className="text-[11px] text-muted-foreground uppercase tracking-wider">Rejeitadas</p>
+              <p className="text-2xl font-bold font-mono text-destructive">{stats.rejeitadas}</p>
+            </div>
+          </div>
+
+          <div className="bg-card rounded-xl border border-border p-4 space-y-2">
+            <h3 className="text-sm font-semibold text-foreground">Resumo do Período</h3>
+            <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm">
+              <span className="text-muted-foreground">Total de notas:</span>
+              <span className="font-mono font-bold text-foreground">{stats.total}</span>
+              <span className="text-muted-foreground">Valor total autorizado:</span>
+              <span className="font-mono font-bold text-foreground">{formatCurrency(stats.totalValue)}</span>
+              <span className="text-muted-foreground">Valor cancelado:</span>
+              <span className="font-mono font-bold text-destructive">{formatCurrency(stats.canceladoValue)}</span>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ─── Main Component ──────────────────────────────────────────────────
 export default function EmissorNFe() {
   const { user, signOut } = useAuth();
   const { companyId, companyName, logoUrl } = useCompany();
   const [view, setView] = useState<ViewMode>("list");
+  const [activeTab, setActiveTab] = useState<TabId>("notas");
   const [docs, setDocs] = useState<FiscalDoc[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -91,7 +476,6 @@ export default function EmissorNFe() {
   if (view === "new") {
     return (
       <div className="min-h-screen bg-background">
-        {/* Minimal header */}
         <header className="h-14 border-b border-border bg-card flex items-center px-4 gap-3 sticky top-0 z-30">
           <button
             onClick={() => { setView("list"); fetchDocs(); }}
@@ -150,156 +534,180 @@ export default function EmissorNFe() {
       </header>
 
       <main className="max-w-6xl mx-auto px-4 py-6 space-y-6">
-        {/* Stats */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {[
-            { label: "Total", value: stats.total, color: "text-foreground" },
-            { label: "Autorizadas", value: stats.autorizadas, color: "text-emerald-500" },
-            { label: "Pendentes", value: stats.pendentes, color: "text-warning" },
-            { label: "Rejeitadas", value: stats.erros, color: "text-destructive" },
-          ].map((s) => (
-            <div key={s.label} className="bg-card rounded-xl border border-border p-4">
-              <p className="text-[11px] text-muted-foreground uppercase tracking-wider">{s.label}</p>
-              <p className={`text-2xl font-bold font-mono ${s.color}`}>{s.value}</p>
-            </div>
+        {/* Tab navigation */}
+        <div className="flex gap-1 bg-muted/50 rounded-xl p-1 overflow-x-auto">
+          {TABS.map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
+                activeTab === tab.id
+                  ? "bg-card text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <tab.icon className="w-4 h-4" />
+              {tab.label}
+            </button>
           ))}
         </div>
 
-        {/* Actions bar */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-          <button
-            onClick={() => setView("new")}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition-opacity shadow-sm"
-          >
-            <Plus className="w-4 h-4" />
-            Nova NF-e
-          </button>
-
-          <div className="flex-1 flex items-center gap-2 w-full sm:w-auto">
-            <div className="relative flex-1 sm:max-w-xs">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <input
-                type="text"
-                placeholder="Buscar por destinatário, CNPJ, nº..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-              />
+        {/* Tab content */}
+        {activeTab === "notas" && (
+          <>
+            {/* Stats */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {[
+                { label: "Total", value: stats.total, color: "text-foreground" },
+                { label: "Autorizadas", value: stats.autorizadas, color: "text-emerald-500" },
+                { label: "Pendentes", value: stats.pendentes, color: "text-warning" },
+                { label: "Rejeitadas", value: stats.erros, color: "text-destructive" },
+              ].map((s) => (
+                <div key={s.label} className="bg-card rounded-xl border border-border p-4">
+                  <p className="text-[11px] text-muted-foreground uppercase tracking-wider">{s.label}</p>
+                  <p className={`text-2xl font-bold font-mono ${s.color}`}>{s.value}</p>
+                </div>
+              ))}
             </div>
 
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-            >
-              <option value="all">Todos</option>
-              <option value="autorizado">Autorizadas</option>
-              <option value="pendente">Pendentes</option>
-              <option value="rejeitado">Rejeitadas</option>
-            </select>
-
-            <button
-              onClick={fetchDocs}
-              className="p-2 rounded-lg border border-border hover:bg-muted transition-colors"
-              title="Atualizar"
-            >
-              <RefreshCw className={`w-4 h-4 text-muted-foreground ${loading ? "animate-spin" : ""}`} />
-            </button>
-          </div>
-        </div>
-
-        {/* NF-e List */}
-        {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <Loader2 className="w-6 h-6 animate-spin text-primary" />
-          </div>
-        ) : filteredDocs.length === 0 ? (
-          <div className="text-center py-20 space-y-3">
-            <FileText className="w-12 h-12 text-muted-foreground/40 mx-auto" />
-            <p className="text-sm text-muted-foreground">
-              {docs.length === 0 ? "Nenhuma NF-e emitida ainda." : "Nenhuma NF-e encontrada com os filtros aplicados."}
-            </p>
-            {docs.length === 0 && (
+            {/* Actions bar */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
               <button
                 onClick={() => setView("new")}
-                className="text-sm text-primary font-medium hover:underline"
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition-opacity shadow-sm"
               >
-                Emitir primeira NF-e →
+                <Plus className="w-4 h-4" />
+                Nova NF-e
               </button>
-            )}
-          </div>
-        ) : (
-          <>
-            {/* Desktop table */}
-            <div className="hidden md:block bg-card rounded-xl border border-border overflow-hidden">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border bg-muted/30">
-                    <th className="text-left px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Nº</th>
-                    <th className="text-left px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Destinatário</th>
-                    <th className="text-right px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Valor</th>
-                    <th className="text-center px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Status</th>
-                    <th className="text-left px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Data</th>
-                  </tr>
-                </thead>
-                <tbody>
+
+              <div className="flex-1 flex items-center gap-2 w-full sm:w-auto">
+                <div className="relative flex-1 sm:max-w-xs">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <input
+                    type="text"
+                    placeholder="Buscar por destinatário, CNPJ, nº..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  />
+                </div>
+
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                >
+                  <option value="all">Todos</option>
+                  <option value="autorizado">Autorizadas</option>
+                  <option value="pendente">Pendentes</option>
+                  <option value="rejeitado">Rejeitadas</option>
+                </select>
+
+                <button
+                  onClick={fetchDocs}
+                  className="p-2 rounded-lg border border-border hover:bg-muted transition-colors"
+                  title="Atualizar"
+                >
+                  <RefreshCw className={`w-4 h-4 text-muted-foreground ${loading ? "animate-spin" : ""}`} />
+                </button>
+              </div>
+            </div>
+
+            {/* NF-e List */}
+            {loading ? (
+              <div className="flex items-center justify-center py-20">
+                <Loader2 className="w-6 h-6 animate-spin text-primary" />
+              </div>
+            ) : filteredDocs.length === 0 ? (
+              <div className="text-center py-20 space-y-3">
+                <FileText className="w-12 h-12 text-muted-foreground/40 mx-auto" />
+                <p className="text-sm text-muted-foreground">
+                  {docs.length === 0 ? "Nenhuma NF-e emitida ainda." : "Nenhuma NF-e encontrada com os filtros aplicados."}
+                </p>
+                {docs.length === 0 && (
+                  <button onClick={() => setView("new")} className="text-sm text-primary font-medium hover:underline">
+                    Emitir primeira NF-e →
+                  </button>
+                )}
+              </div>
+            ) : (
+              <>
+                {/* Desktop table */}
+                <div className="hidden md:block bg-card rounded-xl border border-border overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-border bg-muted/30">
+                        <th className="text-left px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Nº</th>
+                        <th className="text-left px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Destinatário</th>
+                        <th className="text-right px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Valor</th>
+                        <th className="text-center px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Status</th>
+                        <th className="text-left px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Data</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredDocs.map((doc) => {
+                        const cfg = STATUS_CONFIG[doc.status] || STATUS_CONFIG.pendente;
+                        return (
+                          <tr key={doc.id} className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors">
+                            <td className="px-4 py-3 font-mono font-medium text-foreground">
+                              {doc.number ? String(doc.number).padStart(6, "0") : "—"}
+                            </td>
+                            <td className="px-4 py-3">
+                              <p className="text-foreground font-medium truncate max-w-[200px]">{doc.dest_name || "—"}</p>
+                              <p className="text-[11px] text-muted-foreground">{doc.dest_doc || ""}</p>
+                            </td>
+                            <td className="px-4 py-3 text-right font-mono font-bold text-foreground">
+                              {formatCurrency(doc.total_value)}
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${cfg.color}`}>
+                                <cfg.icon className="w-3 h-3" />
+                                {cfg.label}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-muted-foreground text-xs">
+                              {new Date(doc.created_at).toLocaleDateString("pt-BR")}{" "}
+                              {new Date(doc.created_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Mobile cards */}
+                <div className="md:hidden space-y-2">
                   {filteredDocs.map((doc) => {
                     const cfg = STATUS_CONFIG[doc.status] || STATUS_CONFIG.pendente;
                     return (
-                      <tr key={doc.id} className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors">
-                        <td className="px-4 py-3 font-mono font-medium text-foreground">
-                          {doc.number ? String(doc.number).padStart(6, "0") : "—"}
-                        </td>
-                        <td className="px-4 py-3">
-                          <p className="text-foreground font-medium truncate max-w-[200px]">{doc.dest_name || "—"}</p>
-                          <p className="text-[11px] text-muted-foreground">{doc.dest_doc || ""}</p>
-                        </td>
-                        <td className="px-4 py-3 text-right font-mono font-bold text-foreground">
-                          {formatCurrency(doc.total_value)}
-                        </td>
-                        <td className="px-4 py-3 text-center">
-                          <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${cfg.color}`}>
+                      <div key={doc.id} className="bg-card rounded-xl border border-border p-4 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="font-mono text-sm font-medium text-foreground">
+                            Nº {doc.number ? String(doc.number).padStart(6, "0") : "—"}
+                          </span>
+                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold ${cfg.color}`}>
                             <cfg.icon className="w-3 h-3" />
                             {cfg.label}
                           </span>
-                        </td>
-                        <td className="px-4 py-3 text-muted-foreground text-xs">
-                          {new Date(doc.created_at).toLocaleDateString("pt-BR")}{" "}
-                          {new Date(doc.created_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
-                        </td>
-                      </tr>
+                        </div>
+                        <p className="text-sm text-foreground font-medium truncate">{doc.dest_name || "—"}</p>
+                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                          <span>{new Date(doc.created_at).toLocaleDateString("pt-BR")}</span>
+                          <span className="font-mono font-bold text-foreground">{formatCurrency(doc.total_value)}</span>
+                        </div>
+                      </div>
                     );
                   })}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Mobile cards */}
-            <div className="md:hidden space-y-2">
-              {filteredDocs.map((doc) => {
-                const cfg = STATUS_CONFIG[doc.status] || STATUS_CONFIG.pendente;
-                return (
-                  <div key={doc.id} className="bg-card rounded-xl border border-border p-4 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="font-mono text-sm font-medium text-foreground">
-                        Nº {doc.number ? String(doc.number).padStart(6, "0") : "—"}
-                      </span>
-                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold ${cfg.color}`}>
-                        <cfg.icon className="w-3 h-3" />
-                        {cfg.label}
-                      </span>
-                    </div>
-                    <p className="text-sm text-foreground font-medium truncate">{doc.dest_name || "—"}</p>
-                    <div className="flex items-center justify-between text-xs text-muted-foreground">
-                      <span>{new Date(doc.created_at).toLocaleDateString("pt-BR")}</span>
-                      <span className="font-mono font-bold text-foreground">{formatCurrency(doc.total_value)}</span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+                </div>
+              </>
+            )}
           </>
         )}
+
+        {activeTab === "produtos" && companyId && <EmissorProductsTab companyId={companyId} />}
+        {activeTab === "destinatarios" && companyId && <EmissorRecipientsTab companyId={companyId} />}
+        {activeTab === "relatorio" && companyId && <EmissorReportTab companyId={companyId} />}
       </main>
     </div>
   );

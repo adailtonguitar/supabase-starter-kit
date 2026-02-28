@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
 import { useSubscription } from "@/hooks/useSubscription";
 
-export type PlanTier = "starter" | "business" | "pro";
+export type PlanTier = "starter" | "business" | "pro" | "emissor";
 export type FinancialLevel = "basic" | "full";
 
 interface PlanFeatures {
@@ -23,6 +23,7 @@ interface PlanContextType extends PlanFeatures {
   canUseAdvancedReports: () => boolean;
   canUseFullFinancial: () => boolean;
   isActive: () => boolean;
+  isEmissorOnly: () => boolean;
   refresh: () => Promise<void>;
   /** Server-side check (call before critical actions) */
   checkServerLimit: (feature: string) => Promise<{ allowed: boolean; reason?: string }>;
@@ -46,6 +47,7 @@ const PlanContext = createContext<PlanContextType>({
   canUseAdvancedReports: () => false,
   canUseFullFinancial: () => false,
   isActive: () => true,
+  isEmissorOnly: () => false,
   refresh: async () => {},
   checkServerLimit: async () => ({ allowed: true }),
 });
@@ -171,11 +173,12 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
 
   const ctx = useMemo<PlanContextType>(() => ({
     ...state,
-    canUseFiscal: () => state.status === "active" && state.fiscalEnabled,
+  canUseFiscal: () => state.status === "active" && (state.fiscalEnabled || state.plan === "emissor"),
     canAddUser: () => state.status === "active" && (state.maxUsers <= 0 || state.maxUsers > 0), // frontend hint only
     canUseAdvancedReports: () => state.status === "active" && state.advancedReportsEnabled,
     canUseFullFinancial: () => state.status === "active" && state.financialModuleLevel === "full",
     isActive: () => state.status === "active",
+    isEmissorOnly: () => state.plan === "emissor" && state.status === "active",
     refresh: fetchPlan,
     checkServerLimit,
   }), [state, fetchPlan, checkServerLimit]);
