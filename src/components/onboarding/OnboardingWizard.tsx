@@ -40,45 +40,23 @@ export function OnboardingWizard({ onComplete }: Props) {
     }
     setSaving(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Usuário não autenticado");
-
-      // Create company
-      const { data: company, error: companyErr } = await supabase
-        .from("companies")
-        .insert({
+      // Use Edge Function with service_role to bypass RLS
+      const { data, error } = await supabase.functions.invoke("create-onboarding-company", {
+        body: {
           name: companyName.trim(),
           cnpj: cnpj.replace(/\D/g, "") || null,
           phone: phone.trim() || null,
-        } as any)
-        .select("id")
-        .maybeSingle();
-
-      if (companyErr) throw companyErr;
-      if (!company?.id) throw new Error("Falha ao criar empresa");
-
-      // Link user as admin via SECURITY DEFINER RPC (bypasses RLS)
-      const { error: linkErr } = await supabase.rpc("link_user_to_company" as any, {
-        p_company_id: company.id,
-        p_user_id: user.id,
-        p_role: "admin",
+        },
       });
 
-      if (linkErr) {
-        console.warn("[Onboarding] link_user_to_company fallback:", linkErr.message);
-        // Fallback: try direct insert
-        const { error: directLinkErr } = await supabase
-          .from("company_users")
-          .insert({
-            company_id: company.id,
-            user_id: user.id,
-            role: "admin",
-            is_active: true,
-          } as any);
-        if (directLinkErr) throw directLinkErr;
-      }
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
 
-      toast.success("Empresa criada com sucesso!");
+      if (data?.alreadyExists) {
+        toast.info("Você já possui uma empresa cadastrada!");
+      } else {
+        toast.success("Empresa criada com sucesso!");
+      }
       next();
     } catch (err: any) {
       console.error("[Onboarding] Error:", err);
