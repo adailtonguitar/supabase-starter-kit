@@ -12,6 +12,7 @@ import {
   Tag,
   Brain,
   CreditCard,
+  Camera,
 } from "lucide-react";
 import pdvCashier from "@/assets/pdv-cashier.png";
 import stockEmployee from "@/assets/stock-employee.png";
@@ -76,6 +77,12 @@ const features = [
     title: "Segurança Total",
     desc: "Dados criptografados, backup automático e isolamento total entre filiais.",
     color: "bg-slate-500/10 text-slate-600",
+  },
+  {
+    icon: Camera,
+    title: "Cadastro por Foto (IA)",
+    desc: "Tire uma foto do produto e a IA preenche nome, categoria, NCM e preço automaticamente.",
+    color: "bg-indigo-500/10 text-indigo-600",
   },
   {
     icon: Brain,

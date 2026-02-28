@@ -50,6 +50,7 @@ const plans = [
       "Sessões ilimitadas",
       "Todos os módulos inclusos",
       "Gestão de Filiais",
+      "📸 Cadastro de Produto por Foto (IA)",
       "Diagnóstico Financeiro com IA",
       "Relatórios avançados com IA",
       "Relatório de Ruptura de Estoque",
