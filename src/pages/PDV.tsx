@@ -363,7 +363,7 @@ export default function PDV() {
       }
 
       if (receipt) {
-        if (isEscape) {
+        if (e.key === "F1") {
           e.preventDefault();
           setReceipt(null);
           if (isFullscreen) {
@@ -411,7 +411,7 @@ export default function PDV() {
             setSelectedCartItemId(pdv.cartItems[prevIdx].id);
           }
           break;
-        case "F1": e.preventDefault(); break;
+        case "F1": e.preventDefault(); if (receipt) { setReceipt(null); } break;
         case "F2": e.preventDefault(); handleCheckout(); break;
         case "F3": e.preventDefault(); setShowProductList((p) => !p); break;
         case "F4": e.preventDefault(); openCashDrawer(); toast.info("Sangria/Gaveta aberta", { duration: 1200 }); break;
