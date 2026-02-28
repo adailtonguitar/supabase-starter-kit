@@ -542,7 +542,7 @@ export function TEFProcessor({ total, onComplete, onCancel, onPrazoRequested, de
         initial={{ opacity: 0, scale: 0.97 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.97 }}
-        className="bg-card border border-border shadow-2xl w-full h-full lg:h-auto lg:max-h-[95vh] lg:max-w-2xl lg:mx-4 lg:rounded-2xl overflow-hidden flex flex-col"
+        className="bg-card border border-border shadow-2xl w-full h-full lg:h-auto lg:max-h-[95vh] lg:max-w-md lg:mx-4 lg:rounded-2xl overflow-hidden flex flex-col"
       >
         {/* Header */}
         <div className="flex items-center justify-between px-4 lg:px-6 py-3 lg:py-4 border-b-2 border-border bg-muted/50 flex-shrink-0">
