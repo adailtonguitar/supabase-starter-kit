@@ -52,25 +52,36 @@ export function OnboardingWizard({ onComplete }: Props) {
           phone: phone.trim() || null,
         } as any)
         .select("id")
-        .single();
+        .maybeSingle();
 
       if (companyErr) throw companyErr;
+      if (!company?.id) throw new Error("Falha ao criar empresa");
 
-      // Link user to company
-      const { error: linkErr } = await supabase
-        .from("company_users")
-        .insert({
-          company_id: company.id,
-          user_id: user.id,
-          role: "admin",
-          is_active: true,
-        } as any);
+      // Link user as admin via SECURITY DEFINER RPC (bypasses RLS)
+      const { error: linkErr } = await supabase.rpc("link_user_to_company" as any, {
+        p_company_id: company.id,
+        p_user_id: user.id,
+        p_role: "admin",
+      });
 
-      if (linkErr) throw linkErr;
+      if (linkErr) {
+        console.warn("[Onboarding] link_user_to_company fallback:", linkErr.message);
+        // Fallback: try direct insert
+        const { error: directLinkErr } = await supabase
+          .from("company_users")
+          .insert({
+            company_id: company.id,
+            user_id: user.id,
+            role: "admin",
+            is_active: true,
+          } as any);
+        if (directLinkErr) throw directLinkErr;
+      }
 
       toast.success("Empresa criada com sucesso!");
       next();
     } catch (err: any) {
+      console.error("[Onboarding] Error:", err);
       toast.error(err.message || "Erro ao criar empresa");
     } finally {
       setSaving(false);
