@@ -49,16 +49,20 @@ export default function Financeiro() {
   const [payTarget, setPayTarget] = useState<LocalFinancialEntry | null>(null);
   const [payMethod, setPayMethod] = useState("dinheiro");
 
+  const monthStart = `${month}-01`;
+  const monthEndDate = new Date(parseInt(month.split("-")[0]), parseInt(month.split("-")[1]), 0);
+  const monthEnd = format(monthEndDate, "yyyy-MM-dd");
+
   const typeFilter = tab === "pagar" ? "pagar" : tab === "receber" ? "receber" : undefined;
   const { data: entries = [], isLoading } = useLocalFinancialEntries({
     type: typeFilter as any,
-    startDate: `${month}-01`,
-    endDate: `${month}-31`,
+    startDate: monthStart,
+    endDate: monthEnd,
   });
 
   const { data: allEntries = [] } = useLocalFinancialEntries({
-    startDate: `${month}-01`,
-    endDate: `${month}-31`,
+    startDate: monthStart,
+    endDate: monthEnd,
   });
 
   const deleteEntry = useDeleteLocalFinancialEntry();
