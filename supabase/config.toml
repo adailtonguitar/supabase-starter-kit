@@ -39,3 +39,6 @@ verify_jwt = false
 
 [functions.diagnostico-financeiro]
 verify_jwt = false
+
+[functions.analyze-product-image]
+verify_jwt = false
