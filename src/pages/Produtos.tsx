@@ -152,8 +152,12 @@ export default function Produtos() {
                     >
                       <td className="px-5 py-3">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-lg bg-accent flex items-center justify-center">
-                            <Package className="w-4 h-4 text-accent-foreground" />
+                          <div className="w-8 h-8 rounded-lg bg-accent flex items-center justify-center overflow-hidden flex-shrink-0">
+                            {(product as any).image_url ? (
+                              <img src={(product as any).image_url} alt={product.name} className="w-full h-full object-cover" />
+                            ) : (
+                              <Package className="w-4 h-4 text-accent-foreground" />
+                            )}
                           </div>
                           <span className="font-medium text-foreground">{product.name}</span>
                         </div>
@@ -210,8 +214,12 @@ export default function Produtos() {
               <div key={product.id} className="bg-card rounded-xl border border-border p-3 space-y-2">
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-center gap-2 min-w-0">
-                    <div className="w-8 h-8 rounded-lg bg-accent flex items-center justify-center shrink-0">
-                      <Package className="w-4 h-4 text-accent-foreground" />
+                    <div className="w-8 h-8 rounded-lg bg-accent flex items-center justify-center shrink-0 overflow-hidden">
+                      {(product as any).image_url ? (
+                        <img src={(product as any).image_url} alt={product.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <Package className="w-4 h-4 text-accent-foreground" />
+                      )}
                     </div>
                     <div className="min-w-0">
                       <p className="font-medium text-foreground text-sm truncate">{product.name}</p>
