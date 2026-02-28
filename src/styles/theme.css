@@ -10,6 +10,11 @@
   --danger: var(--destructive);
   --danger-foreground: var(--destructive-foreground);
 
+  /* Sidebar aliases */
+  --sidebar-bg: var(--sidebar-background);
+  --sidebar-hover: var(--sidebar-accent);
+  --sidebar-active: var(--sidebar-primary);
+
   /* Convenience HSL refs for use in svg / inline styles */
   --primary-hsl: var(--primary);
   --success-hsl: var(--success);
