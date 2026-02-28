@@ -38,14 +38,14 @@
     --input: 220 12% 22%;
     --ring: 168 72% 40%;
     --radius: 0.75rem;
-    --pos-bg: 220 25% 8%;
-    --pos-surface: 220 22% 12%;
-    --pos-surface-hover: 220 22% 16%;
-    --pos-border: 220 18% 18%;
-    --pos-text: 220 10% 92%;
-    --pos-text-muted: 220 10% 55%;
+    --pos-bg: 220 16% 11%;
+    --pos-surface: 220 14% 15%;
+    --pos-surface-hover: 220 12% 20%;
+    --pos-border: 220 12% 22%;
+    --pos-text: 220 8% 93%;
+    --pos-text-muted: 220 6% 60%;
     --pos-accent: 168 72% 42%;
-    --pos-accent-glow: 168 72% 36%;
+    --pos-accent-glow: 158 55% 42%;
     --sidebar-background: 190 45% 18%;
     --sidebar-foreground: 210 35% 92%;
     --sidebar-primary: 158 55% 42%;
@@ -120,31 +120,31 @@
 }
 
 .pdv-theme {
-  --background: 218 50% 18%;
-  --foreground: 210 20% 92%;
-  --card: 218 55% 22%;
-  --card-foreground: 210 20% 92%;
-  --popover: 218 55% 22%;
-  --popover-foreground: 210 20% 92%;
-  --primary: 0 0% 100%;
-  --primary-foreground: 218 50% 18%;
-  --secondary: 218 45% 26%;
-  --secondary-foreground: 210 20% 92%;
-  --muted: 218 45% 26%;
-  --muted-foreground: 210 15% 65%;
-  --accent: 218 40% 30%;
-  --accent-foreground: 210 20% 92%;
-  --destructive: 0 72% 51%;
+  --background: 220 16% 11%;
+  --foreground: 220 8% 93%;
+  --card: 220 14% 15%;
+  --card-foreground: 220 8% 93%;
+  --popover: 220 14% 15%;
+  --popover-foreground: 220 8% 93%;
+  --primary: 168 72% 42%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 220 12% 20%;
+  --secondary-foreground: 220 8% 90%;
+  --muted: 220 12% 20%;
+  --muted-foreground: 220 6% 60%;
+  --accent: 220 12% 22%;
+  --accent-foreground: 168 60% 50%;
+  --destructive: 0 68% 50%;
   --destructive-foreground: 0 0% 100%;
-  --success: 142 72% 40%;
+  --success: 152 58% 44%;
   --success-foreground: 0 0% 100%;
-  --warning: 38 92% 50%;
+  --warning: 38 92% 52%;
   --warning-foreground: 0 0% 100%;
-  --border: 218 40% 28%;
-  --input: 218 40% 28%;
-  --ring: 210 60% 60%;
-  --sidebar-background: 218 60% 12%;
-  --sidebar-foreground: 210 20% 85%;
+  --border: 220 12% 22%;
+  --input: 220 12% 22%;
+  --ring: 168 72% 40%;
+  --sidebar-background: 190 45% 18%;
+  --sidebar-foreground: 210 35% 92%;
 }
 
 @layer base {
