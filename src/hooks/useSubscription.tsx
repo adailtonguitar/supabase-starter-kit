@@ -96,7 +96,14 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
 
     try {
       const { data, error } = await supabase.functions.invoke("check-subscription");
-      if (error) throw error;
+      if (error) {
+        console.warn("[useSubscription] check-subscription error, falling back to trial:", error);
+        const trial = calcTrial(createdAt);
+        const newState: SubscriptionState = { ...defaultState, loading: false, ...trial };
+        setState(newState);
+        cacheSubState(newState);
+        return;
+      }
 
       if (data?.blocked) { setState({ ...defaultState, loading: false, blocked: true, blockReason: data.block_reason || "Acesso bloqueado pelo administrador." }); return; }
 
