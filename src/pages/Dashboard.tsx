@@ -6,7 +6,7 @@ import {
 import { formatCurrency } from "@/lib/mock-data";
 import { motion } from "framer-motion";
 import { useDashboardStats } from "@/hooks/useDashboardStats";
-import { Link } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
 import { QuickAccessCards } from "@/components/dashboard/QuickAccessCards";
 import { SalesChart } from "@/components/dashboard/SalesChart";
 import { TopProductsList } from "@/components/dashboard/TopProductsList";
@@ -14,6 +14,7 @@ import { AiInsightWidget } from "@/components/dashboard/AiInsightWidget";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
+import { usePlanFeatures } from "@/hooks/usePlanFeatures";
 
 function getGreeting(): string {
   const h = new Date().getHours();
@@ -40,7 +41,13 @@ const item = {
 export default function Dashboard() {
   const { data: stats, isLoading, dataUpdatedAt, refetch } = useDashboardStats();
   const { user } = useAuth();
+  const plan = usePlanFeatures();
   const firstName = getFirstName(user?.email);
+
+  // Emissor-only plan: redirect to standalone emitter
+  if (plan.isEmissorOnly()) {
+    return <Navigate to="/emissor-nfe" replace />;
+  }
 
   const healthColor = (score: number) => {
     if (score >= 80) return "text-success";
