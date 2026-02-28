@@ -100,7 +100,12 @@ export function useCompany(): CompanyData {
             .eq("company_id", selectedId)
             .eq("is_active", true)
             .maybeSingle();
-          if (check) resolvedCompanyId = check.company_id;
+          if (check) {
+            resolvedCompanyId = check.company_id;
+          } else {
+            // Selected company no longer valid — clear stale selection
+            localStorage.removeItem(SELECTED_COMPANY_KEY);
+          }
         }
 
         if (!resolvedCompanyId) {
