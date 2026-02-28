@@ -3,7 +3,23 @@
    Imported globally via main.tsx
    =========================================== */
 
-/* Add custom theme variables or overrides here.
-   Base tokens are defined in src/index.css.
-   Use this file for project-wide visual tweaks
-   that don't belong in individual components.   */
+:root {
+  /* ── Alias tokens (map to base tokens in index.css) ── */
+  --text-primary: var(--foreground);
+  --text-secondary: var(--muted-foreground);
+  --danger: var(--destructive);
+  --danger-foreground: var(--destructive-foreground);
+
+  /* Convenience HSL refs for use in svg / inline styles */
+  --primary-hsl: var(--primary);
+  --success-hsl: var(--success);
+  --warning-hsl: var(--warning);
+  --danger-hsl: var(--destructive);
+}
+
+.dark {
+  --text-primary: var(--foreground);
+  --text-secondary: var(--muted-foreground);
+  --danger: var(--destructive);
+  --danger-foreground: var(--destructive-foreground);
+}
