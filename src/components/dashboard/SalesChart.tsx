@@ -45,18 +45,18 @@ export function SalesChart({ data }: Props) {
           <AreaChart data={chartData}>
             <defs>
               <linearGradient id="salesGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="hsl(168, 72%, 36%)" stopOpacity={0.4} />
-                <stop offset="100%" stopColor="hsl(168, 72%, 36%)" stopOpacity={0.02} />
+                <stop offset="0%" stopColor="var(--chart-primary, hsl(var(--primary)))" stopOpacity={0.4} />
+                <stop offset="100%" stopColor="var(--chart-primary, hsl(var(--primary)))" stopOpacity={0.02} />
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="hsl(220, 16%, 90%)" strokeOpacity={0.4} />
-            <XAxis dataKey="name" tick={{ fontSize: 11, fontWeight: 500 }} stroke="hsl(220, 10%, 70%)" tickLine={false} axisLine={false} />
-            <YAxis tick={{ fontSize: 11 }} stroke="hsl(220, 10%, 70%)" tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} width={50} tickLine={false} axisLine={false} />
+            <CartesianGrid strokeDasharray="3 3" className="stroke-border" strokeOpacity={0.4} />
+            <XAxis dataKey="name" tick={{ fontSize: 11, fontWeight: 500 }} className="stroke-muted-foreground" tickLine={false} axisLine={false} />
+            <YAxis tick={{ fontSize: 11 }} className="stroke-muted-foreground" tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} width={50} tickLine={false} axisLine={false} />
             <Tooltip
               formatter={(value: number) => [formatCurrency(value), "Vendas"]}
-              contentStyle={{ borderRadius: 12, border: "1px solid hsl(220, 16%, 90%)", fontSize: 12, boxShadow: "0 4px 12px rgba(0,0,0,0.1)" }}
+              contentStyle={{ borderRadius: 12, border: "1px solid hsl(var(--border))", fontSize: 12, boxShadow: "0 4px 12px rgba(0,0,0,0.1)", background: "hsl(var(--card))", color: "hsl(var(--foreground))" }}
             />
-            <Area type="monotone" dataKey="vendas" stroke="hsl(168, 72%, 36%)" strokeWidth={2.5} fill="url(#salesGrad)" dot={{ r: 3, fill: "hsl(168, 72%, 36%)", strokeWidth: 2, stroke: "white" }} activeDot={{ r: 5, strokeWidth: 2 }} />
+            <Area type="monotone" dataKey="vendas" stroke="hsl(var(--primary))" strokeWidth={2.5} fill="url(#salesGrad)" dot={{ r: 3, fill: "hsl(var(--primary))", strokeWidth: 2, stroke: "hsl(var(--card))" }} activeDot={{ r: 5, strokeWidth: 2 }} />
           </AreaChart>
         </ResponsiveContainer>
       ) : (

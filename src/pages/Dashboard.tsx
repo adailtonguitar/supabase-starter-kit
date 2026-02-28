@@ -1,7 +1,7 @@
 import {
   TrendingUp, TrendingDown, ShoppingBag, DollarSign, AlertTriangle,
   Shield, Heart, Target, Package, Users, ArrowUpRight, ArrowDownRight,
-  Activity, Zap,
+  Activity, Zap, RefreshCw,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/mock-data";
 import { motion } from "framer-motion";
@@ -12,6 +12,21 @@ import { SalesChart } from "@/components/dashboard/SalesChart";
 import { TopProductsList } from "@/components/dashboard/TopProductsList";
 import { AiInsightWidget } from "@/components/dashboard/AiInsightWidget";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/useAuth";
+
+function getGreeting(): string {
+  const h = new Date().getHours();
+  if (h < 12) return "Bom dia";
+  if (h < 18) return "Boa tarde";
+  return "Boa noite";
+}
+
+function getFirstName(email?: string | null): string {
+  if (!email) return "";
+  const name = email.split("@")[0].replace(/[._-]/g, " ");
+  return name.charAt(0).toUpperCase() + name.slice(1).split(" ")[0];
+}
 
 const container = {
   animate: { transition: { staggerChildren: 0.06 } },
@@ -23,7 +38,9 @@ const item = {
 };
 
 export default function Dashboard() {
-  const { data: stats, isLoading } = useDashboardStats();
+  const { data: stats, isLoading, dataUpdatedAt, refetch } = useDashboardStats();
+  const { user } = useAuth();
+  const firstName = getFirstName(user?.email);
 
   const healthColor = (score: number) => {
     if (score >= 80) return "text-success";
@@ -62,23 +79,37 @@ export default function Dashboard() {
       {/* Header */}
       <motion.div variants={item} className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-foreground tracking-tight">Dashboard</h1>
-          <p className="text-sm text-muted-foreground mt-1">Resumo inteligente da sua empresa</p>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-foreground tracking-tight">
+            {getGreeting()}{firstName ? `, ${firstName}` : ""} 👋
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Resumo inteligente da sua empresa
+            {dataUpdatedAt > 0 && (
+              <span className="ml-2 text-[10px] text-muted-foreground/60">
+                atualizado às {new Date(dataUpdatedAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+              </span>
+            )}
+          </p>
         </div>
-        {stats && (
-          <div className="hidden sm:flex items-center gap-2.5">
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20">
-              <Package className="w-3.5 h-3.5 text-primary" />
-              <span className="font-mono font-bold text-sm text-primary">{stats.totalProducts}</span>
-              <span className="text-xs text-muted-foreground">produtos</span>
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => refetch()} title="Atualizar dados">
+            <RefreshCw className="w-4 h-4" />
+          </Button>
+          {stats && (
+            <div className="hidden sm:flex items-center gap-2.5">
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20">
+                <Package className="w-3.5 h-3.5 text-primary" />
+                <span className="font-mono font-bold text-sm text-primary">{stats.totalProducts}</span>
+                <span className="text-xs text-muted-foreground">produtos</span>
+              </div>
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20">
+                <Users className="w-3.5 h-3.5 text-blue-500" />
+                <span className="font-mono font-bold text-sm text-blue-500">{stats.totalClients}</span>
+                <span className="text-xs text-muted-foreground">clientes</span>
+              </div>
             </div>
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20">
-              <Users className="w-3.5 h-3.5 text-blue-500" />
-              <span className="font-mono font-bold text-sm text-blue-500">{stats.totalClients}</span>
-              <span className="text-xs text-muted-foreground">clientes</span>
-            </div>
-          </div>
-        )}
+          )}
+        </div>
       </motion.div>
 
       {/* Quick Access */}
@@ -264,7 +295,7 @@ export default function Dashboard() {
                     <div className="text-right shrink-0 ml-3">
                       <p className="text-sm font-mono font-bold text-primary">{formatCurrency(sale.total_value)}</p>
                       <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold mt-0.5 ${sale.status === "autorizado" ? "bg-success/10 text-success" : sale.status === "rejeitado" ? "bg-destructive/10 text-destructive" : "bg-warning/10 text-warning"}`}>
-                        {sale.status === "autorizado" ? "Autorizado" : sale.status === "rejeitado" ? "Rejeitado" : "Pendente"}
+                        {sale.status === "autorizado" ? "Autorizado" : sale.status === "rejeitado" ? "Rejeitado" : sale.status === "completed" ? "Concluída" : "Pendente"}
                       </span>
                     </div>
                   </div>
@@ -293,8 +324,8 @@ export default function Dashboard() {
                         <td className="px-5 py-3.5 text-foreground capitalize">{sale.payment_method || "—"}</td>
                         <td className="px-5 py-3.5 text-right font-mono font-bold text-primary">{formatCurrency(sale.total_value)}</td>
                         <td className="px-5 py-3.5 text-center">
-                          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${sale.status === "autorizado" ? "bg-success/10 text-success" : sale.status === "rejeitado" ? "bg-destructive/10 text-destructive" : "bg-warning/10 text-warning"}`}>
-                            {sale.status === "autorizado" ? "Autorizado" : sale.status === "rejeitado" ? "Rejeitado" : "Pendente"}
+                          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${sale.status === "autorizado" ? "bg-success/10 text-success" : sale.status === "rejeitado" ? "bg-destructive/10 text-destructive" : sale.status === "completed" ? "bg-primary/10 text-primary" : "bg-warning/10 text-warning"}`}>
+                            {sale.status === "autorizado" ? "Autorizado" : sale.status === "rejeitado" ? "Rejeitado" : sale.status === "completed" ? "Concluída" : "Pendente"}
                           </span>
                         </td>
                       </tr>
