@@ -113,8 +113,8 @@ export default function Produtos() {
         animate={{ opacity: 1 }}
         className="hidden sm:block bg-card rounded-xl card-shadow border border-border overflow-hidden"
       >
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+        <div className="overflow-x-auto scrollbar-thin">
+          <table className="w-full text-sm min-w-[700px]">
             <thead>
               <tr className="border-b border-border">
                 <th className="text-left px-5 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Produto</th>
