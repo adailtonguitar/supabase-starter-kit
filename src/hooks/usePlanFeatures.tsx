@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, useCallback, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
+import { useSubscription } from "@/hooks/useSubscription";
 
 export type PlanTier = "starter" | "business" | "pro";
 export type FinancialLevel = "basic" | "full";
@@ -62,10 +63,23 @@ function getCachedPlan(): PlanFeatures | null {
 
 export function PlanProvider({ children }: { children: React.ReactNode }) {
   const { companyId } = useCompany();
+  const { trialActive } = useSubscription();
   const [state, setState] = useState<PlanFeatures>(() => {
     const cached = getCachedPlan();
     return cached ? { ...cached, loading: true } : defaults;
   });
+
+  // Pro-level features for trial users
+  const PRO_TRIAL: PlanFeatures = {
+    plan: "pro",
+    status: "active",
+    maxUsers: 99,
+    fiscalEnabled: true,
+    advancedReportsEnabled: true,
+    financialModuleLevel: "full",
+    expiresAt: null,
+    loading: false,
+  };
 
   const fetchPlan = useCallback(async () => {
     if (!companyId) {
@@ -84,15 +98,28 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
       if (error) throw error;
 
       if (!data) {
-        // No plan = starter defaults
-        const s: PlanFeatures = { ...defaults, loading: false };
-        setState(s);
-        cachePlan(s);
+        // No plan record: if trial is active, grant Pro; otherwise Starter
+        if (trialActive) {
+          setState(PRO_TRIAL);
+          cachePlan(PRO_TRIAL);
+        } else {
+          const s: PlanFeatures = { ...defaults, loading: false };
+          setState(s);
+          cachePlan(s);
+        }
+        return;
+      }
+
+      // If there's a plan record but it's starter and trial is still active, override to Pro
+      const planTier = (data as any).plan || "starter";
+      if (planTier === "starter" && trialActive) {
+        setState(PRO_TRIAL);
+        cachePlan(PRO_TRIAL);
         return;
       }
 
       const s: PlanFeatures = {
-        plan: (data as any).plan || "starter",
+        plan: planTier,
         status: (data as any).status || "active",
         maxUsers: (data as any).max_users || 1,
         fiscalEnabled: (data as any).fiscal_enabled || false,
@@ -107,7 +134,7 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
       console.error("[usePlanFeatures] Error:", err);
       setState(prev => ({ ...prev, loading: false }));
     }
-  }, [companyId]);
+  }, [companyId, trialActive]);
 
   useEffect(() => {
     fetchPlan();
