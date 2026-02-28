@@ -302,13 +302,16 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
     setRejection(null);
 
     try {
-      const { data: configs } = await supabase
+      console.log("[NFC-e] Buscando fiscal_configs para company_id:", companyId);
+      const { data: configs, error: configError } = await supabase
         .from("fiscal_configs")
         .select("*")
         .eq("company_id", companyId)
         .eq("is_active", true);
 
+      console.log("[NFC-e] Configs encontradas:", configs, "Erro:", configError);
       const nfceConfig = configs?.find((c: any) => c.doc_type === "nfce");
+      console.log("[NFC-e] NFC-e config:", nfceConfig);
 
       if (!nfceConfig) {
         setStep("error");
