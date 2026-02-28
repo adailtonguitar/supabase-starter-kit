@@ -897,9 +897,26 @@ export default function PDV() {
               <span className="text-xl font-black text-foreground font-mono tabular-nums">{formatCurrency(pdv.subtotal)}</span>
             </div>
 
-            {/* Last added item highlight */}
+            {/* Last added item highlight with product photo */}
             {lastAddedItem && (
-              <div className="flex justify-between items-center py-1.5 lg:py-2 border-b border-primary/30 bg-primary/5 rounded-lg px-2 animate-fade-in">
+              <div className="hidden lg:flex flex-col items-center gap-2 py-3 border-b border-primary/30 bg-primary/5 rounded-lg px-2 animate-fade-in">
+                {(lastAddedItem as any).image_url && (
+                  <div className="w-20 h-20 rounded-xl overflow-hidden border-2 border-primary/30 shadow-lg">
+                    <img src={(lastAddedItem as any).image_url} alt={lastAddedItem.name} className="w-full h-full object-cover" />
+                  </div>
+                )}
+                <div className="text-center">
+                  <span className="text-xs font-bold text-primary uppercase flex items-center justify-center gap-1">
+                    <Plus className="w-3 h-3" /> Último item
+                  </span>
+                  <span className="text-xs font-bold text-foreground block truncate max-w-[160px]">{lastAddedItem.name}</span>
+                  <span className="text-sm font-black text-primary font-mono">{formatCurrency(lastAddedItem.price)}</span>
+                </div>
+              </div>
+            )}
+            {/* Mobile: compact last item */}
+            {lastAddedItem && (
+              <div className="flex lg:hidden justify-between items-center py-1.5 border-b border-primary/30 bg-primary/5 rounded-lg px-2 animate-fade-in">
                 <span className="text-xs font-bold text-primary uppercase flex items-center gap-1">
                   <Plus className="w-3 h-3" /> Último
                 </span>
