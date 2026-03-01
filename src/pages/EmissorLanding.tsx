@@ -159,7 +159,7 @@ export default function EmissorLanding() {
               </div>
               <div className="flex items-baseline gap-1">
                 <span className="text-sm text-muted-foreground font-medium">R$</span>
-                <span className="text-5xl font-black tracking-tight">79,90</span>
+                <span className="text-5xl font-black tracking-tight">99,90</span>
                 <span className="text-sm text-muted-foreground">/mês</span>
               </div>
             </div>
