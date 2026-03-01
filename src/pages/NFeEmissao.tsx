@@ -138,6 +138,16 @@ export default function NFeEmissao() {
   const [quickNcmSearch, setQuickNcmSearch] = useState("");
   const [showQuickNcmDropdown, setShowQuickNcmDropdown] = useState(false);
   const [fiscalCategories, setFiscalCategories] = useState<any[]>([]);
+  const [clients, setClients] = useState<any[]>([]);
+  const [clientSearch, setClientSearch] = useState("");
+  const [showClientSearch, setShowClientSearch] = useState(false);
+  const [showQuickClient, setShowQuickClient] = useState(false);
+  const [quickClientSaving, setQuickClientSaving] = useState(false);
+  const [quickClient, setQuickClient] = useState({
+    name: "", cpf_cnpj: "", ie: "", email: "", phone: "",
+    address_street: "", address_number: "", address_complement: "",
+    address_neighborhood: "", address_city: "", address_state: "", address_zip: "",
+  });
 
   // Load products from database
   useEffect(() => {
@@ -152,6 +162,20 @@ export default function NFeEmissao() {
         if (data) setProducts(data);
       });
   }, [companyId]);
+
+  // Load clients from database
+  const fetchClients = useCallback(async () => {
+    if (!companyId) return;
+    const { data } = await supabase
+      .from("clients")
+      .select("id, name, cpf_cnpj, ie, email, phone, address_street, address_number, address_complement, address_neighborhood, address_city, address_state, address_zip")
+      .eq("company_id", companyId)
+      .order("name")
+      .limit(500);
+    if (data) setClients(data);
+  }, [companyId]);
+
+  useEffect(() => { fetchClients(); }, [fetchClients]);
 
   // Load fiscal categories for auto-fill
   useEffect(() => {
@@ -296,6 +320,49 @@ export default function NFeEmissao() {
     setShowQuickRegister(false);
     setQuickForm({ name: "", sku: "", ncm: "", unit: "UN", price: "", cfop: "5102", origin: "0", csosn: "", cst_icms: "" });
     toast.success(`Produto "${newProduct.name}" cadastrado e adicionado!`);
+  };
+
+  const selectClient = (client: any) => {
+    setForm(p => ({
+      ...p,
+      destName: client.name || "",
+      destDoc: client.cpf_cnpj || "",
+      destIE: client.ie || "",
+      destEmail: client.email || "",
+      destStreet: client.address_street || "",
+      destNumber: client.address_number || "",
+      destComplement: client.address_complement || "",
+      destNeighborhood: client.address_neighborhood || "",
+      destCity: client.address_city || "",
+      destUF: client.address_state || "",
+      destZip: client.address_zip || "",
+    }));
+    setShowClientSearch(false);
+    setClientSearch("");
+    toast.success(`Cliente "${client.name}" selecionado`);
+  };
+
+  const getFilteredClients = () => {
+    const s = clientSearch.toLowerCase();
+    if (!s) return clients.slice(0, 15);
+    return clients.filter(c =>
+      c.name?.toLowerCase().includes(s) || c.cpf_cnpj?.includes(s) || c.email?.toLowerCase().includes(s)
+    ).slice(0, 15);
+  };
+
+  const handleQuickClientRegister = async () => {
+    if (!quickClient.name.trim()) { toast.error("Nome é obrigatório"); return; }
+    if (!companyId) return;
+    setQuickClientSaving(true);
+    const { data, error } = await supabase.from("clients").insert({ ...quickClient, company_id: companyId }).select().single();
+    setQuickClientSaving(false);
+    if (error) { toast.error("Erro: " + error.message); return; }
+    const c = data as any;
+    setClients(prev => [...prev, c]);
+    selectClient(c);
+    setShowQuickClient(false);
+    setQuickClient({ name: "", cpf_cnpj: "", ie: "", email: "", phone: "", address_street: "", address_number: "", address_complement: "", address_neighborhood: "", address_city: "", address_state: "", address_zip: "" });
+    toast.success(`Cliente "${c.name}" cadastrado e selecionado!`);
   };
 
   const getAddFilteredProducts = () => {
@@ -751,9 +818,132 @@ export default function NFeEmissao() {
             {/* DESTINATÁRIO */}
             {activeTab === "dest" && (
               <div className="space-y-3">
-                <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                  <User className="w-4 h-4 text-primary" /> Dados do Destinatário
-                </h3>
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                    <User className="w-4 h-4 text-primary" /> Dados do Destinatário
+                  </h3>
+                  <div className="flex gap-2">
+                    <button onClick={() => { setShowClientSearch(true); setShowQuickClient(false); }}
+                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:opacity-90 transition-all">
+                      <Search className="w-3.5 h-3.5" /> Buscar Cliente
+                    </button>
+                    <button onClick={() => { setShowQuickClient(true); setShowClientSearch(false); }}
+                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-dashed border-primary/50 text-primary text-xs font-medium hover:bg-primary/5 transition-colors">
+                      <Plus className="w-3.5 h-3.5" /> Cadastrar Novo
+                    </button>
+                  </div>
+                </div>
+
+                {/* Client search panel */}
+                {showClientSearch && (
+                  <div className="border border-primary/30 rounded-lg p-3 bg-muted/30 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-semibold text-foreground">Buscar cliente cadastrado:</label>
+                      <button onClick={() => { setShowClientSearch(false); setClientSearch(""); }}
+                        className="p-1 rounded hover:bg-muted text-muted-foreground"><X className="w-3.5 h-3.5" /></button>
+                    </div>
+                    <input autoFocus value={clientSearch} onChange={e => setClientSearch(e.target.value)}
+                      className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+                      placeholder="Digite nome, CPF/CNPJ ou e-mail..." />
+                    <div className="max-h-52 overflow-y-auto rounded-lg border border-border bg-card">
+                      {getFilteredClients().length === 0 ? (
+                        <p className="text-center py-4 text-xs text-muted-foreground">Nenhum cliente encontrado</p>
+                      ) : (
+                        getFilteredClients().map(c => (
+                          <button key={c.id} type="button" onClick={() => selectClient(c)}
+                            className="w-full text-left px-3 py-2.5 hover:bg-muted text-sm flex justify-between items-center transition-colors border-b border-border last:border-b-0">
+                            <span className="text-foreground truncate font-medium">{c.name}</span>
+                            <span className="text-xs text-muted-foreground ml-2 shrink-0 font-mono">{c.cpf_cnpj || ""}</span>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Quick client register form */}
+                {showQuickClient && (
+                  <div className="border border-primary/30 rounded-lg p-3 bg-primary/5 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-semibold text-foreground">Cadastro rápido de cliente</span>
+                      <button onClick={() => setShowQuickClient(false)} className="p-1 rounded hover:bg-muted text-muted-foreground"><X className="w-3.5 h-3.5" /></button>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                      <div className="col-span-2 sm:col-span-3">
+                        <label className="text-xs text-muted-foreground">Razão Social / Nome *</label>
+                        <input value={quickClient.name} onChange={e => setQuickClient(f => ({ ...f, name: e.target.value }))}
+                          className="w-full mt-0.5 px-3 py-1.5 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30" placeholder="Nome completo ou Razão Social" />
+                      </div>
+                      <div>
+                        <label className="text-xs text-muted-foreground">CPF/CNPJ *</label>
+                        <input value={quickClient.cpf_cnpj} onChange={e => setQuickClient(f => ({ ...f, cpf_cnpj: e.target.value }))}
+                          className="w-full mt-0.5 px-3 py-1.5 rounded-lg border border-border bg-background text-sm font-mono text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30" placeholder="000.000.000-00" />
+                      </div>
+                      <div>
+                        <label className="text-xs text-muted-foreground">Inscrição Estadual</label>
+                        <input value={quickClient.ie} onChange={e => setQuickClient(f => ({ ...f, ie: e.target.value }))}
+                          className="w-full mt-0.5 px-3 py-1.5 rounded-lg border border-border bg-background text-sm font-mono text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30" placeholder="ISENTO" />
+                      </div>
+                      <div>
+                        <label className="text-xs text-muted-foreground">E-mail</label>
+                        <input value={quickClient.email} onChange={e => setQuickClient(f => ({ ...f, email: e.target.value }))}
+                          className="w-full mt-0.5 px-3 py-1.5 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30" placeholder="email@empresa.com" />
+                      </div>
+                      <div>
+                        <label className="text-xs text-muted-foreground">Telefone</label>
+                        <input value={quickClient.phone} onChange={e => setQuickClient(f => ({ ...f, phone: e.target.value }))}
+                          className="w-full mt-0.5 px-3 py-1.5 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30" placeholder="(00) 00000-0000" />
+                      </div>
+                    </div>
+                    <h4 className="text-xs font-semibold text-muted-foreground pt-1">Endereço</h4>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                      <div className="col-span-2">
+                        <label className="text-xs text-muted-foreground">Logradouro</label>
+                        <input value={quickClient.address_street} onChange={e => setQuickClient(f => ({ ...f, address_street: e.target.value }))}
+                          className="w-full mt-0.5 px-3 py-1.5 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30" />
+                      </div>
+                      <div>
+                        <label className="text-xs text-muted-foreground">Número</label>
+                        <input value={quickClient.address_number} onChange={e => setQuickClient(f => ({ ...f, address_number: e.target.value }))}
+                          className="w-full mt-0.5 px-3 py-1.5 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30" />
+                      </div>
+                      <div>
+                        <label className="text-xs text-muted-foreground">Complemento</label>
+                        <input value={quickClient.address_complement} onChange={e => setQuickClient(f => ({ ...f, address_complement: e.target.value }))}
+                          className="w-full mt-0.5 px-3 py-1.5 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30" />
+                      </div>
+                      <div>
+                        <label className="text-xs text-muted-foreground">Bairro</label>
+                        <input value={quickClient.address_neighborhood} onChange={e => setQuickClient(f => ({ ...f, address_neighborhood: e.target.value }))}
+                          className="w-full mt-0.5 px-3 py-1.5 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30" />
+                      </div>
+                      <div>
+                        <label className="text-xs text-muted-foreground">Cidade</label>
+                        <input value={quickClient.address_city} onChange={e => setQuickClient(f => ({ ...f, address_city: e.target.value }))}
+                          className="w-full mt-0.5 px-3 py-1.5 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30" />
+                      </div>
+                      <div>
+                        <label className="text-xs text-muted-foreground">UF</label>
+                        <input value={quickClient.address_state} onChange={e => setQuickClient(f => ({ ...f, address_state: e.target.value.toUpperCase() }))}
+                          className="w-full mt-0.5 px-3 py-1.5 rounded-lg border border-border bg-background text-sm font-mono text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30" placeholder="SP" maxLength={2} />
+                      </div>
+                      <div>
+                        <label className="text-xs text-muted-foreground">CEP</label>
+                        <input value={quickClient.address_zip} onChange={e => setQuickClient(f => ({ ...f, address_zip: e.target.value }))}
+                          className="w-full mt-0.5 px-3 py-1.5 rounded-lg border border-border bg-background text-sm font-mono text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30" placeholder="00000-000" />
+                      </div>
+                    </div>
+                    <div className="flex gap-2 pt-1">
+                      <button type="button" onClick={handleQuickClientRegister} disabled={quickClientSaving}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:opacity-90 transition-all disabled:opacity-50">
+                        {quickClientSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />} Cadastrar e Selecionar
+                      </button>
+                      <button type="button" onClick={() => setShowQuickClient(false)}
+                        className="px-3 py-1.5 rounded-lg border border-border text-xs text-muted-foreground hover:bg-muted transition-colors">Cancelar</button>
+                    </div>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="sm:col-span-2">
                     <label className="text-xs text-muted-foreground">Razão Social / Nome *</label>
