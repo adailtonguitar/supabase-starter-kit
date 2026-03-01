@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -12,7 +12,7 @@ import type { LocalProduct } from "@/hooks/useLocalProducts";
 import { useFiscalCategories } from "@/hooks/useFiscalCategories";
 import { useCompany } from "@/hooks/useCompany";
 import { supabase } from "@/integrations/supabase/client";
-import { Check, Search, Upload, X, Package, AlertTriangle, ShieldAlert, Info, Camera, Sparkles, Loader2 } from "lucide-react";
+import { Check, Search, Upload, X, Package, AlertTriangle, ShieldAlert, Info, Camera, Sparkles, Loader2, ScanBarcode } from "lucide-react";
 import { NCM_TABLE } from "@/lib/ncm-table";
 import { validateNcm, detectNcmDuplicates, getNcmDescription, isValidNcmFormat, type NcmIssue } from "@/lib/ncm-validator";
 import { isTypicalStNcm } from "@/lib/icms-st-engine";
@@ -90,6 +90,8 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
   const aiFileInputRef = useRef<HTMLInputElement>(null);
   const [analyzingImage, setAnalyzingImage] = useState(false);
   const [aiConfidence, setAiConfidence] = useState<number | null>(null);
+  const [lookingUpBarcode, setLookingUpBarcode] = useState(false);
+  const barcodeLookupTimer = useRef<ReturnType<typeof setTimeout>>();
   const { data: allProducts = [] } = useProducts();
 
   const ncmFiltered = useMemo(() => {
@@ -171,6 +173,46 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
       supplier_id: (product as any)?.supplier_id ?? "",
     },
   });
+
+  const lookupBarcode = useCallback(async (barcode: string) => {
+    if (!barcode || barcode.length < 8 || isEditing) return;
+    const currentName = form.getValues("name");
+    if (currentName && currentName.trim().length > 0) return;
+
+    setLookingUpBarcode(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("lookup-barcode", {
+        body: { barcode },
+      });
+      if (error) throw error;
+
+      let result = data;
+      if (data && typeof data === "object" && data.body instanceof ReadableStream) {
+        const text = await new Response(data.body).text();
+        result = JSON.parse(text);
+      }
+
+      if (result?.found && result?.product) {
+        const p = result.product;
+        if (p.name) form.setValue("name", p.name);
+        if (p.category) form.setValue("category", p.category);
+        if (p.unit && units.includes(p.unit)) form.setValue("unit", p.unit);
+        toast.success(`🔍 Produto encontrado: ${p.name}`, { duration: 4000 });
+      }
+    } catch (err: any) {
+      console.warn("[barcode-lookup]", err?.message);
+    } finally {
+      setLookingUpBarcode(false);
+    }
+  }, [isEditing, form]);
+
+  const handleBarcodeChange = useCallback((value: string, fieldOnChange: (v: string) => void) => {
+    fieldOnChange(value);
+    if (barcodeLookupTimer.current) clearTimeout(barcodeLookupTimer.current);
+    if (value.length >= 8) {
+      barcodeLookupTimer.current = setTimeout(() => lookupBarcode(value), 600);
+    }
+  }, [lookupBarcode]);
 
   const uploadImage = async (productId: string): Promise<string | null> => {
     if (!imageFile || !companyId) return imagePreview;
@@ -448,8 +490,21 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
                   )} />
                   <FormField control={form.control} name="barcode" render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Código de Barras</FormLabel>
-                      <FormControl><Input placeholder="7891234567890" {...field} /></FormControl>
+                      <FormLabel className="flex items-center gap-1.5">
+                        <ScanBarcode className="w-3.5 h-3.5" />
+                        Código de Barras
+                        {lookingUpBarcode && <Loader2 className="w-3 h-3 animate-spin text-primary" />}
+                      </FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="Escaneie ou digite o EAN..."
+                          {...field}
+                          onChange={(e) => handleBarcodeChange(e.target.value, field.onChange)}
+                        />
+                      </FormControl>
+                      {lookingUpBarcode && (
+                        <p className="text-xs text-primary animate-pulse">Buscando produto pelo código de barras...</p>
+                      )}
                       <FormMessage />
                     </FormItem>
                   )} />
