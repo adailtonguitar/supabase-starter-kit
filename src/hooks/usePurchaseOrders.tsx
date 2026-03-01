@@ -64,10 +64,12 @@ export function useCreatePurchaseOrder() {
 
 export function useUpdatePurchaseOrderStatus() {
   const qc = useQueryClient();
+  const { companyId } = useCompany();
   return useMutation({
     mutationFn: async (input: { id: string; status: string; [key: string]: any }) => {
+      if (!companyId) throw new Error("Empresa não encontrada");
       const { id, status, ...rest } = input;
-      const { error } = await supabase.from("purchase_orders").update({ status, ...rest }).eq("id", id);
+      const { error } = await supabase.from("purchase_orders").update({ status, ...rest }).eq("id", id).eq("company_id", companyId);
       if (error) throw error;
     },
     onSuccess: () => {

@@ -49,12 +49,14 @@ export function usePromotions() {
   };
 
   const togglePromotion = async (id: string, isActive: boolean) => {
-    await supabase.from("promotions").update({ is_active: isActive }).eq("id", id);
+    if (!companyId) return;
+    await supabase.from("promotions").update({ is_active: isActive }).eq("id", id).eq("company_id", companyId);
     qc.invalidateQueries({ queryKey: ["promotions"] });
   };
 
   const deletePromotion = async (id: string) => {
-    await supabase.from("promotions").delete().eq("id", id);
+    if (!companyId) return;
+    await supabase.from("promotions").delete().eq("id", id).eq("company_id", companyId);
     toast.success("Promoção excluída");
     qc.invalidateQueries({ queryKey: ["promotions"] });
   };

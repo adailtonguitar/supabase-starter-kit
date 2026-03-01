@@ -40,12 +40,14 @@ export function useQuotes({ skipInitialFetch }: { skipInitialFetch?: boolean } =
   };
 
   const updateQuoteStatus = async (id: string, status: string) => {
-    await supabase.from("quotes").update({ status }).eq("id", id);
+    if (!companyId) return;
+    await supabase.from("quotes").update({ status }).eq("id", id).eq("company_id", companyId);
     qc.invalidateQueries({ queryKey: ["quotes"] });
   };
 
   const deleteQuote = async (id: string) => {
-    await supabase.from("quotes").delete().eq("id", id);
+    if (!companyId) return;
+    await supabase.from("quotes").delete().eq("id", id).eq("company_id", companyId);
     toast.success("Orçamento excluído");
     qc.invalidateQueries({ queryKey: ["quotes"] });
   };
