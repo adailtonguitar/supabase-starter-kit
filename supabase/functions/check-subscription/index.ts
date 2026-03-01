@@ -20,32 +20,27 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Use SERVICE_ROLE_KEY to bypass any JWT verification issues
-    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
 
-    // Resolve user from token using getClaims (compatible with signing-keys)
-    const anonClient = createClient(supabaseUrl, anonKey, {
-      global: { headers: { Authorization: authHeader } },
+    // Use service role client to verify user via admin API (bypasses signing-keys issues)
+    const adminClient = createClient(supabaseUrl, serviceRoleKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
     });
 
+    // Extract token and get user via admin auth API
     const token = authHeader.replace("Bearer ", "");
-    const { data: claimsData, error: claimsError } = await anonClient.auth.getClaims(token);
-    if (claimsError || !claimsData?.claims?.sub) {
-      console.error("[check-subscription] Claims error:", claimsError);
+    const { data: { user }, error: userError } = await adminClient.auth.getUser(token);
+
+    if (userError || !user) {
+      console.error("[check-subscription] Auth error:", userError);
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const userId = claimsData.claims.sub as string;
-
-    // Use service role client for DB queries (bypasses RLS)
-    const adminClient = serviceRoleKey
-      ? createClient(supabaseUrl, serviceRoleKey)
-      : anonClient;
+    const userId = user.id;
 
     // Check subscriptions table
     const { data: sub } = await adminClient
@@ -77,7 +72,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    // If no subscription record, user is on trial
     if (!sub) {
       return new Response(
         JSON.stringify({
