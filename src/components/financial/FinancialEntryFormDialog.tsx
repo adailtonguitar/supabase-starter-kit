@@ -102,11 +102,13 @@ export function FinancialEntryFormDialog({ open, onOpenChange, entry, defaultTyp
   const saving = createEntry.isPending || updateEntry.isPending;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 overflow-y-auto" onClick={() => onOpenChange(false)}>
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 sm:p-4" onClick={() => onOpenChange(false)}>
       <div
-        className="bg-card rounded-xl p-5 sm:p-6 border border-border w-[calc(100%-2rem)] max-w-md max-h-[90vh] overflow-y-auto space-y-4 mx-auto"
+        className="bg-card rounded-t-2xl sm:rounded-xl p-5 sm:p-6 border border-border w-full sm:w-[calc(100%-2rem)] max-w-md max-h-[92vh] sm:max-h-[90vh] overflow-y-auto space-y-4"
         onClick={(e) => e.stopPropagation()}
       >
+        {/* Mobile drag handle */}
+        <div className="sm:hidden mx-auto w-12 h-1.5 rounded-full bg-muted-foreground/30 -mt-2 mb-1" />
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold text-foreground">
             {isEditing ? "Editar Lançamento" : "Novo Lançamento"}

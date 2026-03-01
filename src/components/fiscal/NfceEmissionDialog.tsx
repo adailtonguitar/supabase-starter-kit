@@ -436,11 +436,13 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={handleClose}>
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 sm:p-4" onClick={handleClose}>
       <div
-        className="bg-card rounded-xl border border-border w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden"
+        className="bg-card rounded-t-2xl sm:rounded-xl border border-border w-full sm:max-w-2xl max-h-[92vh] sm:max-h-[90vh] flex flex-col overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
+        {/* Mobile drag handle */}
+        <div className="sm:hidden mx-auto w-12 h-1.5 rounded-full bg-muted-foreground/30 mt-2" />
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
           <div className="flex items-center gap-2">
