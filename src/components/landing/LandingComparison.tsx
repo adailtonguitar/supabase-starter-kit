@@ -65,7 +65,8 @@ export function LandingComparison() {
           initial={{ opacity: 0, y: 24 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          className="max-w-5xl mx-auto overflow-x-auto"
+          className="max-w-5xl mx-auto overflow-x-auto relative z-10"
+          style={{ touchAction: "auto", WebkitOverflowScrolling: "touch" }}
         >
           <table className="w-full text-sm">
             <thead>
