@@ -26,6 +26,7 @@ const PLAN_PRESETS: Record<string, Partial<PlanRow>> = {
   starter: { plan: "starter", max_users: 1, fiscal_enabled: false, advanced_reports_enabled: false, financial_module_level: "basic" },
   business: { plan: "business", max_users: 3, fiscal_enabled: true, advanced_reports_enabled: true, financial_module_level: "basic" },
   pro: { plan: "pro", max_users: 0, fiscal_enabled: true, advanced_reports_enabled: true, financial_module_level: "full" },
+  emissor: { plan: "emissor", max_users: 2, fiscal_enabled: true, advanced_reports_enabled: false, financial_module_level: "basic" },
 };
 
 export function AdminSubscriptions() {
@@ -33,6 +34,7 @@ export function AdminSubscriptions() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [saving, setSaving] = useState<string | null>(null);
+  const [filterPlan, setFilterPlan] = useState<string>("all");
 
   const fetchPlans = async () => {
     setLoading(true);
@@ -92,9 +94,12 @@ export function AdminSubscriptions() {
     setSaving(null);
   };
 
-  const filtered = plans.filter(p =>
-    !search.trim() || (p.company_name || "").toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = plans.filter(p => {
+    if (filterPlan !== "all" && p.plan !== filterPlan) return false;
+    return !search.trim() || (p.company_name || "").toLowerCase().includes(search.toLowerCase());
+  });
+
+  const emissorCount = plans.filter(p => p.plan === "emissor").length;
 
   const statusBadge = (s: string) => {
     if (s === "active") return <Badge className="bg-green-600 text-white">Ativo</Badge>;
@@ -106,9 +111,19 @@ export function AdminSubscriptions() {
     <Card>
       <CardHeader className="p-3 sm:p-6">
         <CardTitle className="flex flex-col sm:flex-row sm:items-center gap-2 sm:justify-between">
-          <span className="text-base sm:text-lg">Planos por Empresa ({plans.length})</span>
-          <div className="flex gap-2">
-            <Input placeholder="Buscar empresa..." value={search} onChange={e => setSearch(e.target.value)} className="w-full sm:w-64 text-sm" />
+          <span className="text-base sm:text-lg">Planos por Empresa ({filtered.length}/{plans.length})</span>
+          <div className="flex gap-2 flex-wrap">
+            <Select value={filterPlan} onValueChange={setFilterPlan}>
+              <SelectTrigger className="w-32 h-9 text-xs"><SelectValue placeholder="Filtrar plano" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos</SelectItem>
+                <SelectItem value="emissor">Emissor ({emissorCount})</SelectItem>
+                <SelectItem value="starter">Starter</SelectItem>
+                <SelectItem value="business">Business</SelectItem>
+                <SelectItem value="pro">Pro</SelectItem>
+              </SelectContent>
+            </Select>
+            <Input placeholder="Buscar empresa..." value={search} onChange={e => setSearch(e.target.value)} className="w-full sm:w-48 text-sm" />
             <Button variant="outline" size="sm" onClick={fetchPlans}><RefreshCw className="h-4 w-4" /></Button>
           </div>
         </CardTitle>
@@ -139,6 +154,7 @@ export function AdminSubscriptions() {
                           <SelectItem value="starter">Starter</SelectItem>
                           <SelectItem value="business">Business</SelectItem>
                           <SelectItem value="pro">Pro</SelectItem>
+                          <SelectItem value="emissor">Emissor</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -190,6 +206,7 @@ export function AdminSubscriptions() {
                             <SelectItem value="starter">Starter</SelectItem>
                             <SelectItem value="business">Business</SelectItem>
                             <SelectItem value="pro">Pro</SelectItem>
+                            <SelectItem value="emissor">Emissor</SelectItem>
                           </SelectContent>
                         </Select>
                       </TableCell>

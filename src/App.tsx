@@ -87,6 +87,7 @@ const SugestaoCompra = lazy(() => import("./pages/SugestaoCompra"));
 const PainelDono = lazy(() => import("./pages/PainelDono"));
 const NFeEmissao = lazy(() => import("./pages/NFeEmissao"));
 const EmissorNFe = lazy(() => import("./pages/EmissorNFe"));
+const EmissorLanding = lazy(() => import("./pages/EmissorLanding"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -242,6 +243,7 @@ function AppRoutes() {
           }
         />
         <Route path="/landing" element={user ? <Navigate to="/dashboard" replace /> : <LandingPage />} />
+        <Route path="/emissor" element={user ? <Navigate to="/emissor-nfe" replace /> : <EmissorLanding />} />
         <Route path="/install" element={<Instalar />} />
         <Route path="/termos" element={<Termos />} />
         <Route path="/contrato" element={<ContratoSaaS />} />
