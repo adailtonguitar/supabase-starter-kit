@@ -10,18 +10,21 @@ const PLAN_PRICES: Record<string, number> = {
   starter: 149.9,
   business: 199.9,
   pro: 449.9,
+  emissor: 99.9,
 };
 
 const PLAN_LABELS: Record<string, string> = {
   starter: "Starter",
   business: "Business",
   pro: "Pro",
+  emissor: "Emissor",
 };
 
 const PLAN_COLORS: Record<string, string> = {
   starter: "hsl(var(--primary))",
   business: "hsl(45 100% 51%)",
   pro: "hsl(280 70% 55%)",
+  emissor: "hsl(200 70% 50%)",
 };
 
 interface PlanMetrics {
@@ -48,7 +51,7 @@ export function AdminRevenue() {
 
       const grouped: Record<string, { active: number; trial: number; total: number }> = {};
 
-      for (const tier of ["starter", "business", "pro"]) {
+      for (const tier of ["starter", "business", "pro", "emissor"]) {
         grouped[tier] = { active: 0, trial: 0, total: 0 };
       }
 
@@ -111,7 +114,7 @@ export function AdminRevenue() {
       </motion.div>
 
       {/* Cards por plano */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {metrics.map((m, i) => (
           <motion.div
             key={m.plan}
