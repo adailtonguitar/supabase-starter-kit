@@ -4,6 +4,7 @@ import { Building2, Package, ShoppingCart, CheckCircle2, ArrowRight, ArrowLeft, 
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import logoAs from "@/assets/logo-as.png";
+import { useCnpjLookup } from "@/hooks/useCnpjLookup";
 
 interface Props {
   onComplete: () => void;
@@ -24,6 +25,7 @@ export function OnboardingWizard({ onComplete }: Props) {
   const [companyName, setCompanyName] = useState("");
   const [cnpj, setCnpj] = useState("");
   const [phone, setPhone] = useState("");
+  const { lookup: onboardingCnpjLookup, loading: onboardingCnpjLoading } = useCnpjLookup();
 
   // Step 2 — Product
   const [productName, setProductName] = useState("");
@@ -179,12 +181,22 @@ export function OnboardingWizard({ onComplete }: Props) {
                   </div>
                   <div>
                     <label className="text-sm font-medium text-foreground">CNPJ <span className="text-muted-foreground">(opcional)</span></label>
-                    <input
-                      value={cnpj}
-                      onChange={(e) => setCnpj(e.target.value)}
-                      placeholder="00.000.000/0000-00"
-                      className="w-full mt-1 px-4 py-3 rounded-xl bg-muted border border-border text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
-                    />
+                    <div className="flex gap-2 mt-1">
+                      <input
+                        value={cnpj}
+                        onChange={(e) => setCnpj(e.target.value)}
+                        placeholder="00.000.000/0000-00"
+                        className="flex-1 px-4 py-3 rounded-xl bg-muted border border-border text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                      />
+                      <button type="button" disabled={onboardingCnpjLoading || cnpj.replace(/\D/g, "").length < 14}
+                        onClick={async () => {
+                          const result = await onboardingCnpjLookup(cnpj);
+                          if (result) { setCompanyName(result.name || companyName); setPhone(result.phone || phone); }
+                        }}
+                        className="px-4 py-3 rounded-xl bg-muted border border-border text-foreground text-xs font-medium hover:bg-accent disabled:opacity-50">
+                        {onboardingCnpjLoading ? "..." : "Consultar"}
+                      </button>
+                    </div>
                   </div>
                   <div>
                     <label className="text-sm font-medium text-foreground">Telefone <span className="text-muted-foreground">(opcional)</span></label>

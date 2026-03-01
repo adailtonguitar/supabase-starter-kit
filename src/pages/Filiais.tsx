@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Building2, Plus, ChevronRight, Pencil, ArrowRightLeft, BarChart3, Shield, RefreshCw } from "lucide-react";
+import { useCnpjLookup } from "@/hooks/useCnpjLookup";
 import { motion } from "framer-motion";
 import StockTransfersSection from "@/components/filiais/StockTransfersSection";
 import ConsolidatedSection from "@/components/filiais/ConsolidatedSection";
@@ -25,6 +26,7 @@ export default function Filiais() {
   const [open, setOpen] = useState(false);
   const [branchName, setBranchName] = useState("");
   const [branchCnpj, setBranchCnpj] = useState("");
+  const { lookup: branchCnpjLookup, loading: branchCnpjLoading } = useCnpjLookup();
 
   const [editOpen, setEditOpen] = useState(false);
   const [editId, setEditId] = useState("");
@@ -169,8 +171,18 @@ export default function Filiais() {
                   </div>
                   <div>
                     <label className="text-xs font-medium text-muted-foreground mb-1 block">CNPJ (opcional)</label>
-                    <input value={branchCnpj} onChange={e => setBranchCnpj(e.target.value)} placeholder="00.000.000/0000-00"
-                      className="w-full px-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm" />
+                    <div className="flex gap-2">
+                      <input value={branchCnpj} onChange={e => setBranchCnpj(e.target.value)} placeholder="00.000.000/0000-00"
+                        className="flex-1 px-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm" />
+                      <button type="button" disabled={branchCnpjLoading || branchCnpj.replace(/\D/g, "").length < 14}
+                        onClick={async () => {
+                          const result = await branchCnpjLookup(branchCnpj);
+                          if (result) { setBranchName(result.name || branchName); }
+                        }}
+                        className="px-3 py-2 rounded-lg bg-muted border border-border text-foreground text-xs font-medium hover:bg-accent disabled:opacity-50">
+                        {branchCnpjLoading ? "..." : "Consultar"}
+                      </button>
+                    </div>
                   </div>
                   <button onClick={handleCreateBranch} disabled={createBranch.isPending}
                     className="w-full py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50">
@@ -195,8 +207,18 @@ export default function Filiais() {
                 </div>
                 <div>
                   <label className="text-xs font-medium text-muted-foreground mb-1 block">CNPJ</label>
-                  <input value={editCnpj} onChange={e => setEditCnpj(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm" />
+                  <div className="flex gap-2">
+                    <input value={editCnpj} onChange={e => setEditCnpj(e.target.value)}
+                      className="flex-1 px-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm" />
+                    <button type="button" disabled={branchCnpjLoading || (editCnpj || "").replace(/\D/g, "").length < 14}
+                      onClick={async () => {
+                        const result = await branchCnpjLookup(editCnpj);
+                        if (result) { setEditName(result.name || editName); }
+                      }}
+                      className="px-3 py-2 rounded-lg bg-muted border border-border text-foreground text-xs font-medium hover:bg-accent disabled:opacity-50">
+                      {branchCnpjLoading ? "..." : "Consultar"}
+                    </button>
+                  </div>
                 </div>
                 <button onClick={handleSaveEdit} disabled={updateBranch.isPending}
                   className="w-full py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50">
