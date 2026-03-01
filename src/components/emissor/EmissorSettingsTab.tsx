@@ -260,7 +260,7 @@ export default function EmissorSettingsTab({ companyId }: { companyId: string })
     try {
       const { error } = await supabase.from("companies").update({
         name: form.name.trim(), trade_name: form.trade_name.trim() || null,
-        cnpj: form.cnpj.replace(/\D/g, ""), ie: form.ie.trim(), crt: form.crt,
+        cnpj: form.cnpj.replace(/\D/g, ""), ie: form.ie.trim(),
         phone: form.phone.trim() || null, address_street: form.address_street.trim(),
         address_number: form.address_number.trim(), address_complement: form.address_complement.trim() || null,
         address_neighborhood: form.address_neighborhood.trim(), address_city: form.address_city.trim(),
