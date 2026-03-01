@@ -1,7 +1,6 @@
 import { useState, memo } from "react";
 import { AppSidebar } from "./AppSidebar";
 import { MobileBottomNav } from "./MobileBottomNav";
-import { UpdateNoticeModal } from "@/components/UpdateNoticeModal";
 import { SubscriptionBanner } from "./SubscriptionBanner";
 import { OnlineStatusIndicator } from "./OnlineStatusIndicator";
 import { useWhatsAppSupport } from "@/hooks/useWhatsAppSupport";
@@ -40,7 +39,7 @@ export const AppLayout = memo(function AppLayout({ children }: AppLayoutProps) {
 
   return (
     <div className="flex h-screen h-[100dvh] overflow-hidden max-w-full">
-      <UpdateNoticeModal />
+      
       <AppSidebar mobileOpen={mobileOpen} onMobileClose={() => setMobileOpen(false)} />
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         <OnlineStatusIndicator />
