@@ -15,6 +15,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { usePlanFeatures } from "@/hooks/usePlanFeatures";
+import { useAdminRole } from "@/hooks/useAdminRole";
 
 function getGreeting(): string {
   const h = new Date().getHours();
@@ -42,10 +43,11 @@ export default function Dashboard() {
   const { data: stats, isLoading, dataUpdatedAt, refetch } = useDashboardStats();
   const { user } = useAuth();
   const plan = usePlanFeatures();
+  const { isSuperAdmin } = useAdminRole();
   const firstName = getFirstName(user?.email);
 
-  // Emissor-only plan: redirect to standalone emitter
-  if (plan.isEmissorOnly()) {
+  // Emissor-only plan: redirect to standalone emitter (super_admin bypasses)
+  if (!isSuperAdmin && plan.isEmissorOnly()) {
     return <Navigate to="/emissor-nfe" replace />;
   }
 
