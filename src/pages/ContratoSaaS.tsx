@@ -12,10 +12,22 @@ export default function ContratoSaaS() {
     style.id = "print-style";
     style.textContent = `
       @media print {
-        body * { visibility: hidden; }
-        .contract-content, .contract-content * { visibility: visible; }
-        .contract-content { position: absolute; left: 0; top: 0; width: 100%; padding: 40px; }
+        body, html, #root { overflow: visible !important; height: auto !important; }
         .no-print { display: none !important; }
+        nav, header, footer, aside, [data-radix-popper-content-wrapper] { display: none !important; }
+        .contract-content { 
+          all: unset;
+          display: block;
+          width: 100%;
+          padding: 32px;
+          font-size: 12px;
+          line-height: 1.6;
+          color: #000 !important;
+        }
+        .contract-content * { color: #000 !important; border-color: #ccc !important; }
+        .contract-content h3 { font-size: 14px; font-weight: bold; margin-top: 16px; }
+        .contract-content p, .contract-content li { font-size: 12px; }
+        .contract-content section { page-break-inside: avoid; }
       }
     `;
     document.head.appendChild(style);
