@@ -25,26 +25,27 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
 
-    // First: resolve the user from the token using anon client
+    // Resolve user from token using getClaims (compatible with signing-keys)
     const anonClient = createClient(supabaseUrl, anonKey, {
       global: { headers: { Authorization: authHeader } },
     });
 
-    const { data: { user }, error: userError } = await anonClient.auth.getUser();
-    if (userError || !user) {
-      console.error("[check-subscription] Auth error:", userError);
+    const token = authHeader.replace("Bearer ", "");
+    const { data: claimsData, error: claimsError } = await anonClient.auth.getClaims(token);
+    if (claimsError || !claimsData?.claims?.sub) {
+      console.error("[check-subscription] Claims error:", claimsError);
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
+    const userId = claimsData.claims.sub as string;
+
     // Use service role client for DB queries (bypasses RLS)
     const adminClient = serviceRoleKey
       ? createClient(supabaseUrl, serviceRoleKey)
       : anonClient;
-
-    const userId = user.id;
 
     // Check subscriptions table
     const { data: sub } = await adminClient
