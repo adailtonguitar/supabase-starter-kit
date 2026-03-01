@@ -45,3 +45,6 @@ verify_jwt = false
 
 [functions.create-emissor-client]
 verify_jwt = false
+
+[functions.lookup-barcode]
+verify_jwt = false
