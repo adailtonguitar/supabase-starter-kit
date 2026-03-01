@@ -192,9 +192,9 @@ export function AppSidebar({ mobileOpen, onMobileClose }: AppSidebarProps) {
               animate={{ x: 0 }}
               exit={{ x: -280 }}
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              className="fixed top-0 left-0 bottom-0 w-[280px] bg-sidebar border-r border-sidebar-border z-50 flex flex-col"
+              className="fixed top-0 left-0 bottom-0 w-[280px] bg-sidebar border-r border-sidebar-border z-50 flex flex-col safe-area-top safe-area-left safe-area-bottom"
             >
-              <div className="flex items-center justify-between px-3 py-2">
+              <div className="flex items-center justify-between px-3 py-3">
                 <div className="flex items-center gap-2">
                   <img src={anthoLogo} alt="AnthoSystem" className="h-10 w-10 object-contain" />
                   <span className="text-sm font-bold text-sidebar-foreground">AnthoSystem</span>
@@ -234,11 +234,11 @@ export function AppSidebar({ mobileOpen, onMobileClose }: AppSidebarProps) {
                               {entry.children.map((child) => {
                                 const isActive = location.pathname === child.path;
                                 return (
-                                  <Link
-                                    key={child.path}
-                                    to={child.path}
-                                    className={cn(
-                                      "flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200",
+                  <Link
+                    key={child.path}
+                    to={child.path}
+                    className={cn(
+                      "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
                                       isActive
                                         ? "bg-sidebar-accent text-sidebar-primary"
                                         : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
