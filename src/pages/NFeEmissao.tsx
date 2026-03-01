@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import {
   FileText, Send, Loader2, CheckCircle, AlertTriangle, X,
   Plus, Trash2, User, Package, CreditCard, Truck, Info, Lock, ArrowLeft, Search
@@ -13,6 +13,7 @@ import { parseSefazRejection, type SefazRejection } from "@/lib/sefaz-rejection-
 import { usePlanFeatures } from "@/hooks/usePlanFeatures";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
+import { NCM_TABLE } from "@/lib/ncm-table";
 
 const PAYMENT_OPTIONS = [
   { value: "01", label: "Dinheiro" },
@@ -129,6 +130,9 @@ export default function NFeEmissao() {
   const [showProductDropdown, setShowProductDropdown] = useState<number | null>(null);
   const [showAddSearch, setShowAddSearch] = useState(false);
   const [addSearchTerm, setAddSearchTerm] = useState("");
+  const [ncmSearch, setNcmSearch] = useState<Record<number, string>>({});
+  const [showNcmDropdown, setShowNcmDropdown] = useState<number | null>(null);
+  const [fiscalCategories, setFiscalCategories] = useState<any[]>([]);
 
   // Load products from database
   useEffect(() => {
@@ -143,6 +147,44 @@ export default function NFeEmissao() {
         if (data) setProducts(data);
       });
   }, [companyId]);
+
+  // Load fiscal categories for auto-fill
+  useEffect(() => {
+    if (!companyId) return;
+    supabase
+      .from("fiscal_categories")
+      .select("*")
+      .eq("company_id", companyId)
+      .then(({ data }) => {
+        if (data) setFiscalCategories(data);
+      });
+  }, [companyId]);
+
+  // NCM search helper
+  const getNcmSuggestions = useCallback((query: string) => {
+    if (!query || query.length < 2) return [];
+    const q = query.toLowerCase();
+    return NCM_TABLE.filter(
+      (item) => item.ncm.includes(q) || item.description.toLowerCase().includes(q)
+    ).slice(0, 10);
+  }, []);
+
+  // Auto-fill fiscal data from fiscal categories when product is selected
+  const applyFiscalDefaults = useCallback((item: NFeItem): NFeItem => {
+    if (fiscalCategories.length === 0) return item;
+    // Find matching fiscal category by NCM or use first available
+    const match = fiscalCategories.find((fc: any) => fc.ncm && item.ncm && fc.ncm === item.ncm)
+      || fiscalCategories[0];
+    if (!match) return item;
+    return {
+      ...item,
+      cfop: match.cfop || item.cfop,
+      cst: match.csosn || match.cst_icms || item.cst,
+      icmsAliquota: match.icms_rate ?? item.icmsAliquota,
+      pisCst: match.pis_rate !== undefined ? "01" : item.pisCst,
+      cofinsCst: match.cofins_rate !== undefined ? "01" : item.cofinsCst,
+    };
+  }, [fiscalCategories]);
 
   useEffect(() => {
     if (!companyId) return;
@@ -198,7 +240,7 @@ export default function NFeEmissao() {
   };
 
   const addProductAsItem = (product: any) => {
-    const newItem: NFeItem = {
+    let newItem: NFeItem = {
       name: product.name || "",
       productCode: product.sku || product.barcode || "",
       ncm: product.ncm || "",
@@ -214,10 +256,11 @@ export default function NFeEmissao() {
       icmsAliquota: 0,
       origem: "0",
     };
+    newItem = applyFiscalDefaults(newItem);
     setForm((prev) => ({ ...prev, items: [...prev.items, newItem] }));
     setShowAddSearch(false);
     setAddSearchTerm("");
-    toast.success(`"${product.name}" adicionado`);
+    toast.success(`"${product.name}" adicionado com dados fiscais`);
   };
 
   const getAddFilteredProducts = () => {
@@ -232,7 +275,7 @@ export default function NFeEmissao() {
   const selectProduct = (idx: number, product: any) => {
     setForm((prev) => {
       const items = [...prev.items];
-      items[idx] = {
+      let updated: NFeItem = {
         ...items[idx],
         name: product.name || "",
         productCode: product.sku || product.barcode || "",
@@ -245,6 +288,8 @@ export default function NFeEmissao() {
         discount: 0,
         total: product.price || 0,
       };
+      updated = applyFiscalDefaults(updated);
+      items[idx] = updated;
       return { ...prev, items };
     });
     setProductSearch((prev) => ({ ...prev, [idx]: "" }));
@@ -909,11 +954,47 @@ export default function NFeEmissao() {
                       </div>
                     </div>
                     <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-                      <div>
+                      <div className="relative">
                         <label className="text-xs text-muted-foreground">NCM *</label>
-                        <input value={item.ncm} onChange={e => updateItem(idx, "ncm", e.target.value)}
+                        <input
+                          value={showNcmDropdown === idx && ncmSearch[idx] !== undefined ? ncmSearch[idx] : item.ncm}
+                          onChange={e => {
+                            const val = e.target.value;
+                            setNcmSearch(prev => ({ ...prev, [idx]: val }));
+                            updateItem(idx, "ncm", val.replace(/\D/g, "").slice(0, 8));
+                            setShowNcmDropdown(idx);
+                          }}
+                          onFocus={() => {
+                            setNcmSearch(prev => ({ ...prev, [idx]: item.ncm }));
+                            setShowNcmDropdown(idx);
+                          }}
+                          onBlur={() => setTimeout(() => {
+                            setShowNcmDropdown(null);
+                            setNcmSearch(prev => { const n = { ...prev }; delete n[idx]; return n; });
+                          }, 200)}
                           className="w-full mt-1 px-3 py-2 rounded-lg border border-border bg-background text-sm font-mono text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
-                          maxLength={8} />
+                          placeholder="Buscar NCM..."
+                          maxLength={8}
+                        />
+                        {showNcmDropdown === idx && getNcmSuggestions(ncmSearch[idx] || "").length > 0 && (
+                          <div className="absolute z-30 left-0 right-0 mt-1 bg-card border border-border rounded-lg shadow-lg max-h-48 overflow-y-auto min-w-[280px]">
+                            {getNcmSuggestions(ncmSearch[idx] || "").map((s) => (
+                              <button
+                                key={s.ncm}
+                                type="button"
+                                onMouseDown={() => {
+                                  updateItem(idx, "ncm", s.ncm);
+                                  setNcmSearch(prev => { const n = { ...prev }; delete n[idx]; return n; });
+                                  setShowNcmDropdown(null);
+                                }}
+                                className="w-full text-left px-3 py-2 hover:bg-muted text-xs flex gap-2 items-start transition-colors border-b border-border last:border-b-0"
+                              >
+                                <span className="font-mono font-bold text-primary shrink-0">{s.ncm}</span>
+                                <span className="text-muted-foreground truncate">{s.description}</span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
                       </div>
                       <div>
                         <label className="text-xs text-muted-foreground">CFOP</label>
