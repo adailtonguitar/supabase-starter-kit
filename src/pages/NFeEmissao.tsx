@@ -154,7 +154,7 @@ export default function NFeEmissao() {
     if (!companyId) return;
     supabase
       .from("products")
-      .select("id, name, sku, barcode, ncm, unit, price, stock_quantity")
+      .select("id, name, sku, barcode, ncm, unit, price, stock_quantity, origin, cfop, csosn, cst_icms, cest, icms_rate, pis_rate, cofins_rate")
       .eq("company_id", companyId)
       .eq("is_active", true)
       .order("name")
@@ -200,18 +200,17 @@ export default function NFeEmissao() {
 
   // Auto-fill fiscal data from fiscal categories when product is selected
   const applyFiscalDefaults = useCallback((item: NFeItem): NFeItem => {
-    if (fiscalCategories.length === 0) return item;
-    // Find matching fiscal category by NCM or use first available
+    // Only fill fields that are still empty — product data takes priority
     const match = fiscalCategories.find((fc: any) => fc.ncm && item.ncm && fc.ncm === item.ncm)
-      || fiscalCategories[0];
+      || (fiscalCategories.length > 0 ? fiscalCategories[0] : null);
     if (!match) return item;
     return {
       ...item,
-      cfop: match.cfop || item.cfop,
-      cst: match.csosn || match.cst_icms || item.cst,
-      icmsAliquota: match.icms_rate ?? item.icmsAliquota,
-      pisCst: match.pis_rate !== undefined ? "01" : item.pisCst,
-      cofinsCst: match.cofins_rate !== undefined ? "01" : item.cofinsCst,
+      cfop: item.cfop || match.cfop || item.cfop,
+      cst: item.cst || match.csosn || match.cst_icms || item.cst,
+      icmsAliquota: item.icmsAliquota || (match.icms_rate ?? item.icmsAliquota),
+      pisCst: item.pisCst === "49" && match.pis_rate > 0 ? "01" : item.pisCst,
+      cofinsCst: item.cofinsCst === "49" && match.cofins_rate > 0 ? "01" : item.cofinsCst,
     };
   }, [fiscalCategories]);
 
@@ -269,22 +268,24 @@ export default function NFeEmissao() {
   };
 
   const addProductAsItem = (product: any) => {
+    const isSN = companyCrt === 1 || companyCrt === 2;
     let newItem: NFeItem = {
       name: product.name || "",
       productCode: product.sku || product.barcode || "",
       ncm: product.ncm || "",
-      cfop: "5102",
-      cst: "",
+      cfop: product.cfop || "5102",
+      cst: (isSN ? product.csosn : product.cst_icms) || "",
       unit: product.unit || "UN",
       qty: 1,
       unitPrice: product.price || 0,
       discount: 0,
       total: product.price || 0,
-      pisCst: "49",
-      cofinsCst: "49",
-      icmsAliquota: 0,
-      origem: "0",
+      pisCst: product.pis_rate > 0 ? "01" : "49",
+      cofinsCst: product.cofins_rate > 0 ? "01" : "49",
+      icmsAliquota: product.icms_rate || 0,
+      origem: product.origin || "0",
     };
+    // Apply fiscal category defaults as fallback for missing fields
     newItem = applyFiscalDefaults(newItem);
     setForm((prev) => ({ ...prev, items: [...prev.items, newItem] }));
     setShowAddSearch(false);
@@ -375,6 +376,7 @@ export default function NFeEmissao() {
     ).slice(0, 15);
   };
   const selectProduct = (idx: number, product: any) => {
+    const isSN = companyCrt === 1 || companyCrt === 2;
     setForm((prev) => {
       const items = [...prev.items];
       let updated: NFeItem = {
@@ -382,13 +384,17 @@ export default function NFeEmissao() {
         name: product.name || "",
         productCode: product.sku || product.barcode || "",
         ncm: product.ncm || "",
-        cfop: items[idx].cfop,
-        cst: "",
+        cfop: product.cfop || items[idx].cfop || "5102",
+        cst: (isSN ? product.csosn : product.cst_icms) || "",
         unit: product.unit || "UN",
         unitPrice: product.price || 0,
         qty: 1,
         discount: 0,
         total: product.price || 0,
+        icmsAliquota: product.icms_rate || 0,
+        origem: product.origin || "0",
+        pisCst: product.pis_rate > 0 ? "01" : "49",
+        cofinsCst: product.cofins_rate > 0 ? "01" : "49",
       };
       updated = applyFiscalDefaults(updated);
       items[idx] = updated;
