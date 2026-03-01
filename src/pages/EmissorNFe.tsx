@@ -57,7 +57,15 @@ interface SimpleRecipient {
   name: string;
   doc: string;
   ie: string;
-  address: string;
+  email: string;
+  phone: string;
+  address_street: string;
+  address_number: string;
+  address_complement: string;
+  address_neighborhood: string;
+  address_city: string;
+  address_state: string;
+  address_zip: string;
 }
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: typeof CheckCircle }> = {
@@ -380,37 +388,43 @@ function EmissorProductsTab({ companyId }: { companyId: string }) {
 function EmissorRecipientsTab({ companyId }: { companyId: string }) {
   const [recipients, setRecipients] = useState<SimpleRecipient[]>([]);
   const [loading, setLoading] = useState(true);
-  const [form, setForm] = useState({ name: "", doc: "", ie: "", address: "" });
+  const emptyRecipientForm = { name: "", doc: "", ie: "", email: "", phone: "", address_street: "", address_number: "", address_complement: "", address_neighborhood: "", address_city: "", address_state: "", address_zip: "" };
+  const [form, setForm] = useState(emptyRecipientForm);
   const { lookup: recipientCnpjLookup, loading: recipientCnpjLoading } = useCnpjLookup();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
 
-  const fetch = async () => {
+  const fetchRecipients = async () => {
     setLoading(true);
     const { data } = await supabase
       .from("clients")
-      .select("id, name, cpf_cnpj, ie, address_street")
+      .select("id, name, cpf_cnpj, ie, email, phone, address_street, address_number, address_complement, address_neighborhood, address_city, address_state, address_zip")
       .eq("company_id", companyId)
       .order("name")
       .limit(500);
     setRecipients((data as any[])?.map(c => ({
-      id: c.id, name: c.name, doc: c.cpf_cnpj || "", ie: c.ie || "", address: c.address_street || "",
+      id: c.id, name: c.name, doc: c.cpf_cnpj || "", ie: c.ie || "",
+      email: c.email || "", phone: c.phone || "",
+      address_street: c.address_street || "", address_number: c.address_number || "",
+      address_complement: c.address_complement || "", address_neighborhood: c.address_neighborhood || "",
+      address_city: c.address_city || "", address_state: c.address_state || "", address_zip: c.address_zip || "",
     })) || []);
     setLoading(false);
   };
 
-  useEffect(() => { fetch(); }, [companyId]);
+  useEffect(() => { fetchRecipients(); }, [companyId]);
 
   const handleSave = async () => {
     if (!form.name.trim()) { toast.error("Nome é obrigatório"); return; }
-    const payload = {
-      company_id: companyId,
-      name: form.name.trim(),
-      cpf_cnpj: form.doc.trim(),
-      ie: form.ie.trim(),
-      address_street: form.address.trim(),
+    const payload: Record<string, any> = {
+      company_id: companyId, name: form.name.trim(),
+      cpf_cnpj: form.doc.trim() || null, ie: form.ie.trim() || null,
+      email: form.email.trim() || null, phone: form.phone.trim() || null,
+      address_street: form.address_street.trim() || null, address_number: form.address_number.trim() || null,
+      address_complement: form.address_complement.trim() || null, address_neighborhood: form.address_neighborhood.trim() || null,
+      address_city: form.address_city.trim() || null, address_state: form.address_state.trim() || null,
+      address_zip: form.address_zip.trim() || null,
     };
-
     if (editingId) {
       const { error } = await supabase.from("clients").update(payload).eq("id", editingId);
       if (error) { toast.error("Erro ao atualizar"); return; }
@@ -420,16 +434,16 @@ function EmissorRecipientsTab({ companyId }: { companyId: string }) {
       if (error) { toast.error("Erro ao cadastrar"); return; }
       toast.success("Destinatário cadastrado");
     }
-    setForm({ name: "", doc: "", ie: "", address: "" });
+    setForm(emptyRecipientForm);
     setEditingId(null);
-    fetch();
+    fetchRecipients();
   };
 
   const handleDelete = async (id: string) => {
     if (!confirm("Excluir destinatário?")) return;
     await supabase.from("clients").delete().eq("id", id);
     toast.success("Destinatário excluído");
-    fetch();
+    fetchRecipients();
   };
 
   const filtered = recipients.filter(r => !search || r.name.toLowerCase().includes(search.toLowerCase()) || r.doc.includes(search));
@@ -438,21 +452,33 @@ function EmissorRecipientsTab({ companyId }: { companyId: string }) {
     <div className="space-y-4">
       <div className="bg-card rounded-xl border border-border p-4 space-y-3">
         <h3 className="text-sm font-semibold text-foreground">{editingId ? "Editar Destinatário" : "Novo Destinatário"}</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-          <div>
-            <Label className="text-xs">Razão Social *</Label>
-            <Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Nome / Razão Social" />
+        
+        {/* Identification */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="col-span-2">
+            <Label className="text-xs">Razão Social / Nome *</Label>
+            <Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Nome completo ou Razão Social" />
           </div>
           <div>
             <Label className="text-xs">CPF/CNPJ</Label>
-            <div className="flex gap-2">
+            <div className="flex gap-1.5">
               <Input value={form.doc} onChange={e => setForm(f => ({ ...f, doc: e.target.value }))} placeholder="00.000.000/0000-00" className="flex-1" />
               <Button type="button" variant="outline" size="sm" className="shrink-0 h-12"
                 disabled={recipientCnpjLoading || (form.doc || "").replace(/\D/g, "").length < 14}
                 onClick={async () => {
                   const result = await recipientCnpjLookup(form.doc);
                   if (result) {
-                    setForm(f => ({ ...f, name: result.name || f.name, ie: result.contact_name ? f.ie : (result.address_state ? f.ie : f.ie), address: [result.address_street, result.address_number, result.address_city, result.address_state].filter(Boolean).join(", ") || f.address }));
+                    setForm(f => ({
+                      ...f, name: result.name || f.name, email: result.email || f.email,
+                      phone: result.phone || f.phone,
+                      address_street: result.address_street || f.address_street,
+                      address_number: result.address_number || f.address_number,
+                      address_complement: result.address_complement || f.address_complement,
+                      address_neighborhood: result.address_neighborhood || f.address_neighborhood,
+                      address_city: result.address_city || f.address_city,
+                      address_state: result.address_state || f.address_state,
+                      address_zip: result.address_zip || f.address_zip,
+                    }));
                   }
                 }}>
                 {recipientCnpjLoading ? "..." : "Consultar"}
@@ -461,19 +487,63 @@ function EmissorRecipientsTab({ companyId }: { companyId: string }) {
           </div>
           <div>
             <Label className="text-xs">Inscrição Estadual</Label>
-            <Input value={form.ie} onChange={e => setForm(f => ({ ...f, ie: e.target.value }))} placeholder="IE" />
-          </div>
-          <div>
-            <Label className="text-xs">Endereço</Label>
-            <Input value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} placeholder="Rua, nº, cidade..." />
+            <Input value={form.ie} onChange={e => setForm(f => ({ ...f, ie: e.target.value }))} placeholder="ISENTO" />
           </div>
         </div>
+
+        {/* Contact */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="col-span-2">
+            <Label className="text-xs">E-mail</Label>
+            <Input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} placeholder="email@empresa.com" />
+          </div>
+          <div className="col-span-2">
+            <Label className="text-xs">Telefone</Label>
+            <Input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} placeholder="(00) 00000-0000" />
+          </div>
+        </div>
+
+        {/* Address */}
+        <h4 className="text-xs font-semibold text-muted-foreground">Endereço</h4>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="col-span-2">
+            <Label className="text-xs">Logradouro</Label>
+            <Input value={form.address_street} onChange={e => setForm(f => ({ ...f, address_street: e.target.value }))} placeholder="Rua, Av..." />
+          </div>
+          <div>
+            <Label className="text-xs">Número</Label>
+            <Input value={form.address_number} onChange={e => setForm(f => ({ ...f, address_number: e.target.value }))} placeholder="S/N" />
+          </div>
+          <div>
+            <Label className="text-xs">Complemento</Label>
+            <Input value={form.address_complement} onChange={e => setForm(f => ({ ...f, address_complement: e.target.value }))} placeholder="Sala, Bloco..." />
+          </div>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div>
+            <Label className="text-xs">Bairro</Label>
+            <Input value={form.address_neighborhood} onChange={e => setForm(f => ({ ...f, address_neighborhood: e.target.value }))} placeholder="Bairro" />
+          </div>
+          <div>
+            <Label className="text-xs">Cidade</Label>
+            <Input value={form.address_city} onChange={e => setForm(f => ({ ...f, address_city: e.target.value }))} placeholder="Cidade" />
+          </div>
+          <div>
+            <Label className="text-xs">UF</Label>
+            <Input value={form.address_state} onChange={e => setForm(f => ({ ...f, address_state: e.target.value.toUpperCase() }))} placeholder="SP" maxLength={2} />
+          </div>
+          <div>
+            <Label className="text-xs">CEP</Label>
+            <Input value={form.address_zip} onChange={e => setForm(f => ({ ...f, address_zip: e.target.value }))} placeholder="00000-000" />
+          </div>
+        </div>
+
         <div className="flex gap-2">
           <Button size="sm" onClick={handleSave} className="gap-1.5">
             <Save className="w-3.5 h-3.5" />{editingId ? "Atualizar" : "Cadastrar"}
           </Button>
           {editingId && (
-            <Button size="sm" variant="ghost" onClick={() => { setEditingId(null); setForm({ name: "", doc: "", ie: "", address: "" }); }}>
+            <Button size="sm" variant="ghost" onClick={() => { setEditingId(null); setForm(emptyRecipientForm); }}>
               <X className="w-3.5 h-3.5" /> Cancelar
             </Button>
           )}
@@ -490,23 +560,32 @@ function EmissorRecipientsTab({ companyId }: { companyId: string }) {
       ) : filtered.length === 0 ? (
         <p className="text-sm text-muted-foreground text-center py-10">Nenhum destinatário cadastrado.</p>
       ) : (
-        <div className="bg-card rounded-xl border border-border overflow-hidden">
+        <div className="bg-card rounded-xl border border-border overflow-hidden overflow-x-auto">
           <table className="w-full text-sm">
             <thead><tr className="border-b border-border bg-muted/30">
-              <th className="text-left px-4 py-2.5 text-[11px] font-semibold text-muted-foreground uppercase">Nome</th>
-              <th className="text-left px-4 py-2.5 text-[11px] font-semibold text-muted-foreground uppercase hidden sm:table-cell">CPF/CNPJ</th>
-              <th className="text-left px-4 py-2.5 text-[11px] font-semibold text-muted-foreground uppercase hidden md:table-cell">IE</th>
+              <th className="text-left px-3 py-2.5 text-[11px] font-semibold text-muted-foreground uppercase">Nome</th>
+              <th className="text-left px-3 py-2.5 text-[11px] font-semibold text-muted-foreground uppercase hidden sm:table-cell">CPF/CNPJ</th>
+              <th className="text-left px-3 py-2.5 text-[11px] font-semibold text-muted-foreground uppercase hidden md:table-cell">IE</th>
+              <th className="text-left px-3 py-2.5 text-[11px] font-semibold text-muted-foreground uppercase hidden md:table-cell">Cidade/UF</th>
+              <th className="text-left px-3 py-2.5 text-[11px] font-semibold text-muted-foreground uppercase hidden lg:table-cell">E-mail</th>
               <th className="w-20" />
             </tr></thead>
             <tbody>
               {filtered.map(r => (
                 <tr key={r.id} className="border-b border-border last:border-0 hover:bg-muted/30">
-                  <td className="px-4 py-2.5 font-medium text-foreground">{r.name}</td>
-                  <td className="px-4 py-2.5 text-muted-foreground font-mono text-xs hidden sm:table-cell">{r.doc || "—"}</td>
-                  <td className="px-4 py-2.5 text-muted-foreground text-xs hidden md:table-cell">{r.ie || "—"}</td>
+                  <td className="px-3 py-2.5 font-medium text-foreground">{r.name}</td>
+                  <td className="px-3 py-2.5 text-muted-foreground font-mono text-xs hidden sm:table-cell">{r.doc || "—"}</td>
+                  <td className="px-3 py-2.5 text-muted-foreground text-xs hidden md:table-cell">{r.ie || "—"}</td>
+                  <td className="px-3 py-2.5 text-muted-foreground text-xs hidden md:table-cell">{r.address_city ? `${r.address_city}/${r.address_state}` : "—"}</td>
+                  <td className="px-3 py-2.5 text-muted-foreground text-xs hidden lg:table-cell">{r.email || "—"}</td>
                   <td className="px-2 py-2.5">
                     <div className="flex gap-1">
-                      <button onClick={() => { setEditingId(r.id); setForm({ name: r.name, doc: r.doc, ie: r.ie, address: r.address }); }} className="p-1.5 rounded hover:bg-muted"><Edit2 className="w-3.5 h-3.5 text-muted-foreground" /></button>
+                      <button onClick={() => { setEditingId(r.id); setForm({
+                        name: r.name, doc: r.doc, ie: r.ie, email: r.email, phone: r.phone,
+                        address_street: r.address_street, address_number: r.address_number,
+                        address_complement: r.address_complement, address_neighborhood: r.address_neighborhood,
+                        address_city: r.address_city, address_state: r.address_state, address_zip: r.address_zip,
+                      }); }} className="p-1.5 rounded hover:bg-muted"><Edit2 className="w-3.5 h-3.5 text-muted-foreground" /></button>
                       <button onClick={() => handleDelete(r.id)} className="p-1.5 rounded hover:bg-destructive/10"><Trash2 className="w-3.5 h-3.5 text-destructive" /></button>
                     </div>
                   </td>
