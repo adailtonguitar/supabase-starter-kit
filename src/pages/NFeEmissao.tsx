@@ -871,17 +871,49 @@ export default function NFeEmissao() {
                 </div>
 
                 <div className="flex items-center justify-between">
-                  {form.items.length > 0 ? (
-                    <p className="text-sm font-medium text-foreground">
-                      {form.items.length} {form.items.length === 1 ? "item" : "itens"} — Total: {formatCurrency(totalItems)}
-                    </p>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">Nenhum item adicionado</p>
-                  )}
+                  <p className="text-sm font-medium text-foreground">
+                    {form.items.length > 0
+                      ? `${form.items.length} ${form.items.length === 1 ? "item" : "itens"} — Total: ${formatCurrency(totalItems)}`
+                      : "Nenhum item adicionado"}
+                  </p>
                   <button onClick={() => setShowAddSearch(true)} className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:opacity-90 transition-all">
                     <Plus className="w-3.5 h-3.5" /> Adicionar Item
                   </button>
                 </div>
+
+                {/* Lista resumida dos itens adicionados */}
+                {form.items.length > 0 && (
+                  <div className="rounded-lg border border-border bg-card overflow-hidden">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="border-b border-border bg-muted/30">
+                          <th className="text-left px-3 py-1.5 font-semibold text-muted-foreground">#</th>
+                          <th className="text-left px-3 py-1.5 font-semibold text-muted-foreground">Produto</th>
+                          <th className="text-center px-3 py-1.5 font-semibold text-muted-foreground">Qtd</th>
+                          <th className="text-right px-3 py-1.5 font-semibold text-muted-foreground">Unit.</th>
+                          <th className="text-right px-3 py-1.5 font-semibold text-muted-foreground">Total</th>
+                          <th className="w-8" />
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {form.items.map((it, idx) => (
+                          <tr key={idx} className="border-b border-border last:border-0 hover:bg-muted/20">
+                            <td className="px-3 py-1.5 text-muted-foreground">{idx + 1}</td>
+                            <td className="px-3 py-1.5 text-foreground font-medium truncate max-w-[200px]">{it.name || "—"}</td>
+                            <td className="px-3 py-1.5 text-center text-foreground">{it.qty}</td>
+                            <td className="px-3 py-1.5 text-right font-mono text-muted-foreground">{formatCurrency(it.unitPrice)}</td>
+                            <td className="px-3 py-1.5 text-right font-mono font-bold text-foreground">{formatCurrency(it.total)}</td>
+                            <td className="px-1 py-1.5">
+                              <button onClick={() => removeItem(idx)} className="p-1 rounded hover:bg-destructive/10 text-destructive transition-colors">
+                                <Trash2 className="w-3 h-3" />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
 
                 {/* Painel de busca para adicionar produto */}
                 {showAddSearch && (
