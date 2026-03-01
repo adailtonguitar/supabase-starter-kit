@@ -201,7 +201,11 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
         if (p.name) form.setValue("name", p.name);
         if (p.category) form.setValue("category", p.category);
         if (p.unit && units.includes(p.unit)) form.setValue("unit", p.unit);
-        toast.success(`🔍 Produto encontrado: ${p.name}`, { duration: 4000 });
+        if (p.ncm) {
+          form.setValue("ncm", p.ncm);
+          runNcmValidation(p.ncm);
+        }
+        toast.success(`🔍 Produto encontrado (${result.source}): ${p.name}`, { duration: 4000 });
       } else {
         toast.info("Código escaneado com sucesso! Produto não encontrado na base. Preencha os dados manualmente.", { duration: 5000 });
       }
