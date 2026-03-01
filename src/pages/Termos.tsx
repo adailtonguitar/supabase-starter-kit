@@ -33,6 +33,22 @@ const Termos = () => (
           <p>O Antho System oferece diferentes planos de assinatura. Os valores, recursos e condições de cada plano estão descritos na página de preços. O pagamento é recorrente e pode ser cancelado a qualquer momento, com efeito ao final do período vigente.</p>
         </section>
 
+        <section className="rounded-xl border-2 border-primary/40 bg-primary/5 p-5">
+          <h2 className="text-xl font-semibold text-foreground flex items-center gap-2">
+            ⚠️ 4.1. Reajuste de Planos
+          </h2>
+          <p className="mt-2">
+            Os valores dos planos poderão ser reajustados periodicamente nas seguintes hipóteses:
+          </p>
+          <ul className="list-disc pl-6 space-y-1 mt-2">
+            <li><strong>Reajustes salariais e inflacionários:</strong> para manutenção do equilíbrio econômico-financeiro do serviço, com base em índices oficiais (IPCA ou equivalente);</li>
+            <li><strong>Atualizações significativas:</strong> em decorrência de melhorias substanciais, novas funcionalidades ou expansão de infraestrutura que elevem o valor entregue ao cliente.</li>
+          </ul>
+          <p className="mt-2">
+            <strong>Notificação prévia:</strong> O cliente será notificado com antecedência mínima de <strong>30 (trinta) dias</strong> antes da vigência de qualquer reajuste, por meio de e-mail cadastrado e/ou aviso no próprio sistema. O uso continuado do serviço após o período de notificação constitui aceite do novo valor.
+          </p>
+        </section>
+
         <section>
           <h2 className="text-xl font-semibold text-foreground">5. Período de Teste</h2>
           <p>Novos usuários podem ter acesso a um período de teste gratuito. Ao final do período de teste, será necessário assinar um plano pago para continuar utilizando o serviço.</p>

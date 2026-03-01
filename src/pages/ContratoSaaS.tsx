@@ -249,8 +249,25 @@ export default function ContratoSaaS() {
               </p>
             </section>
 
+            <section className="rounded-xl border-2 border-primary/40 bg-primary/5 p-5">
+              <h3 className="font-bold text-base">CLÁUSULA 10ª — DO REAJUSTE DE VALORES</h3>
+              <p>
+                10.1. Os valores dos planos e mensalidades poderão ser reajustados periodicamente pela CONTRATADA, nas seguintes hipóteses:
+              </p>
+              <ul className="list-disc pl-5 space-y-1">
+                <li><strong>Reajustes salariais e inflacionários:</strong> para manutenção do equilíbrio econômico-financeiro da prestação de serviço, com base em índices oficiais (IPCA ou índice equivalente);</li>
+                <li><strong>Atualizações significativas da plataforma:</strong> em decorrência de melhorias substanciais, incorporação de novas funcionalidades, expansão de infraestrutura ou aumento relevante nos custos operacionais.</li>
+              </ul>
+              <p>
+                10.2. O CONTRATANTE será notificado com antecedência mínima de <strong>30 (trinta) dias</strong> antes da vigência de qualquer reajuste, por meio de e-mail cadastrado e/ou aviso no próprio sistema.
+              </p>
+              <p>
+                10.3. O uso continuado do serviço após o período de notificação constitui aceite tácito do novo valor. Caso o CONTRATANTE não concorde com o reajuste, poderá rescindir o contrato sem ônus antes da data de vigência do novo valor, conforme Cláusula 9ª.
+              </p>
+            </section>
+
             <section>
-              <h3 className="font-bold text-base">CLÁUSULA 10ª — DAS DISPOSIÇÕES GERAIS</h3>
+              <h3 className="font-bold text-base">CLÁUSULA 11ª — DAS DISPOSIÇÕES GERAIS</h3>
               <p>
                 10.1. Este contrato constitui a totalidade do acordo entre as partes.
               </p>
@@ -269,7 +286,7 @@ export default function ContratoSaaS() {
             </section>
 
             <section>
-              <h3 className="font-bold text-base">CLÁUSULA 11ª — DO FORO</h3>
+              <h3 className="font-bold text-base">CLÁUSULA 12ª — DO FORO</h3>
               <p>
                 11.1. Foro da Comarca da sede da CONTRATADA, com renúncia a qualquer outro.
               </p>
