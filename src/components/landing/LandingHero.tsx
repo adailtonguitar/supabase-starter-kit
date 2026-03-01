@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ArrowRight, Play, CheckCircle2, Wifi, MessageCircle, Rocket, ShoppingCart, TrendingUp, Brain, Package } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import heroMockup from "@/assets/hero-mockup.png";
+import heroMockup from "@/assets/supermarket-scene.png";
 
 const highlights = [
   "PDV com leitor e balança",
