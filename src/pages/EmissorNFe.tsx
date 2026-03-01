@@ -4,6 +4,7 @@ import {
   CheckCircle, AlertTriangle, Clock, Loader2, ChevronLeft,
   Building2, Package, Users, BarChart3, Trash2, Edit2, Save, X,
 } from "lucide-react";
+import { useCnpjLookup } from "@/hooks/useCnpjLookup";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useCompany } from "@/hooks/useCompany";
@@ -201,6 +202,7 @@ function EmissorRecipientsTab({ companyId }: { companyId: string }) {
   const [recipients, setRecipients] = useState<SimpleRecipient[]>([]);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState({ name: "", doc: "", ie: "", address: "" });
+  const { lookup: recipientCnpjLookup, loading: recipientCnpjLoading } = useCnpjLookup();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
 
@@ -264,7 +266,19 @@ function EmissorRecipientsTab({ companyId }: { companyId: string }) {
           </div>
           <div>
             <Label className="text-xs">CPF/CNPJ</Label>
-            <Input value={form.doc} onChange={e => setForm(f => ({ ...f, doc: e.target.value }))} placeholder="00.000.000/0000-00" />
+            <div className="flex gap-2">
+              <Input value={form.doc} onChange={e => setForm(f => ({ ...f, doc: e.target.value }))} placeholder="00.000.000/0000-00" className="flex-1" />
+              <Button type="button" variant="outline" size="sm" className="shrink-0 h-12"
+                disabled={recipientCnpjLoading || (form.doc || "").replace(/\D/g, "").length < 14}
+                onClick={async () => {
+                  const result = await recipientCnpjLookup(form.doc);
+                  if (result) {
+                    setForm(f => ({ ...f, name: result.name || f.name, ie: result.contact_name ? f.ie : (result.address_state ? f.ie : f.ie), address: [result.address_street, result.address_number, result.address_city, result.address_state].filter(Boolean).join(", ") || f.address }));
+                  }
+                }}>
+                {recipientCnpjLoading ? "..." : "Consultar"}
+              </Button>
+            </div>
           </div>
           <div>
             <Label className="text-xs">Inscrição Estadual</Label>

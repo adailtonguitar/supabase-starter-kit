@@ -4,6 +4,7 @@ import { Building2, FileText, CheckCircle2, ArrowRight, ArrowLeft, MapPin, Uploa
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import logoAs from "@/assets/logo-as.png";
+import { useCnpjLookup } from "@/hooks/useCnpjLookup";
 
 interface Props {
   onComplete: () => void;
@@ -38,6 +39,7 @@ export function EmissorOnboardingWizard({ onComplete }: Props) {
   const [ie, setIe] = useState("");
   const [crt, setCrt] = useState("1");
   const [phone, setPhone] = useState("");
+  const { lookup: emissorCnpjLookup, loading: emissorCnpjLoading } = useCnpjLookup();
 
   // Step 2 — Address
   const [cep, setCep] = useState("");
@@ -226,7 +228,21 @@ export function EmissorOnboardingWizard({ onComplete }: Props) {
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="text-sm font-medium text-foreground">CNPJ *</label>
-                      <input value={cnpj} onChange={(e) => setCnpj(e.target.value)} placeholder="00.000.000/0000-00" className={inputClass} />
+                      <div className="flex gap-2">
+                        <input value={cnpj} onChange={(e) => setCnpj(e.target.value)} placeholder="00.000.000/0000-00" className={inputClass + " flex-1"} />
+                        <button type="button" disabled={emissorCnpjLoading || cnpj.replace(/\D/g, "").length < 14}
+                          onClick={async () => {
+                            const result = await emissorCnpjLookup(cnpj);
+                            if (result) {
+                              setCompanyName(result.name || companyName);
+                              setTradeName(result.trade_name || tradeName);
+                              setPhone(result.phone || phone);
+                            }
+                          }}
+                          className="px-3 py-2 rounded-xl bg-muted border border-border text-foreground text-xs font-medium hover:bg-accent disabled:opacity-50 shrink-0">
+                          {emissorCnpjLoading ? "..." : "Consultar"}
+                        </button>
+                      </div>
                     </div>
                     <div>
                       <label className="text-sm font-medium text-foreground">Inscrição Estadual *</label>
