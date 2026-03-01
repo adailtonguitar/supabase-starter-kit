@@ -1137,7 +1137,7 @@ export default function PDV() {
       </div>
 
       {/* ════════ MOBILE ACTION BAR (visible only on mobile) ════════ */}
-      <div className="flex lg:hidden items-center gap-1 px-1.5 py-1 border-t border-border bg-muted/50 flex-wrap flex-shrink-0">
+      <div className="flex lg:hidden items-center gap-1.5 px-2 py-1.5 border-t border-border bg-muted/50 flex-wrap flex-shrink-0">
         <button
           onClick={() => {
             if (pdv.cartItems.length > 0) {
@@ -1151,7 +1151,7 @@ export default function PDV() {
             }
           }}
           disabled={pdv.cartItems.length === 0}
-          className="flex items-center gap-1 px-2.5 py-2 rounded-lg bg-sidebar-background text-sidebar-foreground border border-sidebar-border text-[10px] font-bold whitespace-nowrap disabled:opacity-30 active:scale-95 transition-transform"
+          className="flex items-center gap-1.5 px-3 py-2.5 rounded-lg bg-sidebar-background text-sidebar-foreground border border-sidebar-border text-xs font-bold whitespace-nowrap disabled:opacity-30 active:scale-95 transition-transform"
         >
           <Hash className="w-3 h-3" /> Qtd
         </button>
@@ -1165,14 +1165,14 @@ export default function PDV() {
             }
           }}
           disabled={pdv.cartItems.length === 0}
-          className="flex items-center gap-1 px-2.5 py-2 rounded-lg bg-sidebar-background text-sidebar-foreground border border-sidebar-border text-[10px] font-bold whitespace-nowrap disabled:opacity-30 active:scale-95 transition-transform"
+          className="flex items-center gap-1.5 px-3 py-2.5 rounded-lg bg-sidebar-background text-sidebar-foreground border border-sidebar-border text-xs font-bold whitespace-nowrap disabled:opacity-30 active:scale-95 transition-transform"
         >
           <Percent className="w-3 h-3" /> Desc.Item
         </button>
         <button
           onClick={() => maxDiscountPercent > 0 && setEditingGlobalDiscount(true)}
           disabled={pdv.cartItems.length === 0}
-          className="flex items-center gap-1 px-2.5 py-2 rounded-lg bg-sidebar-background text-sidebar-foreground border border-sidebar-border text-[10px] font-bold whitespace-nowrap disabled:opacity-30 active:scale-95 transition-transform"
+          className="flex items-center gap-1.5 px-3 py-2.5 rounded-lg bg-sidebar-background text-sidebar-foreground border border-sidebar-border text-xs font-bold whitespace-nowrap disabled:opacity-30 active:scale-95 transition-transform"
         >
           <Percent className="w-3 h-3" /> Desc.Total
         </button>
@@ -1190,7 +1190,7 @@ export default function PDV() {
             }
           }}
           disabled={pdv.cartItems.length === 0}
-          className="flex items-center gap-1 px-2.5 py-2 rounded-lg bg-destructive/80 text-white border border-destructive/50 text-[10px] font-bold whitespace-nowrap disabled:opacity-30 active:scale-95 transition-transform"
+          className="flex items-center gap-1.5 px-3 py-2.5 rounded-lg bg-destructive/80 text-white border border-destructive/50 text-xs font-bold whitespace-nowrap disabled:opacity-30 active:scale-95 transition-transform"
         >
           <Trash2 className="w-3 h-3" /> Remover
         </button>
@@ -1204,7 +1204,7 @@ export default function PDV() {
             }
           }}
           disabled={pdv.cartItems.length === 0}
-          className="flex items-center gap-1 px-2.5 py-2 rounded-lg bg-destructive/80 text-white border border-destructive/50 text-[10px] font-bold whitespace-nowrap disabled:opacity-30 active:scale-95 transition-transform"
+          className="flex items-center gap-1.5 px-3 py-2.5 rounded-lg bg-destructive/80 text-white border border-destructive/50 text-xs font-bold whitespace-nowrap disabled:opacity-30 active:scale-95 transition-transform"
         >
           <X className="w-3 h-3" /> Cancelar
         </button>

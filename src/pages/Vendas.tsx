@@ -116,9 +116,9 @@ export default function Vendas() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
           { label: "Vendas", value: String(summaryStats.totalSales), icon: BarChart3, color: "text-primary" },
-          { label: "Receita Total", value: formatCurrency(summaryStats.totalRevenue), icon: DollarSign, color: "text-emerald-500" },
+          { label: "Receita Total", value: formatCurrency(summaryStats.totalRevenue), icon: DollarSign, color: "text-success" },
           { label: "Custo Total", value: formatCurrency(summaryStats.totalCost), icon: TrendingDown, color: "text-destructive" },
-          { label: "Lucro Total", value: formatCurrency(summaryStats.totalProfit), icon: TrendingUp, color: summaryStats.totalProfit >= 0 ? "text-emerald-500" : "text-destructive" },
+          { label: "Lucro Total", value: formatCurrency(summaryStats.totalProfit), icon: TrendingUp, color: summaryStats.totalProfit >= 0 ? "text-success" : "text-destructive" },
         ].map((stat, i) => (
           <motion.div
             key={stat.label}
@@ -321,7 +321,7 @@ export default function Vendas() {
                           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-success/10 text-success">
                             Concluída
                           </span>
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-orange-500/10 text-orange-500">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-warning/10 text-warning">
                             Contingência
                           </span>
                         </>
