@@ -237,14 +237,14 @@ export default function Produtos() {
                     </span>
                     {product.category && <span>{product.category}</span>}
                   </div>
-                  <div className="flex items-center gap-1">
-                    <button onClick={() => setMovementProduct(product)} className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted">
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => setMovementProduct(product)} className="p-2.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted active:scale-95 transition-all">
                       <ArrowUpDown className="w-4 h-4" />
                     </button>
-                    <button onClick={() => handleEdit(product)} className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted">
+                    <button onClick={() => handleEdit(product)} className="p-2.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted active:scale-95 transition-all">
                       <Edit className="w-4 h-4" />
                     </button>
-                    <button onClick={() => setDeleteTarget(product)} className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10">
+                    <button onClick={() => setDeleteTarget(product)} className="p-2.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 active:scale-95 transition-all">
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
