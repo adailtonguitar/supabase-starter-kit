@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import {
   FileText, Send, Loader2, CheckCircle, AlertTriangle, X,
-  Plus, Trash2, User, Package, CreditCard, Truck, Info, Lock, ArrowLeft, Search
+  Plus, Trash2, User, Package, CreditCard, Truck, Info, Lock, ArrowLeft, Search, Save
 } from "lucide-react";
 import { useCnpjLookup } from "@/hooks/useCnpjLookup";
 import { supabase } from "@/integrations/supabase/client";
@@ -130,8 +130,13 @@ export default function NFeEmissao() {
   const [showProductDropdown, setShowProductDropdown] = useState<number | null>(null);
   const [showAddSearch, setShowAddSearch] = useState(false);
   const [addSearchTerm, setAddSearchTerm] = useState("");
+  const [showQuickRegister, setShowQuickRegister] = useState(false);
+  const [quickForm, setQuickForm] = useState({ name: "", sku: "", ncm: "", unit: "UN", price: "", cfop: "5102", origin: "0", csosn: "", cst_icms: "" });
+  const [quickSaving, setQuickSaving] = useState(false);
   const [ncmSearch, setNcmSearch] = useState<Record<number, string>>({});
   const [showNcmDropdown, setShowNcmDropdown] = useState<number | null>(null);
+  const [quickNcmSearch, setQuickNcmSearch] = useState("");
+  const [showQuickNcmDropdown, setShowQuickNcmDropdown] = useState(false);
   const [fiscalCategories, setFiscalCategories] = useState<any[]>([]);
 
   // Load products from database
@@ -261,6 +266,36 @@ export default function NFeEmissao() {
     setShowAddSearch(false);
     setAddSearchTerm("");
     toast.success(`"${product.name}" adicionado com dados fiscais`);
+  };
+
+  const handleQuickRegister = async () => {
+    if (!quickForm.name.trim()) { toast.error("Nome é obrigatório"); return; }
+    if (!companyId) return;
+    setQuickSaving(true);
+    const isSimples = companyCrt === 1 || companyCrt === 2;
+    const payload: Record<string, any> = {
+      company_id: companyId,
+      name: quickForm.name.trim(),
+      sku: quickForm.sku.trim() || null,
+      ncm: quickForm.ncm.trim() || null,
+      unit: quickForm.unit.trim() || "UN",
+      price: parseFloat(quickForm.price) || 0,
+      origin: quickForm.origin || "0",
+      cfop: quickForm.cfop.trim() || "5102",
+      csosn: isSimples ? (quickForm.csosn || "102") : null,
+      cst_icms: !isSimples ? (quickForm.cst_icms || "00") : null,
+      is_active: true,
+    };
+    const { data, error } = await supabase.from("products").insert(payload).select().single();
+    setQuickSaving(false);
+    if (error) { toast.error("Erro ao cadastrar: " + error.message); return; }
+    // Refresh products list and add as item
+    const newProduct = data as any;
+    setProducts(prev => [...prev, newProduct]);
+    addProductAsItem(newProduct);
+    setShowQuickRegister(false);
+    setQuickForm({ name: "", sku: "", ncm: "", unit: "UN", price: "", cfop: "5102", origin: "0", csosn: "", cst_icms: "" });
+    toast.success(`Produto "${newProduct.name}" cadastrado e adicionado!`);
   };
 
   const getAddFilteredProducts = () => {
@@ -884,6 +919,90 @@ export default function NFeEmissao() {
                         ))
                       )}
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => { setShowQuickRegister(true); setQuickForm(f => ({ ...f, name: addSearchTerm })); }}
+                      className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg border border-dashed border-primary/50 text-primary text-xs font-medium hover:bg-primary/5 transition-colors"
+                    >
+                      <Plus className="w-3.5 h-3.5" /> Cadastrar novo produto
+                    </button>
+
+                    {/* Quick register inline form */}
+                    {showQuickRegister && (
+                      <div className="border border-primary/30 rounded-lg p-3 bg-primary/5 space-y-2 mt-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-semibold text-foreground">Cadastro rápido de produto</span>
+                          <button onClick={() => setShowQuickRegister(false)} className="p-1 rounded hover:bg-muted text-muted-foreground">
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                          <div className="col-span-2">
+                            <label className="text-xs text-muted-foreground">Nome *</label>
+                            <input value={quickForm.name} onChange={e => setQuickForm(f => ({ ...f, name: e.target.value }))}
+                              className="w-full mt-0.5 px-3 py-1.5 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30" placeholder="Nome do produto" />
+                          </div>
+                          <div>
+                            <label className="text-xs text-muted-foreground">SKU/EAN</label>
+                            <input value={quickForm.sku} onChange={e => setQuickForm(f => ({ ...f, sku: e.target.value }))}
+                              className="w-full mt-0.5 px-3 py-1.5 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30" placeholder="Código" />
+                          </div>
+                          <div className="relative">
+                            <label className="text-xs text-muted-foreground">NCM</label>
+                            <input
+                              value={showQuickNcmDropdown ? quickNcmSearch : quickForm.ncm}
+                              onChange={e => { setQuickNcmSearch(e.target.value); setQuickForm(f => ({ ...f, ncm: e.target.value.replace(/\D/g, "").slice(0, 8) })); setShowQuickNcmDropdown(true); }}
+                              onFocus={() => { setQuickNcmSearch(quickForm.ncm); setShowQuickNcmDropdown(true); }}
+                              onBlur={() => setTimeout(() => setShowQuickNcmDropdown(false), 200)}
+                              className="w-full mt-0.5 px-3 py-1.5 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30" placeholder="Buscar NCM" maxLength={8} />
+                            {showQuickNcmDropdown && getNcmSuggestions(quickNcmSearch).length > 0 && (
+                              <div className="absolute z-40 left-0 right-0 mt-1 bg-card border border-border rounded-lg shadow-lg max-h-36 overflow-y-auto min-w-[250px]">
+                                {getNcmSuggestions(quickNcmSearch).map(s => (
+                                  <button key={s.ncm} type="button"
+                                    onMouseDown={() => { setQuickForm(f => ({ ...f, ncm: s.ncm })); setShowQuickNcmDropdown(false); }}
+                                    className="w-full text-left px-3 py-1.5 hover:bg-muted text-xs flex gap-2 items-start transition-colors border-b border-border last:border-b-0">
+                                    <span className="font-mono font-bold text-primary shrink-0">{s.ncm}</span>
+                                    <span className="text-muted-foreground truncate">{s.description}</span>
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                          <div>
+                            <label className="text-xs text-muted-foreground">Unidade</label>
+                            <input value={quickForm.unit} onChange={e => setQuickForm(f => ({ ...f, unit: e.target.value }))}
+                              className="w-full mt-0.5 px-3 py-1.5 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30" placeholder="UN" />
+                          </div>
+                          <div>
+                            <label className="text-xs text-muted-foreground">Preço (R$)</label>
+                            <input type="number" step="0.01" value={quickForm.price} onChange={e => setQuickForm(f => ({ ...f, price: e.target.value }))}
+                              className="w-full mt-0.5 px-3 py-1.5 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30" placeholder="0,00" />
+                          </div>
+                          <div>
+                            <label className="text-xs text-muted-foreground">CFOP</label>
+                            <input value={quickForm.cfop} onChange={e => setQuickForm(f => ({ ...f, cfop: e.target.value }))}
+                              className="w-full mt-0.5 px-3 py-1.5 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30" placeholder="5102" maxLength={4} />
+                          </div>
+                          <div>
+                            <label className="text-xs text-muted-foreground">{companyCrt === 1 || companyCrt === 2 ? "CSOSN" : "CST ICMS"}</label>
+                            <input value={companyCrt === 1 || companyCrt === 2 ? quickForm.csosn : quickForm.cst_icms}
+                              onChange={e => { const v = e.target.value; companyCrt === 1 || companyCrt === 2 ? setQuickForm(f => ({ ...f, csosn: v })) : setQuickForm(f => ({ ...f, cst_icms: v })); }}
+                              className="w-full mt-0.5 px-3 py-1.5 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+                              placeholder={companyCrt === 1 || companyCrt === 2 ? "102" : "00"} maxLength={3} />
+                          </div>
+                        </div>
+                        <div className="flex gap-2 pt-1">
+                          <button type="button" onClick={handleQuickRegister} disabled={quickSaving}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:opacity-90 transition-all disabled:opacity-50">
+                            {quickSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />} Cadastrar e Adicionar
+                          </button>
+                          <button type="button" onClick={() => setShowQuickRegister(false)}
+                            className="px-3 py-1.5 rounded-lg border border-border text-xs text-muted-foreground hover:bg-muted transition-colors">Cancelar</button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 
