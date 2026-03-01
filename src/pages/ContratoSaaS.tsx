@@ -8,31 +8,40 @@ export default function ContratoSaaS() {
   const navigate = useNavigate();
 
   const handleDownloadPDF = () => {
-    const style = document.createElement("style");
-    style.id = "print-style";
-    style.textContent = `
-      @media print {
-        body, html, #root { overflow: visible !important; height: auto !important; }
-        .no-print { display: none !important; }
-        nav, header, footer, aside, [data-radix-popper-content-wrapper] { display: none !important; }
-        .contract-content { 
-          all: unset;
-          display: block;
-          width: 100%;
-          padding: 32px;
-          font-size: 12px;
-          line-height: 1.6;
-          color: #000 !important;
-        }
-        .contract-content * { color: #000 !important; border-color: #ccc !important; }
-        .contract-content h3 { font-size: 14px; font-weight: bold; margin-top: 16px; }
-        .contract-content p, .contract-content li { font-size: 12px; }
-        .contract-content section { page-break-inside: avoid; }
-      }
-    `;
-    document.head.appendChild(style);
-    window.print();
-    setTimeout(() => document.getElementById("print-style")?.remove(), 1000);
+    const content = document.querySelector(".contract-content");
+    if (!content) return;
+
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) {
+      alert("Permita pop-ups para baixar o PDF.");
+      return;
+    }
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8" />
+        <title>Contrato SaaS — ANTHOSYSTEM</title>
+        <style>
+          body { font-family: Arial, sans-serif; padding: 40px; color: #000; font-size: 12px; line-height: 1.7; }
+          h3 { font-size: 14px; font-weight: bold; margin-top: 20px; }
+          ul { padding-left: 20px; }
+          li { margin-bottom: 4px; }
+          hr { border: none; border-top: 1px solid #ccc; margin: 16px 0; }
+          section { page-break-inside: avoid; }
+          .highlight-clause { border: 2px solid #f59e0b; background: #fffbeb; padding: 16px; border-radius: 8px; margin: 12px 0; }
+          strong { font-weight: bold; }
+          em { font-style: italic; }
+        </style>
+      </head>
+      <body>${content.innerHTML.replace(/class="[^"]*rounded-xl border-2 border-primary\/40 bg-primary\/5 p-5[^"]*"/g, 'class="highlight-clause"')}</body>
+      </html>
+    `);
+    printWindow.document.close();
+    setTimeout(() => {
+      printWindow.print();
+    }, 500);
   };
 
   useEffect(() => {
