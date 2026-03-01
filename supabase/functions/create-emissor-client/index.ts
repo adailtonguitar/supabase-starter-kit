@@ -13,24 +13,28 @@ Deno.serve(async (req) => {
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
 
-    // Verify caller is super_admin
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) throw new Error("Não autorizado");
-    const token = authHeader.replace("Bearer ", "");
-    const { data: { user: caller }, error: authErr } = await supabaseAdmin.auth.getUser(token);
-    if (authErr || !caller) throw new Error("Sessão inválida");
+    const { company_name, cnpj, email, password, full_name, self_service } = await req.json();
 
-    const { data: adminRole } = await supabaseAdmin
-      .from("admin_roles").select("role")
-      .eq("user_id", caller.id).maybeSingle();
-    if (adminRole?.role !== "super_admin") {
-      throw new Error("Apenas super admins podem criar clientes emissor");
+    // If NOT self-service, verify caller is super_admin
+    if (!self_service) {
+      const authHeader = req.headers.get("Authorization");
+      if (!authHeader) throw new Error("Não autorizado");
+      const token = authHeader.replace("Bearer ", "");
+      const { data: { user: caller }, error: authErr } = await supabaseAdmin.auth.getUser(token);
+      if (authErr || !caller) throw new Error("Sessão inválida");
+
+      const { data: adminRole } = await supabaseAdmin
+        .from("admin_roles").select("role")
+        .eq("user_id", caller.id).maybeSingle();
+      if (adminRole?.role !== "super_admin") {
+        throw new Error("Apenas super admins podem criar clientes emissor");
+      }
     }
 
-    const { company_name, cnpj, email, password, full_name } = await req.json();
     if (!company_name?.trim()) throw new Error("Nome da empresa é obrigatório");
     if (!email?.trim()) throw new Error("E-mail é obrigatório");
     if (!password || password.length < 6) throw new Error("Senha deve ter pelo menos 6 caracteres");
+    if (self_service && !full_name?.trim()) throw new Error("Nome é obrigatório");
 
     // 1. Create company
     const { data: company, error: companyErr } = await supabaseAdmin
