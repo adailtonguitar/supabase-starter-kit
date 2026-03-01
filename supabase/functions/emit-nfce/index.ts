@@ -792,7 +792,12 @@ Deno.serve(async (req) => {
         ...(destIsCompany ? { cnpj: destDocClean } : { cpf: destDocClean }),
         nome: nfeForm.dest_name || undefined,
         email: nfeForm.dest_email || undefined,
-        indicador_inscricao_estadual: nfeForm.dest_ie && nfeForm.dest_ie.toLowerCase() !== "isento" ? 1 : 2,
+        indicador_inscricao_estadual:
+          nfeForm.dest_ie && nfeForm.dest_ie.toLowerCase() !== "isento"
+            ? 1   // Contribuinte ICMS (possui IE)
+            : destIsCompany
+              ? 2  // Contribuinte isento de IE (PJ sem IE)
+              : 9, // Não contribuinte (Pessoa Física)
         inscricao_estadual: nfeForm.dest_ie && nfeForm.dest_ie.toLowerCase() !== "isento" ? nfeForm.dest_ie.replace(/\D/g, "") : undefined,
         endereco: {
           logradouro: nfeForm.dest_street || "",
