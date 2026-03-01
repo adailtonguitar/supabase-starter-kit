@@ -98,13 +98,14 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
     let data: any = null;
     try {
       const response = await supabase.functions.invoke("check-subscription");
-      if (!response.error && response.data && !response.data?.error && response.data?.code !== 401) {
+      // Handle FunctionsHttpError (401, 500, etc.) — response.error is set for non-2xx
+      if (!response.error && response.data && !response.data?.error) {
         data = response.data;
       } else {
-        console.warn("[useSubscription] Edge function failed, querying DB directly:", response.error || response.data);
+        // Silently fall through to DB fallback
       }
-    } catch (e) {
-      console.warn("[useSubscription] Edge function threw, querying DB directly:", e);
+    } catch {
+      // Silently fall through to DB fallback
     }
 
     // Fallback: query subscriptions table directly
