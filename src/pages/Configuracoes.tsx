@@ -605,10 +605,10 @@ export default function Configuracoes() {
   };
 
   return (
-    <div className="p-6 space-y-6 max-w-3xl mx-auto">
+    <div className="p-3 sm:p-6 space-y-4 sm:space-y-6 max-w-3xl mx-auto">
       <div>
-        <h1 className="text-2xl font-bold text-foreground">Configurações</h1>
-        <p className="text-sm text-muted-foreground mt-1">Configurações gerais do sistema</p>
+        <h1 className="text-xl sm:text-2xl font-bold text-foreground">Configurações</h1>
+        <p className="text-xs sm:text-sm text-muted-foreground mt-1">Configurações gerais do sistema</p>
       </div>
 
       <ChangePasswordSection />

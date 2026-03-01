@@ -221,44 +221,79 @@ export function CrudPage({
           Nenhum registro encontrado.
         </div>
       ) : (
-        <div className="bg-card rounded-xl card-shadow border border-border overflow-hidden">
-          <div className="overflow-x-auto md:overflow-x-visible">
-            <table className="w-full text-sm table-fixed">
-              <thead>
-                <tr className="border-b border-border">
-                  {tableFields.map((f) => (
-                    <th key={f.key} className="text-left px-3 sm:px-5 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider truncate">{f.label}</th>
-                  ))}
-                  <th className="text-right px-3 sm:px-5 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider w-20">Ações</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredData.map((item: any) => (
-                  <tr key={item.id} className="border-b border-border last:border-0 hover:bg-muted/50 transition-colors">
-                    {tableFields.map((f) => (
-                      <td key={f.key} className="px-3 sm:px-5 py-3 text-foreground truncate">{item[f.key] ?? "—"}</td>
+        <>
+          {/* Mobile cards */}
+          <div className="md:hidden space-y-2">
+            {filteredData.map((item: any) => (
+              <div key={item.id} className="bg-card rounded-xl border border-border p-3 space-y-2">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1 space-y-1">
+                    {tableFields.slice(0, 3).map((f) => (
+                      <p key={f.key} className={`text-sm ${f === tableFields[0] ? "font-medium text-foreground" : "text-muted-foreground text-xs"} truncate`}>
+                        {f === tableFields[0] ? (item[f.key] ?? "—") : `${f.label}: ${item[f.key] ?? "—"}`}
+                      </p>
                     ))}
-                    <td className="px-3 sm:px-5 py-3 text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <button onClick={() => openEdit(item)} className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
-                          <Pencil className="w-4 h-4" />
-                        </button>
-                        <button onClick={() => setDeleteConfirm(item.id)} className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors">
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button onClick={() => openEdit(item)} className="p-2.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors active:scale-95">
+                      <Pencil className="w-4 h-4" />
+                    </button>
+                    <button onClick={() => setDeleteConfirm(item.id)} className="p-2.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors active:scale-95">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+                {tableFields.length > 3 && (
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 pt-2 border-t border-border text-xs text-muted-foreground">
+                    {tableFields.slice(3).map((f) => (
+                      <span key={f.key} className="truncate max-w-[150px]">{f.label}: {item[f.key] ?? "—"}</span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
-        </div>
+
+          {/* Desktop table */}
+          <div className="hidden md:block bg-card rounded-xl card-shadow border border-border overflow-hidden">
+            <div className="overflow-x-auto md:overflow-x-visible">
+              <table className="w-full text-sm table-fixed">
+                <thead>
+                  <tr className="border-b border-border">
+                    {tableFields.map((f) => (
+                      <th key={f.key} className="text-left px-3 sm:px-5 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider truncate">{f.label}</th>
+                    ))}
+                    <th className="text-right px-3 sm:px-5 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider w-20">Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredData.map((item: any) => (
+                    <tr key={item.id} className="border-b border-border last:border-0 hover:bg-muted/50 transition-colors">
+                      {tableFields.map((f) => (
+                        <td key={f.key} className="px-3 sm:px-5 py-3 text-foreground truncate">{item[f.key] ?? "—"}</td>
+                      ))}
+                      <td className="px-3 sm:px-5 py-3 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <button onClick={() => openEdit(item)} className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
+                            <Pencil className="w-4 h-4" />
+                          </button>
+                          <button onClick={() => setDeleteConfirm(item.id)} className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors">
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
       )}
 
       {/* Form Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto w-[calc(100%-2rem)]">
           <DialogHeader>
             <DialogTitle>{editingItem ? "Editar" : "Novo"} {title.replace(/s$/, "")}</DialogTitle>
           </DialogHeader>
