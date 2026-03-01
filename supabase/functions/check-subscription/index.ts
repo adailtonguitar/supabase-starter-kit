@@ -1,4 +1,4 @@
-import { createClient } from "npm:@supabase/supabase-js@2.49.1";
+import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -23,24 +23,41 @@ Deno.serve(async (req) => {
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 
-    // Use service role client to verify user via admin API (bypasses signing-keys issues)
     const adminClient = createClient(supabaseUrl, serviceRoleKey, {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
-    // Extract token and get user via admin auth API
     const token = authHeader.replace("Bearer ", "");
-    const { data: { user }, error: userError } = await adminClient.auth.getUser(token);
 
-    if (userError || !user) {
-      console.error("[check-subscription] Auth error:", userError);
+    // Try getUser first, fallback to getClaims for signing-keys compatibility
+    let userId: string | null = null;
+
+    const { data: userData, error: userError } = await adminClient.auth.getUser(token);
+    if (!userError && userData?.user) {
+      userId = userData.user.id;
+    } else {
+      // Fallback: use anon client with the user's token to getClaims
+      const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+      const anonClient = createClient(supabaseUrl, anonKey, {
+        global: { headers: { Authorization: authHeader } },
+      });
+      try {
+        const { data: claims, error: claimsErr } = await (anonClient.auth as any).getClaims(token);
+        if (!claimsErr && claims?.claims?.sub) {
+          userId = claims.claims.sub;
+        }
+      } catch {
+        // getClaims not available in this version
+      }
+    }
+
+    if (!userId) {
+      console.error("[check-subscription] Auth failed, getUser error:", userError?.message);
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-
-    const userId = user.id;
 
     // Check subscriptions table
     const { data: sub } = await adminClient
