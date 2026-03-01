@@ -196,9 +196,10 @@
     overscroll-behavior: contain;
   }
 
-  /* GPU-accelerated transforms for modals/sheets */
-  [data-state="open"],
-  [data-state="closed"] {
+  /* GPU-accelerated transforms for modals/sheets — only dialogs/sheets */
+  [data-state="open"][role="dialog"],
+  [data-state="closed"][role="dialog"],
+  [data-vaul-drawer] {
     will-change: transform, opacity;
   }
 
