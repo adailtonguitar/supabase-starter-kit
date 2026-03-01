@@ -515,7 +515,7 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
                   <BarcodeCameraScanner
                     onScan={(barcode) => {
                       form.setValue("barcode", barcode);
-                      handleBarcodeChange(barcode, (v) => form.setValue("barcode", v));
+                      lookupBarcode(barcode);
                     }}
                   />
                 </div>
