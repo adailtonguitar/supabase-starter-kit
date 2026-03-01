@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
 import { toast } from "sonner";
 
-type PlanTier = "starter" | "business" | "pro";
+type PlanTier = "starter" | "business" | "pro" | "emissor";
 
 interface FeatureDef {
   key: string;
@@ -41,6 +41,7 @@ const PLANS: { tier: PlanTier; label: string; price: string; color: string }[] =
   { tier: "starter", label: "Starter", price: "R$ 149,90", color: "bg-muted text-muted-foreground" },
   { tier: "business", label: "Business", price: "R$ 199,90", color: "bg-blue-500/10 text-blue-600" },
   { tier: "pro", label: "Pro", price: "R$ 449,90", color: "bg-amber-500/10 text-amber-600" },
+  { tier: "emissor", label: "Emissor", price: "R$ 99,90", color: "bg-cyan-500/10 text-cyan-600" },
 ];
 
 export default function AdminPlanTester() {
@@ -75,6 +76,10 @@ export default function AdminPlanTester() {
         pro: {
           plan: "pro", max_users: 999, fiscal_enabled: true,
           advanced_reports_enabled: true, financial_module_level: "full",
+        },
+        emissor: {
+          plan: "emissor", max_users: 2, fiscal_enabled: true,
+          advanced_reports_enabled: false, financial_module_level: "basic",
         },
       };
 
@@ -218,10 +223,11 @@ export default function AdminPlanTester() {
       {/* Sessions info */}
       <div className="bg-card rounded-xl border border-border p-4 space-y-2">
         <h3 className="font-semibold text-foreground text-sm">Sessões Simultâneas por Plano</h3>
-        <div className="flex gap-4 text-sm">
+        <div className="flex flex-wrap gap-4 text-sm">
           <span className="text-muted-foreground">Starter: <strong className="text-foreground">3</strong></span>
           <span className="text-muted-foreground">Business: <strong className="text-foreground">8</strong></span>
           <span className="text-muted-foreground">Pro: <strong className="text-foreground">∞</strong></span>
+          <span className="text-muted-foreground">Emissor: <strong className="text-foreground">2</strong></span>
         </div>
       </div>
     </div>
