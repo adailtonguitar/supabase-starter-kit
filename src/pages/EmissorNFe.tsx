@@ -91,6 +91,24 @@ function EmissorProductsTab({ companyId }: { companyId: string }) {
   const [showNcmDropdown, setShowNcmDropdown] = useState(false);
   const [companyCrt, setCompanyCrt] = useState<number>(1);
 
+  // Sync form defaults when CRT loads
+  useEffect(() => {
+    if (!editingId) setForm(prev => {
+      const isSimples = companyCrt === 1 || companyCrt === 2;
+      if (!prev.csosn && !prev.cst_icms && !prev.name) {
+        return {
+          ...prev,
+          csosn: isSimples ? "102" : "",
+          cst_icms: !isSimples ? "00" : "",
+          icms_rate: !isSimples ? "18" : "",
+          pis_rate: isSimples ? "0" : "1.65",
+          cofins_rate: isSimples ? "0" : "7.60",
+        };
+      }
+      return prev;
+    });
+  }, [companyCrt, editingId]);
+
   // Fetch company CRT to determine CST vs CSOSN
   useEffect(() => {
     if (!companyId) return;
@@ -127,11 +145,21 @@ function EmissorProductsTab({ companyId }: { companyId: string }) {
 
   useEffect(() => { fetch(); }, [companyId]);
 
-  const emptyForm = {
-    name: "", sku: "", ncm: "", unit: "UN", price: "",
-    origin: "0", cfop: "5102", csosn: "", cst_icms: "", cest: "",
-    icms_rate: "", pis_rate: "", cofins_rate: "",
-  };
+  // Auto-fill fiscal defaults based on company CRT
+  const emptyForm = useMemo(() => {
+    const isSimples = companyCrt === 1 || companyCrt === 2;
+    return {
+      name: "", sku: "", ncm: "", unit: "UN", price: "",
+      origin: "0",
+      cfop: "5102",
+      csosn: isSimples ? "102" : "",
+      cst_icms: !isSimples ? "00" : "",
+      cest: "",
+      icms_rate: !isSimples ? "18" : "",
+      pis_rate: isSimples ? "0" : "1.65",
+      cofins_rate: isSimples ? "0" : "7.60",
+    };
+  }, [companyCrt]);
 
   const handleSave = async () => {
     if (!form.name.trim()) { toast.error("Nome é obrigatório"); return; }
