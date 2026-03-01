@@ -232,10 +232,9 @@
   main .overflow-x-auto { -webkit-overflow-scrolling: touch; }
   main table { font-size: 0.75rem; }
 
-  /* Touch-friendly targets on mobile */
+  /* Touch-friendly targets on mobile — height only, no min-width to avoid overlap */
   button, a, [role="button"], [role="tab"], [role="menuitem"] {
     min-height: 44px;
-    min-width: 44px;
   }
   /* Exceções para ícones inline e badges */
   .inline-icon-btn, [data-no-min-size] {
