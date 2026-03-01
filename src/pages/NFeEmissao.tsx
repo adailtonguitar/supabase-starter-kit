@@ -988,8 +988,25 @@ export default function NFeEmissao() {
                       </div>
                       <div>
                         <label className="text-xs text-muted-foreground">CPF/CNPJ Transportadora</label>
-                        <input value={form.transportDoc} onChange={e => setForm(p => ({ ...p, transportDoc: e.target.value }))}
-                          className="w-full mt-1 px-3 py-2 rounded-lg border border-border bg-background text-sm font-mono text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30" />
+                        <div className="flex gap-1.5 mt-1">
+                          <input value={form.transportDoc} onChange={e => setForm(p => ({ ...p, transportDoc: e.target.value }))}
+                            className="flex-1 px-3 py-2 rounded-lg border border-border bg-background text-sm font-mono text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30" />
+                          <button
+                            type="button"
+                            disabled={cnpjLoading || (form.transportDoc || "").replace(/\D/g, "").length < 14}
+                            onClick={async () => {
+                              const result = await cnpjLookup(form.transportDoc);
+                              if (result) {
+                                setForm(p => ({
+                                  ...p,
+                                  transportName: result.name || p.transportName,
+                                }));
+                              }
+                            }}
+                            className="px-3 py-2 rounded-lg border border-border bg-muted text-xs font-medium text-foreground hover:bg-accent disabled:opacity-50 shrink-0">
+                            {cnpjLoading ? "..." : "Consultar"}
+                          </button>
+                        </div>
                       </div>
                       <div>
                         <label className="text-xs text-muted-foreground">Placa do Veículo</label>
