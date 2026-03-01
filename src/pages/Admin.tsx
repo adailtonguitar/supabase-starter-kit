@@ -21,6 +21,7 @@ import { AdminCompanyUsers } from "@/components/admin/AdminCompanyUsers";
 import { AdminGlobalLogs } from "@/components/admin/AdminGlobalLogs";
 import { AdminRevenue } from "@/components/admin/AdminRevenue";
 import AdminPlanTester from "@/components/admin/AdminPlanTester";
+import { AdminCreateEmissorClient } from "@/components/admin/AdminCreateEmissorClient";
 
 interface CompanyRow {
   id: string;
@@ -273,7 +274,8 @@ function CompaniesTab() {
       <CardHeader className="p-3 sm:p-6">
         <CardTitle className="flex flex-col sm:flex-row sm:items-center gap-2 sm:justify-between">
           <span className="text-base sm:text-lg">Empresas ({companies.length})</span>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
+            <AdminCreateEmissorClient />
             <Input
               placeholder="Buscar por nome ou CNPJ..."
               value={search}

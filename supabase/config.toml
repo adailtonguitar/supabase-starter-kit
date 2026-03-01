@@ -42,3 +42,6 @@ verify_jwt = false
 
 [functions.analyze-product-image]
 verify_jwt = false
+
+[functions.create-emissor-client]
+verify_jwt = false
