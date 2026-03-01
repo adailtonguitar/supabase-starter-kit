@@ -12,6 +12,7 @@ import { SubscriptionProvider, useSubscription } from "@/hooks/useSubscription";
 import { PlanProvider } from "@/hooks/usePlanFeatures";
 import { LocalDBProvider } from "@/components/providers/LocalDBProvider";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { UpdateNoticeModal } from "@/components/UpdateNoticeModal";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { useSessionControl } from "@/hooks/useSessionControl";
 import { ScrollToTop } from "@/components/ScrollToTop";
@@ -227,6 +228,7 @@ function AppRoutes() {
 
   return (
     <Suspense fallback={<PageSpinner />}>
+      <UpdateNoticeModal />
       <Routes>
         {/* Public landing - renders immediately, redirects after auth resolves */}
         <Route path="/" element={<LandingRedirectWrapper />} />
