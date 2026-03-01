@@ -1,9 +1,10 @@
-import { useState, useEffect, lazy, Suspense, useMemo } from "react";
+import { useState, useEffect, lazy, Suspense, useMemo, useCallback } from "react";
 import {
   FileText, Plus, Download, RefreshCw, LogOut, Search,
   CheckCircle, AlertTriangle, Clock, Loader2, ChevronLeft,
   Building2, Package, Users, BarChart3, Trash2, Edit2, Save, X,
 } from "lucide-react";
+import { NCM_TABLE } from "@/lib/ncm-table";
 import { useCnpjLookup } from "@/hooks/useCnpjLookup";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -73,6 +74,16 @@ function EmissorProductsTab({ companyId }: { companyId: string }) {
   const [form, setForm] = useState({ name: "", ncm: "", unit: "UN", price: "" });
   const [editingId, setEditingId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [ncmSearch, setNcmSearch] = useState("");
+  const [showNcmDropdown, setShowNcmDropdown] = useState(false);
+
+  const getNcmSuggestions = useCallback((query: string) => {
+    if (!query || query.length < 2) return [];
+    const q = query.toLowerCase();
+    return NCM_TABLE.filter(
+      (item) => item.ncm.includes(q) || item.description.toLowerCase().includes(q)
+    ).slice(0, 10);
+  }, []);
 
   const fetch = async () => {
     setLoading(true);
@@ -130,9 +141,40 @@ function EmissorProductsTab({ companyId }: { companyId: string }) {
             <Label className="text-xs">Nome *</Label>
             <Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Nome do produto" />
           </div>
-          <div>
+          <div className="relative">
             <Label className="text-xs">NCM</Label>
-            <Input value={form.ncm} onChange={e => setForm(f => ({ ...f, ncm: e.target.value }))} placeholder="00000000" maxLength={8} />
+            <Input
+              value={showNcmDropdown && ncmSearch !== undefined ? ncmSearch : form.ncm}
+              onChange={e => {
+                const val = e.target.value;
+                setNcmSearch(val);
+                setForm(f => ({ ...f, ncm: val.replace(/\D/g, "").slice(0, 8) }));
+                setShowNcmDropdown(true);
+              }}
+              onFocus={() => { setNcmSearch(form.ncm); setShowNcmDropdown(true); }}
+              onBlur={() => setTimeout(() => { setShowNcmDropdown(false); }, 200)}
+              placeholder="Buscar NCM..."
+              maxLength={8}
+            />
+            {showNcmDropdown && getNcmSuggestions(ncmSearch).length > 0 && (
+              <div className="absolute z-30 left-0 right-0 mt-1 bg-card border border-border rounded-lg shadow-lg max-h-48 overflow-y-auto min-w-[280px]">
+                {getNcmSuggestions(ncmSearch).map((s) => (
+                  <button
+                    key={s.ncm}
+                    type="button"
+                    onMouseDown={() => {
+                      setForm(f => ({ ...f, ncm: s.ncm }));
+                      setNcmSearch("");
+                      setShowNcmDropdown(false);
+                    }}
+                    className="w-full text-left px-3 py-2 hover:bg-muted text-xs flex gap-2 items-start transition-colors border-b border-border last:border-b-0"
+                  >
+                    <span className="font-mono font-bold text-primary shrink-0">{s.ncm}</span>
+                    <span className="text-muted-foreground truncate">{s.description}</span>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
           <div>
             <Label className="text-xs">Unidade</Label>
