@@ -98,12 +98,16 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
     let data: any = null;
     try {
       const response = await supabase.functions.invoke("check-subscription");
-      // Handle FunctionsHttpError (401, 500, etc.) — response.error is set for non-2xx
-      if (!response.error && response.data && !response.data?.error) {
+      // Only use edge function data if response is clean (no error at all)
+      if (
+        !response.error &&
+        response.data &&
+        typeof response.data === "object" &&
+        !("error" in response.data)
+      ) {
         data = response.data;
-      } else {
-        // Silently fall through to DB fallback
       }
+      // Any other case: silently fall through to DB fallback
     } catch {
       // Silently fall through to DB fallback
     }
