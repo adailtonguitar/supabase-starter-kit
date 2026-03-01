@@ -13,6 +13,7 @@ import { useFiscalCategories } from "@/hooks/useFiscalCategories";
 import { useCompany } from "@/hooks/useCompany";
 import { supabase } from "@/integrations/supabase/client";
 import { Check, Search, Upload, X, Package, AlertTriangle, ShieldAlert, Info, Camera, Sparkles, Loader2, ScanBarcode } from "lucide-react";
+import { BarcodeCameraScanner } from "./BarcodeCameraScanner";
 import { NCM_TABLE } from "@/lib/ncm-table";
 import { validateNcm, detectNcmDuplicates, getNcmDescription, isValidNcmFormat, type NcmIssue } from "@/lib/ncm-validator";
 import { isTypicalStNcm } from "@/lib/icms-st-engine";
@@ -508,6 +509,15 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
                       <FormMessage />
                     </FormItem>
                   )} />
+                </div>
+                {/* Camera barcode scanner for mobile */}
+                <div className="sm:hidden mt-2">
+                  <BarcodeCameraScanner
+                    onScan={(barcode) => {
+                      form.setValue("barcode", barcode);
+                      handleBarcodeChange(barcode, (v) => form.setValue("barcode", v));
+                    }}
+                  />
                 </div>
               </div>
 
