@@ -177,7 +177,6 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
 
   const lookupBarcode = useCallback(async (barcode: string, forceOverwrite = false) => {
     if (!barcode || barcode.length < 8 || isEditing) return;
-    // Skip auto-lookup if name already filled (unless forced by camera scan)
     if (!forceOverwrite) {
       const currentName = form.getValues("name");
       if (currentName && currentName.trim().length > 0) return;
@@ -185,6 +184,26 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
 
     setLookingUpBarcode(true);
     try {
+      // 1) Cache local: buscar nos produtos já cadastrados da empresa
+      const localMatch = allProducts.find(
+        (p) => p.barcode && p.barcode === barcode
+      );
+      if (localMatch) {
+        form.setValue("name", localMatch.name);
+        if (localMatch.category) form.setValue("category", localMatch.category);
+        if (localMatch.unit && units.includes(localMatch.unit)) form.setValue("unit", localMatch.unit);
+        if (localMatch.sku) form.setValue("sku", localMatch.sku);
+        if ((localMatch as any).ncm) {
+          form.setValue("ncm", (localMatch as any).ncm);
+          runNcmValidation((localMatch as any).ncm);
+        }
+        if (localMatch.price) form.setValue("price", localMatch.price);
+        if (localMatch.cost_price) form.setValue("cost_price", localMatch.cost_price);
+        toast.success(`✅ Produto encontrado no cadastro: ${localMatch.name}`, { duration: 4000 });
+        return;
+      }
+
+      // 2) APIs externas
       const { data, error } = await supabase.functions.invoke("lookup-barcode", {
         body: { barcode },
       });
@@ -215,7 +234,7 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
     } finally {
       setLookingUpBarcode(false);
     }
-  }, [isEditing, form]);
+  }, [isEditing, form, allProducts]);
 
   const handleBarcodeChange = useCallback((value: string, fieldOnChange: (v: string) => void) => {
     fieldOnChange(value);
