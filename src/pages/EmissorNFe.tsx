@@ -14,11 +14,12 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import EmissorSettingsTab from "@/components/emissor/EmissorSettingsTab";
 
 const NFeEmissao = lazy(() => import("./NFeEmissao"));
 
 type ViewMode = "list" | "new";
-type TabId = "notas" | "produtos" | "destinatarios" | "relatorio";
+type TabId = "notas" | "produtos" | "destinatarios" | "relatorio" | "configuracoes";
 
 interface FiscalDoc {
   id: string;
@@ -61,6 +62,7 @@ const TABS: { id: TabId; label: string; icon: typeof FileText }[] = [
   { id: "produtos", label: "Produtos", icon: Package },
   { id: "destinatarios", label: "Destinatários", icon: Users },
   { id: "relatorio", label: "Relatório", icon: BarChart3 },
+  { id: "configuracoes", label: "Configurações", icon: Building2 },
 ];
 
 // ─── Mini Product CRUD ───────────────────────────────────────────────
@@ -429,6 +431,20 @@ export default function EmissorNFe() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [companyComplete, setCompanyComplete] = useState(true);
+
+  // Check if company has required data for NF-e
+  useEffect(() => {
+    if (!companyId) return;
+    const check = async () => {
+      const { data } = await supabase.from("companies").select("cnpj, ie, address_street, address_city").eq("id", companyId).maybeSingle();
+      if (data) {
+        const d = data as any;
+        setCompanyComplete(!!(d.cnpj && d.ie && d.address_street && d.address_city));
+      }
+    };
+    check();
+  }, [companyId]);
 
   const fetchDocs = async () => {
     if (!companyId) return;
@@ -573,7 +589,14 @@ export default function EmissorNFe() {
             {/* Actions bar */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
               <button
-                onClick={() => setView("new")}
+                onClick={() => {
+                  if (!companyComplete) {
+                    toast.error("Complete os dados da empresa antes de emitir. Acesse a aba Configurações.");
+                    setActiveTab("configuracoes");
+                    return;
+                  }
+                  setView("new");
+                }}
                 className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition-opacity shadow-sm"
               >
                 <Plus className="w-4 h-4" />
@@ -708,6 +731,7 @@ export default function EmissorNFe() {
         {activeTab === "produtos" && companyId && <EmissorProductsTab companyId={companyId} />}
         {activeTab === "destinatarios" && companyId && <EmissorRecipientsTab companyId={companyId} />}
         {activeTab === "relatorio" && companyId && <EmissorReportTab companyId={companyId} />}
+        {activeTab === "configuracoes" && companyId && <EmissorSettingsTab companyId={companyId} />}
       </main>
     </div>
   );
