@@ -16,6 +16,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { useSessionControl } from "@/hooks/useSessionControl";
 import { ScrollToTop } from "@/components/ScrollToTop";
 import { OnboardingWizard } from "@/components/onboarding/OnboardingWizard";
+import { EmissorOnboardingWizard } from "@/components/onboarding/EmissorOnboardingWizard";
 import { useTermsAcceptance } from "@/hooks/useTermsAcceptance";
 import { WalkthroughProvider } from "@/hooks/useWalkthrough";
 import { WalkthroughRunner } from "@/components/WalkthroughRunner";
