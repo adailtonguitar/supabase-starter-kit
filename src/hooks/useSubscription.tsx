@@ -94,9 +94,23 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
     let createdAt = user.created_at;
     try { const cuResult = await supabase.from("company_users").select("created_at").eq("user_id", user.id).eq("is_active", true).limit(1).single(); if (cuResult.data?.created_at) createdAt = cuResult.data.created_at; } catch { /* */ }
 
-    // Query subscriptions table directly (edge function disabled until redeployed)
+    // Try edge function first, fall back to direct DB query
     let data: any = null;
-    {
+    try {
+      const response = await supabase.functions.invoke("check-subscription");
+      if (
+        !response.error &&
+        response.data &&
+        typeof response.data === "object" &&
+        !("error" in response.data)
+      ) {
+        data = response.data;
+      }
+    } catch {
+      // Silently fall through to DB fallback
+    }
+
+    if (!data) {
       try {
         // Check if user is blocked
         const { data: cu } = await supabase.from("company_users").select("is_active").eq("user_id", user.id).limit(1).maybeSingle();
