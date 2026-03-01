@@ -1,8 +1,10 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
-import { motion } from "framer-motion";
-import { ArrowRight, Play, CheckCircle2, Wifi, MessageCircle, Rocket, ShoppingCart, TrendingUp, Brain, Package } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { ArrowRight, Play, CheckCircle2, Wifi, MessageCircle, Rocket, ShoppingCart, TrendingUp, Brain, Package, ZoomIn, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import heroMockup from "@/assets/supermarket-scene.png";
+import pdvScreen from "@/assets/pdv-screen.png";
+import supermarketScene from "@/assets/supermarket-scene.png";
 
 const highlights = [
   "PDV com leitor e balança",
@@ -17,6 +19,8 @@ const trustBadges = [
 ];
 
 export function LandingHero() {
+  const [zoomed, setZoomed] = useState(false);
+
   return (
     <section className="relative overflow-hidden">
       {/* Background gradient mesh */}
@@ -106,85 +110,125 @@ export function LandingHero() {
             </div>
           </motion.div>
 
-          {/* Right — Hero Image: Notebook + Phone Mockup */}
+          {/* Right — Hero Images */}
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.2 }}
             className="relative"
           >
-            {/* Notebook mockup */}
-            <motion.div
-              animate={{ y: [0, -8, 0] }}
-              transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-              className="relative rounded-2xl overflow-hidden shadow-2xl shadow-primary/10 border border-border/50"
-            >
+            {/* Supermarket scene background */}
+            <div className="rounded-2xl overflow-hidden shadow-xl border border-border/30 mb-4">
               <img
-                src={heroMockup}
-                alt="Dashboard AnthoSystem — PDV e gestão para supermercados no notebook e celular"
+                src={supermarketScene}
+                alt="Supermercado moderno com sistema AnthoSystem nos caixas"
                 className="w-full h-auto"
                 loading="eager"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-background/20 to-transparent pointer-events-none" />
-            </motion.div>
+            </div>
 
-            {/* Phone mockup overlay */}
+            {/* PDV Screenshot — Notebook Frame */}
             <motion.div
               animate={{ y: [0, -6, 0] }}
-              transition={{ duration: 3.5, repeat: Infinity, ease: "easeInOut", delay: 0.3 }}
-              className="absolute -bottom-6 -right-4 sm:right-4 w-36 sm:w-44 bg-card border-2 border-border rounded-3xl p-3 shadow-2xl"
+              transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+              className="relative group cursor-pointer"
+              onClick={() => setZoomed(true)}
             >
-              <div className="w-10 h-1 bg-muted rounded-full mx-auto mb-2" />
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 bg-primary/10 rounded-lg p-2">
-                  <ShoppingCart className="w-3.5 h-3.5 text-primary" />
-                  <div>
-                    <p className="text-[9px] text-muted-foreground">Vendas hoje</p>
-                    <p className="text-xs font-bold text-foreground">R$ 12.450</p>
+              {/* Notebook frame */}
+              <div className="bg-[hsl(var(--card))] rounded-xl border-2 border-border shadow-2xl shadow-primary/10 overflow-hidden">
+                {/* Browser top bar */}
+                <div className="flex items-center gap-1.5 px-3 py-2 bg-muted/50 border-b border-border">
+                  <div className="w-2.5 h-2.5 rounded-full bg-destructive/60" />
+                  <div className="w-2.5 h-2.5 rounded-full bg-[hsl(45,80%,50%)]" />
+                  <div className="w-2.5 h-2.5 rounded-full bg-primary/60" />
+                  <div className="ml-2 flex-1 bg-muted rounded-md h-4 flex items-center px-2">
+                    <span className="text-[8px] text-muted-foreground truncate">anthosystem.com.br/pdv</span>
                   </div>
                 </div>
-                <div className="flex items-center gap-2 bg-emerald-500/10 rounded-lg p-2">
-                  <TrendingUp className="w-3.5 h-3.5 text-emerald-500" />
-                  <div>
-                    <p className="text-[9px] text-muted-foreground">Lucro</p>
-                    <p className="text-xs font-bold text-emerald-600">R$ 3.890</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 bg-purple-500/10 rounded-lg p-2">
-                  <Brain className="w-3.5 h-3.5 text-purple-500" />
-                  <div>
-                    <p className="text-[9px] text-muted-foreground">Insight IA</p>
-                    <p className="text-[9px] font-medium text-foreground leading-tight">Promoção sugerida</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 bg-amber-500/10 rounded-lg p-2">
-                  <Package className="w-3.5 h-3.5 text-amber-500" />
-                  <div>
-                    <p className="text-[9px] text-muted-foreground">Estoque</p>
-                    <p className="text-[9px] font-medium text-amber-600">3 alertas</p>
-                  </div>
-                </div>
+                <img
+                  src={pdvScreen}
+                  alt="PDV AnthoSystem — Tela do ponto de venda com produtos, pagamentos e atalhos"
+                  className="w-full h-auto"
+                  loading="eager"
+                />
               </div>
-              <div className="w-8 h-1 bg-muted rounded-full mx-auto mt-2" />
+
+              {/* Zoom hint */}
+              <div className="absolute top-4 right-4 bg-background/80 backdrop-blur-sm rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity border border-border">
+                <ZoomIn className="w-4 h-4 text-primary" />
+              </div>
             </motion.div>
 
-            {/* Floating stat card */}
+            {/* Floating cards */}
             <motion.div
               animate={{ y: [0, -5, 0] }}
               transition={{ duration: 3, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
               className="absolute -bottom-4 -left-4 bg-card border border-border rounded-xl p-3 shadow-lg flex items-center gap-3"
             >
               <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                <span className="text-primary font-bold text-sm">📈</span>
+                <ShoppingCart className="w-4 h-4 text-primary" />
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Vendas hoje</p>
-                <p className="text-sm font-bold text-foreground">R$ 12.450,00</p>
+                <p className="text-sm font-bold text-foreground">R$ 12.450</p>
+              </div>
+            </motion.div>
+
+            <motion.div
+              animate={{ y: [0, -6, 0] }}
+              transition={{ duration: 3.5, repeat: Infinity, ease: "easeInOut", delay: 0.3 }}
+              className="absolute top-8 -right-4 bg-card border border-border rounded-xl p-3 shadow-lg flex items-center gap-3"
+            >
+              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                <TrendingUp className="w-4 h-4 text-primary" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Lucro</p>
+                <p className="text-sm font-bold text-foreground">+18% mês</p>
               </div>
             </motion.div>
           </motion.div>
         </div>
       </div>
+
+      {/* Fullscreen Zoom Modal */}
+      <AnimatePresence>
+        {zoomed && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-background/90 backdrop-blur-md flex items-center justify-center p-4 cursor-pointer"
+            onClick={() => setZoomed(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.8, opacity: 0 }}
+              transition={{ type: "spring", damping: 25 }}
+              className="relative max-w-6xl w-full"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                onClick={() => setZoomed(false)}
+                className="absolute -top-12 right-0 text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2 text-sm"
+              >
+                <X className="w-5 h-5" /> Fechar
+              </button>
+              <div className="rounded-xl border-2 border-border overflow-hidden shadow-2xl">
+                <img
+                  src={pdvScreen}
+                  alt="PDV AnthoSystem — Visualização ampliada"
+                  className="w-full h-auto"
+                />
+              </div>
+              <p className="text-center text-sm text-muted-foreground mt-4">
+                Tela real do PDV AnthoSystem — clique fora para fechar
+              </p>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </section>
   );
 }
