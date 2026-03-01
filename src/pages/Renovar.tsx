@@ -46,6 +46,12 @@ export default function Renovar() {
 
   const plans = [
     {
+      key: "emissor",
+      name: "Emissor",
+      price: "99,90",
+      features: ["NF-e modelo 55 e 65", "Até 2 usuários", "Financeiro básico", "Ideal para MEI/ME"],
+    },
+    {
       key: "starter",
       name: "Starter",
       price: "149,90",
@@ -117,7 +123,7 @@ export default function Renovar() {
       </motion.div>
 
       {/* Plans */}
-      <div className="grid sm:grid-cols-3 gap-6 max-w-4xl w-full mx-auto mb-8">
+      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 max-w-5xl w-full mx-auto mb-8">
         {plans.map((plan, i) => (
           <motion.div
             key={plan.key}

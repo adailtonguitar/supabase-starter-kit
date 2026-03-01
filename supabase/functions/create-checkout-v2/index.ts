@@ -7,6 +7,7 @@ const corsHeaders = {
 };
 
 const PLANS: Record<string, { title: string; price: number }> = {
+  emissor: { title: "Antho System — Emissor", price: 99.9 },
   starter: { title: "Antho System — Starter", price: 149.9 },
   business: { title: "Antho System — Business", price: 199.9 },
   pro: { title: "Antho System — Pro", price: 449.9 },
