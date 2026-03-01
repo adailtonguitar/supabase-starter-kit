@@ -38,9 +38,18 @@ interface FiscalDoc {
 interface SimpleProduct {
   id: string;
   name: string;
+  sku: string;
   ncm: string;
   unit: string;
   price: number;
+  origin: string;
+  cfop: string;
+  csosn: string;
+  cst_icms: string;
+  cest: string;
+  icms_rate: number;
+  pis_rate: number;
+  cofins_rate: number;
 }
 
 interface SimpleRecipient {
@@ -71,11 +80,25 @@ const TABS: { id: TabId; label: string; icon: typeof FileText }[] = [
 function EmissorProductsTab({ companyId }: { companyId: string }) {
   const [products, setProducts] = useState<SimpleProduct[]>([]);
   const [loading, setLoading] = useState(true);
-  const [form, setForm] = useState({ name: "", ncm: "", unit: "UN", price: "" });
+  const [form, setForm] = useState({
+    name: "", sku: "", ncm: "", unit: "UN", price: "",
+    origin: "0", cfop: "5102", csosn: "", cst_icms: "", cest: "",
+    icms_rate: "", pis_rate: "", cofins_rate: "",
+  });
   const [editingId, setEditingId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [ncmSearch, setNcmSearch] = useState("");
   const [showNcmDropdown, setShowNcmDropdown] = useState(false);
+  const [companyCrt, setCompanyCrt] = useState<number>(1);
+
+  // Fetch company CRT to determine CST vs CSOSN
+  useEffect(() => {
+    if (!companyId) return;
+    supabase.from("companies").select("crt").eq("id", companyId).maybeSingle()
+      .then(({ data }) => { if (data) setCompanyCrt((data as any).crt || 1); });
+  }, [companyId]);
+
+  const isSimplesNacional = companyCrt === 1 || companyCrt === 2;
 
   const getNcmSuggestions = useCallback((query: string) => {
     if (!query || query.length < 2) return [];
@@ -89,24 +112,44 @@ function EmissorProductsTab({ companyId }: { companyId: string }) {
     setLoading(true);
     const { data } = await supabase
       .from("products")
-      .select("id, name, ncm, unit, price")
+      .select("id, name, sku, ncm, unit, price, origin, cfop, csosn, cst_icms, cest, icms_rate, pis_rate, cofins_rate")
       .eq("company_id", companyId)
       .order("name")
       .limit(500);
-    setProducts((data as any[])?.map(p => ({ id: p.id, name: p.name, ncm: p.ncm || "", unit: p.unit || "UN", price: Number(p.price) || 0 })) || []);
+    setProducts((data as any[])?.map(p => ({
+      id: p.id, name: p.name, sku: p.sku || "", ncm: p.ncm || "", unit: p.unit || "UN",
+      price: Number(p.price) || 0, origin: p.origin || "0", cfop: p.cfop || "",
+      csosn: p.csosn || "", cst_icms: p.cst_icms || "", cest: p.cest || "",
+      icms_rate: Number(p.icms_rate) || 0, pis_rate: Number(p.pis_rate) || 0, cofins_rate: Number(p.cofins_rate) || 0,
+    })) || []);
     setLoading(false);
   };
 
   useEffect(() => { fetch(); }, [companyId]);
 
+  const emptyForm = {
+    name: "", sku: "", ncm: "", unit: "UN", price: "",
+    origin: "0", cfop: "5102", csosn: "", cst_icms: "", cest: "",
+    icms_rate: "", pis_rate: "", cofins_rate: "",
+  };
+
   const handleSave = async () => {
     if (!form.name.trim()) { toast.error("Nome é obrigatório"); return; }
-    const payload = {
+    const payload: Record<string, any> = {
       company_id: companyId,
       name: form.name.trim(),
-      ncm: form.ncm.trim(),
+      sku: form.sku.trim() || null,
+      ncm: form.ncm.trim() || null,
       unit: form.unit.trim() || "UN",
       price: parseFloat(form.price) || 0,
+      origin: form.origin || "0",
+      cfop: form.cfop.trim() || null,
+      csosn: form.csosn.trim() || null,
+      cst_icms: form.cst_icms.trim() || null,
+      cest: form.cest.trim() || null,
+      icms_rate: parseFloat(form.icms_rate) || 0,
+      pis_rate: parseFloat(form.pis_rate) || 0,
+      cofins_rate: parseFloat(form.cofins_rate) || 0,
     };
 
     if (editingId) {
@@ -118,7 +161,7 @@ function EmissorProductsTab({ companyId }: { companyId: string }) {
       if (error) { toast.error("Erro ao cadastrar"); return; }
       toast.success("Produto cadastrado");
     }
-    setForm({ name: "", ncm: "", unit: "UN", price: "" });
+    setForm(emptyForm);
     setEditingId(null);
     fetch();
   };
@@ -140,6 +183,10 @@ function EmissorProductsTab({ companyId }: { companyId: string }) {
           <div className="col-span-2 sm:col-span-1">
             <Label className="text-xs">Nome *</Label>
             <Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Nome do produto" />
+          </div>
+          <div>
+            <Label className="text-xs">Código (SKU/EAN)</Label>
+            <Input value={form.sku} onChange={e => setForm(f => ({ ...f, sku: e.target.value }))} placeholder="Código do produto" />
           </div>
           <div className="relative">
             <Label className="text-xs">NCM</Label>
@@ -180,17 +227,69 @@ function EmissorProductsTab({ companyId }: { companyId: string }) {
             <Label className="text-xs">Unidade</Label>
             <Input value={form.unit} onChange={e => setForm(f => ({ ...f, unit: e.target.value }))} placeholder="UN" />
           </div>
+        </div>
+
+        {/* Fiscal fields row */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <div>
             <Label className="text-xs">Preço (R$)</Label>
             <Input type="number" step="0.01" value={form.price} onChange={e => setForm(f => ({ ...f, price: e.target.value }))} placeholder="0,00" />
           </div>
+          <div>
+            <Label className="text-xs">Origem</Label>
+            <select value={form.origin} onChange={e => setForm(f => ({ ...f, origin: e.target.value }))}
+              className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm">
+              <option value="0">0 - Nacional</option>
+              <option value="1">1 - Estrangeira (importação direta)</option>
+              <option value="2">2 - Estrangeira (adquirida no mercado interno)</option>
+              <option value="3">3 - Nacional com conteúdo importado &gt;40%</option>
+              <option value="5">5 - Nacional com conteúdo importado ≤40%</option>
+              <option value="8">8 - Nacional com conteúdo importado &gt;70%</option>
+            </select>
+          </div>
+          <div>
+            <Label className="text-xs">CFOP</Label>
+            <Input value={form.cfop} onChange={e => setForm(f => ({ ...f, cfop: e.target.value }))} placeholder="5102" maxLength={4} />
+          </div>
+          <div>
+            <Label className="text-xs">CEST</Label>
+            <Input value={form.cest} onChange={e => setForm(f => ({ ...f, cest: e.target.value }))} placeholder="Código CEST" maxLength={7} />
+          </div>
         </div>
+
+        {/* Tax codes and rates */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {isSimplesNacional ? (
+            <div>
+              <Label className="text-xs">CSOSN</Label>
+              <Input value={form.csosn} onChange={e => setForm(f => ({ ...f, csosn: e.target.value }))} placeholder="Ex: 102" maxLength={3} />
+            </div>
+          ) : (
+            <div>
+              <Label className="text-xs">CST ICMS</Label>
+              <Input value={form.cst_icms} onChange={e => setForm(f => ({ ...f, cst_icms: e.target.value }))} placeholder="Ex: 00" maxLength={2} />
+            </div>
+          )}
+          <div>
+            <Label className="text-xs">Alíq. ICMS (%)</Label>
+            <Input type="number" step="0.01" value={form.icms_rate} onChange={e => setForm(f => ({ ...f, icms_rate: e.target.value }))} placeholder="0" />
+          </div>
+          <div>
+            <Label className="text-xs">Alíq. PIS (%)</Label>
+            <Input type="number" step="0.01" value={form.pis_rate} onChange={e => setForm(f => ({ ...f, pis_rate: e.target.value }))} placeholder="0" />
+          </div>
+          <div>
+            <Label className="text-xs">Alíq. COFINS (%)</Label>
+            <Input type="number" step="0.01" value={form.cofins_rate} onChange={e => setForm(f => ({ ...f, cofins_rate: e.target.value }))} placeholder="0" />
+          </div>
+        </div>
+
         <div className="flex gap-2">
           <Button size="sm" onClick={handleSave} className="gap-1.5">
             <Save className="w-3.5 h-3.5" />{editingId ? "Atualizar" : "Cadastrar"}
           </Button>
           {editingId && (
-            <Button size="sm" variant="ghost" onClick={() => { setEditingId(null); setForm({ name: "", ncm: "", unit: "UN", price: "" }); }}>
+            <Button size="sm" variant="ghost" onClick={() => { setEditingId(null); setForm(emptyForm); }}>
               <X className="w-3.5 h-3.5" /> Cancelar
             </Button>
           )}
@@ -207,25 +306,35 @@ function EmissorProductsTab({ companyId }: { companyId: string }) {
       ) : filtered.length === 0 ? (
         <p className="text-sm text-muted-foreground text-center py-10">Nenhum produto cadastrado.</p>
       ) : (
-        <div className="bg-card rounded-xl border border-border overflow-hidden">
+        <div className="bg-card rounded-xl border border-border overflow-hidden overflow-x-auto">
           <table className="w-full text-sm">
             <thead><tr className="border-b border-border bg-muted/30">
-              <th className="text-left px-4 py-2.5 text-[11px] font-semibold text-muted-foreground uppercase">Nome</th>
-              <th className="text-left px-4 py-2.5 text-[11px] font-semibold text-muted-foreground uppercase hidden sm:table-cell">NCM</th>
-              <th className="text-center px-4 py-2.5 text-[11px] font-semibold text-muted-foreground uppercase">Un.</th>
-              <th className="text-right px-4 py-2.5 text-[11px] font-semibold text-muted-foreground uppercase">Preço</th>
+              <th className="text-left px-3 py-2.5 text-[11px] font-semibold text-muted-foreground uppercase">Nome</th>
+              <th className="text-left px-3 py-2.5 text-[11px] font-semibold text-muted-foreground uppercase hidden sm:table-cell">Código</th>
+              <th className="text-left px-3 py-2.5 text-[11px] font-semibold text-muted-foreground uppercase hidden sm:table-cell">NCM</th>
+              <th className="text-left px-3 py-2.5 text-[11px] font-semibold text-muted-foreground uppercase hidden md:table-cell">CFOP</th>
+              <th className="text-left px-3 py-2.5 text-[11px] font-semibold text-muted-foreground uppercase hidden md:table-cell">{isSimplesNacional ? "CSOSN" : "CST"}</th>
+              <th className="text-center px-3 py-2.5 text-[11px] font-semibold text-muted-foreground uppercase">Un.</th>
+              <th className="text-right px-3 py-2.5 text-[11px] font-semibold text-muted-foreground uppercase">Preço</th>
               <th className="w-20" />
             </tr></thead>
             <tbody>
               {filtered.map(p => (
                 <tr key={p.id} className="border-b border-border last:border-0 hover:bg-muted/30">
-                  <td className="px-4 py-2.5 font-medium text-foreground">{p.name}</td>
-                  <td className="px-4 py-2.5 text-muted-foreground font-mono text-xs hidden sm:table-cell">{p.ncm || "—"}</td>
-                  <td className="px-4 py-2.5 text-center text-muted-foreground">{p.unit}</td>
-                  <td className="px-4 py-2.5 text-right font-mono font-bold text-foreground">{formatCurrency(p.price)}</td>
+                  <td className="px-3 py-2.5 font-medium text-foreground">{p.name}</td>
+                  <td className="px-3 py-2.5 text-muted-foreground font-mono text-xs hidden sm:table-cell">{p.sku || "—"}</td>
+                  <td className="px-3 py-2.5 text-muted-foreground font-mono text-xs hidden sm:table-cell">{p.ncm || "—"}</td>
+                  <td className="px-3 py-2.5 text-muted-foreground font-mono text-xs hidden md:table-cell">{p.cfop || "—"}</td>
+                  <td className="px-3 py-2.5 text-muted-foreground font-mono text-xs hidden md:table-cell">{isSimplesNacional ? (p.csosn || "—") : (p.cst_icms || "—")}</td>
+                  <td className="px-3 py-2.5 text-center text-muted-foreground">{p.unit}</td>
+                  <td className="px-3 py-2.5 text-right font-mono font-bold text-foreground">{formatCurrency(p.price)}</td>
                   <td className="px-2 py-2.5">
                     <div className="flex gap-1">
-                      <button onClick={() => { setEditingId(p.id); setForm({ name: p.name, ncm: p.ncm, unit: p.unit, price: String(p.price) }); }} className="p-1.5 rounded hover:bg-muted"><Edit2 className="w-3.5 h-3.5 text-muted-foreground" /></button>
+                      <button onClick={() => { setEditingId(p.id); setForm({
+                        name: p.name, sku: p.sku, ncm: p.ncm, unit: p.unit, price: String(p.price),
+                        origin: p.origin, cfop: p.cfop, csosn: p.csosn, cst_icms: p.cst_icms, cest: p.cest,
+                        icms_rate: String(p.icms_rate || ""), pis_rate: String(p.pis_rate || ""), cofins_rate: String(p.cofins_rate || ""),
+                      }); }} className="p-1.5 rounded hover:bg-muted"><Edit2 className="w-3.5 h-3.5 text-muted-foreground" /></button>
                       <button onClick={() => handleDelete(p.id)} className="p-1.5 rounded hover:bg-destructive/10"><Trash2 className="w-3.5 h-3.5 text-destructive" /></button>
                     </div>
                   </td>
