@@ -103,7 +103,7 @@ export function LandingPricing() {
           </motion.div>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto items-start">
+        <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto items-start relative z-10" style={{ touchAction: "auto" }}>
           {plans.map((plan, i) => (
             <motion.div
               key={plan.name}
