@@ -118,6 +118,13 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const [companyCheckDone, setCompanyCheckDone] = useState(false);
   const [timedOut, setTimedOut] = useState(false);
 
+  // Auto-clear stale company selection for super_admins to avoid emissor redirect
+  useEffect(() => {
+    if (!adminLoading && isSuperAdmin) {
+      localStorage.removeItem("as_selected_company");
+    }
+  }, [adminLoading, isSuperAdmin]);
+
   // Safety timeout: if loading takes more than 8s, force completion
   useEffect(() => {
     const timer = setTimeout(() => {
