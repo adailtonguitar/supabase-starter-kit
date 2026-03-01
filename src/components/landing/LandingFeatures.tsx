@@ -13,6 +13,7 @@ import {
   Brain,
   CreditCard,
   Camera,
+  ScanBarcode,
 } from "lucide-react";
 import pdvCashier from "@/assets/pdv-cashier.png";
 import stockEmployee from "@/assets/stock-employee.png";
@@ -35,6 +36,12 @@ const features = [
     title: "Estoque Inteligente",
     desc: "Lotes, validade, alertas, importação por NF-e e CSV. Controle total do seu inventário.",
     color: "bg-amber-500/10 text-amber-600",
+  },
+  {
+    icon: ScanBarcode,
+    title: "Cadastro por Código de Barras",
+    desc: "Escaneie o código de barras com leitor ou câmera do celular e o sistema preenche nome, categoria e unidade automaticamente.",
+    color: "bg-lime-500/10 text-lime-600",
   },
   {
     icon: Scale,
