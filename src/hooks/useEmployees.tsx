@@ -37,9 +37,11 @@ export function useCreateEmployee() {
 
 export function useUpdateEmployee() {
   const qc = useQueryClient();
+  const { companyId } = useCompany();
   return useMutation({
     mutationFn: async ({ id, ...updates }: Partial<Employee> & { id: string }) => {
-      const { data, error } = await supabase.from("employees").update(updates).eq("id", id).select().single();
+      if (!companyId) throw new Error("Empresa não encontrada");
+      const { data, error } = await supabase.from("employees").update(updates).eq("id", id).eq("company_id", companyId).select().single();
       if (error) throw error;
       return data;
     },
@@ -50,9 +52,11 @@ export function useUpdateEmployee() {
 
 export function useDeleteEmployee() {
   const qc = useQueryClient();
+  const { companyId } = useCompany();
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("employees").delete().eq("id", id);
+      if (!companyId) throw new Error("Empresa não encontrada");
+      const { error } = await supabase.from("employees").delete().eq("id", id).eq("company_id", companyId);
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["employees"] }); toast.success("Funcionário excluído"); },

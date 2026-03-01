@@ -89,13 +89,16 @@ export function useCreateFinancialEntry() {
 
 export function useUpdateFinancialEntry() {
   const qc = useQueryClient();
+  const { companyId } = useCompany();
 
   return useMutation({
     mutationFn: async ({ id, ...updates }: Partial<FinancialEntry> & { id: string }) => {
+      if (!companyId) throw new Error("Sem permissão");
       const { data, error } = await supabase
         .from("financial_entries")
         .update(updates)
         .eq("id", id)
+        .eq("company_id", companyId)
         .select()
         .single();
       if (error) throw error;
@@ -112,10 +115,12 @@ export function useUpdateFinancialEntry() {
 
 export function useDeleteFinancialEntry() {
   const qc = useQueryClient();
+  const { companyId } = useCompany();
 
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("financial_entries").delete().eq("id", id);
+      if (!companyId) throw new Error("Sem permissão");
+      const { error } = await supabase.from("financial_entries").delete().eq("id", id).eq("company_id", companyId);
       if (error) throw error;
     },
     onSuccess: () => {

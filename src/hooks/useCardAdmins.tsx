@@ -34,10 +34,12 @@ export function useCreateCardAdmin() {
 
 export function useUpdateCardAdmin() {
   const qc = useQueryClient();
+  const { companyId } = useCompany();
   return useMutation({
     mutationFn: async (d: any) => {
+      if (!companyId) throw new Error("Empresa não encontrada");
       const { id, created_at, updated_at, company_id, ...rest } = d;
-      const { error } = await supabase.from("card_administrators").update(rest).eq("id", id);
+      const { error } = await supabase.from("card_administrators").update(rest).eq("id", id).eq("company_id", companyId);
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["card_administrators"] }); toast.success("Administradora atualizada"); },
@@ -47,9 +49,11 @@ export function useUpdateCardAdmin() {
 
 export function useDeleteCardAdmin() {
   const qc = useQueryClient();
+  const { companyId } = useCompany();
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("card_administrators").delete().eq("id", id);
+      if (!companyId) throw new Error("Empresa não encontrada");
+      const { error } = await supabase.from("card_administrators").delete().eq("id", id).eq("company_id", companyId);
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["card_administrators"] }); toast.success("Administradora excluída"); },

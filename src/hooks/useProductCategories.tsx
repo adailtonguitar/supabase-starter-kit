@@ -42,9 +42,11 @@ export function useCreateProductCategory() {
 
 export function useUpdateProductCategory() {
   const qc = useQueryClient();
+  const { companyId } = useCompany();
   return useMutation({
     mutationFn: async ({ id, ...updates }: any) => {
-      const { data, error } = await supabase.from("product_categories" as any).update(updates).eq("id", id).select().single();
+      if (!companyId) throw new Error("Empresa não encontrada");
+      const { data, error } = await supabase.from("product_categories" as any).update(updates).eq("id", id).eq("company_id", companyId).select().single();
       if (error) throw error;
       return data;
     },
@@ -55,9 +57,11 @@ export function useUpdateProductCategory() {
 
 export function useDeleteProductCategory() {
   const qc = useQueryClient();
+  const { companyId } = useCompany();
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("product_categories" as any).delete().eq("id", id);
+      if (!companyId) throw new Error("Empresa não encontrada");
+      const { error } = await supabase.from("product_categories" as any).delete().eq("id", id).eq("company_id", companyId);
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["product_categories"] }); toast.success("Categoria excluída"); },
