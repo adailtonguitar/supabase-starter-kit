@@ -1,38 +1,63 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { RefreshCw, X, Sparkles } from "lucide-react";
 
 export function UpdateNoticeModal() {
   const [show, setShow] = useState(false);
+  const waitingSWRef = useRef<ServiceWorker | null>(null);
 
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
 
-    const handleUpdate = () => setShow(true);
+    // Register SW manually (injectRegister: false)
+    navigator.serviceWorker
+      .register("/sw.js", { scope: "/" })
+      .then((reg) => {
+        // Check if there's already a waiting SW
+        if (reg.waiting) {
+          waitingSWRef.current = reg.waiting;
+          setShow(true);
+          return;
+        }
 
-    // Listen for SW controller change (new version activated)
-    navigator.serviceWorker.addEventListener("controllerchange", handleUpdate);
-
-    // Also check for waiting SW on load
-    navigator.serviceWorker.ready.then((reg) => {
-      if (reg.waiting) {
-        handleUpdate();
-        return;
-      }
-      reg.addEventListener("updatefound", () => {
-        const newSW = reg.installing;
-        if (!newSW) return;
-        newSW.addEventListener("statechange", () => {
-          if (newSW.state === "installed" && navigator.serviceWorker.controller) {
-            handleUpdate();
-          }
+        // Listen for new SW installing
+        reg.addEventListener("updatefound", () => {
+          const newSW = reg.installing;
+          if (!newSW) return;
+          newSW.addEventListener("statechange", () => {
+            if (newSW.state === "installed" && navigator.serviceWorker.controller) {
+              waitingSWRef.current = newSW;
+              setShow(true);
+            }
+          });
         });
-      });
-    });
+
+        // Periodically check for updates (every 60s)
+        setInterval(() => reg.update(), 60 * 1000);
+      })
+      .catch((err) => console.warn("[SW] Registration failed:", err));
+
+    // Reload when new SW takes control
+    let refreshing = false;
+    const onControllerChange = () => {
+      if (refreshing) return;
+      refreshing = true;
+      window.location.reload();
+    };
+    navigator.serviceWorker.addEventListener("controllerchange", onControllerChange);
 
     return () => {
-      navigator.serviceWorker.removeEventListener("controllerchange", handleUpdate);
+      navigator.serviceWorker.removeEventListener("controllerchange", onControllerChange);
     };
   }, []);
+
+  const handleUpdate = () => {
+    const sw = waitingSWRef.current;
+    if (sw) {
+      sw.postMessage({ type: "SKIP_WAITING" });
+    } else {
+      window.location.reload();
+    }
+  };
 
   if (!show) return null;
 
@@ -48,7 +73,7 @@ export function UpdateNoticeModal() {
             Melhorias e correções foram aplicadas ao sistema.
           </p>
           <button
-            onClick={() => window.location.reload()}
+            onClick={handleUpdate}
             className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:opacity-90 transition-opacity"
           >
             <RefreshCw className="w-3.5 h-3.5" />
