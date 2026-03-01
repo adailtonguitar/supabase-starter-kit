@@ -1,4 +1,5 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -172,13 +173,42 @@
     @apply border-border;
   }
 
+  /* Improve touch scroll performance */
+  html {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
   body {
     @apply bg-background text-foreground font-sans antialiased;
     font-family: 'Inter', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeSpeed;
+    overflow-x: hidden;
+  }
+
+  /* Passive scroll containers */
+  .overflow-y-auto,
+  .overflow-x-auto,
+  [class*="overflow-auto"] {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+
+  /* GPU-accelerated transforms for modals/sheets */
+  [data-state="open"],
+  [data-state="closed"] {
+    will-change: transform, opacity;
   }
 
   .font-mono {
     font-family: 'JetBrains Mono', monospace;
+  }
+
+  /* Lazy-load all images by default */
+  img:not([loading="eager"]) {
+    content-visibility: auto;
   }
 }
 
