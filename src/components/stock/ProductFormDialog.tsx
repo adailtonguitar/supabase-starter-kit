@@ -175,10 +175,13 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
     },
   });
 
-  const lookupBarcode = useCallback(async (barcode: string) => {
+  const lookupBarcode = useCallback(async (barcode: string, forceOverwrite = false) => {
     if (!barcode || barcode.length < 8 || isEditing) return;
-    const currentName = form.getValues("name");
-    if (currentName && currentName.trim().length > 0) return;
+    // Skip auto-lookup if name already filled (unless forced by camera scan)
+    if (!forceOverwrite) {
+      const currentName = form.getValues("name");
+      if (currentName && currentName.trim().length > 0) return;
+    }
 
     setLookingUpBarcode(true);
     try {
@@ -199,9 +202,12 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
         if (p.category) form.setValue("category", p.category);
         if (p.unit && units.includes(p.unit)) form.setValue("unit", p.unit);
         toast.success(`🔍 Produto encontrado: ${p.name}`, { duration: 4000 });
+      } else {
+        toast.info("Código escaneado com sucesso! Produto não encontrado na base. Preencha os dados manualmente.", { duration: 5000 });
       }
     } catch (err: any) {
       console.warn("[barcode-lookup]", err?.message);
+      toast.info("Código registrado. Preencha os dados do produto.", { duration: 4000 });
     } finally {
       setLookingUpBarcode(false);
     }
@@ -515,7 +521,7 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
                   <BarcodeCameraScanner
                     onScan={(barcode) => {
                       form.setValue("barcode", barcode);
-                      lookupBarcode(barcode);
+                      lookupBarcode(barcode, true);
                     }}
                   />
                 </div>
