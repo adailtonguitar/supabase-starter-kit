@@ -20,6 +20,11 @@ export function BarcodeCameraScanner({ onScan }: BarcodeCameraScannerProps) {
     scannedRef.current = false;
 
     try {
+      // Test camera access first with getUserMedia
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+      // Stop test stream immediately
+      stream.getTracks().forEach(track => track.stop());
+
       const scanner = new Html5Qrcode("barcode-camera-reader");
       scannerRef.current = scanner;
 
@@ -39,12 +44,37 @@ export function BarcodeCameraScanner({ onScan }: BarcodeCameraScannerProps) {
         () => {} // ignore scan failures
       );
     } catch (err: any) {
-      console.error("[BarcodeCameraScanner]", err);
-      setError(
-        err?.message?.includes("NotAllowedError") || err?.message?.includes("Permission")
-          ? "Permissão da câmera negada. Habilite nas configurações do navegador."
-          : "Não foi possível acessar a câmera."
-      );
+      console.error("[BarcodeCameraScanner] Error:", err?.name, err?.message, err);
+      let msg = "Não foi possível acessar a câmera.";
+      if (err?.name === "NotAllowedError" || err?.message?.includes("Permission")) {
+        msg = "Permissão da câmera negada. Vá em Configurações do navegador → Câmera → Permitir.";
+      } else if (err?.name === "NotFoundError") {
+        msg = "Nenhuma câmera encontrada no dispositivo.";
+      } else if (err?.name === "NotReadableError" || err?.name === "AbortError") {
+        msg = "Câmera em uso por outro app. Feche outros apps e tente novamente.";
+      } else if (err?.name === "OverconstrainedError") {
+        msg = "Câmera traseira não encontrada. Tentando câmera frontal...";
+        // Fallback: try any camera
+        try {
+          const scanner = new Html5Qrcode("barcode-camera-reader");
+          scannerRef.current = scanner;
+          await scanner.start(
+            { facingMode: "user" },
+            { fps: 10, qrbox: { width: 280, height: 120 } },
+            (decodedText) => {
+              if (scannedRef.current) return;
+              scannedRef.current = true;
+              onScan(decodedText);
+              stopScanner();
+            },
+            () => {}
+          );
+          return; // success with front camera
+        } catch {
+          msg = "Nenhuma câmera disponível.";
+        }
+      }
+      setError(msg);
       setScanning(false);
     }
   };
