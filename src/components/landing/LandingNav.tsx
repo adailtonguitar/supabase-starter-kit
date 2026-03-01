@@ -8,6 +8,7 @@ const links = [
   { label: "Recursos", href: "#recursos" },
   { label: "Vantagens", href: "#vantagens" },
   { label: "Planos", href: "#planos" },
+  { label: "Emissor NF-e", href: "/emissor", isRoute: true },
   { label: "FAQ", href: "#faq" },
 ];
 
@@ -27,15 +28,25 @@ export function LandingNav() {
 
         {/* Desktop */}
         <div className="hidden md:flex items-center gap-1">
-          {links.map((l) => (
-            <a
-              key={l.href}
-              href={l.href}
-              className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground rounded-lg hover:bg-accent/50 transition-colors"
-            >
-              {l.label}
-            </a>
-          ))}
+          {links.map((l) =>
+            (l as any).isRoute ? (
+              <Link
+                key={l.href}
+                to={l.href}
+                className="px-4 py-2 text-sm font-medium text-cyan-600 hover:text-cyan-500 rounded-lg hover:bg-accent/50 transition-colors"
+              >
+                {l.label}
+              </Link>
+            ) : (
+              <a
+                key={l.href}
+                href={l.href}
+                className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground rounded-lg hover:bg-accent/50 transition-colors"
+              >
+                {l.label}
+              </a>
+            )
+          )}
         </div>
 
         <div className="hidden md:flex items-center gap-3">
@@ -56,16 +67,27 @@ export function LandingNav() {
       {/* Mobile menu */}
       {open && (
         <div className="md:hidden border-t border-border/50 bg-background/95 backdrop-blur-xl px-6 py-4 space-y-1">
-          {links.map((l) => (
-            <a
-              key={l.href}
-              href={l.href}
-              onClick={() => setOpen(false)}
-              className="block px-4 py-2.5 text-sm font-medium text-muted-foreground hover:text-foreground rounded-lg hover:bg-accent/50"
-            >
-              {l.label}
-            </a>
-          ))}
+          {links.map((l) =>
+            (l as any).isRoute ? (
+              <Link
+                key={l.href}
+                to={l.href}
+                onClick={() => setOpen(false)}
+                className="block px-4 py-2.5 text-sm font-medium text-cyan-600 hover:text-cyan-500 rounded-lg hover:bg-accent/50"
+              >
+                {l.label}
+              </Link>
+            ) : (
+              <a
+                key={l.href}
+                href={l.href}
+                onClick={() => setOpen(false)}
+                className="block px-4 py-2.5 text-sm font-medium text-muted-foreground hover:text-foreground rounded-lg hover:bg-accent/50"
+              >
+                {l.label}
+              </a>
+            )
+          )}
           <div className="pt-3 flex flex-col gap-2">
             <Button asChild variant="outline" size="sm" className="w-full">
               <Link to="/auth">Entrar</Link>
