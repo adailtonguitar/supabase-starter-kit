@@ -18,7 +18,7 @@ export function MobileBottomNav({ onMenuOpen }: MobileBottomNavProps) {
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-40 bg-card border-t border-border safe-area-bottom">
-      <div className="flex items-center justify-around h-14 px-1">
+      <div className="flex items-center justify-around h-16 px-1">
         {bottomNavItems.map((item) => {
           const isActive = location.pathname === item.path;
 

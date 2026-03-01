@@ -7,7 +7,9 @@
 @layer base {
   html, body, #root {
     min-height: 100vh;
+    min-height: 100dvh;
     height: 100vh;
+    height: 100dvh;
     overflow: auto;
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
@@ -200,6 +202,17 @@
   main .overflow-x-auto { -webkit-overflow-scrolling: touch; }
   main table { font-size: 0.75rem; }
 
+  /* Touch-friendly targets on mobile */
+  button, a, [role="button"], [role="tab"], [role="menuitem"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  /* Exceções para ícones inline e badges */
+  .inline-icon-btn, [data-no-min-size] {
+    min-height: unset;
+    min-width: unset;
+  }
+
   /* Force single-column grids on mobile */
   .grid.grid-cols-2:not(.mobile-keep-grid),
   .grid.grid-cols-3:not(.mobile-keep-grid),
@@ -286,6 +299,12 @@
 .modal-content {
   @apply w-full max-w-lg bg-background rounded-2xl p-6 max-h-[90vh] overflow-y-auto border border-border shadow-2xl;
 }
+
+/* Safe area utilities */
+.safe-area-top { padding-top: env(safe-area-inset-top, 0px); }
+.safe-area-bottom { padding-bottom: env(safe-area-inset-bottom, 0px); }
+.safe-area-left { padding-left: env(safe-area-inset-left, 0px); }
+.safe-area-right { padding-right: env(safe-area-inset-right, 0px); }
 
 @keyframes pulse-once {
   0% { background-color: hsl(168, 72%, 36%, 0.3); }
