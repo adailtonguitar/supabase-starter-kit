@@ -46,6 +46,7 @@ export function useCreateStockMovement() {
         .from("products")
         .select("stock_quantity")
         .eq("id", movement.product_id)
+        .eq("company_id", companyId)
         .single();
       if (pErr) throw pErr;
 

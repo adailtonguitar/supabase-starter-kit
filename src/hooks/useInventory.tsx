@@ -118,9 +118,11 @@ export function useCreateInventory() {
 
 export function useUpdateInventoryItem() {
   const qc = useQueryClient();
+  const { companyId } = useCompany();
 
   return useMutation({
     mutationFn: async (params: { id: string; counted_quantity: number; notes?: string }) => {
+      if (!companyId) throw new Error("Empresa não encontrada");
       const { error } = await supabase
         .from("inventory_count_items")
         .update({
@@ -128,7 +130,8 @@ export function useUpdateInventoryItem() {
           notes: params.notes,
           counted_at: new Date().toISOString(),
         })
-        .eq("id", params.id);
+        .eq("id", params.id)
+        .eq("company_id", companyId);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -140,13 +143,16 @@ export function useUpdateInventoryItem() {
 
 export function useFinishInventory() {
   const qc = useQueryClient();
+  const { companyId } = useCompany();
 
   return useMutation({
     mutationFn: async (inventoryId: string) => {
+      if (!companyId) throw new Error("Empresa não encontrada");
       const { error } = await supabase
         .from("inventory_counts")
         .update({ status: "finalizado", finished_at: new Date().toISOString() })
-        .eq("id", inventoryId);
+        .eq("id", inventoryId)
+        .eq("company_id", companyId);
       if (error) throw error;
     },
     onSuccess: () => {
