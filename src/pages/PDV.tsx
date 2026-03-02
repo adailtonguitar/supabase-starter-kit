@@ -154,7 +154,7 @@ export default function PDV() {
     if (!noModalOpen) return;
     const interval = setInterval(() => {
       const active = document.activeElement;
-      if (active && (active as HTMLElement).dataset?.noBarcodeFocus) return;
+      if (active && (active as HTMLElement).dataset?.noBarcodeCapture) return;
       if (active !== barcodeInputRef.current) {
         barcodeInputRef.current?.focus();
       }
@@ -288,7 +288,11 @@ export default function PDV() {
         setBarcodeInput("");
         return;
       }
-      for (let i = 0; i < multiplier; i++) pdv.addToCart(exactMatch);
+      const qty = Math.min(multiplier, exactMatch.stock_quantity);
+      if (qty < multiplier) {
+        toast.warning(`Estoque insuficiente (${exactMatch.stock_quantity} ${exactMatch.unit}). Adicionando ${qty}.`, { duration: 2000 });
+      }
+      for (let i = 0; i < qty; i++) pdv.addToCart(exactMatch);
       playAddSound();
       setBarcodeInput("");
       return;
@@ -308,7 +312,11 @@ export default function PDV() {
         setBarcodeInput("");
         return;
       }
-      for (let i = 0; i < multiplier; i++) pdv.addToCart(searchMatch);
+      const qty = Math.min(multiplier, searchMatch.stock_quantity);
+      if (qty < multiplier) {
+        toast.warning(`Estoque insuficiente (${searchMatch.stock_quantity} ${searchMatch.unit}). Adicionando ${qty}.`, { duration: 2000 });
+      }
+      for (let i = 0; i < qty; i++) pdv.addToCart(searchMatch);
       playAddSound();
     } else {
       playErrorSound();
@@ -493,7 +501,8 @@ export default function PDV() {
               pdv.addToCart(product);
               playAddSound();
             }
-          }
+            }
+          break;
       }
     };
     window.addEventListener("keydown", handler, true);
@@ -946,7 +955,7 @@ export default function PDV() {
 
             {/* Desconto item (F7) — mobile: fixed overlay, desktop: inline */}
             {editingItemDiscountId && (
-              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 lg:relative lg:inset-auto lg:z-auto lg:bg-transparent lg:block">
+              <div className="hidden lg:block lg:relative lg:z-auto lg:bg-transparent">
                 <div className="bg-card rounded-2xl p-6 shadow-2xl w-[85vw] max-w-xs flex flex-col items-center gap-4 lg:flex-row lg:justify-between lg:items-center lg:py-2 lg:px-2 lg:-mx-2 lg:rounded lg:p-0 lg:shadow-none lg:w-auto lg:max-w-none lg:bg-muted/50 border border-border lg:border-b lg:border-t-0 lg:border-x-0">
                   <span className="text-sm font-bold text-muted-foreground uppercase lg:text-xs">Desc. Item %</span>
                   <div className="flex items-center gap-2">
@@ -1001,7 +1010,7 @@ export default function PDV() {
             <div className="flex justify-between items-center py-1 lg:py-2 border-b border-border">
               <span className="text-xs font-bold text-muted-foreground uppercase">Desconto</span>
               {editingGlobalDiscount ? (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 lg:relative lg:inset-auto lg:z-auto lg:bg-transparent">
+                <div className="hidden lg:block lg:relative lg:z-auto lg:bg-transparent">
                   <div className="bg-card rounded-2xl p-6 shadow-2xl w-[85vw] max-w-xs flex flex-col items-center gap-4 lg:flex-row lg:gap-1 lg:p-0 lg:shadow-none lg:w-auto lg:max-w-none lg:bg-transparent lg:rounded-none">
                     <span className="text-sm font-bold text-muted-foreground uppercase lg:hidden">Desc. Total %</span>
                     <div className="flex items-center gap-2 lg:gap-1">
@@ -1070,7 +1079,7 @@ export default function PDV() {
 
             {/* Alterar Quantidade (F9) */}
             {editingQtyItemId && (
-              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 lg:relative lg:inset-auto lg:z-auto lg:bg-transparent lg:block">
+              <div className="hidden lg:block lg:relative lg:z-auto lg:bg-transparent">
                 <div className="bg-card rounded-2xl p-6 shadow-2xl w-[85vw] max-w-xs flex flex-col items-center gap-4 lg:flex-row lg:justify-between lg:items-center lg:py-2 lg:px-2 lg:-mx-2 lg:rounded lg:p-0 lg:shadow-none lg:w-auto lg:max-w-none lg:bg-muted/50 border border-border lg:border-b lg:border-t-0 lg:border-x-0">
                   <span className="text-sm font-bold text-muted-foreground uppercase lg:text-xs">Nova Quantidade</span>
                   <div className="flex items-center gap-2">
