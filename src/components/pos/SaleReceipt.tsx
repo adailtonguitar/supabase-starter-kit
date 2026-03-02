@@ -47,10 +47,11 @@ export function SaleReceipt({ items, total, payments, onClose, companyName, nfce
         <head>
           <title>Cupom</title>
           <style>
-            @page { size: 80mm 297mm; margin: 0; }
+            @page { size: 80mm auto; margin: 0; }
             @media print {
               html, body { width: 80mm; height: auto; margin: 0; padding: 0; }
               body { page-break-after: avoid; }
+              title { display: none; }
             }
             * { box-sizing: border-box; margin: 0; padding: 0; }
             html { width: 80mm; }
