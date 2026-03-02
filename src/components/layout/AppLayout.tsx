@@ -38,10 +38,10 @@ export const AppLayout = memo(function AppLayout({ children }: AppLayoutProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <div className="flex h-screen h-[100dvh] overflow-hidden max-w-full">
+    <div className="flex min-h-screen min-h-[100dvh] max-w-full">
       
       <AppSidebar mobileOpen={mobileOpen} onMobileClose={() => setMobileOpen(false)} />
-      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 min-h-0">
         <OnlineStatusIndicator />
         <SubscriptionBanner />
         {!isMobile && (
@@ -49,7 +49,7 @@ export const AppLayout = memo(function AppLayout({ children }: AppLayoutProps) {
             <HeaderWhatsAppButton />
           </header>
         )}
-        <main className={`flex-1 overflow-auto min-w-0 ${isMobile ? "pb-20" : ""}`}>{children}</main>
+        <main className={`flex-1 min-w-0 ${isMobile ? "pb-20" : ""}`}>{children}</main>
         {isMobile && <MobileBottomNav onMenuOpen={() => setMobileOpen(true)} />}
       </div>
     </div>
