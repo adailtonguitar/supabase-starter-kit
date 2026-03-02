@@ -27,7 +27,7 @@ export function useLocalFinancialEntries(filters?: { type?: "pagar" | "receber";
       if (filters?.startDate) query = query.gte("due_date", filters.startDate);
       if (filters?.endDate) query = query.lte("due_date", filters.endDate);
       const { data, error } = await query.order("due_date", { ascending: false });
-      console.log("[useLocalFinancialEntries] companyId:", companyId, "filters:", filters, "data:", data, "error:", error);
+      
       if (error) throw error;
       return (data || []) as LocalFinancialEntry[];
     },
@@ -44,7 +44,10 @@ export function useDeleteLocalFinancialEntry() {
       const { error } = await supabase.from("financial_entries").delete().eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["financial-entries"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["financial-entries"] });
+      qc.invalidateQueries({ queryKey: ["financial_entries"] });
+    },
   });
 }
 
@@ -56,10 +59,13 @@ export function useMarkAsLocalPaid() {
         status: "pago",
         paid_amount: params.paid_amount,
         payment_method: params.payment_method,
-        paid_at: new Date().toISOString(),
+        paid_date: new Date().toISOString().split("T")[0],
       }).eq("id", params.id);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["financial-entries"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["financial-entries"] });
+      qc.invalidateQueries({ queryKey: ["financial_entries"] });
+    },
   });
 }
