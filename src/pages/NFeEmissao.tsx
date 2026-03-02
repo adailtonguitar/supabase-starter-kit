@@ -6,7 +6,7 @@ import {
 import { useCnpjLookup } from "@/hooks/useCnpjLookup";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
-import { formatCurrency } from "@/lib/mock-data";
+import { formatCurrency } from "@/lib/utils";
 import { toast } from "sonner";
 import { validateCstCsosn, getSuggestedCodes, type TaxRegime } from "@/lib/cst-csosn-validator";
 import { parseSefazRejection, type SefazRejection } from "@/lib/sefaz-rejection-parser";

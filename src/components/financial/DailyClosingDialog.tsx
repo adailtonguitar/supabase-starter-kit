@@ -2,7 +2,7 @@ import { useState } from "react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useLocalFinancialEntries } from "@/hooks/useLocalFinancial";
-import { formatCurrency } from "@/lib/mock-data";
+import { formatCurrency } from "@/lib/utils";
 import {
   ArrowDownCircle, ArrowUpCircle, Wallet, CheckCircle2, Clock,
   TrendingUp, TrendingDown, CalendarDays,

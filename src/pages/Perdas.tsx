@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useStockMovements, useCreateStockMovement } from "@/hooks/useStockMovements";
 import { useProducts } from "@/hooks/useProducts";
 import type { Product } from "@/hooks/useProducts";
-import { formatCurrency } from "@/lib/mock-data";
+import { formatCurrency } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,

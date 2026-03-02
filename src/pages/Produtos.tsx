@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Search, Plus, Edit, Package, Upload, Trash2, FileText, ArrowUpDown } from "lucide-react";
-import { formatCurrency } from "@/lib/mock-data";
+import { formatCurrency } from "@/lib/utils";
 import { motion } from "framer-motion";
 import { useProducts, useDeleteProduct, type Product } from "@/hooks/useProducts";
 import { ProductFormDialog } from "@/components/stock/ProductFormDialog";

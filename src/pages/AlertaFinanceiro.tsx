@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { useFinancialAlerts, type FinancialAlert, type AlertSeverity } from "@/hooks/useFinancialAlerts";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { formatCurrency } from "@/lib/mock-data";
+import { formatCurrency } from "@/lib/utils";
 
 const severityConfig: Record<AlertSeverity, { label: string; color: string; bgColor: string; icon: typeof AlertTriangle }> = {
   high: { label: "ALTO", color: "text-destructive", bgColor: "bg-destructive/10 border-destructive/30", icon: AlertTriangle },

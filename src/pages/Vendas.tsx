@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { FileText, RefreshCw, RotateCcw, Loader2, Send, BarChart3, DollarSign, TrendingDown, TrendingUp } from "lucide-react";
-import { formatCurrency } from "@/lib/mock-data";
+import { formatCurrency } from "@/lib/utils";
 import { motion } from "framer-motion";
 import { useSales, type Sale } from "@/hooks/useSales";
 import { Skeleton } from "@/components/ui/skeleton";

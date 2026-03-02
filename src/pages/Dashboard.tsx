@@ -3,7 +3,7 @@ import {
   Shield, Heart, Target, Package, Users, ArrowUpRight, ArrowDownRight,
   Activity, Zap, RefreshCw,
 } from "lucide-react";
-import { formatCurrency } from "@/lib/mock-data";
+import { formatCurrency } from "@/lib/utils";
 import { motion } from "framer-motion";
 import { useDashboardStats } from "@/hooks/useDashboardStats";
 import { Link, Navigate } from "react-router-dom";

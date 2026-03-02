@@ -2,7 +2,7 @@ import { useState } from "react";
 import { TrendingUp, TrendingDown, DollarSign, Calculator, BarChart3, AlertTriangle } from "lucide-react";
 import { motion } from "framer-motion";
 import { useProfitAnalytics } from "@/hooks/useProfitAnalytics";
-import { formatCurrency } from "@/lib/mock-data";
+import { formatCurrency } from "@/lib/utils";
 import { startOfMonth, endOfMonth, subMonths } from "date-fns";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";

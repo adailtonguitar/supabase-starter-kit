@@ -5,7 +5,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
-import { formatCurrency } from "@/lib/mock-data";
+import { formatCurrency } from "@/lib/utils";
 import { toast } from "sonner";
 import { validateCstCsosn, getSuggestedCodes, type TaxRegime, type CstCsosnCode } from "@/lib/cst-csosn-validator";
 import { parseSefazRejection, type SefazRejection } from "@/lib/sefaz-rejection-parser";
@@ -303,16 +303,13 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
     setRejection(null);
 
     try {
-      console.log("[NFC-e] Buscando fiscal_configs para company_id:", companyId);
       const { data: configs, error: configError } = await supabase
         .from("fiscal_configs")
         .select("*")
         .eq("company_id", companyId)
         .eq("is_active", true);
 
-      console.log("[NFC-e] Configs encontradas:", configs, "Erro:", configError);
       const nfceConfig = configs?.find((c: any) => c.doc_type === "nfce");
-      console.log("[NFC-e] NFC-e config:", nfceConfig);
 
       if (!nfceConfig) {
         setStep("error");
@@ -326,7 +323,7 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
 
       // Modo teste local: simula emissão em homologação sem certificado
       if (isHomologacao && !hasCert) {
-        console.log("[NFC-e] Modo teste local — simulando emissão sem envio à SEFAZ");
+        // Simulação em homologação sem certificado
         const fakeChave = Array.from({ length: 44 }, () => Math.floor(Math.random() * 10)).join("");
         const fakeProtocol = Date.now().toString();
         

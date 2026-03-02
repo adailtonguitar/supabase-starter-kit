@@ -1,4 +1,4 @@
-import { formatCurrency } from "@/lib/mock-data";
+import { formatCurrency } from "@/lib/utils";
 import { TrendingUp, Crown } from "lucide-react";
 
 interface TopProduct {

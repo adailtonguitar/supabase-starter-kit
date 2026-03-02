@@ -6,7 +6,7 @@ import {
   ChevronLeft, ChevronRight, Download, TrendingUp, TrendingDown, Building2,
 } from "lucide-react";
 import { useFinancialEntries } from "@/hooks/useFinancialEntries";
-import { formatCurrency } from "@/lib/mock-data";
+import { formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";

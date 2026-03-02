@@ -11,7 +11,7 @@ import { useLocalFinancialEntries, useDeleteLocalFinancialEntry, useMarkAsLocalP
 import { FinancialEntryFormDialog } from "@/components/financial/FinancialEntryFormDialog";
 import { CashFlowChart } from "@/components/financial/CashFlowChart";
 import { DailyClosingDialog } from "@/components/financial/DailyClosingDialog";
-import { formatCurrency } from "@/lib/mock-data";
+import { formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";

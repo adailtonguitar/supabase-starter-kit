@@ -1,5 +1,5 @@
 import { Check, Printer, X } from "lucide-react";
-import { formatCurrency } from "@/lib/mock-data";
+import { formatCurrency } from "@/lib/utils";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { buildCreditReceipt } from "@/lib/escpos";
