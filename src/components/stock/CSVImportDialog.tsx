@@ -142,9 +142,9 @@ export function CSVImportDialog({ open, onOpenChange }: CSVImportDialogProps) {
 
     const batchSize = 50;
     for (let i = 0; i < validProducts.length; i += batchSize) {
-      const batch = validProducts.slice(i, i + batchSize).map((p) => ({
+      const batch = validProducts.slice(i, i + batchSize).map((p, idx) => ({
         name: p.name,
-        sku: p.sku || null,
+        sku: p.sku || `IMP-${Date.now().toString(36).toUpperCase()}-${i + idx}`,
         barcode: p.barcode || null,
         ncm: p.ncm || null,
         category: p.category || null,
