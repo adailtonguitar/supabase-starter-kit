@@ -683,6 +683,14 @@ export default function PDV() {
             </span>
           )}
           <button
+            onClick={() => setShowCashRegister(true)}
+            className="opacity-80 hover:opacity-100 transition-opacity flex items-center gap-1"
+            title="Controle de Caixa"
+          >
+            <Wallet className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline font-bold">Caixa</span>
+          </button>
+          <button
             onClick={toggleFullscreen}
             className="opacity-80 hover:opacity-100 transition-opacity hidden sm:block"
             title={isFullscreen ? "Sair da tela cheia" : "Tela cheia"}
