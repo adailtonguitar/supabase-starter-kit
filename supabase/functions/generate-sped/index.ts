@@ -1,4 +1,4 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -20,14 +20,13 @@ Deno.serve(async (req) => {
       });
     }
 
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const adminClient = createClient(supabaseUrl, serviceRoleKey);
 
-    const { data: userData, error: userErr } = await supabase.auth.getUser();
-    if (userErr || !userData?.user) {
+    const token = authHeader.replace("Bearer ", "");
+    const { data: { user }, error: userErr } = await adminClient.auth.getUser(token);
+    if (userErr || !user) {
       return new Response(JSON.stringify({ error: "Não autorizado" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -35,7 +34,7 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json();
-    const { year, month } = body;
+    const { year, month, company_id } = body;
 
     if (!year || !month) {
       return new Response(JSON.stringify({ error: "Ano e mês são obrigatórios" }), {
@@ -44,24 +43,44 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Get user's company
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("company_id")
-      .eq("id", userData.user.id)
-      .single();
+    // Get company_id from body or from user's company
+    let companyId = company_id;
+    if (!companyId) {
+      const { data: cu } = await adminClient
+        .from("company_users")
+        .select("company_id")
+        .eq("user_id", user.id)
+        .eq("is_active", true)
+        .limit(1)
+        .maybeSingle();
+      companyId = cu?.company_id;
+    }
 
-    if (!profile?.company_id) {
+    if (!companyId) {
       return new Response(JSON.stringify({ error: "Empresa não encontrada" }), {
         status: 404,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const companyId = profile.company_id;
+    // Verify user belongs to company
+    const { data: membership } = await adminClient
+      .from("company_users")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("company_id", companyId)
+      .eq("is_active", true)
+      .maybeSingle();
+
+    if (!membership) {
+      return new Response(JSON.stringify({ error: "Acesso negado a esta empresa" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     // Load company data
-    const { data: company } = await supabase
+    const { data: company } = await adminClient
       .from("companies")
       .select("*")
       .eq("id", companyId)
@@ -73,6 +92,8 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    const supabase = adminClient;
 
     // Load fiscal documents for the period
     const startDate = `${year}-${String(month).padStart(2, "0")}-01`;

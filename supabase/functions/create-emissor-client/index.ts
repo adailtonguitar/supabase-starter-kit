@@ -15,14 +15,15 @@ Deno.serve(async (req) => {
 
     const { company_name, cnpj, email, password, full_name, self_service } = await req.json();
 
+    // Always verify caller is authenticated
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) throw new Error("Não autorizado");
+    const token = authHeader.replace("Bearer ", "");
+    const { data: { user: caller }, error: authErr } = await supabaseAdmin.auth.getUser(token);
+    if (authErr || !caller) throw new Error("Sessão inválida");
+
     // If NOT self-service, verify caller is super_admin
     if (!self_service) {
-      const authHeader = req.headers.get("Authorization");
-      if (!authHeader) throw new Error("Não autorizado");
-      const token = authHeader.replace("Bearer ", "");
-      const { data: { user: caller }, error: authErr } = await supabaseAdmin.auth.getUser(token);
-      if (authErr || !caller) throw new Error("Sessão inválida");
-
       const { data: adminRole } = await supabaseAdmin
         .from("admin_roles").select("role")
         .eq("user_id", caller.id).maybeSingle();
