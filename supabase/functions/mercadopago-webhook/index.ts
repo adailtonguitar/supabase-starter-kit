@@ -3,13 +3,16 @@ import { createClient } from "npm:@supabase/supabase-js@2.49.1";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 const EXPECTED_PRICES: Record<string, number> = {
-  
+  emissor: 99.9,
+  starter: 149.9,
   essencial: 149.9,
+  business: 199.9,
   profissional: 199.9,
+  pro: 449.9,
 };
 
 Deno.serve(async (req) => {
