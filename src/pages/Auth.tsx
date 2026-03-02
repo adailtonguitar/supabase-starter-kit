@@ -132,9 +132,11 @@ export default function Auth() {
     }
     setLoading(true);
     try {
+      console.log("[Auth] Sending recovery email to:", forgotEmail);
       const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail, {
         redirectTo: `${window.location.origin}/auth`,
       });
+      console.log("[Auth] Recovery response error:", error);
       if (error) throw error;
       toast.success("E-mail de recuperação enviado! Verifique sua caixa de entrada.");
       setShowForgotPassword(false);
