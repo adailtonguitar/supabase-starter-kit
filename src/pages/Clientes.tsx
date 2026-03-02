@@ -332,7 +332,7 @@ export default function Clientes() {
 
       {/* Form Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto w-[calc(100%-2rem)]">
+        <DialogContent className="max-w-2xl w-[calc(100%-2rem)]">
           <DialogHeader>
             <DialogTitle>{editingItem ? "Editar" : "Novo"} Cliente</DialogTitle>
           </DialogHeader>
