@@ -1,4 +1,5 @@
 import { ReactNode, useState, useEffect, useRef } from "react";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import { Plus, Pencil, Trash2, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,21 +36,6 @@ interface CrudPageProps {
   searchKeys?: string[];
   cnpjFieldMap?: Record<string, string>;
   headerActions?: ReactNode;
-}
-
-function CurrencyInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  const numVal = parseFloat(value);
-  const display = !isNaN(numVal) ? numVal.toLocaleString("pt-BR", { minimumFractionDigits: 2 }) : "";
-  return (
-    <Input
-      value={display}
-      onChange={(e) => {
-        const raw = e.target.value.replace(/[^\d,]/g, "").replace(",", ".");
-        onChange(raw);
-      }}
-      placeholder="0,00"
-    />
-  );
 }
 
 export function CrudPage({
@@ -311,7 +297,7 @@ export function CrudPage({
                     placeholder={f.placeholder}
                   />
                 ) : f.type === "currency" ? (
-                  <CurrencyInput value={formData[f.key] || ""} onChange={(v) => handleFieldChange(f.key, v)} />
+                  <CurrencyInput value={parseFloat(formData[f.key]) || 0} onChange={(v) => handleFieldChange(f.key, v)} />
                 ) : (
                   <div className="flex gap-2">
                     <Input
