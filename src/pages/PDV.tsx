@@ -26,9 +26,7 @@ import { toast } from "sonner";
 import type { PaymentResult } from "@/services/types";
 import { openCashDrawer } from "@/lib/escpos";
 import { playAddSound, playErrorSound, playSaleCompleteSound } from "@/lib/pdv-sounds";
-
-const formatCurrency = (value: number) =>
-  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
+import { formatCurrency } from "@/lib/utils";
 
 export default function PDV() {
   const pdv = usePDV();
