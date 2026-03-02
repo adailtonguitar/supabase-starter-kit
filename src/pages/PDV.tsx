@@ -1229,6 +1229,13 @@ export default function PDV() {
         >
           <X className="w-3 h-3" /> Cancelar
         </button>
+        <button
+          onClick={() => { if (pdv.cartItems.length > 0) setShowSaveQuote(true); else toast.warning("Carrinho vazio", { duration: 1200 }); }}
+          disabled={pdv.cartItems.length === 0}
+          className="flex items-center gap-1.5 px-3 py-2.5 rounded-lg bg-primary/80 text-primary-foreground border border-primary/50 text-xs font-bold whitespace-nowrap disabled:opacity-30 active:scale-95 transition-transform"
+        >
+          <FileText className="w-3 h-3" /> Orçamento
+        </button>
       </div>
 
       {/* ════════ BOTTOM PAYMENT BAR — ELITE ════════ */}
@@ -1308,6 +1315,7 @@ export default function PDV() {
           {/* Grupo: Finalização */}
           <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-lg bg-primary/10 border border-primary/30">
             {[
+              { key: "Orç.", label: "Orçamento", color: "bg-sidebar-background hover:bg-sidebar-accent text-sidebar-foreground border border-sidebar-border", action: () => { if (pdv.cartItems.length > 0) setShowSaveQuote(true); else toast.warning("Carrinho vazio", { duration: 1200 }); } },
               { key: "F6", label: "Cancelar", color: "bg-destructive/80 hover:bg-destructive text-white border border-destructive/50", action: () => { if (pdv.cartItems.length > 0) { pdv.clearCart(); setSelectedClient(null); setSelectedCartItemId(null); toast.info("Venda cancelada"); } } },
               { key: "F12", label: "FINALIZAR", color: "bg-primary hover:bg-primary/90 text-primary-foreground border border-primary/50 shadow-md shadow-primary/20", action: () => handleCheckout() },
             ].map(({ key, label, color, action }) => (
