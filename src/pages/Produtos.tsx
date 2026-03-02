@@ -179,9 +179,7 @@ export default function Produtos() {
                           <button onClick={() => setMovementProduct(product)} title="Movimentar estoque" className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
                             <ArrowUpDown className="w-4 h-4" />
                           </button>
-                          <button onClick={() => setHistoryProduct(product)} title="Histórico" className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
-                            <History className="w-4 h-4" />
-                          </button>
+                          {/* History button hidden - feature in development */}
                           <button onClick={() => handleEdit(product)} title="Editar" className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
                             <Edit className="w-4 h-4" />
                           </button>

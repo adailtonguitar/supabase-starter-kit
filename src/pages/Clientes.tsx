@@ -11,17 +11,9 @@ import { CSVClientImportDialog } from "@/components/clients/CSVClientImportDialo
 import { toast } from "sonner";
 import { useCnpjLookup } from "@/hooks/useCnpjLookup";
 
-function maskCpfCnpj(value: string): string {
-  const digits = value.replace(/\D/g, "");
-  if (digits.length <= 11) {
-    return digits.replace(/(\d{3})(\d)/, "$1.$2").replace(/(\d{3})(\d)/, "$1.$2").replace(/(\d{3})(\d{1,2})$/, "$1-$2");
-  }
-  return digits.slice(0, 14).replace(/(\d{2})(\d)/, "$1.$2").replace(/(\d{3})(\d)/, "$1.$2").replace(/(\d{3})(\d)/, "$1/$2").replace(/(\d{4})(\d{1,2})$/, "$1-$2");
-}
+import { maskCpfCnpj, DOC_FIELD_KEYS } from "@/lib/cpf-cnpj-mask";
 
 const fmt = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
-
-const DOC_FIELD_KEYS = ["cnpj", "cpf", "cpf_cnpj"];
 
 interface FieldConfig {
   key: string; label: string; type?: string; required?: boolean; colSpan?: number;
@@ -50,7 +42,8 @@ const baseFields: FieldConfig[] = [
 ];
 
 function CurrencyInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  const display = value ? parseFloat(value).toLocaleString("pt-BR", { minimumFractionDigits: 2 }) : "";
+  const numVal = parseFloat(value);
+  const display = !isNaN(numVal) ? numVal.toLocaleString("pt-BR", { minimumFractionDigits: 2 }) : "";
   return (
     <Input value={display} onChange={(e) => { const raw = e.target.value.replace(/[^\d,]/g, "").replace(",", "."); onChange(raw); }} placeholder="0,00" />
   );
@@ -132,6 +125,12 @@ export default function Clientes() {
   };
 
   const handleSave = async () => {
+    // Validate required fields
+    const missingRequired = activeFields.filter(f => f.required && !formData[f.key]?.toString().trim());
+    if (missingRequired.length > 0) {
+      toast.error(`Preencha o campo obrigatório: ${missingRequired[0].label}`);
+      return;
+    }
     const err = onValidate(formData);
     if (err) { toast.error(err); return; }
     setSaving(true);

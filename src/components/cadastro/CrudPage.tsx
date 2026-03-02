@@ -7,25 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { toast } from "sonner";
 import { useCnpjLookup } from "@/hooks/useCnpjLookup";
 
-function maskCpfCnpj(value: string): string {
-  const digits = value.replace(/\D/g, "");
-  if (digits.length <= 11) {
-    // CPF: XXX.XXX.XXX-XX
-    return digits
-      .replace(/(\d{3})(\d)/, "$1.$2")
-      .replace(/(\d{3})(\d)/, "$1.$2")
-      .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
-  }
-  // CNPJ: XX.XXX.XXX/XXXX-XX
-  return digits
-    .slice(0, 14)
-    .replace(/(\d{2})(\d)/, "$1.$2")
-    .replace(/(\d{3})(\d)/, "$1.$2")
-    .replace(/(\d{3})(\d)/, "$1/$2")
-    .replace(/(\d{4})(\d{1,2})$/, "$1-$2");
-}
-
-const DOC_FIELD_KEYS = ["cnpj", "cpf", "cpf_cnpj"];
+import { maskCpfCnpj, DOC_FIELD_KEYS } from "@/lib/cpf-cnpj-mask";
 
 export interface FieldConfig {
   key: string;
@@ -56,7 +38,8 @@ interface CrudPageProps {
 }
 
 function CurrencyInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  const display = value ? parseFloat(value).toLocaleString("pt-BR", { minimumFractionDigits: 2 }) : "";
+  const numVal = parseFloat(value);
+  const display = !isNaN(numVal) ? numVal.toLocaleString("pt-BR", { minimumFractionDigits: 2 }) : "";
   return (
     <Input
       value={display}
@@ -148,6 +131,12 @@ export function CrudPage({
   };
 
   const handleSave = async () => {
+    // Validate required fields
+    const missingRequired = activeFields.filter(f => f.required && !formData[f.key]?.toString().trim());
+    if (missingRequired.length > 0) {
+      toast.error(`Preencha o campo obrigatório: ${missingRequired[0].label}`);
+      return;
+    }
     if (onValidate) {
       const err = onValidate(formData);
       if (err) { toast.error(err); return; }
@@ -293,7 +282,7 @@ export function CrudPage({
 
       {/* Form Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto w-[calc(100%-2rem)]">
+        <DialogContent className="max-w-2xl w-[calc(100%-2rem)]">
           <DialogHeader>
             <DialogTitle>{editingItem ? "Editar" : "Novo"} {title.replace(/s$/, "")}</DialogTitle>
           </DialogHeader>
