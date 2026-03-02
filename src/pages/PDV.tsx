@@ -195,6 +195,7 @@ export default function PDV() {
 
   const handleSaveQuote = async () => {
     if (pdv.cartItems.length === 0) { toast.warning("Carrinho vazio", { duration: 1200 }); return; }
+    if (!selectedClient) { toast.warning("Selecione um cliente antes de salvar o orçamento", { duration: 2000 }); return; }
     try {
       const items = pdv.cartItems.map((item) => ({
         product_id: item.id, name: item.name, sku: item.sku,
