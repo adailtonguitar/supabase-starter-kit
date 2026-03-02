@@ -35,8 +35,39 @@ export function useQuotes({ skipInitialFetch }: { skipInitialFetch?: boolean } =
     enabled: !!companyId && !skipInitialFetch,
   });
 
-  const createQuote = async (_data: any) => {
-    console.warn("[useQuotes] createQuote not implemented");
+  const createQuote = async (data: any) => {
+    if (!companyId) throw new Error("Empresa não encontrada");
+
+    // Get next quote number
+    const { data: lastQuote } = await supabase
+      .from("quotes")
+      .select("quote_number")
+      .eq("company_id", companyId)
+      .order("quote_number", { ascending: false })
+      .limit(1);
+
+    const nextNumber = (lastQuote?.[0]?.quote_number || 0) + 1;
+
+    const validUntil = data.validDays
+      ? new Date(Date.now() + data.validDays * 86400000).toISOString().split("T")[0]
+      : null;
+
+    const { error } = await supabase.from("quotes").insert({
+      company_id: companyId,
+      quote_number: nextNumber,
+      client_name: data.clientName || null,
+      items_json: data.items,
+      total: data.total,
+      discount_percent: data.discountPercent || 0,
+      discount_value: data.discountValue || 0,
+      status: "pendente",
+      notes: data.notes || null,
+      valid_until: validUntil,
+    });
+
+    if (error) throw error;
+    toast.success("Orçamento salvo!");
+    qc.invalidateQueries({ queryKey: ["quotes"] });
   };
 
   const updateQuoteStatus = async (id: string, status: string) => {
