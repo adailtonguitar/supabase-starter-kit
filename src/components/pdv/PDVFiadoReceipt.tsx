@@ -69,7 +69,33 @@ export function PDVFiadoReceipt({ data, onClose }: Props) {
     <div class="cpf-line">CPF: <span class="cpf-field"></span></div>
   </div>
   <div class="sep" style="margin-top:20px;"></div>
-  <div class="center" style="font-size:9px;margin-top:4px;">Via do estabelecimento</div>
+  <div class="center bold" style="font-size:10px;margin-top:4px;">1ª VIA - ESTABELECIMENTO</div>
+
+  <div style="margin-top:24px; border-top:2px dashed #000; padding-top:4px;">
+    <div class="center" style="font-size:9px;">✂ Corte aqui</div>
+  </div>
+
+  <div class="center bold big" style="margin-top:16px;">COMPROVANTE DE VENDA A PRAZO</div>
+  ${data.storeName ? `<div class="center line">${data.storeName}</div>` : ""}
+  ${data.storeCnpj ? `<div class="center line">CNPJ: ${data.storeCnpj}</div>` : ""}
+  <div class="center line" style="font-size:10px;">DOCUMENTO NÃO FISCAL</div>
+  <div class="sep"></div>
+  <div class="center line">${now.toLocaleString("pt-BR")}</div>
+  ${data.saleNumber ? `<div class="center line">Venda #${data.saleNumber}</div>` : ""}
+  <div class="sep"></div>
+  <div class="bold line">Cliente: ${data.clientName}</div>
+  ${data.clientDoc ? `<div class="line">CPF/CNPJ: ${data.clientDoc}</div>` : ""}
+  <div class="sep"></div>
+  <div class="bold line">ITENS:</div>
+  <table>
+    ${data.items.map(i => `<tr><td>${i.quantity}x ${i.name}</td><td class="right">${formatCurrency(i.price * i.quantity)}</td></tr>`).join("")}
+  </table>
+  <div class="sep"></div>
+  <div class="big center">TOTAL: ${formatCurrency(data.total)}</div>
+  <div class="center line">Modalidade: ${data.mode === "parcelado" ? `Parcelado ${data.installments}x de ${formatCurrency(installmentValue)}` : "Fiado (pagamento único)"}</div>
+  <div class="sep"></div>
+  <div class="center bold" style="font-size:10px;margin-top:8px;">2ª VIA - CLIENTE</div>
+  <div class="center" style="font-size:9px;margin-top:4px;">Guarde este comprovante para controle</div>
 </body></html>`;
 
   const handlePrint = () => {
