@@ -65,7 +65,7 @@ export default function Dashboard() {
 
   const kpis = stats ? [
     { title: "Vendas Hoje", value: formatCurrency(stats.salesToday), sub: `${stats.salesCountToday} vendas`, icon: DollarSign, accent: "text-primary", bgAccent: "bg-primary/10", ringAccent: "ring-primary/20" },
-    { title: "Ticket Médio", value: formatCurrency(stats.ticketMedio), sub: "por venda", icon: ShoppingBag, accent: "text-blue-500", bgAccent: "bg-blue-500/10", ringAccent: "ring-blue-500/20" },
+    { title: "Ticket Médio", value: formatCurrency(stats.ticketMedio), sub: "por venda", icon: ShoppingBag, accent: "text-primary", bgAccent: "bg-primary/10", ringAccent: "ring-primary/20" },
     { title: "Receita do Mês", value: formatCurrency(stats.monthRevenue), sub: `Lucro: ${formatCurrency(stats.monthProfit)}`, icon: TrendingUp, accent: "text-success", bgAccent: "bg-success/10", ringAccent: "ring-success/20" },
     {
       title: "Crescimento",
@@ -111,9 +111,9 @@ export default function Dashboard() {
                 <span className="font-mono font-bold text-sm text-primary">{stats.totalProducts}</span>
                 <span className="text-xs text-muted-foreground">produtos</span>
               </div>
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20">
-                <Users className="w-3.5 h-3.5 text-blue-500" />
-                <span className="font-mono font-bold text-sm text-blue-500">{stats.totalClients}</span>
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-accent border border-border">
+                <Users className="w-3.5 h-3.5 text-accent-foreground" />
+                <span className="font-mono font-bold text-sm text-accent-foreground">{stats.totalClients}</span>
                 <span className="text-xs text-muted-foreground">clientes</span>
               </div>
             </div>
@@ -123,7 +123,7 @@ export default function Dashboard() {
 
       {/* Quick Access */}
       <motion.div variants={item} data-tour="quick-access">
-        <QuickAccessCards />
+        <QuickAccessCards productsAtRisk={stats?.productsAtRisk} activeAlerts={stats?.activeAlerts} />
       </motion.div>
 
       {/* AI Insight */}

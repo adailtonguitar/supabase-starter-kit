@@ -4,6 +4,7 @@ import { BarChart3, Calendar, Download, TrendingUp, TrendingDown, DollarSign, Pa
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
+import { formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format, startOfDay, endOfDay, startOfMonth, endOfMonth, parseISO } from "date-fns";
@@ -31,9 +32,6 @@ interface ProductProfit {
   margin_percent: number;
 }
 
-function formatCurrency(value: number) {
-  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
-}
 
 export default function RelatorioVendas() {
   const { companyId } = useCompany();
@@ -58,11 +56,8 @@ export default function RelatorioVendas() {
   const { data: sales = [], isLoading: loadingSales } = useQuery({
     queryKey: ["report-sales", companyId, dateRange.from, dateRange.to],
     queryFn: async () => {
-      if (!companyId) {
-        console.warn("[RelatorioVendas] companyId is null/undefined — cannot fetch sales");
-        return [];
-      }
-      console.log("[RelatorioVendas] Fetching sales for company:", companyId, "from:", dateRange.from, "to:", dateRange.to);
+      if (!companyId) return [];
+      
       
       // Fetch sales from the sales table (source of truth)
       const { data: salesData, error: salesError } = await supabase
@@ -72,11 +67,7 @@ export default function RelatorioVendas() {
         .gte("created_at", dateRange.from)
         .lte("created_at", dateRange.to)
         .order("created_at", { ascending: false });
-      if (salesError) {
-        console.error("[RelatorioVendas] sales query error:", salesError);
-        throw salesError;
-      }
-      console.log("[RelatorioVendas] Sales found:", salesData?.length ?? 0);
+      if (salesError) throw salesError;
       if (!salesData || salesData.length === 0) return [];
 
       // Fetch sale_items for all sales in the period
@@ -85,10 +76,7 @@ export default function RelatorioVendas() {
         .from("sale_items")
         .select("sale_id, product_id, product_name, quantity, unit_price")
         .in("sale_id", saleIds);
-      if (itemsError) {
-        console.error("[RelatorioVendas] sale_items error:", itemsError);
-        throw itemsError;
-      }
+      if (itemsError) throw itemsError;
 
       // Attach items to each sale
       const itemsBySale: Record<string, any[]> = {};
