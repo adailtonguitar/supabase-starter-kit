@@ -197,12 +197,27 @@ export function useCompany(): CompanyData {
   }, [user]);
 
   const switchCompany = useCallback((newCompanyId: string) => {
-    localStorage.setItem(SELECTED_COMPANY_KEY, newCompanyId);
-    // Force re-fetch by updating state
-    setCompanyId(newCompanyId);
+    if (!user) return;
     setLoading(true);
-    // Fetch the new company details
     (async () => {
+      // Verify user has access to this company before switching
+      const { data: access } = await supabase
+        .from("company_users")
+        .select("company_id")
+        .eq("user_id", user.id)
+        .eq("company_id", newCompanyId)
+        .eq("is_active", true)
+        .maybeSingle();
+
+      if (!access) {
+        console.warn("[useCompany] User does not have access to company:", newCompanyId);
+        setLoading(false);
+        return;
+      }
+
+      localStorage.setItem(SELECTED_COMPANY_KEY, newCompanyId);
+      setCompanyId(newCompanyId);
+
       const { data: company } = await supabase
         .from("companies")
         .select("name, logo_url, slogan, pix_key, pix_key_type, pix_city, address_city")
@@ -229,7 +244,7 @@ export function useCompany(): CompanyData {
       });
       setLoading(false);
     })();
-  }, []);
+  }, [user]);
 
   return { companyId, companyName, logoUrl, slogan, pixKey, pixKeyType, pixCity, loading, switchCompany };
 }
