@@ -126,10 +126,21 @@ export function useCreateStockTransfer() {
 export function useReceiveStockTransfer() {
   const qc = useQueryClient();
   const { user } = useAuth();
+  const { companyId } = useCompany();
 
   return useMutation({
     mutationFn: async (transferId: string) => {
       if (!user) throw new Error("Não autenticado");
+      if (!companyId) throw new Error("Empresa não encontrada");
+
+      // Verify the transfer belongs to this company (as destination)
+      const { data: transfer, error: fetchErr } = await supabase
+        .from("stock_transfers" as any)
+        .select("to_company_id")
+        .eq("id", transferId)
+        .single();
+      if (fetchErr) throw fetchErr;
+      if ((transfer as any).to_company_id !== companyId) throw new Error("Transferência não pertence a esta empresa");
 
       const { error } = await supabase
         .from("stock_transfers" as any)
@@ -138,7 +149,8 @@ export function useReceiveStockTransfer() {
           received_by: user.id,
           received_at: new Date().toISOString(),
         })
-        .eq("id", transferId);
+        .eq("id", transferId)
+        .eq("to_company_id", companyId);
 
       if (error) throw error;
     },

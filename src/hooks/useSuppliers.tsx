@@ -37,15 +37,17 @@ export function useCreateSupplier() {
 
 export function useUpdateSupplier() {
   const qc = useQueryClient();
+  const { companyId } = useCompany();
   return useMutation({
     mutationFn: async (data: any) => {
+      if (!companyId) throw new Error("Empresa não encontrada");
       const { id, created_at, updated_at, company_id, ...rest } = data;
       const payload: Record<string, any> = {};
       const knownCols = ["name","trade_name","cnpj","ie","contact_name","email","phone","notes"];
       for (const k of knownCols) {
         if (rest[k] !== undefined) payload[k] = rest[k];
       }
-      const { error } = await supabase.from("suppliers").update(payload).eq("id", id);
+      const { error } = await supabase.from("suppliers").update(payload).eq("id", id).eq("company_id", companyId);
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["suppliers"] }),
@@ -54,9 +56,11 @@ export function useUpdateSupplier() {
 
 export function useDeleteSupplier() {
   const qc = useQueryClient();
+  const { companyId } = useCompany();
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("suppliers").delete().eq("id", id);
+      if (!companyId) throw new Error("Empresa não encontrada");
+      const { error } = await supabase.from("suppliers").delete().eq("id", id).eq("company_id", companyId);
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["suppliers"] }),
