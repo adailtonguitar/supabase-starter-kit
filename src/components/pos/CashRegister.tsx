@@ -358,10 +358,10 @@ export function CashRegister({ onClose, terminalId = "01", preventClose = false,
                     </button>
                     <button
                       onClick={() => setView("close")}
-                      className="flex flex-col items-center gap-1.5 py-3 rounded-xl bg-destructive/10 hover:bg-destructive/15 active:scale-[0.97] border border-destructive/20"
+                      className="flex flex-col items-center gap-1.5 py-3 rounded-xl bg-destructive text-destructive-foreground hover:bg-destructive/90 active:scale-[0.97] border border-destructive shadow-md shadow-destructive/20"
                     >
-                      <Lock className="w-5 h-5 text-destructive" />
-                      <span className="text-[11px] font-semibold text-destructive">Fechar Caixa</span>
+                      <Lock className="w-5 h-5" />
+                      <span className="text-[11px] font-bold">Fechar Caixa</span>
                     </button>
                   </div>
                 </>
