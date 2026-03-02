@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useProducts } from "@/hooks/useProducts";
-import { formatCurrency } from "@/lib/mock-data";
+import { formatCurrency } from "@/lib/utils";
 import { motion } from "framer-motion";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";

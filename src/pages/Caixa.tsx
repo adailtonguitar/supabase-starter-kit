@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { DollarSign, Lock, Unlock, Calendar, Loader2, RefreshCw } from "lucide-react";
-import { formatCurrency } from "@/lib/mock-data";
+import { formatCurrency } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { useCompany } from "@/hooks/useCompany";
 import { CashRegister } from "@/components/pos/CashRegister";
