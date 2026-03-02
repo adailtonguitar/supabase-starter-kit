@@ -17,6 +17,7 @@ export interface Product {
   unit: string;
   company_id: string;
   is_active?: boolean;
+  image_url?: string;
 }
 
 export function useProducts() {
@@ -76,13 +77,13 @@ export function useDeleteProduct() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      // Delete dependent records first
+      // Delete dependent records — but NOT sale_items (preserves sales history)
       await supabase.from("product_labels" as any).delete().eq("product_id", id);
       await supabase.from("stock_movements" as any).delete().eq("product_id", id);
       await supabase.from("product_lots" as any).delete().eq("product_id", id);
-      await supabase.from("sale_items" as any).delete().eq("product_id", id);
       
-      const { error } = await supabase.from("products").delete().eq("id", id);
+      // Soft-delete: deactivate product instead of hard delete to preserve referential integrity
+      const { error } = await supabase.from("products").update({ is_active: false } as any).eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
