@@ -193,7 +193,6 @@
   .overflow-x-auto,
   [class*="overflow-auto"] {
     -webkit-overflow-scrolling: touch;
-    overscroll-behavior: contain;
   }
 
   /* GPU-accelerated transforms for modals/sheets — only dialogs/sheets */
