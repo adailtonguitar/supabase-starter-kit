@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Search, User, AlertTriangle, CreditCard, Clock, ShoppingBag } from "lucide-react";
+import { Search, User, AlertTriangle, CreditCard, ShoppingBag } from "lucide-react";
 import { useClients } from "@/hooks/useClients";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -16,21 +16,17 @@ export interface CreditClient {
 interface PDVClientSelectorProps {
   open: boolean;
   onClose: () => void;
-  onSelect: (client: CreditClient, mode: "fiado" | "parcelado", installments: number) => void;
+  onSelect: (client: CreditClient, mode: "fiado", installments: number) => void;
   saleTotal: number;
 }
 
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
 
-const INSTALLMENT_OPTIONS = [1, 2, 3, 4, 5, 6, 10, 12];
-
 export function PDVClientSelector({ open, onClose, onSelect, saleTotal }: PDVClientSelectorProps) {
   const { data: clients = [] } = useClients();
   const [search, setSearch] = useState("");
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
-  const [mode, setMode] = useState<"fiado" | "parcelado">("fiado");
-  const [installments, setInstallments] = useState(1);
 
   const filteredClients = useMemo(() => {
     if (!search.trim()) return clients;
@@ -57,14 +53,12 @@ export function PDVClientSelector({ open, onClose, onSelect, saleTotal }: PDVCli
       credit_limit: creditLimit,
       credit_used: creditBalance,
     };
-    onSelect(mapped, mode, mode === "parcelado" ? installments : 1);
+    onSelect(mapped, "fiado", 1);
   };
 
   const reset = () => {
     setSearch("");
     setSelectedClientId(null);
-    setMode("fiado");
-    setInstallments(1);
   };
 
   if (!open) return null;
@@ -224,72 +218,13 @@ export function PDVClientSelector({ open, onClose, onSelect, saleTotal }: PDVCli
               </div>
             )}
 
-            {/* Mode Selection */}
-            <div>
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                Tipo de venda
+            {/* Info */}
+            <div className="flex items-center gap-2 p-3 rounded-xl bg-primary/5 border border-primary/20">
+              <ShoppingBag className="w-4 h-4 text-primary flex-shrink-0" />
+              <p className="text-xs text-foreground">
+                Venda <span className="font-semibold">Fiado</span> — pagamento posterior. Um cupom de controle será gerado com campo para assinatura.
               </p>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  onClick={() => { setMode("fiado"); setInstallments(1); }}
-                  className={`flex flex-col items-center gap-1.5 p-4 rounded-xl border-2 transition-all ${
-                    mode === "fiado"
-                      ? "border-primary bg-primary/5"
-                      : "border-border hover:border-muted-foreground/30"
-                  }`}
-                >
-                  <ShoppingBag className={`w-6 h-6 ${mode === "fiado" ? "text-primary" : "text-muted-foreground"}`} />
-                  <span className={`text-sm font-semibold ${mode === "fiado" ? "text-primary" : "text-foreground"}`}>
-                    Fiado
-                  </span>
-                  <span className="text-[10px] text-muted-foreground text-center">Pagamento único posterior</span>
-                </button>
-                <button
-                  onClick={() => { setMode("parcelado"); setInstallments(2); }}
-                  className={`flex flex-col items-center gap-1.5 p-4 rounded-xl border-2 transition-all ${
-                    mode === "parcelado"
-                      ? "border-primary bg-primary/5"
-                      : "border-border hover:border-muted-foreground/30"
-                  }`}
-                >
-                  <Clock className={`w-6 h-6 ${mode === "parcelado" ? "text-primary" : "text-muted-foreground"}`} />
-                  <span className={`text-sm font-semibold ${mode === "parcelado" ? "text-primary" : "text-foreground"}`}>
-                    Parcelado
-                  </span>
-                  <span className="text-[10px] text-muted-foreground text-center">Dividido em parcelas</span>
-                </button>
-              </div>
             </div>
-
-            {/* Installments */}
-            {mode === "parcelado" && (
-              <div>
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                  Parcelas
-                </p>
-                <div className="grid grid-cols-4 gap-2">
-                  {INSTALLMENT_OPTIONS.filter((n) => n >= 2).map((n) => (
-                    <button
-                      key={n}
-                      onClick={() => setInstallments(n)}
-                      className={`py-2.5 rounded-xl text-sm font-semibold border-2 transition-all ${
-                        installments === n
-                          ? "border-primary bg-primary/5 text-primary"
-                          : "border-border text-foreground hover:border-muted-foreground/30"
-                      }`}
-                    >
-                      {n}x
-                    </button>
-                  ))}
-                </div>
-                <p className="text-xs text-muted-foreground mt-2 text-center">
-                  {installments}x de{" "}
-                  <span className="font-semibold text-foreground">
-                    {formatCurrency(saleTotal / installments)}
-                  </span>
-                </p>
-              </div>
-            )}
           </div>
         )}
 
@@ -308,7 +243,7 @@ export function PDVClientSelector({ open, onClose, onSelect, saleTotal }: PDVCli
               disabled={exceedsLimit}
               className="flex-1"
             >
-              Confirmar {mode === "fiado" ? "Fiado" : `${installments}x`}
+              Confirmar Fiado
             </Button>
           </div>
         )}
