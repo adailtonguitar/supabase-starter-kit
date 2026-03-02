@@ -5,7 +5,6 @@ import { toast } from "sonner";
 
 export interface Quote {
   id: string;
-  quote_number: number;
   client_name: string | null;
   items_json: any[];
   total: number;
@@ -36,23 +35,12 @@ export function useQuotes({ skipInitialFetch }: { skipInitialFetch?: boolean } =
   const createQuote = async (data: any) => {
     if (!companyId) throw new Error("Empresa não encontrada");
 
-    // Get next quote number
-    const { data: lastQuote } = await supabase
-      .from("quotes")
-      .select("quote_number")
-      .eq("company_id", companyId)
-      .order("quote_number", { ascending: false })
-      .limit(1);
-
-    const nextNumber = (lastQuote?.[0]?.quote_number || 0) + 1;
-
     const validUntil = data.validDays
       ? new Date(Date.now() + data.validDays * 86400000).toISOString().split("T")[0]
       : null;
 
     const { error } = await supabase.from("quotes").insert({
       company_id: companyId,
-      quote_number: nextNumber,
       client_name: data.clientName || null,
       items_json: data.items,
       total: data.total,
