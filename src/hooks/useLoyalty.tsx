@@ -68,7 +68,7 @@ export function useLoyalty() {
     if (!companyId) return;
     const payload = { ...form, company_id: companyId };
     if (config?.id) {
-      await supabase.from("loyalty_config").update(payload).eq("id", config.id);
+      await supabase.from("loyalty_config").update(payload).eq("id", config.id).eq("company_id", companyId);
     } else {
       await supabase.from("loyalty_config").insert(payload);
     }
