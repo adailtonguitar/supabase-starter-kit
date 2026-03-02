@@ -34,8 +34,6 @@ function clearToken() {
 export function useSessionControl() {
   const { user, signOut } = useAuth();
   const { companyId } = useCompany();
-  const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const validationRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const registeredRef = useRef(false);
 
   const registerSession = useCallback(async () => {
@@ -126,32 +124,16 @@ export function useSessionControl() {
     }
   }, [user, companyId, registerSession]);
 
-  // Heartbeat: update last_activity
+  // Single interval for heartbeat + validation (merged to avoid duplicate RPC calls)
   useEffect(() => {
     if (!user || !companyId) return;
 
-    heartbeatRef.current = setInterval(async () => {
-      const token = getStoredToken();
-      if (token) {
-        try { await supabase.rpc("validate_session", { p_session_token: token }); } catch { /* */ }
-      }
+    const interval = setInterval(() => {
+      validateSession();
     }, HEARTBEAT_INTERVAL);
 
-    return () => {
-      if (heartbeatRef.current) clearInterval(heartbeatRef.current);
-    };
-  }, [user, companyId]);
-
-  // Periodic validation: check if session was invalidated
-  useEffect(() => {
-    if (!user) return;
-
-    validationRef.current = setInterval(validateSession, VALIDATION_INTERVAL);
-
-    return () => {
-      if (validationRef.current) clearInterval(validationRef.current);
-    };
-  }, [user, validateSession]);
+    return () => clearInterval(interval);
+  }, [user, companyId, validateSession]);
 
   // Cleanup on tab close
   useEffect(() => {
