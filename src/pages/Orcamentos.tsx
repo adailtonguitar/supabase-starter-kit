@@ -18,9 +18,10 @@ export default function Orcamentos() {
   const [search, setSearch] = useState("");
   const [viewQuote, setViewQuote] = useState<Quote | null>(null);
 
-  const filtered = quotes.filter((q) =>
+  const withNums = quotes.map((q, idx) => ({ ...q, _num: quotes.length - idx }));
+  const filtered = withNums.filter((q) =>
     (q.client_name || "").toLowerCase().includes(search.toLowerCase()) ||
-    String(q.quote_number).includes(search) ||
+    String(q._num).includes(search) ||
     (q.notes || "").toLowerCase().includes(search.toLowerCase())
   );
 
@@ -83,7 +84,7 @@ export default function Orcamentos() {
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-foreground truncate">
-                        #{q.quote_number} — {q.client_name || "Sem cliente"}
+                        #{q._num} — {q.client_name || "Sem cliente"}
                       </p>
                       <p className="text-xs text-muted-foreground">{items.length} produto(s)</p>
                     </div>
@@ -132,7 +133,7 @@ export default function Orcamentos() {
                   const items = Array.isArray(q.items_json) ? q.items_json : [];
                   return (
                     <tr key={q.id} className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors">
-                      <td className="px-4 py-3 font-mono font-bold text-foreground">{q.quote_number}</td>
+                      <td className="px-4 py-3 font-mono font-bold text-foreground">{q._num}</td>
                       <td className="px-4 py-3 text-foreground">{q.client_name || "—"}</td>
                       <td className="px-4 py-3 text-muted-foreground">{items.length} produto(s)</td>
                       <td className="px-4 py-3 text-right font-bold font-mono text-foreground">{fmt(q.total)}</td>
@@ -199,7 +200,7 @@ export default function Orcamentos() {
               className="bg-card rounded-2xl border border-border shadow-2xl w-full max-w-lg mx-4 overflow-hidden max-h-[80vh] flex flex-col"
             >
               <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-                <h2 className="text-lg font-bold text-foreground">Orçamento #{viewQuote.quote_number}</h2>
+                <h2 className="text-lg font-bold text-foreground">Orçamento #{(viewQuote as any)._num || ""}</h2>
                 <button onClick={() => setViewQuote(null)} className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground">✕</button>
               </div>
               <div className="p-5 space-y-4 overflow-y-auto">
