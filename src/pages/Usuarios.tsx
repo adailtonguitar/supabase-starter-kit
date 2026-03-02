@@ -12,7 +12,7 @@ import { useActionLogs, type ActionLog } from "@/hooks/useActionLogs";
 
 type CompanyRole = "admin" | "gerente" | "supervisor" | "caixa";
 const roleLabels: Record<CompanyRole, string> = { admin: "Administrador", gerente: "Gerente", supervisor: "Supervisor", caixa: "Caixa" };
-const roleColors: Record<CompanyRole, string> = { admin: "bg-destructive/10 text-destructive", gerente: "bg-primary/10 text-primary", supervisor: "bg-amber-500/10 text-amber-500", caixa: "bg-muted text-muted-foreground" };
+const roleColors: Record<CompanyRole, string> = { admin: "bg-destructive/10 text-destructive", gerente: "bg-primary/10 text-primary", supervisor: "bg-accent text-accent-foreground", caixa: "bg-muted text-muted-foreground" };
 const moduleLabels: Record<string, string> = { pdv: "PDV", dashboard: "Dashboard", produtos: "Produtos", vendas: "Vendas", caixa: "Caixa", financeiro: "Financeiro", fiscal: "Fiscal", configuracoes: "Configurações", usuarios: "Usuários" };
 
 export default function Usuarios() {

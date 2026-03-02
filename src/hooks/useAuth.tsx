@@ -54,7 +54,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log("[useAuth] onAuthStateChange:", event, !!session?.user);
       if (event === "PASSWORD_RECOVERY") {
         sessionStorage.setItem("needs-password-setup", "true");
       }
@@ -62,36 +61,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(session?.user ?? null);
       cacheUser(session?.user ?? null);
       setLoading(false);
-      console.log("[useAuth] auth resolved via onAuthStateChange");
     });
 
     supabase.auth.getSession().then(({ data: { session } }) => {
-      console.log("[useAuth] getSession resolved, user:", !!session?.user);
       setSession(session);
       setUser(session?.user ?? null);
       cacheUser(session?.user ?? null);
       setLoading(false);
-      console.log("[useAuth] auth resolved via getSession");
-    }).catch((err) => {
-      console.error("[useAuth] getSession failed:", err);
+    }).catch(() => {
       if (!navigator.onLine && getCachedUser()) {
-        console.log("[useAuth] Offline — using cached user");
+        // Offline — using cached user
       } else {
         setSession(null);
         setUser(null);
         cacheUser(null);
       }
       setLoading(false);
-      console.log("[useAuth] auth resolved via getSession catch");
     });
 
     // Safety timeout: if auth never resolves in 8s, stop loading
     const timeout = setTimeout(() => {
       setLoading((prev) => {
-        if (prev) {
-          console.warn("[useAuth] Auth loading timeout - forcing completion");
-          return false;
-        }
+        if (prev) return false;
         return prev;
       });
     }, 8000);

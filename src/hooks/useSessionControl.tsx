@@ -59,7 +59,7 @@ export function useSessionControl() {
       });
 
       if (error) {
-        console.error("[SessionControl] Register failed:", error);
+        // register failed silently
         return;
       }
 
@@ -70,8 +70,8 @@ export function useSessionControl() {
       if (result?.action === "replaced_oldest") {
         toast.info("Uma sessão anterior foi encerrada para liberar esta.", { duration: 5000 });
       }
-    } catch (err) {
-      console.error("[SessionControl] Register error:", err);
+    } catch {
+      // register error
     }
   }, [user, companyId]);
 
@@ -84,10 +84,7 @@ export function useSessionControl() {
         p_session_token: token,
       });
 
-      if (error) {
-        console.error("[SessionControl] Validation error:", error);
-        return;
-      }
+      if (error) return;
 
       const result = data as any;
       if (result && !result.valid) {
@@ -140,10 +137,24 @@ export function useSessionControl() {
     const handleUnload = () => {
       const token = getStoredToken();
       if (token) {
-        // Use sendBeacon for reliability on tab close
+        // Use sendBeacon with proper headers via Blob for reliability on tab close
         const url = `${import.meta.env.VITE_SUPABASE_URL || "https://fsvxpxziotklbxkivyug.supabase.co"}/rest/v1/rpc/invalidate_session`;
         const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZzdnhweHppb3RrbGJ4a2l2eXVnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE3ODU5NTMsImV4cCI6MjA4NzM2MTk1M30.8I3ABsRZBZuE1IpK_g9z3PdRUd9Omt_F5qNx0Pgqvyo";
-        navigator.sendBeacon(url, JSON.stringify({ p_session_token: token }));
+        const blob = new Blob(
+          [JSON.stringify({ p_session_token: token })],
+          { type: "application/json" }
+        );
+        // sendBeacon doesn't support custom headers, use fetch with keepalive instead
+        fetch(url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "apikey": anonKey,
+            "Authorization": `Bearer ${anonKey}`,
+          },
+          body: JSON.stringify({ p_session_token: token }),
+          keepalive: true,
+        }).catch(() => {});
       }
     };
 

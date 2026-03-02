@@ -36,19 +36,22 @@ export function useCompanyUsers() {
   useEffect(() => { load(); }, [load]);
 
   const updateRole = async (id: string, role: string) => {
-    await supabase.from("company_users").update({ role }).eq("id", id);
+    if (!companyId) return;
+    await supabase.from("company_users").update({ role }).eq("id", id).eq("company_id", companyId);
     toast.success("Perfil atualizado");
     load();
   };
 
   const toggleActive = async (id: string, currentActive: boolean) => {
-    await supabase.from("company_users").update({ is_active: !currentActive }).eq("id", id);
+    if (!companyId) return;
+    await supabase.from("company_users").update({ is_active: !currentActive }).eq("id", id).eq("company_id", companyId);
     toast.success(!currentActive ? "Usuário ativado" : "Usuário inativado");
     load();
   };
 
   const removeUser = async (id: string) => {
-    await supabase.from("company_users").delete().eq("id", id);
+    if (!companyId) return;
+    await supabase.from("company_users").delete().eq("id", id).eq("company_id", companyId);
     toast.success("Usuário removido");
     load();
   };

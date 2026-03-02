@@ -7,11 +7,7 @@ import { toast } from "sonner";
 
 export default function Auth() {
   const [email, setEmail] = useState(() => localStorage.getItem("remember-email") || "");
-  const [password, setPassword] = useState(() => {
-    const saved = localStorage.getItem("remember-password");
-    if (!saved) return "";
-    try { return atob(saved); } catch { return ""; }
-  });
+  const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(() => localStorage.getItem("remember-email") !== null);
   const [showPassword, setShowPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
@@ -45,7 +41,7 @@ export default function Auth() {
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log("Auth event:", event, "session:", !!session);
+      // auth state change event
 
       if (event === "PASSWORD_RECOVERY") {
         sessionStorage.setItem("needs-password-setup", "true");
@@ -89,8 +85,8 @@ export default function Auth() {
             navigate("/");
             return;
           }
-        } catch (err) {
-          console.error("Callback processing error:", err);
+        } catch {
+          // callback processing error
         }
       }
 
@@ -203,14 +199,12 @@ export default function Auth() {
     try {
       if (rememberMe) {
         localStorage.setItem("remember-email", email);
-        localStorage.setItem("remember-password", btoa(password));
       } else {
         localStorage.removeItem("remember-email");
-        localStorage.removeItem("remember-password");
       }
       sessionStorage.removeItem("needs-password-setup");
       const { data: signInData, error } = await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password });
-      console.log("[Auth] signIn result:", { error: error?.message, status: error?.status, user: signInData?.user?.id });
+      // signIn completed
       if (error) throw error;
       toast.success("Login realizado com sucesso!");
       navigate("/");
