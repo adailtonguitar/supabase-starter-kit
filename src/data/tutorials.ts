@@ -1,7 +1,7 @@
 import {
   HelpCircle, ShoppingCart, LayoutDashboard, Package, FileText,
   BarChart3, ArrowUpDown, Landmark, ClipboardList, Receipt, Settings,
-  Building2,
+  Building2, TrendingUp, AlertTriangle, Stethoscope, FileCheck, ShieldCheck,
 } from "lucide-react";
 
 export interface TutorialSection {
@@ -120,6 +120,7 @@ export const tutorials: TutorialSection[] = [
       "Orçamentos têm validade configurável (padrão: 30 dias).",
       "Na Fidelidade, o multiplicador de aniversário aumenta os pontos em datas especiais.",
       "No PDV, selecione o cliente (F5) antes de finalizar para acumular pontos.",
+      "O comprovante de fiado imprime 2 vias: uma para o estabelecimento (com assinatura) e outra para o cliente.",
     ],
   },
   {
@@ -281,6 +282,92 @@ export const tutorials: TutorialSection[] = [
         "Ideal para redes de supermercados, farmácias, padarias ou qualquer comércio com mais de uma unidade.",
       ],
     },
+  },
+  {
+    icon: TrendingUp,
+    title: "Painel do Dono",
+    description: "Visão executiva do negócio com indicadores-chave para o proprietário acompanhar a saúde da empresa.",
+    videoUrl: "",
+    steps: [
+      "Acesse 'Painel do Dono' pelo menu lateral.",
+      "Visualize KPIs como faturamento, margem de lucro, ticket médio e evolução mensal.",
+      "Acompanhe comparativos de desempenho entre períodos.",
+      "Use os filtros de data para analisar períodos específicos.",
+    ],
+    tips: [
+      "Ideal para uma visão rápida sem entrar em cada módulo.",
+      "Os dados são consolidados de vendas, financeiro e estoque.",
+    ],
+  },
+  {
+    icon: AlertTriangle,
+    title: "Sugestão de Compra & Ruptura",
+    description: "Ferramentas inteligentes para evitar falta de produtos e otimizar pedidos de reposição.",
+    videoUrl: "",
+    steps: [
+      "Em 'Estoque > Sugestão de Compra', veja os produtos que precisam ser repostos com base no consumo médio.",
+      "O sistema calcula automaticamente a quantidade sugerida considerando o ponto de reposição e o estoque atual.",
+      "Em 'Estoque > Ruptura', identifique produtos com estoque zerado ou abaixo do mínimo.",
+      "O relatório de ruptura mostra o impacto estimado em vendas perdidas.",
+      "Use essas informações para gerar pedidos de compra diretamente.",
+    ],
+    tips: [
+      "Configure o 'Ponto de Reposição' em cada produto para sugestões mais precisas.",
+      "Verifique o relatório de ruptura diariamente para evitar perdas de vendas.",
+      "A sugestão de compra considera o histórico de vendas dos últimos dias.",
+    ],
+  },
+  {
+    icon: Stethoscope,
+    title: "Diagnóstico Financeiro",
+    description: "Análise inteligente da saúde financeira do negócio com recomendações automáticas.",
+    videoUrl: "",
+    steps: [
+      "Acesse 'Financeiro > Diagnóstico' pelo menu lateral.",
+      "O sistema analisa receitas, despesas, margens e fluxo de caixa automaticamente.",
+      "Veja indicadores como liquidez, endividamento e rentabilidade.",
+      "Leia as recomendações geradas com base nos seus dados reais.",
+    ],
+    tips: [
+      "Mantenha os lançamentos financeiros atualizados para diagnósticos mais precisos.",
+      "Use as recomendações como guia para decisões estratégicas.",
+    ],
+  },
+  {
+    icon: FileCheck,
+    title: "Emissor NF-e",
+    description: "Emissão de Nota Fiscal Eletrônica (NF-e) modelo 55 com integração SEFAZ.",
+    videoUrl: "",
+    steps: [
+      "Acesse 'Fiscal > Emissor NF-e' pelo menu lateral.",
+      "Configure o certificado digital e dados do emitente antes da primeira emissão.",
+      "Preencha os dados do destinatário, produtos, impostos e transporte.",
+      "Revise os dados e clique em 'Emitir' para enviar ao SEFAZ.",
+      "Após autorização, o DANFE fica disponível para impressão e download do XML.",
+      "Use o módulo para cancelar ou emitir cartas de correção quando necessário.",
+    ],
+    tips: [
+      "Comece em ambiente de homologação para testes antes de emitir em produção.",
+      "O sistema preenche automaticamente NCM, CFOP e impostos com base no cadastro do produto.",
+      "Guarde os XMLs por no mínimo 5 anos conforme legislação fiscal.",
+    ],
+  },
+  {
+    icon: ShieldCheck,
+    title: "Assinador Digital",
+    description: "Aplicativo auxiliar para assinar documentos fiscais com certificados digitais A1 e A3.",
+    videoUrl: "",
+    steps: [
+      "Acesse 'Fiscal > Assinador' pelo menu lateral.",
+      "Baixe o aplicativo do Assinador Digital para seu sistema operacional.",
+      "Instale e abra o assinador — ele se conecta automaticamente ao sistema.",
+      "O assinador será acionado automaticamente ao emitir NFC-e ou NF-e.",
+    ],
+    tips: [
+      "Para certificados A3 (token/cartão), o assinador é obrigatório.",
+      "Certificados A1 (.pfx) podem ser usados diretamente pelo sistema web.",
+      "Mantenha o assinador aberto durante o expediente para emissões sem interrupção.",
+    ],
   },
   {
     icon: HelpCircle,
