@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { DollarSign, Lock, Unlock, ArrowDownCircle, ArrowUpCircle, Banknote, CreditCard, QrCode, X, Loader2, Clock, ShoppingCart, Wallet, TrendingUp, ChevronRight } from "lucide-react";
+import { DollarSign, Lock, Unlock, ArrowDownCircle, ArrowUpCircle, Banknote, CreditCard, QrCode, X, Loader2, Clock, ShoppingCart, Wallet, TrendingUp, ChevronRight, Printer } from "lucide-react";
 import { formatCurrency } from "@/lib/mock-data";
 import { CashSessionService } from "@/services";
 import { useAuth } from "@/hooks/useAuth";
@@ -48,7 +48,7 @@ export interface CashRegisterProps {
 
 export function CashRegister({ onClose, terminalId = "01", preventClose = false, initialSession, skipInitialLoad = false }: CashRegisterProps) {
   const { user } = useAuth();
-  const { companyId } = useCompany();
+  const { companyId, companyName } = useCompany();
   const [view, setView] = useState<CashView>("status");
   const [session, setSession] = useState<any | null>(initialSession ?? null);
   const [loading, setLoading] = useState(!skipInitialLoad);
@@ -119,6 +119,65 @@ export function CashRegister({ onClose, terminalId = "01", preventClose = false,
     } catch (err: any) { toast.error(err.message); }
     finally { setSubmitting(false); }
   };
+
+  const handlePrintClosing = useCallback(() => {
+    const now = new Date();
+    const html = `
+      <html><head><title>Fechamento de Caixa</title>
+      <style>
+        @page { size: 80mm auto; margin: 0; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Courier New', monospace; font-size: 12px; padding: 8px; width: 80mm; color: #000; background: #fff; }
+        .center { text-align: center; }
+        .bold { font-weight: bold; }
+        .line { border-top: 1px dashed #000; margin: 6px 0; }
+        .row { display: flex; justify-content: space-between; padding: 2px 0; }
+        .section { margin-top: 8px; }
+        h2 { font-size: 14px; margin-bottom: 4px; }
+        .diff-ok { }
+        .diff-warn { font-weight: bold; }
+      </style></head><body>
+        <div class="center bold"><h2>FECHAMENTO DE CAIXA</h2></div>
+        <div class="center">${companyName || 'PDV'}</div>
+        <div class="center">Terminal: T${session?.terminal_id || terminalId}</div>
+        <div class="center">${now.toLocaleDateString("pt-BR")} ${now.toLocaleTimeString("pt-BR")}</div>
+        <div class="line"></div>
+        ${session?.opened_at ? `<div class="row"><span>Abertura:</span><span>${new Date(session.opened_at).toLocaleString("pt-BR")}</span></div>` : ''}
+        <div class="row"><span>Fechamento:</span><span>${now.toLocaleString("pt-BR")}</span></div>
+        <div class="line"></div>
+        <div class="section bold">RESUMO</div>
+        <div class="row"><span>Fundo Inicial:</span><span>${formatCurrency(openBalance)}</span></div>
+        <div class="row"><span>Total Vendas:</span><span>${formatCurrency(totalVendas)}</span></div>
+        <div class="row"><span>Nº Vendas:</span><span>${salesCount}</span></div>
+        <div class="line"></div>
+        <div class="section bold">FORMAS DE PAGAMENTO</div>
+        <div class="row"><span>Dinheiro:</span><span>${formatCurrency(totalDinheiro)}</span></div>
+        <div class="row"><span>Débito:</span><span>${formatCurrency(totalDebito)}</span></div>
+        <div class="row"><span>Crédito:</span><span>${formatCurrency(totalCredito)}</span></div>
+        <div class="row"><span>PIX:</span><span>${formatCurrency(totalPix)}</span></div>
+        <div class="line"></div>
+        <div class="row"><span>Sangrias:</span><span>-${formatCurrency(totalSangria)}</span></div>
+        <div class="row"><span>Suprimentos:</span><span>+${formatCurrency(totalSuprimento)}</span></div>
+        <div class="line"></div>
+        <div class="section bold">CONFERÊNCIA</div>
+        <div class="row"><span>Esperado Total:</span><span>${formatCurrency(totalExpected)}</span></div>
+        <div class="row"><span>Contado Total:</span><span>${formatCurrency(totalCounted)}</span></div>
+        <div class="row bold ${Math.abs(difference) < 0.01 ? 'diff-ok' : 'diff-warn'}">
+          <span>Diferença:</span><span>${difference >= 0 ? "+" : ""}${formatCurrency(difference)}</span>
+        </div>
+        ${closingNotes ? `<div class="line"></div><div class="section"><span class="bold">Obs:</span> ${closingNotes}</div>` : ''}
+        <div class="line"></div>
+        <div class="center" style="margin-top:8px;font-size:10px;">Documento não fiscal</div>
+        <div style="margin-top:20px;border-top:1px dashed #000;"></div>
+      </body></html>
+    `;
+    const w = window.open("", "_blank", "width=350,height=600");
+    if (w) {
+      w.document.write(html);
+      w.document.close();
+      setTimeout(() => { w.print(); }, 300);
+    }
+  }, [session, companyName, terminalId, openBalance, totalVendas, salesCount, totalDinheiro, totalDebito, totalCredito, totalPix, totalSangria, totalSuprimento, totalExpected, totalCounted, difference, closingNotes]);
 
   const handleMovement = async () => {
     if (!companyId || !user || !session) return;
@@ -424,6 +483,9 @@ export function CashRegister({ onClose, terminalId = "01", preventClose = false,
 
               <div className="flex gap-3">
                 <button onClick={() => setView("status")} className={btnSecondary}>Voltar</button>
+                <button onClick={handlePrintClosing} className="py-3 px-4 rounded-xl bg-secondary text-secondary-foreground text-sm font-semibold hover:bg-secondary/80 active:scale-[0.98] flex items-center justify-center gap-2 border border-border/50" title="Imprimir resumo">
+                  <Printer className="w-4 h-4" />
+                </button>
                 <button onClick={handleClose} disabled={submitting} className="flex-1 py-3 rounded-xl bg-destructive text-destructive-foreground text-sm font-bold hover:bg-destructive/90 active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50">
                   {submitting && <Loader2 className="w-4 h-4 animate-spin" />} Confirmar Fechamento
                 </button>
