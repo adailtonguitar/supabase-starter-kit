@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Search, Plus, Edit, Package, Upload, Trash2, History, FileText, ArrowUpDown } from "lucide-react";
+import { Search, Plus, Edit, Package, Upload, Trash2, FileText, ArrowUpDown } from "lucide-react";
 import { formatCurrency } from "@/lib/mock-data";
 import { motion } from "framer-motion";
 import { useProducts, useDeleteProduct, type Product } from "@/hooks/useProducts";
@@ -153,8 +153,8 @@ export default function Produtos() {
                       <td className="px-5 py-3">
                         <div className="flex items-center gap-3">
                           <div className="w-8 h-8 rounded-lg bg-accent flex items-center justify-center overflow-hidden flex-shrink-0">
-                            {(product as any).image_url ? (
-                              <img src={(product as any).image_url} alt={product.name} className="w-full h-full object-cover" />
+                            {product.image_url ? (
+                              <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" />
                             ) : (
                               <Package className="w-4 h-4 text-accent-foreground" />
                             )}
@@ -213,8 +213,8 @@ export default function Produtos() {
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-center gap-2 min-w-0">
                     <div className="w-8 h-8 rounded-lg bg-accent flex items-center justify-center shrink-0 overflow-hidden">
-                      {(product as any).image_url ? (
-                        <img src={(product as any).image_url} alt={product.name} className="w-full h-full object-cover" />
+                      {product.image_url ? (
+                        <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" />
                       ) : (
                         <Package className="w-4 h-4 text-accent-foreground" />
                       )}

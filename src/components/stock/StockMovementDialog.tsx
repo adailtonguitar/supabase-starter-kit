@@ -1,6 +1,5 @@
 import { useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { useCompany } from "@/hooks/useCompany";
+import { useCreateStockMovement } from "@/hooks/useStockMovements";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,11 +15,10 @@ interface StockMovementDialogProps {
 }
 
 export function StockMovementDialog({ open, onOpenChange, product, onSuccess }: StockMovementDialogProps) {
-  const { companyId } = useCompany();
+  const createMovement = useCreateStockMovement();
   const [type, setType] = useState<"entrada" | "saida">("entrada");
   const [quantity, setQuantity] = useState("");
   const [reason, setReason] = useState("");
-  const [loading, setLoading] = useState(false);
 
   const handleSubmit = async () => {
     const qty = parseFloat(quantity);
@@ -28,48 +26,26 @@ export function StockMovementDialog({ open, onOpenChange, product, onSuccess }: 
       toast.error("Informe uma quantidade válida");
       return;
     }
-    if (!product || !companyId) return;
+    if (!product) return;
 
     if (type === "saida" && qty > (product.stock_quantity || 0)) {
       toast.error("Quantidade maior que o estoque disponível");
       return;
     }
 
-    setLoading(true);
     try {
-      const newStock = type === "entrada"
-        ? (product.stock_quantity || 0) + qty
-        : (product.stock_quantity || 0) - qty;
-
-      const { error: updateError } = await supabase
-        .from("products")
-        .update({ stock_quantity: newStock })
-        .eq("id", product.id);
-
-      if (updateError) throw updateError;
-
-      // Try to log the movement (table may not exist)
-      try {
-        await supabase.from("stock_movements").insert({
-          product_id: product.id,
-          company_id: companyId,
-          type: type,
-          quantity: qty,
-          reason: reason || (type === "entrada" ? "Entrada manual" : "Saída manual"),
-        });
-      } catch {
-        // stock_movements table may not exist, that's ok
-      }
-
-      toast.success(`${type === "entrada" ? "Entrada" : "Saída"} de ${qty} ${product.unit || "UN"} registrada`);
+      await createMovement.mutateAsync({
+        product_id: product.id,
+        type,
+        quantity: qty,
+        reason: reason || (type === "entrada" ? "Entrada manual" : "Saída manual"),
+      });
       setQuantity("");
       setReason("");
       onOpenChange(false);
       onSuccess?.();
-    } catch (err: any) {
-      toast.error("Erro ao movimentar estoque: " + (err.message || ""));
-    } finally {
-      setLoading(false);
+    } catch {
+      // error handled by hook toast
     }
   };
 
@@ -131,8 +107,8 @@ export function StockMovementDialog({ open, onOpenChange, product, onSuccess }: 
             <Button variant="outline" className="flex-1" onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
-            <Button className="flex-1" onClick={handleSubmit} disabled={loading}>
-              {loading ? "Salvando..." : "Confirmar"}
+            <Button className="flex-1" onClick={handleSubmit} disabled={createMovement.isPending}>
+              {createMovement.isPending ? "Salvando..." : "Confirmar"}
             </Button>
           </div>
         </div>
