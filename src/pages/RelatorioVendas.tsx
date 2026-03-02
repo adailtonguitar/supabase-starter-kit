@@ -201,10 +201,64 @@ export default function RelatorioVendas() {
     URL.revokeObjectURL(a.href);
   };
 
-  const handlePrintReport = () => {
+  const handlePrintReport = (thermal = false) => {
     const periodLabel = preset === "hoje" ? "Hoje" : preset === "mes" ? "Este Mês" : `${format(parseISO(startDate), "dd/MM/yyyy")} a ${format(parseISO(endDate), "dd/MM/yyyy")}`;
     const marginGeral = totals.revenue > 0 ? ((totals.profit / totals.revenue) * 100).toFixed(1) : "0.0";
+    const now = format(new Date(), "dd/MM/yyyy HH:mm");
 
+    if (thermal) {
+      // 80mm thermal printer format
+      const sep = "─".repeat(32);
+      const productLines = productProfits.map(p =>
+        `<div style="border-bottom:1px dashed #ccc;padding:3px 0">
+          <div style="font-weight:bold;font-size:11px">${p.name}</div>
+          <div style="display:flex;justify-content:space-between;font-size:10px">
+            <span>Qtd: ${p.total_quantity}</span>
+            <span>Rec: ${formatCurrency(p.total_revenue)}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:10px">
+            <span>Custo: ${formatCurrency(p.total_cost)}</span>
+            <span>Lucro: ${formatCurrency(p.total_profit)}</span>
+          </div>
+          <div style="text-align:right;font-size:10px">Margem: ${p.margin_percent.toFixed(1)}%</div>
+        </div>`
+      ).join("");
+
+      const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Relatório</title>
+        <style>
+          @page{size:80mm auto;margin:0}
+          *{margin:0;padding:0;box-sizing:border-box}
+          body{width:80mm;font-family:'Courier New',monospace;color:#000;background:#fff;padding:4mm;font-size:11px}
+          .center{text-align:center}
+          .sep{text-align:center;color:#999;margin:4px 0;font-size:10px;overflow:hidden}
+          .row{display:flex;justify-content:space-between;padding:2px 0}
+          .bold{font-weight:bold}
+          .cut{border-top:1px dashed #000;margin-top:10px;padding-top:6px;text-align:center;font-size:9px;color:#999}
+        </style></head><body>
+        <div class="center bold" style="font-size:14px">RELATÓRIO DE VENDAS</div>
+        <div class="center" style="font-size:10px;margin-top:2px">Período: ${periodLabel}</div>
+        <div class="center" style="font-size:9px;color:#666">${now}</div>
+        <div class="sep">${sep}</div>
+        <div class="row bold"><span>Vendas</span><span>${totals.salesCount}</span></div>
+        <div class="row bold"><span>Receita</span><span>${formatCurrency(totals.revenue)}</span></div>
+        <div class="row"><span>Custo</span><span>${formatCurrency(totals.cost)}</span></div>
+        <div class="row bold"><span>Lucro</span><span style="color:${totals.profit >= 0 ? '#000' : '#000'}">${formatCurrency(totals.profit)}</span></div>
+        <div class="row"><span>Margem</span><span>${marginGeral}%</span></div>
+        <div class="sep">${sep}</div>
+        <div class="center bold" style="font-size:11px;margin-bottom:4px">PRODUTOS</div>
+        ${productLines}
+        <div class="sep">${sep}</div>
+        <div class="row bold"><span>TOTAL LUCRO</span><span>${formatCurrency(totals.profit)}</span></div>
+        <div class="row bold"><span>MARGEM GERAL</span><span>${marginGeral}%</span></div>
+        <div class="cut">--- corte aqui ---</div>
+      </body></html>`;
+
+      const w = window.open("", "_blank", "width=320,height=600");
+      if (w) { w.document.write(html); w.document.close(); setTimeout(() => w.print(), 300); }
+      return;
+    }
+
+    // A4 format
     const rows = productProfits.map(p =>
       `<tr>
         <td style="padding:4px 8px;border-bottom:1px solid #ddd">${p.name}</td>
@@ -231,7 +285,7 @@ export default function RelatorioVendas() {
         @media print{body{padding:0}.summary-item{border:1px solid #ddd}}
       </style></head><body>
       <h1>Relatório de Vendas</h1>
-      <p class="meta">Período: ${periodLabel} • Gerado em ${format(new Date(), "dd/MM/yyyy HH:mm")}</p>
+      <p class="meta">Período: ${periodLabel} • Gerado em ${now}</p>
       <div class="summary">
         <div class="summary-item"><div class="label">Vendas</div><div class="value">${totals.salesCount}</div></div>
         <div class="summary-item"><div class="label">Receita</div><div class="value">${formatCurrency(totals.revenue)}</div></div>
@@ -257,11 +311,7 @@ export default function RelatorioVendas() {
       </table></body></html>`;
 
     const w = window.open("", "_blank", "width=800,height=600");
-    if (w) {
-      w.document.write(html);
-      w.document.close();
-      setTimeout(() => w.print(), 300);
-    }
+    if (w) { w.document.write(html); w.document.close(); setTimeout(() => w.print(), 300); }
   };
 
   const inputClass = "px-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all";
@@ -278,13 +328,17 @@ export default function RelatorioVendas() {
           <p className="text-sm text-muted-foreground mt-1">Lucro por produto e totais do período</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={handlePrintReport} disabled={sales.length === 0}>
+          <Button variant="outline" size="sm" onClick={() => handlePrintReport(true)} disabled={sales.length === 0} title="Impressora térmica 80mm">
             <Printer className="w-4 h-4 mr-2" />
-            Imprimir
+            Cupom
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => handlePrintReport(false)} disabled={sales.length === 0} title="Impressão A4">
+            <Printer className="w-4 h-4 mr-2" />
+            Imprimir A4
           </Button>
           <Button variant="outline" size="sm" onClick={handleExportCSV} disabled={sales.length === 0}>
             <Download className="w-4 h-4 mr-2" />
-            Exportar CSV
+            CSV
           </Button>
         </div>
       </div>
