@@ -9,8 +9,6 @@ export interface Quote {
   client_name: string | null;
   items_json: any[];
   total: number;
-  discount_percent: number;
-  discount_value: number;
   status: string;
   notes: string | null;
   valid_until: string | null;
@@ -58,8 +56,6 @@ export function useQuotes({ skipInitialFetch }: { skipInitialFetch?: boolean } =
       client_name: data.clientName || null,
       items_json: data.items,
       total: data.total,
-      discount_percent: data.discountPercent || 0,
-      discount_value: data.discountValue || 0,
       status: "pendente",
       notes: data.notes || null,
       valid_until: validUntil,

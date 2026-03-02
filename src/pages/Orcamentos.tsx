@@ -220,10 +220,10 @@ export default function Orcamentos() {
                     ))}
                   </div>
                 </div>
-                {viewQuote.discount_value > 0 && (
+                {(viewQuote as any).discount_value > 0 && (
                   <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Desconto ({viewQuote.discount_percent}%)</span>
-                    <span className="text-destructive font-mono">-{fmt(viewQuote.discount_value)}</span>
+                    <span className="text-muted-foreground">Desconto</span>
+                    <span className="text-destructive font-mono">-{fmt((viewQuote as any).discount_value)}</span>
                   </div>
                 )}
                 <div className="flex justify-between text-lg font-bold border-t border-border pt-3">
