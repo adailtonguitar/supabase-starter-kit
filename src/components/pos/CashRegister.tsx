@@ -127,6 +127,7 @@ export function CashRegister({ onClose, terminalId = "01", preventClose = false,
       <html><head><title>Fechamento de Caixa</title>
       <style>
         @page { size: 80mm auto; margin: 0; }
+        @media print { @page { margin: 0; } html, body { margin: 0; padding: 4px; } }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Courier New', monospace; font-size: 12px; padding: 8px; width: 80mm; color: #000; background: #fff; }
         .center { text-align: center; }
