@@ -50,7 +50,7 @@ const DialogContent = React.forwardRef<
           className={cn(
             "relative z-50 grid w-full gap-4 border bg-background p-6 shadow-lg duration-200 overflow-hidden data-[state=open]:animate-in data-[state=closed]:animate-out",
             isMobile
-              ? "max-h-[92vh] rounded-t-2xl data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom"
+              ? "max-h-[92vh] rounded-2xl data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom"
               : "max-w-[calc(100vw-2rem)] sm:max-w-lg md:max-w-xl max-h-[90vh] rounded-lg data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
             className,
           )}
