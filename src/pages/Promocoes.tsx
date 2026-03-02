@@ -84,10 +84,20 @@ export default function Promocoes() {
 
     setSaving(true);
     try {
-      // Send only columns confirmed to exist in DB schema
       const payload: Record<string, any> = {
         name: name.trim(),
+        description: description.trim() || null,
+        promo_type: promoType,
+        discount_percent: promoType === "percentual" ? discountPercent : 0,
+        fixed_price: promoType === "preco_fixo" ? fixedPrice : 0,
+        buy_quantity: promoType === "leve_x_pague_y" ? buyQty : 1,
+        pay_quantity: promoType === "leve_x_pague_y" ? payQty : 1,
+        scope,
+        category_name: scope === "category" ? categoryName.trim() : null,
+        min_quantity: promoType !== "leve_x_pague_y" ? minQty : 1,
         starts_at: new Date(startsAt).toISOString(),
+        product_ids: scope === "product" ? selectedProducts : [],
+        active_days: activeDays.length > 0 ? activeDays : null,
       };
       if (endsAt) payload.ends_at = new Date(endsAt).toISOString();
       await createPromotion(payload);
@@ -119,8 +129,10 @@ export default function Promocoes() {
     );
   };
 
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+
   return (
-    <div className="space-y-6">
+    <div className="p-3 sm:p-6 space-y-6 max-w-7xl mx-auto">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Promoções</h1>
@@ -293,8 +305,8 @@ export default function Promocoes() {
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {promotions.map((promo) => {
-            const promoType = promo.promo_type || "percentual";
-            const Icon = PROMO_TYPE_ICONS[promoType] || Tag;
+            const promoTypeLabel = promo.promo_type || "percentual";
+            const Icon = PROMO_TYPE_ICONS[promoTypeLabel] || Tag;
             const isExpired = promo.ends_at && new Date(promo.ends_at) < new Date();
             return (
               <Card key={promo.id} className={!promo.is_active || isExpired ? "opacity-60" : ""}>
@@ -307,7 +319,7 @@ export default function Promocoes() {
                       <div>
                         <CardTitle className="text-sm">{promo.name}</CardTitle>
                         <Badge variant="secondary" className="text-xs mt-0.5">
-                          {PROMO_TYPE_LABELS[promoType] || promoType}
+                          {PROMO_TYPE_LABELS[promoTypeLabel] || promoTypeLabel}
                         </Badge>
                       </div>
                     </div>
@@ -340,7 +352,7 @@ export default function Promocoes() {
                     variant="ghost"
                     size="sm"
                     className="text-destructive text-xs"
-                    onClick={() => deletePromotion(promo.id)}
+                    onClick={() => setDeleteTarget(promo.id)}
                   >
                     <Trash2 className="w-3 h-3 mr-1" />Excluir
                   </Button>
@@ -350,6 +362,20 @@ export default function Promocoes() {
           })}
         </div>
       )}
+
+      {/* Delete confirmation */}
+      <Dialog open={!!deleteTarget} onOpenChange={(v) => !v && setDeleteTarget(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirmar exclusão</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">Tem certeza que deseja excluir esta promoção? Esta ação não pode ser desfeita.</p>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" onClick={() => setDeleteTarget(null)}>Cancelar</Button>
+            <Button variant="destructive" onClick={() => { if (deleteTarget) { deletePromotion(deleteTarget); setDeleteTarget(null); } }}>Excluir</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

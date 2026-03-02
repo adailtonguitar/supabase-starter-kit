@@ -50,7 +50,8 @@ export function usePromotions() {
 
   const togglePromotion = async (id: string, isActive: boolean) => {
     if (!companyId) return;
-    await supabase.from("promotions").update({ is_active: isActive }).eq("id", id).eq("company_id", companyId);
+    const { error } = await supabase.from("promotions").update({ is_active: isActive }).eq("id", id).eq("company_id", companyId);
+    if (error) { toast.error("Erro ao atualizar promoção"); return; }
     qc.invalidateQueries({ queryKey: ["promotions"] });
   };
 
