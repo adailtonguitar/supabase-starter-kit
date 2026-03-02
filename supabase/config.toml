@@ -48,3 +48,9 @@ verify_jwt = false
 
 [functions.lookup-barcode]
 verify_jwt = false
+
+[functions.create-onboarding-company]
+verify_jwt = false
+
+[functions.create-company-user]
+verify_jwt = false
