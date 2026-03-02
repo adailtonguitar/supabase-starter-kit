@@ -104,6 +104,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch { /* best effort */ }
     cacheUser(null);
     localStorage.removeItem("as_cached_company");
+    localStorage.removeItem("as_cached_admin_role");
+    localStorage.removeItem("as_selected_company");
     await supabase.auth.signOut();
   };
 
