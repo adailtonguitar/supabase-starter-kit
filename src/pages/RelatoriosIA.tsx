@@ -2,6 +2,7 @@ import { useState, useCallback, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useCompany } from "@/hooks/useCompany";
+import { supabase } from "@/integrations/supabase/client";
 import { BrainCircuit, Sparkles, Loader2, RefreshCw, AlertCircle } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 
@@ -32,33 +33,16 @@ export default function RelatoriosIA() {
     setInsight(null);
 
     try {
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "https://fsvxpxziotklbxkivyug.supabase.co";
-      const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZzdnhweHppb3RrbGJ4a2l2eXVnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE3ODU5NTMsImV4cCI6MjA4NzM2MTk1M30.8I3ABsRZBZuE1IpK_g9z3PdRUd9Omt_F5qNx0Pgqvyo";
-
-      const resp = await fetch(`${supabaseUrl}/functions/v1/ai-report`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${anonKey}`,
-          "apikey": anonKey,
-        },
-        body: JSON.stringify({ report_type: "quick", company_id: companyId }),
+      const { data, error } = await supabase.functions.invoke("ai-report", {
+        body: { report_type: "quick", company_id: companyId },
       });
 
-      if (!resp.ok) {
-        let msg = `Erro ${resp.status}.`;
-        try {
-          const errData = await resp.json();
-          if (errData?.error) msg = errData.error;
-        } catch {
-          await resp.text();
-        }
-        setErrorMsg(msg);
+      if (error) {
+        setErrorMsg(error.message || "Erro ao gerar análise.");
         setLoading(false);
         return;
       }
 
-      const data = await resp.json();
       if (data?.error) {
         setErrorMsg(data.error);
       } else if (data?.report && typeof data.report === "string") {

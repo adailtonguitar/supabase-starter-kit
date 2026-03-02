@@ -1,23 +1,27 @@
 import { Link } from "react-router-dom";
 import { Package, DollarSign, Receipt, BarChart3, ShoppingCart, Users } from "lucide-react";
-import { useDashboardStats } from "@/hooks/useDashboardStats";
+
+interface QuickAccessCardsProps {
+  productsAtRisk?: number;
+  activeAlerts?: number;
+}
 
 const cards = [
   { title: "PDV", desc: "Abrir caixa", icon: ShoppingCart, to: "/pdv", accent: "text-primary", bg: "bg-primary/10", hoverBorder: "hover:border-primary/40", badgeKey: null },
-  { title: "Produtos", desc: "Estoque", icon: Package, to: "/produtos", accent: "text-blue-500", bg: "bg-blue-500/10", hoverBorder: "hover:border-blue-500/40", badgeKey: "productsAtRisk" as const },
+  { title: "Produtos", desc: "Estoque", icon: Package, to: "/produtos", accent: "text-accent-foreground", bg: "bg-accent", hoverBorder: "hover:border-accent/40", badgeKey: "productsAtRisk" as const },
   { title: "Vendas", desc: "Histórico", icon: DollarSign, to: "/vendas", accent: "text-success", bg: "bg-success/10", hoverBorder: "hover:border-success/40", badgeKey: null },
   { title: "Financeiro", desc: "Contas", icon: Receipt, to: "/financeiro", accent: "text-warning", bg: "bg-warning/10", hoverBorder: "hover:border-warning/40", badgeKey: "activeAlerts" as const },
-  { title: "Clientes", desc: "Cadastro", icon: Users, to: "/clientes", accent: "text-purple-500", bg: "bg-purple-500/10", hoverBorder: "hover:border-purple-500/40", badgeKey: null },
-  { title: "Relatórios", desc: "Análises", icon: BarChart3, to: "/relatorio-vendas", accent: "text-rose-500", bg: "bg-rose-500/10", hoverBorder: "hover:border-rose-500/40", badgeKey: null },
+  { title: "Clientes", desc: "Cadastro", icon: Users, to: "/clientes", accent: "text-primary", bg: "bg-primary/10", hoverBorder: "hover:border-primary/40", badgeKey: null },
+  { title: "Relatórios", desc: "Análises", icon: BarChart3, to: "/relatorio-vendas", accent: "text-destructive", bg: "bg-destructive/10", hoverBorder: "hover:border-destructive/40", badgeKey: null },
 ];
 
-export function QuickAccessCards() {
-  const { data: stats } = useDashboardStats();
+export function QuickAccessCards({ productsAtRisk = 0, activeAlerts = 0 }: QuickAccessCardsProps) {
+  const badgeCounts: Record<string, number> = { productsAtRisk, activeAlerts };
 
   return (
     <div className="grid grid-cols-3 sm:grid-cols-6 gap-2.5 sm:gap-3">
       {cards.map((card) => {
-        const badgeCount = card.badgeKey && stats ? stats[card.badgeKey] : 0;
+        const badgeCount = card.badgeKey ? badgeCounts[card.badgeKey] || 0 : 0;
         return (
           <Link
             key={card.title}
