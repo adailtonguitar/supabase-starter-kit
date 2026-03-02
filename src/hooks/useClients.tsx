@@ -30,10 +30,12 @@ export function useCreateClient() {
 
 export function useUpdateClient() {
   const qc = useQueryClient();
+  const { companyId } = useCompany();
   return useMutation({
     mutationFn: async (data: any) => {
+      if (!companyId) throw new Error("Empresa não encontrada");
       const { id, ...rest } = data;
-      const { error } = await supabase.from("clients").update(rest).eq("id", id);
+      const { error } = await supabase.from("clients").update(rest).eq("id", id).eq("company_id", companyId);
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["clients"] }),
@@ -42,9 +44,11 @@ export function useUpdateClient() {
 
 export function useDeleteClient() {
   const qc = useQueryClient();
+  const { companyId } = useCompany();
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("clients").delete().eq("id", id);
+      if (!companyId) throw new Error("Empresa não encontrada");
+      const { error } = await supabase.from("clients").delete().eq("id", id).eq("company_id", companyId);
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["clients"] }),

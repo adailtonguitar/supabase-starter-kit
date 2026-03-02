@@ -139,10 +139,12 @@ export function useMarkAsPaid() {
 
   return useMutation({
     mutationFn: async ({ id, paid_amount, payment_method }: { id: string; paid_amount: number; payment_method?: string }) => {
+      if (!companyId) throw new Error("Sem permissão");
       const { data: entry, error: fetchErr } = await supabase
         .from("financial_entries")
         .select("type, reference, description")
         .eq("id", id)
+        .eq("company_id", companyId)
         .single();
       if (fetchErr) throw fetchErr;
 
@@ -155,6 +157,7 @@ export function useMarkAsPaid() {
           payment_method,
         })
         .eq("id", id)
+        .eq("company_id", companyId)
         .select()
         .single();
       if (error) throw error;
