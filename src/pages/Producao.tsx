@@ -102,7 +102,7 @@ export default function Producao() {
   const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" }> = { pendente: { label: "Pendente", variant: "secondary" }, concluido: { label: "Concluído", variant: "default" }, cancelado: { label: "Cancelado", variant: "destructive" } };
 
   return (
-    <div className="p-4 md:p-6 space-y-6 max-w-6xl mx-auto overflow-hidden">
+    <div className="p-4 md:p-6 space-y-6 max-w-6xl mx-auto">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div><h1 className="text-xl md:text-2xl font-bold text-foreground flex items-center gap-2"><ChefHat className="w-6 h-6" /> Produção</h1><p className="text-sm text-muted-foreground mt-1">Gerencie receitas e ordens de produção para açougue e padaria</p></div>
         <Button className="shrink-0" onClick={() => { resetRecipeForm(); setShowRecipeDialog(true); }}><Plus className="w-4 h-4 mr-1" /> Nova Receita</Button>
