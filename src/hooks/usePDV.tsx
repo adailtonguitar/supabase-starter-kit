@@ -69,6 +69,7 @@ export function usePDV() {
         .from("products")
         .select("id, name, sku, barcode, price, stock_quantity, unit, category, ncm, image_url")
         .eq("company_id", companyId)
+        .eq("is_active", true)
         .order("name");
       
       if (data && data.length > 0) {
@@ -208,21 +209,29 @@ export function usePDV() {
         );
         if (product && product.stock_quantity > 0) {
           if (parsed.mode === "weight") {
+            const weightToAdd = Math.min(parsed.value, product.stock_quantity);
             setCartItems((prev) => {
               const existing = prev.find((i) => i.id === product.id);
+              const currentQty = existing ? existing.quantity : 0;
+              const safeQty = Math.min(weightToAdd, product.stock_quantity - currentQty);
+              if (safeQty <= 0) return prev;
               if (existing) {
-                return prev.map((i) => i.id === product.id ? { ...i, quantity: i.quantity + parsed.value } : i);
+                return prev.map((i) => i.id === product.id ? { ...i, quantity: i.quantity + safeQty } : i);
               }
-              return [...prev, { ...product, quantity: parsed.value }];
+              return [...prev, { ...product, quantity: safeQty }];
             });
           } else {
             const qty = product.price > 0 ? parsed.value / product.price : 1;
+            const safeQty = Math.min(qty, product.stock_quantity);
             setCartItems((prev) => {
               const existing = prev.find((i) => i.id === product.id);
+              const currentQty = existing ? existing.quantity : 0;
+              const finalQty = Math.min(safeQty, product.stock_quantity - currentQty);
+              if (finalQty <= 0) return prev;
               if (existing) {
-                return prev.map((i) => i.id === product.id ? { ...i, quantity: i.quantity + qty } : i);
+                return prev.map((i) => i.id === product.id ? { ...i, quantity: i.quantity + finalQty } : i);
               }
-              return [...prev, { ...product, quantity: qty }];
+              return [...prev, { ...product, quantity: finalQty }];
             });
           }
         } else if (product && product.stock_quantity <= 0) {

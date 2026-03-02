@@ -73,11 +73,11 @@ export class CashSessionService {
     // If session ID is an offline ID, handle it locally without hitting Supabase
     if (params.sessionId.startsWith("offline_")) return closeOffline();
     try {
-      const { data: session, error: sErr } = await supabase.from("cash_sessions").select("*").eq("id", params.sessionId).single();
+      const { data: session, error: sErr } = await supabase.from("cash_sessions").select("*").eq("id", params.sessionId).eq("company_id", params.companyId).single();
       if (sErr) { if (isNetworkError(sErr)) return closeOffline(); throw new Error(`Sessão não encontrada: ${sErr.message}`); }
       const totalCounted = params.countedDinheiro + params.countedDebito + params.countedCredito + params.countedPix;
       const totalExpected = Number(session.opening_balance) + Number(session.total_dinheiro || 0) + Number(session.total_debito || 0) + Number(session.total_credito || 0) + Number(session.total_pix || 0) + Number(session.total_suprimento || 0) - Number(session.total_sangria || 0);
-      const { data, error } = await supabase.from("cash_sessions").update({ status: "fechado", closed_by: params.userId, closed_at: new Date().toISOString(), closing_balance: totalCounted, counted_dinheiro: params.countedDinheiro, counted_debito: params.countedDebito, counted_credito: params.countedCredito, counted_pix: params.countedPix, difference: totalCounted - totalExpected, notes: params.notes }).eq("id", params.sessionId).select().single();
+      const { data, error } = await supabase.from("cash_sessions").update({ status: "fechado", closed_by: params.userId, closed_at: new Date().toISOString(), closing_balance: totalCounted, counted_dinheiro: params.countedDinheiro, counted_debito: params.countedDebito, counted_credito: params.countedCredito, counted_pix: params.countedPix, difference: totalCounted - totalExpected, notes: params.notes }).eq("id", params.sessionId).eq("company_id", params.companyId).select().single();
       if (error) { if (isNetworkError(error)) return closeOffline(); throw new Error(`Erro ao fechar caixa: ${error.message}`); }
       await supabase.from("cash_movements").insert({ company_id: params.companyId, session_id: params.sessionId, type: "fechamento", amount: totalCounted, performed_by: params.userId, description: `Fechamento - Diferença: ${(totalCounted - totalExpected).toFixed(2)}` });
       saveOfflineSession(null);
@@ -95,8 +95,8 @@ export class CashSessionService {
       const { data, error } = await supabase.from("cash_movements").insert({ company_id: params.companyId, session_id: params.sessionId, type: params.type, amount: params.amount, performed_by: params.userId, description: params.description }).select().single();
       if (error) { if (isNetworkError(error)) return moveOffline(); throw new Error(`Erro na movimentação: ${error.message}`); }
       const field = params.type === "sangria" ? "total_sangria" : "total_suprimento";
-      const { data: session } = await supabase.from("cash_sessions").select(field).eq("id", params.sessionId).single();
-      if (session) await supabase.from("cash_sessions").update({ [field]: Number(session[field] || 0) + params.amount }).eq("id", params.sessionId);
+      const { data: session } = await supabase.from("cash_sessions").select(field).eq("id", params.sessionId).eq("company_id", params.companyId).single();
+      if (session) await supabase.from("cash_sessions").update({ [field]: Number(session[field] || 0) + params.amount }).eq("id", params.sessionId).eq("company_id", params.companyId);
       return data;
     } catch (err: any) { if (isNetworkError(err)) return moveOffline(); throw err; }
   }
