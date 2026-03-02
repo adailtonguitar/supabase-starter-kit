@@ -276,7 +276,7 @@ export default function Dashboard() {
           </div>
 
           {/* Recent Sales */}
-          <motion.div variants={item} className="bg-card rounded-2xl border border-border overflow-hidden">
+          <motion.div variants={item} className="bg-card rounded-2xl border border-border overflow-clip">
             <div className="px-5 py-4 border-b border-border flex items-center justify-between">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
