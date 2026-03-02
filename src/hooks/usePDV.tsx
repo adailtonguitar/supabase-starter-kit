@@ -71,32 +71,22 @@ export function usePDV() {
         .eq("company_id", companyId)
         .order("name");
       
-      
-      
       if (data && data.length > 0) {
         setProducts(data as PDVProduct[]);
-        // Cache for offline use
         try { localStorage.setItem(PRODUCTS_CACHE_KEY, JSON.stringify(data)); } catch {}
       } else if (error) {
-        // Network error — load from cache
-        console.log("[PDV] Loading products from offline cache");
         try {
           const cached = localStorage.getItem(PRODUCTS_CACHE_KEY);
           if (cached) {
-            const parsed = JSON.parse(cached);
-            setProducts(parsed as PDVProduct[]);
-            console.log("[PDV] Loaded", parsed.length, "products from cache");
+            setProducts(JSON.parse(cached) as PDVProduct[]);
           }
         } catch {}
       }
     } catch {
-      // Total failure — try cache
-      console.log("[PDV] Network error, loading from cache");
       try {
         const cached = localStorage.getItem(PRODUCTS_CACHE_KEY);
         if (cached) {
-          const parsed = JSON.parse(cached);
-          setProducts(parsed as PDVProduct[]);
+          setProducts(JSON.parse(cached) as PDVProduct[]);
         }
       } catch {}
     }
@@ -260,9 +250,8 @@ export function usePDV() {
         status: "pending",
         attempts: 0,
       } as any);
-      console.log("[PDV] Fiscal enqueued for sale:", saleId);
-    } catch (err: any) {
-      console.warn("[PDV] Failed to enqueue fiscal:", err.message);
+    } catch {
+      // fiscal enqueue failed silently
     }
   }, [companyId]);
 
@@ -444,14 +433,13 @@ export function usePDV() {
         enqueueFiscal(saleId);
         // Tenta processar em background sem bloquear
         processFiscalEmission(saleId)
-          .then(r => r?.nfceNumber && console.log("[PDV] NFC-e emitida:", r.nfceNumber))
-          .catch(err => console.warn("[PDV] Fiscal async error:", err));
+          .catch(() => {});
       }
 
       return { saleId, nfceNumber: "", fiscalDocId: undefined, isContingency: false };
     } catch (onlineErr: any) {
       // ── CONTINGENCY FALLBACK ──
-      console.warn("[PDV] Online sale failed, entering contingency:", onlineErr.message);
+      // Online sale failed, entering contingency mode
       setContingencyMode(true);
 
       // Get user_id for contingency
@@ -540,7 +528,7 @@ export function usePDV() {
         contingencyNumber = String(contingencyPayload.contingency_number || contingencyNumber);
         await queueOperation("fiscal_contingency", contingencyPayload as unknown as Record<string, unknown>, 1, 5);
       } catch (contErr: any) {
-        console.error("[PDV] Contingency payload failed:", contErr.message);
+        // contingency payload failed silently
       }
 
       try {
@@ -553,7 +541,7 @@ export function usePDV() {
           created_at: new Date().toISOString(),
         }, 2, 3);
       } catch (queueErr: any) {
-        console.error("[PDV] Queue sale failed:", queueErr.message);
+        // queue sale failed silently
       }
 
       setContingencySaleIds(prev => new Set(prev).add(offlineSaleId));
