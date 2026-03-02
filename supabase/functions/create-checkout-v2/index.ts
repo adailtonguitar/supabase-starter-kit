@@ -1,4 +1,4 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { createClient } from "npm:@supabase/supabase-js@2.49.1";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -68,10 +68,9 @@ Deno.serve(async (req) => {
     }
 
     const MP_ACCESS_TOKEN = Deno.env.get("MERCADOPAGO_ACCESS_TOKEN") || Deno.env.get("MERCADO_PAGO_ACCESS_TOKEN") || Deno.env.get("MP_ACCESS_TOKEN");
-    console.log("[create-checkout-v2] MP token found:", !!MP_ACCESS_TOKEN, "length:", MP_ACCESS_TOKEN?.length ?? 0);
+    console.log("[create-checkout-v2] MP token found:", !!MP_ACCESS_TOKEN);
     if (!MP_ACCESS_TOKEN) {
-      const allKeys = [...Deno.env.keys()].filter(k => !k.startsWith("SUPABASE_")).join(", ");
-      console.error("[create-checkout-v2] Available non-supabase env keys:", allKeys);
+      console.error("[create-checkout-v2] MERCADOPAGO_ACCESS_TOKEN not configured");
       throw new Error("MERCADOPAGO_ACCESS_TOKEN not configured");
     }
 
