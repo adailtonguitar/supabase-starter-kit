@@ -229,7 +229,7 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
         toast.info("Código escaneado com sucesso! Produto não encontrado na base. Preencha os dados manualmente.", { duration: 5000 });
       }
     } catch (err: any) {
-      console.warn("[barcode-lookup]", err?.message);
+      // barcode lookup failed silently
       toast.info("Código registrado. Preencha os dados do produto.", { duration: 4000 });
     } finally {
       setLookingUpBarcode(false);
@@ -296,7 +296,7 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
       onOpenChange(false);
       form.reset();
     } catch (err: any) {
-      console.error("[ProductFormDialog] save error:", err);
+      // save error handled by toast below
 
       const rawMessage = String(err?.message || "Erro ao salvar produto");
       const isRlsError = rawMessage.toLowerCase().includes("row-level security") || rawMessage.toLowerCase().includes("violates row-level security");
@@ -382,7 +382,7 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
       const confidenceLabel = p.confidence >= 0.8 ? "alta" : p.confidence >= 0.5 ? "média" : "baixa";
       toast.success(`✨ Produto identificado! Confiança: ${confidenceLabel} (${(p.confidence * 100).toFixed(0)}%). Revise os campos.`, { duration: 5000 });
     } catch (err: any) {
-      console.error("[AI Photo] Error:", err);
+      // AI analysis error handled by toast below
       toast.error(`Erro na análise: ${err.message || "Tente novamente"}`);
     } finally {
       setAnalyzingImage(false);

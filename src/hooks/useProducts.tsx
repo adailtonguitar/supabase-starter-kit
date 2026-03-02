@@ -30,6 +30,7 @@ export function useProducts() {
         .from("products")
         .select("*")
         .eq("company_id", companyId)
+        .eq("is_active", true)
         .order("name");
       if (error) throw error;
       return (data || []) as Product[];
@@ -58,12 +59,15 @@ export function useCreateProduct() {
 
 export function useUpdateProduct() {
   const queryClient = useQueryClient();
+  const { companyId } = useCompany();
   return useMutation({
     mutationFn: async ({ id, ...updates }: Partial<Product> & { id: string }) => {
+      if (!companyId) throw new Error("Empresa não encontrada");
       const { data, error } = await supabase
         .from("products")
         .update(updates)
         .eq("id", id)
+        .eq("company_id", companyId)
         .select()
         .single();
       if (error) throw error;
@@ -75,15 +79,17 @@ export function useUpdateProduct() {
 
 export function useDeleteProduct() {
   const queryClient = useQueryClient();
+  const { companyId } = useCompany();
   return useMutation({
     mutationFn: async (id: string) => {
+      if (!companyId) throw new Error("Empresa não encontrada");
       // Delete dependent records — but NOT sale_items (preserves sales history)
-      await supabase.from("product_labels" as any).delete().eq("product_id", id);
-      await supabase.from("stock_movements" as any).delete().eq("product_id", id);
-      await supabase.from("product_lots" as any).delete().eq("product_id", id);
+      await supabase.from("product_labels" as any).delete().eq("product_id", id).eq("company_id", companyId);
+      await supabase.from("stock_movements" as any).delete().eq("product_id", id).eq("company_id", companyId);
+      await supabase.from("product_lots" as any).delete().eq("product_id", id).eq("company_id", companyId);
       
       // Soft-delete: deactivate product instead of hard delete to preserve referential integrity
-      const { error } = await supabase.from("products").update({ is_active: false } as any).eq("id", id);
+      const { error } = await supabase.from("products").update({ is_active: false } as any).eq("id", id).eq("company_id", companyId);
       if (error) throw error;
     },
     onSuccess: () => {
