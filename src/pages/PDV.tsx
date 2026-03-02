@@ -9,7 +9,6 @@ import { PDVProductGrid } from "@/components/pdv/PDVProductGrid";
 import { PDVLoyaltyClientList } from "@/components/pdv/PDVLoyaltyClientList";
 import { PDVQuickProductDialog } from "@/components/pdv/PDVQuickProductDialog";
 import { PDVClientSelector, type CreditClient } from "@/components/pdv/PDVClientSelector";
-import { PDVFiadoReceipt, type FiadoReceiptData } from "@/components/pdv/PDVFiadoReceipt";
 import { SaleReceipt } from "@/components/pos/SaleReceipt";
 import { TEFProcessor, type TEFResult } from "@/components/pos/TEFProcessor";
 import { CashRegister } from "@/components/pos/CashRegister";
@@ -63,7 +62,6 @@ export default function PDV() {
   const [showClientSelector, setShowClientSelector] = useState(false);
   const [showReceiveCredit, setShowReceiveCredit] = useState(false);
   const [selectedClient, setSelectedClient] = useState<CreditClient | null>(null);
-  const [fiadoReceipt, setFiadoReceipt] = useState<FiadoReceiptData | null>(null);
   const [showLoyaltyClientSelector, setShowLoyaltyClientSelector] = useState(false);
   const [showPriceLookup, setShowPriceLookup] = useState(false);
   const [priceLookupQuery, setPriceLookupQuery] = useState("");
@@ -140,7 +138,7 @@ export default function PDV() {
   }, [pdv.sessionEverLoaded, pdv.loadingSession, pdv.currentSession, showCashRegister]);
 
   // Always re-focus barcode input when no modal is open
-  const noModalOpen = !showTEF && !receipt && !fiadoReceipt && !showCashRegister && !showProductList && !showShortcuts && !showPriceLookup && !showLoyaltyClientSelector && !showQuickProduct && !showSaveQuote && !showTerminalPicker && !showClientSelector && !showReceiveCredit && !zeroStockProduct && !editingQtyItemId && !editingItemDiscountId && !editingGlobalDiscount;
+  const noModalOpen = !showTEF && !receipt && !showCashRegister && !showProductList && !showShortcuts && !showPriceLookup && !showLoyaltyClientSelector && !showQuickProduct && !showSaveQuote && !showTerminalPicker && !showClientSelector && !showReceiveCredit && !zeroStockProduct && !editingQtyItemId && !editingItemDiscountId && !editingGlobalDiscount;
 
   useEffect(() => {
     if (noModalOpen) {
@@ -448,11 +446,11 @@ export default function PDV() {
           }
           break;
         case "Escape": {
-          const anyModalOpen = showShortcuts || showPriceLookup || showProductList || editingQtyItemId || editingItemDiscountId || editingGlobalDiscount || showSaveQuote || showLoyaltyClientSelector || showQuickProduct || showClientSelector || showReceiveCredit || !!fiadoReceipt || !!zeroStockProduct;
+          const anyModalOpen = showShortcuts || showPriceLookup || showProductList || editingQtyItemId || editingItemDiscountId || editingGlobalDiscount || showSaveQuote || showLoyaltyClientSelector || showQuickProduct || showClientSelector || showReceiveCredit || !!zeroStockProduct;
           if (anyModalOpen) {
             e.preventDefault();
-            if (fiadoReceipt) setFiadoReceipt(null);
-            else if (showShortcuts) setShowShortcuts(false);
+            // Close the topmost modal
+            if (showShortcuts) setShowShortcuts(false);
             else if (showPriceLookup) setShowPriceLookup(false);
             else if (showProductList) setShowProductList(false);
             else if (editingQtyItemId) setEditingQtyItemId(null);
@@ -567,31 +565,26 @@ export default function PDV() {
     setShowClientSelector(true);
   };
 
-  const handleCreditSaleConfirmed = async (client: CreditClient, mode: "fiado", installments: number) => {
+  const handleCreditSaleConfirmed = async (client: CreditClient, mode: "fiado" | "parcelado", installments: number) => {
     setShowClientSelector(false);
     if (finalizingSale) return;
     try {
       const paymentResults: PaymentResult[] = [{
         method: "prazo", approved: true, amount: pdv.total,
         credit_client_id: client.id, credit_client_name: client.name,
-        credit_mode: "fiado", credit_installments: 1,
+        credit_mode: mode, credit_installments: installments,
       }];
       const savedItems = [...pdv.cartItems];
       const savedTotal = pdv.total;
-      // Fiado sales NEVER emit fiscal receipt
-      const result = await pdv.finalizeSale(paymentResults, { skipFiscal: true });
+      const result = await pdv.finalizeSale(paymentResults, { skipFiscal: skipFiscalEmission });
       playSaleCompleteSound();
-      // Show fiado-specific receipt instead of fiscal receipt
-      setFiadoReceipt({
-        clientName: client.name,
-        clientCpf: client.cpf,
-        items: savedItems.map((i) => ({ name: i.name, quantity: i.quantity, unit_price: i.price })),
-        total: savedTotal,
-        storeName: companyName || undefined,
-        storeCnpj: undefined,
-        saleNumber: saleNumber,
+      setReceipt({
+        items: savedItems, total: savedTotal,
+        payments: [{ method: "prazo" as any, approved: true, amount: savedTotal }],
+        nfceNumber: result.nfceNumber,
+        isContingency: result.isContingency,
       });
-      toast.success(`Venda fiado registrada para ${client.name}`, { duration: 1500 });
+      toast.success(`Venda a prazo registrada para ${client.name}`, { duration: 1500 });
       setSelectedClient(null);
       const newNum = saleNumber + 1;
       setSaleNumber(newNum);
@@ -607,7 +600,7 @@ export default function PDV() {
       }
     } catch (err: any) {
       playErrorSound();
-      toast.error(`Erro ao finalizar venda fiado: ${err.message}`);
+      toast.error(`Erro ao finalizar venda a prazo: ${err.message}`);
     }
   };
 
