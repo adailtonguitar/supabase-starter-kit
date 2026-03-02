@@ -54,16 +54,12 @@ export default function Financeiro() {
   const monthEnd = format(monthEndDate, "yyyy-MM-dd");
 
   const typeFilter = tab === "pagar" ? "pagar" : tab === "receber" ? "receber" : undefined;
-  const { data: entries = [], isLoading } = useLocalFinancialEntries({
-    type: typeFilter as any,
+  const { data: allEntries = [], isLoading } = useLocalFinancialEntries({
     startDate: monthStart,
     endDate: monthEnd,
   });
 
-  const { data: allEntries = [] } = useLocalFinancialEntries({
-    startDate: monthStart,
-    endDate: monthEnd,
-  });
+  const entries = typeFilter ? allEntries.filter(e => e.type === typeFilter) : allEntries;
 
   const deleteEntry = useDeleteLocalFinancialEntry();
   const markAsPaid = useMarkAsLocalPaid();

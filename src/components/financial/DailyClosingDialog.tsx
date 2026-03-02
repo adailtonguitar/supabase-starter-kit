@@ -99,7 +99,7 @@ export function DailyClosingDialog({ open, onOpenChange }: DailyClosingDialogPro
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground flex items-center gap-1.5">
-                      <Clock className="w-3.5 h-3.5 text-amber-500" /> Pendentes
+                      <Clock className="w-3.5 h-3.5 text-warning" /> Pendentes
                     </span>
                     <span className="font-medium text-foreground">{pendentes.length}</span>
                   </div>

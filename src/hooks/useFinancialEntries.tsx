@@ -197,8 +197,8 @@ export function useMarkAsPaid() {
                 .eq("id", session.id);
             }
           }
-        } catch (cashErr) {
-          console.warn("Não foi possível registrar no caixa:", cashErr);
+        } catch {
+          // cash registration failed silently
         }
       }
 

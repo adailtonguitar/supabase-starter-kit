@@ -39,9 +39,11 @@ export function useLocalFinancialEntries(filters?: { type?: "pagar" | "receber";
 
 export function useDeleteLocalFinancialEntry() {
   const qc = useQueryClient();
+  const { companyId } = useCompany();
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("financial_entries").delete().eq("id", id);
+      if (!companyId) throw new Error("Empresa não identificada");
+      const { error } = await supabase.from("financial_entries").delete().eq("id", id).eq("company_id", companyId);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -53,14 +55,16 @@ export function useDeleteLocalFinancialEntry() {
 
 export function useMarkAsLocalPaid() {
   const qc = useQueryClient();
+  const { companyId } = useCompany();
   return useMutation({
     mutationFn: async (params: { id: string; paid_amount: number; payment_method: string }) => {
+      if (!companyId) throw new Error("Empresa não identificada");
       const { error } = await supabase.from("financial_entries").update({
         status: "pago",
         paid_amount: params.paid_amount,
         payment_method: params.payment_method,
         paid_date: new Date().toISOString().split("T")[0],
-      }).eq("id", params.id);
+      }).eq("id", params.id).eq("company_id", companyId);
       if (error) throw error;
     },
     onSuccess: () => {
