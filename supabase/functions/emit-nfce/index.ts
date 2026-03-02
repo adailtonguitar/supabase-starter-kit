@@ -485,23 +485,28 @@ Deno.serve(async (req) => {
         });
       }
 
-      if (fiscal_doc_id) {
+      // Update fiscal_documents with company_id guard
+      const cancelCompanyId = body.company_id;
+      if (fiscal_doc_id && cancelCompanyId) {
         await supabase
           .from("fiscal_documents")
           .update({ status: "cancelada" })
-          .eq("id", fiscal_doc_id);
-      } else if (access_key) {
+          .eq("id", fiscal_doc_id)
+          .eq("company_id", cancelCompanyId);
+      } else if (access_key && cancelCompanyId) {
         await supabase
           .from("fiscal_documents")
           .update({ status: "cancelada" })
-          .eq("access_key", access_key);
+          .eq("access_key", access_key)
+          .eq("company_id", cancelCompanyId);
       }
 
-      if (sale_id) {
+      if (sale_id && cancelCompanyId) {
         await supabase
           .from("sales")
           .update({ status: "cancelada" })
-          .eq("id", sale_id);
+          .eq("id", sale_id)
+          .eq("company_id", cancelCompanyId);
       }
 
       // ── Backup cancel XML ──

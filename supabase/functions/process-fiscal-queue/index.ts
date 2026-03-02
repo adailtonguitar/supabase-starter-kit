@@ -131,20 +131,29 @@ Deno.serve(async (req) => {
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err: any) {
-    // Atualizar fila com erro
+    // Atualizar fila com erro usando dados já obtidos no try block
     try {
-      const body = await req.clone().json().catch(() => ({}));
-      const queueId = body?.queue_id;
-      const saleId = body?.sale_id;
+      // Re-fetch the pending item to get queueId/saleId for error handling
+      const { data: errorItem } = await supabase
+        .from("fiscal_queue")
+        .select("id, sale_id, company_id")
+        .eq("status", "processing")
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
 
-      if (queueId) {
+      if (errorItem?.id) {
         await supabase
           .from("fiscal_queue")
           .update({ status: "error", last_error: err.message })
-          .eq("id", queueId);
+          .eq("id", errorItem.id);
       }
-      if (saleId) {
-        await supabase.from("sales").update({ status: "pendente_fiscal" }).eq("id", saleId);
+      if (errorItem?.sale_id && errorItem?.company_id) {
+        await supabase
+          .from("sales")
+          .update({ status: "pendente_fiscal" })
+          .eq("id", errorItem.sale_id)
+          .eq("company_id", errorItem.company_id);
       }
     } catch { /* best effort */ }
 
