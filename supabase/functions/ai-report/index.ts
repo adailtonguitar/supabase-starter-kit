@@ -99,7 +99,101 @@ Estruture em markdown com: Resumo Executivo, Indicadores Chave, Análise Detalha
 Use linguagem profissional mas acessível. Valores em R$.`;
 }
 
+function generatePurchaseFallbackReport(sales: any[], products: any[]) {
+  // Build sales aggregation per product for last 30 days
+  const productSalesMap: Record<string, { name: string; qty: number }> = {};
+  for (const sale of sales) {
+    const items = Array.isArray(sale.items) ? sale.items : [];
+    for (const item of items) {
+      const key = item.product_id || item.name || "unknown";
+      const name = item.name || "Produto";
+      const qty = Number(item.quantity || 1);
+      if (!productSalesMap[key]) productSalesMap[key] = { name, qty: 0 };
+      productSalesMap[key].qty += qty;
+    }
+  }
+
+  const zeroStockWithSales = products.filter((p) => {
+    const stock = p.stock_quantity ?? 0;
+    return stock <= 0;
+  }).map((p) => {
+    const salesData = Object.values(productSalesMap).find((s) => s.name === p.name);
+    return { ...p, vendas30d: salesData?.qty || 0 };
+  }).filter((p) => p.vendas30d > 0).sort((a, b) => b.vendas30d - a.vendas30d);
+
+  const lowStockProducts = products.filter((p) => {
+    const stock = p.stock_quantity ?? 0;
+    return stock > 0 && p.min_stock > 0 && stock <= p.min_stock;
+  }).map((p) => {
+    const salesData = Object.values(productSalesMap).find((s) => s.name === p.name);
+    return { ...p, vendas30d: salesData?.qty || 0 };
+  }).sort((a, b) => b.vendas30d - a.vendas30d);
+
+  const s: string[] = [];
+  s.push(`## 🛒 Sugestão de Pedido de Compra\n`);
+  s.push(`> Baseado no estoque atual e vendas dos últimos 30 dias.\n`);
+
+  // Urgent
+  s.push(`### 🔴 Reposição Urgente (estoque zerado com vendas)\n`);
+  if (zeroStockWithSales.length === 0) {
+    s.push(`Nenhum produto zerado com vendas recentes. ✅\n`);
+  } else {
+    s.push(`| Produto | Estoque | Vendas/30d | Sugestão Compra |`);
+    s.push(`|---------|---------|------------|-----------------|`);
+    zeroStockWithSales.slice(0, 15).forEach((p) => {
+      const sugestao = Math.max(Math.ceil(p.vendas30d / 2), 5); // 15 days coverage, min 5
+      s.push(`| ${p.name} | ${p.stock_quantity ?? 0} | ${p.vendas30d} un. | **${sugestao} un.** |`);
+    });
+  }
+
+  // Preventive
+  s.push(`\n### 🟡 Reposição Preventiva (estoque abaixo do mínimo)\n`);
+  if (lowStockProducts.length === 0) {
+    s.push(`Nenhum produto abaixo do estoque mínimo. ✅\n`);
+  } else {
+    s.push(`| Produto | Estoque | Mínimo | Vendas/30d | Sugestão Compra |`);
+    s.push(`|---------|---------|--------|------------|-----------------|`);
+    lowStockProducts.slice(0, 15).forEach((p) => {
+      const deficit = (p.min_stock || 0) - (p.stock_quantity || 0);
+      const sugestao = Math.max(deficit, Math.ceil(p.vendas30d / 2));
+      s.push(`| ${p.name} | ${p.stock_quantity ?? 0} | ${p.min_stock} | ${p.vendas30d} un. | **${sugestao} un.** |`);
+    });
+  }
+
+  // Summary table
+  const allToRestock = [...zeroStockWithSales, ...lowStockProducts];
+  if (allToRestock.length > 0) {
+    const totalCost = allToRestock.reduce((sum, p) => {
+      const sugestao = (p.stock_quantity ?? 0) <= 0 
+        ? Math.max(Math.ceil(p.vendas30d / 2), 5)
+        : Math.max((p.min_stock || 0) - (p.stock_quantity || 0), Math.ceil(p.vendas30d / 2));
+      return sum + sugestao * (p.cost_price || 0);
+    }, 0);
+    s.push(`\n### 📊 Resumo\n`);
+    s.push(`- **${allToRestock.length}** produtos precisam de reposição`);
+    if (totalCost > 0) s.push(`- Investimento estimado: **R$ ${totalCost.toFixed(2).replace(".", ",")}**`);
+  }
+
+  // Tips
+  s.push(`\n### 💡 Dicas de Negociação\n`);
+  s.push(`- Agrupe itens do mesmo fornecedor para conseguir melhores preços.`);
+  s.push(`- Negocie prazos de pagamento maiores (30/60/90 dias).`);
+  s.push(`- Priorize os produtos com 🔴 reposição urgente — eles já estão causando perda de vendas.`);
+  s.push(`- Use o histórico de vendas como argumento para pedir descontos por volume.`);
+
+  if (allToRestock.length === 0) {
+    s.push(`\n---\n✅ **Seu estoque está saudável!** Nenhum produto precisa de reposição urgente no momento.`);
+  }
+
+  return s.join("\n");
+}
+
 function generateFallbackReport(reportType: string, sales: any[], products: any[], financial: any[], prevSales: any[] = []) {
+  // Handle purchase report separately
+  if (reportType === "purchase") {
+    return generatePurchaseFallbackReport(sales, products);
+  }
+
   const totalSales = sales.reduce((s, r) => s + Number(r.total || 0), 0);
   const ticketMedio = sales.length > 0 ? totalSales / sales.length : 0;
   const lowStock = products.filter((p) => p.min_stock > 0 && (p.stock_quantity ?? 0) <= p.min_stock);
