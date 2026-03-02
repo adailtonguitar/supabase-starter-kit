@@ -36,7 +36,7 @@ function getCachedSession(companyId: string): any | null {
   try { const raw = localStorage.getItem(OFFLINE_SESSION_KEY); if (!raw) return null; const s = JSON.parse(raw); return s?.company_id === companyId && s?.status === "aberto" ? s : null; } catch { return null; }
 }
 
-type CashView = "status" | "open" | "close" | "movement";
+type CashView = "status" | "open" | "close" | "movement" | "closed_summary";
 
 export interface CashRegisterProps {
   onClose: () => void;
@@ -50,6 +50,7 @@ export function CashRegister({ onClose, terminalId = "01", preventClose = false,
   const { user } = useAuth();
   const { companyId, companyName } = useCompany();
   const [view, setView] = useState<CashView>("status");
+  const [closedSnapshot, setClosedSnapshot] = useState<any>(null);
   const [session, setSession] = useState<any | null>(initialSession ?? null);
   const [loading, setLoading] = useState(!skipInitialLoad);
   const [submitting, setSubmitting] = useState(false);
@@ -114,15 +115,50 @@ export function CashRegister({ onClose, terminalId = "01", preventClose = false,
     if (!companyId || !user || !session) return;
     setSubmitting(true);
     try {
+      // Snapshot dos valores antes de limpar a sessão
+      const snapshot = {
+        terminal_id: session.terminal_id || terminalId,
+        opened_at: session.opened_at,
+        closed_at: new Date().toISOString(),
+        openBalance, totalVendas, salesCount,
+        totalDinheiro, totalDebito, totalCredito, totalPix,
+        totalSangria, totalSuprimento,
+        totalExpected, totalCounted, difference,
+        countedDinheiro: Number(countedDinheiro) || 0,
+        countedDebito: Number(countedDebito) || 0,
+        countedCredito: Number(countedCredito) || 0,
+        countedPix: Number(countedPix) || 0,
+        closingNotes,
+      };
       await CashSessionService.close({ sessionId: session.id, companyId, userId: user.id, countedDinheiro: Number(countedDinheiro) || 0, countedDebito: Number(countedDebito) || 0, countedCredito: Number(countedCredito) || 0, countedPix: Number(countedPix) || 0, notes: closingNotes || undefined });
       try { localStorage.removeItem(OFFLINE_SESSION_KEY); } catch {}
-      setSession(null); setView("status"); toast.success("Caixa fechado com sucesso");
+      setClosedSnapshot(snapshot);
+      setSession(null);
+      setView("closed_summary");
+      toast.success("Caixa fechado com sucesso");
     } catch (err: any) { toast.error(err.message); }
     finally { setSubmitting(false); }
   };
 
-  const handlePrintClosing = useCallback(() => {
+  const handlePrintClosing = useCallback((snapshot?: any) => {
+    const s = snapshot || closedSnapshot;
     const now = new Date();
+    const pOpenBalance = s?.openBalance ?? openBalance;
+    const pTotalVendas = s?.totalVendas ?? totalVendas;
+    const pSalesCount = s?.salesCount ?? salesCount;
+    const pTotalDinheiro = s?.totalDinheiro ?? totalDinheiro;
+    const pTotalDebito = s?.totalDebito ?? totalDebito;
+    const pTotalCredito = s?.totalCredito ?? totalCredito;
+    const pTotalPix = s?.totalPix ?? totalPix;
+    const pTotalSangria = s?.totalSangria ?? totalSangria;
+    const pTotalSuprimento = s?.totalSuprimento ?? totalSuprimento;
+    const pTotalExpected = s?.totalExpected ?? totalExpected;
+    const pTotalCounted = s?.totalCounted ?? totalCounted;
+    const pDifference = s?.difference ?? difference;
+    const pNotes = s?.closingNotes ?? closingNotes;
+    const pTerminal = s?.terminal_id ?? session?.terminal_id ?? terminalId;
+    const pOpenedAt = s?.opened_at ?? session?.opened_at;
+
     const html = `
       <html><head><title>Fechamento de Caixa</title>
       <style>
@@ -141,33 +177,33 @@ export function CashRegister({ onClose, terminalId = "01", preventClose = false,
       </style></head><body>
         <div class="center bold"><h2>FECHAMENTO DE CAIXA</h2></div>
         <div class="center">${companyName || 'PDV'}</div>
-        <div class="center">Terminal: T${session?.terminal_id || terminalId}</div>
+        <div class="center">Terminal: T${pTerminal}</div>
         <div class="center">${now.toLocaleDateString("pt-BR")} ${now.toLocaleTimeString("pt-BR")}</div>
         <div class="line"></div>
-        ${session?.opened_at ? `<div class="row"><span>Abertura:</span><span>${new Date(session.opened_at).toLocaleString("pt-BR")}</span></div>` : ''}
+        ${pOpenedAt ? `<div class="row"><span>Abertura:</span><span>${new Date(pOpenedAt).toLocaleString("pt-BR")}</span></div>` : ''}
         <div class="row"><span>Fechamento:</span><span>${now.toLocaleString("pt-BR")}</span></div>
         <div class="line"></div>
         <div class="section bold">RESUMO</div>
-        <div class="row"><span>Fundo Inicial:</span><span>${formatCurrency(openBalance)}</span></div>
-        <div class="row"><span>Total Vendas:</span><span>${formatCurrency(totalVendas)}</span></div>
-        <div class="row"><span>Nº Vendas:</span><span>${salesCount}</span></div>
+        <div class="row"><span>Fundo Inicial:</span><span>${formatCurrency(pOpenBalance)}</span></div>
+        <div class="row"><span>Total Vendas:</span><span>${formatCurrency(pTotalVendas)}</span></div>
+        <div class="row"><span>Nº Vendas:</span><span>${pSalesCount}</span></div>
         <div class="line"></div>
         <div class="section bold">FORMAS DE PAGAMENTO</div>
-        <div class="row"><span>Dinheiro:</span><span>${formatCurrency(totalDinheiro)}</span></div>
-        <div class="row"><span>Débito:</span><span>${formatCurrency(totalDebito)}</span></div>
-        <div class="row"><span>Crédito:</span><span>${formatCurrency(totalCredito)}</span></div>
-        <div class="row"><span>PIX:</span><span>${formatCurrency(totalPix)}</span></div>
+        <div class="row"><span>Dinheiro:</span><span>${formatCurrency(pTotalDinheiro)}</span></div>
+        <div class="row"><span>Débito:</span><span>${formatCurrency(pTotalDebito)}</span></div>
+        <div class="row"><span>Crédito:</span><span>${formatCurrency(pTotalCredito)}</span></div>
+        <div class="row"><span>PIX:</span><span>${formatCurrency(pTotalPix)}</span></div>
         <div class="line"></div>
-        <div class="row"><span>Sangrias:</span><span>-${formatCurrency(totalSangria)}</span></div>
-        <div class="row"><span>Suprimentos:</span><span>+${formatCurrency(totalSuprimento)}</span></div>
+        <div class="row"><span>Sangrias:</span><span>-${formatCurrency(pTotalSangria)}</span></div>
+        <div class="row"><span>Suprimentos:</span><span>+${formatCurrency(pTotalSuprimento)}</span></div>
         <div class="line"></div>
         <div class="section bold">CONFERÊNCIA</div>
-        <div class="row"><span>Esperado Total:</span><span>${formatCurrency(totalExpected)}</span></div>
-        <div class="row"><span>Contado Total:</span><span>${formatCurrency(totalCounted)}</span></div>
-        <div class="row bold ${Math.abs(difference) < 0.01 ? 'diff-ok' : 'diff-warn'}">
-          <span>Diferença:</span><span>${difference >= 0 ? "+" : ""}${formatCurrency(difference)}</span>
+        <div class="row"><span>Esperado Total:</span><span>${formatCurrency(pTotalExpected)}</span></div>
+        <div class="row"><span>Contado Total:</span><span>${formatCurrency(pTotalCounted)}</span></div>
+        <div class="row bold ${Math.abs(pDifference) < 0.01 ? 'diff-ok' : 'diff-warn'}">
+          <span>Diferença:</span><span>${pDifference >= 0 ? "+" : ""}${formatCurrency(pDifference)}</span>
         </div>
-        ${closingNotes ? `<div class="line"></div><div class="section"><span class="bold">Obs:</span> ${closingNotes}</div>` : ''}
+        ${pNotes ? `<div class="line"></div><div class="section"><span class="bold">Obs:</span> ${pNotes}</div>` : ''}
         <div class="line"></div>
         <div class="center" style="margin-top:8px;font-size:10px;">Documento não fiscal</div>
         <div style="margin-top:20px;border-top:1px dashed #000;"></div>
@@ -179,7 +215,7 @@ export function CashRegister({ onClose, terminalId = "01", preventClose = false,
       w.document.close();
       setTimeout(() => { w.print(); }, 300);
     }
-  }, [session, companyName, terminalId, openBalance, totalVendas, salesCount, totalDinheiro, totalDebito, totalCredito, totalPix, totalSangria, totalSuprimento, totalExpected, totalCounted, difference, closingNotes]);
+  }, [session, closedSnapshot, companyName, terminalId, openBalance, totalVendas, salesCount, totalDinheiro, totalDebito, totalCredito, totalPix, totalSangria, totalSuprimento, totalExpected, totalCounted, difference, closingNotes]);
 
   const handleMovement = async () => {
     if (!companyId || !user || !session) return;
@@ -485,11 +521,59 @@ export function CashRegister({ onClose, terminalId = "01", preventClose = false,
 
               <div className="flex gap-3">
                 <button onClick={() => setView("status")} className={btnSecondary}>Voltar</button>
-                <button onClick={handlePrintClosing} className="py-3 px-4 rounded-xl bg-secondary text-secondary-foreground text-sm font-semibold hover:bg-secondary/80 active:scale-[0.98] flex items-center justify-center gap-2 border border-border/50" title="Imprimir resumo">
-                  <Printer className="w-4 h-4" />
-                </button>
                 <button onClick={handleClose} disabled={submitting} className="flex-1 py-3 rounded-xl bg-destructive text-destructive-foreground text-sm font-bold hover:bg-destructive/90 active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50">
                   {submitting && <Loader2 className="w-4 h-4 animate-spin" />} Confirmar Fechamento
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* CLOSED SUMMARY VIEW */}
+          {view === "closed_summary" && closedSnapshot && (
+            <div className="p-5 space-y-4">
+              <div className="flex flex-col items-center gap-2 py-3">
+                <div className="w-14 h-14 rounded-2xl bg-success/10 flex items-center justify-center">
+                  <Lock className="w-7 h-7 text-success" />
+                </div>
+                <h4 className="text-lg font-bold text-foreground">Caixa Fechado</h4>
+                <p className="text-xs text-muted-foreground">Fechamento realizado com sucesso</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2.5">
+                <div className="rounded-xl p-3 bg-muted/50 border border-border/60">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">Total Vendas</p>
+                  <p className="text-lg font-black font-mono text-primary">{formatCurrency(closedSnapshot.totalVendas)}</p>
+                  <p className="text-[10px] text-muted-foreground">{closedSnapshot.salesCount} vendas</p>
+                </div>
+                <div className="rounded-xl p-3 bg-muted/50 border border-border/60">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">Diferença</p>
+                  <p className={`text-lg font-black font-mono ${Math.abs(closedSnapshot.difference) < 0.01 ? "text-success" : "text-destructive"}`}>
+                    {closedSnapshot.difference >= 0 ? "+" : ""}{formatCurrency(closedSnapshot.difference)}
+                  </p>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-border overflow-hidden">
+                <div className="px-4 py-2.5 bg-muted/50 border-b border-border">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Resumo</p>
+                </div>
+                <div className="divide-y divide-border/60 text-sm">
+                  <div className="flex justify-between px-4 py-2"><span className="text-muted-foreground">Dinheiro</span><span className="font-mono font-bold">{formatCurrency(closedSnapshot.totalDinheiro)}</span></div>
+                  <div className="flex justify-between px-4 py-2"><span className="text-muted-foreground">Débito</span><span className="font-mono font-bold">{formatCurrency(closedSnapshot.totalDebito)}</span></div>
+                  <div className="flex justify-between px-4 py-2"><span className="text-muted-foreground">Crédito</span><span className="font-mono font-bold">{formatCurrency(closedSnapshot.totalCredito)}</span></div>
+                  <div className="flex justify-between px-4 py-2"><span className="text-muted-foreground">PIX</span><span className="font-mono font-bold">{formatCurrency(closedSnapshot.totalPix)}</span></div>
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => handlePrintClosing(closedSnapshot)}
+                  className="flex-1 py-3 rounded-xl bg-secondary text-secondary-foreground text-sm font-semibold hover:bg-secondary/80 active:scale-[0.98] flex items-center justify-center gap-2 border border-border/50"
+                >
+                  <Printer className="w-4 h-4" /> Imprimir Relatório
+                </button>
+                <button onClick={onClose} className={`${btnPrimary} flex-1`}>
+                  Concluir
                 </button>
               </div>
             </div>
