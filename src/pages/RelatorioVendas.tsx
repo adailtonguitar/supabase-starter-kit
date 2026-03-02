@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { BarChart3, Calendar, Download, TrendingUp, TrendingDown, DollarSign, Package } from "lucide-react";
+import { BarChart3, Calendar, Download, TrendingUp, TrendingDown, DollarSign, Package, Printer } from "lucide-react";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
@@ -201,6 +201,69 @@ export default function RelatorioVendas() {
     URL.revokeObjectURL(a.href);
   };
 
+  const handlePrintReport = () => {
+    const periodLabel = preset === "hoje" ? "Hoje" : preset === "mes" ? "Este Mês" : `${format(parseISO(startDate), "dd/MM/yyyy")} a ${format(parseISO(endDate), "dd/MM/yyyy")}`;
+    const marginGeral = totals.revenue > 0 ? ((totals.profit / totals.revenue) * 100).toFixed(1) : "0.0";
+
+    const rows = productProfits.map(p =>
+      `<tr>
+        <td style="padding:4px 8px;border-bottom:1px solid #ddd">${p.name}</td>
+        <td style="padding:4px 8px;text-align:right;border-bottom:1px solid #ddd">${p.total_quantity}</td>
+        <td style="padding:4px 8px;text-align:right;border-bottom:1px solid #ddd">${formatCurrency(p.total_revenue)}</td>
+        <td style="padding:4px 8px;text-align:right;border-bottom:1px solid #ddd">${formatCurrency(p.total_cost)}</td>
+        <td style="padding:4px 8px;text-align:right;border-bottom:1px solid #ddd">${formatCurrency(p.total_profit)}</td>
+        <td style="padding:4px 8px;text-align:right;border-bottom:1px solid #ddd">${p.margin_percent.toFixed(1)}%</td>
+      </tr>`
+    ).join("");
+
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Relatório de Vendas</title>
+      <style>
+        body{font-family:Arial,sans-serif;padding:20px;color:#222}
+        h1{font-size:18px;margin-bottom:4px}
+        .meta{color:#666;font-size:13px;margin-bottom:16px}
+        .summary{display:flex;gap:24px;margin-bottom:20px;flex-wrap:wrap}
+        .summary-item{background:#f5f5f5;border-radius:8px;padding:12px 16px;min-width:140px}
+        .summary-item .label{font-size:11px;color:#888;text-transform:uppercase}
+        .summary-item .value{font-size:18px;font-weight:bold;margin-top:2px}
+        table{width:100%;border-collapse:collapse;font-size:13px}
+        th{text-align:left;padding:6px 8px;border-bottom:2px solid #333;font-size:11px;text-transform:uppercase;color:#666}
+        .total-row{font-weight:bold;background:#f0f0f0}
+        @media print{body{padding:0}.summary-item{border:1px solid #ddd}}
+      </style></head><body>
+      <h1>Relatório de Vendas</h1>
+      <p class="meta">Período: ${periodLabel} • Gerado em ${format(new Date(), "dd/MM/yyyy HH:mm")}</p>
+      <div class="summary">
+        <div class="summary-item"><div class="label">Vendas</div><div class="value">${totals.salesCount}</div></div>
+        <div class="summary-item"><div class="label">Receita</div><div class="value">${formatCurrency(totals.revenue)}</div></div>
+        <div class="summary-item"><div class="label">Custo</div><div class="value">${formatCurrency(totals.cost)}</div></div>
+        <div class="summary-item"><div class="label">Lucro</div><div class="value" style="color:${totals.profit >= 0 ? '#16a34a' : '#dc2626'}">${formatCurrency(totals.profit)}</div></div>
+        <div class="summary-item"><div class="label">Margem</div><div class="value">${marginGeral}%</div></div>
+      </div>
+      <table>
+        <thead><tr>
+          <th>Produto</th><th style="text-align:right">Qtd</th><th style="text-align:right">Receita</th>
+          <th style="text-align:right">Custo</th><th style="text-align:right">Lucro</th><th style="text-align:right">Margem</th>
+        </tr></thead>
+        <tbody>${rows}
+          <tr class="total-row">
+            <td style="padding:6px 8px">TOTAL</td>
+            <td style="padding:6px 8px;text-align:right">${totals.quantity}</td>
+            <td style="padding:6px 8px;text-align:right">${formatCurrency(totals.revenue)}</td>
+            <td style="padding:6px 8px;text-align:right">${formatCurrency(totals.cost)}</td>
+            <td style="padding:6px 8px;text-align:right">${formatCurrency(totals.profit)}</td>
+            <td style="padding:6px 8px;text-align:right">${marginGeral}%</td>
+          </tr>
+        </tbody>
+      </table></body></html>`;
+
+    const w = window.open("", "_blank", "width=800,height=600");
+    if (w) {
+      w.document.write(html);
+      w.document.close();
+      setTimeout(() => w.print(), 300);
+    }
+  };
+
   const inputClass = "px-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all";
 
   return (
@@ -214,10 +277,16 @@ export default function RelatorioVendas() {
           </h1>
           <p className="text-sm text-muted-foreground mt-1">Lucro por produto e totais do período</p>
         </div>
-        <Button variant="outline" size="sm" onClick={handleExportCSV} disabled={productProfits.length === 0}>
-          <Download className="w-4 h-4 mr-2" />
-          Exportar CSV
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={handlePrintReport} disabled={sales.length === 0}>
+            <Printer className="w-4 h-4 mr-2" />
+            Imprimir
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleExportCSV} disabled={sales.length === 0}>
+            <Download className="w-4 h-4 mr-2" />
+            Exportar CSV
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}
