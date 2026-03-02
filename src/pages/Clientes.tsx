@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
 import { Users, Upload, User, Phone, Mail, MapPin, CreditCard, AlertTriangle, Search, Plus, Pencil, Trash2, X } from "lucide-react";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import { useClients, useCreateClient, useUpdateClient, useDeleteClient } from "@/hooks/useClients";
 import { validateDoc } from "@/lib/cpf-cnpj-validator";
 import { Button } from "@/components/ui/button";
@@ -40,14 +41,6 @@ const baseFields: FieldConfig[] = [
   { key: "address_state", label: "UF" },
   { key: "notes", label: "Observações", type: "textarea", colSpan: 2 },
 ];
-
-function CurrencyInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  const numVal = parseFloat(value);
-  const display = !isNaN(numVal) ? numVal.toLocaleString("pt-BR", { minimumFractionDigits: 2 }) : "";
-  return (
-    <Input value={display} onChange={(e) => { const raw = e.target.value.replace(/[^\d,]/g, "").replace(",", "."); onChange(raw); }} placeholder="0,00" />
-  );
-}
 
 export default function Clientes() {
   const { data = [], isLoading } = useClients();
@@ -351,7 +344,7 @@ export default function Clientes() {
                   <textarea value={formData[f.key] || ""} onChange={(e) => handleFieldChange(f.key, e.target.value)}
                     className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 resize-none" placeholder={f.placeholder} />
                 ) : f.type === "currency" ? (
-                  <CurrencyInput value={formData[f.key] || ""} onChange={(v) => handleFieldChange(f.key, v)} />
+                  <CurrencyInput value={parseFloat(formData[f.key]) || 0} onChange={(v) => handleFieldChange(f.key, v)} />
                 ) : (
                   <div className="flex gap-2">
                     <Input type={f.type || "text"} value={formData[f.key] || ""} onChange={(e) => handleFieldChange(f.key, e.target.value)} placeholder={f.placeholder} className="flex-1" />
