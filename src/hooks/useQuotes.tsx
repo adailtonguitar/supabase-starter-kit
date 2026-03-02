@@ -1,21 +1,26 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
+import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 
 export interface Quote {
   id: string;
+  client_id: string | null;
   client_name: string | null;
   items_json: any[];
   total: number;
   status: string;
   notes: string | null;
   valid_until: string | null;
+  created_by: string | null;
   created_at: string;
+  updated_at: string;
 }
 
 export function useQuotes({ skipInitialFetch }: { skipInitialFetch?: boolean } = {}) {
   const { companyId } = useCompany();
+  const { user } = useAuth();
   const qc = useQueryClient();
 
   const { data: quotes = [], isLoading: loading } = useQuery({
@@ -41,12 +46,14 @@ export function useQuotes({ skipInitialFetch }: { skipInitialFetch?: boolean } =
 
     const { error } = await supabase.from("quotes").insert({
       company_id: companyId,
+      client_id: data.clientId || null,
       client_name: data.clientName || null,
       items_json: data.items,
       total: data.total,
       status: "pendente",
       notes: data.notes || null,
       valid_until: validUntil,
+      created_by: user?.id || null,
     });
 
     if (error) throw error;
