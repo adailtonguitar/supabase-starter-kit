@@ -9,6 +9,7 @@ import { PDVProductGrid } from "@/components/pdv/PDVProductGrid";
 import { PDVLoyaltyClientList } from "@/components/pdv/PDVLoyaltyClientList";
 import { PDVQuickProductDialog } from "@/components/pdv/PDVQuickProductDialog";
 import { PDVClientSelector, type CreditClient } from "@/components/pdv/PDVClientSelector";
+import { PDVFiadoReceipt, type FiadoReceiptData } from "@/components/pdv/PDVFiadoReceipt";
 import { SaleReceipt } from "@/components/pos/SaleReceipt";
 import { TEFProcessor, type TEFResult } from "@/components/pos/TEFProcessor";
 import { CashRegister } from "@/components/pos/CashRegister";
@@ -62,6 +63,7 @@ export default function PDV() {
   const [showClientSelector, setShowClientSelector] = useState(false);
   const [showReceiveCredit, setShowReceiveCredit] = useState(false);
   const [selectedClient, setSelectedClient] = useState<CreditClient | null>(null);
+  const [fiadoReceipt, setFiadoReceipt] = useState<FiadoReceiptData | null>(null);
   const [showLoyaltyClientSelector, setShowLoyaltyClientSelector] = useState(false);
   const [showPriceLookup, setShowPriceLookup] = useState(false);
   const [priceLookupQuery, setPriceLookupQuery] = useState("");
@@ -583,6 +585,17 @@ export default function PDV() {
         payments: [{ method: "prazo" as any, approved: true, amount: savedTotal }],
         nfceNumber: result.nfceNumber,
         isContingency: result.isContingency,
+      });
+      setFiadoReceipt({
+        clientName: client.name,
+        clientDoc: client.cpf,
+        total: savedTotal,
+        items: savedItems.map(i => ({ name: i.name, quantity: i.quantity, price: i.price })),
+        mode,
+        installments,
+        saleNumber,
+        storeName: companyName || undefined,
+        storeCnpj: undefined,
       });
       toast.success(`Venda a prazo registrada para ${client.name}`, { duration: 1500 });
       setSelectedClient(null);
@@ -1344,6 +1357,11 @@ export default function PDV() {
       {/* Client selector for credit sales */}
       {showClientSelector && (
         <PDVClientSelector open={showClientSelector} onClose={() => setShowClientSelector(false)} onSelect={handleCreditSaleConfirmed} saleTotal={pdv.total} />
+      )}
+
+      {/* Fiado receipt with signature/CPF fields */}
+      {fiadoReceipt && (
+        <PDVFiadoReceipt data={fiadoReceipt} onClose={() => setFiadoReceipt(null)} />
       )}
 
       {/* Loyalty client selector */}
