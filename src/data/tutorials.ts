@@ -85,6 +85,7 @@ export const tutorials: TutorialSection[] = [
     steps: [
       "Em 'Estoque > Produtos', clique em 'Novo Produto' para cadastrar.",
       "Preencha nome, SKU, preço, unidade, NCM e código de barras.",
+      "Use o botão 'Cadastro por Foto (IA)' para tirar uma foto do produto e preencher os dados automaticamente com inteligência artificial (exclusivo plano Pro).",
       "Use a importação CSV para cadastrar múltiplos produtos de uma vez.",
       "Importe produtos de NF-e XML para preencher dados fiscais automaticamente.",
       "Em 'Estoque > Inventário', faça contagens físicas e ajuste automático de estoque.",
@@ -99,6 +100,7 @@ export const tutorials: TutorialSection[] = [
       "O módulo 'Perdas' registra avarias, vencimentos e descartes.",
       "Use 'Adesiva' para produtos pequenos, 'Prateleira' para trilhos e 'Balança' para pesáveis.",
       "Na Produção, o estoque é atualizado automaticamente (baixa de insumos e entrada do produto).",
+      "O 'Cadastro por Foto (IA)' extrai nome, categoria, NCM e sugestão de preço a partir da imagem — disponível no plano Pro.",
     ],
   },
   {
