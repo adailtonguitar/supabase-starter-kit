@@ -115,6 +115,7 @@ export function CashRegister({ onClose, terminalId = "01", preventClose = false,
     setSubmitting(true);
     try {
       await CashSessionService.close({ sessionId: session.id, companyId, userId: user.id, countedDinheiro: Number(countedDinheiro) || 0, countedDebito: Number(countedDebito) || 0, countedCredito: Number(countedCredito) || 0, countedPix: Number(countedPix) || 0, notes: closingNotes || undefined });
+      try { localStorage.removeItem(OFFLINE_SESSION_KEY); } catch {}
       setSession(null); setView("status"); toast.success("Caixa fechado com sucesso");
     } catch (err: any) { toast.error(err.message); }
     finally { setSubmitting(false); }

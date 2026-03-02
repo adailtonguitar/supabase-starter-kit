@@ -124,18 +124,11 @@ export function usePDV() {
       
       if (data) {
         setCurrentSession(data as CashSession | null);
+        // Online query succeeded and found open session — clear any stale offline session
+        try { localStorage.removeItem("as_offline_cash_session"); } catch {}
       } else {
-        // Fallback: check localStorage for offline session
-        try {
-          const raw = localStorage.getItem("as_offline_cash_session");
-          if (raw) {
-            const offlineSession = JSON.parse(raw);
-            if (offlineSession?.company_id === companyId && offlineSession?.terminal_id === terminalId && offlineSession?.status === "aberto") {
-              setCurrentSession(offlineSession as CashSession);
-              return;
-            }
-          }
-        } catch {}
+        // Online query succeeded but no open session — clear stale offline cache
+        try { localStorage.removeItem("as_offline_cash_session"); } catch {}
         setCurrentSession(null);
       }
     } catch {
