@@ -127,13 +127,6 @@ export default function PDV() {
 
   // Auto-open cash register dialog if no session is open (only after first load completes)
   useEffect(() => {
-    console.log("[PDV] Auto-open check:", { 
-      sessionEverLoaded: pdv.sessionEverLoaded, 
-      loadingSession: pdv.loadingSession, 
-      currentSession: !!pdv.currentSession, 
-      showCashRegister, 
-      dismissed: cashRegisterDismissedRef.current 
-    });
     if (pdv.sessionEverLoaded && !pdv.loadingSession && !pdv.currentSession && !showCashRegister && !cashRegisterDismissedRef.current) {
       setShowCashRegister(true);
     }

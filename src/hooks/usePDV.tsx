@@ -71,7 +71,7 @@ export function usePDV() {
         .eq("company_id", companyId)
         .order("name");
       
-      console.log("[PDV] Products loaded:", data?.length ?? 0, "error:", error);
+      
       
       if (data && data.length > 0) {
         setProducts(data as PDVProduct[]);
@@ -178,7 +178,12 @@ export function usePDV() {
     setCartItems(prev => prev.map(i => {
       if (i.id !== id) return i;
       const newQty = i.quantity + delta;
-      return newQty > 0 ? { ...i, quantity: newQty } : i;
+      if (newQty <= 0) return i;
+      if (delta > 0 && newQty > i.stock_quantity) {
+        toast.warning(`Estoque insuficiente para "${i.name}" (disponível: ${i.stock_quantity})`, { duration: 2000 });
+        return i;
+      }
+      return { ...i, quantity: newQty };
     }));
   }, []);
 
@@ -213,7 +218,6 @@ export function usePDV() {
         );
         if (product && product.stock_quantity > 0) {
           if (parsed.mode === "weight") {
-            // Add with specific weight quantity
             setCartItems((prev) => {
               const existing = prev.find((i) => i.id === product.id);
               if (existing) {
@@ -222,7 +226,6 @@ export function usePDV() {
               return [...prev, { ...product, quantity: parsed.value }];
             });
           } else {
-            // Price mode: calculate quantity from price
             const qty = product.price > 0 ? parsed.value / product.price : 1;
             setCartItems((prev) => {
               const existing = prev.find((i) => i.id === product.id);
@@ -232,6 +235,10 @@ export function usePDV() {
               return [...prev, { ...product, quantity: qty }];
             });
           }
+        } else if (product && product.stock_quantity <= 0) {
+          toast.warning(`"${product.name}" está sem estoque`, { duration: 2000 });
+        } else {
+          toast.error(`Produto não encontrado para código: ${parsed.productCode}`, { duration: 2000 });
         }
         return;
       }
