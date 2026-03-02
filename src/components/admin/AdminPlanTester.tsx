@@ -161,7 +161,7 @@ export default function AdminPlanTester() {
 
       {/* Feature matrix */}
       <div className="bg-card rounded-xl border border-border overflow-hidden relative z-10">
-        <div className="overflow-x-auto" style={{ touchAction: "auto", WebkitOverflowScrolling: "touch" }}>
+        <div className="md:overflow-x-auto overflow-visible" style={{ touchAction: "auto", WebkitOverflowScrolling: "touch" }}>
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/50">
