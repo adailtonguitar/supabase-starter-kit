@@ -76,8 +76,9 @@ export function useUpdateFiscalCategory() {
   const { companyId } = useCompany();
   return useMutation({
     mutationFn: async ({ id, ...updates }: Partial<FiscalCategory> & { id: string }) => {
-      const { data: before } = await supabase.from("fiscal_categories" as any).select("*").eq("id", id).single();
-      const { data, error } = await supabase.from("fiscal_categories" as any).update(updates as any).eq("id", id).select().single();
+      if (!companyId) throw new Error("Empresa não encontrada");
+      const { data: before } = await supabase.from("fiscal_categories" as any).select("*").eq("id", id).eq("company_id", companyId).single();
+      const { data, error } = await supabase.from("fiscal_categories" as any).update(updates as any).eq("id", id).eq("company_id", companyId).select().single();
       if (error) throw error;
       if (companyId) {
         logFiscalAudit({
@@ -98,8 +99,9 @@ export function useDeleteFiscalCategory() {
   const { companyId } = useCompany();
   return useMutation({
     mutationFn: async (id: string) => {
-      const { data: before } = await supabase.from("fiscal_categories" as any).select("*").eq("id", id).single();
-      const { error } = await supabase.from("fiscal_categories" as any).delete().eq("id", id);
+      if (!companyId) throw new Error("Empresa não encontrada");
+      const { data: before } = await supabase.from("fiscal_categories" as any).select("*").eq("id", id).eq("company_id", companyId).single();
+      const { error } = await supabase.from("fiscal_categories" as any).delete().eq("id", id).eq("company_id", companyId);
       if (error) throw error;
       if (companyId) {
         logFiscalAudit({
