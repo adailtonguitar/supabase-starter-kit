@@ -70,6 +70,8 @@ export class CashSessionService {
       }
       throw new Error("Sessão não encontrada offline");
     };
+    // If session ID is an offline ID, handle it locally without hitting Supabase
+    if (params.sessionId.startsWith("offline_")) return closeOffline();
     try {
       const { data: session, error: sErr } = await supabase.from("cash_sessions").select("*").eq("id", params.sessionId).single();
       if (sErr) { if (isNetworkError(sErr)) return closeOffline(); throw new Error(`Sessão não encontrada: ${sErr.message}`); }
