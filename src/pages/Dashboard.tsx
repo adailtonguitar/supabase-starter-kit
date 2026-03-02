@@ -313,7 +313,7 @@ export default function Dashboard() {
             </div>
 
             {/* Desktop */}
-            <div className="hidden sm:block overflow-x-auto">
+            <div className="hidden sm:block">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border bg-muted/30">
