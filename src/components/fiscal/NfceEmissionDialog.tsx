@@ -307,9 +307,11 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
         .from("fiscal_configs")
         .select("*")
         .eq("company_id", companyId)
-        .eq("is_active", true);
+        .eq("doc_type", "nfce")
+        .eq("is_active", true)
+        .limit(1);
 
-      const nfceConfig = configs?.find((c: any) => c.doc_type === "nfce");
+      const nfceConfig = configs?.[0] as any;
 
       if (!nfceConfig) {
         setStep("error");

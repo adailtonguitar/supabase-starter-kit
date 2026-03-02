@@ -96,10 +96,11 @@ export function useFiscalDashboard() {
   });
 
   const processQueue = async () => {
+    if (!companyId) return;
     setIsProcessing(true);
     try {
       const { error } = await supabase.functions.invoke("process-fiscal-queue", {
-        body: {},
+        body: { company_id: companyId },
       });
       if (error) throw error;
       toast.success("Fila fiscal processada");
