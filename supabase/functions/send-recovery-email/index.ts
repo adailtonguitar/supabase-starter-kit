@@ -66,7 +66,7 @@ Deno.serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: "Antho System <noreply@notify.anthosystem.com.br>",
+        from: "Antho System <noreply@anthosystem.com.br>",
         to: [email],
         subject: "Recuperação de senha - Antho System",
         html: `
