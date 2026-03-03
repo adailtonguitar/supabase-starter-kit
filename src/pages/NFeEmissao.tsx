@@ -113,7 +113,7 @@ const emptyForm = (): NFeFormData => ({
 });
 
 export default function NFeEmissao() {
-  const { companyId } = useCompany();
+  const { companyId, companyName, logoUrl } = useCompany();
   const plan = usePlanFeatures();
   const { lookup: cnpjLookup, loading: cnpjLoading } = useCnpjLookup();
 
@@ -736,16 +736,22 @@ export default function NFeEmissao() {
         <Link to="/fiscal" className="p-2 rounded-lg hover:bg-muted transition-colors">
           <ArrowLeft className="w-5 h-5 text-muted-foreground" />
         </Link>
+        {logoUrl && (
+          <img src={logoUrl} alt={companyName || "Logo"} className="h-10 sm:h-12 object-contain rounded" />
+        )}
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-foreground">Emissão de NF-e (Modelo 55)</h1>
           <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
-            Nota fiscal eletrônica completa — operações B2B, devoluções, transferências
+            {companyName ? `${companyName} — ` : ""}Nota fiscal eletrônica completa
           </p>
         </div>
       </div>
 
       {step === "success" && (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-card rounded-xl border border-border p-8 text-center space-y-4">
+          {logoUrl && (
+            <img src={logoUrl} alt={companyName || "Logo"} className="h-16 object-contain mx-auto mb-2" />
+          )}
           <CheckCircle className="w-16 h-16 text-emerald-500 mx-auto" />
           <h2 className="text-lg font-semibold text-foreground">NF-e Emitida com Sucesso!</h2>
           {successData?.access_key && (
