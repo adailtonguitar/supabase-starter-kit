@@ -82,15 +82,15 @@ export function StockMovementDialog({ open, onOpenChange, product, onSuccess }: 
           <div className="space-y-2">
             <Label>Quantidade</Label>
             <Input
-              type="text"
+              type="number"
               inputMode="decimal"
+              step="any"
+              min="0.01"
               value={quantity}
-              onChange={(e) => {
-                const val = e.target.value.replace(",", ".");
-                if (val === "" || /^\d*\.?\d*$/.test(val)) setQuantity(val);
-              }}
+              onChange={(e) => setQuantity(e.target.value)}
+              onFocus={(e) => e.target.select()}
               placeholder="Ex: 10"
-              autoFocus
+              className="text-lg h-12"
             />
           </div>
 
