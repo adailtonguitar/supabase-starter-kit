@@ -50,6 +50,7 @@ const AdmCartoes = lazy(() => import("./pages/AdmCartoes"));
 const Categorias = lazy(() => import("./pages/Categorias"));
 const Etiquetas = lazy(() => import("./pages/Etiquetas"));
 const Auth = lazy(() => import("./pages/Auth"));
+const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const PDV = lazy(() => import("./pages/PDV"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const Instalar = lazy(() => import("./pages/Instalar"));
@@ -250,6 +251,7 @@ function AppRoutes() {
         <Route path="/termos" element={<Termos />} />
         <Route path="/contrato" element={<ContratoSaaS />} />
         <Route path="/privacidade" element={<Privacidade />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/trial-expirado" element={user ? <TrialExpirado /> : <Navigate to="/" replace />} />
         <Route path="/renovar" element={user ? <Renovar /> : <Navigate to="/auth" replace />} />
         {/* PDV: full-screen, outside AppLayout */}
