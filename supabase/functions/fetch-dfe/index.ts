@@ -143,8 +143,21 @@ Deno.serve(async (req) => {
 
     throw new Error(`Ação desconhecida: ${action}`);
   } catch (err: any) {
+    let userMessage = err.message || "Erro desconhecido";
+
+    // Traduz erros técnicos da Nuvem Fiscal em mensagens amigáveis
+    if (userMessage.includes("precisa estar cadastrado previamente")) {
+      userMessage =
+        "Sua empresa ainda não está cadastrada no serviço fiscal. Para usar a Consulta DF-e, acesse Configurações Fiscais, preencha os dados da empresa e faça upload do Certificado Digital A1 (.pfx).";
+    } else if (userMessage.includes("ambiente") && userMessage.includes("obrigatório")) {
+      userMessage = "Erro interno na consulta fiscal. Tente novamente ou entre em contato com o suporte.";
+    } else if (userMessage.includes("certificado") || userMessage.includes("certificate")) {
+      userMessage =
+        "O Certificado Digital da empresa está inválido ou expirado. Acesse Configurações Fiscais e faça upload de um certificado A1 (.pfx) válido.";
+    }
+
     return new Response(
-      JSON.stringify({ success: false, error: err.message }),
+      JSON.stringify({ success: false, error: userMessage }),
       { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
