@@ -156,6 +156,7 @@ SET search_path = public
 AS $$
 DECLARE
   v_session RECORD;
+  v_is_super_admin BOOLEAN;
 BEGIN
   SELECT * INTO v_session
   FROM public.user_sessions
@@ -163,6 +164,16 @@ BEGIN
   LIMIT 1;
 
   IF NOT FOUND THEN
+    -- Check if this is a super_admin — they should never be kicked
+    SELECT EXISTS(
+      SELECT 1 FROM public.admin_roles
+      WHERE user_id = auth.uid() AND role = 'super_admin'
+    ) INTO v_is_super_admin;
+
+    IF v_is_super_admin THEN
+      RETURN jsonb_build_object('valid', true);
+    END IF;
+
     RETURN jsonb_build_object('valid', false, 'reason', 'Sessão invalidada. Outro dispositivo pode ter feito login.');
   END IF;
 
