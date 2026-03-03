@@ -35,11 +35,21 @@ export function useDFe() {
       });
 
       if (error) {
-        const errBody = typeof error === "object" && "message" in error ? error.message : String(error);
-        throw new Error(errBody);
+        // Parse ReadableStream or object errors
+        let errMsg = "Erro ao buscar documentos";
+        if (typeof error === "object" && "message" in error) {
+          errMsg = error.message;
+        } else if (typeof error === "string") {
+          errMsg = error;
+        }
+        toast.error(errMsg);
+        return { documents: [], total: 0 };
       }
 
-      if (!data?.success) throw new Error(data?.error || "Erro ao buscar documentos");
+      if (!data?.success) {
+        toast.error(data?.error || "Erro ao buscar documentos");
+        return { documents: [], total: 0 };
+      }
 
       const docs = (data.data?.data || []).map((d: any) => ({
         id: d.id,
