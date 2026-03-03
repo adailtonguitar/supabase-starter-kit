@@ -504,7 +504,7 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <FormField control={form.control} name="name" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Nome</FormLabel>
@@ -552,7 +552,7 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
                 <FormField control={form.control} name="ncm" render={({ field }) => (
                   <FormItem className="relative md:col-span-2">
                     <FormLabel>NCM</FormLabel>
@@ -684,7 +684,7 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
               </div>
 
               {/* Fornecedor */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
                 <FormField control={form.control} name="supplier_id" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Fornecedor</FormLabel>
@@ -708,7 +708,7 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
             {/* Preços e Estoque */}
             <div>
               <h2 className="text-lg font-semibold text-foreground mb-4">Preços e Estoque</h2>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <FormField control={form.control} name="cost_price" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Preço Custo</FormLabel>
@@ -801,7 +801,7 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
                   </FormItem>
                 )} />
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-2 gap-4 mt-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
                 <FormField control={form.control} name="reorder_point" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Ponto de Reposição</FormLabel>
@@ -830,7 +830,7 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
             <div>
               <h2 className="text-lg font-semibold text-foreground mb-4">Dados Fiscais (NF-e)</h2>
 
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <FormField control={form.control} name="origem" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Origem</FormLabel>
@@ -883,7 +883,7 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
                 )} />
               </div>
 
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
                 <FormField control={form.control} name="csosn" render={({ field }) => (
                   <FormItem>
                     <FormLabel>CSOSN (Simples)</FormLabel>
@@ -935,7 +935,7 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
                 )} />
               </div>
 
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
                 <FormField control={form.control} name="cst_pis" render={({ field }) => (
                   <FormItem>
                     <FormLabel>CST PIS</FormLabel>
