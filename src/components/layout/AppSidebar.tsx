@@ -308,10 +308,10 @@ export function AppSidebar({ mobileOpen, onMobileClose }: AppSidebarProps) {
     );
   }
 
-  return (
+   return (
     <aside
       className={cn(
-        "flex flex-col h-[100dvh] sticky top-0 bg-sidebar border-r border-sidebar-border transition-all duration-300 relative z-10",
+        "flex flex-col h-full shrink-0 bg-sidebar border-r border-sidebar-border transition-all duration-300 relative z-10",
         collapsed ? "w-[72px]" : "w-[240px]"
       )}
     >
