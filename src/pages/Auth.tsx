@@ -141,6 +141,7 @@ export default function Auth() {
       toast.success("E-mail de recuperação enviado! Verifique sua caixa de entrada.");
       setShowForgotPassword(false);
     } catch (error: any) {
+      console.error("[Auth] Recovery error details:", JSON.stringify(error));
       toast.error(error.message || "Erro ao enviar e-mail de recuperação");
     } finally {
       setLoading(false);
