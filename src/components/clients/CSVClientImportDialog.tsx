@@ -62,7 +62,7 @@ function parseCSV(text: string): { clients: ParsedClient[]; errors: string[] } {
   const stateIdx = headers.findIndex((h) => h.includes("estado") || h === "uf");
   const streetIdx = headers.findIndex((h) => h.includes("rua") || h.includes("endereco") || h.includes("logradouro"));
   const numberIdx = headers.findIndex((h) => h.includes("numero") || h === "nro" || h === "num");
-  const neighborhoodIdx = headers.findIndex((h) => h.includes("bairro"));
+  const neighborhoodIdx = headers.findIndex((h) => h.includes("bairro") || h.includes("distrito"));
   const zipIdx = headers.findIndex((h) => h.includes("cep"));
   const notesIdx = headers.findIndex((h) => h.includes("obs") || h.includes("nota"));
 
