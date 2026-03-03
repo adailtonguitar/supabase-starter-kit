@@ -102,7 +102,8 @@ Deno.serve(async (req) => {
 
     // ─── ACTION: list ───
     if (action === "list") {
-      const url = new URL(`https://api.nuvemfiscal.com.br/distribuicao/nfe/${cnpj}/documentos`);
+      const url = new URL("https://api.nuvemfiscal.com.br/distribuicao/nfe/documentos");
+      url.searchParams.set("cpf_cnpj", cnpj);
       url.searchParams.set("$top", "50");
       url.searchParams.set("$skip", "0");
       url.searchParams.set("$inlinecount", "true");
@@ -124,7 +125,7 @@ Deno.serve(async (req) => {
       if (!document_id) throw new Error("document_id é obrigatório");
 
       const res = await fetch(
-        `https://api.nuvemfiscal.com.br/distribuicao/nfe/${cnpj}/documentos/${document_id}/xml`,
+        `https://api.nuvemfiscal.com.br/distribuicao/nfe/documentos/${document_id}/xml`,
         { method: "GET", headers: { ...nfHeaders, Accept: "application/xml" } }
       );
 
