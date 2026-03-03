@@ -54,6 +54,7 @@ const schema = z.object({
   aliq_cofins: z.coerce.number().min(0).optional(),
   gtin_tributavel: z.string().trim().max(20).optional(),
   supplier_id: z.string().uuid().optional().or(z.literal("")),
+  shelf_location: z.string().trim().max(50).optional(),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -172,6 +173,7 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
       aliq_cofins: (product as any)?.aliq_cofins ?? 7.60,
       gtin_tributavel: (product as any)?.gtin_tributavel ?? "",
       supplier_id: (product as any)?.supplier_id ?? "",
+      shelf_location: (product as any)?.shelf_location ?? "",
     },
   });
 
@@ -811,6 +813,13 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
                   <FormItem>
                     <FormLabel>Qtd. Reposição</FormLabel>
                     <FormControl><Input type="number" step="1" placeholder="Qtd sugerida para compra" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                <FormField control={form.control} name="shelf_location" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Localização / Prateleira</FormLabel>
+                    <FormControl><Input placeholder="Ex: Corredor 3, Prat. B2" {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )} />

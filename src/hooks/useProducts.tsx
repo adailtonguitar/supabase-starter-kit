@@ -18,6 +18,7 @@ export interface Product {
   company_id: string;
   is_active?: boolean;
   image_url?: string;
+  shelf_location?: string;
 }
 
 export function useProducts() {
