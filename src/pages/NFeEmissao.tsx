@@ -4,6 +4,7 @@ import {
   Plus, Trash2, User, Package, CreditCard, Truck, Info, Lock, ArrowLeft, Search, Save
 } from "lucide-react";
 import { useCnpjLookup } from "@/hooks/useCnpjLookup";
+import { DANFePrintButton } from "@/components/fiscal/DANFePrint";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
 import { formatCurrency } from "@/lib/utils";
@@ -125,6 +126,7 @@ export default function NFeEmissao() {
   const [activeTab, setActiveTab] = useState<"dest" | "items" | "transport" | "payment">("dest");
   const [companyCrt, setCompanyCrt] = useState<number>(1);
   const [successData, setSuccessData] = useState<any>(null);
+  const [companyInfo, setCompanyInfo] = useState<any>(null);
   const [products, setProducts] = useState<any[]>([]);
   const [productSearch, setProductSearch] = useState<Record<number, string>>({});
   const [showProductDropdown, setShowProductDropdown] = useState<number | null>(null);
@@ -149,7 +151,15 @@ export default function NFeEmissao() {
     address_neighborhood: "", address_city: "", address_state: "", address_zip: "",
   });
 
-  // Load products from database
+  // Load company info for DANFE
+  useEffect(() => {
+    if (!companyId) return;
+    supabase.from("companies")
+      .select("name, trade_name, cnpj, ie, phone, address_street, address_number, address_neighborhood, address_city, address_state, address_zip, logo_url")
+      .eq("id", companyId).single()
+      .then(({ data }) => { if (data) setCompanyInfo(data); });
+  }, [companyId]);
+
   useEffect(() => {
     if (!companyId) return;
     supabase
@@ -760,7 +770,31 @@ export default function NFeEmissao() {
           {successData?.number && (
             <p className="text-sm text-muted-foreground">Número: {successData.number}</p>
           )}
-          <div className="flex gap-2 justify-center">
+          <div className="flex flex-wrap gap-2 justify-center">
+            <DANFePrintButton data={{
+              companyName: companyInfo?.trade_name || companyInfo?.name || companyName || "",
+              companyCnpj: companyInfo?.cnpj || "",
+              companyIe: companyInfo?.ie || "",
+              companyAddress: companyInfo ? `${companyInfo.address_street || ""}, ${companyInfo.address_number || ""} - ${companyInfo.address_neighborhood || ""}, ${companyInfo.address_city || ""}/${companyInfo.address_state || ""} - CEP: ${companyInfo.address_zip || ""}` : "",
+              companyPhone: companyInfo?.phone || "",
+              logoUrl: logoUrl,
+              destName: form.destName,
+              destDoc: form.destDoc,
+              destIe: form.destIE,
+              destAddress: `${form.destStreet}, ${form.destNumber} - ${form.destNeighborhood}, ${form.destCity}/${form.destUF} - CEP: ${form.destZip}`,
+              destEmail: form.destEmail,
+              number: successData?.number || null,
+              accessKey: successData?.access_key || null,
+              natOp: form.natOp,
+              emissionDate: new Date().toLocaleString("pt-BR"),
+              items: form.items,
+              paymentMethod: form.paymentMethod,
+              paymentLabel: form.paymentMethod,
+              totalValue: form.items.reduce((s, i) => s + i.total, 0),
+              frete: form.frete,
+              transportName: form.transportName,
+              infAdic: form.infAdic,
+            }} />
             <button onClick={handleReset} className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity">
               Nova NF-e
             </button>
