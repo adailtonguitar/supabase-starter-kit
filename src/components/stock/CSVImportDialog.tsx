@@ -54,11 +54,13 @@ function parseCSV(text: string): { products: ParsedProduct[]; errors: string[] }
   const headers = parseCSVLine(headerLine);
 
   const nameIdx = headers.findIndex((h) => h.includes("nome") || h.includes("descri"));
-  const skuIdx = headers.findIndex((h) => h.includes("sku") || h.includes("codigo") && !h.includes("barra"));
+  const skuIdx = headers.findIndex((h) => (h.includes("sku") || h.includes("codigo")) && !h.includes("barra"));
   const barcodeIdx = headers.findIndex((h) => h.includes("barra") || h.includes("ean") || h.includes("gtin"));
+  // If "codigo" column exists and no barcode column found, use "codigo" as barcode
+  const finalBarcodeIdx = barcodeIdx === -1 ? headers.findIndex((h) => h === "codigo") : barcodeIdx;
   const ncmIdx = headers.findIndex((h) => h.includes("ncm"));
-  const categoryIdx = headers.findIndex((h) => h.includes("categ") || h.includes("grupo"));
-  const priceIdx = headers.findIndex((h) => h.includes("preco") && (h.includes("venda") || !h.includes("custo")) || h.includes("valor"));
+  const categoryIdx = headers.findIndex((h) => h.includes("categ") || h.includes("grupo") || h.includes("subcateg"));
+  const priceIdx = headers.findIndex((h) => h.includes("varejo") || (h.includes("preco") && (h.includes("venda") || !h.includes("custo"))) || h.includes("valor"));
   const costIdx = headers.findIndex((h) => h.includes("custo"));
   const stockIdx = headers.findIndex((h) => (h.includes("estoque") || h.includes("qtd") || h.includes("quantidade")) && !h.includes("min"));
   const minStockIdx = headers.findIndex((h) => h.includes("min"));
@@ -84,7 +86,7 @@ function parseCSV(text: string): { products: ParsedProduct[]; errors: string[] }
     const product: ParsedProduct = {
       name,
       sku: skuIdx >= 0 ? cols[skuIdx]?.trim() || "" : "",
-      barcode: barcodeIdx >= 0 ? cols[barcodeIdx]?.trim() || "" : "",
+      barcode: finalBarcodeIdx >= 0 ? cols[finalBarcodeIdx]?.trim() || "" : "",
       ncm: ncmIdx >= 0 ? cols[ncmIdx]?.trim() || "" : "",
       category: categoryIdx >= 0 ? cols[categoryIdx]?.trim() || "" : "",
       price: parseNum(priceIdx),
@@ -95,9 +97,9 @@ function parseCSV(text: string): { products: ParsedProduct[]; errors: string[] }
       valid: true,
     };
 
-    if (product.price <= 0) {
-      product.valid = false;
-      product.error = "Preço de venda inválido";
+    // Allow price 0 — just warn, don't block
+    if (product.price <= 0 && product.cost_price <= 0) {
+      product.error = "Sem preço de venda e custo";
     }
 
     products.push(product);
