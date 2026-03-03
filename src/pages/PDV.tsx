@@ -31,7 +31,7 @@ import { formatCurrency } from "@/lib/utils";
 export default function PDV() {
   const pdv = usePDV();
   const navigate = useNavigate();
-  const { companyName, companyId, logoUrl, slogan, pixKey, pixKeyType, pixCity } = useCompany();
+  const { companyName, companyId, logoUrl, slogan, pixKey, pixKeyType, pixCity, cnpj, ie, phone, addressStreet, addressNumber, addressNeighborhood, addressCity, addressState } = useCompany();
   const { config: tefConfigData } = useTEFConfig();
   const { maxDiscountPercent } = usePermissions();
   const planFeatures = usePlanFeatures();
@@ -1409,6 +1409,10 @@ export default function PDV() {
           total={receipt.total} payments={receipt.payments} nfceNumber={receipt.nfceNumber}
           isContingency={receipt.isContingency}
           slogan={slogan || undefined} logoUrl={logoUrl || undefined} companyName={companyName || undefined}
+          companyCnpj={cnpj || undefined}
+          companyIe={ie || undefined}
+          companyPhone={phone || undefined}
+          companyAddress={[addressStreet, addressNumber, addressNeighborhood, addressCity, addressState].filter(Boolean).join(', ') || undefined}
           onClose={() => setReceipt(null)}
         />
       )}
