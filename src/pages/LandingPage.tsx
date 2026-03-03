@@ -1,5 +1,4 @@
 import { lazy, Suspense } from "react";
-import { UpdateNoticeModal } from "@/components/UpdateNoticeModal";
 import { LandingNav } from "@/components/landing/LandingNav";
 import { LandingHero } from "@/components/landing/LandingHero";
 
@@ -26,7 +25,6 @@ const SectionFallback = () => <div className="h-32" />;
 export default function LandingPage() {
   return (
     <div className="landing-animated h-screen overflow-y-auto overflow-x-hidden bg-background text-foreground scroll-smooth">
-      <UpdateNoticeModal />
       <LandingNav />
       <LandingHero />
       <Suspense fallback={<SectionFallback />}>
