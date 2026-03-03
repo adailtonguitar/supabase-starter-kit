@@ -35,12 +35,19 @@ export function useDFe() {
       });
 
       if (error) {
-        // Parse ReadableStream or object errors
         let errMsg = "Erro ao buscar documentos";
-        if (typeof error === "object" && "message" in error) {
-          errMsg = error.message;
-        } else if (typeof error === "string") {
-          errMsg = error;
+        try {
+          // FunctionsHttpError has context with the actual response
+          if (error?.context?.json) {
+            const body = await error.context.json();
+            errMsg = body?.error || body?.message || errMsg;
+          } else if (typeof error === "object" && "message" in error) {
+            errMsg = error.message;
+          } else if (typeof error === "string") {
+            errMsg = error;
+          }
+        } catch {
+          // fallback
         }
         toast.error(errMsg);
         return { documents: [], total: 0 };
