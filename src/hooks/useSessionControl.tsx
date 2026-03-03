@@ -2,6 +2,7 @@ import { useEffect, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useCompany } from "@/hooks/useCompany";
+import { useAdminRole } from "@/hooks/useAdminRole";
 import { toast } from "sonner";
 
 const SESSION_TOKEN_KEY = "as_session_token";
@@ -34,6 +35,7 @@ function clearToken() {
 export function useSessionControl() {
   const { user, signOut } = useAuth();
   const { companyId } = useCompany();
+  const { isSuperAdmin } = useAdminRole();
   const registeredRef = useRef(false);
 
   const registerSession = useCallback(async () => {
@@ -76,6 +78,9 @@ export function useSessionControl() {
   }, [user, companyId]);
 
   const validateSession = useCallback(async () => {
+    // Super admins bypass session validation entirely
+    if (isSuperAdmin) return;
+
     const token = getStoredToken();
     if (!token || !user) return;
 
@@ -91,13 +96,12 @@ export function useSessionControl() {
         toast.error(result.reason || "Sua sessão foi encerrada.", { duration: 8000 });
         clearToken();
         registeredRef.current = false;
-        // Force logout after brief delay
         setTimeout(() => signOut(), 3000);
       }
     } catch {
       // Network error — don't force logout
     }
-  }, [user, signOut]);
+  }, [user, signOut, isSuperAdmin]);
 
   const invalidateSession = useCallback(async () => {
     const token = getStoredToken();
