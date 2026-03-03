@@ -52,7 +52,15 @@ export default function ResetPassword() {
       toast.success("Senha redefinida com sucesso!");
       setTimeout(() => navigate("/auth", { replace: true }), 2500);
     } catch (error: any) {
-      toast.error(error.message || "Erro ao redefinir senha");
+      const msg = error.message || "";
+      if (msg.toLowerCase().includes("different from the old password") || msg.toLowerCase().includes("same password")) {
+        toast.error("Essa senha já foi utilizada anteriormente. Por favor, escolha uma senha nova e diferente.", {
+          description: "Use uma combinação de letras, números e símbolos para maior segurança.",
+          duration: 8000,
+        });
+      } else {
+        toast.error(msg || "Erro ao redefinir senha");
+      }
     } finally {
       setLoading(false);
     }
