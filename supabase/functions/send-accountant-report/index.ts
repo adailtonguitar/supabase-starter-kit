@@ -1,10 +1,100 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { jsPDF } from "npm:jspdf@2.5.2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
+
+const formatCurrency = (v: number) =>
+  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
+
+function buildPdf(
+  companyName: string,
+  cnpj: string,
+  accountantName: string,
+  period: string,
+  nfeCount: number,
+  nfceCount: number,
+  totalValue: number,
+  salesCount: number,
+  salesTotal: number,
+): string {
+  const doc = new jsPDF({ unit: "mm", format: "a4" });
+  const pw = doc.internal.pageSize.getWidth();
+
+  // Header
+  doc.setFillColor(26, 26, 46);
+  doc.rect(0, 0, pw, 35, "F");
+  doc.setTextColor(74, 222, 128);
+  doc.setFontSize(18);
+  doc.text("Relatório Fiscal Mensal", pw / 2, 16, { align: "center" });
+  doc.setTextColor(148, 163, 184);
+  doc.setFontSize(11);
+  doc.text(`${companyName} — ${period}`, pw / 2, 26, { align: "center" });
+
+  // Body
+  let y = 48;
+  doc.setTextColor(51, 51, 51);
+  doc.setFontSize(11);
+  doc.text(`Prezado(a) ${accountantName},`, 20, y);
+  y += 10;
+  doc.text(`Segue o resumo fiscal do período ${period} da empresa ${companyName} (CNPJ: ${cnpj}):`, 20, y, {
+    maxWidth: pw - 40,
+  });
+  y += 16;
+
+  // Table header
+  doc.setFillColor(226, 232, 240);
+  doc.rect(20, y - 5, pw - 40, 10, "F");
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "bold");
+  doc.text("Indicador", 25, y + 1);
+  doc.text("Valor", pw - 25, y + 1, { align: "right" });
+  y += 12;
+
+  // Table rows
+  const rows = [
+    ["NF-e emitidas (Modelo 55)", String(nfeCount)],
+    ["NFC-e emitidas (Modelo 65)", String(nfceCount)],
+    ["Total documentos fiscais", formatCurrency(totalValue)],
+    ["Vendas no período", `${salesCount} vendas`],
+    ["Faturamento total", formatCurrency(salesTotal)],
+  ];
+
+  doc.setFont("helvetica", "normal");
+  for (const [label, value] of rows) {
+    doc.setDrawColor(226, 232, 240);
+    doc.line(20, y + 3, pw - 20, y + 3);
+    doc.text(label, 25, y);
+    doc.setFont("helvetica", "bold");
+    doc.text(value, pw - 25, y, { align: "right" });
+    doc.setFont("helvetica", "normal");
+    y += 10;
+  }
+
+  y += 10;
+  doc.setFontSize(8);
+  doc.setTextColor(100, 116, 139);
+  doc.text(
+    "Este relatório foi gerado automaticamente pelo sistema AnthoSystem.",
+    20,
+    y,
+    { maxWidth: pw - 40 },
+  );
+
+  // Footer
+  const ph = doc.internal.pageSize.getHeight();
+  doc.setFillColor(26, 26, 46);
+  doc.rect(0, ph - 15, pw, 15, "F");
+  doc.setTextColor(100, 116, 139);
+  doc.setFontSize(8);
+  doc.text("AnthoSystem — Sistema de Gestão Comercial", pw / 2, ph - 6, { align: "center" });
+
+  // Return base64
+  return doc.output("datauristring").split(",")[1];
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -105,65 +195,37 @@ Deno.serve(async (req) => {
     const salesTotal = (sales || []).reduce((sum: number, s: any) => sum + (s.total || 0), 0);
     const salesCount = (sales || []).length;
 
-    // Build email HTML
-    const formatCurrency = (v: number) =>
-      new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
-
     const companyName = company?.name || "Empresa";
     const cnpj = (company as any)?.cnpj || "—";
     const accountantName = (company as any)?.accountant_name || "Contador(a)";
 
+    // Generate PDF
+    const pdfBase64 = buildPdf(companyName, cnpj, accountantName, period, nfeCount, nfceCount, totalValue, salesCount, salesTotal);
+
+    // Build email HTML (brief version with note about attachment)
     const htmlBody = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
         <div style="background: #1a1a2e; padding: 24px; text-align: center; border-radius: 8px 8px 0 0;">
           <h1 style="color: #4ade80; margin: 0; font-size: 20px;">📊 Relatório Fiscal Mensal</h1>
           <p style="color: #94a3b8; margin: 8px 0 0; font-size: 14px;">${companyName} — ${period}</p>
         </div>
-        
         <div style="background: #f8fafc; padding: 24px; border: 1px solid #e2e8f0;">
-          <p style="margin: 0 0 16px;">Prezado(a) <strong>${accountantName}</strong>,</p>
-          <p style="margin: 0 0 16px;">Segue o resumo fiscal do período <strong>${period}</strong> da empresa <strong>${companyName}</strong> (CNPJ: ${cnpj}):</p>
-          
-          <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
-            <tr style="background: #e2e8f0;">
-              <th style="padding: 10px 12px; text-align: left; font-size: 13px;">Indicador</th>
-              <th style="padding: 10px 12px; text-align: right; font-size: 13px;">Valor</th>
-            </tr>
-            <tr style="border-bottom: 1px solid #e2e8f0;">
-              <td style="padding: 10px 12px; font-size: 13px;">NF-e emitidas (Modelo 55)</td>
-              <td style="padding: 10px 12px; text-align: right; font-weight: bold; font-size: 13px;">${nfeCount}</td>
-            </tr>
-            <tr style="border-bottom: 1px solid #e2e8f0;">
-              <td style="padding: 10px 12px; font-size: 13px;">NFC-e emitidas (Modelo 65)</td>
-              <td style="padding: 10px 12px; text-align: right; font-weight: bold; font-size: 13px;">${nfceCount}</td>
-            </tr>
-            <tr style="border-bottom: 1px solid #e2e8f0;">
-              <td style="padding: 10px 12px; font-size: 13px;">Total documentos fiscais</td>
-              <td style="padding: 10px 12px; text-align: right; font-weight: bold; font-size: 13px;">${formatCurrency(totalValue)}</td>
-            </tr>
-            <tr style="border-bottom: 1px solid #e2e8f0;">
-              <td style="padding: 10px 12px; font-size: 13px;">Vendas no período</td>
-              <td style="padding: 10px 12px; text-align: right; font-weight: bold; font-size: 13px;">${salesCount} vendas</td>
-            </tr>
-            <tr>
-              <td style="padding: 10px 12px; font-size: 13px;">Faturamento total</td>
-              <td style="padding: 10px 12px; text-align: right; font-weight: bold; font-size: 15px; color: #16a34a;">${formatCurrency(salesTotal)}</td>
-            </tr>
-          </table>
-          
+          <p>Prezado(a) <strong>${accountantName}</strong>,</p>
+          <p>Segue em anexo o relatório fiscal do período <strong>${period}</strong> da empresa <strong>${companyName}</strong> (CNPJ: ${cnpj}).</p>
+          <p style="background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 6px; padding: 12px; font-size: 13px;">
+            📎 <strong>Arquivo PDF anexado:</strong> Relatório_Fiscal_${period.replace("/", "-")}.pdf
+          </p>
           <p style="font-size: 12px; color: #64748b; margin: 16px 0 0;">
-            Este relatório foi gerado automaticamente pelo sistema AnthoSystem. 
-            Para mais detalhes ou download dos XMLs, acesse o painel fiscal do sistema.
+            Este relatório foi gerado automaticamente pelo sistema AnthoSystem.
           </p>
         </div>
-        
         <div style="background: #1a1a2e; padding: 16px; text-align: center; border-radius: 0 0 8px 8px;">
           <p style="color: #64748b; margin: 0; font-size: 11px;">AnthoSystem — Sistema de Gestão Comercial</p>
         </div>
       </div>
     `;
 
-    // Send via Resend
+    // Send via Resend with PDF attachment
     const resendKey = Deno.env.get("RESEND_API_KEY");
     if (!resendKey) {
       return new Response(JSON.stringify({ error: "RESEND_API_KEY não configurada" }), {
@@ -183,6 +245,12 @@ Deno.serve(async (req) => {
         to: [email],
         subject: `Relatório Fiscal ${period} — ${companyName}`,
         html: htmlBody,
+        attachments: [
+          {
+            filename: `Relatorio_Fiscal_${period.replace("/", "-")}_${companyName.replace(/\s+/g, "_")}.pdf`,
+            content: pdfBase64,
+          },
+        ],
       }),
     });
 
@@ -202,11 +270,12 @@ Deno.serve(async (req) => {
         period,
         nfe_count: nfeCount,
         nfce_count: nfceCount,
+        has_pdf: true,
       }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (err: unknown) {
-    console.error("[send-accountant-report] Error (v4):", err);
+    console.error("[send-accountant-report] Error:", err);
     const message = err instanceof Error ? err.message : "Erro interno";
     return new Response(JSON.stringify({ error: message }), {
       status: 500,
