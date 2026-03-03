@@ -10,11 +10,15 @@ interface SaleReceiptProps {
   slogan?: string;
   logoUrl?: string;
   companyName?: string;
+  companyCnpj?: string;
+  companyIe?: string;
+  companyPhone?: string;
+  companyAddress?: string;
   isContingency?: boolean;
   onClose: () => void;
 }
 
-export function SaleReceipt({ items, total, payments, onClose, companyName, nfceNumber, isContingency, logoUrl }: SaleReceiptProps) {
+export function SaleReceipt({ items, total, payments, onClose, companyName, companyCnpj, companyIe, companyPhone, companyAddress, nfceNumber, isContingency, logoUrl }: SaleReceiptProps) {
   const formatCurrency = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 
   const methodLabel = (m: string) => {
@@ -72,6 +76,10 @@ export function SaleReceipt({ items, total, payments, onClose, companyName, nfce
           <div class="center">
             ${logoUrl ? `<img src="${logoUrl}" class="logo" alt="Logo" />` : ""}
             <h2>${companyName || "CUPOM DE VENDA"}</h2>
+            ${companyCnpj ? `<p class="sm">CNPJ: ${companyCnpj}</p>` : ""}
+            ${companyIe ? `<p class="sm">IE: ${companyIe}</p>` : ""}
+            ${companyAddress ? `<p class="sm">${companyAddress}</p>` : ""}
+            ${companyPhone ? `<p class="sm">Fone: ${companyPhone}</p>` : ""}
             <p class="sm">${now}</p>
           </div>
           <div class="dashed"></div>
@@ -98,7 +106,7 @@ export function SaleReceipt({ items, total, payments, onClose, companyName, nfce
       </html>
     `);
     printWindow.document.close();
-  }, [items, total, payments, changeAmount, companyName, nfceNumber, logoUrl]);
+  }, [items, total, payments, changeAmount, companyName, companyCnpj, companyIe, companyPhone, companyAddress, nfceNumber, logoUrl]);
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
       <div className="bg-card rounded-2xl border border-border shadow-2xl p-6 w-full max-w-sm mx-4" onClick={e => e.stopPropagation()}>
