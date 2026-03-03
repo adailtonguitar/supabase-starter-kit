@@ -9,7 +9,7 @@ import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { useCompany } from "@/hooks/useCompany";
 import { useAdminRole } from "@/hooks/useAdminRole";
 import { SubscriptionProvider, useSubscription } from "@/hooks/useSubscription";
-import { PlanProvider } from "@/hooks/usePlanFeatures";
+import { PlanProvider, usePlanFeatures } from "@/hooks/usePlanFeatures";
 import { LocalDBProvider } from "@/components/providers/LocalDBProvider";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { UpdateNoticeModal } from "@/components/UpdateNoticeModal";
@@ -218,6 +218,14 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+/** Blocks emissor-only plan users from accessing full-system routes */
+function EmissorGuard({ children }: { children: React.ReactNode }) {
+  const { isEmissorOnly, loading } = usePlanFeatures();
+  if (loading) return null;
+  if (isEmissorOnly()) return <Navigate to="/emissor-nfe" replace />;
+  return <>{children}</>;
+}
+
 /** Shows LandingPage immediately; redirects to /dashboard once auth confirms user */
 function LandingRedirectWrapper() {
   const { user, loading } = useAuth();
@@ -260,7 +268,9 @@ function AppRoutes() {
           path="/pdv"
           element={
             <ProtectedRoute>
-              <PDV />
+              <EmissorGuard>
+                <PDV />
+              </EmissorGuard>
             </ProtectedRoute>
           }
         />
@@ -276,6 +286,7 @@ function AppRoutes() {
           path="/*"
           element={
             <ProtectedRoute>
+              <EmissorGuard>
               <AppLayout>
                 <Suspense fallback={<PageSpinner />}>
                   <Routes>
@@ -429,6 +440,7 @@ function AppRoutes() {
                   </Routes>
                 </Suspense>
               </AppLayout>
+              </EmissorGuard>
             </ProtectedRoute>
           }
         />
