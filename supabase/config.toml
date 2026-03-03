@@ -60,3 +60,6 @@ verify_jwt = false
 
 [functions.fetch-dfe]
 verify_jwt = false
+
+[functions.send-accountant-report]
+verify_jwt = false
