@@ -17,7 +17,7 @@ const faqs = [
   },
   {
     q: "Quantos computadores/caixas posso usar?",
-    a: "Depende do plano. O plano Essencial permite 1 terminal PDV, e o Profissional permite até 5 terminais simultâneos. Todos funcionam integrados em tempo real.",
+    a: "Depende do plano. O Starter permite até 3 sessões simultâneas, o Business até 8, e o Pro oferece sessões ilimitadas. Todos funcionam integrados em tempo real.",
   },
   {
     q: "Como funciona o período de teste?",
@@ -29,7 +29,7 @@ const faqs = [
   },
   {
     q: "Tem suporte técnico? Como funciona?",
-    a: "Sim! No plano Essencial o suporte é por e-mail. No plano Profissional, você tem suporte prioritário via WhatsApp com tempo de resposta menor que 2 horas.",
+    a: "Sim! No plano Starter o suporte é por e-mail. Nos planos Business e Pro, você tem suporte prioritário via WhatsApp com tempo de resposta menor que 2 horas.",
   },
   {
     q: "Meus dados ficam seguros?",

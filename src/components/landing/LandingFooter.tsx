@@ -51,22 +51,12 @@ export function LandingFooter() {
             </div>
           </div>
 
-          {/* Social */}
+          {/* Contact */}
           <div>
-            <h4 className="text-sm font-bold mb-3">Redes Sociais</h4>
-            <div className="flex gap-3">
-              <span
-                className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center text-muted-foreground cursor-default"
-                aria-label="Instagram"
-              >
-                <InstagramIcon />
-              </span>
-              <span
-                className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center text-muted-foreground cursor-default"
-                aria-label="YouTube"
-              >
-                <YouTubeIcon />
-              </span>
+            <h4 className="text-sm font-bold mb-3">Contato</h4>
+            <div className="flex flex-col gap-2 text-sm text-muted-foreground">
+              <span>Suporte via WhatsApp</span>
+              <span>contato@anthosystem.com.br</span>
             </div>
           </div>
         </div>

@@ -13,6 +13,7 @@ const LandingMultiStore = lazy(() => import("@/components/landing/LandingMultiSt
 const LandingCalculator = lazy(() => import("@/components/landing/LandingCalculator").then(m => ({ default: m.LandingCalculator })));
 const LandingAdvantages = lazy(() => import("@/components/landing/LandingAdvantages").then(m => ({ default: m.LandingAdvantages })));
 const LandingComparison = lazy(() => import("@/components/landing/LandingComparison").then(m => ({ default: m.LandingComparison })));
+const LandingTestimonials = lazy(() => import("@/components/landing/LandingTestimonials").then(m => ({ default: m.LandingTestimonials })));
 const LandingAuthority = lazy(() => import("@/components/landing/LandingAuthority").then(m => ({ default: m.LandingAuthority })));
 const LandingPricing = lazy(() => import("@/components/landing/LandingPricing").then(m => ({ default: m.LandingPricing })));
 const LandingFAQ = lazy(() => import("@/components/landing/LandingFAQ").then(m => ({ default: m.LandingFAQ })));
@@ -38,6 +39,7 @@ export default function LandingPage() {
         <LandingCalculator />
         <LandingAdvantages />
         <LandingComparison />
+        <LandingTestimonials />
         <LandingAuthority />
         <LandingPricing />
         <LandingFAQ />
