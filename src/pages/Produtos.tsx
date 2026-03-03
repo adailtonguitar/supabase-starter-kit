@@ -57,7 +57,7 @@ export default function Produtos() {
 
   if (showForm) {
     return (
-      <div className="p-3 sm:p-6 max-w-7xl mx-auto">
+      <div className="p-3 sm:p-6 max-w-5xl mx-auto pb-10">
         <ProductFormDialog
           key={adaptedEditing?.id ?? "new"}
           open={showForm}
