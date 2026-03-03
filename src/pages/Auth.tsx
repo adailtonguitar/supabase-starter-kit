@@ -374,7 +374,7 @@ export default function Auth() {
                       onChange={(e) => setRememberMe(e.target.checked)}
                       className="w-4 h-4 rounded border-border text-primary focus:ring-primary/20 accent-primary"
                     />
-                    <span className="text-sm text-muted-foreground">Manter-me conectado</span>
+                    <span className="text-sm text-muted-foreground">Lembrar meu e-mail</span>
                   </label>
                 )}
 
