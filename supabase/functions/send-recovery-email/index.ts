@@ -31,7 +31,7 @@ Deno.serve(async (req) => {
       await supabaseAdmin.auth.admin.generateLink({
         type: "recovery",
         email,
-        options: { redirectTo: redirectTo || undefined },
+        options: { redirectTo: redirectTo || "https://anthosystem.com.br/auth" },
       });
 
     if (linkError) {
