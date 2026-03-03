@@ -320,7 +320,7 @@ export function AppSidebar({ mobileOpen, onMobileClose }: AppSidebarProps) {
         {!collapsed && <span className="text-sm font-bold text-sidebar-foreground tracking-wide -mt-1">AnthoSystem</span>}
       </div>
 
-      <nav className="flex-1 py-3 px-2 space-y-1 overflow-y-auto">
+      <nav className="flex-1 min-h-0 py-3 px-2 space-y-1 overflow-y-auto scrollbar-thin">
         {visibleNavItems.map((entry) => {
           if (isGroup(entry)) {
             const groupOpen = !!openGroups[entry.label];
