@@ -773,7 +773,21 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
                 <FormField control={form.control} name="stock_quantity" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Estoque Atual</FormLabel>
-                    <FormControl><Input type="number" step="0.01" {...field} /></FormControl>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        {...field}
+                        disabled={isEditing}
+                        className={isEditing ? "bg-muted cursor-not-allowed" : ""}
+                      />
+                    </FormControl>
+                    {isEditing && (
+                      <p className="text-xs text-muted-foreground flex items-center gap-1">
+                        <Info className="w-3 h-3" />
+                        Use "Movimentar Estoque" para alterar a quantidade com rastreabilidade.
+                      </p>
+                    )}
                     <FormMessage />
                   </FormItem>
                 )} />
