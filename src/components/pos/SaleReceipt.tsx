@@ -14,7 +14,7 @@ interface SaleReceiptProps {
   onClose: () => void;
 }
 
-export function SaleReceipt({ items, total, payments, onClose, companyName, nfceNumber, isContingency }: SaleReceiptProps) {
+export function SaleReceipt({ items, total, payments, onClose, companyName, nfceNumber, isContingency, logoUrl }: SaleReceiptProps) {
   const formatCurrency = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 
   const methodLabel = (m: string) => {
@@ -65,10 +65,12 @@ export function SaleReceipt({ items, total, payments, onClose, companyName, nfce
             .sm { font-size: 9px; }
             h2 { font-size: 13px; margin: 2px 0; }
             .cut { margin-top: 6px; text-align: center; font-size: 9px; letter-spacing: 2px; }
+            .logo { max-height: 40px; max-width: 60mm; object-fit: contain; margin: 0 auto 4px; display: block; }
           </style>
         </head>
         <body>
           <div class="center">
+            ${logoUrl ? `<img src="${logoUrl}" class="logo" alt="Logo" />` : ""}
             <h2>${companyName || "CUPOM DE VENDA"}</h2>
             <p class="sm">${now}</p>
           </div>
@@ -96,7 +98,7 @@ export function SaleReceipt({ items, total, payments, onClose, companyName, nfce
       </html>
     `);
     printWindow.document.close();
-  }, [items, total, payments, changeAmount, companyName, nfceNumber]);
+  }, [items, total, payments, changeAmount, companyName, nfceNumber, logoUrl]);
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
       <div className="bg-card rounded-2xl border border-border shadow-2xl p-6 w-full max-w-sm mx-4" onClick={e => e.stopPropagation()}>
