@@ -315,7 +315,7 @@ export function AppSidebar({ mobileOpen, onMobileClose }: AppSidebarProps) {
         collapsed ? "w-[72px]" : "w-[240px]"
       )}
     >
-      <div className="flex flex-col items-center justify-center px-2 py-2 overflow-visible">
+      <div className="flex flex-col items-center justify-center px-2 py-2 overflow-visible shrink-0">
         <img src={anthoLogo} alt="AnthoSystem" className={cn("object-contain", collapsed ? "w-8 h-8" : "h-20 w-full -mb-3")} style={collapsed ? undefined : { marginTop: '0px', marginBottom: '-12px' }} />
         {!collapsed && <span className="text-sm font-bold text-sidebar-foreground tracking-wide -mt-1">AnthoSystem</span>}
       </div>
@@ -405,7 +405,7 @@ export function AppSidebar({ mobileOpen, onMobileClose }: AppSidebarProps) {
         })}
       </nav>
 
-      <div className="px-2 pb-2 space-y-0.5 border-t border-sidebar-border pt-2">
+      <div className="px-2 pb-2 space-y-0.5 border-t border-sidebar-border pt-2 shrink-0">
         <div className={cn("flex items-center gap-2 px-2 py-1 rounded-lg", collapsed && "justify-center")}>
           <User className="w-3.5 h-3.5 text-sidebar-foreground flex-shrink-0" />
           {!collapsed && (
