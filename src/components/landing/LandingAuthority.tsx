@@ -2,10 +2,10 @@ import { motion } from "framer-motion";
 import { Shield, Monitor, Zap, Users, BarChart3, Clock } from "lucide-react";
 
 const stats = [
-  { value: "+500", label: "Supermercados ativos", icon: Users },
-  { value: "99.8%", label: "Uptime garantido", icon: Zap },
+  { value: "100%", label: "Funciona offline", icon: Zap },
   { value: "24/7", label: "Sistema disponível", icon: Clock },
-  { value: "+2M", label: "Vendas processadas", icon: BarChart3 },
+  { value: "<2h", label: "Tempo de resposta", icon: Users },
+  { value: "15 dias", label: "Teste grátis", icon: BarChart3 },
 ];
 
 const proofs = [
@@ -42,10 +42,10 @@ export function LandingAuthority() {
               Confiança comprovada
             </span>
             <h2 className="mt-3 text-3xl sm:text-4xl font-bold tracking-tight">
-              Um sistema usado de verdade
+              Um sistema construído para a realidade
             </h2>
             <p className="mt-4 text-muted-foreground max-w-2xl mx-auto text-lg">
-              O AnthoSystem não é protótipo. É uma plataforma consolidada, usada diariamente por centenas de supermercados em todo o Brasil.
+              O AnthoSystem foi desenvolvido para resolver os problemas reais de supermercados e mercearias. Do caixa ao financeiro, cada funcionalidade foi testada em operação real.
             </p>
           </motion.div>
         </div>

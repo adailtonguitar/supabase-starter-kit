@@ -93,20 +93,9 @@ export function LandingHero() {
             </div>
 
             {/* Social proof */}
-            <div className="mt-8 flex items-center gap-4 text-sm text-muted-foreground">
-              <div className="flex -space-x-2">
-                {[1, 2, 3, 4].map((i) => (
-                  <div
-                    key={i}
-                    className="w-8 h-8 rounded-full border-2 border-background bg-muted flex items-center justify-center text-[10px] font-bold text-muted-foreground"
-                  >
-                    {String.fromCharCode(64 + i)}
-                  </div>
-                ))}
-              </div>
-              <div>
-                <span className="font-semibold text-foreground">+500</span> supermercados ativos
-              </div>
+            <div className="mt-8 flex items-center gap-3 text-sm text-muted-foreground">
+              <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+              <span>Usado por supermercados reais em produção</span>
             </div>
           </motion.div>
 
