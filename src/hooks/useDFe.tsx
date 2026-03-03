@@ -30,56 +30,60 @@ export function useDFe() {
     queryFn: async () => {
       if (!companyId) return { documents: [], total: 0 };
 
-      const { data, error } = await supabase.functions.invoke("fetch-dfe", {
-        body: { action: "list", company_id: companyId },
-      });
+      try {
+        const { data, error } = await supabase.functions.invoke("fetch-dfe", {
+          body: { action: "list", company_id: companyId },
+        });
 
-      if (error) {
-        let errMsg = "Erro ao buscar documentos";
-        try {
-          // FunctionsHttpError has context with the actual response
-          if (error?.context?.json) {
-            const body = await error.context.json();
-            errMsg = body?.error || body?.message || errMsg;
-          } else if (typeof error === "object" && "message" in error) {
-            errMsg = error.message;
-          } else if (typeof error === "string") {
-            errMsg = error;
+        if (error) {
+          let errMsg = "Erro ao buscar documentos";
+          try {
+            if (error?.context?.json) {
+              const body = await error.context.json();
+              errMsg = body?.error || body?.message || errMsg;
+            } else if (typeof error === "object" && "message" in error) {
+              errMsg = error.message;
+            }
+          } catch {
+            // fallback
           }
-        } catch {
-          // fallback
+          toast.error(errMsg);
+          return { documents: [], total: 0 };
         }
-        toast.error(errMsg);
+
+        if (!data?.success) {
+          toast.error(data?.error || "Erro ao buscar documentos");
+          return { documents: [], total: 0 };
+        }
+
+        const docs = (data.data?.data || []).map((d: any) => ({
+          id: d.id,
+          chave: d.chave || d.chNFe || "",
+          tipo_documento: d.tipo_documento || d.schema || "NF-e",
+          numero: d.numero || 0,
+          serie: d.serie || 0,
+          data_emissao: d.data_emissao || d.dh_emissao || "",
+          valor_total: d.valor_total || d.vNF || 0,
+          cnpj_emitente: d.cnpj_emitente || "",
+          nome_emitente: d.nome_emitente || "",
+          situacao: d.situacao || "",
+          nsu: d.nsu || 0,
+          schema: d.schema || "",
+          tipo_nfe: d.tipo_nfe,
+        }));
+
+        return {
+          documents: docs as DFeDocument[],
+          total: data.data?.["@count"] || docs.length,
+        };
+      } catch (e: any) {
+        console.error("[useDFe] queryFn error:", e);
+        toast.error(e?.message || "Erro inesperado ao buscar documentos");
         return { documents: [], total: 0 };
       }
-
-      if (!data?.success) {
-        toast.error(data?.error || "Erro ao buscar documentos");
-        return { documents: [], total: 0 };
-      }
-
-      const docs = (data.data?.data || []).map((d: any) => ({
-        id: d.id,
-        chave: d.chave || d.chNFe || "",
-        tipo_documento: d.tipo_documento || d.schema || "NF-e",
-        numero: d.numero || 0,
-        serie: d.serie || 0,
-        data_emissao: d.data_emissao || d.dh_emissao || "",
-        valor_total: d.valor_total || d.vNF || 0,
-        cnpj_emitente: d.cnpj_emitente || "",
-        nome_emitente: d.nome_emitente || "",
-        situacao: d.situacao || "",
-        nsu: d.nsu || 0,
-        schema: d.schema || "",
-        tipo_nfe: d.tipo_nfe,
-      }));
-
-      return {
-        documents: docs as DFeDocument[],
-        total: data.data?.["@count"] || docs.length,
-      };
     },
     enabled: !!companyId,
+    retry: false,
     staleTime: 5 * 60 * 1000,
   });
 
