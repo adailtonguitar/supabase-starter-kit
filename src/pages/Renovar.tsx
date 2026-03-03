@@ -49,7 +49,7 @@ export default function Renovar() {
       key: "emissor",
       name: "Emissor",
       price: "99,90",
-      features: ["NF-e modelo 55 e 65", "Até 2 usuários", "Financeiro básico", "Ideal para MEI/ME"],
+      features: ["NF-e modelo 55 e 65", "Consulta DF-e", "Até 2 usuários", "Financeiro básico", "Ideal para MEI/ME"],
     },
     {
       key: "starter",
@@ -67,7 +67,7 @@ export default function Renovar() {
       key: "pro",
       name: "Pro",
       price: "349,90",
-      features: ["Sessões ilimitadas", "Todos os módulos", "NF-e + NFC-e", "Suporte dedicado"],
+      features: ["Sessões ilimitadas", "Todos os módulos", "NF-e + NFC-e", "Consulta DF-e", "Suporte dedicado"],
       highlighted: true,
       recommended: true,
     },

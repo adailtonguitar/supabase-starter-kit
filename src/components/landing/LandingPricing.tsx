@@ -55,6 +55,7 @@ const plans = [
       "Relatórios avançados com IA",
       "Relatório de Ruptura de Estoque",
       "Sugestão de Compra com IA",
+      "Consulta DF-e (notas recebidas)",
       "NF-e + NFC-e ilimitadas",
       "Suporte dedicado",
     ],
@@ -182,7 +183,7 @@ export function LandingPricing() {
                 </span>
               </div>
               <p className="text-sm text-muted-foreground">
-                Só precisa emitir notas fiscais? Plano exclusivo com emissão ilimitada de NF-e por apenas
+                Só precisa emitir notas fiscais? Plano exclusivo com emissão ilimitada de NF-e + Consulta DF-e por apenas
               </p>
               <div className="flex items-baseline gap-1 mt-2">
                 <span className="text-sm text-muted-foreground font-medium">R$</span>
