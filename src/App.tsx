@@ -218,11 +218,12 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-/** Blocks emissor-only plan users from accessing full-system routes */
+/** Blocks emissor-only plan users from accessing full-system routes (super_admin bypasses) */
 function EmissorGuard({ children }: { children: React.ReactNode }) {
   const { isEmissorOnly, loading } = usePlanFeatures();
+  const { isSuperAdmin } = useAdminRole();
   if (loading) return null;
-  if (isEmissorOnly()) return <Navigate to="/emissor-nfe" replace />;
+  if (!isSuperAdmin && isEmissorOnly()) return <Navigate to="/emissor-nfe" replace />;
   return <>{children}</>;
 }
 
