@@ -8,8 +8,17 @@ import { RefreshCw, Download, Search, FileText, AlertTriangle, Package, Loader2 
 import { format } from "date-fns";
 import { NFeImportDialog } from "@/components/stock/NFeImportDialog";
 import { toast } from "sonner";
+import { PlanGate } from "@/components/PlanGate";
 
 export default function ConsultaDFe() {
+  return (
+    <PlanGate feature="hasDFe" featureName="Consulta DF-e">
+      <ConsultaDFeContent />
+    </PlanGate>
+  );
+}
+
+function ConsultaDFeContent() {
   const { documents, total, isLoading, error, refetch, distribute, isDistributing, downloadXml } = useDFe();
   const [importOpen, setImportOpen] = useState(false);
   const [importXml, setImportXml] = useState<string | undefined>(undefined);

@@ -19,6 +19,9 @@ function isFeatureAllowed(feature: string, plan: ReturnType<typeof usePlanFeatur
   const proOnlyFeatures = ["hasBranches", "hasDiagnostico", "hasFullAiReports", "hasRuptura", "hasSugestaoCompra"];
   if (proOnlyFeatures.includes(feature)) return plan.plan === "pro" && plan.isActive();
 
+  // Pro + Emissor features (Consulta DF-e)
+  if (feature === "hasDFe") return (plan.plan === "pro" || plan.plan === "emissor") && plan.isActive();
+
   // Fiscal features (NFC-e) — Business+ only
   if (feature === "hasFiscal") return plan.canUseFiscal();
 
