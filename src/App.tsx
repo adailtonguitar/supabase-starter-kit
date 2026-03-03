@@ -90,6 +90,7 @@ const PainelDono = lazy(() => import("./pages/PainelDono"));
 const NFeEmissao = lazy(() => import("./pages/NFeEmissao"));
 const EmissorNFe = lazy(() => import("./pages/EmissorNFe"));
 const EmissorLanding = lazy(() => import("./pages/EmissorLanding"));
+const ConsultaDFe = lazy(() => import("./pages/ConsultaDFe"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -421,6 +422,7 @@ function AppRoutes() {
                         <SugestaoCompra />
                       </PlanGate>
                     } />
+                    <Route path="/consulta-dfe" element={<ConsultaDFe />} />
                     <Route path="/admin" element={<Admin />} />
                     <Route path="/ajuda" element={<Ajuda />} />
                     <Route path="*" element={<NotFound />} />
