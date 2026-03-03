@@ -134,7 +134,7 @@ export default function Auth() {
     try {
       console.log("[Auth] Sending recovery email via edge function to:", forgotEmail);
       const { data, error } = await supabase.functions.invoke("send-recovery-email", {
-        body: { email: forgotEmail, redirectTo: `${window.location.origin}/auth` },
+        body: { email: forgotEmail, redirectTo: `${window.location.origin}/reset-password` },
       });
       if (error) {
         // Handle ReadableStream response
