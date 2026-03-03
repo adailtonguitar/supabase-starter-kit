@@ -132,16 +132,21 @@ export default function Auth() {
     }
     setLoading(true);
     try {
-      console.log("[Auth] Sending recovery email to:", forgotEmail);
-      const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail, {
-        redirectTo: `${window.location.origin}/auth`,
+      console.log("[Auth] Sending recovery email via edge function to:", forgotEmail);
+      const { data, error } = await supabase.functions.invoke("send-recovery-email", {
+        body: { email: forgotEmail, redirectTo: `${window.location.origin}/auth` },
       });
-      console.log("[Auth] Recovery response error:", error);
-      if (error) throw error;
+      if (error) {
+        // Handle ReadableStream response
+        let errorMsg = "Erro ao enviar e-mail de recuperação";
+        if (error.message) errorMsg = error.message;
+        throw new Error(errorMsg);
+      }
+      if (data?.error) throw new Error(data.error);
       toast.success("E-mail de recuperação enviado! Verifique sua caixa de entrada.");
       setShowForgotPassword(false);
     } catch (error: any) {
-      console.error("[Auth] Recovery error details:", JSON.stringify(error));
+      console.error("[Auth] Recovery error details:", error);
       toast.error(error.message || "Erro ao enviar e-mail de recuperação");
     } finally {
       setLoading(false);

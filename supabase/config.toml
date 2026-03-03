@@ -54,3 +54,6 @@ verify_jwt = false
 
 [functions.create-company-user]
 verify_jwt = false
+
+[functions.send-recovery-email]
+verify_jwt = false
