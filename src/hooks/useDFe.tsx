@@ -86,6 +86,21 @@ export function useDFe() {
     }
   };
 
+  const downloadXml = async (documentId: string): Promise<string | null> => {
+    if (!companyId) return null;
+    try {
+      const { data, error } = await supabase.functions.invoke("fetch-dfe", {
+        body: { action: "detail", company_id: companyId, document_id: documentId },
+      });
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || "Erro ao baixar XML");
+      return data.xml as string;
+    } catch (e: any) {
+      toast.error(e.message || "Erro ao baixar XML");
+      return null;
+    }
+  };
+
   return {
     documents: documentsQuery.data?.documents || [],
     total: documentsQuery.data?.total || 0,
@@ -94,5 +109,6 @@ export function useDFe() {
     refetch: documentsQuery.refetch,
     distribute,
     isDistributing,
+    downloadXml,
   };
 }

@@ -4,11 +4,30 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
-import { RefreshCw, Download, Search, FileText, AlertTriangle } from "lucide-react";
+import { RefreshCw, Download, Search, FileText, AlertTriangle, Package, Loader2 } from "lucide-react";
 import { format } from "date-fns";
+import { NFeImportDialog } from "@/components/stock/NFeImportDialog";
+import { toast } from "sonner";
 
 export default function ConsultaDFe() {
-  const { documents, total, isLoading, error, refetch, distribute, isDistributing } = useDFe();
+  const { documents, total, isLoading, error, refetch, distribute, isDistributing, downloadXml } = useDFe();
+  const [importOpen, setImportOpen] = useState(false);
+  const [importXml, setImportXml] = useState<string | undefined>(undefined);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+
+  const handleImportDoc = async (doc: DFeDocument) => {
+    if (!doc.id) {
+      toast.error("Documento sem ID para download");
+      return;
+    }
+    setDownloadingId(doc.id);
+    const xml = await downloadXml(doc.id);
+    setDownloadingId(null);
+    if (xml) {
+      setImportXml(xml);
+      setImportOpen(true);
+    }
+  };
 
   const formatCurrency = (v: number) =>
     new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
@@ -87,7 +106,7 @@ export default function ConsultaDFe() {
           ) : (
             <div className="overflow-x-auto">
               <Table>
-                <TableHeader>
+                 <TableHeader>
                   <TableRow>
                     <TableHead>Nº</TableHead>
                     <TableHead>Emitente</TableHead>
@@ -96,6 +115,7 @@ export default function ConsultaDFe() {
                     <TableHead className="text-right">Valor</TableHead>
                     <TableHead>Situação</TableHead>
                     <TableHead>Tipo</TableHead>
+                    <TableHead className="text-center">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -135,6 +155,22 @@ export default function ConsultaDFe() {
                           {doc.schema || doc.tipo_documento || "NF-e"}
                         </Badge>
                       </TableCell>
+                      <TableCell className="text-center">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleImportDoc(doc)}
+                          disabled={downloadingId === doc.id}
+                          className="text-xs"
+                        >
+                          {downloadingId === doc.id ? (
+                            <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />
+                          ) : (
+                            <Package className="w-3.5 h-3.5 mr-1" />
+                          )}
+                          Importar
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -143,6 +179,14 @@ export default function ConsultaDFe() {
           )}
         </CardContent>
       </Card>
+      <NFeImportDialog
+        open={importOpen}
+        onOpenChange={(open) => {
+          setImportOpen(open);
+          if (!open) setImportXml(undefined);
+        }}
+        xmlContent={importXml}
+      />
     </div>
   );
 }

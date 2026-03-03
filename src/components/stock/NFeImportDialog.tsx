@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 interface NFeImportDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  xmlContent?: string; // Pre-loaded XML content (from DFe import)
 }
 
 interface NFeProduct {
@@ -130,7 +131,7 @@ function parseNFeXML(xmlText: string): NFeInfo | null {
   }
 }
 
-export function NFeImportDialog({ open, onOpenChange }: NFeImportDialogProps) {
+export function NFeImportDialog({ open, onOpenChange, xmlContent }: NFeImportDialogProps) {
   const { companyId } = useCompany();
   const queryClient = useQueryClient();
   const { data: suppliers = [] } = useSuppliers();
@@ -169,6 +170,18 @@ export function NFeImportDialog({ open, onOpenChange }: NFeImportDialogProps) {
       setSupplierStatus("not_found");
     }
   }, [step, nfeInfo?.supplierCnpj, suppliers]);
+
+  // Auto-parse pre-loaded XML content
+  useEffect(() => {
+    if (!open || !xmlContent || nfeInfo) return;
+    const parsed = parseNFeXML(xmlContent);
+    if (!parsed || parsed.products.length === 0) {
+      toast.error("XML inválido ou sem produtos");
+      return;
+    }
+    setNfeInfo(parsed);
+    setStep("preview");
+  }, [open, xmlContent]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Check existing products by barcode when preview loads
   useEffect(() => {
