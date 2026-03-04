@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { Upload, FileText, AlertCircle, CheckCircle2, Loader2, Package, Pencil, Trash2, Factory, Plus, Link, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
+import { useAuth } from "@/hooks/useAuth";
 import { useSuppliers } from "@/hooks/useSuppliers";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -133,6 +134,7 @@ function parseNFeXML(xmlText: string): NFeInfo | null {
 
 export function NFeImportDialog({ open, onOpenChange, xmlContent }: NFeImportDialogProps) {
   const { companyId } = useCompany();
+  const { user } = useAuth();
   const queryClient = useQueryClient();
   const { data: suppliers = [] } = useSuppliers();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -345,7 +347,8 @@ export function NFeImportDialog({ open, onOpenChange, xmlContent }: NFeImportDia
 
         if (existing) {
           if (updateStock) {
-            const newStock = (existing.stock_quantity || 0) + p.quantity;
+            const previousStock = existing.stock_quantity || 0;
+            const newStock = previousStock + p.quantity;
             const updateData: Record<string, any> = {
               stock_quantity: newStock,
               cost_price: p.unitPrice,
@@ -354,7 +357,22 @@ export function NFeImportDialog({ open, onOpenChange, xmlContent }: NFeImportDia
             if (supplierId) updateData.supplier_id = supplierId;
 
             const { error } = await supabase.from("products").update(updateData).eq("id", existing.id);
-            if (error) { console.error("[NFeImport] update error:", error.message); errors++; } else { updated++; }
+            if (error) { console.error("[NFeImport] update error:", error.message); errors++; } else {
+              updated++;
+              // Register stock movement for traceability
+              await supabase.from("stock_movements" as any).insert({
+                company_id: companyId,
+                product_id: existing.id,
+                type: "entrada",
+                quantity: p.quantity,
+                previous_stock: previousStock,
+                new_stock: newStock,
+                unit_cost: p.unitPrice,
+                reason: `Importação NF-e ${nfeInfo.number || ""}`.trim(),
+                reference: nfeInfo.accessKey || null,
+                performed_by: user?.id || null,
+              });
+            }
           } else {
             updated++;
           }
@@ -378,8 +396,23 @@ export function NFeImportDialog({ open, onOpenChange, xmlContent }: NFeImportDia
       };
       if (supplierId) insertData.supplier_id = supplierId;
 
-      const { error } = await supabase.from("products").insert(insertData);
-      if (error) { console.error("[NFeImport] insert error:", error.message, error.details, error.code); errors++; } else { imported++; }
+      const { data: newProduct, error } = await supabase.from("products").insert(insertData).select("id").single();
+      if (error) { console.error("[NFeImport] insert error:", error.message, error.details, error.code); errors++; } else {
+        imported++;
+        // Register initial stock movement for new product
+        await supabase.from("stock_movements" as any).insert({
+          company_id: companyId,
+          product_id: newProduct.id,
+          type: "entrada",
+          quantity: p.quantity,
+          previous_stock: 0,
+          new_stock: p.quantity,
+          unit_cost: p.unitPrice,
+          reason: `Importação NF-e ${nfeInfo.number || ""}`.trim(),
+          reference: nfeInfo.accessKey || null,
+          performed_by: user?.id || null,
+        });
+      }
     }
 
     // Register NF-e as imported to prevent duplicates
