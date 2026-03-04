@@ -133,7 +133,7 @@ export default function PDV() {
   }, [pdv.sessionEverLoaded, pdv.loadingSession, pdv.currentSession, showCashRegister]);
 
   // Always re-focus barcode input when no modal is open
-  const noModalOpen = !showTEF && !receipt && !showCashRegister && !showProductList && !showShortcuts && !showPriceLookup && !showLoyaltyClientSelector && !showQuickProduct && !showSaveQuote && !showTerminalPicker && !showClientSelector && !showReceiveCredit && !zeroStockProduct && !editingQtyItemId && !editingItemDiscountId && !editingGlobalDiscount;
+  const noModalOpen = !showTEF && !receipt && !showCashRegister && !showProductList && !showShortcuts && !showPriceLookup && !showLoyaltyClientSelector && !showQuickProduct && !showSaveQuote && !showTerminalPicker && !showClientSelector && !showReceiveCredit && !zeroStockProduct && !stockMovementProduct && !editingQtyItemId && !editingItemDiscountId && !editingGlobalDiscount;
 
   useEffect(() => {
     if (noModalOpen) {
