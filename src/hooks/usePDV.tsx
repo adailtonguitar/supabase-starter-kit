@@ -270,7 +270,7 @@ export function usePDV() {
 
     const { data: fiscalConfig } = await supabase
       .from("fiscal_configs")
-      .select("id, crt")
+      .select("id, crt, environment, certificate_path, a3_thumbprint, serie, next_number")
       .eq("company_id", companyId)
       .eq("doc_type", "nfce")
       .eq("is_active", true)
@@ -278,6 +278,48 @@ export function usePDV() {
       .maybeSingle();
 
     if (!fiscalConfig) throw new Error("Nenhuma configuração fiscal ativa");
+
+    const isHomologacao = (fiscalConfig as any).environment === "homologacao";
+    const hasCert = !!((fiscalConfig as any).certificate_path || (fiscalConfig as any).a3_thumbprint);
+
+    // ── MODO SIMULAÇÃO: homologação sem certificado ──
+    if (isHomologacao && !hasCert) {
+      const fakeChave = Array.from({ length: 44 }, () => Math.floor(Math.random() * 10)).join("");
+      const fakeProtocol = Date.now().toString();
+      const simNumber = (fiscalConfig as any).next_number || 1;
+
+      await supabase.from("fiscal_documents").insert({
+        company_id: companyId,
+        sale_id: saleId,
+        doc_type: "nfce",
+        status: "simulado",
+        access_key: fakeChave,
+        protocol_number: fakeProtocol,
+        environment: "homologacao",
+        serie: (fiscalConfig as any).serie || "1",
+        number: simNumber,
+        total_value: 0,
+      } as any);
+
+      await supabase.from("fiscal_configs").update({
+        next_number: simNumber + 1,
+      } as any).eq("id", fiscalConfig.id);
+
+      await supabase.from("sales").update({ status: "emitida" } as any).eq("id", saleId);
+      if (queueId) {
+        await supabase.from("fiscal_queue").update({ status: "done", processed_at: new Date().toISOString() } as any).eq("id", queueId);
+      }
+
+      toast.success("✅ Simulação concluída! (modo teste — sem envio à SEFAZ)", {
+        description: `Chave fictícia: ${fakeChave.substring(0, 20)}...`,
+        duration: 6000,
+      });
+
+      return {
+        nfceNumber: `SIM-${simNumber}`,
+        fiscalDocId: null,
+      };
+    }
 
     // Marcar sale como pendente_fiscal
     await supabase.from("sales").update({ status: "pendente_fiscal" } as any).eq("id", saleId);
