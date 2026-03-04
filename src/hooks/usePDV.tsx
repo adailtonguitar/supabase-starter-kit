@@ -268,7 +268,7 @@ export function usePDV() {
   const processFiscalEmission = useCallback(async (saleId: string, queueId?: string) => {
     if (!companyId) throw new Error("Empresa não identificada");
 
-    const { data: fiscalConfig } = await supabase
+    const { data: fiscalConfig, error: fcError } = await supabase
       .from("fiscal_configs")
       .select("id, crt, environment, certificate_path, a3_thumbprint, serie, next_number")
       .eq("company_id", companyId)
@@ -277,10 +277,13 @@ export function usePDV() {
       .limit(1)
       .maybeSingle();
 
+    console.log("[PDV Fiscal] Config query result:", { fiscalConfig, fcError });
+
     if (!fiscalConfig) throw new Error("Nenhuma configuração fiscal ativa");
 
     const isHomologacao = (fiscalConfig as any).environment === "homologacao";
     const hasCert = !!((fiscalConfig as any).certificate_path || (fiscalConfig as any).a3_thumbprint);
+    console.log("[PDV Fiscal] isHomologacao:", isHomologacao, "hasCert:", hasCert, "env:", (fiscalConfig as any).environment, "cert_path:", (fiscalConfig as any).certificate_path);
 
     // ── MODO SIMULAÇÃO: homologação sem certificado ──
     if (isHomologacao && !hasCert) {
@@ -488,7 +491,8 @@ export function usePDV() {
           const fiscalResult = await processFiscalEmission(saleId);
           nfceNumber = fiscalResult.nfceNumber || "";
           fiscalDocId = fiscalResult.fiscalDocId || undefined;
-        } catch {
+        } catch (fiscalErr: any) {
+          console.error("[PDV Fiscal] Emission failed:", fiscalErr?.message || fiscalErr);
           // Fiscal failed — sale is saved, will retry later
         }
       }
