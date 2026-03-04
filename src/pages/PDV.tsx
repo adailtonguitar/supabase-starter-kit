@@ -395,6 +395,9 @@ export default function PDV() {
         return;
       }
 
+      // When stock movement dialog is open, let it handle all keyboard events
+      if (stockMovementProduct) return;
+
       // Skip arrow/enter when product list is open (it handles its own navigation)
       if (showProductList && (e.key === "ArrowDown" || e.key === "ArrowUp" || e.key === "Enter")) return;
 
@@ -500,7 +503,7 @@ export default function PDV() {
     };
     window.addEventListener("keydown", handler, true);
     return () => window.removeEventListener("keydown", handler, true);
-  }, [showTEF, receipt, showCashRegister, showShortcuts, showPriceLookup, showProductList, handleCheckout, pdv, editingQtyItemId, editingItemDiscountId, editingGlobalDiscount, isFullscreen, selectedCartItemId]);
+  }, [showTEF, receipt, showCashRegister, showShortcuts, showPriceLookup, showProductList, handleCheckout, pdv, editingQtyItemId, editingItemDiscountId, editingGlobalDiscount, isFullscreen, selectedCartItemId, stockMovementProduct]);
 
   const checkLowStockAfterSale = useCallback((soldItems: typeof pdv.cartItems) => {
     const lowStockItems: string[] = [];
