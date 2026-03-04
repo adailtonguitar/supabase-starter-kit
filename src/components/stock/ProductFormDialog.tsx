@@ -35,6 +35,7 @@ const schema = z.object({
   sku: z.string().trim().max(50).optional().or(z.literal("")),
   ncm: z.string().trim().max(20).optional(),
   category: z.string().trim().max(50).optional(),
+  brand: z.string().trim().max(100).optional(),
   unit: z.string().trim().min(1).max(10),
   price: z.coerce.number().min(0, "Preço inválido"),
   cost_price: z.coerce.number().min(0).optional(),
@@ -156,6 +157,7 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
       sku: product?.sku ?? "",
       ncm: product?.ncm ?? "",
       category: product?.category ?? "",
+      brand: (product as any)?.brand ?? "",
       unit: product?.unit ?? "UN",
       price: product?.price ?? 0,
       cost_price: product?.cost_price ?? 0,
@@ -534,6 +536,13 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
                   <FormItem>
                     <FormLabel>Nome</FormLabel>
                     <FormControl><Input placeholder="Nome do produto" autoComplete="off" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                <FormField control={form.control} name="brand" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Marca</FormLabel>
+                    <FormControl><Input placeholder="Ex: Nestlé, Coca-Cola..." autoComplete="off" {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )} />
