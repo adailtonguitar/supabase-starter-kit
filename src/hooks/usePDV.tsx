@@ -485,6 +485,7 @@ export function usePDV() {
       // ── Fiscal: enfileira na fiscal_queue e tenta processar ──
       let nfceNumber = "";
       let fiscalDocId: string | undefined;
+      console.log("[PDV] skipFiscal:", options?.skipFiscal, "about to process fiscal");
       if (!options?.skipFiscal) {
         enqueueFiscal(saleId);
         try {
