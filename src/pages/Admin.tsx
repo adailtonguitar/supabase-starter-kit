@@ -13,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Shield, Activity, Search, Ban, CheckCircle, LayoutDashboard, Users, CreditCard, FileText, DollarSign, Trash2, FlaskConical, MessageCircle, Save, Loader2, Pencil } from "lucide-react";
+import { Shield, Activity, Search, Ban, CheckCircle, LayoutDashboard, Users, CreditCard, FileText, DollarSign, Trash2, FlaskConical, MessageCircle, Save, Loader2, Pencil, Mail } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { AdminDashboard } from "@/components/admin/AdminDashboard";
 import { AdminSubscriptions } from "@/components/admin/AdminSubscriptions";
@@ -22,6 +22,7 @@ import { AdminGlobalLogs } from "@/components/admin/AdminGlobalLogs";
 import { AdminRevenue } from "@/components/admin/AdminRevenue";
 import AdminPlanTester from "@/components/admin/AdminPlanTester";
 import { AdminCreateEmissorClient } from "@/components/admin/AdminCreateEmissorClient";
+import { AdminBulkEmail } from "@/components/admin/AdminBulkEmail";
 
 interface CompanyRow {
   id: string;
@@ -76,6 +77,7 @@ export default function Admin() {
           <TabsTrigger value="telemetry" className="text-xs sm:text-sm"><Activity className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" /> <span className="hidden sm:inline">Telemetria</span><span className="sm:hidden">Telem.</span></TabsTrigger>
           <TabsTrigger value="plans" className="text-xs sm:text-sm"><FlaskConical className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" /> Planos</TabsTrigger>
           <TabsTrigger value="support" className="text-xs sm:text-sm"><MessageCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" /> Suporte</TabsTrigger>
+          <TabsTrigger value="email" className="text-xs sm:text-sm"><Mail className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" /> E-mail</TabsTrigger>
         </TabsList>
 
         <TabsContent value="dashboard">
@@ -104,6 +106,9 @@ export default function Admin() {
         </TabsContent>
         <TabsContent value="support">
           <AdminWhatsAppSupport />
+        </TabsContent>
+        <TabsContent value="email">
+          <AdminBulkEmail />
         </TabsContent>
       </Tabs>
     </div>

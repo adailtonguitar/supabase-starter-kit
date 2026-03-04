@@ -63,3 +63,6 @@ verify_jwt = false
 
 [functions.send-accountant-report]
 verify_jwt = false
+
+[functions.send-bulk-email]
+verify_jwt = false
