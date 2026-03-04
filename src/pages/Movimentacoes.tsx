@@ -62,7 +62,7 @@ export default function Movimentacoes() {
         <div className="flex items-center gap-2">
           <Button size="sm" onClick={() => { setProductSearch(""); setShowNewEntry(true); }}>
             <Plus className="w-4 h-4 mr-2" />
-            Nova Entrada
+            Nova Movimentação
           </Button>
           <Button variant="outline" size="sm" onClick={() => setBatchMode(true)}>
             <ArrowUpDown className="w-4 h-4 mr-2" />
