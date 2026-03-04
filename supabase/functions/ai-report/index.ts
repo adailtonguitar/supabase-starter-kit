@@ -6,7 +6,7 @@ const corsHeaders = {
 };
 
 function formatBRL(v: number) {
-  return `R$ ${v.toFixed(2).replace(".", ",")}`;
+  return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
 function buildDataSummary(
