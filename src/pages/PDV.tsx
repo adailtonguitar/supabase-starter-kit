@@ -49,6 +49,8 @@ export default function PDV() {
     total: number;
     payments: TEFResult[];
     nfceNumber: string;
+    accessKey?: string;
+    serie?: string;
     isContingency?: boolean;
   } | null>(null);
   const [showShortcuts, setShowShortcuts] = useState(false);
@@ -538,6 +540,7 @@ export default function PDV() {
         setReceipt({
           items: savedItems, total: savedTotal,
           payments: tefResults, nfceNumber: result.nfceNumber,
+          accessKey: result.accessKey, serie: result.serie,
           isContingency: result.isContingency,
         });
         setSelectedClient(null);
@@ -585,6 +588,7 @@ export default function PDV() {
         items: savedItems, total: savedTotal,
         payments: [{ method: "prazo" as any, approved: true, amount: savedTotal }],
         nfceNumber: result.nfceNumber,
+        accessKey: result.accessKey, serie: result.serie,
         isContingency: result.isContingency,
       });
       setFiadoReceipt({
@@ -1407,6 +1411,7 @@ export default function PDV() {
             sku: i.sku, ncm: i.ncm || "", unit: i.unit, stock: i.stock_quantity, quantity: i.quantity,
           }))}
           total={receipt.total} payments={receipt.payments} nfceNumber={receipt.nfceNumber}
+          accessKey={receipt.accessKey} serie={receipt.serie}
           isContingency={receipt.isContingency}
           slogan={slogan || undefined} logoUrl={logoUrl || undefined} companyName={companyName || undefined}
           companyCnpj={cnpj || undefined}
