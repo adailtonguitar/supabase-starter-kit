@@ -7,6 +7,8 @@ interface SaleReceiptProps {
   total: number;
   payments: any[];
   nfceNumber?: string;
+  accessKey?: string;
+  serie?: string;
   slogan?: string;
   logoUrl?: string;
   companyName?: string;
@@ -18,7 +20,7 @@ interface SaleReceiptProps {
   onClose: () => void;
 }
 
-export function SaleReceipt({ items, total, payments, onClose, companyName, companyCnpj, companyIe, companyPhone, companyAddress, nfceNumber, isContingency, logoUrl }: SaleReceiptProps) {
+export function SaleReceipt({ items, total, payments, onClose, companyName, companyCnpj, companyIe, companyPhone, companyAddress, nfceNumber, accessKey, serie, isContingency, logoUrl }: SaleReceiptProps) {
   const formatCurrency = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 
   const methodLabel = (m: string) => {
@@ -107,6 +109,108 @@ export function SaleReceipt({ items, total, payments, onClose, companyName, comp
     `);
     printWindow.document.close();
   }, [items, total, payments, changeAmount, companyName, companyCnpj, companyIe, companyPhone, companyAddress, nfceNumber, logoUrl]);
+
+  const handlePrintFiscal = useCallback(() => {
+    if (!nfceNumber) {
+      toast.info("NFC-e não disponível para esta venda.", { duration: 3000 });
+      return;
+    }
+
+    const itemsHtml = (items || []).map((item: any, idx: number) =>
+      `<div class="row"><span>${String(idx + 1).padStart(3, '0')} ${(item.quantity || 1)}x ${item.name}</span><span>${formatCurrency((item.quantity || 1) * item.price)}</span></div>`
+    ).join("");
+
+    const paymentsHtml = (payments || []).map((p: any) =>
+      `<div class="row"><span>${methodLabel(p.method)}</span><span>${formatCurrency(p.amount)}</span></div>`
+    ).join("");
+
+    const changeHtml = changeAmount > 0 ? `<div class="row bold"><span>Troco</span><span>${formatCurrency(changeAmount)}</span></div>` : "";
+    const now = new Date().toLocaleString("pt-BR");
+    const qtyTotal = (items || []).reduce((s: number, i: any) => s + (i.quantity || 1), 0);
+
+    const formattedKey = accessKey ? accessKey.replace(/(\d{4})(?=\d)/g, "$1 ") : "";
+    const isSimulation = nfceNumber.startsWith("SIM-");
+
+    const printWindow = window.open("", "_blank", "width=320,height=700");
+    if (!printWindow) return;
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Cupom Fiscal NFC-e</title>
+          <style>
+            @page { size: 80mm auto; margin: 0; }
+            @media print {
+              html, body { width: 80mm; height: auto; margin: 0; padding: 0; }
+              body { page-break-after: avoid; }
+            }
+            * { box-sizing: border-box; margin: 0; padding: 0; }
+            html { width: 80mm; }
+            body { font-family: 'Courier New', monospace; font-size: 11px; width: 80mm; max-width: 80mm; margin: 0; padding: 3mm 4mm; line-height: 1.4; color: #000; }
+            .center { text-align: center; }
+            .bold { font-weight: bold; }
+            .dashed { border-top: 1px dashed #000; margin: 3px 0; }
+            .row { display: flex; justify-content: space-between; gap: 4px; }
+            .row span:last-child { text-align: right; white-space: nowrap; }
+            .total-row { font-size: 14px; font-weight: bold; margin: 4px 0; }
+            .sm { font-size: 9px; }
+            .xs { font-size: 7px; }
+            h2 { font-size: 13px; margin: 2px 0; }
+            .cut { margin-top: 6px; text-align: center; font-size: 9px; letter-spacing: 2px; }
+            .logo { max-height: 40px; max-width: 60mm; object-fit: contain; margin: 0 auto 4px; display: block; }
+            .fiscal-header { background: #000; color: #fff; padding: 2px 4px; font-size: 10px; font-weight: bold; text-align: center; margin: 3px 0; }
+            .key-box { border: 1px solid #000; padding: 3px; margin: 3px 0; font-family: monospace; font-size: 7px; word-break: break-all; text-align: center; line-height: 1.5; }
+            .sim-badge { border: 2px dashed #000; padding: 3px; text-align: center; font-size: 9px; font-weight: bold; margin: 3px 0; }
+          </style>
+        </head>
+        <body>
+          <div class="center">
+            ${logoUrl ? `<img src="${logoUrl}" class="logo" alt="Logo" />` : ""}
+            <h2>${companyName || "CUPOM FISCAL ELETRÔNICO"}</h2>
+            ${companyCnpj ? `<p class="sm">CNPJ: ${companyCnpj}</p>` : ""}
+            ${companyIe ? `<p class="sm">IE: ${companyIe}</p>` : ""}
+            ${companyAddress ? `<p class="sm">${companyAddress}</p>` : ""}
+            ${companyPhone ? `<p class="sm">Fone: ${companyPhone}</p>` : ""}
+          </div>
+          <div class="fiscal-header">DANFE NFC-e - DOCUMENTO AUXILIAR</div>
+          <div class="fiscal-header" style="font-size:8px; background:#333;">DA NOTA FISCAL DE CONSUMIDOR ELETRÔNICA</div>
+          ${isSimulation ? `<div class="sim-badge">*** SIMULAÇÃO - SEM VALOR FISCAL ***</div>` : ""}
+          <div class="dashed"></div>
+          <div class="row bold"><span>#  QTD DESCRIÇÃO</span><span>VALOR</span></div>
+          <div class="dashed"></div>
+          ${itemsHtml}
+          <div class="dashed"></div>
+          <div class="row total-row"><span>TOTAL</span><span>${formatCurrency(total)}</span></div>
+          <div class="dashed"></div>
+          <p class="center bold sm">FORMA DE PAGAMENTO</p>
+          ${paymentsHtml}
+          ${changeHtml}
+          <div class="dashed"></div>
+          <p class="center sm">Qtd. total de itens: ${qtyTotal}</p>
+          <p class="center sm">${now}</p>
+          <div class="dashed"></div>
+          <p class="center bold sm">NFC-e Nº ${nfceNumber}${serie ? ` | Série ${serie}` : ""}</p>
+          ${accessKey ? `
+            <p class="center xs" style="margin-top:2px">CHAVE DE ACESSO</p>
+            <div class="key-box">${formattedKey}</div>
+          ` : ""}
+          <div class="dashed"></div>
+          ${isSimulation
+            ? `<p class="center bold sm" style="margin-top:4px">EMITIDA EM AMBIENTE DE HOMOLOGAÇÃO</p><p class="center xs">SEM VALOR FISCAL</p>`
+            : `<p class="center xs" style="margin-top:4px">Consulte pela chave de acesso em<br/>www.nfe.fazenda.gov.br/portal</p>`
+          }
+          <p class="center sm" style="margin-top:4px">Obrigado pela preferência!</p>
+          <p class="cut">--------------------------------</p>
+          <script>
+            window.onload = function() {
+              setTimeout(function() { window.print(); window.close(); }, 200);
+            }
+          <\/script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+  }, [items, total, payments, changeAmount, companyName, companyCnpj, companyIe, companyPhone, companyAddress, nfceNumber, accessKey, serie, logoUrl]);
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
       <div className="bg-card rounded-2xl border border-border shadow-2xl p-6 w-full max-w-sm mx-4" onClick={e => e.stopPropagation()}>
@@ -171,13 +275,7 @@ export function SaleReceipt({ items, total, payments, onClose, companyName, comp
           {/* Print options */}
           <div className="flex gap-2">
             <button
-              onClick={() => {
-                if (nfceNumber) {
-                  handlePrint();
-                } else {
-                  toast.info("NFC-e não disponível para esta venda. Configure a integração fiscal para emitir cupom fiscal.", { duration: 3000 });
-                }
-              }}
+              onClick={handlePrintFiscal}
               className="flex-1 py-2.5 rounded-xl border-2 border-primary/30 text-primary text-xs font-bold hover:bg-primary/10 transition-all active:scale-95 flex items-center justify-center gap-1.5"
             >
               <FileText className="w-4 h-4" />

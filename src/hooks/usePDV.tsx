@@ -479,6 +479,8 @@ export function usePDV() {
       // ── Fiscal: enfileira na fiscal_queue e tenta processar ──
       let nfceNumber = "";
       let fiscalDocId: string | undefined;
+      let accessKey = "";
+      let serie = "";
       console.log("[PDV finalizeSale] skipFiscal:", options?.skipFiscal);
       if (!options?.skipFiscal) {
         // Check simulation mode directly here
@@ -503,6 +505,8 @@ export function usePDV() {
             const simNum = (simConfig as any).next_number || 1;
             const fakeChave = Array.from({ length: 44 }, () => Math.floor(Math.random() * 10)).join("");
             nfceNumber = `SIM-${simNum}`;
+            accessKey = fakeChave;
+            serie = (simConfig as any).serie || "1";
 
             // Best-effort DB updates
             Promise.allSettled([
@@ -536,7 +540,7 @@ export function usePDV() {
         }
       }
 
-      return { saleId, nfceNumber, fiscalDocId, isContingency: false };
+      return { saleId, nfceNumber, fiscalDocId, isContingency: false, accessKey, serie };
     } catch (onlineErr: any) {
       // ── CONTINGENCY FALLBACK ──
       // Online sale failed, entering contingency mode
