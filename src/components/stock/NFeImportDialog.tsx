@@ -258,7 +258,7 @@ export function NFeImportDialog({ open, onOpenChange, xmlContent }: NFeImportDia
       const p = { ...updated.products[index] };
       if (field === "name") p.name = value as string;
       else if (field === "ncm") p.ncm = value as string;
-      else if (field === "quantity") { p.quantity = Number(value) || 0; p.totalPrice = p.quantity * p.unitPrice; }
+      // quantity is read-only — comes from NF-e XML and must not be edited
       else if (field === "unitPrice") {
         p.unitPrice = Number(value) || 0;
         p.totalPrice = p.quantity * p.unitPrice;
@@ -603,12 +603,7 @@ export function NFeImportDialog({ open, onOpenChange, xmlContent }: NFeImportDia
                           )}
                         </td>
                         <td className="px-2 py-1.5 text-right">
-                          {editingIndex === i ? (
-                            <input type="number" value={p.quantity} onChange={(e) => updateProduct(i, "quantity", e.target.value)}
-                              className="w-full bg-background border border-border rounded px-1.5 py-0.5 text-xs text-foreground font-mono text-right" />
-                          ) : (
-                            <span className="text-foreground font-mono">{p.quantity}</span>
-                          )}
+                          <span className="text-foreground font-mono">{p.quantity}</span>
                         </td>
                         <td className="px-2 py-1.5 text-right">
                           {editingIndex === i ? (
