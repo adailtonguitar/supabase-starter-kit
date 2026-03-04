@@ -86,10 +86,13 @@ export function StockMovementDialog({ open, onOpenChange, product, onSuccess }: 
               inputMode="decimal"
               value={quantity}
               onChange={(e) => {
+                e.stopPropagation();
                 const val = e.target.value.replace(/[^0-9.,]/g, "");
                 setQuantity(val);
               }}
-              onFocus={(e) => e.target.select()}
+              onKeyDown={(e) => e.stopPropagation()}
+              onKeyUp={(e) => e.stopPropagation()}
+              onKeyPress={(e) => e.stopPropagation()}
               placeholder="Ex: 10"
               className="text-lg h-12"
             />
