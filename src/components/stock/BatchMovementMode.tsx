@@ -9,6 +9,9 @@ import { useCreateStockMovement } from "@/hooks/useStockMovements";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
+import { useCompany } from "@/hooks/useCompany";
+import { useAuth } from "@/hooks/useAuth";
+import { recordPriceChanges } from "@/lib/price-history";
 
 interface BatchProduct {
   id: string;
@@ -40,6 +43,8 @@ interface PriceEntry {
 }
 
 export function BatchMovementMode({ products, onClose }: Props) {
+  const { companyId } = useCompany();
+  const { user } = useAuth();
   const [tab, setTab] = useState<TabMode>("entrada");
   const [search, setSearch] = useState("");
   const [stockEntries, setStockEntries] = useState<Record<string, StockEntry>>({});
@@ -168,18 +173,35 @@ export function BatchMovementMode({ products, onClose }: Props) {
     setSaving(true);
     let success = 0;
     let errors = 0;
+    const priceChanges: Array<{ company_id: string; product_id: string; field_changed: "price" | "cost_price"; old_value: number; new_value: number; changed_by?: string | null; source: "batch" }> = [];
 
     for (const [productId, entry] of entries) {
       try {
+        const product = products.find((p) => p.id === productId);
         const updates: Record<string, number> = {};
         if (entry.price !== undefined) updates.price = entry.price;
         if (entry.cost_price !== undefined) updates.cost_price = entry.cost_price;
         const { error } = await supabase.from("products").update(updates).eq("id", productId);
         if (error) throw error;
         success++;
+
+        // Collect price changes for history
+        if (companyId && product) {
+          if (entry.price !== undefined && entry.price !== product.price) {
+            priceChanges.push({ company_id: companyId, product_id: productId, field_changed: "price", old_value: product.price, new_value: entry.price, changed_by: user?.id, source: "batch" });
+          }
+          if (entry.cost_price !== undefined && entry.cost_price !== (product.cost_price ?? 0)) {
+            priceChanges.push({ company_id: companyId, product_id: productId, field_changed: "cost_price", old_value: product.cost_price ?? 0, new_value: entry.cost_price, changed_by: user?.id, source: "batch" });
+          }
+        }
       } catch {
         errors++;
       }
+    }
+
+    // Record all price changes in batch
+    if (priceChanges.length > 0) {
+      recordPriceChanges(priceChanges);
     }
 
     setSaving(false);

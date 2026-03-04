@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Search, Plus, Edit, Package, Upload, Trash2, FileText, ArrowUpDown } from "lucide-react";
+import { Search, Plus, Edit, Package, Upload, Trash2, FileText, ArrowUpDown, History } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { motion } from "framer-motion";
 import { useProducts, useDeleteProduct, type Product } from "@/hooks/useProducts";
@@ -9,6 +9,7 @@ import { MovementHistoryDialog } from "@/components/stock/MovementHistoryDialog"
 import { CSVImportDialog } from "@/components/stock/CSVImportDialog";
 import { NFeImportDialog } from "@/components/stock/NFeImportDialog";
 import { LowStockAlert } from "@/components/stock/LowStockAlert";
+import { PriceHistoryDialog } from "@/components/stock/PriceHistoryDialog";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -34,6 +35,7 @@ export default function Produtos() {
   const [showImport, setShowImport] = useState(false);
   const [showNFeImport, setShowNFeImport] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Product | null>(null);
+  const [priceHistoryProduct, setPriceHistoryProduct] = useState<Product | null>(null);
 
 
   const filtered = products.filter(
@@ -180,6 +182,9 @@ export default function Produtos() {
                             <ArrowUpDown className="w-4 h-4" />
                           </button>
                           {/* History button hidden - feature in development */}
+                          <button onClick={() => setPriceHistoryProduct(product)} title="Histórico de preços" className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+                            <History className="w-4 h-4" />
+                          </button>
                           <button onClick={() => handleEdit(product)} title="Editar" className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
                             <Edit className="w-4 h-4" />
                           </button>
@@ -236,8 +241,11 @@ export default function Produtos() {
                     {product.category && <span>{product.category}</span>}
                   </div>
                   <div className="flex items-center gap-2">
-                    <button onClick={() => setMovementProduct(product)} className="p-2.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted active:scale-95 transition-all">
+                    <button onClick={() => setMovementProduct(product)} className="p-2.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted active:scale-95 transition-all" title="Movimentar estoque">
                       <ArrowUpDown className="w-4 h-4" />
+                    </button>
+                    <button onClick={() => setPriceHistoryProduct(product)} className="p-2.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted active:scale-95 transition-all" title="Histórico de preços">
+                      <History className="w-4 h-4" />
                     </button>
                     <button onClick={() => handleEdit(product)} className="p-2.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted active:scale-95 transition-all">
                       <Edit className="w-4 h-4" />
@@ -272,6 +280,15 @@ export default function Produtos() {
 
       <CSVImportDialog open={showImport} onOpenChange={setShowImport} />
       <NFeImportDialog open={showNFeImport} onOpenChange={setShowNFeImport} />
+
+      {priceHistoryProduct && (
+        <PriceHistoryDialog
+          open={!!priceHistoryProduct}
+          onOpenChange={(v) => !v && setPriceHistoryProduct(null)}
+          productId={priceHistoryProduct.id}
+          productName={priceHistoryProduct.name}
+        />
+      )}
 
       <AlertDialog open={!!deleteTarget} onOpenChange={(v) => !v && setDeleteTarget(null)}>
         <AlertDialogContent>

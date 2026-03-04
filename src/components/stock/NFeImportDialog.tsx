@@ -3,6 +3,7 @@ import { Upload, FileText, AlertCircle, CheckCircle2, Loader2, Package, Pencil, 
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
 import { useAuth } from "@/hooks/useAuth";
+import { recordPriceChanges } from "@/lib/price-history";
 import { useSuppliers } from "@/hooks/useSuppliers";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -339,7 +340,7 @@ export function NFeImportDialog({ open, onOpenChange, xmlContent }: NFeImportDia
       if (p.barcode) {
         const { data: existing } = await supabase
           .from("products")
-          .select("id, stock_quantity")
+          .select("id, stock_quantity, cost_price, price")
           .eq("company_id", companyId)
           .eq("barcode", p.barcode)
           .limit(1)
@@ -372,6 +373,15 @@ export function NFeImportDialog({ open, onOpenChange, xmlContent }: NFeImportDia
                 reference: nfeInfo.accessKey || null,
                 performed_by: user?.id || null,
               });
+              // Record price changes
+              const changes: Array<{ company_id: string; product_id: string; field_changed: "price" | "cost_price"; old_value: number; new_value: number; changed_by?: string | null; source: "xml_import" }> = [];
+              if (p.unitPrice !== (existing.cost_price ?? 0)) {
+                changes.push({ company_id: companyId!, product_id: existing.id, field_changed: "cost_price", old_value: existing.cost_price ?? 0, new_value: p.unitPrice, changed_by: user?.id, source: "xml_import" });
+              }
+              if (p.salePrice !== (existing.price ?? 0)) {
+                changes.push({ company_id: companyId!, product_id: existing.id, field_changed: "price", old_value: existing.price ?? 0, new_value: p.salePrice, changed_by: user?.id, source: "xml_import" });
+              }
+              if (changes.length > 0) recordPriceChanges(changes);
             }
           } else {
             updated++;
