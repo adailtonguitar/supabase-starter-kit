@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef } from "react";
 import { RefreshCw, X, Sparkles } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
 export function UpdateNoticeModal() {
+  const { user } = useAuth();
   const [show, setShow] = useState(false);
   const waitingSWRef = useRef<ServiceWorker | null>(null);
 
@@ -59,7 +61,7 @@ export function UpdateNoticeModal() {
     }
   };
 
-  if (!show) return null;
+  if (!show || !user) return null;
 
   return (
     <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[9999] w-[calc(100%-2rem)] max-w-md animate-in slide-in-from-top-4 fade-in duration-300">
