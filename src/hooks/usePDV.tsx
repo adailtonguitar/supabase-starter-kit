@@ -479,15 +479,21 @@ export function usePDV() {
       clearCart();
       setContingencyMode(false);
 
-      // ── Fiscal: enfileira na fiscal_queue (fire-and-forget) ──
+      // ── Fiscal: enfileira na fiscal_queue e tenta processar ──
+      let nfceNumber = "";
+      let fiscalDocId: string | undefined;
       if (!options?.skipFiscal) {
         enqueueFiscal(saleId);
-        // Tenta processar em background sem bloquear
-        processFiscalEmission(saleId)
-          .catch(() => {});
+        try {
+          const fiscalResult = await processFiscalEmission(saleId);
+          nfceNumber = fiscalResult.nfceNumber || "";
+          fiscalDocId = fiscalResult.fiscalDocId || undefined;
+        } catch {
+          // Fiscal failed — sale is saved, will retry later
+        }
       }
 
-      return { saleId, nfceNumber: "", fiscalDocId: undefined, isContingency: false };
+      return { saleId, nfceNumber, fiscalDocId, isContingency: false };
     } catch (onlineErr: any) {
       // ── CONTINGENCY FALLBACK ──
       // Online sale failed, entering contingency mode
