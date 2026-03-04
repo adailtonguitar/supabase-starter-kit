@@ -24,7 +24,7 @@ async function callGeminiVision(apiKey: string, contents: any[]): Promise<{ data
 
       console.log(`[analyze-product-image] ${model} status: ${resp.status}`);
 
-      if (resp.status === 429 || resp.status === 404) {
+      if (resp.status === 429 || resp.status === 404 || resp.status === 503) {
         const errText = await resp.text();
         console.warn(`[analyze-product-image] ${model} falhou (${resp.status}): ${errText.substring(0, 150)}`);
         continue;
@@ -33,7 +33,7 @@ async function callGeminiVision(apiKey: string, contents: any[]): Promise<{ data
       if (!resp.ok) {
         const errText = await resp.text();
         console.error(`[analyze-product-image] ${model} erro: ${errText.substring(0, 300)}`);
-        return { data: null, error: `Erro Gemini ${model} (${resp.status})`, status: resp.status };
+        continue;
       }
 
       const data = await resp.json();
