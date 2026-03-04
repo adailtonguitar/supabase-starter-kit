@@ -38,7 +38,7 @@ const NCM_SET = new Set(NCM_TABLE.map((item) => item.ncm));
  * Validate NCM format: exactly 8 numeric digits.
  */
 export function isValidNcmFormat(ncm: string): boolean {
-  return /^\d{8}$/.test(ncm.trim());
+  return /^\d{8}$/.test(ncm.trim().replace(/[\.\-\/\s]/g, ""));
 }
 
 /**
@@ -75,7 +75,7 @@ export function validateNcm(ncm: string | undefined | null): NcmValidationResult
     return { valid: false, errors, warnings };
   }
 
-  const cleaned = ncm.trim();
+  const cleaned = ncm.trim().replace(/[\.\-\/\s]/g, "");
 
   // Format check
   if (!isValidNcmFormat(cleaned)) {
