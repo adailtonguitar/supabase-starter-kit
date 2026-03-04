@@ -92,6 +92,7 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
   const aiFileInputRef = useRef<HTMLInputElement>(null);
   const [analyzingImage, setAnalyzingImage] = useState(false);
   const [aiConfidence, setAiConfidence] = useState<number | null>(null);
+  const [saveImage, setSaveImage] = useState(true);
   const [lookingUpBarcode, setLookingUpBarcode] = useState(false);
   const barcodeLookupTimer = useRef<ReturnType<typeof setTimeout>>();
   const { data: allProducts = [] } = useProducts();
@@ -286,7 +287,7 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
       }
 
       const productId = savedProduct?.id || product?.id;
-      if (imageFile && productId && companyId) {
+      if (saveImage && imageFile && productId && companyId) {
         const imageUrl = await uploadImage(productId);
         if (imageUrl) {
           const { error: imageUpdateError } = await supabase.from("products").update({ image_url: imageUrl }).eq("id", productId);
@@ -454,13 +455,24 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
                     <p>Clique na foto para adicionar imagem do produto</p>
                     <p>Formatos: JPG, PNG, WebP • Máx: 5MB</p>
                     {imagePreview && (
-                      <button
-                        type="button"
-                        onClick={() => { setImageFile(null); setImagePreview(null); setAiConfidence(null); }}
-                        className="text-destructive hover:underline flex items-center gap-1"
-                      >
-                        <X className="w-3 h-3" /> Remover foto
-                      </button>
+                      <div className="space-y-1.5">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={saveImage}
+                            onChange={(e) => setSaveImage(e.target.checked)}
+                            className="rounded border-primary text-primary focus:ring-primary h-4 w-4"
+                          />
+                          <span className="text-xs text-foreground font-medium">Salvar foto no cadastro</span>
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => { setImageFile(null); setImagePreview(null); setAiConfidence(null); setSaveImage(true); }}
+                          className="text-destructive hover:underline flex items-center gap-1"
+                        >
+                          <X className="w-3 h-3" /> Remover foto
+                        </button>
+                      </div>
                     )}
                   </div>
 
