@@ -479,16 +479,60 @@ export function usePDV() {
       // ── Fiscal: enfileira na fiscal_queue e tenta processar ──
       let nfceNumber = "";
       let fiscalDocId: string | undefined;
-      console.log("[PDV] skipFiscal:", options?.skipFiscal, "about to process fiscal");
+      console.log("[PDV finalizeSale] skipFiscal:", options?.skipFiscal);
       if (!options?.skipFiscal) {
-        enqueueFiscal(saleId);
+        // Check simulation mode directly here
         try {
-          const fiscalResult = await processFiscalEmission(saleId);
-          nfceNumber = fiscalResult.nfceNumber || "";
-          fiscalDocId = fiscalResult.fiscalDocId || undefined;
-        } catch (fiscalErr: any) {
-          console.error("[PDV Fiscal] Emission failed:", fiscalErr?.message || fiscalErr);
-          // Fiscal failed — sale is saved, will retry later
+          const { data: simConfig } = await supabase
+            .from("fiscal_configs")
+            .select("id, environment, certificate_path, a3_thumbprint, next_number, serie")
+            .eq("company_id", companyId)
+            .eq("doc_type", "nfce")
+            .eq("is_active", true)
+            .limit(1)
+            .maybeSingle();
+
+          console.log("[PDV finalizeSale] simConfig:", simConfig);
+
+          const isSimulation = simConfig 
+            && (simConfig as any).environment === "homologacao" 
+            && !(simConfig as any).certificate_path 
+            && !(simConfig as any).a3_thumbprint;
+
+          if (isSimulation && simConfig) {
+            const simNum = (simConfig as any).next_number || 1;
+            const fakeChave = Array.from({ length: 44 }, () => Math.floor(Math.random() * 10)).join("");
+            nfceNumber = `SIM-${simNum}`;
+
+            // Best-effort DB updates
+            Promise.allSettled([
+              supabase.from("fiscal_documents").insert({
+                company_id: companyId, sale_id: saleId, doc_type: "nfce",
+                status: "simulado", access_key: fakeChave,
+                protocol_number: Date.now().toString(), environment: "homologacao",
+                serie: (simConfig as any).serie || "1", number: simNum, total_value: total,
+              } as any),
+              supabase.from("fiscal_configs").update({ next_number: simNum + 1 } as any).eq("id", simConfig.id),
+              supabase.from("sales").update({ status: "emitida" } as any).eq("id", saleId),
+            ]).catch(() => {});
+
+            toast.success("✅ Simulação concluída! (modo teste — sem envio à SEFAZ)", {
+              description: `NFC-e simulada: ${nfceNumber}`,
+              duration: 6000,
+            });
+          } else {
+            // Real emission
+            enqueueFiscal(saleId);
+            try {
+              const fiscalResult = await processFiscalEmission(saleId);
+              nfceNumber = fiscalResult.nfceNumber || "";
+              fiscalDocId = fiscalResult.fiscalDocId || undefined;
+            } catch (fiscalErr: any) {
+              console.error("[PDV Fiscal] Emission failed:", fiscalErr?.message || fiscalErr);
+            }
+          }
+        } catch (checkErr: any) {
+          console.error("[PDV Fiscal] Config check failed:", checkErr?.message);
         }
       }
 
