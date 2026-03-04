@@ -161,6 +161,9 @@ export function SaleReceipt({ items, total, payments, onClose, companyName, comp
             .fiscal-header { background: #000; color: #fff; padding: 2px 4px; font-size: 10px; font-weight: bold; text-align: center; margin: 3px 0; }
             .key-box { border: 1px solid #000; padding: 3px; margin: 3px 0; font-family: monospace; font-size: 7px; word-break: break-all; text-align: center; line-height: 1.5; }
             .sim-badge { border: 2px dashed #000; padding: 3px; text-align: center; font-size: 9px; font-weight: bold; margin: 3px 0; }
+            .qr-container { text-align: center; margin: 6px 0; }
+            .qr-container canvas, .qr-container img { margin: 0 auto; }
+            #qrcode { display: inline-block; }
           </style>
         </head>
         <body>
@@ -194,16 +197,29 @@ export function SaleReceipt({ items, total, payments, onClose, companyName, comp
             <p class="center xs" style="margin-top:2px">CHAVE DE ACESSO</p>
             <div class="key-box">${formattedKey}</div>
           ` : ""}
+          <div class="qr-container">
+            <div id="qrcode"></div>
+            <p class="xs" style="margin-top:2px">Consulte pela chave de acesso em</p>
+            <p class="xs">www.nfe.fazenda.gov.br/portal</p>
+          </div>
           <div class="dashed"></div>
           ${isSimulation
             ? `<p class="center bold sm" style="margin-top:4px">EMITIDA EM AMBIENTE DE HOMOLOGAÇÃO</p><p class="center xs">SEM VALOR FISCAL</p>`
-            : `<p class="center xs" style="margin-top:4px">Consulte pela chave de acesso em<br/>www.nfe.fazenda.gov.br/portal</p>`
+            : ""
           }
           <p class="center sm" style="margin-top:4px">Obrigado pela preferência!</p>
           <p class="cut">--------------------------------</p>
+          <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"><\/script>
           <script>
             window.onload = function() {
-              setTimeout(function() { window.print(); window.close(); }, 200);
+              try {
+                var qrUrl = "${accessKey ? `https://www.nfce.fazenda.gov.br/portal/consultarNFCe.aspx?chNFe=${accessKey}` : `https://www.nfe.fazenda.gov.br/portal`}";
+                var qr = qrcode(0, 'M');
+                qr.addData(qrUrl);
+                qr.make();
+                document.getElementById('qrcode').innerHTML = qr.createImgTag(3, 0);
+              } catch(e) { console.warn('QR generation failed', e); }
+              setTimeout(function() { window.print(); window.close(); }, 500);
             }
           <\/script>
         </body>
