@@ -1,5 +1,6 @@
 {
   "rewrites": [
+    { "source": "/nfe-teste.xml", "destination": "/nfe-teste.xml" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
