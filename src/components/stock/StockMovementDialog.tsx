@@ -1,7 +1,6 @@
-import { useState } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { useCreateStockMovement } from "@/hooks/useStockMovements";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -19,10 +18,21 @@ export function StockMovementDialog({ open, onOpenChange, product, onSuccess }: 
   const [type, setType] = useState<"entrada" | "saida">("entrada");
   const [quantity, setQuantity] = useState("");
   const [reason, setReason] = useState("");
+  const qtyRef = useRef<HTMLInputElement>(null);
+
+  // Reset fields when dialog opens
+  useEffect(() => {
+    if (open) {
+      setQuantity("");
+      setReason("");
+      setType("entrada");
+    }
+  }, [open]);
 
   const handleSubmit = async () => {
-    const qty = parseFloat(quantity);
-    if (!qty || qty <= 0) {
+    const normalized = quantity.replace(",", ".");
+    const qty = parseFloat(normalized);
+    if (!qty || qty <= 0 || isNaN(qty)) {
       toast.error("Informe uma quantidade válida");
       return;
     }
@@ -49,11 +59,20 @@ export function StockMovementDialog({ open, onOpenChange, product, onSuccess }: 
     }
   };
 
+  // Block ALL event propagation from the entire dialog to prevent PDV interference
+  const stopAll = useCallback((e: React.SyntheticEvent) => {
+    e.stopPropagation();
+  }, []);
+
   if (!product) return null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent
+        className="max-w-md"
+        onKeyDown={(e) => e.stopPropagation()}
+        onKeyUp={(e) => e.stopPropagation()}
+      >
         <DialogHeader>
           <DialogTitle>Movimentação de Estoque</DialogTitle>
         </DialogHeader>
@@ -81,29 +100,44 @@ export function StockMovementDialog({ open, onOpenChange, product, onSuccess }: 
 
           <div className="space-y-2">
             <Label>Quantidade</Label>
-            <Input
+            <input
+              ref={qtyRef}
               type="text"
               inputMode="decimal"
+              autoComplete="off"
+              data-no-barcode-focus="true"
               value={quantity}
               onChange={(e) => {
                 e.stopPropagation();
                 const val = e.target.value.replace(/[^0-9.,]/g, "");
                 setQuantity(val);
               }}
-              onKeyDown={(e) => e.stopPropagation()}
-              onKeyUp={(e) => e.stopPropagation()}
-              onKeyPress={(e) => e.stopPropagation()}
+              onKeyDown={stopAll}
+              onKeyUp={stopAll}
+              onKeyPress={stopAll}
+              onFocus={stopAll}
               placeholder="Ex: 10"
-              className="text-lg h-12"
+              className="flex h-12 w-full rounded-lg border border-input bg-background px-3 py-2 text-lg ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 box-border"
             />
           </div>
 
           <div className="space-y-2">
             <Label>Motivo (opcional)</Label>
-            <Input
+            <input
+              type="text"
+              autoComplete="off"
+              data-no-barcode-focus="true"
               value={reason}
-              onChange={(e) => setReason(e.target.value)}
+              onChange={(e) => {
+                e.stopPropagation();
+                setReason(e.target.value);
+              }}
+              onKeyDown={stopAll}
+              onKeyUp={stopAll}
+              onKeyPress={stopAll}
+              onFocus={stopAll}
               placeholder="Ex: Compra fornecedor, ajuste, etc."
+              className="flex h-12 w-full rounded-lg border border-input bg-background px-3 py-2 text-base ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm box-border"
             />
           </div>
 
