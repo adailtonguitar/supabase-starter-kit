@@ -39,6 +39,10 @@ interface NFeInfo {
   issueDate: string;
   supplierName: string;
   supplierCnpj: string;
+  supplierTradeName: string;
+  supplierIe: string;
+  supplierPhone: string;
+  supplierEmail: string;
   totalValue: number;
   products: NFeProduct[];
 }
@@ -83,6 +87,9 @@ function parseNFeXML(xmlText: string): NFeInfo | null {
       }
     }
 
+    // Extract additional supplier data from emit element
+    const enderEmit = emit ? getEl(emit, "enderEmit") : null;
+
     const nfeInfo: NFeInfo = {
       number: ide ? getText(ide, "nNF") : "",
       series: ide ? getText(ide, "serie") : "",
@@ -90,6 +97,10 @@ function parseNFeXML(xmlText: string): NFeInfo | null {
       issueDate: ide ? getText(ide, "dhEmi").slice(0, 10) : "",
       supplierName: emit ? getText(emit, "xNome") : "",
       supplierCnpj: emit ? getText(emit, "CNPJ") : "",
+      supplierTradeName: emit ? getText(emit, "xFant") : "",
+      supplierIe: emit ? getText(emit, "IE") : "",
+      supplierPhone: enderEmit ? getText(enderEmit, "fone") : "",
+      supplierEmail: emit ? getText(emit, "email") : "",
       totalValue: total ? parseFloat(getText(total, "vNF")) || 0 : 0,
       products: [],
     };
@@ -236,11 +247,17 @@ export function NFeImportDialog({ open, onOpenChange, xmlContent }: NFeImportDia
     if (!companyId || !nfeInfo) return;
     setCreatingSupplier(true);
     try {
-      const { data, error } = await supabase.from("suppliers").insert({
+      const supplierData: Record<string, any> = {
         company_id: companyId,
         name: nfeInfo.supplierName,
         cnpj: nfeInfo.supplierCnpj,
-      }).select("id").single();
+      };
+      if (nfeInfo.supplierTradeName) supplierData.trade_name = nfeInfo.supplierTradeName;
+      if (nfeInfo.supplierIe) supplierData.ie = nfeInfo.supplierIe;
+      if (nfeInfo.supplierPhone) supplierData.phone = nfeInfo.supplierPhone;
+      if (nfeInfo.supplierEmail) supplierData.email = nfeInfo.supplierEmail;
+
+      const { data, error } = await supabase.from("suppliers").insert(supplierData).select("id").single();
       if (error) throw error;
       setSupplierId(data.id);
       setSupplierStatus("created");
