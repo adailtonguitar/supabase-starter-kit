@@ -9,6 +9,7 @@ import { formatCurrency } from "@/lib/utils";
 import { toast } from "sonner";
 import { validateCstCsosn, getSuggestedCodes, type TaxRegime, type CstCsosnCode } from "@/lib/cst-csosn-validator";
 import { parseSefazRejection, type SefazRejection } from "@/lib/sefaz-rejection-parser";
+import { runPreflightValidation, type PreflightIssue } from "@/lib/fiscal-preflight-validator";
 import { usePlanFeatures } from "@/hooks/usePlanFeatures";
 import { NCM_TABLE } from "@/lib/ncm-table";
 import { useProducts } from "@/hooks/useProducts";
@@ -81,6 +82,7 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
   const [activeTab, setActiveTab] = useState<"items" | "customer" | "payment">("items");
   const [companyCrt, setCompanyCrt] = useState<number>(1);
   const [cstValidationErrors, setCstValidationErrors] = useState<Record<number, string[]>>({});
+  const [preflightIssues, setPreflightIssues] = useState<PreflightIssue[]>([]);
   const [ncmSearchIdx, setNcmSearchIdx] = useState<number | null>(null);
   const [ncmSearchText, setNcmSearchText] = useState("");
   const [productSearchText, setProductSearchText] = useState("");
@@ -296,6 +298,43 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
       toast.error(`Erro de CST/CSOSN × Regime Tributário (${regimeLabel}). Verifique os itens destacados em vermelho.`);
       setActiveTab("items");
       return;
+    }
+
+    // ── VALIDAÇÃO PRÉ-VOO NCM × CFOP × CST ──
+    const preflight = runPreflightValidation(
+      form.items.map((it) => ({
+        name: it.name,
+        ncm: it.ncm,
+        cfop: it.cfop,
+        cst: it.cst,
+        icmsAliquota: it.icmsAliquota,
+      })),
+      taxRegime
+    );
+    setPreflightIssues(preflight.issues);
+
+    if (!preflight.valid) {
+      const errors = preflight.issues.filter((i) => i.type === "error");
+      toast.error(`${errors.length} erro(s) fiscal(is) detectado(s). Corrija antes de enviar à SEFAZ.`, {
+        description: errors[0]?.message,
+        duration: 8000,
+      });
+      // Merge preflight errors into validation display
+      for (const issue of preflight.issues) {
+        if (!validationErrors[issue.itemIndex]) validationErrors[issue.itemIndex] = [];
+        validationErrors[issue.itemIndex].push(issue.type === "error" ? issue.message : `⚠️ ${issue.message}`);
+      }
+      setCstValidationErrors({ ...validationErrors });
+      setActiveTab("items");
+      return;
+    }
+
+    // Show warnings but don't block
+    const warnings = preflight.issues.filter((i) => i.type === "warning");
+    if (warnings.length > 0) {
+      for (const w of warnings) {
+        toast.warning(w.message, { duration: 6000 });
+      }
     }
 
     setEmitting(true);
