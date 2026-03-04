@@ -12,6 +12,8 @@ import type { LocalProduct } from "@/hooks/useLocalProducts";
 import { useFiscalCategories } from "@/hooks/useFiscalCategories";
 import { useCompany } from "@/hooks/useCompany";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { recordPriceChange } from "@/lib/price-history";
 import { Check, Search, Upload, X, Package, AlertTriangle, ShieldAlert, Info, Camera, Sparkles, Loader2, ScanBarcode } from "lucide-react";
 import { BarcodeCameraScanner } from "./BarcodeCameraScanner";
 import { NCM_TABLE } from "@/lib/ncm-table";
@@ -71,6 +73,7 @@ const units = ["UN", "KG", "LT", "MT", "CX", "PCT"];
 export function ProductFormDialog({ open, onOpenChange, product }: Props) {
   const { data: fiscalCategories = [] } = useFiscalCategories();
   const { data: suppliers = [] } = useSuppliers();
+  const { user } = useAuth();
   const planFeatures = usePlanFeatures();
   const { isSuperAdmin } = useAdminRole();
   const canUseAiPhoto = isSuperAdmin || planFeatures.plan === "pro";
@@ -282,6 +285,16 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
       let savedProduct: any;
       if (isEditing && product) {
         savedProduct = await updateProduct.mutateAsync({ id: product.id, ...payload } as any);
+        // Record price changes
+        const productId = product.id;
+        if (companyId) {
+          if (data.price !== product.price) {
+            recordPriceChange({ company_id: companyId, product_id: productId, field_changed: "price", old_value: product.price ?? 0, new_value: data.price, changed_by: user?.id, source: "manual" });
+          }
+          if ((data.cost_price ?? 0) !== (product.cost_price ?? 0)) {
+            recordPriceChange({ company_id: companyId, product_id: productId, field_changed: "cost_price", old_value: product.cost_price ?? 0, new_value: data.cost_price ?? 0, changed_by: user?.id, source: "manual" });
+          }
+        }
       } else {
         savedProduct = await createProduct.mutateAsync({ name: payload.name, sku: payload.sku, ...payload } as any);
       }
