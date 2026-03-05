@@ -93,6 +93,9 @@ const EmissorNFe = lazy(() => import("./pages/EmissorNFe"));
 const EmissorLanding = lazy(() => import("./pages/EmissorLanding"));
 const ConsultaDFe = lazy(() => import("./pages/ConsultaDFe"));
 const Relatorios = lazy(() => import("./pages/Relatorios"));
+const CatalogoMoveis = lazy(() => import("./pages/CatalogoMoveis"));
+const AgendaEntregas = lazy(() => import("./pages/AgendaEntregas"));
+const ControleMontagem = lazy(() => import("./pages/ControleMontagem"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -438,6 +441,9 @@ function AppRoutes() {
                       </PlanGate>
                     } />
                     <Route path="/consulta-dfe" element={<ConsultaDFe />} />
+                    <Route path="/catalogo-moveis" element={<CatalogoMoveis />} />
+                    <Route path="/entregas" element={<AgendaEntregas />} />
+                    <Route path="/montagem" element={<ControleMontagem />} />
                     <Route path="/admin" element={<Admin />} />
                     <Route path="/ajuda" element={<Ajuda />} />
                     <Route path="*" element={<NotFound />} />
