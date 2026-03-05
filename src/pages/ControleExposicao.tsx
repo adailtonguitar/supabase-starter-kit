@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { Search, Armchair, Eye, EyeOff, AlertTriangle, CheckCircle, Package, RotateCcw } from "lucide-react";
+import { Search, Armchair, Eye, EyeOff, AlertTriangle, CheckCircle, Package, RotateCcw, Printer } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 
@@ -94,16 +94,74 @@ export default function ControleExposicao() {
 
   const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
+  const handlePrintExposicao = () => {
+    const toPrint = enriched.filter(p => p.showroomStatus === "desmontado" || p.showroomStatus === "reposicao" || p.showroomStatus === "danificado");
+    if (toPrint.length === 0) {
+      toast.error("Nenhum item pendente de montagem para exposição");
+      return;
+    }
+    const rows = toPrint.map((p, i) => {
+      const sc = statusConfig[p.showroomStatus];
+      return `<tr>
+        <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:center">${i + 1}</td>
+        <td style="padding:6px 8px;border-bottom:1px solid #eee">${p.name}</td>
+        <td style="padding:6px 8px;border-bottom:1px solid #eee">${p.category || "—"}</td>
+        <td style="padding:6px 8px;border-bottom:1px solid #eee">${sc.label}</td>
+        <td style="padding:6px 8px;border-bottom:1px solid #eee">${p.showroom?.location || "—"}</td>
+        <td style="padding:6px 8px;border-bottom:1px solid #eee">${p.showroom?.notes || ""}</td>
+        <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:center">☐</td>
+      </tr>`;
+    }).join("");
+
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Lista de Montagem - Exposição</title>
+      <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family: Arial, sans-serif; padding: 20px; font-size: 12px; color: #222; }
+        h1 { font-size: 16px; margin-bottom: 4px; }
+        .subtitle { color: #666; margin-bottom: 14px; font-size: 11px; }
+        table { width: 100%; border-collapse: collapse; }
+        th { padding: 6px 8px; background: #f5f5f5; font-weight: 600; text-align: left; font-size: 11px; border-bottom: 2px solid #ddd; }
+        .footer { margin-top: 20px; text-align: center; font-size: 10px; color: #aaa; }
+        .summary { margin-bottom: 12px; font-size: 12px; }
+        @media print { body { padding: 10px; } }
+      </style></head><body>
+      <h1>🪑 Lista de Montagem para Exposição</h1>
+      <p class="subtitle">Gerada em ${new Date().toLocaleString("pt-BR")}</p>
+      <p class="summary"><strong>${toPrint.length}</strong> ite${toPrint.length > 1 ? "ns" : "m"} para montar/repor na exposição</p>
+      <table>
+        <thead><tr>
+          <th style="text-align:center;width:30px">#</th>
+          <th>Produto</th>
+          <th>Categoria</th>
+          <th>Status</th>
+          <th>Local</th>
+          <th>Obs.</th>
+          <th style="text-align:center;width:40px">✓</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <div class="footer">AnthoSystem — Lista de Montagem para Exposição</div>
+    </body></html>`;
+
+    const w = window.open("", "_blank", "width=900,height=600");
+    if (w) { w.document.write(html); w.document.close(); w.print(); }
+  };
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-          <Eye className="w-6 h-6 text-primary" />
-          Controle de Exposição
-        </h1>
-        <p className="text-muted-foreground text-sm mt-1">
-          Acompanhe quais móveis estão montados para exposição e o que precisa ser reposto
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+            <Eye className="w-6 h-6 text-primary" />
+            Controle de Exposição
+          </h1>
+          <p className="text-muted-foreground text-sm mt-1">
+            Acompanhe quais móveis estão montados para exposição e o que precisa ser reposto
+          </p>
+        </div>
+        <Button variant="outline" onClick={handlePrintExposicao} className="gap-2">
+          <Printer className="w-4 h-4" /> Imprimir Lista de Montagem
+        </Button>
       </div>
 
       {/* Stats */}
