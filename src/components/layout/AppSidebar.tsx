@@ -383,30 +383,28 @@ export function AppSidebar({ mobileOpen, onMobileClose }: AppSidebarProps) {
               </nav>
 
               <MobileSidebarSupport />
-              <div className="px-2 pb-2 space-y-0.5 border-t border-sidebar-border pt-2 bg-gradient-to-t from-primary/3 to-transparent">
+              <div className="px-2 pb-2 border-t border-sidebar-border pt-2">
                 <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg">
-                  <UserAvatar email={user?.email} />
-                  <span className="text-[11px] text-sidebar-foreground font-medium truncate">{user?.email}</span>
+                  <div className="relative">
+                    <UserAvatar email={user?.email} />
+                    <span className={cn(
+                      "absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-sidebar",
+                      isOnline ? "bg-green-500" : "bg-muted-foreground/40"
+                    )} />
+                  </div>
+                  <span className="text-[11px] text-sidebar-foreground font-medium truncate flex-1">{user?.email}</span>
                 </div>
-                {pendingCount > 0 && (
-                  <button onClick={syncAll} disabled={syncing || !isOnline} className="flex items-center gap-2 px-2 py-1 rounded-lg bg-sidebar-accent w-full">
-                    <RefreshCw className={cn("w-3.5 h-3.5 text-warning flex-shrink-0", syncing && "animate-spin")} />
-                    <span className="text-[11px] text-sidebar-foreground">{pendingCount} pendentes</span>
-                  </button>
-                )}
-                <div className="flex items-center gap-2 px-2 py-1 rounded-lg">
-                  {isOnline ? (
-                    <><Wifi className="w-3.5 h-3.5 status-online flex-shrink-0" /><span className="text-[11px] status-online font-medium">Online</span></>
-                  ) : (
-                    <><WifiOff className="w-3.5 h-3.5 status-offline flex-shrink-0" /><span className="text-[11px] status-offline font-medium">Offline</span></>
-                  )}
-                </div>
-                <div className="flex items-center gap-2 px-2 py-1 rounded-lg">
+                <div className="flex items-center gap-1 px-1 mt-1 justify-between">
                   <ThemeToggle />
+                  {pendingCount > 0 && (
+                    <button onClick={syncAll} disabled={syncing || !isOnline} className="p-1.5 rounded-lg text-warning hover:bg-sidebar-accent transition-colors">
+                      <RefreshCw className={cn("w-3.5 h-3.5", syncing && "animate-spin")} />
+                    </button>
+                  )}
+                  <button onClick={signOut} className="p-1.5 rounded-lg text-sidebar-foreground hover:bg-sidebar-accent hover:text-destructive transition-colors">
+                    <LogOut className="w-3.5 h-3.5" />
+                  </button>
                 </div>
-                <button onClick={signOut} className="w-full flex items-center gap-2 px-2 py-1 rounded-lg text-sidebar-foreground hover:bg-sidebar-accent transition-colors">
-                  <LogOut className="w-3.5 h-3.5 flex-shrink-0" /><span className="text-[11px]">Sair</span>
-                </button>
               </div>
             </motion.aside>
           </>
@@ -424,13 +422,24 @@ export function AppSidebar({ mobileOpen, onMobileClose }: AppSidebarProps) {
         collapsed ? "w-[68px]" : "w-[240px]"
       )}
     >
-      {/* Logo area with gradient background */}
+      {/* Logo area with collapse button */}
       <div className={cn(
-        "flex flex-col items-center justify-center px-2 py-3 shrink-0 bg-gradient-to-b from-primary/5 to-transparent",
-        collapsed ? "py-2" : ""
+        "flex items-center shrink-0 bg-gradient-to-b from-primary/5 to-transparent",
+        collapsed ? "flex-col px-2 py-2 gap-1" : "justify-between px-2 py-2"
       )}>
-        <img src={anthoLogo} alt="AnthoSystem" className={cn("object-contain", collapsed ? "w-8 h-8" : "h-20 w-full -mb-3")} style={collapsed ? undefined : { marginTop: '0px', marginBottom: '-12px' }} />
-        {!collapsed && <span className="text-sm font-bold text-sidebar-foreground tracking-wide -mt-1">AnthoSystem</span>}
+        <div className={cn("flex flex-col items-center", collapsed ? "" : "flex-1")}>
+          <img src={anthoLogo} alt="AnthoSystem" className={cn("object-contain", collapsed ? "w-8 h-8" : "h-20 w-full -mb-3")} style={collapsed ? undefined : { marginTop: '0px', marginBottom: '-12px' }} />
+          {!collapsed && <span className="text-sm font-bold text-sidebar-foreground tracking-wide -mt-1">AnthoSystem</span>}
+        </div>
+        <button
+          onClick={() => setCollapsed(!collapsed)}
+          className={cn(
+            "p-1.5 rounded-lg text-sidebar-foreground hover:bg-sidebar-accent transition-colors",
+            collapsed ? "" : "absolute right-1 top-2"
+          )}
+        >
+          {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+        </button>
       </div>
 
       <nav className="flex-1 min-h-0 py-2 px-2 space-y-0.5 overflow-y-auto scrollbar-thin">
@@ -446,36 +455,50 @@ export function AppSidebar({ mobileOpen, onMobileClose }: AppSidebarProps) {
         </div>
       </nav>
 
-      {/* Bottom section with subtle gradient */}
-      <div className="px-2 pb-2 space-y-0.5 border-t border-sidebar-border pt-2 shrink-0 bg-gradient-to-t from-primary/3 to-transparent">
-        <div className={cn("flex items-center gap-2 px-2 py-1.5 rounded-lg", collapsed && "justify-center")}>
-          <UserAvatar email={user?.email} collapsed={collapsed} />
+      {/* Compact footer */}
+      <div className="px-2 pb-2 border-t border-sidebar-border pt-2 shrink-0">
+        {/* User row */}
+        <div className={cn("flex items-center gap-2 px-1 py-1 rounded-lg", collapsed ? "justify-center" : "")}>
+          <div className="relative">
+            <UserAvatar email={user?.email} collapsed={collapsed} />
+            {/* Online status dot */}
+            <span className={cn(
+              "absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-sidebar",
+              isOnline ? "bg-green-500" : "bg-muted-foreground/40"
+            )} />
+            {/* Sync badge */}
+            {pendingCount > 0 && (
+              <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-warning text-[8px] font-bold text-warning-foreground flex items-center justify-center">
+                {pendingCount > 9 ? "!" : pendingCount}
+              </span>
+            )}
+          </div>
           {!collapsed && (
-            <span className="text-[11px] text-sidebar-foreground font-medium truncate">{user?.email}</span>
+            <span className="text-[11px] text-sidebar-foreground font-medium truncate flex-1">{user?.email}</span>
           )}
         </div>
-        {pendingCount > 0 && (
-          <button onClick={syncAll} disabled={syncing || !isOnline} className={cn("flex items-center gap-2 px-2 py-1 rounded-lg bg-sidebar-accent w-full", collapsed && "justify-center")}>
-            <RefreshCw className={cn("w-3.5 h-3.5 text-warning flex-shrink-0", syncing && "animate-spin")} />
-            {!collapsed && <span className="text-[11px] text-sidebar-foreground">{pendingCount} pendentes</span>}
-          </button>
-        )}
-        <div className={cn("flex items-center gap-2 px-2 py-1 rounded-lg", collapsed && "justify-center")}>
-          {isOnline ? (
-            <><Wifi className="w-3.5 h-3.5 status-online flex-shrink-0" />{!collapsed && <span className="text-[11px] status-online font-medium">Online</span>}</>
-          ) : (
-            <><WifiOff className="w-3.5 h-3.5 status-offline flex-shrink-0" />{!collapsed && <span className="text-[11px] status-offline font-medium">Offline</span>}</>
-          )}
-        </div>
-        <div className={cn("flex items-center gap-2 px-2 py-1 rounded-lg", collapsed && "justify-center")}>
+        {/* Action row */}
+        <div className={cn("flex items-center mt-1", collapsed ? "flex-col gap-1" : "gap-1 justify-between px-1")}>
           <ThemeToggle />
+          {pendingCount > 0 && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button onClick={syncAll} disabled={syncing || !isOnline} className="p-1.5 rounded-lg text-warning hover:bg-sidebar-accent transition-colors">
+                  <RefreshCw className={cn("w-3.5 h-3.5", syncing && "animate-spin")} />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="right">{pendingCount} pendentes</TooltipContent>
+            </Tooltip>
+          )}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button onClick={signOut} className="p-1.5 rounded-lg text-sidebar-foreground hover:bg-sidebar-accent hover:text-destructive transition-colors">
+                <LogOut className="w-3.5 h-3.5" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="right">Sair</TooltipContent>
+          </Tooltip>
         </div>
-        <button onClick={signOut} className={cn("w-full flex items-center gap-2 px-2 py-1 rounded-lg text-sidebar-foreground hover:bg-sidebar-accent transition-colors", collapsed && "justify-center")}>
-          <LogOut className="w-3.5 h-3.5 flex-shrink-0" />{!collapsed && <span className="text-[11px]">Sair</span>}
-        </button>
-        <button onClick={() => setCollapsed(!collapsed)} className="w-full flex items-center justify-center py-1.5 rounded-lg text-sidebar-foreground hover:bg-sidebar-accent transition-colors">
-          {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
-        </button>
       </div>
     </aside>
     </TooltipProvider>
