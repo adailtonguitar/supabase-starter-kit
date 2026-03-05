@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import anthoLogo from "@/assets/logo-as.png";
 import { motion } from "framer-motion";
 import { isScaleBarcode, parseScaleBarcode } from "@/lib/scale-barcode";
@@ -587,6 +588,60 @@ export default function PDV() {
       const savedTotal = pdv.total;
       const result = await pdv.finalizeSale(paymentResults, { skipFiscal: skipFiscalEmission });
       playSaleCompleteSound();
+
+      // ── Fix: Update sale status to 'fiado' and financial entry to 'pendente' ──
+      if (result.saleId) {
+        const currentBalance = Number(client.credit_balance || 0);
+        const newBalance = currentBalance + savedTotal;
+
+        // Get user id once
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        const userId = authUser?.id || null;
+
+        // Base updates: sale status + client balance
+        const updates: Array<PromiseLike<any>> = [
+          supabase.from("sales").update({ status: "fiado", client_id: client.id } as any).eq("id", result.saleId),
+          supabase.from("clients").update({ credit_balance: newBalance }).eq("id", client.id),
+        ];
+
+        if (mode === "parcelado" && installments > 1) {
+          // Delete auto-generated 'pago' entry, then create installments
+          updates.push(
+            supabase.from("financial_entries").delete().eq("reference", result.saleId).eq("company_id", companyId)
+          );
+          const installmentAmount = Math.round((savedTotal / installments) * 100) / 100;
+          for (let i = 0; i < installments; i++) {
+            const dueDate = new Date();
+            dueDate.setMonth(dueDate.getMonth() + i + 1);
+            updates.push(
+              supabase.from("financial_entries").insert({
+                company_id: companyId,
+                type: "receber",
+                description: `Parcela ${i + 1}/${installments} - ${client.name}`,
+                reference: result.saleId,
+                counterpart: client.name,
+                amount: i === installments - 1 ? savedTotal - installmentAmount * (installments - 1) : installmentAmount,
+                due_date: dueDate.toISOString().split("T")[0],
+                status: "pendente",
+                created_by: userId,
+              } as any)
+            );
+          }
+        } else {
+          // Fiado: update existing entry to pendente
+          updates.push(
+            supabase.from("financial_entries").update({
+              status: "pendente",
+              paid_amount: 0,
+              paid_date: null,
+              counterpart: client.name,
+            } as any).eq("reference", result.saleId).eq("company_id", companyId)
+          );
+        }
+
+        await Promise.allSettled(updates);
+      }
+
       setReceipt({
         items: savedItems, total: savedTotal,
         payments: [{ method: "prazo" as any, approved: true, amount: savedTotal }],

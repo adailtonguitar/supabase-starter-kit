@@ -11,6 +11,7 @@ export interface CreditClient {
   cpf?: string;
   credit_limit?: number;
   credit_used?: number;
+  credit_balance?: number;
 }
 
 interface PDVClientSelectorProps {
@@ -56,6 +57,7 @@ export function PDVClientSelector({ open, onClose, onSelect, saleTotal }: PDVCli
       cpf: selectedClient.cpf_cnpj,
       credit_limit: creditLimit,
       credit_used: creditBalance,
+      credit_balance: creditBalance,
     };
     onSelect(mapped, mode, mode === "parcelado" ? installments : 1);
   };
