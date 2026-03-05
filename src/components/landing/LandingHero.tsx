@@ -113,23 +113,23 @@ export function LandingHero() {
                 />
               </div>
 
-              {/* PDV screen — overlapping right side like the cashier's monitor zoomed */}
+              {/* PDV screen — positioned on the overhead digital panel in the store */}
               <motion.div
-                initial={{ opacity: 0, x: 40, scale: 0.95 }}
-                animate={{ opacity: 1, x: 0, scale: 1 }}
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.7, delay: 0.5 }}
-                className="absolute top-[8%] -right-[10%] w-[60%] cursor-pointer group z-10"
+                className="absolute top-[2%] left-[15%] w-[50%] cursor-pointer group z-10"
                 onClick={() => setZoomed(true)}
               >
-                {/* Monitor frame */}
-                <div className="bg-[hsl(220,15%,10%)] rounded-xl border-2 border-primary/20 shadow-2xl shadow-black/50 overflow-hidden ring-1 ring-primary/10">
+                {/* Screen frame matching the store panel */}
+                <div className="bg-[hsl(220,15%,8%)] rounded-md border border-primary/20 shadow-2xl shadow-primary/20 overflow-hidden">
                   {/* Browser top bar */}
-                  <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[hsl(220,15%,7%)] border-b border-border/30">
-                    <div className="w-2 h-2 rounded-full bg-destructive/60" />
-                    <div className="w-2 h-2 rounded-full bg-[hsl(45,80%,50%)]" />
-                    <div className="w-2 h-2 rounded-full bg-primary/60" />
-                    <div className="ml-2 flex-1 bg-[hsl(220,15%,14%)] rounded h-4 flex items-center px-2">
-                      <span className="text-[7px] text-muted-foreground/50 truncate">anthosystem.com.br/pdv</span>
+                  <div className="flex items-center gap-1 px-2 py-1 bg-[hsl(220,15%,6%)] border-b border-border/20">
+                    <div className="w-1.5 h-1.5 rounded-full bg-destructive/60" />
+                    <div className="w-1.5 h-1.5 rounded-full bg-[hsl(45,80%,50%)]" />
+                    <div className="w-1.5 h-1.5 rounded-full bg-primary/60" />
+                    <div className="ml-1.5 flex-1 bg-[hsl(220,15%,12%)] rounded h-3 flex items-center px-1.5">
+                      <span className="text-[6px] text-muted-foreground/40 truncate">anthosystem.com.br/pdv</span>
                     </div>
                   </div>
                   <img
@@ -141,8 +141,8 @@ export function LandingHero() {
                 </div>
 
                 {/* Zoom hint */}
-                <div className="absolute top-4 right-4 bg-background/70 backdrop-blur-sm rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity border border-border/50">
-                  <ZoomIn className="w-4 h-4 text-primary" />
+                <div className="absolute top-2 right-2 bg-background/70 backdrop-blur-sm rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity border border-border/50">
+                  <ZoomIn className="w-3 h-3 text-primary" />
                 </div>
               </motion.div>
             </div>
