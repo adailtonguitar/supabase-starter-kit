@@ -176,6 +176,7 @@ const navItems: NavEntry[] = [
 // Furniture-only nav items (inserted when furniture mode is active)
 const furnitureNavItems: NavEntry[] = [
   { type: "label", text: "LOJA DE MÓVEIS" },
+  { icon: LayoutDashboard, label: "Painel Móveis", path: "/dashboard-moveis" },
   {
     icon: Armchair,
     label: "Showroom",
@@ -206,7 +207,7 @@ const furnitureAllowedPaths = new Set([
   "/cadastro/empresas", "/cadastro/clientes", "/cadastro/fornecedores", "/cadastro/funcionarios", "/cadastro/transportadoras", "/usuarios",
   "/fiscal", "/fiscal/nfe", "/fiscal/config",
   "/configuracoes", "/terminais",
-  "/catalogo-moveis", "/entregas", "/montagem", "/exposicao",
+  "/catalogo-moveis", "/entregas", "/montagem", "/exposicao", "/dashboard-moveis",
 ]);
 
 function filterNavForFurniture(items: NavEntry[]): NavEntry[] {
