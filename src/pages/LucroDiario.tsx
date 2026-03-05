@@ -34,7 +34,8 @@ export default function LucroDiario() {
         .select("id, total, payments")
         .eq("company_id", companyId)
         .gte("created_at", dayStart)
-        .lte("created_at", dayEnd);
+        .lte("created_at", dayEnd)
+        .or("status.is.null,status.neq.cancelled");
       if (salesError) { console.error("[LucroDiario] sales error:", salesError); return null; }
       if (!salesData || salesData.length === 0) return null;
 

@@ -29,7 +29,7 @@ export function useRupturaReport() {
       // Get products with low/zero stock
       const { data: products, error: pErr } = await supabase
         .from("products")
-        .select("id, name, barcode, stock_quantity, min_stock, category, cost_price, sale_price")
+        .select("id, name, barcode, stock_quantity, min_stock, category, cost_price, price")
         .eq("company_id", companyId!)
         .or("is_active.is.null,is_active.eq.true")
         .lte("stock_quantity", 5); // threshold
@@ -72,7 +72,7 @@ export function useRupturaReport() {
           const sales = salesMap[p.id];
           const avgDaily = sales.totalQty / 30;
           const daysWithout = p.stock_quantity <= 0 ? Math.ceil(Math.abs(p.stock_quantity) / Math.max(avgDaily, 0.1)) : 0;
-          const revenueLost = daysWithout * avgDaily * (p.sale_price || 0);
+          const revenueLost = daysWithout * avgDaily * (p.price || 0);
 
           return {
             id: p.id,

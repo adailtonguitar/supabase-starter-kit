@@ -54,7 +54,8 @@ export default function DRE() {
         .select("id, total, created_at")
         .eq("company_id", companyId)
         .gte("created_at", from.toISOString())
-        .lte("created_at", to.toISOString());
+        .lte("created_at", to.toISOString())
+        .or("status.is.null,status.neq.cancelled");
       if (error) {
         console.error("[DRE] sales error:", error);
         throw error;
