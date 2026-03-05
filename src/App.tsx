@@ -91,6 +91,7 @@ const NFeEmissao = lazy(() => import("./pages/NFeEmissao"));
 const EmissorNFe = lazy(() => import("./pages/EmissorNFe"));
 const EmissorLanding = lazy(() => import("./pages/EmissorLanding"));
 const ConsultaDFe = lazy(() => import("./pages/ConsultaDFe"));
+const Relatorios = lazy(() => import("./pages/Relatorios"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -400,6 +401,7 @@ function AppRoutes() {
                         </PlanGate>
                       }
                     />
+                    <Route path="/relatorios" element={<Relatorios />} />
                     <Route path="/etiquetas" element={<Etiquetas />} />
                     <Route
                       path="/orcamentos"
