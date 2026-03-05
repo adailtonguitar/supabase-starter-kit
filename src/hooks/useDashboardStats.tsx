@@ -36,6 +36,15 @@ interface DashboardStats {
     total_value: number;
     status: string;
   }>;
+  // New owner panel fields
+  salesYesterday: number;
+  salesCountYesterday: number;
+  fiadoTotal: number;
+  fiadoCount: number;
+  billsDueToday: number;
+  billsDueTodayCount: number;
+  overdueBills: number;
+  overdueBillsCount: number;
 }
 
 function extractPaymentMethod(payments: any): string {
@@ -57,6 +66,11 @@ export function useDashboardStats() {
       const today = new Date().toISOString().split("T")[0];
       const monthStart = today.slice(0, 7) + "-01";
 
+      // Yesterday
+      const yest = new Date();
+      yest.setDate(yest.getDate() - 1);
+      const yesterday = yest.toISOString().split("T")[0];
+
       // Last 7 days range
       const d7 = new Date();
       d7.setDate(d7.getDate() - 6);
@@ -70,7 +84,8 @@ export function useDashboardStats() {
       const [
         salesResult, monthResult, recentResult, productsResult, alertsResult,
         fiscalResult, financialResult, last7Result, prevPeriodResult,
-        totalProductsResult, totalClientsResult, saleItemsResult
+        totalProductsResult, totalClientsResult, saleItemsResult,
+        yesterdayResult, fiadoResult, billsDueResult, overdueBillsResult,
       ] = await Promise.all([
         supabase.from("sales").select("total").eq("company_id", companyId).gte("created_at", today + "T00:00:00"),
         supabase.from("sales").select("total").eq("company_id", companyId).gte("created_at", monthStart + "T00:00:00"),
@@ -79,15 +94,19 @@ export function useDashboardStats() {
         supabase.from("financial_entries").select("id").eq("company_id", companyId).eq("status", "pendente").lte("due_date", today),
         supabase.from("fiscal_configs").select("id").eq("company_id", companyId).eq("is_active", true).limit(1),
         supabase.from("financial_entries").select("type, amount").eq("company_id", companyId).eq("status", "pago").gte("due_date", monthStart),
-        // Last 7 days sales
         supabase.from("sales").select("total, created_at").eq("company_id", companyId).gte("created_at", sevenDaysAgo + "T00:00:00").order("created_at", { ascending: true }),
-        // Previous 7 days for growth
         supabase.from("sales").select("total").eq("company_id", companyId).gte("created_at", fourteenDaysAgo + "T00:00:00").lt("created_at", sevenDaysAgo + "T00:00:00"),
-        // Total counts
         supabase.from("products").select("id", { count: "exact", head: true }).eq("company_id", companyId),
         supabase.from("clients").select("id", { count: "exact", head: true }).eq("company_id", companyId),
-        // Top products from sale_items (joined through sales)
         supabase.from("sale_items").select("product_name, quantity, unit_price, sale_id, sales!inner(company_id, created_at)").eq("sales.company_id", companyId).gte("sales.created_at", monthStart + "T00:00:00").limit(500),
+        // Yesterday sales
+        supabase.from("sales").select("total").eq("company_id", companyId).gte("created_at", yesterday + "T00:00:00").lt("created_at", today + "T00:00:00"),
+        // Fiado (credit sales pending)
+        supabase.from("sales").select("total").eq("company_id", companyId).eq("status", "fiado"),
+        // Bills due today
+        supabase.from("financial_entries").select("amount").eq("company_id", companyId).eq("status", "pendente").eq("type", "despesa").eq("due_date", today),
+        // Overdue bills
+        supabase.from("financial_entries").select("amount").eq("company_id", companyId).eq("status", "pendente").eq("type", "despesa").lt("due_date", today),
       ]);
 
       const todaySales = salesResult.data || [];
@@ -97,6 +116,25 @@ export function useDashboardStats() {
       const salesCountToday = todaySales.length;
       const ticketMedio = salesCountToday > 0 ? salesToday / salesCountToday : 0;
       const monthRevenue = monthSales.reduce((sum, s: any) => sum + Number(s.total || 0), 0);
+
+      // Yesterday
+      const yesterdaySales = yesterdayResult.data || [];
+      const salesYesterday = yesterdaySales.reduce((sum, s: any) => sum + Number(s.total || 0), 0);
+      const salesCountYesterday = yesterdaySales.length;
+
+      // Fiado
+      const fiadoData = fiadoResult.data || [];
+      const fiadoTotal = fiadoData.reduce((sum, s: any) => sum + Number(s.total || 0), 0);
+      const fiadoCount = fiadoData.length;
+
+      // Bills
+      const billsDueData = billsDueResult.data || [];
+      const billsDueToday = billsDueData.reduce((sum, e: any) => sum + Number(e.amount || 0), 0);
+      const billsDueTodayCount = billsDueData.length;
+
+      const overdueData = overdueBillsResult.data || [];
+      const overdueBills = overdueData.reduce((sum, e: any) => sum + Number(e.amount || 0), 0);
+      const overdueBillsCount = overdueData.length;
 
       const products = productsResult.data || [];
       const productsAtRisk = products.filter((p: any) => p.min_stock > 0 && (p.stock_quantity ?? 0) <= p.min_stock).length;
@@ -170,6 +208,14 @@ export function useDashboardStats() {
         salesGrowth,
         last7Days,
         topProducts,
+        salesYesterday,
+        salesCountYesterday,
+        fiadoTotal,
+        fiadoCount,
+        billsDueToday,
+        billsDueTodayCount,
+        overdueBills,
+        overdueBillsCount,
         recentSales: (recentResult.data || []).map((row: any) => ({
           id: row.id,
           number: row.sale_number || row.number,
