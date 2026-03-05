@@ -63,6 +63,14 @@ const categories: { title: string; color: string; cards: ReportCard[] }[] = [
   },
 ];
 
+function extractPaymentMethod(payments: any): string {
+  try {
+    const arr = Array.isArray(payments) ? payments : typeof payments === "string" ? JSON.parse(payments) : [];
+    if (arr.length > 0) return arr[0].method || "Outros";
+  } catch {}
+  return "Outros";
+}
+
 export default function Relatorios() {
   const { companyId } = useCompany();
   const now = new Date();
@@ -77,15 +85,23 @@ export default function Relatorios() {
       const from = startOfDay(dateFrom).toISOString();
       const to = endOfDay(dateTo).toISOString();
 
-      const { data: sales } = await supabase
+      const { data: rawSales } = await supabase
         .from("sales")
-        .select("id, total, payment_method, status, created_at")
+        .select("id, total, payments, status, created_at")
         .eq("company_id", companyId!)
         .gte("created_at", from)
         .lte("created_at", to)
         .neq("status", "cancelled");
 
-      if (!sales || sales.length === 0) return { sales: sales || [], items: [] };
+      const sales = (rawSales || []).map((s: any) => ({
+        id: s.id,
+        total: s.total ?? 0,
+        payment_method: extractPaymentMethod(s.payments),
+        status: s.status,
+        created_at: s.created_at,
+      }));
+
+      if (sales.length === 0) return { sales: [], items: [] };
 
       const { data: items } = await supabase
         .from("sale_items")
