@@ -427,7 +427,8 @@ export function AppSidebar({ mobileOpen, onMobileClose }: AppSidebarProps) {
     <TooltipProvider delayDuration={0}>
     <aside
       className={cn(
-        "flex flex-col h-full shrink-0 bg-sidebar border-r border-sidebar-border transition-all duration-300 relative z-10",
+        "flex flex-col h-full shrink-0 bg-sidebar border-r border-primary/20 transition-all duration-300 relative z-10",
+        "shadow-[1px_0_8px_-2px_hsl(var(--primary)/0.15)]",
         collapsed ? "w-[68px]" : "w-[240px]"
       )}
     >
