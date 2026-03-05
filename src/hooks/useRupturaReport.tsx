@@ -39,21 +39,27 @@ export function useRupturaReport() {
 
       const productIds = products.map((p) => p.id);
 
-      // Get sales for these products in last 30 days
-      const { data: saleItems, error: sErr } = await supabase
-        .from("sale_items")
-        .select("product_id, quantity, total, created_at")
-        .in("product_id", productIds)
-        .gte("created_at", thirtyDaysAgo.toISOString());
-
-      if (sErr) throw sErr;
+      // Get sales for these products in last 30 days via join
+      const BATCH = 15;
+      let saleItems: any[] = [];
+      for (let i = 0; i < productIds.length; i += BATCH) {
+        const batch = productIds.slice(i, i + BATCH);
+        const { data, error } = await supabase
+          .from("sale_items")
+          .select("product_id, quantity, unit_price, sale_id, sales!inner(created_at, company_id)")
+          .in("product_id", batch)
+          .eq("sales.company_id", companyId!)
+          .gte("sales.created_at", thirtyDaysAgo.toISOString());
+        if (error) throw error;
+        if (data) saleItems.push(...data);
+      }
 
       // Aggregate sales per product
       const salesMap: Record<string, { totalQty: number; totalRevenue: number }> = {};
-      (saleItems || []).forEach((si: any) => {
+      saleItems.forEach((si: any) => {
         if (!salesMap[si.product_id]) salesMap[si.product_id] = { totalQty: 0, totalRevenue: 0 };
         salesMap[si.product_id].totalQty += si.quantity || 0;
-        salesMap[si.product_id].totalRevenue += si.total || 0;
+        salesMap[si.product_id].totalRevenue += (si.quantity || 0) * (si.unit_price || 0);
       });
 
       // Build ruptura list: products that sold but have critical stock

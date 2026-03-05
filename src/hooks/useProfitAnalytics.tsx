@@ -58,15 +58,17 @@ export function useProfitAnalytics(dateFrom?: Date, dateTo?: Date) {
       const sales = salesRes.data || [];
       const productsMap = new Map((productsRes.data || []).map(p => [p.id, p]));
 
-      // Fetch sale_items for all sales
+      // Fetch sale_items for all sales (batched)
       const saleIds = sales.map((s: any) => s.id);
       let allItems: any[] = [];
-      if (saleIds.length > 0) {
+      const BATCH = 15;
+      for (let i = 0; i < saleIds.length; i += BATCH) {
+        const batch = saleIds.slice(i, i + BATCH);
         const { data: itemsData } = await supabase
           .from("sale_items")
           .select("sale_id, product_id, product_name, quantity, unit_price")
-          .in("sale_id", saleIds);
-        allItems = itemsData || [];
+          .in("sale_id", batch);
+        if (itemsData) allItems.push(...itemsData);
       }
 
       const productStats = new Map<string, {
