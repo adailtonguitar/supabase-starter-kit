@@ -26,6 +26,7 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import type { PaymentResult } from "@/services/types";
 import { openCashDrawer } from "@/lib/escpos";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { playAddSound, playErrorSound, playSaleCompleteSound } from "@/lib/pdv-sounds";
 import { formatCurrency } from "@/lib/utils";
 
@@ -75,6 +76,7 @@ export default function PDV() {
   const [editingQtyValue, setEditingQtyValue] = useState("");
   const [editingItemDiscountId, setEditingItemDiscountId] = useState<string | null>(null);
   const [editingGlobalDiscount, setEditingGlobalDiscount] = useState(false);
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
   const barcodeInputRef = useRef<HTMLInputElement>(null);
   const tableEndRef = useRef<HTMLTableRowElement>(null);
   const [saleNumber, setSaleNumber] = useState(() => Number(localStorage.getItem("pdv_sale_number") || "1"));
@@ -722,7 +724,7 @@ export default function PDV() {
       <div className="flex items-center justify-between px-2 lg:px-3 h-9 bg-primary text-primary-foreground flex-shrink-0 text-xs gap-1 lg:gap-2 overflow-hidden">
         <div className="flex items-center gap-2 sm:gap-4 min-w-0">
           <button
-            onClick={() => navigate("/")}
+            onClick={() => { if (pdv.currentSession) { setShowExitConfirm(true); } else { navigate("/"); } }}
             className="font-bold opacity-80 hover:opacity-100 transition-opacity"
           >
             ← Sair
@@ -1847,6 +1849,33 @@ export default function PDV() {
           </div>
         </div>
       )}
+
+      {/* Exit confirmation when cash register is open */}
+      <AlertDialog open={showExitConfirm} onOpenChange={setShowExitConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Caixa ainda aberto</AlertDialogTitle>
+            <AlertDialogDescription>
+              Você tem um caixa aberto. Deseja fechar o caixa antes de sair ou sair mesmo assim?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => { setShowExitConfirm(false); navigate("/"); }}
+              className="bg-muted text-foreground hover:bg-muted/80"
+            >
+              Sair sem fechar
+            </AlertDialogAction>
+            <AlertDialogAction
+              onClick={() => { setShowExitConfirm(false); setShowCashRegister(true); }}
+              className="bg-primary text-primary-foreground"
+            >
+              Fechar caixa primeiro
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
     </div>
   );
