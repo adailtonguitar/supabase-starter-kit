@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
@@ -12,8 +12,8 @@ import { Label } from "@/components/ui/label";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-import { Wrench, Plus, CalendarIcon, Clock, User, CheckCircle, AlertCircle, Search, Hammer, Printer } from "lucide-react";
-import { motion } from "framer-motion";
+import { Wrench, Plus, CalendarIcon, Clock, User, CheckCircle, AlertCircle, Search, Hammer, Printer, Camera, X, Image, Users } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 
 type AssemblyStatus = "agendada" | "em_andamento" | "concluida" | "reagendada" | "cancelada";
@@ -24,11 +24,13 @@ interface Assembly {
   address: string;
   phone: string;
   assembler: string;
+  helper: string;
   scheduledDate: Date;
   scheduledTime: string;
   items: string;
   notes: string;
   status: AssemblyStatus;
+  photos: string[];
 }
 
 const statusConfig: Record<AssemblyStatus, { label: string; color: string }> = {
@@ -45,7 +47,7 @@ function loadAssemblies(): Assembly[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return [];
-    return JSON.parse(raw).map((a: any) => ({ ...a, scheduledDate: new Date(a.scheduledDate) }));
+    return JSON.parse(raw).map((a: any) => ({ ...a, scheduledDate: new Date(a.scheduledDate), helper: a.helper || "", photos: a.photos || [] }));
   } catch { return []; }
 }
 
@@ -59,14 +61,19 @@ export default function ControleMontagem() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [showDialog, setShowDialog] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [photoDialog, setPhotoDialog] = useState<Assembly | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState<Assembly | null>(null);
+  const [confirmPhotos, setConfirmPhotos] = useState<string[]>([]);
+  const confirmFileRef = useRef<HTMLInputElement>(null);
+
   const [form, setForm] = useState({
-    clientName: "", address: "", phone: "", assembler: "",
+    clientName: "", address: "", phone: "", assembler: "", helper: "",
     scheduledDate: new Date(), scheduledTime: "08:00", items: "", notes: "",
   });
 
   const filtered = useMemo(() => {
     return assemblies.filter(a => {
-      const matchSearch = !search || a.clientName.toLowerCase().includes(search.toLowerCase()) || a.assembler.toLowerCase().includes(search.toLowerCase());
+      const matchSearch = !search || a.clientName.toLowerCase().includes(search.toLowerCase()) || a.assembler.toLowerCase().includes(search.toLowerCase()) || (a.helper || "").toLowerCase().includes(search.toLowerCase());
       const matchStatus = statusFilter === "all" || a.status === statusFilter;
       return matchSearch && matchStatus;
     }).sort((a, b) => a.scheduledDate.getTime() - b.scheduledDate.getTime());
@@ -80,7 +87,7 @@ export default function ControleMontagem() {
   }), [assemblies]);
 
   const resetForm = () => {
-    setForm({ clientName: "", address: "", phone: "", assembler: "", scheduledDate: new Date(), scheduledTime: "08:00", items: "", notes: "" });
+    setForm({ clientName: "", address: "", phone: "", assembler: "", helper: "", scheduledDate: new Date(), scheduledTime: "08:00", items: "", notes: "" });
     setEditingId(null);
   };
 
@@ -93,7 +100,7 @@ export default function ControleMontagem() {
     if (editingId) {
       updated = assemblies.map(a => a.id === editingId ? { ...a, ...form } : a);
     } else {
-      updated = [...assemblies, { id: crypto.randomUUID(), ...form, status: "agendada" as AssemblyStatus }];
+      updated = [...assemblies, { id: crypto.randomUUID(), ...form, status: "agendada" as AssemblyStatus, photos: [] }];
     }
     setAssemblies(updated);
     saveAssemblies(updated);
@@ -103,17 +110,50 @@ export default function ControleMontagem() {
   };
 
   const handleStatusChange = (id: string, status: AssemblyStatus) => {
+    if (status === "concluida") {
+      const a = assemblies.find(x => x.id === id);
+      if (a) {
+        setConfirmDialog(a);
+        setConfirmPhotos([]);
+        return;
+      }
+    }
     const updated = assemblies.map(a => a.id === id ? { ...a, status } : a);
     setAssemblies(updated);
     saveAssemblies(updated);
     toast.success(`Status: ${statusConfig[status].label}`);
   };
 
+  const handleConfirmAssembly = () => {
+    if (!confirmDialog) return;
+    const updated = assemblies.map(a =>
+      a.id === confirmDialog.id ? { ...a, status: "concluida" as AssemblyStatus, photos: [...(a.photos || []), ...confirmPhotos] } : a
+    );
+    setAssemblies(updated);
+    saveAssemblies(updated);
+    setConfirmDialog(null);
+    setConfirmPhotos([]);
+    toast.success("Montagem concluída com sucesso!");
+  };
+
+  const handlePhotoUpload = (files: FileList | null) => {
+    if (!files) return;
+    Array.from(files).forEach(file => {
+      if (!file.type.startsWith("image/")) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setConfirmPhotos(prev => [...prev, e.target?.result as string]);
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
   const handleEdit = (a: Assembly) => {
     setForm({
       clientName: a.clientName, address: a.address, phone: a.phone,
-      assembler: a.assembler, scheduledDate: a.scheduledDate,
-      scheduledTime: a.scheduledTime, items: a.items, notes: a.notes,
+      assembler: a.assembler, helper: a.helper || "",
+      scheduledDate: a.scheduledDate, scheduledTime: a.scheduledTime,
+      items: a.items, notes: a.notes,
     });
     setEditingId(a.id);
     setShowDialog(true);
@@ -139,7 +179,7 @@ export default function ControleMontagem() {
         <td style="padding:6px 8px;border-bottom:1px solid #eee">${a.items || "—"}</td>
         <td style="padding:6px 8px;border-bottom:1px solid #eee">${format(a.scheduledDate, "dd/MM/yyyy", { locale: ptBR })} ${a.scheduledTime}</td>
         <td style="padding:6px 8px;border-bottom:1px solid #eee">${a.address}</td>
-        <td style="padding:6px 8px;border-bottom:1px solid #eee">${a.assembler || "—"}</td>
+        <td style="padding:6px 8px;border-bottom:1px solid #eee">${a.assembler || "—"}${a.helper ? ` / ${a.helper}` : ""}</td>
         <td style="padding:6px 8px;border-bottom:1px solid #eee">${a.notes || ""}</td>
         <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:center">☐</td>
       </tr>
@@ -168,7 +208,7 @@ export default function ControleMontagem() {
             <th>Itens p/ Montar</th>
             <th>Data/Hora</th>
             <th>Endereço</th>
-            <th>Montador</th>
+            <th>Equipe</th>
             <th>Obs.</th>
             <th style="text-align:center;width:40px">✓</th>
           </tr>
@@ -190,7 +230,7 @@ export default function ControleMontagem() {
             <Wrench className="w-6 h-6 text-primary" />
             Controle de Montagem
           </h1>
-          <p className="text-muted-foreground text-sm mt-1">Gerencie ordens de montagem e assistência técnica</p>
+          <p className="text-muted-foreground text-sm mt-1">Gerencie ordens de montagem e equipe</p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" onClick={handlePrintList} className="gap-2">
@@ -249,12 +289,7 @@ export default function ControleMontagem() {
           {filtered.map((a, i) => {
             const sc = statusConfig[a.status];
             return (
-              <motion.div
-                key={a.id}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.03 }}
-              >
+              <motion.div key={a.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}>
                 <Card className="hover:border-primary/20 transition-all">
                   <CardContent className="p-4">
                     <div className="flex flex-col sm:flex-row sm:items-center gap-3">
@@ -264,15 +299,20 @@ export default function ControleMontagem() {
                           <Badge variant="outline" className={cn("text-[10px]", sc.color)}>
                             {sc.label}
                           </Badge>
+                          {a.photos && a.photos.length > 0 && (
+                            <Badge variant="outline" className="text-[10px] cursor-pointer border-emerald-500/30 text-emerald-600" onClick={() => setPhotoDialog(a)}>
+                              <Camera className="w-3 h-3 mr-1" /> {a.photos.length} foto{a.photos.length > 1 ? "s" : ""}
+                            </Badge>
+                          )}
                         </div>
                         <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
                           <span className="flex items-center gap-1">
                             <CalendarIcon className="w-3 h-3" />
                             {format(a.scheduledDate, "dd/MM/yyyy", { locale: ptBR })} às {a.scheduledTime}
                           </span>
-                          {a.assembler && (
+                          {(a.assembler || a.helper) && (
                             <span className="flex items-center gap-1">
-                              <User className="w-3 h-3" /> {a.assembler}
+                              <Users className="w-3 h-3" /> 🔧 {a.assembler}{a.helper ? ` / ${a.helper}` : ""}
                             </span>
                           )}
                         </div>
@@ -307,7 +347,7 @@ export default function ControleMontagem() {
           <DialogHeader>
             <DialogTitle>{editingId ? "Editar Montagem" : "Nova Montagem"}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
+          <div className="space-y-4 max-h-[65vh] overflow-y-auto pr-1">
             <div>
               <Label>Cliente *</Label>
               <Input value={form.clientName} onChange={e => setForm({ ...form, clientName: e.target.value })} placeholder="Nome do cliente" />
@@ -316,16 +356,28 @@ export default function ControleMontagem() {
               <Label>Endereço *</Label>
               <Input value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} placeholder="Endereço de montagem" />
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>Telefone</Label>
-                <Input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} placeholder="(00) 00000-0000" />
-              </div>
-              <div>
-                <Label>Montador</Label>
-                <Input value={form.assembler} onChange={e => setForm({ ...form, assembler: e.target.value })} placeholder="Nome do montador" />
+            <div>
+              <Label>Telefone</Label>
+              <Input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} placeholder="(00) 00000-0000" />
+            </div>
+
+            {/* Team Assignment */}
+            <div className="p-3 rounded-xl bg-muted/50 border border-border space-y-3">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+                <Users className="w-3.5 h-3.5" /> Equipe de Montagem
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs">Montador Principal</Label>
+                  <Input value={form.assembler} onChange={e => setForm({ ...form, assembler: e.target.value })} placeholder="Nome" className="h-9" />
+                </div>
+                <div>
+                  <Label className="text-xs">Ajudante</Label>
+                  <Input value={form.helper} onChange={e => setForm({ ...form, helper: e.target.value })} placeholder="Nome" className="h-9" />
+                </div>
               </div>
             </div>
+
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label>Data</Label>
@@ -361,6 +413,109 @@ export default function ControleMontagem() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Assembly Confirmation Dialog */}
+      <AnimatePresence>
+        {confirmDialog && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setConfirmDialog(null)}>
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
+              onClick={e => e.stopPropagation()}
+              className="bg-card rounded-2xl border border-border shadow-2xl w-full max-w-md mx-4 overflow-hidden"
+            >
+              <div className="px-5 py-4 border-b border-border">
+                <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
+                  <CheckCircle className="w-5 h-5 text-emerald-500" />
+                  Confirmar Montagem
+                </h2>
+                <p className="text-xs text-muted-foreground mt-1">{confirmDialog.clientName} — {confirmDialog.items}</p>
+              </div>
+              <div className="p-5 space-y-4">
+                <div>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                    📸 Fotos da Montagem (opcional)
+                  </p>
+                  <p className="text-[10px] text-muted-foreground mb-3">
+                    Registre o móvel montado no local do cliente
+                  </p>
+
+                  <input
+                    ref={confirmFileRef}
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    capture="environment"
+                    className="hidden"
+                    onChange={e => handlePhotoUpload(e.target.files)}
+                  />
+
+                  <div className="flex flex-wrap gap-2">
+                    {confirmPhotos.map((photo, i) => (
+                      <div key={i} className="relative w-20 h-20 rounded-lg overflow-hidden border border-border group">
+                        <img src={photo} alt={`Foto ${i + 1}`} className="w-full h-full object-cover" />
+                        <button
+                          onClick={() => setConfirmPhotos(prev => prev.filter((_, j) => j !== i))}
+                          className="absolute top-0.5 right-0.5 p-0.5 rounded-full bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                    <button
+                      onClick={() => confirmFileRef.current?.click()}
+                      className="w-20 h-20 rounded-lg border-2 border-dashed border-border flex flex-col items-center justify-center text-muted-foreground hover:border-primary/40 hover:text-primary transition-all"
+                    >
+                      <Camera className="w-5 h-5" />
+                      <span className="text-[9px] mt-1">Adicionar</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <div className="px-5 py-4 border-t border-border flex gap-2">
+                <Button variant="outline" onClick={() => setConfirmDialog(null)} className="flex-1">
+                  Cancelar
+                </Button>
+                <Button onClick={handleConfirmAssembly} className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white">
+                  <CheckCircle className="w-4 h-4 mr-2" />
+                  Confirmar Conclusão
+                </Button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Photo Gallery Dialog */}
+      <AnimatePresence>
+        {photoDialog && photoDialog.photos && photoDialog.photos.length > 0 && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm" onClick={() => setPhotoDialog(null)}>
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
+              onClick={e => e.stopPropagation()}
+              className="bg-card rounded-2xl border border-border shadow-2xl w-full max-w-lg mx-4 overflow-hidden"
+            >
+              <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+                <div>
+                  <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
+                    <Image className="w-5 h-5 text-primary" /> Fotos da Montagem
+                  </h2>
+                  <p className="text-xs text-muted-foreground">{photoDialog.clientName}</p>
+                </div>
+                <button onClick={() => setPhotoDialog(null)} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="p-5 grid grid-cols-2 gap-3 max-h-[60vh] overflow-y-auto">
+                {photoDialog.photos.map((photo, i) => (
+                  <div key={i} className="rounded-xl overflow-hidden border border-border">
+                    <img src={photo} alt={`Montagem foto ${i + 1}`} className="w-full h-auto object-cover" />
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
