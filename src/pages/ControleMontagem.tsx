@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-import { Wrench, Plus, CalendarIcon, Clock, User, CheckCircle, AlertCircle, Search, Hammer } from "lucide-react";
+import { Wrench, Plus, CalendarIcon, Clock, User, CheckCircle, AlertCircle, Search, Hammer, Printer } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 
@@ -126,6 +126,62 @@ export default function ControleMontagem() {
     toast.success("Montagem removida");
   };
 
+  const handlePrintList = () => {
+    const pending = filtered.filter(a => a.status === "agendada" || a.status === "em_andamento");
+    if (pending.length === 0) {
+      toast.error("Nenhuma montagem pendente para imprimir");
+      return;
+    }
+    const rows = pending.map((a, i) => `
+      <tr>
+        <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:center">${i + 1}</td>
+        <td style="padding:6px 8px;border-bottom:1px solid #eee">${a.clientName}</td>
+        <td style="padding:6px 8px;border-bottom:1px solid #eee">${a.items || "—"}</td>
+        <td style="padding:6px 8px;border-bottom:1px solid #eee">${format(a.scheduledDate, "dd/MM/yyyy", { locale: ptBR })} ${a.scheduledTime}</td>
+        <td style="padding:6px 8px;border-bottom:1px solid #eee">${a.address}</td>
+        <td style="padding:6px 8px;border-bottom:1px solid #eee">${a.assembler || "—"}</td>
+        <td style="padding:6px 8px;border-bottom:1px solid #eee">${a.notes || ""}</td>
+        <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:center">☐</td>
+      </tr>
+    `).join("");
+
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Lista de Montagem</title>
+      <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family: Arial, sans-serif; padding: 20px; font-size: 12px; color: #222; }
+        h1 { font-size: 16px; margin-bottom: 4px; }
+        .subtitle { color: #666; margin-bottom: 14px; font-size: 11px; }
+        table { width: 100%; border-collapse: collapse; }
+        th { padding: 6px 8px; background: #f5f5f5; font-weight: 600; text-align: left; font-size: 11px; border-bottom: 2px solid #ddd; }
+        .footer { margin-top: 20px; text-align: center; font-size: 10px; color: #aaa; }
+        .summary { margin-bottom: 12px; font-size: 12px; }
+        @media print { body { padding: 10px; } }
+      </style></head><body>
+      <h1>🔧 Lista de Montagem</h1>
+      <p class="subtitle">Gerada em ${format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</p>
+      <p class="summary"><strong>${pending.length}</strong> montagen${pending.length > 1 ? "s" : ""} pendente${pending.length > 1 ? "s" : ""}</p>
+      <table>
+        <thead>
+          <tr>
+            <th style="text-align:center;width:30px">#</th>
+            <th>Cliente</th>
+            <th>Itens p/ Montar</th>
+            <th>Data/Hora</th>
+            <th>Endereço</th>
+            <th>Montador</th>
+            <th>Obs.</th>
+            <th style="text-align:center;width:40px">✓</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <div class="footer">AnthoSystem — Lista de Montagem</div>
+    </body></html>`;
+
+    const w = window.open("", "_blank", "width=900,height=600");
+    if (w) { w.document.write(html); w.document.close(); w.print(); }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -136,9 +192,14 @@ export default function ControleMontagem() {
           </h1>
           <p className="text-muted-foreground text-sm mt-1">Gerencie ordens de montagem e assistência técnica</p>
         </div>
-        <Button onClick={() => { resetForm(); setShowDialog(true); }} className="gap-2">
-          <Plus className="w-4 h-4" /> Nova Montagem
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={handlePrintList} className="gap-2">
+            <Printer className="w-4 h-4" /> Imprimir Lista
+          </Button>
+          <Button onClick={() => { resetForm(); setShowDialog(true); }} className="gap-2">
+            <Plus className="w-4 h-4" /> Nova Montagem
+          </Button>
+        </div>
       </div>
 
       {/* Stats */}
