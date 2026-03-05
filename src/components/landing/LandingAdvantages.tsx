@@ -46,7 +46,7 @@ const advantages = [
   {
     icon: Zap,
     title: "Caixa 2x mais rápido",
-    desc: "PDV otimizado para supermercados com atalhos, leitor e pesagem. Menos fila, mais vendas.",
+    desc: "PDV otimizado para o varejo com atalhos, leitor e pesagem. Menos fila, mais vendas.",
     stat: "2x",
     statSuffix: "",
     statLabel: "mais velocidade",
@@ -62,7 +62,7 @@ const advantages = [
   {
     icon: Headphones,
     title: "Suporte especializado",
-    desc: "Equipe que entende a rotina de supermercado. Atendimento rápido por WhatsApp.",
+    desc: "Equipe que entende a rotina do comércio. Atendimento rápido por WhatsApp.",
     stat: "<2h",
     statSuffix: "",
     statLabel: "tempo de resposta",
@@ -81,7 +81,7 @@ export function LandingAdvantages() {
           >
             <span className="text-primary text-sm font-semibold uppercase tracking-wider">Vantagens</span>
             <h2 className="mt-3 text-3xl sm:text-4xl font-bold tracking-tight">
-              Por que supermercados escolhem o AnthoSystem?
+              Por que lojistas escolhem o AnthoSystem?
             </h2>
           </motion.div>
         </div>
