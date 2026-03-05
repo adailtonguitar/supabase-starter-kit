@@ -12,7 +12,7 @@ const proofs = [
   {
     icon: Monitor,
     title: "Sistema completo e real",
-    desc: "PDV, estoque, fiscal, financeiro e IA — tudo funcionando em produção, usado por supermercados reais todos os dias.",
+    desc: "PDV, estoque, fiscal, financeiro e IA — tudo funcionando em produção, usado por comércios reais todos os dias.",
   },
   {
     icon: Shield,
@@ -22,7 +22,7 @@ const proofs = [
   {
     icon: Zap,
     title: "Implantação em minutos",
-    desc: "Cadastre-se, configure seu supermercado e comece a vender. Sem instalação complexa, sem técnico no local.",
+    desc: "Cadastre-se, configure seu negócio e comece a vender. Sem instalação complexa, sem técnico no local.",
   },
 ];
 
@@ -45,7 +45,7 @@ export function LandingAuthority() {
               Um sistema construído para a realidade
             </h2>
             <p className="mt-4 text-muted-foreground max-w-2xl mx-auto text-lg">
-              O AnthoSystem foi desenvolvido para resolver os problemas reais de supermercados e mercearias. Do caixa ao financeiro, cada funcionalidade foi testada em operação real.
+              O AnthoSystem foi desenvolvido para resolver os problemas reais do comércio e varejo. Do caixa ao financeiro, cada funcionalidade foi testada em operação real.
             </p>
           </motion.div>
         </div>

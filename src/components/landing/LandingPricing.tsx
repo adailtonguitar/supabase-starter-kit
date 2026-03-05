@@ -27,7 +27,7 @@ const plans = [
   {
     name: "Business",
     price: "199,90",
-    desc: "Para supermercados em crescimento",
+    desc: "Para negócios em crescimento",
     icon: Star,
     features: [
       "8 sessões simultâneas",
@@ -96,7 +96,7 @@ export function LandingPricing() {
           >
             <span className="text-primary text-sm font-semibold uppercase tracking-wider">Planos</span>
             <h2 className="mt-3 text-3xl sm:text-4xl font-bold tracking-tight">
-              Planos que cabem no seu supermercado
+              Planos que cabem no seu negócio
             </h2>
             <p className="mt-4 text-muted-foreground text-lg">
               Teste grátis por 15 dias. Sem cartão de crédito.

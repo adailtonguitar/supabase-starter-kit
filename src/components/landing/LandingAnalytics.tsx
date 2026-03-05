@@ -57,7 +57,7 @@ export function LandingAnalytics() {
               Inteligência de Negócio
             </span>
             <h2 className="mt-3 text-3xl sm:text-4xl font-bold tracking-tight">
-              Dados que transformam seu supermercado
+              Dados que transformam seu negócio
             </h2>
             <p className="mt-4 text-muted-foreground max-w-2xl mx-auto text-lg">
               Curva ABC, painel de lucros, DRE e fluxo de caixa — tudo automático e visual para você tomar as melhores decisões.
