@@ -11,7 +11,7 @@ import {
   Percent, ArrowRightLeft, TrendingDown, Gift, Brain, Monitor, ShieldCheck, CreditCard, ChefHat,
   HelpCircle, X, Wallet, PieChart, LineChart, AreaChart, CircleDollarSign, Scale,
   BadgeDollarSign, Bell, Stethoscope, Scan, FileDown, FilePen, FileSearch, Cog,
-  Network, Smartphone, LifeBuoy, Boxes, BarChart, Calculator, Armchair, Wrench,
+  Network, Smartphone, LifeBuoy, Boxes, BarChart, Calculator, Armchair, Wrench, Eye,
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
@@ -177,6 +177,7 @@ const navItems: NavEntry[] = [
 const furnitureNavItems: NavEntry[] = [
   { type: "label", text: "LOJA DE MÓVEIS" },
   { icon: Armchair, label: "Catálogo", path: "/catalogo-moveis" },
+  { icon: Eye, label: "Exposição", path: "/exposicao" },
   { icon: Truck, label: "Entregas", path: "/entregas" },
   { icon: Wrench, label: "Montagem", path: "/montagem" },
 ];
@@ -192,7 +193,7 @@ const furnitureAllowedPaths = new Set([
   "/fiscal", "/fiscal/nfe", "/fiscal/config",
   "/configuracoes", "/terminais",
   "/pedidos-compra",
-  "/catalogo-moveis", "/entregas", "/montagem",
+  "/catalogo-moveis", "/entregas", "/montagem", "/exposicao",
 ]);
 
 function filterNavForFurniture(items: NavEntry[]): NavEntry[] {

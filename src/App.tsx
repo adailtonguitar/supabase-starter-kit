@@ -96,6 +96,7 @@ const Relatorios = lazy(() => import("./pages/Relatorios"));
 const CatalogoMoveis = lazy(() => import("./pages/CatalogoMoveis"));
 const AgendaEntregas = lazy(() => import("./pages/AgendaEntregas"));
 const ControleMontagem = lazy(() => import("./pages/ControleMontagem"));
+const ControleExposicao = lazy(() => import("./pages/ControleExposicao"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -444,6 +445,7 @@ function AppRoutes() {
                     <Route path="/catalogo-moveis" element={<CatalogoMoveis />} />
                     <Route path="/entregas" element={<AgendaEntregas />} />
                     <Route path="/montagem" element={<ControleMontagem />} />
+                    <Route path="/exposicao" element={<ControleExposicao />} />
                     <Route path="/admin" element={<Admin />} />
                     <Route path="/ajuda" element={<Ajuda />} />
                     <Route path="*" element={<NotFound />} />
