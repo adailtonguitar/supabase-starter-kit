@@ -39,21 +39,28 @@ export default function LucroDiario() {
       if (!salesData || salesData.length === 0) return null;
 
       const saleIds = salesData.map((s: any) => s.id);
+      const BATCH = 15;
 
-      // Fetch sale_items for cost calculation
-      const { data: itemsData } = await supabase
-        .from("sale_items")
-        .select("product_id, quantity, unit_price")
-        .in("sale_id", saleIds);
+      // Fetch sale_items for cost calculation (batched)
+      let itemsData: any[] = [];
+      for (let i = 0; i < saleIds.length; i += BATCH) {
+        const batch = saleIds.slice(i, i + BATCH);
+        const { data } = await supabase
+          .from("sale_items")
+          .select("product_id, quantity, unit_price")
+          .in("sale_id", batch);
+        if (data) itemsData.push(...data);
+      }
 
-      // Fetch product costs
-      const productIds = [...new Set((itemsData || []).map((i: any) => i.product_id).filter(Boolean))];
+      // Fetch product costs (batched)
+      const productIds = [...new Set(itemsData.map((i: any) => i.product_id).filter(Boolean))];
       let costMap: Record<string, number> = {};
-      if (productIds.length > 0) {
+      for (let i = 0; i < productIds.length; i += BATCH) {
+        const batch = productIds.slice(i, i + BATCH);
         const { data: productsData } = await supabase
           .from("products")
           .select("id, cost_price")
-          .in("id", productIds);
+          .in("id", batch);
         (productsData || []).forEach((p: any) => { costMap[p.id] = Number(p.cost_price || 0); });
       }
 
