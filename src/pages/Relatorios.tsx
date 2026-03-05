@@ -85,12 +85,14 @@ export default function Relatorios() {
         .lte("created_at", to)
         .neq("status", "cancelled");
 
+      if (!sales || sales.length === 0) return { sales: sales || [], items: [] };
+
       const { data: items } = await supabase
         .from("sale_items")
         .select("product_id, product_name, quantity, unit_price, cost_price, sale_id")
-        .in("sale_id", (sales || []).map(s => s.id));
+        .in("sale_id", sales.map(s => s.id));
 
-      return { sales: sales || [], items: items || [] };
+      return { sales, items: items || [] };
     },
   });
 
