@@ -42,16 +42,11 @@ export function LandingHero() {
               Sistema #1 para comércios e varejo
             </div>
 
-            <h1 className="text-4xl sm:text-5xl xl:text-6xl font-black tracking-tight leading-[1.1]">
+            <h1 className="font-display text-4xl sm:text-5xl xl:text-6xl font-extrabold tracking-tight leading-[1.1]">
               Gestão completa
               <br />
               para o seu{" "}
-              <span className="relative">
-                <span className="text-primary">comércio</span>
-                <svg className="absolute -bottom-1 left-0 w-full" viewBox="0 0 200 8" fill="none">
-                  <path d="M2 6C50 2 150 2 198 6" stroke="hsl(var(--primary))" strokeWidth="3" strokeLinecap="round" />
-                </svg>
-              </span>
+              <span className="gradient-text">comércio</span>
             </h1>
 
             <p className="mt-6 text-lg text-muted-foreground leading-relaxed max-w-lg">

@@ -42,7 +42,7 @@ export function LandingMultiStore() {
             <span className="text-cyan-500 text-sm font-semibold uppercase tracking-wider">
               Multi-loja
             </span>
-            <h2 className="mt-3 text-3xl sm:text-4xl font-bold tracking-tight">
+            <h2 className="mt-3 font-display text-3xl sm:text-4xl font-extrabold tracking-tight">
               Gerencie toda sua rede em um só lugar
             </h2>
             <p className="mt-4 text-muted-foreground max-w-2xl mx-auto text-lg">

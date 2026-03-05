@@ -41,7 +41,7 @@ export function LandingAuthority() {
             <span className="text-primary text-sm font-semibold uppercase tracking-wider">
               Confiança comprovada
             </span>
-            <h2 className="mt-3 text-3xl sm:text-4xl font-bold tracking-tight">
+            <h2 className="mt-3 font-display text-3xl sm:text-4xl font-extrabold tracking-tight">
               Um sistema construído para a realidade
             </h2>
             <p className="mt-4 text-muted-foreground max-w-2xl mx-auto text-lg">

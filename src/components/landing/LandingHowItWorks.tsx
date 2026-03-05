@@ -33,7 +33,7 @@ export function LandingHowItWorks() {
             viewport={{ once: true }}
           >
             <span className="text-primary text-sm font-semibold uppercase tracking-wider">Como funciona</span>
-            <h2 className="mt-3 text-3xl sm:text-4xl font-bold tracking-tight">
+            <h2 className="mt-3 font-display text-3xl sm:text-4xl font-extrabold tracking-tight">
               Comece em 3 passos simples
             </h2>
           </motion.div>

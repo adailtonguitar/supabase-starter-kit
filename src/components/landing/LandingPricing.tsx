@@ -95,7 +95,7 @@ export function LandingPricing() {
             viewport={{ once: true }}
           >
             <span className="text-primary text-sm font-semibold uppercase tracking-wider">Planos</span>
-            <h2 className="mt-3 text-3xl sm:text-4xl font-bold tracking-tight">
+            <h2 className="mt-3 font-display text-3xl sm:text-4xl font-extrabold tracking-tight">
               Planos que cabem no seu negócio
             </h2>
             <p className="mt-4 text-muted-foreground text-lg">
@@ -114,7 +114,7 @@ export function LandingPricing() {
               transition={{ delay: i * 0.1 }}
               className={`relative rounded-2xl border p-7 flex flex-col ${
                 plan.highlighted
-                  ? "border-primary bg-gradient-to-b from-primary/5 to-card shadow-xl shadow-primary/10 ring-1 ring-primary/20 scale-[1.02]"
+                  ? "border-primary bg-gradient-to-b from-primary/8 to-card shadow-2xl shadow-primary/20 ring-2 ring-primary/30 scale-[1.03]"
                   : "border-border bg-card hover:border-primary/20 hover:shadow-lg transition-all"
               }`}
             >

@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&display=swap');
 
@@ -83,6 +84,7 @@
     --sidebar-border: 220 14% 15%;
     --sidebar-ring: 168 72% 42%;
     --brand-gradient: linear-gradient(135deg, hsl(168 72% 36%), hsl(190 70% 40%));
+    --brand-gradient-text: linear-gradient(135deg, hsl(168 72% 50%), hsl(190 70% 50%), hsl(168 72% 40%));
     --shadow-glow: 0 0 20px hsl(168 72% 36% / 0.15);
     --shadow-card: 0 1px 3px hsl(220 25% 10% / 0.06), 0 4px 12px hsl(220 25% 10% / 0.04);
     --shadow-card-hover: 0 4px 16px hsl(220 25% 10% / 0.1), 0 8px 24px hsl(220 25% 10% / 0.06);
@@ -248,6 +250,19 @@
   .glow { box-shadow: var(--shadow-glow); }
   .status-online { color: hsl(var(--success)); }
   .status-offline { color: hsl(var(--warning)); }
+
+  /* Premium landing page utilities */
+  .font-display { font-family: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif; }
+  .gradient-text {
+    background: var(--brand-gradient-text);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .section-divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, hsl(var(--border)), transparent);
+  }
 }
 
 @media (max-width: 767px) {

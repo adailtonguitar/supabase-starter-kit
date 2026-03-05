@@ -52,7 +52,7 @@ export function LandingFAQ() {
             viewport={{ once: true }}
           >
             <span className="text-primary text-sm font-semibold uppercase tracking-wider">FAQ</span>
-            <h2 className="mt-3 text-3xl sm:text-4xl font-bold tracking-tight">
+            <h2 className="mt-3 font-display text-3xl sm:text-4xl font-extrabold tracking-tight">
               Perguntas frequentes
             </h2>
             <p className="mt-4 text-muted-foreground text-lg">
