@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ArrowRight, Play, CheckCircle2, Wifi, MessageCircle, Rocket, ShoppingCart, TrendingUp, Brain, Package, ZoomIn, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import pdvScreen from "@/assets/pdv-screen.png";
-import supermarketScene from "@/assets/supermarket-scene.png";
+import checkoutScene from "@/assets/pdv-checkout-scene.jpg";
 
 const highlights = [
   "PDV com leitor e balança",
@@ -101,44 +101,26 @@ export function LandingHero() {
             transition={{ duration: 0.8, delay: 0.2 }}
             className="relative"
           >
-            {/* Laptop mockup */}
+            {/* Checkout scene */}
             <div
               className="relative cursor-pointer group"
               onClick={() => setZoomed(true)}
             >
-              {/* Laptop screen */}
-              <div className="bg-[hsl(220,20%,8%)] rounded-t-xl border-2 border-b-0 border-[hsl(220,15%,20%)] shadow-2xl shadow-primary/10 overflow-hidden">
-                {/* Browser chrome */}
-                <div className="flex items-center gap-2 px-4 py-2 bg-[hsl(220,15%,11%)] border-b border-[hsl(220,15%,16%)]">
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-2.5 h-2.5 rounded-full bg-[hsl(0,60%,50%)]" />
-                    <div className="w-2.5 h-2.5 rounded-full bg-[hsl(45,80%,50%)]" />
-                    <div className="w-2.5 h-2.5 rounded-full bg-[hsl(120,50%,45%)]" />
-                  </div>
-                  <div className="flex-1 mx-4 bg-[hsl(220,15%,15%)] rounded-md h-5 flex items-center px-3">
-                    <span className="text-[9px] text-muted-foreground/60 truncate">anthosystem.com.br/pdv</span>
-                  </div>
-                </div>
-                {/* PDV Screenshot */}
+              <div className="rounded-2xl overflow-hidden shadow-2xl shadow-primary/10 border border-border/50">
                 <img
-                  src={pdvScreen}
-                  alt="PDV AnthoSystem — Tela do ponto de venda com produtos, pagamentos e atalhos"
+                  src={checkoutScene}
+                  alt="Caixa de supermercado usando o PDV AnthoSystem — sistema real em operação"
                   className="w-full h-auto"
                   loading="eager"
                 />
               </div>
-              {/* Laptop base/hinge */}
-              <div className="relative">
-                <div className="h-3 bg-gradient-to-b from-[hsl(220,15%,18%)] to-[hsl(220,15%,14%)] rounded-b-lg border-2 border-t-0 border-[hsl(220,15%,20%)]" />
-                <div className="mx-auto -mt-px w-[110%] -ml-[5%] h-2 bg-gradient-to-b from-[hsl(220,10%,16%)] to-[hsl(220,10%,12%)] rounded-b-xl" />
-              </div>
 
               {/* Zoom hint */}
-              <div className="absolute top-6 right-6 bg-background/70 backdrop-blur-sm rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity border border-border/50">
+              <div className="absolute top-4 right-4 bg-background/70 backdrop-blur-sm rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity border border-border/50">
                 <ZoomIn className="w-4 h-4 text-primary" />
               </div>
 
-              {/* Subtle glow behind laptop */}
+              {/* Subtle glow */}
               <div className="absolute -inset-4 -z-10 bg-primary/5 rounded-3xl blur-2xl" />
             </div>
 
@@ -200,13 +182,13 @@ export function LandingHero() {
               </button>
               <div className="rounded-xl border-2 border-border overflow-hidden shadow-2xl">
                 <img
-                  src={pdvScreen}
-                  alt="PDV AnthoSystem — Visualização ampliada"
+                  src={checkoutScene}
+                  alt="PDV AnthoSystem em uso no caixa do supermercado — visualização ampliada"
                   className="w-full h-auto"
                 />
               </div>
               <p className="text-center text-sm text-muted-foreground mt-4">
-                Tela real do PDV AnthoSystem — clique fora para fechar
+                Sistema AnthoSystem em operação real — clique fora para fechar
               </p>
             </motion.div>
           </motion.div>
