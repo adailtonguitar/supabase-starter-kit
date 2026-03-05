@@ -443,7 +443,13 @@ export default function PDV() {
           e.preventDefault();
           if (pdv.cartItems.length > 0) {
             const targetItem = selectedCartItemId ? pdv.cartItems.find(i => i.id === selectedCartItemId) : pdv.cartItems[pdv.cartItems.length - 1];
-            if (targetItem) { setEditingQtyItemId(targetItem.id); setEditingQtyValue(String(targetItem.quantity)); }
+            if (targetItem) {
+              setSelectedCartItemId(targetItem.id);
+              setEditingQtyItemId(targetItem.id);
+              setEditingQtyValue(String(targetItem.quantity));
+            }
+          } else {
+            toast.info("Adicione um produto antes de alterar a quantidade", { duration: 1500 });
           }
           break;
         case "F10": e.preventDefault(); setShowPriceLookup(true); setPriceLookupQuery(""); break;
@@ -1409,7 +1415,7 @@ export default function PDV() {
             {[
               { key: "F7", label: "Desc.Item", color: "bg-sidebar-background hover:bg-sidebar-accent text-sidebar-foreground border border-sidebar-border", action: () => { if (selectedCartItemId) { setEditingItemDiscountId(selectedCartItemId); } else if (pdv.cartItems.length > 0) { const firstId = pdv.cartItems[0].id; setSelectedCartItemId(firstId); setEditingItemDiscountId(firstId); } } },
               { key: "F8", label: "Desc.Total", color: "bg-sidebar-background hover:bg-sidebar-accent text-sidebar-foreground border border-sidebar-border", action: () => setEditingGlobalDiscount(true) },
-              { key: "F9", label: "Qtd", color: "bg-sidebar-background hover:bg-sidebar-accent text-sidebar-foreground border border-sidebar-border", action: () => { if (selectedCartItemId) { setEditingQtyItemId(selectedCartItemId); setEditingQtyValue(String(pdv.cartItems.find(i => i.id === selectedCartItemId)?.quantity || 1)); } else if (pdv.cartItems.length > 0) { const firstId = pdv.cartItems[0].id; setSelectedCartItemId(firstId); setEditingQtyItemId(firstId); setEditingQtyValue(String(pdv.cartItems.find(i => i.id === firstId)?.quantity || 1)); } } },
+              { key: "F9", label: "Qtd", color: "bg-sidebar-background hover:bg-sidebar-accent text-sidebar-foreground border border-sidebar-border", action: () => { if (selectedCartItemId) { setEditingQtyItemId(selectedCartItemId); setEditingQtyValue(String(pdv.cartItems.find(i => i.id === selectedCartItemId)?.quantity || 1)); } else if (pdv.cartItems.length > 0) { const firstId = pdv.cartItems[0].id; setSelectedCartItemId(firstId); setEditingQtyItemId(firstId); setEditingQtyValue(String(pdv.cartItems.find(i => i.id === firstId)?.quantity || 1)); } else { toast.info("Adicione um produto antes de alterar a quantidade", { duration: 1500 }); } } },
               { key: "DEL", label: "Remover", color: "bg-destructive/80 hover:bg-destructive text-white border border-destructive/50", action: () => { if (selectedCartItemId) { pdv.removeItem(selectedCartItemId); setSelectedCartItemId(null); } } },
             ].map(({ key, label, color, action }) => (
               <button key={key} onClick={action} className={`flex items-center gap-1 font-bold text-xs cursor-pointer rounded-lg px-1.5 py-1 transition-all hover:scale-[1.03] active:scale-95 ${color}`}>
