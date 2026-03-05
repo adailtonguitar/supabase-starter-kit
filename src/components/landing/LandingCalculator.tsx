@@ -37,7 +37,7 @@ export function LandingCalculator() {
               Quanto você perde sem controle?
             </h2>
             <p className="mt-4 text-muted-foreground max-w-2xl mx-auto text-lg">
-              Supermercados sem sistema perdem de 3% a 8% do faturamento com vencimentos, furtos e erros. Descubra quanto você pode economizar.
+              Comércios sem sistema perdem de 3% a 8% do faturamento com vencimentos, furtos e erros. Descubra quanto você pode economizar.
             </p>
           </motion.div>
         </div>

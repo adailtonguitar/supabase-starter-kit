@@ -61,7 +61,7 @@ export function LandingAI() {
               IA que trabalha para você
             </h2>
             <p className="mt-4 text-muted-foreground max-w-2xl mx-auto text-lg">
-              Enquanto você cuida do seu supermercado, nossa IA analisa seus dados e entrega insights prontos para decisão.
+              Enquanto você cuida do seu negócio, nossa IA analisa seus dados e entrega insights prontos para decisão.
             </p>
           </motion.div>
         </div>
