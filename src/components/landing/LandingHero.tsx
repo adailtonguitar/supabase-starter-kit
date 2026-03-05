@@ -112,7 +112,7 @@ export function LandingHero() {
                 src={supermarketScene}
                 alt="Comércio moderno com sistema AnthoSystem"
                 className="w-full h-auto"
-                loading="lazy"
+                loading="eager"
               />
             </div>
 
