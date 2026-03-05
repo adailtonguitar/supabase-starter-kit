@@ -1,9 +1,19 @@
+import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
+import { format, startOfMonth, endOfMonth, startOfDay, endOfDay } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useCompany } from "@/hooks/useCompany";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import {
   BarChart3, Brain, LineChart, TrendingUp, PieChart, FileSpreadsheet,
   GitGraph, Percent, Scale, Bell, Stethoscope, Wallet, ClipboardList,
-  Scan, BarChart, AlertTriangle, ShoppingCart, Package,
+  Scan, BarChart, AlertTriangle, ShoppingCart, Package, Printer, CalendarIcon,
 } from "lucide-react";
 
 type ReportCard = { icon: any; label: string; desc: string; path: string };
@@ -54,12 +64,316 @@ const categories: { title: string; color: string; cards: ReportCard[] }[] = [
 ];
 
 export default function Relatorios() {
+  const { companyId } = useCompany();
+  const now = new Date();
+  const [dateFrom, setDateFrom] = useState<Date>(startOfMonth(now));
+  const [dateTo, setDateTo] = useState<Date>(now);
+
+  // ── Sales data for the period ──
+  const { data: salesData } = useQuery({
+    queryKey: ["report-sales-general", companyId, dateFrom, dateTo],
+    enabled: !!companyId,
+    queryFn: async () => {
+      const from = startOfDay(dateFrom).toISOString();
+      const to = endOfDay(dateTo).toISOString();
+
+      const { data: sales } = await supabase
+        .from("sales")
+        .select("id, total, payment_method, status, created_at")
+        .eq("company_id", companyId!)
+        .gte("created_at", from)
+        .lte("created_at", to)
+        .neq("status", "cancelled");
+
+      const { data: items } = await supabase
+        .from("sale_items")
+        .select("quantity, unit_price, cost_price, sale_id")
+        .in("sale_id", (sales || []).map(s => s.id));
+
+      return { sales: sales || [], items: items || [] };
+    },
+  });
+
+  // ── Stock data (current snapshot) ──
+  const { data: stockData } = useQuery({
+    queryKey: ["report-stock-general", companyId],
+    enabled: !!companyId,
+    queryFn: async () => {
+      const { data: products } = await supabase
+        .from("products")
+        .select("id, name, stock_quantity, min_stock, cost_price, sale_price, category")
+        .eq("company_id", companyId!)
+        .eq("active", true);
+
+      return products || [];
+    },
+  });
+
+  // ── Computed sales summary ──
+  const salesSummary = useMemo(() => {
+    if (!salesData) return null;
+    const { sales, items } = salesData;
+    const totalSales = sales.length;
+    const totalRevenue = sales.reduce((s, v) => s + (v.total || 0), 0);
+    const totalCost = items.reduce((s, i) => s + (i.cost_price || 0) * (i.quantity || 0), 0);
+    const totalProfit = totalRevenue - totalCost;
+    const margin = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
+    const avgTicket = totalSales > 0 ? totalRevenue / totalSales : 0;
+
+    // By payment method
+    const byMethod: Record<string, { count: number; total: number }> = {};
+    sales.forEach(s => {
+      const m = s.payment_method || "Outros";
+      if (!byMethod[m]) byMethod[m] = { count: 0, total: 0 };
+      byMethod[m].count++;
+      byMethod[m].total += s.total || 0;
+    });
+
+    // Top products
+    const prodTotals: Record<string, { qty: number; revenue: number }> = {};
+    items.forEach(i => {
+      const key = i.sale_id; // We'd need product name, but we have sale_id
+      // Aggregate by quantity
+    });
+
+    return { totalSales, totalRevenue, totalCost, totalProfit, margin, avgTicket, byMethod };
+  }, [salesData]);
+
+  // ── Computed stock summary ──
+  const stockSummary = useMemo(() => {
+    if (!stockData) return null;
+    const totalProducts = stockData.length;
+    const totalItems = stockData.reduce((s, p) => s + (p.stock_quantity || 0), 0);
+    const totalStockValue = stockData.reduce((s, p) => s + (p.cost_price || 0) * (p.stock_quantity || 0), 0);
+    const totalSaleValue = stockData.reduce((s, p) => s + (p.sale_price || 0) * (p.stock_quantity || 0), 0);
+    const lowStock = stockData.filter(p => p.min_stock && p.stock_quantity <= p.min_stock);
+    const zeroStock = stockData.filter(p => (p.stock_quantity || 0) <= 0);
+
+    // By category
+    const byCategory: Record<string, { count: number; qty: number; value: number }> = {};
+    stockData.forEach(p => {
+      const cat = p.category || "Sem categoria";
+      if (!byCategory[cat]) byCategory[cat] = { count: 0, qty: 0, value: 0 };
+      byCategory[cat].count++;
+      byCategory[cat].qty += p.stock_quantity || 0;
+      byCategory[cat].value += (p.cost_price || 0) * (p.stock_quantity || 0);
+    });
+
+    return { totalProducts, totalItems, totalStockValue, totalSaleValue, lowStock, zeroStock, byCategory };
+  }, [stockData]);
+
+  const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+  // ── Print Sales Report ──
+  const handlePrintSales = () => {
+    if (!salesSummary) return;
+    const period = `${format(dateFrom, "dd/MM/yyyy")} a ${format(dateTo, "dd/MM/yyyy")}`;
+    const methodRows = Object.entries(salesSummary.byMethod)
+      .sort((a, b) => b[1].total - a[1].total)
+      .map(([m, d]) => `<tr><td>${m}</td><td style="text-align:center">${d.count}</td><td style="text-align:right">${fmt(d.total)}</td></tr>`)
+      .join("");
+
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Relatório Geral de Vendas</title>
+      <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family: Arial, sans-serif; padding: 24px; font-size: 13px; color: #222; }
+        h1 { font-size: 18px; margin-bottom: 4px; }
+        .period { color: #666; margin-bottom: 16px; font-size: 12px; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+        .card { border: 1px solid #ddd; border-radius: 8px; padding: 12px; }
+        .card-label { font-size: 11px; color: #888; text-transform: uppercase; }
+        .card-value { font-size: 20px; font-weight: bold; margin-top: 2px; }
+        .card-sub { font-size: 11px; color: #888; margin-top: 2px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+        th, td { padding: 6px 8px; border-bottom: 1px solid #eee; text-align: left; font-size: 12px; }
+        th { background: #f5f5f5; font-weight: 600; }
+        .footer { margin-top: 24px; text-align: center; font-size: 10px; color: #aaa; }
+        @media print { body { padding: 12px; } }
+      </style></head><body>
+      <h1>📊 Relatório Geral de Vendas</h1>
+      <p class="period">Período: ${period}</p>
+      <div class="grid">
+        <div class="card">
+          <div class="card-label">Total de Vendas</div>
+          <div class="card-value">${salesSummary.totalSales}</div>
+          <div class="card-sub">Ticket médio: ${fmt(salesSummary.avgTicket)}</div>
+        </div>
+        <div class="card">
+          <div class="card-label">Faturamento</div>
+          <div class="card-value">${fmt(salesSummary.totalRevenue)}</div>
+          <div class="card-sub">Custo: ${fmt(salesSummary.totalCost)}</div>
+        </div>
+        <div class="card">
+          <div class="card-label">Lucro Bruto</div>
+          <div class="card-value" style="color: ${salesSummary.totalProfit >= 0 ? '#16a34a' : '#dc2626'}">${fmt(salesSummary.totalProfit)}</div>
+          <div class="card-sub">Margem: ${salesSummary.margin.toFixed(1)}%</div>
+        </div>
+      </div>
+      <h3 style="margin-bottom:4px">Vendas por Forma de Pagamento</h3>
+      <table>
+        <thead><tr><th>Forma</th><th style="text-align:center">Qtd</th><th style="text-align:right">Total</th></tr></thead>
+        <tbody>${methodRows}</tbody>
+      </table>
+      <div class="footer">Gerado em ${format(new Date(), "dd/MM/yyyy HH:mm")} — AnthoSystem</div>
+    </body></html>`;
+
+    const w = window.open("", "_blank", "width=800,height=600");
+    if (w) { w.document.write(html); w.document.close(); w.print(); }
+  };
+
+  // ── Print Stock Report ──
+  const handlePrintStock = () => {
+    if (!stockSummary || !stockData) return;
+
+    const catRows = Object.entries(stockSummary.byCategory)
+      .sort((a, b) => b[1].value - a[1].value)
+      .map(([cat, d]) => `<tr><td>${cat}</td><td style="text-align:center">${d.count}</td><td style="text-align:center">${d.qty}</td><td style="text-align:right">${fmt(d.value)}</td></tr>`)
+      .join("");
+
+    const lowRows = stockSummary.lowStock.slice(0, 30)
+      .map(p => `<tr><td>${p.name}</td><td style="text-align:center">${p.stock_quantity}</td><td style="text-align:center">${p.min_stock}</td><td style="text-align:right">${fmt(p.cost_price || 0)}</td></tr>`)
+      .join("");
+
+    const zeroRows = stockSummary.zeroStock.slice(0, 20)
+      .map(p => `<tr><td>${p.name}</td><td style="text-align:right">${fmt(p.sale_price || 0)}</td></tr>`)
+      .join("");
+
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Relatório Geral de Estoque</title>
+      <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family: Arial, sans-serif; padding: 24px; font-size: 13px; color: #222; }
+        h1 { font-size: 18px; margin-bottom: 4px; }
+        .date { color: #666; margin-bottom: 16px; font-size: 12px; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+        .card { border: 1px solid #ddd; border-radius: 8px; padding: 12px; }
+        .card-label { font-size: 11px; color: #888; text-transform: uppercase; }
+        .card-value { font-size: 20px; font-weight: bold; margin-top: 2px; }
+        .card-sub { font-size: 11px; color: #888; margin-top: 2px; }
+        h3 { margin: 16px 0 4px; font-size: 14px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 4px; margin-bottom: 16px; }
+        th, td { padding: 6px 8px; border-bottom: 1px solid #eee; text-align: left; font-size: 12px; }
+        th { background: #f5f5f5; font-weight: 600; }
+        .alert { color: #dc2626; font-weight: 600; }
+        .footer { margin-top: 24px; text-align: center; font-size: 10px; color: #aaa; }
+        @media print { body { padding: 12px; } }
+      </style></head><body>
+      <h1>📦 Relatório Geral de Estoque</h1>
+      <p class="date">Posição em ${format(new Date(), "dd/MM/yyyy HH:mm")}</p>
+      <div class="grid">
+        <div class="card">
+          <div class="card-label">Produtos Ativos</div>
+          <div class="card-value">${stockSummary.totalProducts}</div>
+        </div>
+        <div class="card">
+          <div class="card-label">Itens em Estoque</div>
+          <div class="card-value">${stockSummary.totalItems.toLocaleString("pt-BR")}</div>
+        </div>
+        <div class="card">
+          <div class="card-label">Valor em Estoque (Custo)</div>
+          <div class="card-value">${fmt(stockSummary.totalStockValue)}</div>
+        </div>
+        <div class="card">
+          <div class="card-label">Valor em Estoque (Venda)</div>
+          <div class="card-value">${fmt(stockSummary.totalSaleValue)}</div>
+          <div class="card-sub">Margem potencial: ${fmt(stockSummary.totalSaleValue - stockSummary.totalStockValue)}</div>
+        </div>
+      </div>
+      <h3>Estoque por Categoria</h3>
+      <table>
+        <thead><tr><th>Categoria</th><th style="text-align:center">Produtos</th><th style="text-align:center">Itens</th><th style="text-align:right">Valor (Custo)</th></tr></thead>
+        <tbody>${catRows}</tbody>
+      </table>
+      ${lowRows ? `<h3 class="alert">⚠ Produtos Abaixo do Estoque Mínimo (${stockSummary.lowStock.length})</h3>
+      <table>
+        <thead><tr><th>Produto</th><th style="text-align:center">Atual</th><th style="text-align:center">Mínimo</th><th style="text-align:right">Custo Unit.</th></tr></thead>
+        <tbody>${lowRows}</tbody>
+      </table>` : ""}
+      ${zeroRows ? `<h3 class="alert">🚫 Produtos com Estoque Zero (${stockSummary.zeroStock.length})</h3>
+      <table>
+        <thead><tr><th>Produto</th><th style="text-align:right">Preço Venda</th></tr></thead>
+        <tbody>${zeroRows}</tbody>
+      </table>` : ""}
+      <div class="footer">Gerado em ${format(new Date(), "dd/MM/yyyy HH:mm")} — AnthoSystem</div>
+    </body></html>`;
+
+    const w = window.open("", "_blank", "width=800,height=600");
+    if (w) { w.document.write(html); w.document.close(); w.print(); }
+  };
+
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Relatórios</h1>
-        <p className="text-muted-foreground mt-1">Todos os relatórios do sistema organizados por categoria.</p>
+      <div className="flex flex-col sm:flex-row sm:items-end gap-4">
+        <div className="flex-1">
+          <h1 className="text-2xl font-bold tracking-tight">Relatórios</h1>
+          <p className="text-muted-foreground mt-1">Todos os relatórios do sistema organizados por categoria.</p>
+        </div>
+
+        {/* Period filter */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className={cn("justify-start text-left font-normal", !dateFrom && "text-muted-foreground")}>
+                <CalendarIcon className="w-4 h-4 mr-2" />
+                {format(dateFrom, "dd/MM/yyyy")}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar mode="single" selected={dateFrom} onSelect={(d) => d && setDateFrom(d)} initialFocus className="p-3 pointer-events-auto" />
+            </PopoverContent>
+          </Popover>
+          <span className="text-muted-foreground text-sm">até</span>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className={cn("justify-start text-left font-normal", !dateTo && "text-muted-foreground")}>
+                <CalendarIcon className="w-4 h-4 mr-2" />
+                {format(dateTo, "dd/MM/yyyy")}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar mode="single" selected={dateTo} onSelect={(d) => d && setDateTo(d)} initialFocus className="p-3 pointer-events-auto" />
+            </PopoverContent>
+          </Popover>
+        </div>
       </div>
+
+      {/* Print buttons */}
+      <div className="flex flex-wrap gap-3">
+        <Button onClick={handlePrintSales} disabled={!salesSummary} variant="outline" className="gap-2">
+          <Printer className="w-4 h-4" />
+          Imprimir Relatório de Vendas
+        </Button>
+        <Button onClick={handlePrintStock} disabled={!stockSummary} variant="outline" className="gap-2">
+          <Printer className="w-4 h-4" />
+          Imprimir Relatório de Estoque
+        </Button>
+      </div>
+
+      {/* Quick summary cards */}
+      {salesSummary && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="rounded-xl border border-border bg-card p-4">
+            <p className="text-xs text-muted-foreground uppercase">Vendas no Período</p>
+            <p className="text-xl font-bold mt-1">{salesSummary.totalSales}</p>
+          </div>
+          <div className="rounded-xl border border-border bg-card p-4">
+            <p className="text-xs text-muted-foreground uppercase">Faturamento</p>
+            <p className="text-xl font-bold mt-1">{fmt(salesSummary.totalRevenue)}</p>
+          </div>
+          <div className="rounded-xl border border-border bg-card p-4">
+            <p className="text-xs text-muted-foreground uppercase">Lucro Bruto</p>
+            <p className={cn("text-xl font-bold mt-1", salesSummary.totalProfit >= 0 ? "text-emerald-600" : "text-destructive")}>
+              {fmt(salesSummary.totalProfit)}
+            </p>
+          </div>
+          <div className="rounded-xl border border-border bg-card p-4">
+            <p className="text-xs text-muted-foreground uppercase">Produtos em Estoque</p>
+            <p className="text-xl font-bold mt-1">{stockSummary?.totalProducts || "—"}</p>
+            {stockSummary && stockSummary.lowStock.length > 0 && (
+              <p className="text-xs text-destructive mt-1">{stockSummary.lowStock.length} abaixo do mínimo</p>
+            )}
+          </div>
+        </div>
+      )}
 
       {categories.map((cat, ci) => (
         <motion.div
