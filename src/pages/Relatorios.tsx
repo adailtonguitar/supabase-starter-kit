@@ -101,9 +101,9 @@ export default function Relatorios() {
     queryFn: async () => {
       const { data: products } = await supabase
         .from("products")
-        .select("id, name, stock_quantity, min_stock, cost_price, sale_price, category")
+        .select("id, name, stock_quantity, min_stock, cost_price, price, category")
         .eq("company_id", companyId!)
-        .eq("active", true);
+        .eq("is_active", true);
 
       return products || [];
     },
@@ -154,7 +154,7 @@ export default function Relatorios() {
     const totalProducts = stockData.length;
     const totalItems = stockData.reduce((s, p) => s + (p.stock_quantity || 0), 0);
     const totalStockValue = stockData.reduce((s, p) => s + (p.cost_price || 0) * (p.stock_quantity || 0), 0);
-    const totalSaleValue = stockData.reduce((s, p) => s + (p.sale_price || 0) * (p.stock_quantity || 0), 0);
+    const totalSaleValue = stockData.reduce((s, p) => s + (p.price || 0) * (p.stock_quantity || 0), 0);
     const lowStock = stockData.filter(p => p.min_stock && p.stock_quantity <= p.min_stock);
     const zeroStock = stockData.filter(p => (p.stock_quantity || 0) <= 0);
 
@@ -249,7 +249,7 @@ export default function Relatorios() {
       .join("");
 
     const zeroRows = stockSummary.zeroStock.slice(0, 20)
-      .map(p => `<tr><td>${p.name}</td><td style="text-align:right">${fmt(p.sale_price || 0)}</td></tr>`)
+      .map(p => `<tr><td>${p.name}</td><td style="text-align:right">${fmt(p.price || 0)}</td></tr>`)
       .join("");
 
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Relatório Geral de Estoque</title>
