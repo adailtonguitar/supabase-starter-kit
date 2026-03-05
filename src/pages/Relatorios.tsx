@@ -87,7 +87,7 @@ export default function Relatorios() {
 
       const { data: items } = await supabase
         .from("sale_items")
-        .select("quantity, unit_price, cost_price, sale_id")
+        .select("product_id, product_name, quantity, unit_price, cost_price, sale_id")
         .in("sale_id", (sales || []).map(s => s.id));
 
       return { sales: sales || [], items: items || [] };
@@ -129,14 +129,23 @@ export default function Relatorios() {
       byMethod[m].total += s.total || 0;
     });
 
-    // Top products
-    const prodTotals: Record<string, { qty: number; revenue: number }> = {};
+    // By product
+    const byProduct: Record<string, { name: string; qty: number; revenue: number; cost: number; profit: number; margin: number }> = {};
     items.forEach(i => {
-      const key = i.sale_id; // We'd need product name, but we have sale_id
-      // Aggregate by quantity
+      const key = i.product_id || "unknown";
+      if (!byProduct[key]) byProduct[key] = { name: i.product_name || "Produto", qty: 0, revenue: 0, cost: 0, profit: 0, margin: 0 };
+      const rev = (i.unit_price || 0) * (i.quantity || 0);
+      const cost = (i.cost_price || 0) * (i.quantity || 0);
+      byProduct[key].qty += i.quantity || 0;
+      byProduct[key].revenue += rev;
+      byProduct[key].cost += cost;
+      byProduct[key].profit += rev - cost;
     });
+    const productList = Object.values(byProduct)
+      .map(p => ({ ...p, margin: p.revenue > 0 ? (p.profit / p.revenue) * 100 : 0 }))
+      .sort((a, b) => b.profit - a.profit);
 
-    return { totalSales, totalRevenue, totalCost, totalProfit, margin, avgTicket, byMethod };
+    return { totalSales, totalRevenue, totalCost, totalProfit, margin, avgTicket, byMethod, productList };
   }, [salesData]);
 
   // ── Computed stock summary ──
@@ -213,6 +222,11 @@ export default function Relatorios() {
       <table>
         <thead><tr><th>Forma</th><th style="text-align:center">Qtd</th><th style="text-align:right">Total</th></tr></thead>
         <tbody>${methodRows}</tbody>
+      </table>
+      <h3 style="margin:16px 0 4px">Lucro por Produto</h3>
+      <table>
+        <thead><tr><th>Produto</th><th style="text-align:center">Qtd</th><th style="text-align:right">Receita</th><th style="text-align:right">Custo</th><th style="text-align:right">Lucro</th><th style="text-align:right">Margem</th></tr></thead>
+        <tbody>${salesSummary.productList.map(p => `<tr><td>${p.name}</td><td style="text-align:center">${p.qty}</td><td style="text-align:right">${fmt(p.revenue)}</td><td style="text-align:right">${fmt(p.cost)}</td><td style="text-align:right">${fmt(p.profit)}</td><td style="text-align:right">${p.margin.toFixed(1)}%</td></tr>`).join("")}</tbody>
       </table>
       <div class="footer">Gerado em ${format(new Date(), "dd/MM/yyyy HH:mm")} — AnthoSystem</div>
     </body></html>`;
