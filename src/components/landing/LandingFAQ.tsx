@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { HelpCircle } from "lucide-react";
 import {
   Accordion,
   AccordionContent,
@@ -43,14 +44,22 @@ const faqs = [
 
 export function LandingFAQ() {
   return (
-    <section id="faq" className="py-24 bg-card/40">
-      <div className="max-w-3xl mx-auto px-6">
+    <section id="faq" className="py-24 relative overflow-hidden">
+      {/* Subtle background glow */}
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] rounded-full bg-primary/5 blur-[120px]" />
+      </div>
+
+      <div className="relative max-w-3xl mx-auto px-6">
         <div className="text-center mb-16">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
           >
+            <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
+              <HelpCircle className="w-7 h-7 text-primary" />
+            </div>
             <span className="text-primary text-sm font-semibold uppercase tracking-wider">FAQ</span>
             <h2 className="mt-3 font-display text-3xl sm:text-4xl font-extrabold tracking-tight">
               Perguntas frequentes
@@ -68,18 +77,30 @@ export function LandingFAQ() {
         >
           <Accordion type="single" collapsible className="space-y-3">
             {faqs.map((faq, i) => (
-              <AccordionItem
+              <motion.div
                 key={i}
-                value={`faq-${i}`}
-                className="rounded-xl border border-border bg-card px-6 data-[state=open]:border-primary/30 data-[state=open]:shadow-md transition-all"
+                initial={{ opacity: 0, y: 12 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.05 }}
               >
-                <AccordionTrigger className="text-left font-semibold text-sm sm:text-base hover:no-underline py-5">
-                  {faq.q}
-                </AccordionTrigger>
-                <AccordionContent className="text-sm text-muted-foreground leading-relaxed pb-5">
-                  {faq.a}
-                </AccordionContent>
-              </AccordionItem>
+                <AccordionItem
+                  value={`faq-${i}`}
+                  className="rounded-2xl border border-border bg-card/80 backdrop-blur-sm px-6 hover:border-primary/20 data-[state=open]:border-primary/30 data-[state=open]:shadow-lg data-[state=open]:shadow-primary/5 data-[state=open]:bg-card transition-all"
+                >
+                  <AccordionTrigger className="text-left font-display font-bold text-sm sm:text-base hover:no-underline py-5 gap-3">
+                    <span className="flex items-center gap-3">
+                      <span className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0 text-xs font-bold text-primary">
+                        {String(i + 1).padStart(2, "0")}
+                      </span>
+                      {faq.q}
+                    </span>
+                  </AccordionTrigger>
+                  <AccordionContent className="text-sm text-muted-foreground leading-relaxed pb-5 pl-10">
+                    {faq.a}
+                  </AccordionContent>
+                </AccordionItem>
+              </motion.div>
             ))}
           </Accordion>
         </motion.div>
