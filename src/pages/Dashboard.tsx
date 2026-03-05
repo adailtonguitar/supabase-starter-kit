@@ -4,6 +4,7 @@ import {
   Activity, Zap, RefreshCw,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
+import { useCountUp } from "@/hooks/useCountUp";
 import { motion } from "framer-motion";
 import { useDashboardStats } from "@/hooks/useDashboardStats";
 import { Link, Navigate } from "react-router-dom";
@@ -53,6 +54,13 @@ function getPaymentIcon(method?: string) {
   return paymentIcons[key] || "💰";
 }
 
+function CountUpValue({ value, isCurrency }: { value: number; isCurrency: boolean }) {
+  const animated = useCountUp(value, 900, isCurrency ? 2 : 1);
+  if (isCurrency) return <>{formatCurrency(animated)}</>;
+  const sign = value >= 0 ? "+" : "";
+  return <>{sign}{animated.toFixed(1)}%</>;
+}
+
 export default function Dashboard() {
   const { data: stats, isLoading, dataUpdatedAt, refetch } = useDashboardStats();
   const { user } = useAuth();
@@ -78,17 +86,19 @@ export default function Dashboard() {
   };
 
   const kpis = stats ? [
-    { title: "Vendas Hoje", value: formatCurrency(stats.salesToday), sub: `${stats.salesCountToday} vendas`, icon: DollarSign, accent: "text-primary", bgAccent: "bg-primary/10", ringAccent: "ring-primary/20" },
-    { title: "Ticket Médio", value: formatCurrency(stats.ticketMedio), sub: "por venda", icon: ShoppingBag, accent: "text-primary", bgAccent: "bg-primary/10", ringAccent: "ring-primary/20" },
-    { title: "Receita do Mês", value: formatCurrency(stats.monthRevenue), sub: `Lucro: ${formatCurrency(stats.monthProfit)}`, icon: TrendingUp, accent: "text-success", bgAccent: "bg-success/10", ringAccent: "ring-success/20" },
+    { title: "Vendas Hoje", rawValue: stats.salesToday, value: formatCurrency(stats.salesToday), sub: `${stats.salesCountToday} vendas`, icon: DollarSign, accent: "text-primary", bgAccent: "bg-primary/10", ringAccent: "ring-primary/20", isCurrency: true },
+    { title: "Ticket Médio", rawValue: stats.ticketMedio, value: formatCurrency(stats.ticketMedio), sub: "por venda", icon: ShoppingBag, accent: "text-primary", bgAccent: "bg-primary/10", ringAccent: "ring-primary/20", isCurrency: true },
+    { title: "Receita do Mês", rawValue: stats.monthRevenue, value: formatCurrency(stats.monthRevenue), sub: `Lucro: ${formatCurrency(stats.monthProfit)}`, icon: TrendingUp, accent: "text-success", bgAccent: "bg-success/10", ringAccent: "ring-success/20", isCurrency: true },
     {
       title: "Crescimento",
+      rawValue: stats.salesGrowth,
       value: `${stats.salesGrowth >= 0 ? "+" : ""}${stats.salesGrowth.toFixed(1)}%`,
       sub: "vs semana anterior",
       icon: stats.salesGrowth >= 0 ? ArrowUpRight : ArrowDownRight,
       accent: stats.salesGrowth >= 0 ? "text-success" : "text-destructive",
       bgAccent: stats.salesGrowth >= 0 ? "bg-success/10" : "bg-destructive/10",
       ringAccent: stats.salesGrowth >= 0 ? "ring-success/20" : "ring-destructive/20",
+      isCurrency: false,
     },
   ] : [];
 
@@ -216,7 +226,7 @@ export default function Dashboard() {
                     transition={{ delay: 0.15 * i + 0.3, duration: 0.4 }}
                     className="text-xl sm:text-2xl font-extrabold font-mono text-foreground tracking-tight"
                   >
-                    {kpi.value}
+                    <CountUpValue value={kpi.rawValue} isCurrency={kpi.isCurrency} />
                   </motion.p>
                   <p className="text-[10px] sm:text-[11px] text-muted-foreground mt-1.5 font-medium">{kpi.sub}</p>
                 </div>

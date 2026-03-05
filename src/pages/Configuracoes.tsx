@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Download, Upload, Clock, HardDrive, Percent, Save, Loader2, Crown, Check, ArrowRight, MessageCircle, Pencil, Calculator, Send, Mail, Lock, Eye, EyeOff } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { TEFConfigSection } from "@/components/settings/TEFConfigSection";
 import { ScaleConfigSection } from "@/components/settings/ScaleConfigSection";
 import { motion } from "framer-motion";
@@ -55,7 +56,7 @@ function WhatsAppSupportSection() {
   const isReadOnly = hasSaved && !editing;
 
   return (
-    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className="bg-card rounded-xl card-shadow border border-border overflow-hidden">
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className="bg-card rounded-2xl card-shadow border border-border overflow-hidden">
       <div className="px-5 py-4 border-b border-border flex items-center gap-2">
         <MessageCircle className="w-4 h-4 text-primary" />
         <h2 className="text-base font-semibold text-foreground">WhatsApp de Suporte</h2>
@@ -72,21 +73,18 @@ function WhatsAppSupportSection() {
               className="w-full px-4 py-2.5 rounded-xl bg-background border border-border text-foreground placeholder:text-muted-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all disabled:opacity-60 disabled:cursor-not-allowed" />
             <div className="flex gap-3">
               {isReadOnly ? (
-                <button onClick={() => setEditing(true)}
-                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-secondary text-secondary-foreground text-sm font-medium hover:opacity-90 transition-all">
-                  <Pencil className="w-4 h-4" /> Editar
-                </button>
+                <Button variant="secondary" size="sm" onClick={() => setEditing(true)}>
+                  <Pencil className="w-4 h-4 mr-2" /> Editar
+                </Button>
               ) : (
                 <>
-                  <button onClick={handleSave} disabled={saving}
-                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-all disabled:opacity-50">
-                    {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Salvar
-                  </button>
+                  <Button size="sm" onClick={handleSave} disabled={saving}>
+                    {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />} Salvar
+                  </Button>
                   {hasSaved && (
-                    <button onClick={() => { setNumber(savedNumber); setEditing(false); }}
-                      className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-muted text-muted-foreground text-sm font-medium hover:opacity-90 transition-all">
+                    <Button variant="ghost" size="sm" onClick={() => { setNumber(savedNumber); setEditing(false); }}>
                       Cancelar
-                    </button>
+                    </Button>
                   )}
                 </>
               )}
@@ -175,7 +173,7 @@ function DiscountLimitsSection() {
   if (role !== "admin") return null;
 
   return (
-    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="bg-card rounded-xl card-shadow border border-border overflow-hidden">
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="bg-card rounded-2xl card-shadow border border-border overflow-hidden">
       <div className="px-5 py-4 border-b border-border flex items-center gap-2">
         <Percent className="w-4 h-4 text-primary" />
         <h2 className="text-base font-semibold text-foreground">Limites de Desconto por Cargo</h2>
@@ -204,10 +202,9 @@ function DiscountLimitsSection() {
           </div>
         )}
         {Object.keys(edited).length > 0 && (
-          <button onClick={handleSave} disabled={saving}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-all disabled:opacity-50">
-            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Salvar Alterações
-          </button>
+          <Button size="sm" onClick={handleSave} disabled={saving}>
+            {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />} Salvar Alterações
+          </Button>
         )}
       </div>
     </motion.div>
@@ -243,7 +240,7 @@ function MyPlanSection() {
   };
 
   return (
-    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-card rounded-xl card-shadow border border-border overflow-hidden">
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-card rounded-2xl card-shadow border border-border overflow-hidden">
       <div className="px-5 py-4 border-b border-border flex items-center gap-2">
         <Crown className="w-4 h-4 text-primary" />
         <h2 className="text-base font-semibold text-foreground">Meu Plano</h2>
@@ -270,10 +267,9 @@ function MyPlanSection() {
               ))}
             </ul>
             {isEssencial && (
-              <button onClick={handleUpgrade} disabled={upgrading}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-all disabled:opacity-50">
-                <ArrowRight className="w-4 h-4" /> {upgrading ? "Redirecionando..." : "Fazer upgrade para Profissional"}
-              </button>
+              <Button size="sm" onClick={handleUpgrade} disabled={upgrading}>
+                <ArrowRight className="w-4 h-4 mr-2" /> {upgrading ? "Redirecionando..." : "Fazer upgrade para Profissional"}
+              </Button>
             )}
           </>
         ) : trialActive ? (
@@ -286,23 +282,20 @@ function MyPlanSection() {
             </div>
             <p className="text-sm text-muted-foreground">Assine um plano para continuar usando o sistema após o período de teste.</p>
             <div className="flex gap-3 flex-wrap">
-              <button onClick={() => createCheckout("essencial").catch(() => toast.error("Erro ao iniciar checkout"))}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-secondary text-secondary-foreground text-sm font-medium hover:opacity-90 transition-all">
+              <Button variant="secondary" size="sm" onClick={() => createCheckout("essencial").catch(() => toast.error("Erro ao iniciar checkout"))}>
                 Essencial — R$ 149,90/mês
-              </button>
-              <button onClick={() => createCheckout("profissional").catch(() => toast.error("Erro ao iniciar checkout"))}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-all">
+              </Button>
+              <Button size="sm" onClick={() => createCheckout("profissional").catch(() => toast.error("Erro ao iniciar checkout"))}>
                 Profissional — R$ 199,90/mês
-              </button>
+              </Button>
             </div>
           </>
         ) : (
           <>
             <p className="text-sm text-muted-foreground">Você não possui uma assinatura ativa.</p>
-            <button onClick={() => createCheckout("profissional").catch(() => toast.error("Erro ao iniciar checkout"))}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-all">
+            <Button size="sm" onClick={() => createCheckout("profissional").catch(() => toast.error("Erro ao iniciar checkout"))}>
               Assinar agora
-            </button>
+            </Button>
           </>
         )}
       </div>
@@ -389,7 +382,7 @@ function AccountantSection() {
   const isReadOnly = hasSaved && !editing;
 
   return (
-    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="bg-card rounded-xl card-shadow border border-border overflow-hidden">
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="bg-card rounded-2xl card-shadow border border-border overflow-hidden">
       <div className="px-5 py-4 border-b border-border flex items-center gap-2">
         <Calculator className="w-4 h-4 text-primary" />
         <h2 className="text-base font-semibold text-foreground">Integração com Contador</h2>
@@ -443,27 +436,23 @@ function AccountantSection() {
             <div className="flex gap-3 flex-wrap pt-2">
               {isReadOnly ? (
                 <>
-                  <button onClick={() => setEditing(true)}
-                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-secondary text-secondary-foreground text-sm font-medium hover:opacity-90 transition-all">
-                    <Pencil className="w-4 h-4" /> Editar
-                  </button>
-                  <button onClick={handleSendReport} disabled={sending}
-                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-all disabled:opacity-50">
-                    {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                  <Button variant="secondary" size="sm" onClick={() => setEditing(true)}>
+                    <Pencil className="w-4 h-4 mr-2" /> Editar
+                  </Button>
+                  <Button size="sm" onClick={handleSendReport} disabled={sending}>
+                    {sending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Send className="w-4 h-4 mr-2" />}
                     {sending ? "Enviando..." : "Enviar Relatório Agora"}
-                  </button>
+                  </Button>
                 </>
               ) : (
                 <>
-                  <button onClick={handleSave} disabled={saving || !email}
-                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-all disabled:opacity-50">
-                    {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Salvar
-                  </button>
+                  <Button size="sm" onClick={handleSave} disabled={saving || !email}>
+                    {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />} Salvar
+                  </Button>
                   {hasSaved && (
-                    <button onClick={() => setEditing(false)}
-                      className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-muted text-muted-foreground text-sm font-medium hover:opacity-90 transition-all">
+                    <Button variant="ghost" size="sm" onClick={() => setEditing(false)}>
                       Cancelar
-                    </button>
+                    </Button>
                   )}
                 </>
               )}
@@ -510,7 +499,7 @@ function ChangePasswordSection() {
   };
 
   return (
-    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.02 }} className="bg-card rounded-xl card-shadow border border-border overflow-hidden">
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.02 }} className="bg-card rounded-2xl card-shadow border border-border overflow-hidden">
       <div className="px-5 py-4 border-b border-border flex items-center gap-2">
         <Lock className="w-4 h-4 text-primary" />
         <h2 className="text-base font-semibold text-foreground">Alterar Senha</h2>
@@ -532,11 +521,10 @@ function ChangePasswordSection() {
           <input type="password" value={confirmPwd} onChange={(e) => setConfirmPwd(e.target.value)} placeholder="Repita a nova senha"
             className="w-full px-3 py-2 rounded-lg bg-background border border-border text-foreground placeholder:text-muted-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" />
         </div>
-        <button onClick={handleChange} disabled={saving || !newPwd || !confirmPwd}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-all disabled:opacity-50">
-          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Lock className="w-4 h-4" />}
+        <Button onClick={handleChange} disabled={saving || !newPwd || !confirmPwd} size="sm">
+          {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Lock className="w-4 h-4 mr-2" />}
           {saving ? "Salvando..." : "Alterar Senha"}
-        </button>
+        </Button>
       </div>
     </motion.div>
   );
@@ -606,10 +594,10 @@ export default function Configuracoes() {
 
   return (
     <div className="p-3 sm:p-6 space-y-4 sm:space-y-6 max-w-3xl mx-auto">
-      <div>
+      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
         <h1 className="text-xl sm:text-2xl font-bold text-foreground">Configurações</h1>
         <p className="text-xs sm:text-sm text-muted-foreground mt-1">Configurações gerais do sistema</p>
-      </div>
+      </motion.div>
 
       <ChangePasswordSection />
       <MyPlanSection />
@@ -619,7 +607,7 @@ export default function Configuracoes() {
       <ScaleConfigSection />
       <AccountantSection />
 
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-card rounded-xl card-shadow border border-border overflow-hidden">
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-card rounded-2xl card-shadow border border-border overflow-hidden">
         <div className="px-5 py-4 border-b border-border flex items-center gap-2">
           <HardDrive className="w-4 h-4 text-primary" />
           <h2 className="text-base font-semibold text-foreground">Backup & Exportação</h2>
@@ -627,13 +615,13 @@ export default function Configuracoes() {
         <div className="p-5 space-y-4">
           <p className="text-sm text-muted-foreground">Exporte ou restaure todos os dados da empresa em formato JSON.</p>
           <div className="flex gap-3 flex-wrap">
-            <button onClick={handleExport} disabled={exporting || importing} className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-secondary text-secondary-foreground text-sm font-medium hover:opacity-90 transition-all disabled:opacity-50">
-              <Clock className={`w-4 h-4 ${exporting ? "animate-spin" : ""}`} />
+            <Button variant="secondary" size="sm" onClick={handleExport} disabled={exporting || importing}>
+              <Clock className={`w-4 h-4 mr-2 ${exporting ? "animate-spin" : ""}`} />
               {exporting ? "Exportando..." : "Salvar Backup no Cloud"}
-            </button>
-            <button onClick={handleDownloadExport} disabled={exporting || importing} className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-all disabled:opacity-50">
-              <Download className="w-4 h-4" /> Baixar Backup (JSON)
-            </button>
+            </Button>
+            <Button size="sm" onClick={handleDownloadExport} disabled={exporting || importing}>
+              <Download className="w-4 h-4 mr-2" /> Baixar Backup (JSON)
+            </Button>
           </div>
 
           <div className="border-t border-border pt-4 mt-4">
@@ -642,11 +630,10 @@ export default function Configuracoes() {
               Faça upload de um arquivo <strong>.json</strong> exportado anteriormente pelo sistema.
             </p>
             <input ref={fileInputRef} type="file" accept=".json" onChange={handleImportBackup} className="hidden" id="backup-file-input" />
-            <button onClick={() => fileInputRef.current?.click()} disabled={importing || exporting}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-secondary text-secondary-foreground text-sm font-medium hover:opacity-90 transition-all disabled:opacity-50">
-              {importing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+            <Button variant="secondary" size="sm" onClick={() => fileInputRef.current?.click()} disabled={importing || exporting}>
+              {importing ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Upload className="w-4 h-4 mr-2" />}
               {importing ? "Importando..." : "Restaurar Backup (JSON)"}
-            </button>
+            </Button>
           </div>
         </div>
       </motion.div>

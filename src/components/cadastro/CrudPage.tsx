@@ -1,4 +1,5 @@
 import { ReactNode, useState, useEffect, useRef } from "react";
+import { motion } from "framer-motion";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { Plus, Pencil, Trash2, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -155,11 +156,11 @@ export function CrudPage({
 
   return (
     <div className="p-3 sm:p-6 space-y-4 sm:space-y-6 max-w-7xl mx-auto">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          {icon}
+          <div className="text-primary">{icon}</div>
           <h1 className="text-xl sm:text-2xl font-bold text-foreground">{title}</h1>
-          <span className="text-sm text-muted-foreground">({filteredData.length})</span>
+          <span className="text-sm text-muted-foreground bg-muted/50 px-2 py-0.5 rounded-full">({filteredData.length})</span>
         </div>
         <div className="flex items-center gap-2">
           {headerActions}
@@ -167,7 +168,7 @@ export function CrudPage({
             <Plus className="w-4 h-4 mr-1" /> Novo
           </Button>
         </div>
-      </div>
+      </motion.div>
 
       {/* Search */}
       {data.length > 0 && (
@@ -192,15 +193,19 @@ export function CrudPage({
           <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
         </div>
       ) : filteredData.length === 0 ? (
-        <div className="text-center py-20 text-muted-foreground text-sm">
-          Nenhum registro encontrado.
-        </div>
+        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="text-center py-20">
+          <div className="w-14 h-14 rounded-2xl bg-muted/50 flex items-center justify-center mx-auto mb-4">
+            <Search className="w-7 h-7 text-muted-foreground/50" />
+          </div>
+          <p className="text-sm font-medium text-foreground">Nenhum registro encontrado</p>
+          <p className="text-xs text-muted-foreground mt-1">Clique em "Novo" para cadastrar.</p>
+        </motion.div>
       ) : (
         <>
           {/* Mobile cards */}
           <div className="md:hidden space-y-2">
             {filteredData.map((item: any) => (
-              <div key={item.id} className="bg-card rounded-xl border border-border p-3 space-y-2">
+              <motion.div key={item.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: filteredData.indexOf(item) * 0.03 }} className="bg-card rounded-2xl border border-border p-3 space-y-2 hover:shadow-md transition-shadow">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 flex-1 space-y-1">
                     {tableFields.slice(0, 3).map((f) => (
@@ -225,25 +230,25 @@ export function CrudPage({
                     ))}
                   </div>
                 )}
-              </div>
+              </motion.div>
             ))}
           </div>
 
           {/* Desktop table */}
-          <div className="hidden md:block bg-card rounded-xl card-shadow border border-border overflow-hidden">
+          <div className="hidden md:block bg-card rounded-2xl card-shadow border border-border overflow-hidden">
             <div className="overflow-x-auto md:overflow-x-visible">
               <table className="w-full text-sm table-fixed">
                 <thead>
-                  <tr className="border-b border-border">
+                  <tr className="border-b border-border bg-muted/30">
                     {tableFields.map((f) => (
-                      <th key={f.key} className="text-left px-3 sm:px-5 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider truncate">{f.label}</th>
+                      <th key={f.key} className="text-left px-3 sm:px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-widest truncate">{f.label}</th>
                     ))}
-                    <th className="text-right px-3 sm:px-5 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider w-20">Ações</th>
+                    <th className="text-right px-3 sm:px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-widest w-20">Ações</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredData.map((item: any) => (
-                    <tr key={item.id} className="border-b border-border last:border-0 hover:bg-muted/50 transition-colors">
+                    <tr key={item.id} className={`border-b border-border last:border-0 hover:bg-primary/[0.03] transition-colors ${filteredData.indexOf(item) % 2 === 1 ? "bg-muted/15" : ""}`}>
                       {tableFields.map((f) => (
                         <td key={f.key} className="px-3 sm:px-5 py-3 text-foreground truncate">{item[f.key] ?? "—"}</td>
                       ))}
