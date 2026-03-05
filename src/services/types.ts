@@ -40,7 +40,7 @@ export interface PaymentResult {
   pix_tx_id?: string;
   credit_client_id?: string;
   credit_client_name?: string;
-  credit_mode?: "fiado" | "parcelado";
+  credit_mode?: "fiado" | "parcelado" | "sinal";
   credit_installments?: number;
 }
 

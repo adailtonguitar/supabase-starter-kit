@@ -584,36 +584,102 @@ export default function PDV() {
     setShowClientSelector(true);
   };
 
-  const handleCreditSaleConfirmed = async (client: CreditClient, mode: "fiado" | "parcelado", installments: number) => {
+  const handleCreditSaleConfirmed = async (client: CreditClient, mode: "fiado" | "parcelado" | "sinal", installments: number, downPaymentAmount?: number) => {
     setShowClientSelector(false);
     if (finalizingSale) return;
     try {
+      const isSignal = mode === "sinal" && downPaymentAmount && downPaymentAmount > 0;
+      const remainingAmount = isSignal ? pdv.total - downPaymentAmount : pdv.total;
+
       const paymentResults: PaymentResult[] = [{
         method: "prazo", approved: true, amount: pdv.total,
         credit_client_id: client.id, credit_client_name: client.name,
-        credit_mode: mode, credit_installments: installments,
+        credit_mode: isSignal ? "sinal" : mode, credit_installments: installments,
       }];
       const savedItems = [...pdv.cartItems];
       const savedTotal = pdv.total;
       const result = await pdv.finalizeSale(paymentResults, { skipFiscal: skipFiscalEmission });
       playSaleCompleteSound();
 
-      // ── Fix: Update sale status to 'fiado' and financial entry to 'pendente' ──
+      // ── Fix: Update sale status and financial entries ──
       if (result.saleId) {
         const currentBalance = Number(client.credit_balance || 0);
-        const newBalance = currentBalance + savedTotal;
+        // Only add the remaining (not signal) to credit balance
+        const creditAmount = isSignal ? remainingAmount : savedTotal;
+        const newBalance = currentBalance + creditAmount;
 
         // Get user id once
         const { data: { user: authUser } } = await supabase.auth.getUser();
         const userId = authUser?.id || null;
 
-        // Base updates: sale status + client balance (separate calls to avoid column issues)
         const updates: Array<PromiseLike<any>> = [
-          supabase.from("sales").update({ status: "fiado" } as any).eq("id", result.saleId),
+          supabase.from("sales").update({ status: isSignal ? "sinal" : "fiado" } as any).eq("id", result.saleId),
           supabase.from("clients").update({ credit_balance: newBalance }).eq("id", client.id),
         ];
 
-        if (mode === "parcelado" && installments > 1) {
+        if (isSignal) {
+          // Delete the auto-generated financial entry, then create signal + remaining entries
+          updates.push(
+            supabase.from("financial_entries").delete().eq("reference", result.saleId).eq("company_id", companyId)
+          );
+
+          // Entry for the signal (already paid)
+          updates.push(
+            supabase.from("financial_entries").insert({
+              company_id: companyId,
+              type: "receber",
+              description: `Sinal (entrada) - ${client.name}`,
+              reference: result.saleId,
+              counterpart: client.name,
+              amount: downPaymentAmount,
+              due_date: new Date().toISOString().split("T")[0],
+              status: "pago",
+              paid_amount: downPaymentAmount,
+              paid_date: new Date().toISOString().split("T")[0],
+              created_by: userId,
+            } as any)
+          );
+
+          // Remaining balance entries
+          if (installments > 1) {
+            // Parcelado remaining
+            const installmentAmount = Math.round((remainingAmount / installments) * 100) / 100;
+            for (let i = 0; i < installments; i++) {
+              const dueDate = new Date();
+              dueDate.setMonth(dueDate.getMonth() + i + 1);
+              updates.push(
+                supabase.from("financial_entries").insert({
+                  company_id: companyId,
+                  type: "receber",
+                  description: `Parcela ${i + 1}/${installments} (saldo) - ${client.name}`,
+                  reference: result.saleId,
+                  counterpart: client.name,
+                  amount: i === installments - 1 ? remainingAmount - installmentAmount * (installments - 1) : installmentAmount,
+                  due_date: dueDate.toISOString().split("T")[0],
+                  status: "pendente",
+                  created_by: userId,
+                } as any)
+              );
+            }
+          } else {
+            // Fiado remaining (single entry, due on delivery)
+            const dueDate = new Date();
+            dueDate.setMonth(dueDate.getMonth() + 1);
+            updates.push(
+              supabase.from("financial_entries").insert({
+                company_id: companyId,
+                type: "receber",
+                description: `Saldo (na entrega) - ${client.name}`,
+                reference: result.saleId,
+                counterpart: client.name,
+                amount: remainingAmount,
+                due_date: dueDate.toISOString().split("T")[0],
+                status: "pendente",
+                created_by: userId,
+              } as any)
+            );
+          }
+        } else if (mode === "parcelado" && installments > 1) {
           // Delete auto-generated 'pago' entry, then create installments
           updates.push(
             supabase.from("financial_entries").delete().eq("reference", result.saleId).eq("company_id", companyId)
@@ -666,13 +732,15 @@ export default function PDV() {
         clientDoc: client.cpf,
         total: savedTotal,
         items: savedItems.map(i => ({ name: i.name, quantity: i.quantity, price: i.price })),
-        mode,
+        mode: isSignal ? "sinal" : mode,
         installments,
         saleNumber,
         storeName: companyName || undefined,
         storeCnpj: undefined,
+        downPayment: isSignal ? downPaymentAmount : undefined,
       });
-      toast.success(`Venda a prazo registrada para ${client.name}`, { duration: 1500 });
+      const modeLabel = isSignal ? `com sinal de ${formatCurrency(downPaymentAmount)}` : mode === "fiado" ? "fiado" : `parcelado ${installments}x`;
+      toast.success(`Venda ${modeLabel} registrada para ${client.name}`, { duration: 1500 });
       setSelectedClient(null);
       const newNum = saleNumber + 1;
       setSaleNumber(newNum);
@@ -688,7 +756,7 @@ export default function PDV() {
       }
     } catch (err: any) {
       playErrorSound();
-      toast.error(`Erro ao finalizar venda a prazo: ${err.message}`);
+      toast.error(`Erro ao finalizar venda: ${err.message}`);
     }
   };
 
