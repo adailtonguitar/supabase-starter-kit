@@ -39,7 +39,7 @@ export function LandingHero() {
           >
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-primary/20 bg-primary/5 text-primary text-xs font-semibold uppercase tracking-wider mb-6">
               <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-              Sistema #1 para supermercados
+              Sistema #1 para comércios e varejo
             </div>
 
             <h1 className="text-4xl sm:text-5xl xl:text-6xl font-black tracking-tight leading-[1.1]">
@@ -47,7 +47,7 @@ export function LandingHero() {
               <br />
               para o seu{" "}
               <span className="relative">
-                <span className="text-primary">supermercado</span>
+                <span className="text-primary">comércio</span>
                 <svg className="absolute -bottom-1 left-0 w-full" viewBox="0 0 200 8" fill="none">
                   <path d="M2 6C50 2 150 2 198 6" stroke="hsl(var(--primary))" strokeWidth="3" strokeLinecap="round" />
                 </svg>
@@ -55,7 +55,7 @@ export function LandingHero() {
             </h1>
 
             <p className="mt-6 text-lg text-muted-foreground leading-relaxed max-w-lg">
-              Reduza perdas, aumente o lucro e tenha controle total do seu supermercado em um único sistema.
+              Reduza perdas, aumente o lucro e tenha controle total do seu negócio em um único sistema. Ideal para supermercados, padarias, pet shops, lojas e muito mais.
             </p>
 
             <div className="flex flex-wrap gap-4 mt-6">
@@ -95,7 +95,7 @@ export function LandingHero() {
             {/* Social proof */}
             <div className="mt-8 flex items-center gap-3 text-sm text-muted-foreground">
               <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-              <span>Usado por supermercados reais em produção</span>
+              <span>Usado por comércios reais em produção</span>
             </div>
           </motion.div>
 
@@ -110,7 +110,7 @@ export function LandingHero() {
             <div className="rounded-2xl overflow-hidden shadow-xl border border-border/30 mb-4">
               <img
                 src={supermarketScene}
-                alt="Supermercado moderno com sistema AnthoSystem nos caixas"
+                alt="Comércio moderno com sistema AnthoSystem"
                 className="w-full h-auto"
                 loading="lazy"
               />

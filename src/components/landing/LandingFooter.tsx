@@ -27,7 +27,7 @@ export function LandingFooter() {
               </span>
             </div>
             <p className="text-sm text-muted-foreground leading-relaxed">
-              Sistema completo para supermercados com PDV, emissão fiscal, estoque e gestão financeira.
+              Sistema completo para comércios e varejo com PDV, emissão fiscal, estoque e gestão financeira.
             </p>
           </div>
 

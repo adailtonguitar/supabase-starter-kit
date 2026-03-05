@@ -35,11 +35,11 @@ export function LandingTestimonials() {
             viewport={{ once: true }}
           >
             <span className="text-primary text-sm font-semibold uppercase tracking-wider">Diferenciais</span>
-            <h2 className="mt-3 text-3xl sm:text-4xl font-bold tracking-tight">
-              Feito para quem vive o dia a dia do supermercado
+             <h2 className="mt-3 text-3xl sm:text-4xl font-bold tracking-tight">
+              Feito para quem vive o dia a dia do comércio
             </h2>
             <p className="mt-4 text-muted-foreground text-lg max-w-2xl mx-auto">
-              Cada funcionalidade resolve um problema real que donos de supermercado enfrentam todos os dias.
+              Cada funcionalidade resolve um problema real que donos de comércios enfrentam todos os dias.
             </p>
           </motion.div>
         </div>

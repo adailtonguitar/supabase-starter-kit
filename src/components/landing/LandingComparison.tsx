@@ -12,7 +12,7 @@ interface Feature {
 }
 
 const features: Feature[] = [
-  { name: "PDV para Supermercado", antho: "yes", bling: "partial", tiny: "no", marketup: "partial" },
+  { name: "PDV Completo", antho: "yes", bling: "partial", tiny: "no", marketup: "partial" },
   { name: "Funciona Offline", antho: "yes", bling: "no", tiny: "no", marketup: "no" },
   { name: "Controle de Validade e Lotes", antho: "yes", bling: "partial", tiny: "partial", marketup: "no" },
   { name: "Balança Integrada", antho: "yes", bling: "no", tiny: "no", marketup: "no" },
@@ -56,7 +56,7 @@ export function LandingComparison() {
               AnthoSystem vs. Concorrentes
             </h2>
             <p className="mt-4 text-muted-foreground max-w-2xl mx-auto text-lg">
-              Veja por que somos a escolha certa para supermercados e mercearias.
+              Veja por que somos a escolha certa para o varejo.
             </p>
           </motion.div>
         </div>

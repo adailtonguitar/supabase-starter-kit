@@ -16,7 +16,7 @@ export function LandingCTA() {
         className="relative max-w-3xl mx-auto px-6 text-center"
       >
         <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
-          Pronto para modernizar seu supermercado?
+          Pronto para modernizar seu negócio?
         </h2>
         <p className="mt-5 text-lg text-muted-foreground leading-relaxed">
           Cadastre-se em segundos e comece a vender hoje mesmo.

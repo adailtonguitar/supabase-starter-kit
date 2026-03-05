@@ -21,7 +21,7 @@ import stockEmployee from "@/assets/stock-employee.png";
 const features = [
   {
     icon: Monitor,
-    title: "PDV para Supermercado",
+    title: "PDV Completo",
     desc: "Caixa rápido com atalhos, leitor de código de barras, pesagem e múltiplas formas de pagamento.",
     color: "bg-primary/10 text-primary",
   },
@@ -118,10 +118,10 @@ export function LandingFeatures() {
           >
             <span className="text-primary text-sm font-semibold uppercase tracking-wider">Recursos</span>
             <h2 className="mt-3 text-3xl sm:text-4xl font-bold tracking-tight">
-              Tudo que seu supermercado precisa
+              Tudo que seu comércio precisa
             </h2>
             <p className="mt-4 text-muted-foreground max-w-2xl mx-auto text-lg">
-              Do caixa à gestão financeira, cada módulo foi construído para a realidade do varejo alimentar.
+              Do caixa à gestão financeira, cada módulo foi construído para a realidade do varejo.
             </p>
           </motion.div>
         </div>
@@ -153,7 +153,7 @@ export function LandingFeatures() {
             viewport={{ once: true }}
             className="rounded-2xl overflow-hidden border border-border shadow-lg"
           >
-            <img src={pdvCashier} alt="Operadora de caixa usando o PDV AnthoSystem no supermercado" className="w-full h-auto object-cover" loading="lazy" />
+            <img src={pdvCashier} alt="Operador de caixa usando o PDV AnthoSystem" className="w-full h-auto object-cover" loading="lazy" />
             <div className="p-4 bg-card">
               <p className="font-semibold text-sm">PDV rápido e intuitivo</p>
               <p className="text-xs text-muted-foreground">Operação ágil com leitor, balança e TEF integrados.</p>
