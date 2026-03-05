@@ -30,6 +30,8 @@ interface ProductProfit {
   total_cost: number;
   total_profit: number;
   margin_percent: number;
+  unit_price: number;
+  unit_cost: number;
 }
 
 
@@ -74,7 +76,7 @@ export default function RelatorioVendas() {
       const saleIds = salesData.map((s: any) => s.id);
       const { data: itemsData, error: itemsError } = await supabase
         .from("sale_items")
-        .select("sale_id, product_id, product_name, quantity, unit_price")
+        .select("sale_id, product_id, product_name, quantity, unit_price, cost_price")
         .in("sale_id", saleIds);
       if (itemsError) throw itemsError;
 
@@ -88,6 +90,7 @@ export default function RelatorioVendas() {
           sku: "",
           quantity: Number(item.quantity),
           unit_price: Number(item.unit_price),
+          cost_price: Number(item.cost_price || 0),
         });
       });
 
@@ -143,15 +146,20 @@ export default function RelatorioVendas() {
             total_cost: 0,
             total_profit: 0,
             margin_percent: 0,
+            unit_price: item.unit_price || 0,
+            unit_cost: 0,
           };
         }
         const p = byProduct[item.product_id];
         const revenue = item.quantity * item.unit_price;
-        const cost = item.quantity * (costMap[item.product_id] || 0);
+        const itemCost = (item as any).cost_price || costMap[item.product_id] || 0;
+        const cost = item.quantity * itemCost;
         p.total_quantity += item.quantity;
         p.total_revenue += revenue;
         p.total_cost += cost;
         p.total_profit += revenue - cost;
+        p.unit_price = item.unit_price || p.unit_price;
+        p.unit_cost = itemCost || p.unit_cost;
       }
     }
 
@@ -430,6 +438,8 @@ export default function RelatorioVendas() {
                 </span>
               </div>
               <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground pt-2 border-t border-border">
+                <span>Preço: <strong className="text-foreground font-mono">{formatCurrency(p.unit_price)}</strong></span>
+                <span>Custo: <strong className="text-foreground font-mono">{formatCurrency(p.unit_cost)}</strong></span>
                 <span>Qtd: <strong className="text-foreground font-mono">{p.total_quantity}</strong></span>
                 <span>Receita: <strong className="text-foreground font-mono">{formatCurrency(p.total_revenue)}</strong></span>
                 <span>Lucro: <strong className={`font-mono ${p.total_profit >= 0 ? "text-emerald-500" : "text-destructive"}`}>{formatCurrency(p.total_profit)}</strong></span>
@@ -451,6 +461,8 @@ export default function RelatorioVendas() {
             <thead>
               <tr className="border-b border-border">
                 <th className="text-left px-5 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Produto</th>
+                <th className="text-right px-5 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Preço Venda</th>
+                <th className="text-right px-5 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Preço Custo</th>
                 <th className="text-right px-5 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Qtd</th>
                 <th className="text-right px-5 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Receita</th>
                 <th className="text-right px-5 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Custo</th>
@@ -462,12 +474,12 @@ export default function RelatorioVendas() {
               {isLoading ? (
                 [...Array(5)].map((_, i) => (
                   <tr key={i} className="border-b border-border">
-                    <td className="px-5 py-3" colSpan={6}><Skeleton className="h-8 w-full" /></td>
+                    <td className="px-5 py-3" colSpan={8}><Skeleton className="h-8 w-full" /></td>
                   </tr>
                 ))
               ) : productProfits.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-5 py-12 text-center text-muted-foreground">
+                  <td colSpan={8} className="px-5 py-12 text-center text-muted-foreground">
                     Nenhuma venda encontrada no período selecionado.
                   </td>
                 </tr>
@@ -481,6 +493,8 @@ export default function RelatorioVendas() {
                           <span className="text-xs text-muted-foreground ml-2 font-mono">{p.sku}</span>
                         </div>
                       </td>
+                      <td className="px-5 py-3 text-right font-mono text-foreground">{formatCurrency(p.unit_price)}</td>
+                      <td className="px-5 py-3 text-right font-mono text-muted-foreground">{formatCurrency(p.unit_cost)}</td>
                       <td className="px-5 py-3 text-right font-mono text-foreground">{p.total_quantity}</td>
                       <td className="px-5 py-3 text-right font-mono text-foreground">{formatCurrency(p.total_revenue)}</td>
                       <td className="px-5 py-3 text-right font-mono text-muted-foreground">{formatCurrency(p.total_cost)}</td>
@@ -500,6 +514,8 @@ export default function RelatorioVendas() {
                   ))}
                   <tr className="bg-muted/30 font-semibold">
                     <td className="px-5 py-3 text-foreground">TOTAL</td>
+                    <td className="px-5 py-3"></td>
+                    <td className="px-5 py-3"></td>
                     <td className="px-5 py-3 text-right font-mono text-foreground">{totals.quantity}</td>
                     <td className="px-5 py-3 text-right font-mono text-foreground">{formatCurrency(totals.revenue)}</td>
                     <td className="px-5 py-3 text-right font-mono text-muted-foreground">{formatCurrency(totals.cost)}</td>
