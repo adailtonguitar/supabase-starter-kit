@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Download, Upload, Clock, HardDrive, Percent, Save, Loader2, Crown, Check, ArrowRight, MessageCircle, Pencil, Calculator, Send, Mail, Lock, Eye, EyeOff, Wallet } from "lucide-react";
+import { Download, Upload, Clock, HardDrive, Percent, Save, Loader2, Crown, Check, ArrowRight, MessageCircle, Pencil, Calculator, Send, Mail, Lock, Eye, EyeOff, Wallet, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TEFConfigSection } from "@/components/settings/TEFConfigSection";
 import { ScaleConfigSection } from "@/components/settings/ScaleConfigSection";
@@ -530,6 +530,67 @@ function ChangePasswordSection() {
   );
 }
 
+function CarneConfigSection() {
+  const { role } = usePermissions();
+  const [enabled, setEnabled] = useState(() => localStorage.getItem("carne_enabled") === "true");
+  const [format, setFormat] = useState<"a4" | "matricial">(() => (localStorage.getItem("carne_format") as any) || "a4");
+
+  if (role !== "admin" && role !== "gerente") return null;
+
+  const toggleEnabled = () => {
+    const newVal = !enabled;
+    setEnabled(newVal);
+    localStorage.setItem("carne_enabled", String(newVal));
+    toast.success(newVal ? "Impressão de carnê ativada" : "Impressão de carnê desativada");
+  };
+
+  const changeFormat = (f: "a4" | "matricial") => {
+    setFormat(f);
+    localStorage.setItem("carne_format", f);
+    toast.success(f === "matricial" ? "Formato: Matricial (Epson LX)" : "Formato: A4 PDF");
+  };
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08 }} className="bg-card rounded-2xl card-shadow border border-border overflow-hidden">
+      <div className="px-5 py-4 border-b border-border flex items-center gap-2">
+        <FileText className="w-4 h-4 text-primary" />
+        <h2 className="text-base font-semibold text-foreground">Impressão de Carnê</h2>
+      </div>
+      <div className="p-5 space-y-4">
+        <p className="text-sm text-muted-foreground">Habilite a geração de carnês para vendas a prazo. Ideal para lojas de móveis, eletrodomésticos e materiais de construção.</p>
+
+        <div className="flex items-center justify-between py-3 px-4 rounded-xl bg-muted/50 border border-border">
+          <div>
+            <p className="text-sm font-medium text-foreground">Habilitar carnê nas vendas a prazo</p>
+            <p className="text-xs text-muted-foreground">Exibe o botão "Gerar Carnê" na tela de Fiado</p>
+          </div>
+          <button onClick={toggleEnabled} className={`relative w-11 h-6 rounded-full transition-colors ${enabled ? "bg-primary" : "bg-muted-foreground/30"}`}>
+            <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${enabled ? "translate-x-5" : "translate-x-0"}`} />
+          </button>
+        </div>
+
+        {enabled && (
+          <div className="space-y-2">
+            <p className="text-xs font-medium text-muted-foreground">Formato de impressão</p>
+            <div className="flex gap-2">
+              <button onClick={() => changeFormat("a4")}
+                className={`flex-1 py-3 px-4 rounded-xl text-sm font-medium transition-all border ${format === "a4" ? "bg-primary/10 border-primary/30 text-primary" : "bg-muted/50 border-border text-muted-foreground hover:bg-accent"}`}>
+                <div className="font-semibold">A4 (PDF)</div>
+                <div className="text-[10px] mt-0.5 opacity-70">Impressoras comuns, jato de tinta, laser</div>
+              </button>
+              <button onClick={() => changeFormat("matricial")}
+                className={`flex-1 py-3 px-4 rounded-xl text-sm font-medium transition-all border ${format === "matricial" ? "bg-primary/10 border-primary/30 text-primary" : "bg-muted/50 border-border text-muted-foreground hover:bg-accent"}`}>
+                <div className="font-semibold">Matricial (Epson LX)</div>
+                <div className="text-[10px] mt-0.5 opacity-70">Formulário contínuo, LX-350, FX-890</div>
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </motion.div>
+  );
+}
+
 function CashRegisterToggleSection() {
   const { role } = usePermissions();
   const [required, setRequired] = useState(() => localStorage.getItem("pdv_require_cash_session") !== "false");
@@ -637,7 +698,7 @@ export default function Configuracoes() {
       <ChangePasswordSection />
       <MyPlanSection />
       <CashRegisterToggleSection />
-      {/* WhatsApp Suporte movido para Painel Admin */}
+      <CarneConfigSection />
       <DiscountLimitsSection />
       <TEFConfigSection />
       <ScaleConfigSection />
