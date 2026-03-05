@@ -105,7 +105,7 @@ export default function Financeiro() {
 
   return (
     <div className="p-3 sm:p-6 space-y-4 sm:space-y-6 max-w-7xl mx-auto min-w-0 w-full overflow-x-hidden">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-foreground">Financeiro</h1>
           <p className="text-xs sm:text-sm text-muted-foreground mt-1">Contas a pagar, receber e fluxo de caixa</p>
@@ -124,7 +124,7 @@ export default function Financeiro() {
             A Pagar
           </Button>
         </div>
-      </div>
+      </motion.div>
 
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="icon" onClick={prevMonth}><ChevronLeft className="w-4 h-4" /></Button>
@@ -138,13 +138,13 @@ export default function Financeiro() {
         <SummaryCard icon={TrendingDown} label="Total a Pagar" value={totalPagar} paid={totalPago} color="text-destructive" />
         <SummaryCard icon={TrendingUp} label="Total a Receber" value={totalReceber} paid={totalRecebido} color="text-primary" />
         <SummaryCard icon={Wallet} label="Saldo Realizado" value={saldo} color={saldo >= 0 ? "text-primary" : "text-destructive"} />
-        <div className="bg-card rounded-xl border border-border p-3 sm:p-4 card-shadow">
-          <p className="text-[10px] sm:text-xs text-muted-foreground mb-1">Lançamentos no mês</p>
-          <p className="text-lg sm:text-2xl font-bold text-foreground">{allEntries.length}</p>
-          <p className="text-[10px] sm:text-xs text-muted-foreground mt-1">
-            {allEntries.filter(e => e.status === "pendente").length} pendentes
-          </p>
-        </div>
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="bg-card rounded-2xl border border-border p-3 sm:p-4 card-shadow hover:shadow-md transition-shadow">
+           <p className="text-[10px] sm:text-xs text-muted-foreground mb-1">Lançamentos no mês</p>
+           <p className="text-lg sm:text-2xl font-bold text-foreground">{allEntries.length}</p>
+           <p className="text-[10px] sm:text-xs text-muted-foreground mt-1">
+             {allEntries.filter(e => e.status === "pendente").length} pendentes
+           </p>
+        </motion.div>
       </div>
 
       <CashFlowChart entries={allEntries as any} month={month} />
@@ -236,19 +236,19 @@ export default function Financeiro() {
         </div>
 
         {/* Desktop table */}
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="hidden sm:block bg-card rounded-xl card-shadow border border-border overflow-hidden min-w-0">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm table-fixed">
-              <thead>
-                <tr className="border-b border-border">
-                  <th className="text-left px-3 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider w-[80px]">Tipo</th>
-                  <th className="text-left px-3 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Descrição</th>
-                  <th className="text-left px-3 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider w-[100px]">Categoria</th>
-                  <th className="text-left px-3 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider w-[100px]">Vencimento</th>
-                  <th className="text-right px-3 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider w-[100px]">Valor</th>
-                  <th className="text-center px-3 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider w-[90px]">Status</th>
-                  <th className="text-center px-3 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider w-[60px]">Ações</th>
-                </tr>
+         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="hidden sm:block bg-card rounded-2xl card-shadow border border-border overflow-hidden min-w-0">
+           <div className="overflow-x-auto">
+             <table className="w-full text-sm table-fixed">
+               <thead>
+                 <tr className="border-b border-border bg-muted/30">
+                   <th className="text-left px-3 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-widest w-[80px]">Tipo</th>
+                   <th className="text-left px-3 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-widest">Descrição</th>
+                   <th className="text-left px-3 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-widest w-[100px]">Categoria</th>
+                   <th className="text-left px-3 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-widest w-[100px]">Vencimento</th>
+                   <th className="text-right px-3 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-widest w-[100px]">Valor</th>
+                   <th className="text-center px-3 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-widest w-[90px]">Status</th>
+                   <th className="text-center px-3 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-widest w-[60px]">Ações</th>
+                 </tr>
               </thead>
               <tbody>
                 {isLoading ? (
@@ -268,7 +268,7 @@ export default function Financeiro() {
                     const st = statusConfig[entry.status] || statusConfig.pendente;
                     const StIcon = st.icon;
                     return (
-                      <tr key={entry.id} className="border-b border-border last:border-0 hover:bg-muted/50 transition-colors">
+                      <tr key={entry.id} className={`border-b border-border last:border-0 hover:bg-primary/[0.03] transition-colors ${filtered.indexOf(entry) % 2 === 1 ? "bg-muted/15" : ""}`}>
                         <td className="px-3 py-3">
                           <div className={`flex items-center gap-1.5 ${entry.type === "pagar" ? "text-destructive" : "text-primary"}`}>
                             {entry.type === "pagar" ? <ArrowUpCircle className="w-3.5 h-3.5 shrink-0" /> : <ArrowDownCircle className="w-3.5 h-3.5 shrink-0" />}
