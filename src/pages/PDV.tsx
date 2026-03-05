@@ -607,9 +607,9 @@ export default function PDV() {
         const { data: { user: authUser } } = await supabase.auth.getUser();
         const userId = authUser?.id || null;
 
-        // Base updates: sale status + client balance
+        // Base updates: sale status + client balance (separate calls to avoid column issues)
         const updates: Array<PromiseLike<any>> = [
-          supabase.from("sales").update({ status: "fiado", client_id: client.id } as any).eq("id", result.saleId),
+          supabase.from("sales").update({ status: "fiado" } as any).eq("id", result.saleId),
           supabase.from("clients").update({ credit_balance: newBalance }).eq("id", client.id),
         ];
 
@@ -648,7 +648,10 @@ export default function PDV() {
           );
         }
 
-        await Promise.allSettled(updates);
+        const results = await Promise.allSettled(updates);
+        results.forEach((r, i) => {
+          if (r.status === "rejected") console.error(`[Fiado] Update ${i} failed:`, r.reason);
+        });
       }
 
       setReceipt({
