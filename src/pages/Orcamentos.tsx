@@ -2,12 +2,13 @@ import { useState } from "react";
 import { useQuotes, type Quote } from "@/hooks/useQuotes";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { FileText, Eye, ShoppingCart, Trash2, CheckCircle, XCircle, Clock, Search } from "lucide-react";
+import { FileText, Eye, ShoppingCart, Trash2, CheckCircle, XCircle, Clock, Search, ThumbsUp, Undo2, Package } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
+import { QuoteApprovalDialog } from "@/components/orcamentos/QuoteApprovalDialog";
 
 const statusLabels: Record<string, { label: string; color: string; icon: any }> = {
-  pendente: { label: "Pendente", color: "text-warning bg-warning/10 border-warning/20", icon: Clock },
-  aprovado: { label: "Aprovado", color: "text-success bg-success/10 border-success/20", icon: CheckCircle },
+  pendente: { label: "Pendente", color: "text-amber-600 bg-amber-500/10 border-amber-500/20", icon: Clock },
+  aprovado: { label: "Aprovado", color: "text-emerald-600 bg-emerald-500/10 border-emerald-500/20", icon: CheckCircle },
   convertido: { label: "Convertido", color: "text-primary bg-primary/10 border-primary/20", icon: ShoppingCart },
   cancelado: { label: "Cancelado", color: "text-destructive bg-destructive/10 border-destructive/20", icon: XCircle },
 };
@@ -17,6 +18,7 @@ export default function Orcamentos() {
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [viewQuote, setViewQuote] = useState<Quote | null>(null);
+  const [approvalQuote, setApprovalQuote] = useState<Quote | null>(null);
 
   const withNums = quotes.map((q, idx) => ({ ...q, _num: quotes.length - idx }));
   const filtered = withNums.filter((q) =>
@@ -95,16 +97,21 @@ export default function Orcamentos() {
                   </div>
                   <div className="flex items-center justify-between pt-2 border-t border-border">
                     <p className="text-sm font-bold font-mono text-foreground">{fmt(q.total)}</p>
-                    <div className="flex items-center gap-1">
-                      <button onClick={() => setViewQuote(q)} className="p-1.5 rounded-lg hover:bg-muted" title="Ver">
-                        <Eye className="w-4 h-4 text-muted-foreground" />
-                      </button>
-                      {q.status === "pendente" && (
-                        <button onClick={() => handleConvertToSale(q)} className="p-1.5 rounded-lg hover:bg-primary/10" title="Converter">
-                          <ShoppingCart className="w-4 h-4 text-primary" />
-                        </button>
-                      )}
-                    </div>
+                     <div className="flex items-center gap-1">
+                       <button onClick={() => setViewQuote(q)} className="p-1.5 rounded-lg hover:bg-muted" title="Ver">
+                         <Eye className="w-4 h-4 text-muted-foreground" />
+                       </button>
+                       {q.status === "pendente" && (
+                         <button onClick={() => setApprovalQuote(q)} className="p-1.5 rounded-lg hover:bg-emerald-500/10" title="Aprovar">
+                           <ThumbsUp className="w-4 h-4 text-emerald-500" />
+                         </button>
+                       )}
+                       {(q.status === "pendente" || q.status === "aprovado") && (
+                         <button onClick={() => handleConvertToSale(q)} className="p-1.5 rounded-lg hover:bg-primary/10" title="Converter">
+                           <ShoppingCart className="w-4 h-4 text-primary" />
+                         </button>
+                       )}
+                     </div>
                   </div>
                 </div>
               );
@@ -151,31 +158,54 @@ export default function Orcamentos() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-end gap-1">
-                          <button onClick={() => setViewQuote(q)} className="p-1.5 rounded-lg hover:bg-muted transition-colors" title="Visualizar">
-                            <Eye className="w-4 h-4 text-muted-foreground" />
-                          </button>
-                          {q.status === "pendente" && (
-                            <>
-                              <button onClick={() => handleConvertToSale(q)} className="p-1.5 rounded-lg hover:bg-primary/10 transition-colors" title="Converter em Venda">
-                                <ShoppingCart className="w-4 h-4 text-primary" />
-                              </button>
-                              <button
-                                onClick={async () => { await updateQuoteStatus(q.id, "cancelado"); toast.info("Orçamento cancelado"); }}
-                                className="p-1.5 rounded-lg hover:bg-destructive/10 transition-colors" title="Cancelar"
-                              >
-                                <XCircle className="w-4 h-4 text-destructive" />
-                              </button>
-                            </>
-                          )}
-                          {q.status === "cancelado" && (
-                            <button
-                              onClick={async () => { await deleteQuote(q.id); toast.info("Orçamento excluído"); }}
-                              className="p-1.5 rounded-lg hover:bg-destructive/10 transition-colors" title="Excluir"
-                            >
-                              <Trash2 className="w-4 h-4 text-destructive" />
-                            </button>
-                          )}
-                        </div>
+                           <button onClick={() => setViewQuote(q)} className="p-1.5 rounded-lg hover:bg-muted transition-colors" title="Visualizar">
+                             <Eye className="w-4 h-4 text-muted-foreground" />
+                           </button>
+                           {q.status === "pendente" && (
+                             <>
+                               <button onClick={() => setApprovalQuote(q)} className="p-1.5 rounded-lg hover:bg-emerald-500/10 transition-colors" title="Aprovar">
+                                 <ThumbsUp className="w-4 h-4 text-emerald-500" />
+                               </button>
+                               <button onClick={() => handleConvertToSale(q)} className="p-1.5 rounded-lg hover:bg-primary/10 transition-colors" title="Converter em Venda">
+                                 <ShoppingCart className="w-4 h-4 text-primary" />
+                               </button>
+                               <button
+                                 onClick={async () => { await updateQuoteStatus(q.id, "cancelado"); toast.info("Orçamento cancelado"); }}
+                                 className="p-1.5 rounded-lg hover:bg-destructive/10 transition-colors" title="Cancelar"
+                               >
+                                 <XCircle className="w-4 h-4 text-destructive" />
+                               </button>
+                             </>
+                           )}
+                           {q.status === "aprovado" && (
+                             <>
+                               <button onClick={() => handleConvertToSale(q)} className="p-1.5 rounded-lg hover:bg-primary/10 transition-colors" title="Converter em Venda">
+                                 <ShoppingCart className="w-4 h-4 text-primary" />
+                               </button>
+                               <button
+                                 onClick={async () => {
+                                   // Release reservation
+                                   const reservations = JSON.parse(localStorage.getItem("as_stock_reservations") || "{}");
+                                   delete reservations[q.id];
+                                   localStorage.setItem("as_stock_reservations", JSON.stringify(reservations));
+                                   await updateQuoteStatus(q.id, "cancelado");
+                                   toast.info("Orçamento cancelado e estoque liberado");
+                                 }}
+                                 className="p-1.5 rounded-lg hover:bg-destructive/10 transition-colors" title="Cancelar"
+                               >
+                                 <XCircle className="w-4 h-4 text-destructive" />
+                               </button>
+                             </>
+                           )}
+                           {q.status === "cancelado" && (
+                             <button
+                               onClick={async () => { await deleteQuote(q.id); toast.info("Orçamento excluído"); }}
+                               className="p-1.5 rounded-lg hover:bg-destructive/10 transition-colors" title="Excluir"
+                             >
+                               <Trash2 className="w-4 h-4 text-destructive" />
+                             </button>
+                           )}
+                         </div>
                       </td>
                     </tr>
                   );
@@ -238,8 +268,17 @@ export default function Orcamentos() {
                   </div>
                 )}
               </div>
-              {viewQuote.status === "pendente" && (
+              {(viewQuote.status === "pendente" || viewQuote.status === "aprovado") && (
                 <div className="px-5 py-4 border-t border-border flex gap-3">
+                  {viewQuote.status === "pendente" && (
+                    <button
+                      onClick={() => { setApprovalQuote(viewQuote); setViewQuote(null); }}
+                      className="flex-1 py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-bold hover:bg-emerald-500 transition-all flex items-center justify-center gap-2"
+                    >
+                      <ThumbsUp className="w-4 h-4" />
+                      Aprovar
+                    </button>
+                  )}
                   <button
                     onClick={() => { handleConvertToSale(viewQuote); setViewQuote(null); }}
                     className="flex-1 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:opacity-90 transition-all flex items-center justify-center gap-2"
@@ -251,6 +290,17 @@ export default function Orcamentos() {
               )}
             </motion.div>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Approval Dialog */}
+      <AnimatePresence>
+        {approvalQuote && (
+          <QuoteApprovalDialog
+            quote={approvalQuote}
+            onClose={() => setApprovalQuote(null)}
+            onApproved={() => setApprovalQuote(null)}
+          />
         )}
       </AnimatePresence>
     </div>
