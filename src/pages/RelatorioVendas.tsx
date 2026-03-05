@@ -68,7 +68,7 @@ export default function RelatorioVendas() {
       // Fetch sales from the sales table (source of truth)
       const { data: salesData, error: salesError } = await supabase
         .from("sales")
-        .select("id, created_at, total, status")
+        .select("id, created_at, total, status, items")
         .eq("company_id", companyId)
         .gte("created_at", dateRange.from)
         .lte("created_at", dateRange.to)
@@ -126,12 +126,29 @@ export default function RelatorioVendas() {
         });
       });
 
-      return salesData.map((s: any) => ({
-        id: s.id,
-        created_at: s.created_at,
-        total_value: s.total,
-        items_json: itemsBySale[s.id] || [],
-      }));
+      return salesData.map((s: any) => {
+        // Use sale_items if available, otherwise fall back to JSONB items column
+        let items = itemsBySale[s.id] || [];
+        if (items.length === 0 && s.items) {
+          try {
+            const jsonItems = Array.isArray(s.items) ? s.items : JSON.parse(s.items);
+            items = jsonItems.map((ji: any) => ({
+              product_id: ji.product_id || ji.id || "unknown",
+              name: ji.product_name || ji.name || "Produto",
+              sku: ji.sku || "",
+              quantity: Number(ji.quantity || 0),
+              unit_price: Number(ji.unit_price || ji.price || 0),
+              cost_price: Number(ji.cost_price || 0),
+            }));
+          } catch {}
+        }
+        return {
+          id: s.id,
+          created_at: s.created_at,
+          total_value: s.total,
+          items_json: items,
+        };
+      });
     },
     enabled: !!companyId,
   });
