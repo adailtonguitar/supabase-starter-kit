@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Download, Upload, Clock, HardDrive, Percent, Save, Loader2, Crown, Check, ArrowRight, MessageCircle, Pencil, Calculator, Send, Mail, Lock, Eye, EyeOff } from "lucide-react";
+import { Download, Upload, Clock, HardDrive, Percent, Save, Loader2, Crown, Check, ArrowRight, MessageCircle, Pencil, Calculator, Send, Mail, Lock, Eye, EyeOff, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TEFConfigSection } from "@/components/settings/TEFConfigSection";
 import { ScaleConfigSection } from "@/components/settings/ScaleConfigSection";
@@ -530,6 +530,41 @@ function ChangePasswordSection() {
   );
 }
 
+function CashRegisterToggleSection() {
+  const { role } = usePermissions();
+  const [required, setRequired] = useState(() => localStorage.getItem("pdv_require_cash_session") !== "false");
+
+  if (role !== "admin" && role !== "gerente") return null;
+
+  const toggle = () => {
+    const newVal = !required;
+    setRequired(newVal);
+    localStorage.setItem("pdv_require_cash_session", String(newVal));
+    toast.success(newVal ? "Abertura de caixa obrigatória ativada" : "Abertura de caixa agora é opcional");
+  };
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.07 }} className="bg-card rounded-2xl card-shadow border border-border overflow-hidden">
+      <div className="px-5 py-4 border-b border-border flex items-center gap-2">
+        <Wallet className="w-4 h-4 text-primary" />
+        <h2 className="text-base font-semibold text-foreground">Controle de Caixa no PDV</h2>
+      </div>
+      <div className="p-5 space-y-3">
+        <p className="text-sm text-muted-foreground">Defina se o operador deve abrir um caixa antes de usar o PDV.</p>
+        <div className="flex items-center justify-between py-3 px-4 rounded-xl bg-muted/50 border border-border">
+          <div>
+            <p className="text-sm font-medium text-foreground">Exigir abertura de caixa</p>
+            <p className="text-xs text-muted-foreground">Quando desativado, o PDV abre diretamente sem sessão de caixa</p>
+          </div>
+          <button onClick={toggle} className={`relative w-11 h-6 rounded-full transition-colors ${required ? "bg-primary" : "bg-muted-foreground/30"}`}>
+            <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${required ? "translate-x-5" : "translate-x-0"}`} />
+          </button>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
 export default function Configuracoes() {
   const [exporting, setExporting] = useState(false);
   const [importing, setImporting] = useState(false);
@@ -601,6 +636,7 @@ export default function Configuracoes() {
 
       <ChangePasswordSection />
       <MyPlanSection />
+      <CashRegisterToggleSection />
       {/* WhatsApp Suporte movido para Painel Admin */}
       <DiscountLimitsSection />
       <TEFConfigSection />
