@@ -9,8 +9,11 @@ import {
   Users, Building2, ClipboardList, UserCheck, Factory, Truck, Tags, BarChart3, ArrowUpDown, User,
   Download, Tag, TrendingUp, AlertTriangle as AlertTriangleIcon, FileSpreadsheet, GitGraph,
   Percent, ArrowRightLeft, TrendingDown, Gift, Brain, Monitor, ShieldCheck, CreditCard, ChefHat,
-  HelpCircle, X,
+  HelpCircle, X, Wallet, PieChart, LineChart, AreaChart, CircleDollarSign, Scale,
+  BadgeDollarSign, Bell, Stethoscope, Scan, FileDown, FilePen, FileSearch, Cog,
+  Network, Smartphone, LifeBuoy, Boxes, BarChart, Calculator,
 } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/hooks/useAuth";
@@ -58,15 +61,15 @@ function isGroup(entry: NavEntry): entry is NavGroup {
 const navItems: NavEntry[] = [
   { icon: ShoppingCart, label: "PDV", path: "/pdv" },
   { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
-  { icon: TrendingUp, label: "Painel do Dono", path: "/painel-dono" },
+  { icon: PieChart, label: "Painel do Dono", path: "/painel-dono" },
   {
     icon: Package,
     label: "Estoque",
     children: [
-      { icon: Package, label: "Produtos", path: "/produtos" },
+      { icon: Boxes, label: "Produtos", path: "/produtos" },
       { icon: ArrowUpDown, label: "Movimentações", path: "/estoque/movimentacoes" },
       { icon: ClipboardList, label: "Inventário", path: "/estoque/inventario" },
-      { icon: BarChart3, label: "Curva ABC", path: "/estoque/curva-abc" },
+      { icon: BarChart, label: "Curva ABC", path: "/estoque/curva-abc" },
       { icon: Tags, label: "Lotes & Validade", path: "/estoque/lotes" },
       { icon: TrendingDown, label: "Perdas", path: "/estoque/perdas" },
       { icon: AlertTriangleIcon, label: "Ruptura", path: "/estoque/ruptura" },
@@ -80,10 +83,10 @@ const navItems: NavEntry[] = [
     icon: FileText,
     label: "Vendas",
     children: [
-      { icon: FileText, label: "Histórico", path: "/vendas" },
+      { icon: ScrollText, label: "Histórico", path: "/vendas" },
       { icon: Tag, label: "Promoções", path: "/promocoes" },
       { icon: CreditCard, label: "Fiado", path: "/fiado" },
-      { icon: ScrollText, label: "Orçamentos", path: "/orcamentos" },
+      { icon: FileText, label: "Orçamentos", path: "/orcamentos" },
       { icon: Gift, label: "Fidelidade", path: "/fidelidade" },
     ],
   },
@@ -96,20 +99,20 @@ const navItems: NavEntry[] = [
     ],
   },
   {
-    icon: DollarSign,
+    icon: CircleDollarSign,
     label: "Financeiro",
     children: [
       { icon: Landmark, label: "Contas", path: "/financeiro" },
-      { icon: DollarSign, label: "Caixa", path: "/caixa" },
-      { icon: TrendingUp, label: "Lucro Diário", path: "/lucro-diario" },
+      { icon: Wallet, label: "Caixa", path: "/caixa" },
+      { icon: LineChart, label: "Lucro Diário", path: "/lucro-diario" },
       { icon: TrendingUp, label: "Painel de Lucro", path: "/painel-lucro" },
       { icon: FileSpreadsheet, label: "DRE", path: "/dre" },
       { icon: GitGraph, label: "Fluxo Projetado", path: "/fluxo-caixa" },
       { icon: Building2, label: "Centro de Custo", path: "/centro-custo" },
       { icon: Percent, label: "Comissões", path: "/comissoes" },
-      { icon: ArrowRightLeft, label: "Conciliação Bancária", path: "/conciliacao" },
-      { icon: AlertTriangleIcon, label: "Alertas Financeiros", path: "/alertas" },
-      { icon: Brain, label: "Diagnóstico IA", path: "/diagnostico-financeiro" },
+      { icon: Scale, label: "Conciliação Bancária", path: "/conciliacao" },
+      { icon: Bell, label: "Alertas Financeiros", path: "/alertas" },
+      { icon: Stethoscope, label: "Diagnóstico IA", path: "/diagnostico-financeiro" },
     ],
   },
   {
@@ -131,19 +134,28 @@ const navItems: NavEntry[] = [
     label: "Fiscal",
     children: [
       { icon: Receipt, label: "Documentos", path: "/fiscal" },
-      { icon: FileText, label: "Emitir NF-e", path: "/fiscal/nfe" },
-      { icon: Download, label: "Consulta DFe", path: "/consulta-dfe" },
+      { icon: FilePen, label: "Emitir NF-e", path: "/fiscal/nfe" },
+      { icon: FileSearch, label: "Consulta DFe", path: "/consulta-dfe" },
       { icon: Shield, label: "Config. Fiscal", path: "/fiscal/config" },
-      { icon: ScrollText, label: "Auditoria", path: "/fiscal/auditoria" },
+      { icon: Scan, label: "Auditoria", path: "/fiscal/auditoria" },
       { icon: ArrowRightLeft, label: "Comparar XML", path: "/fiscal/comparar-xml" },
-      { icon: Download, label: "Assinador Digital", path: "/fiscal/assinador" },
+      { icon: FileDown, label: "Assinador Digital", path: "/fiscal/assinador" },
     ],
   },
-  { icon: Settings, label: "Configurações", path: "/configuracoes" },
-  { icon: Monitor, label: "Terminais", path: "/terminais" },
-  { icon: Building2, label: "Filiais", path: "/filiais" },
-  { icon: HelpCircle, label: "Ajuda", path: "/ajuda" },
-  { icon: Download, label: "Instalar App", path: "/install" },
+  {
+    icon: Cog,
+    label: "Sistema",
+    children: [
+      { icon: Settings, label: "Configurações", path: "/configuracoes" },
+      { icon: Monitor, label: "Terminais", path: "/terminais" },
+      { icon: Network, label: "Filiais", path: "/filiais" },
+    ],
+  },
+];
+
+const footerNavItems: NavItem[] = [
+  { icon: LifeBuoy, label: "Ajuda", path: "/ajuda" },
+  { icon: Smartphone, label: "Instalar App", path: "/install" },
 ];
 
 const adminNavItem: NavItem = { icon: ShieldCheck, label: "Admin", path: "/admin" };
@@ -287,6 +299,27 @@ export function AppSidebar({ mobileOpen, onMobileClose }: AppSidebarProps) {
                     </Link>
                   );
                 })}
+                {/* Footer nav items */}
+                <div className="border-t border-sidebar-border mt-2 pt-2 space-y-0.5">
+                  {footerNavItems.map((item) => {
+                    const isActive = location.pathname === item.path;
+                    return (
+                      <Link
+                        key={item.path}
+                        to={item.path}
+                        className={cn(
+                          "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
+                          isActive
+                            ? "bg-sidebar-accent text-sidebar-primary"
+                            : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                        )}
+                      >
+                        <item.icon className={cn("w-5 h-5 flex-shrink-0", isActive && "text-sidebar-primary")} />
+                        <span className="whitespace-nowrap">{item.label}</span>
+                      </Link>
+                    );
+                  })}
+                </div>
               </nav>
 
               <MobileSidebarSupport />
@@ -323,6 +356,7 @@ export function AppSidebar({ mobileOpen, onMobileClose }: AppSidebarProps) {
   }
 
    return (
+    <TooltipProvider delayDuration={0}>
     <aside
       className={cn(
         "flex flex-col h-full shrink-0 bg-sidebar border-r border-sidebar-border transition-all duration-300 relative z-10",
@@ -338,29 +372,38 @@ export function AppSidebar({ mobileOpen, onMobileClose }: AppSidebarProps) {
         {visibleNavItems.map((entry) => {
           if (isGroup(entry)) {
             const groupOpen = !!openGroups[entry.label];
+            const groupButton = (
+              <button
+                onClick={() => toggleGroup(entry.label)}
+                className={cn(
+                  "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
+                  isChildActive(entry)
+                    ? "text-sidebar-primary"
+                    : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                  collapsed && "justify-center"
+                )}
+              >
+                <entry.icon className="w-5 h-5 flex-shrink-0" />
+                <AnimatePresence>
+                  {!collapsed && (
+                    <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="whitespace-nowrap flex-1 text-left">
+                      {entry.label}
+                    </motion.span>
+                  )}
+                </AnimatePresence>
+                {!collapsed && (
+                  <ChevronDown className={cn("w-4 h-4 transition-transform", groupOpen && "rotate-180")} />
+                )}
+              </button>
+            );
             return (
               <div key={entry.label}>
-                <button
-                  onClick={() => toggleGroup(entry.label)}
-                  className={cn(
-                    "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
-                    isChildActive(entry)
-                      ? "text-sidebar-primary"
-                      : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-                  )}
-                >
-                  <entry.icon className="w-5 h-5 flex-shrink-0" />
-                  <AnimatePresence>
-                    {!collapsed && (
-                      <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="whitespace-nowrap flex-1 text-left">
-                        {entry.label}
-                      </motion.span>
-                    )}
-                  </AnimatePresence>
-                  {!collapsed && (
-                    <ChevronDown className={cn("w-4 h-4 transition-transform", groupOpen && "rotate-180")} />
-                  )}
-                </button>
+                {collapsed ? (
+                  <Tooltip>
+                    <TooltipTrigger asChild>{groupButton}</TooltipTrigger>
+                    <TooltipContent side="right">{entry.label}</TooltipContent>
+                  </Tooltip>
+                ) : groupButton}
                 <AnimatePresence>
                   {groupOpen && !collapsed && (
                     <motion.div
@@ -395,7 +438,7 @@ export function AppSidebar({ mobileOpen, onMobileClose }: AppSidebarProps) {
           }
 
           const isActive = location.pathname === entry.path;
-          return (
+          const linkEl = (
             <Link
               key={entry.path}
               to={entry.path}
@@ -403,7 +446,8 @@ export function AppSidebar({ mobileOpen, onMobileClose }: AppSidebarProps) {
                 "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
                 isActive
                   ? "bg-sidebar-accent text-sidebar-primary"
-                  : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                  : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                collapsed && "justify-center"
               )}
             >
               <entry.icon className={cn("w-5 h-5 flex-shrink-0", isActive && "text-sidebar-primary")} />
@@ -416,7 +460,48 @@ export function AppSidebar({ mobileOpen, onMobileClose }: AppSidebarProps) {
               </AnimatePresence>
             </Link>
           );
+          return collapsed ? (
+            <Tooltip key={entry.path}>
+              <TooltipTrigger asChild>{linkEl}</TooltipTrigger>
+              <TooltipContent side="right">{entry.label}</TooltipContent>
+            </Tooltip>
+          ) : linkEl;
         })}
+
+        {/* Footer nav items with separator */}
+        <div className="border-t border-sidebar-border mt-2 pt-2 space-y-0.5">
+          {footerNavItems.map((item) => {
+            const isActive = location.pathname === item.path;
+            const footerLink = (
+              <Link
+                key={item.path}
+                to={item.path}
+                className={cn(
+                  "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
+                  isActive
+                    ? "bg-sidebar-accent text-sidebar-primary"
+                    : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                  collapsed && "justify-center"
+                )}
+              >
+                <item.icon className={cn("w-5 h-5 flex-shrink-0", isActive && "text-sidebar-primary")} />
+                <AnimatePresence>
+                  {!collapsed && (
+                    <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="whitespace-nowrap">
+                      {item.label}
+                    </motion.span>
+                  )}
+                </AnimatePresence>
+              </Link>
+            );
+            return collapsed ? (
+              <Tooltip key={item.path}>
+                <TooltipTrigger asChild>{footerLink}</TooltipTrigger>
+                <TooltipContent side="right">{item.label}</TooltipContent>
+              </Tooltip>
+            ) : footerLink;
+          })}
+        </div>
       </nav>
 
       <div className="px-2 pb-2 space-y-0.5 border-t border-sidebar-border pt-2 shrink-0">
@@ -450,5 +535,6 @@ export function AppSidebar({ mobileOpen, onMobileClose }: AppSidebarProps) {
         </button>
       </div>
     </aside>
+    </TooltipProvider>
   );
 }
