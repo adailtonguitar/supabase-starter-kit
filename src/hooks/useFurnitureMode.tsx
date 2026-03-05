@@ -25,14 +25,17 @@ export function FurnitureModeProvider({ children }: { children: ReactNode }) {
     if (!companyId) { setLoading(false); return; }
     const load = async () => {
       try {
-        const { data } = await supabase
+        const { data, error } = await supabase
           .from("companies")
           .select("segment")
           .eq("id", companyId)
           .single();
-        const val = (data as any)?.segment === "moveis";
-        setEnabled(val);
-        localStorage.setItem(CACHE_KEY, String(val));
+        if (!error && data) {
+          const val = (data as any)?.segment === "moveis";
+          setEnabled(val);
+          localStorage.setItem(CACHE_KEY, String(val));
+        }
+        // If error (column doesn't exist), keep localStorage value
       } catch {
         // Use cached value
       } finally {
