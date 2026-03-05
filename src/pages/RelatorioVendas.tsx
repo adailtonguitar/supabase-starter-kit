@@ -37,8 +37,8 @@ interface ProductProfit {
 
 export default function RelatorioVendas() {
   const { companyId } = useCompany();
-  const [preset, setPreset] = useState<DatePreset>("hoje");
-  const [startDate, setStartDate] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [preset, setPreset] = useState<DatePreset>("mes");
+  const [startDate, setStartDate] = useState(format(startOfMonth(new Date()), "yyyy-MM-dd"));
   const [endDate, setEndDate] = useState(format(new Date(), "yyyy-MM-dd"));
 
   const dateRange = useMemo(() => {
