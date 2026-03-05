@@ -104,9 +104,9 @@ export function useDashboardStats() {
         // Fiado (credit sales pending)
         supabase.from("sales").select("total").eq("company_id", companyId).eq("status", "fiado"),
         // Bills due today
-        supabase.from("financial_entries").select("amount").eq("company_id", companyId).eq("status", "pendente").eq("type", "despesa").eq("due_date", today),
+        supabase.from("financial_entries").select("amount").eq("company_id", companyId).eq("status", "pendente").eq("type", "pagar").eq("due_date", today),
         // Overdue bills
-        supabase.from("financial_entries").select("amount").eq("company_id", companyId).eq("status", "pendente").eq("type", "despesa").lt("due_date", today),
+        supabase.from("financial_entries").select("amount").eq("company_id", companyId).eq("status", "pendente").eq("type", "pagar").lt("due_date", today),
       ]);
 
       const todaySales = salesResult.data || [];
