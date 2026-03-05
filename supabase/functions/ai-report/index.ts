@@ -37,9 +37,9 @@ function buildDataSummary(
     } catch {}
   });
 
-  const productsWithMargin = products.filter((p) => p.sale_price > 0 && p.cost_price > 0);
+  const productsWithMargin = products.filter((p) => p.price > 0 && p.cost_price > 0);
   const avgMargin = productsWithMargin.length > 0
-    ? productsWithMargin.reduce((s, p) => s + ((p.sale_price - p.cost_price) / p.sale_price) * 100, 0) / productsWithMargin.length
+    ? productsWithMargin.reduce((s, p) => s + ((p.price - p.cost_price) / p.price) * 100, 0) / productsWithMargin.length
     : 0;
 
   const lines: string[] = [];
@@ -217,11 +217,11 @@ function generateFallbackReport(reportType: string, sales: any[], products: any[
     } catch {}
   });
 
-  const productsWithMargin = products.filter((p) => p.sale_price > 0 && p.cost_price > 0);
+  const productsWithMargin = products.filter((p) => p.price > 0 && p.cost_price > 0);
   const avgMargin = productsWithMargin.length > 0
-    ? productsWithMargin.reduce((s, p) => s + ((p.sale_price - p.cost_price) / p.sale_price) * 100, 0) / productsWithMargin.length
+    ? productsWithMargin.reduce((s, p) => s + ((p.price - p.cost_price) / p.price) * 100, 0) / productsWithMargin.length
     : 0;
-  const lowMarginProducts = productsWithMargin.filter(p => ((p.sale_price - p.cost_price) / p.sale_price) * 100 < 15);
+  const lowMarginProducts = productsWithMargin.filter(p => ((p.price - p.cost_price) / p.price) * 100 < 15);
 
   // --- QUICK INSIGHT (rotativo e mais inteligente) ---
   if (reportType === "quick") {
@@ -231,9 +231,9 @@ function generateFallbackReport(reportType: string, sales: any[], products: any[
     const projecaoMensal = mediaDiaria * 30;
     const topPayment = Object.entries(paymentMethods).sort((a, b) => b[1] - a[1])[0];
     const topPaymentPct = topPayment && totalSales > 0 ? ((topPayment[1] / totalSales) * 100).toFixed(0) : "0";
-    const highMarginProducts = productsWithMargin.filter(p => ((p.sale_price - p.cost_price) / p.sale_price) * 100 > 40);
+    const highMarginProducts = productsWithMargin.filter(p => ((p.price - p.cost_price) / p.price) * 100 > 40);
     const stockValue = products.reduce((s, p) => s + (p.stock_quantity || 0) * (p.cost_price || 0), 0);
-    const potentialRevenue = products.reduce((s, p) => s + (p.stock_quantity || 0) * (p.sale_price || 0), 0);
+    const potentialRevenue = products.reduce((s, p) => s + (p.stock_quantity || 0) * (p.price || 0), 0);
 
     // Montar pool de insights priorizados por urgência
     const critical: string[] = [];
@@ -250,7 +250,7 @@ function generateFallbackReport(reportType: string, sales: any[], products: any[
     if (overdue.length > 0 && overdue.length <= 3) warnings.push(`⚠️ **${overdue.length} conta(s) vencida(s)** (${formatBRL(totalOverdue)}). Regularize antes que acumulem juros.`);
     if (lowStock.length > 5) warnings.push(`📦 **${lowStock.length} produtos com estoque crítico.** Os mais urgentes: ${lowStock.slice(0, 3).map(p => `${p.name} (${p.stock_quantity ?? 0}/${p.min_stock})`).join(", ")}. Faça pedido de compra hoje.`);
     else if (lowStock.length > 0) warnings.push(`📦 Estoque baixo em ${lowStock.length} produto(s): ${lowStock.slice(0, 3).map(p => p.name).join(", ")}. Programe reposição.`);
-    if (lowMarginProducts.length > 3) warnings.push(`💸 **${lowMarginProducts.length} produtos com margem < 15%.** Exemplos: ${lowMarginProducts.slice(0, 3).map(p => `${p.name} (${(((p.sale_price - p.cost_price) / p.sale_price) * 100).toFixed(0)}%)`).join(", ")}. Renegocie custos ou ajuste preços.`);
+    if (lowMarginProducts.length > 3) warnings.push(`💸 **${lowMarginProducts.length} produtos com margem < 15%.** Exemplos: ${lowMarginProducts.slice(0, 3).map(p => `${p.name} (${(((p.price - p.cost_price) / p.price) * 100).toFixed(0)}%)`).join(", ")}. Renegocie custos ou ajuste preços.`);
 
     // OPORTUNIDADES
     if (ticketMedio > 0 && ticketMedio < 30) opportunities.push(`🎯 Ticket médio de ${formatBRL(ticketMedio)}. Crie combos de produtos complementares para elevar o valor por venda.`);
