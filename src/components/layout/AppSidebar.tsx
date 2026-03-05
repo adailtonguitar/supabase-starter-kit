@@ -359,15 +359,24 @@ export function AppSidebar({ mobileOpen, onMobileClose }: AppSidebarProps) {
               transition={{ type: "spring", damping: 28, stiffness: 320 }}
               className="fixed top-0 left-0 bottom-0 w-[280px] bg-sidebar z-50 flex flex-col safe-area-top safe-area-left safe-area-bottom shadow-2xl"
             >
-              {/* Logo with gradient */}
-              <div className="flex items-center justify-between px-3 py-3 bg-gradient-to-r from-primary/5 to-transparent">
-                <div className="flex items-center gap-2.5">
-                  <img src={anthoLogo} alt="AnthoSystem" className="h-9 w-9 object-contain" />
-                  <span className="text-sm font-bold text-sidebar-foreground tracking-wide">AnthoSystem</span>
+              {/* Premium mobile header */}
+              <div className="relative px-3 py-3 overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-br from-primary/8 via-primary/3 to-transparent" />
+                <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary/20 to-transparent" />
+                <div className="relative flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="rounded-xl bg-gradient-to-br from-primary/15 to-primary/5 p-1.5 ring-1 ring-primary/10 shadow-sm">
+                      <img src={anthoLogo} alt="AnthoSystem" className="h-7 w-7 object-contain" />
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-sm font-bold text-sidebar-foreground tracking-tight leading-tight">AnthoSystem</span>
+                      <span className="text-[10px] text-muted-foreground/70 font-medium">Gestão Inteligente</span>
+                    </div>
+                  </div>
+                  <button onClick={onMobileClose} className="p-2 rounded-lg text-sidebar-foreground hover:bg-sidebar-accent transition-colors">
+                    <X className="w-5 h-5" />
+                  </button>
                 </div>
-                <button onClick={onMobileClose} className="p-2 rounded-lg text-sidebar-foreground hover:bg-sidebar-accent transition-colors">
-                  <X className="w-5 h-5" />
-                </button>
               </div>
 
               <nav className="flex-1 py-2 px-2 space-y-0.5 overflow-y-auto">
@@ -422,24 +431,40 @@ export function AppSidebar({ mobileOpen, onMobileClose }: AppSidebarProps) {
         collapsed ? "w-[68px]" : "w-[240px]"
       )}
     >
-      {/* Logo area with collapse button */}
+      {/* Premium logo area */}
       <div className={cn(
-        "flex items-center shrink-0 bg-gradient-to-b from-primary/5 to-transparent",
-        collapsed ? "flex-col px-2 py-2 gap-1" : "justify-between px-2 py-2"
+        "relative shrink-0 overflow-hidden",
+        collapsed ? "px-2 py-3" : "px-3 py-4"
       )}>
-        <div className={cn("flex flex-col items-center", collapsed ? "" : "flex-1")}>
-          <img src={anthoLogo} alt="AnthoSystem" className={cn("object-contain", collapsed ? "w-8 h-8" : "h-20 w-full -mb-3")} style={collapsed ? undefined : { marginTop: '0px', marginBottom: '-12px' }} />
-          {!collapsed && <span className="text-sm font-bold text-sidebar-foreground tracking-wide -mt-1">AnthoSystem</span>}
+        {/* Gradient background */}
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/8 via-primary/3 to-transparent" />
+        <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary/20 to-transparent" />
+        
+        <div className={cn("relative flex items-center", collapsed ? "flex-col gap-1" : "gap-3")}>
+          <div className={cn(
+            "rounded-xl bg-gradient-to-br from-primary/15 to-primary/5 p-1.5 ring-1 ring-primary/10 shadow-sm",
+            collapsed ? "" : ""
+          )}>
+            <img src={anthoLogo} alt="AnthoSystem" className={cn("object-contain", collapsed ? "w-7 h-7" : "w-8 h-8")} />
+          </div>
+          <AnimatePresence>
+            {!collapsed && (
+              <motion.div initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -8 }} className="flex flex-col min-w-0">
+                <span className="text-sm font-bold text-sidebar-foreground tracking-tight leading-tight">AnthoSystem</span>
+                <span className="text-[10px] text-muted-foreground/70 font-medium">Gestão Inteligente</span>
+              </motion.div>
+            )}
+          </AnimatePresence>
+          <button
+            onClick={() => setCollapsed(!collapsed)}
+            className={cn(
+              "p-1 rounded-md text-muted-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/80 transition-all duration-200",
+              collapsed ? "mt-1" : "ml-auto"
+            )}
+          >
+            {collapsed ? <ChevronRight className="w-3.5 h-3.5" /> : <ChevronLeft className="w-3.5 h-3.5" />}
+          </button>
         </div>
-        <button
-          onClick={() => setCollapsed(!collapsed)}
-          className={cn(
-            "p-1.5 rounded-lg text-sidebar-foreground hover:bg-sidebar-accent transition-colors",
-            collapsed ? "" : "absolute right-1 top-2"
-          )}
-        >
-          {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
-        </button>
       </div>
 
       <nav className="flex-1 min-h-0 py-2 px-2 space-y-0.5 overflow-y-auto scrollbar-thin">
