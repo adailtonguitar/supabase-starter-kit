@@ -87,6 +87,7 @@ export default function PDV() {
   const [lastAddedItem, setLastAddedItem] = useState<{ name: string; price: number; image_url?: string } | null>(null);
   const lastAddedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const finalizingSale = pdv.finalizingSale;
+  const requireCashSession = localStorage.getItem("pdv_require_cash_session") !== "false";
 
   const toggleFullscreen = useCallback(() => {
     if (!document.fullscreenElement) {
@@ -130,10 +131,10 @@ export default function PDV() {
 
   // Auto-open cash register dialog if no session is open (only after first load completes)
   useEffect(() => {
-    if (pdv.sessionEverLoaded && !pdv.loadingSession && !pdv.currentSession && !showCashRegister && !cashRegisterDismissedRef.current) {
+    if (requireCashSession && pdv.sessionEverLoaded && !pdv.loadingSession && !pdv.currentSession && !showCashRegister && !cashRegisterDismissedRef.current) {
       setShowCashRegister(true);
     }
-  }, [pdv.sessionEverLoaded, pdv.loadingSession, pdv.currentSession, showCashRegister]);
+  }, [pdv.sessionEverLoaded, pdv.loadingSession, pdv.currentSession, showCashRegister, requireCashSession]);
 
   // Always re-focus barcode input when no modal is open
   const noModalOpen = !showTEF && !receipt && !showCashRegister && !showProductList && !showShortcuts && !showPriceLookup && !showLoyaltyClientSelector && !showQuickProduct && !showSaveQuote && !showTerminalPicker && !showClientSelector && !showReceiveCredit && !zeroStockProduct && !stockMovementProduct && !editingQtyItemId && !editingItemDiscountId && !editingGlobalDiscount;
@@ -686,8 +687,8 @@ export default function PDV() {
   const totalQty = pdv.cartItems.reduce((a, i) => a + i.quantity, 0);
   const totalFinal = pdv.total;
 
-  // Block PDV entirely if no cash session is open
-  if (!pdv.loadingSession && !pdv.currentSession) {
+  // Block PDV entirely if no cash session is open (only when required)
+  if (requireCashSession && !pdv.loadingSession && !pdv.currentSession) {
     return (
       <div className="flex flex-col h-screen bg-background text-foreground relative">
         <button
