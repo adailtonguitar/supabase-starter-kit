@@ -11,8 +11,25 @@ import { Search, Package, Palette, Ruler, Armchair, Eye, Plus, Grid3X3, List } f
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 
+import imgSofa from "@/assets/furniture/sofa-3-lugares.jpg";
+import imgMesa from "@/assets/furniture/mesa-jantar.jpg";
+import imgCama from "@/assets/furniture/cama-casal.jpg";
+import imgGuardaRoupa from "@/assets/furniture/guarda-roupa.jpg";
+import imgRack from "@/assets/furniture/rack-tv.jpg";
+import imgEscrivaninha from "@/assets/furniture/escrivaninha.jpg";
+
+const demoProducts = [
+  { id: "demo-1", name: "Sofá 3 Lugares Couro", category: "Sala de Estar", price: 3299, cost_price: 1800, stock_quantity: 4, min_stock: 2, image_url: imgSofa, barcode: "7891234560001", unit: "un", sku: "SOF-001", company_id: "demo", is_active: true },
+  { id: "demo-2", name: "Mesa de Jantar 6 Lugares", category: "Sala de Jantar", price: 2499, cost_price: 1200, stock_quantity: 3, min_stock: 1, image_url: imgMesa, barcode: "7891234560002", unit: "un", sku: "MES-001", company_id: "demo", is_active: true },
+  { id: "demo-3", name: "Cama Box Casal Queen", category: "Quarto", price: 4599, cost_price: 2500, stock_quantity: 5, min_stock: 2, image_url: imgCama, barcode: "7891234560003", unit: "un", sku: "CAM-001", company_id: "demo", is_active: true },
+  { id: "demo-4", name: "Guarda-Roupa 4 Portas", category: "Quarto", price: 3899, cost_price: 2100, stock_quantity: 2, min_stock: 1, image_url: imgGuardaRoupa, barcode: "7891234560004", unit: "un", sku: "GUA-001", company_id: "demo", is_active: true },
+  { id: "demo-5", name: "Rack para TV 180cm", category: "Sala de Estar", price: 1899, cost_price: 950, stock_quantity: 6, min_stock: 2, image_url: imgRack, barcode: "7891234560005", unit: "un", sku: "RAC-001", company_id: "demo", is_active: true },
+  { id: "demo-6", name: "Escrivaninha Home Office", category: "Escritório", price: 1599, cost_price: 800, stock_quantity: 8, min_stock: 3, image_url: imgEscrivaninha, barcode: "7891234560006", unit: "un", sku: "ESC-001", company_id: "demo", is_active: true },
+];
+
 export default function CatalogoMoveis() {
-  const { data: products = [], isLoading: loading } = useProducts();
+  const { data: realProducts = [], isLoading: loading } = useProducts();
+  const products = useMemo(() => [...realProducts, ...demoProducts], [realProducts]);
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
