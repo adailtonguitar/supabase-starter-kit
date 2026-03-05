@@ -77,13 +77,13 @@ function buildDataSummary(
   );
   const zeroStock = products.filter((p) => (p.stock_quantity ?? 0) === 0);
   const productsWithMargin = products.filter(
-    (p) => p.sale_price > 0 && p.cost_price > 0
+    (p) => p.price > 0 && p.cost_price > 0
   );
   const avgMargin =
     productsWithMargin.length > 0
       ? productsWithMargin.reduce(
           (s, p) =>
-            s + ((p.sale_price - p.cost_price) / p.sale_price) * 100,
+            s + ((p.price - p.cost_price) / p.price) * 100,
           0
         ) / productsWithMargin.length
       : 0;
@@ -317,7 +317,7 @@ Deno.serve(async (req) => {
         supabase
           .from("products")
           .select(
-            "name, stock_quantity, min_stock, sale_price, cost_price, category, is_active"
+            "name, stock_quantity, min_stock, price, cost_price, category, is_active"
           )
           .eq("company_id", company_id)
           .limit(1000),
