@@ -176,23 +176,36 @@ const navItems: NavEntry[] = [
 // Furniture-only nav items (inserted when furniture mode is active)
 const furnitureNavItems: NavEntry[] = [
   { type: "label", text: "LOJA DE MÓVEIS" },
-  { icon: Armchair, label: "Catálogo", path: "/catalogo-moveis" },
-  { icon: Eye, label: "Exposição", path: "/exposicao" },
-  { icon: Truck, label: "Entregas", path: "/entregas" },
-  { icon: Wrench, label: "Montagem", path: "/montagem" },
+  {
+    icon: Armchair,
+    label: "Showroom",
+    children: [
+      { icon: Armchair, label: "Catálogo", path: "/catalogo-moveis" },
+      { icon: Eye, label: "Exposição", path: "/exposicao" },
+    ],
+  },
+  {
+    icon: Wrench,
+    label: "Operações",
+    children: [
+      { icon: FileText, label: "Orçamentos", path: "/orcamentos" },
+      { icon: ShoppingCart, label: "Pedidos Compra", path: "/pedidos-compra" },
+      { icon: Truck, label: "Entregas", path: "/entregas" },
+      { icon: Wrench, label: "Montagem", path: "/montagem" },
+    ],
+  },
 ];
 
 // Furniture store mode: only show relevant paths
 const furnitureAllowedPaths = new Set([
   "/pdv", "/dashboard", "/painel-dono",
   "/produtos", "/estoque/movimentacoes", "/estoque/inventario", "/etiquetas",
-  "/vendas", "/fiado", "/orcamentos",
+  "/vendas", "/fiado",
   "/relatorios", "/relatorio-vendas",
   "/financeiro", "/caixa", "/lucro-diario", "/painel-lucro", "/comissoes",
   "/cadastro/empresas", "/cadastro/clientes", "/cadastro/fornecedores", "/cadastro/funcionarios", "/cadastro/transportadoras", "/usuarios",
   "/fiscal", "/fiscal/nfe", "/fiscal/config",
   "/configuracoes", "/terminais",
-  "/pedidos-compra",
   "/catalogo-moveis", "/entregas", "/montagem", "/exposicao",
 ]);
 
