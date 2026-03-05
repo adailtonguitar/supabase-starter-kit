@@ -81,13 +81,20 @@ export default function RelatorioVendas() {
       console.log("[RelatorioVendas] Sales found:", salesData?.length || 0);
       if (!salesData || salesData.length === 0) return [];
 
-      // Fetch sale_items for all sales in the period
+      // Fetch sale_items in batches to avoid URL length limits
       const saleIds = salesData.map((s: any) => s.id);
-      const { data: itemsData, error: itemsError } = await supabase
-        .from("sale_items")
-        .select("sale_id, product_id, product_name, quantity, unit_price, cost_price")
-        .in("sale_id", saleIds);
-      if (itemsError) throw itemsError;
+      const BATCH_SIZE = 20;
+      let allItems: any[] = [];
+      for (let i = 0; i < saleIds.length; i += BATCH_SIZE) {
+        const batch = saleIds.slice(i, i + BATCH_SIZE);
+        const { data: batchItems, error: batchError } = await supabase
+          .from("sale_items")
+          .select("sale_id, product_id, product_name, quantity, unit_price, cost_price")
+          .in("sale_id", batch);
+        if (batchError) throw batchError;
+        if (batchItems) allItems = allItems.concat(batchItems);
+      }
+      const itemsData = allItems;
 
       // Attach items to each sale
       const itemsBySale: Record<string, any[]> = {};
