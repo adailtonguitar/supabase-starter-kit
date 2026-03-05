@@ -5,6 +5,26 @@ import { Mail, Lock, ArrowRight, KeyRound, Eye, EyeOff } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 
+const authErrorMap: Record<string, string> = {
+  "Invalid login credentials": "E-mail ou senha incorretos",
+  "Email not confirmed": "E-mail ainda não confirmado. Verifique sua caixa de entrada.",
+  "User not found": "Usuário não encontrado",
+  "Email rate limit exceeded": "Muitas tentativas. Aguarde alguns minutos.",
+  "For security purposes, you can only request this after": "Por segurança, aguarde antes de tentar novamente.",
+  "Password should be at least 6 characters": "A senha deve ter pelo menos 6 caracteres",
+  "User already registered": "Este e-mail já está cadastrado",
+  "Signup requires a valid password": "Informe uma senha válida",
+  "Unable to validate email address: invalid format": "Formato de e-mail inválido",
+};
+
+function translateAuthError(msg: string): string {
+  if (authErrorMap[msg]) return authErrorMap[msg];
+  for (const [key, val] of Object.entries(authErrorMap)) {
+    if (msg.includes(key)) return val;
+  }
+  return msg;
+}
+
 export default function Auth() {
   const [email, setEmail] = useState(() => localStorage.getItem("remember-email") || "");
   const [password, setPassword] = useState("");
@@ -118,7 +138,7 @@ export default function Auth() {
       toast.success("Senha definida com sucesso!");
       navigate("/");
     } catch (error: any) {
-      toast.error(error.message || "Erro ao definir senha");
+      toast.error(translateAuthError(error.message || "Erro ao definir senha"));
     } finally {
       setLoading(false);
     }
@@ -147,7 +167,7 @@ export default function Auth() {
       setShowForgotPassword(false);
     } catch (error: any) {
       console.error("[Auth] Recovery error details:", error);
-      toast.error(error.message || "Erro ao enviar e-mail de recuperação");
+      toast.error(translateAuthError(error.message || "Erro ao enviar e-mail de recuperação"));
     } finally {
       setLoading(false);
     }
@@ -177,7 +197,7 @@ export default function Auth() {
       toast.success("Conta criada! Verifique seu e-mail para confirmar.");
       setIsSignUp(false);
     } catch (error: any) {
-      toast.error(error.message || "Erro ao criar conta");
+      toast.error(translateAuthError(error.message || "Erro ao criar conta"));
     } finally {
       setLoading(false);
     }
@@ -194,7 +214,7 @@ export default function Auth() {
       });
       if (error) throw error;
     } catch (error: any) {
-      toast.error(error.message || "Erro ao entrar com Google");
+      toast.error(translateAuthError(error.message || "Erro ao entrar com Google"));
     } finally {
       setLoading(false);
     }
@@ -217,7 +237,8 @@ export default function Auth() {
       toast.success("Login realizado com sucesso!");
       navigate("/");
     } catch (error: any) {
-      toast.error(error.message || "Erro ao fazer login");
+      const msg = translateAuthError(error.message || "Erro ao fazer login");
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -387,7 +408,6 @@ export default function Auth() {
                   <ArrowRight className="w-4 h-4" />
                 </button>
               </form>
-
 
               {!isSignUp && showForgotPassword ? (
                 <div className="mt-4 pt-4 border-t border-border">
