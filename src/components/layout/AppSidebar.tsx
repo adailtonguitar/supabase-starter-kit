@@ -11,7 +11,7 @@ import {
   Percent, ArrowRightLeft, TrendingDown, Gift, Brain, Monitor, ShieldCheck, CreditCard, ChefHat,
   HelpCircle, X, Wallet, PieChart, LineChart, AreaChart, CircleDollarSign, Scale,
   BadgeDollarSign, Bell, Stethoscope, Scan, FileDown, FilePen, FileSearch, Cog,
-  Network, Smartphone, LifeBuoy, Boxes, BarChart, Calculator,
+  Network, Smartphone, LifeBuoy, Boxes, BarChart, Calculator, Armchair, Wrench,
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
@@ -173,6 +173,14 @@ const navItems: NavEntry[] = [
   },
 ];
 
+// Furniture-only nav items (inserted when furniture mode is active)
+const furnitureNavItems: NavEntry[] = [
+  { type: "label", text: "LOJA DE MÓVEIS" },
+  { icon: Armchair, label: "Catálogo", path: "/catalogo-moveis" },
+  { icon: Truck, label: "Entregas", path: "/entregas" },
+  { icon: Wrench, label: "Montagem", path: "/montagem" },
+];
+
 // Furniture store mode: only show relevant paths
 const furnitureAllowedPaths = new Set([
   "/pdv", "/dashboard", "/painel-dono",
@@ -184,6 +192,7 @@ const furnitureAllowedPaths = new Set([
   "/fiscal", "/fiscal/nfe", "/fiscal/config",
   "/configuracoes", "/terminais",
   "/pedidos-compra",
+  "/catalogo-moveis", "/entregas", "/montagem",
 ]);
 
 function filterNavForFurniture(items: NavEntry[]): NavEntry[] {
@@ -257,7 +266,7 @@ export function AppSidebar({ mobileOpen, onMobileClose }: AppSidebarProps) {
     }
   }, [location.pathname]);
 
-  let visibleNavItems: NavEntry[] = furnitureMode ? filterNavForFurniture(navItems) : [...navItems];
+  let visibleNavItems: NavEntry[] = furnitureMode ? [...furnitureNavItems, ...filterNavForFurniture(navItems)] : [...navItems];
   if (isSuperAdmin) {
     visibleNavItems = [...visibleNavItems, adminNavItem];
   }
