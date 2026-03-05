@@ -72,7 +72,7 @@ export default function RelatorioVendas() {
         .eq("company_id", companyId)
         .gte("created_at", dateRange.from)
         .lte("created_at", dateRange.to)
-        .neq("status", "cancelled")
+        .or("status.is.null,status.neq.cancelled")
         .order("created_at", { ascending: false });
       if (salesError) {
         console.error("[RelatorioVendas] Sales query error:", salesError);

@@ -91,7 +91,7 @@ export default function Relatorios() {
         .eq("company_id", companyId!)
         .gte("created_at", from)
         .lte("created_at", to)
-        .neq("status", "cancelled");
+        .or("status.is.null,status.neq.cancelled");
 
       const sales = (rawSales || []).map((s: any) => ({
         id: s.id,
