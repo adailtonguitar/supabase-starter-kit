@@ -142,8 +142,8 @@ export function useDashboardStats() {
       const fiscalProtected = (fiscalResult.data || []).length > 0;
 
       const financialEntries = financialResult.data || [];
-      const receitas = financialEntries.filter((e: any) => e.type === "receita").reduce((s: number, e: any) => s + Number(e.amount || 0), 0);
-      const despesas = financialEntries.filter((e: any) => e.type === "despesa").reduce((s: number, e: any) => s + Number(e.amount || 0), 0);
+      const receitas = financialEntries.filter((e: any) => e.type === "receber").reduce((s: number, e: any) => s + Number(e.amount || 0), 0);
+      const despesas = financialEntries.filter((e: any) => e.type === "pagar").reduce((s: number, e: any) => s + Number(e.amount || 0), 0);
       const monthProfit = receitas > 0 || despesas > 0 ? receitas - despesas : monthRevenue * 0.3;
 
       let healthScore = 50;

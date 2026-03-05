@@ -21,8 +21,8 @@ function buildDataSummary(
   const zeroStock = products.filter((p) => (p.stock_quantity ?? 0) === 0);
   const today = new Date().toISOString().split("T")[0];
   const overdue = financial.filter((f) => f.status === "pendente" && f.due_date <= today);
-  const receitas = financial.filter((f) => f.type === "receita" && f.status === "pago").reduce((s, f) => s + Number(f.amount || 0), 0);
-  const despesas = financial.filter((f) => f.type === "despesa" && f.status === "pago").reduce((s, f) => s + Number(f.amount || 0), 0);
+  const receitas = financial.filter((f) => f.type === "receber" && f.status === "pago").reduce((s, f) => s + Number(f.amount || 0), 0);
+  const despesas = financial.filter((f) => f.type === "pagar" && f.status === "pago").reduce((s, f) => s + Number(f.amount || 0), 0);
   const lucro = receitas - despesas;
   const margem = receitas > 0 ? ((lucro / receitas) * 100).toFixed(1) : "0.0";
 
@@ -200,8 +200,8 @@ function generateFallbackReport(reportType: string, sales: any[], products: any[
   const zeroStock = products.filter((p) => (p.stock_quantity ?? 0) === 0);
   const today = new Date().toISOString().split("T")[0];
   const overdue = financial.filter((f) => f.status === "pendente" && f.due_date <= today);
-  const receitas = financial.filter((f) => f.type === "receita" && f.status === "pago").reduce((s, f) => s + Number(f.amount || 0), 0);
-  const despesas = financial.filter((f) => f.type === "despesa" && f.status === "pago").reduce((s, f) => s + Number(f.amount || 0), 0);
+  const receitas = financial.filter((f) => f.type === "receber" && f.status === "pago").reduce((s, f) => s + Number(f.amount || 0), 0);
+  const despesas = financial.filter((f) => f.type === "pagar" && f.status === "pago").reduce((s, f) => s + Number(f.amount || 0), 0);
   const lucro = receitas - despesas;
   const margem = receitas > 0 ? ((lucro / receitas) * 100).toFixed(1) : "0.0";
   const totalOverdue = overdue.reduce((s: number, f: any) => s + Number(f.amount || 0), 0);
