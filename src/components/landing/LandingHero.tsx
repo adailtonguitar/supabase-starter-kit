@@ -94,54 +94,58 @@ export function LandingHero() {
             </div>
           </motion.div>
 
-          {/* Right — Hero Images */}
+          {/* Right — Hero Composition: PDV on monitor in supermarket */}
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.2 }}
             className="relative"
           >
-            {/* Supermarket scene background */}
-            <div className="rounded-2xl overflow-hidden shadow-xl border border-border/30 mb-4">
+            {/* Supermarket scene as main visual */}
+            <div className="relative rounded-2xl overflow-hidden shadow-2xl shadow-primary/10 border border-border/30">
               <img
                 src={supermarketScene}
                 alt="Comércio moderno com sistema AnthoSystem"
                 className="w-full h-auto"
                 loading="eager"
               />
-            </div>
 
-            {/* PDV Screenshot — Notebook Frame */}
-            <motion.div
-              animate={{ y: [0, -6, 0] }}
-              transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-              className="relative group cursor-pointer"
-              onClick={() => setZoomed(true)}
-            >
-              {/* Notebook frame */}
-              <div className="bg-[hsl(var(--card))] rounded-xl border-2 border-border shadow-2xl shadow-primary/10 overflow-hidden">
-                {/* Browser top bar */}
-                <div className="flex items-center gap-1.5 px-3 py-2 bg-muted/50 border-b border-border">
-                  <div className="w-2.5 h-2.5 rounded-full bg-destructive/60" />
-                  <div className="w-2.5 h-2.5 rounded-full bg-[hsl(45,80%,50%)]" />
-                  <div className="w-2.5 h-2.5 rounded-full bg-primary/60" />
-                  <div className="ml-2 flex-1 bg-muted rounded-md h-4 flex items-center px-2">
-                    <span className="text-[8px] text-muted-foreground truncate">anthosystem.com.br/pdv</span>
+              {/* PDV screen overlaid on the monitor area */}
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.6, delay: 0.5 }}
+                className="absolute bottom-[8%] left-[5%] w-[65%] cursor-pointer group"
+                onClick={() => setZoomed(true)}
+              >
+                {/* Monitor frame */}
+                <div className="bg-[hsl(220,15%,12%)] rounded-lg border border-border/50 shadow-2xl overflow-hidden">
+                  {/* Browser top bar */}
+                  <div className="flex items-center gap-1 px-2 py-1 bg-[hsl(220,15%,8%)] border-b border-border/30">
+                    <div className="w-1.5 h-1.5 rounded-full bg-destructive/60" />
+                    <div className="w-1.5 h-1.5 rounded-full bg-[hsl(45,80%,50%)]" />
+                    <div className="w-1.5 h-1.5 rounded-full bg-primary/60" />
+                    <div className="ml-1.5 flex-1 bg-[hsl(220,15%,15%)] rounded h-3 flex items-center px-1.5">
+                      <span className="text-[6px] text-muted-foreground/60 truncate">anthosystem.com.br/pdv</span>
+                    </div>
                   </div>
+                  <img
+                    src={pdvScreen}
+                    alt="PDV AnthoSystem — Tela do ponto de venda"
+                    className="w-full h-auto"
+                    loading="eager"
+                  />
                 </div>
-                <img
-                  src={pdvScreen}
-                  alt="PDV AnthoSystem — Tela do ponto de venda com produtos, pagamentos e atalhos"
-                  className="w-full h-auto"
-                  loading="eager"
-                />
-              </div>
+                {/* Monitor stand */}
+                <div className="mx-auto w-[20%] h-1.5 bg-[hsl(220,10%,20%)] rounded-b-sm" />
+                <div className="mx-auto w-[30%] h-1 bg-[hsl(220,10%,18%)] rounded-b-md" />
 
-              {/* Zoom hint */}
-              <div className="absolute top-4 right-4 bg-background/80 backdrop-blur-sm rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity border border-border">
-                <ZoomIn className="w-4 h-4 text-primary" />
-              </div>
-            </motion.div>
+                {/* Zoom hint */}
+                <div className="absolute top-3 right-3 bg-background/70 backdrop-blur-sm rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity border border-border/50">
+                  <ZoomIn className="w-3 h-3 text-primary" />
+                </div>
+              </motion.div>
+            </div>
 
             {/* Floating cards */}
             <motion.div
