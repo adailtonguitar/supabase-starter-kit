@@ -101,51 +101,51 @@ export function LandingHero() {
             transition={{ duration: 0.8, delay: 0.2 }}
             className="relative"
           >
-            {/* Supermarket scene as main visual */}
-            <div className="relative rounded-2xl overflow-hidden shadow-2xl shadow-primary/10 border border-border/30">
-              <img
-                src={supermarketScene}
-                alt="Comércio moderno com sistema AnthoSystem"
-                className="w-full h-auto"
-                loading="eager"
-              />
-            </div>
-
-            {/* PDV screen as monitor mockup — positioned as the cashier's computer */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.5 }}
-              className="absolute -bottom-8 left-1/2 -translate-x-1/2 w-[85%] cursor-pointer group z-10"
-              onClick={() => setZoomed(true)}
-            >
-              {/* Monitor frame */}
-              <div className="bg-[hsl(220,15%,10%)] rounded-xl border-2 border-border/40 shadow-2xl shadow-black/40 overflow-hidden">
-                {/* Browser top bar */}
-                <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[hsl(220,15%,7%)] border-b border-border/30">
-                  <div className="w-2 h-2 rounded-full bg-destructive/60" />
-                  <div className="w-2 h-2 rounded-full bg-[hsl(45,80%,50%)]" />
-                  <div className="w-2 h-2 rounded-full bg-primary/60" />
-                  <div className="ml-2 flex-1 bg-[hsl(220,15%,14%)] rounded h-4 flex items-center px-2">
-                    <span className="text-[7px] text-muted-foreground/50 truncate">anthosystem.com.br/pdv</span>
-                  </div>
-                </div>
+            {/* Supermarket scene + PDV overlapping from the cashier's side */}
+            <div className="relative">
+              {/* Supermarket scene — full width */}
+              <div className="rounded-2xl overflow-hidden shadow-2xl shadow-primary/10 border border-border/30">
                 <img
-                  src={pdvScreen}
-                  alt="PDV AnthoSystem — Tela do ponto de venda"
+                  src={supermarketScene}
+                  alt="Comércio moderno com sistema AnthoSystem"
                   className="w-full h-auto"
                   loading="eager"
                 />
               </div>
-              {/* Monitor stand */}
-              <div className="mx-auto w-[12%] h-4 bg-[hsl(220,10%,15%)]" />
-              <div className="mx-auto w-[22%] h-1.5 bg-[hsl(220,10%,13%)] rounded-b-lg" />
 
-              {/* Zoom hint */}
-              <div className="absolute top-4 right-4 bg-background/70 backdrop-blur-sm rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity border border-border/50">
-                <ZoomIn className="w-4 h-4 text-primary" />
-              </div>
-            </motion.div>
+              {/* PDV screen — overlapping right side like the cashier's monitor zoomed */}
+              <motion.div
+                initial={{ opacity: 0, x: 40, scale: 0.95 }}
+                animate={{ opacity: 1, x: 0, scale: 1 }}
+                transition={{ duration: 0.7, delay: 0.5 }}
+                className="absolute top-[8%] -right-[10%] w-[60%] cursor-pointer group z-10"
+                onClick={() => setZoomed(true)}
+              >
+                {/* Monitor frame */}
+                <div className="bg-[hsl(220,15%,10%)] rounded-xl border-2 border-primary/20 shadow-2xl shadow-black/50 overflow-hidden ring-1 ring-primary/10">
+                  {/* Browser top bar */}
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[hsl(220,15%,7%)] border-b border-border/30">
+                    <div className="w-2 h-2 rounded-full bg-destructive/60" />
+                    <div className="w-2 h-2 rounded-full bg-[hsl(45,80%,50%)]" />
+                    <div className="w-2 h-2 rounded-full bg-primary/60" />
+                    <div className="ml-2 flex-1 bg-[hsl(220,15%,14%)] rounded h-4 flex items-center px-2">
+                      <span className="text-[7px] text-muted-foreground/50 truncate">anthosystem.com.br/pdv</span>
+                    </div>
+                  </div>
+                  <img
+                    src={pdvScreen}
+                    alt="PDV AnthoSystem — Tela do ponto de venda"
+                    className="w-full h-auto"
+                    loading="eager"
+                  />
+                </div>
+
+                {/* Zoom hint */}
+                <div className="absolute top-4 right-4 bg-background/70 backdrop-blur-sm rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity border border-border/50">
+                  <ZoomIn className="w-4 h-4 text-primary" />
+                </div>
+              </motion.div>
+            </div>
 
             {/* Floating cards */}
             <motion.div
