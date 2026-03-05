@@ -111,6 +111,7 @@ const navItems: NavEntry[] = [
     icon: BarChart3,
     label: "Relatórios",
     children: [
+      { icon: BarChart3, label: "Central de Relatórios", path: "/relatorios" },
       { icon: BarChart3, label: "Relatório Vendas", path: "/relatorio-vendas" },
       { icon: Brain, label: "Relatórios IA", path: "/relatorios-ia" },
     ],
