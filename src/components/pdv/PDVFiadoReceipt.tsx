@@ -10,11 +10,12 @@ export interface FiadoReceiptData {
   clientDoc?: string;
   total: number;
   items: { name: string; quantity: number; price: number }[];
-  mode: "fiado" | "parcelado";
+  mode: "fiado" | "parcelado" | "sinal";
   installments: number;
   saleNumber?: number;
   storeName?: string;
   storeCnpj?: string;
+  downPayment?: number;
 }
 
 interface Props {
@@ -24,7 +25,17 @@ interface Props {
 
 export function PDVFiadoReceipt({ data, onClose }: Props) {
   const now = new Date();
-  const installmentValue = data.installments > 1 ? data.total / data.installments : data.total;
+  const isSignal = data.mode === "sinal" && data.downPayment && data.downPayment > 0;
+  const remaining = isSignal ? data.total - data.downPayment! : data.total;
+  const installmentValue = data.installments > 1 ? remaining / data.installments : remaining;
+
+  const modeLabel = () => {
+    if (isSignal) {
+      const base = `Sinal: ${formatCurrency(data.downPayment!)} | Saldo: ${formatCurrency(remaining)}`;
+      return data.installments > 1 ? `${base} (${data.installments}x de ${formatCurrency(installmentValue)})` : `${base} (na entrega)`;
+    }
+    return data.mode === "parcelado" ? `Parcelado ${data.installments}x de ${formatCurrency(installmentValue)}` : "Fiado (pagamento único)";
+  };
 
   const buildHtml = () => `
 <html><head><title>Comprovante Fiado</title>
@@ -62,7 +73,7 @@ export function PDVFiadoReceipt({ data, onClose }: Props) {
   </table>
   <div class="sep"></div>
   <div class="big center">TOTAL: ${formatCurrency(data.total)}</div>
-  <div class="center line">Modalidade: ${data.mode === "parcelado" ? `Parcelado ${data.installments}x de ${formatCurrency(installmentValue)}` : "Fiado (pagamento único)"}</div>
+  <div class="center line">Modalidade: ${modeLabel()}</div>
   <div class="sep"></div>
   <div class="sig-area">
     <div class="sig-line">Assinatura do Cliente</div>
@@ -92,7 +103,7 @@ export function PDVFiadoReceipt({ data, onClose }: Props) {
   </table>
   <div class="sep"></div>
   <div class="big center">TOTAL: ${formatCurrency(data.total)}</div>
-  <div class="center line">Modalidade: ${data.mode === "parcelado" ? `Parcelado ${data.installments}x de ${formatCurrency(installmentValue)}` : "Fiado (pagamento único)"}</div>
+  <div class="center line">Modalidade: ${modeLabel()}</div>
   <div class="sep"></div>
   <div class="center bold" style="font-size:10px;margin-top:8px;">2ª VIA - CLIENTE</div>
   <div class="center" style="font-size:9px;margin-top:4px;">Guarde este comprovante para controle</div>
@@ -132,16 +143,34 @@ export function PDVFiadoReceipt({ data, onClose }: Props) {
 
         {/* Details */}
         <div className="px-6 py-4 border-t border-border space-y-3">
-          <div className="flex justify-between items-center">
-            <span className="text-sm text-muted-foreground">Total</span>
-            <span className="text-lg font-bold font-mono text-primary">{formatCurrency(data.total)}</span>
-          </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">Modalidade</span>
-            <span className="font-medium text-foreground">
-              {data.mode === "parcelado" ? `${data.installments}x de ${formatCurrency(installmentValue)}` : "Fiado"}
-            </span>
-          </div>
+           <div className="flex justify-between items-center">
+             <span className="text-sm text-muted-foreground">Total</span>
+             <span className="text-lg font-bold font-mono text-primary">{formatCurrency(data.total)}</span>
+           </div>
+           {isSignal && (
+             <>
+               <div className="flex justify-between text-sm">
+                 <span className="text-muted-foreground">Sinal (entrada)</span>
+                 <span className="font-bold font-mono text-emerald-500">{formatCurrency(data.downPayment!)}</span>
+               </div>
+               <div className="flex justify-between text-sm">
+                 <span className="text-muted-foreground">Saldo restante</span>
+                 <span className="font-bold font-mono text-foreground">{formatCurrency(remaining)}</span>
+               </div>
+             </>
+           )}
+           <div className="flex justify-between text-sm">
+             <span className="text-muted-foreground">Modalidade</span>
+             <span className="font-medium text-foreground">
+               {isSignal
+                 ? data.installments > 1
+                   ? `Sinal + ${data.installments}x de ${formatCurrency(installmentValue)}`
+                   : "Sinal + saldo na entrega"
+                 : data.mode === "parcelado"
+                 ? `${data.installments}x de ${formatCurrency(installmentValue)}`
+                 : "Fiado"}
+             </span>
+           </div>
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">Data/Hora</span>
             <span className="font-mono text-foreground text-xs">{now.toLocaleString("pt-BR")}</span>

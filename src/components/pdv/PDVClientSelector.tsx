@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Search, User, AlertTriangle, CreditCard, Clock, ShoppingBag } from "lucide-react";
+import { Search, User, AlertTriangle, CreditCard, Clock, ShoppingBag, Banknote } from "lucide-react";
 import { useClients } from "@/hooks/useClients";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -17,7 +17,7 @@ export interface CreditClient {
 interface PDVClientSelectorProps {
   open: boolean;
   onClose: () => void;
-  onSelect: (client: CreditClient, mode: "fiado" | "parcelado", installments: number) => void;
+  onSelect: (client: CreditClient, mode: "fiado" | "parcelado" | "sinal", installments: number, downPayment?: number) => void;
   saleTotal: number;
 }
 
@@ -30,8 +30,11 @@ export function PDVClientSelector({ open, onClose, onSelect, saleTotal }: PDVCli
   const { data: clients = [] } = useClients();
   const [search, setSearch] = useState("");
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
-  const [mode, setMode] = useState<"fiado" | "parcelado">("fiado");
+  const [mode, setMode] = useState<"fiado" | "parcelado" | "sinal">("fiado");
   const [installments, setInstallments] = useState(1);
+  const [downPayment, setDownPayment] = useState("");
+  const [sinalRemainingMode, setSinalRemainingMode] = useState<"fiado" | "parcelado">("fiado");
+  const [sinalInstallments, setSinalInstallments] = useState(2);
 
   const filteredClients = useMemo(() => {
     if (!search.trim()) return clients;
@@ -49,6 +52,10 @@ export function PDVClientSelector({ open, onClose, onSelect, saleTotal }: PDVCli
   const availableCredit = creditLimit > 0 ? creditLimit - creditBalance : Infinity;
   const exceedsLimit = creditLimit > 0 && saleTotal > availableCredit;
 
+  const parsedDownPayment = parseFloat(downPayment.replace(",", ".")) || 0;
+  const sinalRemaining = saleTotal - parsedDownPayment;
+  const sinalValid = mode === "sinal" ? parsedDownPayment > 0 && parsedDownPayment < saleTotal : true;
+
   const handleConfirm = () => {
     if (!selectedClient) return;
     const mapped: CreditClient = {
@@ -59,7 +66,12 @@ export function PDVClientSelector({ open, onClose, onSelect, saleTotal }: PDVCli
       credit_used: creditBalance,
       credit_balance: creditBalance,
     };
-    onSelect(mapped, mode, mode === "parcelado" ? installments : 1);
+    if (mode === "sinal") {
+      const inst = sinalRemainingMode === "parcelado" ? sinalInstallments : 1;
+      onSelect(mapped, "sinal", inst, parsedDownPayment);
+    } else {
+      onSelect(mapped, mode, mode === "parcelado" ? installments : 1);
+    }
   };
 
   const reset = () => {
@@ -67,6 +79,9 @@ export function PDVClientSelector({ open, onClose, onSelect, saleTotal }: PDVCli
     setSelectedClientId(null);
     setMode("fiado");
     setInstallments(1);
+    setDownPayment("");
+    setSinalRemainingMode("fiado");
+    setSinalInstallments(2);
   };
 
   if (!open) return null;
@@ -231,39 +246,53 @@ export function PDVClientSelector({ open, onClose, onSelect, saleTotal }: PDVCli
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
                 Tipo de venda
               </p>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-3 gap-2">
                 <button
                   onClick={() => { setMode("fiado"); setInstallments(1); }}
-                  className={`flex flex-col items-center gap-1.5 p-4 rounded-xl border-2 transition-all ${
+                  className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all ${
                     mode === "fiado"
                       ? "border-primary bg-primary/5"
                       : "border-border hover:border-muted-foreground/30"
                   }`}
                 >
-                  <ShoppingBag className={`w-6 h-6 ${mode === "fiado" ? "text-primary" : "text-muted-foreground"}`} />
-                  <span className={`text-sm font-semibold ${mode === "fiado" ? "text-primary" : "text-foreground"}`}>
+                  <ShoppingBag className={`w-5 h-5 ${mode === "fiado" ? "text-primary" : "text-muted-foreground"}`} />
+                  <span className={`text-xs font-semibold ${mode === "fiado" ? "text-primary" : "text-foreground"}`}>
                     Fiado
                   </span>
-                  <span className="text-[10px] text-muted-foreground text-center">Pagamento único posterior</span>
+                  <span className="text-[9px] text-muted-foreground text-center leading-tight">Paga depois</span>
                 </button>
                 <button
                   onClick={() => { setMode("parcelado"); setInstallments(2); }}
-                  className={`flex flex-col items-center gap-1.5 p-4 rounded-xl border-2 transition-all ${
+                  className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all ${
                     mode === "parcelado"
                       ? "border-primary bg-primary/5"
                       : "border-border hover:border-muted-foreground/30"
                   }`}
                 >
-                  <Clock className={`w-6 h-6 ${mode === "parcelado" ? "text-primary" : "text-muted-foreground"}`} />
-                  <span className={`text-sm font-semibold ${mode === "parcelado" ? "text-primary" : "text-foreground"}`}>
+                  <Clock className={`w-5 h-5 ${mode === "parcelado" ? "text-primary" : "text-muted-foreground"}`} />
+                  <span className={`text-xs font-semibold ${mode === "parcelado" ? "text-primary" : "text-foreground"}`}>
                     Parcelado
                   </span>
-                  <span className="text-[10px] text-muted-foreground text-center">Dividido em parcelas</span>
+                  <span className="text-[9px] text-muted-foreground text-center leading-tight">Em parcelas</span>
+                </button>
+                <button
+                  onClick={() => { setMode("sinal"); setDownPayment(""); }}
+                  className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all ${
+                    mode === "sinal"
+                      ? "border-emerald-500 bg-emerald-500/5"
+                      : "border-border hover:border-muted-foreground/30"
+                  }`}
+                >
+                  <Banknote className={`w-5 h-5 ${mode === "sinal" ? "text-emerald-500" : "text-muted-foreground"}`} />
+                  <span className={`text-xs font-semibold ${mode === "sinal" ? "text-emerald-500" : "text-foreground"}`}>
+                    Com Sinal
+                  </span>
+                  <span className="text-[9px] text-muted-foreground text-center leading-tight">Entrada + saldo</span>
                 </button>
               </div>
             </div>
 
-            {/* Installments */}
+            {/* Installments for parcelado */}
             {mode === "parcelado" && (
               <div>
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
@@ -292,6 +321,116 @@ export function PDVClientSelector({ open, onClose, onSelect, saleTotal }: PDVCli
                 </p>
               </div>
             )}
+
+            {/* Sinal (Down Payment) */}
+            {mode === "sinal" && (
+              <div className="space-y-3">
+                <div>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                    Valor do Sinal (Entrada)
+                  </p>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={downPayment}
+                      onChange={(e) => setDownPayment(e.target.value)}
+                      placeholder="0,00"
+                      autoFocus
+                      className="flex-1 text-center text-xl font-bold font-mono h-12 bg-background border-2 border-border rounded-xl focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 text-foreground"
+                    />
+                  </div>
+                  {/* Quick sinal values */}
+                  <div className="grid grid-cols-4 gap-1.5 mt-2">
+                    {[10, 20, 30, 50].map((pct) => (
+                      <button
+                        key={pct}
+                        onClick={() => setDownPayment((saleTotal * pct / 100).toFixed(2).replace(".", ","))}
+                        className="py-1.5 rounded-lg bg-muted hover:bg-accent text-foreground font-semibold text-xs border border-border transition-all"
+                      >
+                        {pct}%
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {parsedDownPayment > 0 && parsedDownPayment < saleTotal && (
+                  <>
+                    <div className="grid grid-cols-2 gap-2 text-center">
+                      <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                        <p className="text-[10px] text-muted-foreground uppercase">Entrada</p>
+                        <p className="text-sm font-bold font-mono text-emerald-500">{formatCurrency(parsedDownPayment)}</p>
+                      </div>
+                      <div className="p-2 rounded-lg bg-muted/50 border border-border">
+                        <p className="text-[10px] text-muted-foreground uppercase">Saldo Restante</p>
+                        <p className="text-sm font-bold font-mono text-foreground">{formatCurrency(sinalRemaining)}</p>
+                      </div>
+                    </div>
+
+                    <div>
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                        Saldo restante como
+                      </p>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          onClick={() => setSinalRemainingMode("fiado")}
+                          className={`py-2.5 rounded-xl text-xs font-semibold border-2 transition-all ${
+                            sinalRemainingMode === "fiado"
+                              ? "border-primary bg-primary/5 text-primary"
+                              : "border-border text-foreground hover:border-muted-foreground/30"
+                          }`}
+                        >
+                          Fiado (na entrega)
+                        </button>
+                        <button
+                          onClick={() => setSinalRemainingMode("parcelado")}
+                          className={`py-2.5 rounded-xl text-xs font-semibold border-2 transition-all ${
+                            sinalRemainingMode === "parcelado"
+                              ? "border-primary bg-primary/5 text-primary"
+                              : "border-border text-foreground hover:border-muted-foreground/30"
+                          }`}
+                        >
+                          Parcelado
+                        </button>
+                      </div>
+                    </div>
+
+                    {sinalRemainingMode === "parcelado" && (
+                      <div>
+                        <div className="grid grid-cols-4 gap-2">
+                          {INSTALLMENT_OPTIONS.filter((n) => n >= 2).map((n) => (
+                            <button
+                              key={n}
+                              onClick={() => setSinalInstallments(n)}
+                              className={`py-2 rounded-xl text-xs font-semibold border-2 transition-all ${
+                                sinalInstallments === n
+                                  ? "border-primary bg-primary/5 text-primary"
+                                  : "border-border text-foreground hover:border-muted-foreground/30"
+                              }`}
+                            >
+                              {n}x
+                            </button>
+                          ))}
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1.5 text-center">
+                          {sinalInstallments}x de{" "}
+                          <span className="font-semibold text-foreground">
+                            {formatCurrency(sinalRemaining / sinalInstallments)}
+                          </span>
+                        </p>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {parsedDownPayment >= saleTotal && (
+                  <div className="flex items-center gap-2 p-3 rounded-xl bg-destructive/10 border border-destructive/20">
+                    <AlertTriangle className="w-4 h-4 text-destructive flex-shrink-0" />
+                    <p className="text-xs text-destructive">O sinal deve ser menor que o total da venda.</p>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 
@@ -307,10 +446,14 @@ export function PDVClientSelector({ open, onClose, onSelect, saleTotal }: PDVCli
             </Button>
             <Button
               onClick={handleConfirm}
-              disabled={exceedsLimit}
+              disabled={exceedsLimit || (mode === "sinal" && !sinalValid)}
               className="flex-1"
             >
-              Confirmar {mode === "fiado" ? "Fiado" : `${installments}x`}
+              {mode === "sinal"
+                ? `Confirmar Sinal ${parsedDownPayment > 0 ? formatCurrency(parsedDownPayment) : ""}`
+                : mode === "fiado"
+                ? "Confirmar Fiado"
+                : `Confirmar ${installments}x`}
             </Button>
           </div>
         )}
