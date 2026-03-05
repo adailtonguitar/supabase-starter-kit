@@ -90,10 +90,10 @@ function buildDataSummary(
 
   // Financial
   const receitas = financial
-    .filter((f) => f.type === "receita" && f.status === "pago")
+    .filter((f) => f.type === "receber" && f.status === "pago")
     .reduce((s, f) => s + Number(f.amount || 0), 0);
   const despesas = financial
-    .filter((f) => f.type === "despesa" && f.status === "pago")
+    .filter((f) => f.type === "pagar" && f.status === "pago")
     .reduce((s, f) => s + Number(f.amount || 0), 0);
   const lucro = receitas - despesas;
   const margem = receitas > 0 ? ((lucro / receitas) * 100).toFixed(1) : "0.0";
