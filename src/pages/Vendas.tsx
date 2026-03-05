@@ -4,6 +4,7 @@ import { formatCurrency } from "@/lib/utils";
 import { motion } from "framer-motion";
 import { useSales, type Sale } from "@/hooks/useSales";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 import { useTEFConfig } from "@/hooks/useTEFConfig";
 import { MercadoPagoTEFService } from "@/services/MercadoPagoTEFService";
 import { NfceEmissionDialog } from "@/components/fiscal/NfceEmissionDialog";
@@ -24,13 +25,13 @@ import {
 } from "@/components/ui/alert-dialog";
 
 const paymentLabels: Record<string, string> = {
-  dinheiro: "Dinheiro",
-  pix: "PIX",
-  debito: "Débito",
-  credito: "Crédito",
-  voucher: "Voucher",
-  prazo: "A Prazo",
-  outros: "Outros",
+  dinheiro: "💵 Dinheiro",
+  pix: "⚡ PIX",
+  debito: "💳 Débito",
+  credito: "💳 Crédito",
+  voucher: "🎟️ Voucher",
+  prazo: "📅 A Prazo",
+  outros: "📦 Outros",
 };
 
 export default function Vendas() {
@@ -95,7 +96,7 @@ export default function Vendas() {
 
   return (
     <div className="p-3 sm:p-6 space-y-4 sm:space-y-6 max-w-7xl mx-auto">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-foreground">Histórico de Vendas</h1>
           <p className="text-xs sm:text-sm text-muted-foreground mt-1">
@@ -103,15 +104,12 @@ export default function Vendas() {
           </p>
         </div>
         <div className="flex gap-2">
-          <button
-            onClick={() => refetch()}
-            className="flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-secondary text-secondary-foreground text-sm font-medium hover:opacity-90 transition-all"
-          >
-            <RefreshCw className="w-4 h-4" />
+          <Button variant="outline" size="sm" onClick={() => refetch()}>
+            <RefreshCw className="w-4 h-4 sm:mr-2" />
             <span className="hidden sm:inline">Atualizar</span>
-          </button>
+          </Button>
         </div>
-      </div>
+      </motion.div>
       {/* Summary Stats Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
@@ -125,7 +123,7 @@ export default function Vendas() {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.05 }}
-            className="bg-card rounded-xl border border-border p-4"
+            className="bg-card rounded-2xl border border-border p-4 hover:shadow-md transition-shadow"
           >
             <div className="flex items-center gap-2 mb-1">
               <stat.icon className={`w-4 h-4 ${stat.color}`} />
@@ -186,7 +184,7 @@ export default function Vendas() {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.08 }}
-                className="bg-card rounded-xl card-shadow border border-border p-3 sm:p-5"
+                className="bg-card rounded-2xl card-shadow border border-border p-3 sm:p-5 hover:shadow-lg transition-shadow"
               >
                 <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2">
                   <div className="flex items-center gap-3 min-w-0">

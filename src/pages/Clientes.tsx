@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { motion } from "framer-motion";
 import { Users, Upload, User, Phone, Mail, MapPin, CreditCard, AlertTriangle, Search, Plus, Pencil, Trash2, X } from "lucide-react";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { useClients, useCreateClient, useUpdateClient, useDeleteClient } from "@/hooks/useClients";
@@ -153,7 +154,7 @@ export default function Clientes() {
   return (
     <div className="p-3 sm:p-6 space-y-4 sm:space-y-6 max-w-7xl mx-auto">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
             <Users className="w-6 h-6 text-primary" /> Clientes
@@ -168,7 +169,7 @@ export default function Clientes() {
             <Plus className="w-4 h-4 mr-1.5" /> Novo Cliente
           </Button>
         </div>
-      </div>
+      </motion.div>
 
       {/* Search */}
       {data.length > 0 && (
@@ -202,11 +203,11 @@ export default function Clientes() {
               const limit = Number(c.credit_limit || 0);
               const balance = Number(c.credit_balance || 0);
               return (
-                <div key={c.id} className="bg-card rounded-xl border border-border p-3.5 space-y-2.5">
+                <motion.div key={c.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: filtered.indexOf(c) * 0.03 }} className="bg-card rounded-2xl border border-border p-3.5 space-y-2.5 hover:shadow-md transition-shadow">
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                        <User className="w-5 h-5 text-primary" />
+                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 ring-2 ring-primary/20">
+                        <span className="text-sm font-bold text-primary">{(c.name || "?")[0].toUpperCase()}</span>
                       </div>
                       <div className="min-w-0">
                         <p className="text-sm font-semibold text-foreground truncate">{c.name}</p>
@@ -245,24 +246,24 @@ export default function Clientes() {
                       </div>
                     </div>
                   )}
-                </div>
+              </motion.div>
               );
             })}
           </div>
 
           {/* Desktop table */}
-          <div className="hidden md:block bg-card rounded-xl border border-border overflow-hidden">
+          <div className="hidden md:block bg-card rounded-2xl border border-border overflow-hidden">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-border bg-muted/50">
-                  <th className="text-left px-4 py-3 font-semibold text-muted-foreground">Cliente</th>
-                  <th className="text-left px-4 py-3 font-semibold text-muted-foreground">Contato</th>
-                  <th className="text-left px-4 py-3 font-semibold text-muted-foreground">Cidade</th>
-                  <th className="text-right px-4 py-3 font-semibold text-muted-foreground">Limite</th>
-                  <th className="text-right px-4 py-3 font-semibold text-muted-foreground">Saldo Devedor</th>
-                  <th className="text-left px-4 py-3 font-semibold text-muted-foreground">Status Crédito</th>
-                  <th className="text-right px-4 py-3 font-semibold text-muted-foreground w-24">Ações</th>
-                </tr>
+                 <tr className="border-b border-border bg-muted/30">
+                   <th className="text-left px-4 py-3 font-semibold text-muted-foreground text-xs uppercase tracking-widest">Cliente</th>
+                   <th className="text-left px-4 py-3 font-semibold text-muted-foreground text-xs uppercase tracking-widest">Contato</th>
+                   <th className="text-left px-4 py-3 font-semibold text-muted-foreground text-xs uppercase tracking-widest">Cidade</th>
+                   <th className="text-right px-4 py-3 font-semibold text-muted-foreground text-xs uppercase tracking-widest">Limite</th>
+                   <th className="text-right px-4 py-3 font-semibold text-muted-foreground text-xs uppercase tracking-widest">Saldo Devedor</th>
+                   <th className="text-left px-4 py-3 font-semibold text-muted-foreground text-xs uppercase tracking-widest">Status Crédito</th>
+                   <th className="text-right px-4 py-3 font-semibold text-muted-foreground text-xs uppercase tracking-widest w-24">Ações</th>
+                 </tr>
               </thead>
               <tbody>
                 {filtered.map((c: any) => {
@@ -270,11 +271,16 @@ export default function Clientes() {
                   const limit = Number(c.credit_limit || 0);
                   const balance = Number(c.credit_balance || 0);
                   return (
-                    <tr key={c.id} className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors">
+                    <tr key={c.id} className={`border-b border-border last:border-0 hover:bg-primary/[0.03] transition-colors ${filtered.indexOf(c) % 2 === 1 ? "bg-muted/15" : ""}`}>
                       <td className="px-4 py-3">
-                        <div>
-                          <p className="font-medium text-foreground">{c.name}</p>
-                          <p className="text-xs text-muted-foreground">{c.cpf_cnpj ? maskCpfCnpj(c.cpf_cnpj) : "—"}</p>
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                            <span className="text-xs font-bold text-primary">{(c.name || "?")[0].toUpperCase()}</span>
+                          </div>
+                          <div>
+                            <p className="font-medium text-foreground">{c.name}</p>
+                            <p className="text-xs text-muted-foreground">{c.cpf_cnpj ? maskCpfCnpj(c.cpf_cnpj) : "—"}</p>
+                          </div>
                         </div>
                       </td>
                       <td className="px-4 py-3">

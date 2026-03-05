@@ -72,7 +72,7 @@ export default function Produtos() {
 
   return (
     <div className="p-3 sm:p-6 space-y-4 sm:space-y-6 max-w-7xl mx-auto">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-foreground">Produtos & Estoque</h1>
           <p className="text-xs sm:text-sm text-muted-foreground mt-1">
@@ -93,7 +93,7 @@ export default function Produtos() {
             <span className="hidden sm:inline">Novo Produto</span>
           </Button>
         </div>
-      </div>
+      </motion.div>
 
       <LowStockAlert products={products as any} />
 
@@ -113,20 +113,20 @@ export default function Produtos() {
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        className="hidden md:block bg-card rounded-xl card-shadow border border-border overflow-hidden"
+        className="hidden md:block bg-card rounded-2xl card-shadow border border-border overflow-hidden"
       >
         <div className="overflow-x-auto scrollbar-thin">
           <table className="w-full text-sm min-w-[700px]">
             <thead>
-              <tr className="border-b border-border">
-                <th className="text-left px-5 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Produto</th>
-                <th className="text-left px-5 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">SKU</th>
-                <th className="text-left px-5 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">NCM</th>
-                <th className="text-left px-5 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Categoria</th>
-                <th className="text-right px-5 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Preço</th>
-                <th className="text-right px-5 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Estoque</th>
-                <th className="text-right px-5 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Mínimo</th>
-                <th className="text-center px-5 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Ações</th>
+              <tr className="border-b border-border bg-muted/30">
+                <th className="text-left px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-widest">Produto</th>
+                <th className="text-left px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-widest">SKU</th>
+                <th className="text-left px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-widest">NCM</th>
+                <th className="text-left px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-widest">Categoria</th>
+                <th className="text-right px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-widest">Preço</th>
+                <th className="text-right px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-widest">Estoque</th>
+                <th className="text-right px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-widest">Mínimo</th>
+                <th className="text-center px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-widest">Ações</th>
               </tr>
             </thead>
             <tbody>
@@ -150,7 +150,7 @@ export default function Produtos() {
                   return (
                     <tr
                       key={product.id}
-                      className="border-b border-border last:border-0 hover:bg-muted/50 transition-colors"
+                      className={`border-b border-border last:border-0 hover:bg-primary/[0.03] transition-colors ${filtered.indexOf(product) % 2 === 1 ? "bg-muted/15" : ""}`}
                     >
                       <td className="px-5 py-3">
                         <div className="flex items-center gap-3">
@@ -177,21 +177,20 @@ export default function Produtos() {
                         {product.min_stock ?? "—"}
                       </td>
                       <td className="px-5 py-3">
-                        <div className="flex items-center justify-center gap-1">
-                          <button onClick={() => setMovementProduct(product)} title="Movimentar estoque" className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
-                            <ArrowUpDown className="w-4 h-4" />
-                          </button>
-                          {/* History button hidden - feature in development */}
-                          <button onClick={() => setPriceHistoryProduct(product)} title="Histórico de preços" className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
-                            <History className="w-4 h-4" />
-                          </button>
+                         <div className="flex items-center justify-center gap-0.5">
+                          <button onClick={() => setMovementProduct(product)} title="Movimentar estoque" className="p-1.5 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors">
+                             <ArrowUpDown className="w-4 h-4" />
+                           </button>
+                           <button onClick={() => setPriceHistoryProduct(product)} title="Histórico de preços" className="p-1.5 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors">
+                             <History className="w-4 h-4" />
+                           </button>
                           <button onClick={() => handleEdit(product)} title="Editar" className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
-                            <Edit className="w-4 h-4" />
-                          </button>
-                          <button onClick={() => setDeleteTarget(product)} title="Excluir" className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors">
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
+                             <Edit className="w-4 h-4" />
+                           </button>
+                           <button onClick={() => setDeleteTarget(product)} title="Excluir" className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors">
+                             <Trash2 className="w-4 h-4" />
+                           </button>
+                         </div>
                       </td>
                     </tr>
                   );
@@ -214,7 +213,7 @@ export default function Produtos() {
           filtered.map((product) => {
             const isLow = product.min_stock != null && product.min_stock > 0 && product.stock_quantity <= product.min_stock;
             return (
-              <div key={product.id} className="bg-card rounded-xl border border-border p-3 space-y-2">
+              <motion.div key={product.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: filtered.indexOf(product) * 0.03 }} className="bg-card rounded-2xl border border-border p-3 space-y-2 hover:shadow-md transition-shadow">
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-center gap-2 min-w-0">
                     <div className="w-8 h-8 rounded-lg bg-accent flex items-center justify-center shrink-0 overflow-hidden">
@@ -255,7 +254,7 @@ export default function Produtos() {
                     </button>
                   </div>
                 </div>
-              </div>
+              </motion.div>
             );
           })
         )}
