@@ -431,39 +431,45 @@ export function AppSidebar({ mobileOpen, onMobileClose }: AppSidebarProps) {
         collapsed ? "w-[68px]" : "w-[240px]"
       )}
     >
-      {/* Premium logo area */}
+      {/* Compact premium header */}
       <div className={cn(
-        "relative shrink-0 overflow-hidden",
-        collapsed ? "px-2 py-3" : "px-3 py-4"
+        "relative shrink-0 overflow-hidden px-2 py-2",
       )}>
-        {/* Gradient background */}
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/8 via-primary/3 to-transparent" />
-        <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary/20 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/6 to-transparent" />
+        <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary/15 to-transparent" />
         
-        <div className={cn("relative flex items-center", collapsed ? "flex-col gap-1" : "gap-3")}>
-          <div className={cn(
-            "rounded-xl bg-gradient-to-br from-primary/15 to-primary/5 p-1.5 ring-1 ring-primary/10 shadow-sm",
-            collapsed ? "" : ""
-          )}>
-            <img src={anthoLogo} alt="AnthoSystem" className={cn("object-contain", collapsed ? "w-7 h-7" : "w-8 h-8")} />
+        <div className={cn("relative flex items-center", collapsed ? "justify-center" : "gap-2.5")}>
+          <div className="rounded-lg bg-gradient-to-br from-primary/12 to-primary/4 p-1 ring-1 ring-primary/10">
+            <img src={anthoLogo} alt="AnthoSystem" className="w-6 h-6 object-contain" />
           </div>
           <AnimatePresence>
             {!collapsed && (
-              <motion.div initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -8 }} className="flex flex-col min-w-0">
-                <span className="text-sm font-bold text-sidebar-foreground tracking-tight leading-tight">AnthoSystem</span>
-                <span className="text-[10px] text-muted-foreground/70 font-medium">Gestão Inteligente</span>
-              </motion.div>
+              <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="text-[13px] font-bold text-sidebar-foreground tracking-tight flex-1 min-w-0 truncate">
+                AnthoSystem
+              </motion.span>
             )}
           </AnimatePresence>
-          <button
-            onClick={() => setCollapsed(!collapsed)}
-            className={cn(
-              "p-1 rounded-md text-muted-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/80 transition-all duration-200",
-              collapsed ? "mt-1" : "ml-auto"
-            )}
-          >
-            {collapsed ? <ChevronRight className="w-3.5 h-3.5" /> : <ChevronLeft className="w-3.5 h-3.5" />}
-          </button>
+          {!collapsed && (
+            <button
+              onClick={() => setCollapsed(!collapsed)}
+              className="p-1 rounded-md text-muted-foreground/50 hover:text-sidebar-foreground hover:bg-sidebar-accent/80 transition-colors"
+            >
+              <ChevronLeft className="w-3.5 h-3.5" />
+            </button>
+          )}
+          {collapsed && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={() => setCollapsed(false)}
+                  className="p-1 rounded-md text-muted-foreground/50 hover:text-sidebar-foreground hover:bg-sidebar-accent/80 transition-colors mt-1"
+                >
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="right">Expandir</TooltipContent>
+            </Tooltip>
+          )}
         </div>
       </div>
 
