@@ -21,6 +21,7 @@ import { useSync } from "@/hooks/useSync";
 import { useAdminRole } from "@/hooks/useAdminRole";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useWhatsAppSupport } from "@/hooks/useWhatsAppSupport";
+import { useFurnitureMode } from "@/hooks/useFurnitureMode";
 
 // ─── Section labels ───
 type SectionLabel = { type: "label"; text: string };
@@ -172,6 +173,49 @@ const navItems: NavEntry[] = [
   },
 ];
 
+// Furniture store mode: only show relevant paths
+const furnitureAllowedPaths = new Set([
+  "/pdv", "/dashboard", "/painel-dono",
+  "/produtos", "/estoque/movimentacoes", "/estoque/inventario", "/etiquetas",
+  "/vendas", "/fiado", "/orcamentos",
+  "/relatorios", "/relatorio-vendas",
+  "/financeiro", "/caixa", "/lucro-diario", "/painel-lucro", "/comissoes",
+  "/cadastro/empresas", "/cadastro/clientes", "/cadastro/fornecedores", "/cadastro/funcionarios", "/cadastro/transportadoras", "/usuarios",
+  "/fiscal", "/fiscal/nfe", "/fiscal/config",
+  "/configuracoes", "/terminais",
+  "/pedidos-compra",
+]);
+
+function filterNavForFurniture(items: NavEntry[]): NavEntry[] {
+  const result: NavEntry[] = [];
+  for (const entry of items) {
+    if (isLabel(entry)) {
+      result.push(entry);
+    } else if (isGroup(entry)) {
+      const filtered = entry.children.filter(c => furnitureAllowedPaths.has(c.path));
+      if (filtered.length > 0) {
+        result.push({ ...entry, children: filtered });
+      }
+    } else {
+      if (furnitureAllowedPaths.has(entry.path)) {
+        result.push(entry);
+      }
+    }
+  }
+  // Remove trailing labels with no items after them
+  const cleaned: NavEntry[] = [];
+  for (let i = 0; i < result.length; i++) {
+    if (isLabel(result[i])) {
+      // Check if next non-label exists
+      const next = result[i + 1];
+      if (next && !isLabel(next)) cleaned.push(result[i]);
+    } else {
+      cleaned.push(result[i]);
+    }
+  }
+  return cleaned;
+}
+
 const footerNavItems: NavItem[] = [
   { icon: LifeBuoy, label: "Ajuda", path: "/ajuda" },
   { icon: Smartphone, label: "Instalar App", path: "/install" },
@@ -196,6 +240,7 @@ export function AppSidebar({ mobileOpen, onMobileClose }: AppSidebarProps) {
   const { isOnline, pendingCount, syncing, syncAll } = useSync();
   const { signOut, user } = useAuth();
   const { isSuperAdmin } = useAdminRole();
+  const { enabled: furnitureMode } = useFurnitureMode();
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
     const initial: Record<string, boolean> = {};
     navItems.forEach((entry) => {
@@ -212,7 +257,7 @@ export function AppSidebar({ mobileOpen, onMobileClose }: AppSidebarProps) {
     }
   }, [location.pathname]);
 
-  let visibleNavItems: NavEntry[] = [...navItems];
+  let visibleNavItems: NavEntry[] = furnitureMode ? filterNavForFurniture(navItems) : [...navItems];
   if (isSuperAdmin) {
     visibleNavItems = [...visibleNavItems, adminNavItem];
   }
