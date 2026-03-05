@@ -1132,8 +1132,47 @@ export default function PDV() {
 
             {/* Alterar Quantidade (F9) */}
             {editingQtyItemId && (
+              <>
+              {/* Mobile: bottom-sheet overlay */}
+              <div className="lg:hidden fixed inset-0 z-[60] flex items-end justify-center bg-black/60" onClick={() => setEditingQtyItemId(null)}>
+                <div onClick={e => e.stopPropagation()} className="bg-card rounded-t-2xl p-6 shadow-2xl w-full max-w-md flex flex-col items-center gap-4">
+                  <span className="text-sm font-bold text-muted-foreground uppercase">Nova Quantidade</span>
+                  <div className="flex items-center gap-2">
+                    <input
+                      data-no-barcode-capture="true"
+                      type="text"
+                      inputMode="decimal"
+                      autoFocus
+                      value={editingQtyValue}
+                      onChange={(e) => setEditingQtyValue(e.target.value.replace(/[^0-9.,]/g, ""))}
+                      onClick={(e) => e.stopPropagation()}
+                      onKeyDown={(e) => {
+                        e.stopPropagation();
+                        if (e.key === "Enter") {
+                          const newQty = Math.max(1, parseInt(editingQtyValue) || 1);
+                          const item = pdv.cartItems.find(i => i.id === editingQtyItemId);
+                          if (item) { pdv.updateQuantity(editingQtyItemId!, newQty - item.quantity); }
+                          setEditingQtyItemId(null);
+                        }
+                        if (e.key === "Escape") setEditingQtyItemId(null);
+                      }}
+                      className="w-32 px-4 py-4 rounded-xl bg-background border-2 border-primary text-3xl font-mono text-center focus:outline-none focus:ring-2 focus:ring-primary"
+                    />
+                  </div>
+                  <div className="flex gap-2 w-full">
+                    <button onClick={() => setEditingQtyItemId(null)} className="flex-1 py-3 rounded-xl bg-muted text-foreground font-bold text-sm">Cancelar</button>
+                    <button onClick={() => {
+                      const newQty = Math.max(1, parseInt(editingQtyValue) || 1);
+                      const item = pdv.cartItems.find(i => i.id === editingQtyItemId);
+                      if (item) { pdv.updateQuantity(editingQtyItemId!, newQty - item.quantity); }
+                      setEditingQtyItemId(null);
+                    }} className="flex-1 py-3 rounded-xl bg-primary text-primary-foreground font-bold text-sm">Aplicar</button>
+                  </div>
+                </div>
+              </div>
+              {/* Desktop: inline */}
               <div className="hidden lg:block lg:relative lg:z-auto lg:bg-transparent">
-                <div className="bg-card rounded-2xl p-6 shadow-2xl w-[85vw] max-w-xs flex flex-col items-center gap-4 lg:flex-row lg:justify-between lg:items-center lg:py-2 lg:px-2 lg:-mx-2 lg:rounded lg:p-0 lg:shadow-none lg:w-auto lg:max-w-none lg:bg-muted/50 border border-border lg:border-b lg:border-t-0 lg:border-x-0">
+                <div className="bg-muted/50 border-b border-border flex flex-row justify-between items-center py-2 px-2 -mx-2 rounded">
                   <span className="text-sm font-bold text-muted-foreground uppercase lg:text-xs">Nova Quantidade</span>
                   <div className="flex items-center gap-2">
                     <input
@@ -1187,6 +1226,7 @@ export default function PDV() {
                   </div>
                 </div>
               </div>
+              </>
             )}
           </div>
 
