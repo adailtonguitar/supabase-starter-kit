@@ -15,6 +15,7 @@ import {
   GitGraph, Percent, Scale, Bell, Stethoscope, Wallet, ClipboardList,
   Scan, BarChart, AlertTriangle, ShoppingCart, Package, Printer, CalendarIcon,
 } from "lucide-react";
+import { useFurnitureMode } from "@/hooks/useFurnitureMode";
 
 type ReportCard = { icon: any; label: string; desc: string; path: string };
 
@@ -73,6 +74,7 @@ function extractPaymentMethod(payments: any): string {
 
 export default function Relatorios() {
   const { companyId } = useCompany();
+  const { enabled: furnitureMode } = useFurnitureMode();
   const now = new Date();
   const [dateFrom, setDateFrom] = useState<Date>(startOfMonth(now));
   const [dateTo, setDateTo] = useState<Date>(now);
@@ -208,6 +210,24 @@ export default function Relatorios() {
 
     return { totalProducts, totalItems, totalStockValue, totalSaleValue, lowStock, zeroStock, byCategory };
   }, [stockData]);
+
+  // ── Paths to HIDE when furniture mode is active ──
+  const furnitureHiddenPaths = new Set([
+    "/estoque/ruptura",
+    "/sugestao-compra",
+    "/estoque/curva-abc",
+    "/relatorios-ia",
+    "/diagnostico-financeiro",
+  ]);
+
+  const filteredCategories = furnitureMode
+    ? categories
+        .map(cat => ({
+          ...cat,
+          cards: cat.cards.filter(c => !furnitureHiddenPaths.has(c.path)),
+        }))
+        .filter(cat => cat.cards.length > 0)
+    : categories;
 
   const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
@@ -427,7 +447,7 @@ export default function Relatorios() {
         </div>
       )}
 
-      {categories.map((cat, ci) => (
+      {filteredCategories.map((cat, ci) => (
         <motion.div
           key={cat.title}
           initial={{ opacity: 0, y: 16 }}
