@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import anthoLogo from "@/assets/logo-as.png";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Link, useLocation } from "react-router-dom";
@@ -22,6 +22,39 @@ import { useAdminRole } from "@/hooks/useAdminRole";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useWhatsAppSupport } from "@/hooks/useWhatsAppSupport";
 
+// ─── Section labels ───
+type SectionLabel = { type: "label"; text: string };
+type NavItem = { icon: any; label: string; path: string };
+type NavGroup = { icon: any; label: string; children: NavItem[] };
+type NavEntry = NavItem | NavGroup | SectionLabel;
+
+function isGroup(entry: NavEntry): entry is NavGroup {
+  return "children" in entry;
+}
+function isLabel(entry: NavEntry): entry is SectionLabel {
+  return "type" in entry && (entry as any).type === "label";
+}
+
+// ─── Avatar with initials ───
+function UserAvatar({ email, collapsed }: { email?: string; collapsed?: boolean }) {
+  const initials = useMemo(() => {
+    if (!email) return "?";
+    const parts = email.split("@")[0].split(/[._-]/);
+    return parts.length >= 2
+      ? (parts[0][0] + parts[1][0]).toUpperCase()
+      : email.substring(0, 2).toUpperCase();
+  }, [email]);
+
+  return (
+    <div className={cn(
+      "flex items-center justify-center rounded-full bg-primary/15 text-primary font-bold text-[10px] flex-shrink-0 select-none",
+      collapsed ? "w-7 h-7" : "w-7 h-7"
+    )}>
+      {initials}
+    </div>
+  );
+}
+
 function MobileSidebarSupport() {
   const { whatsappNumber, loading, openWhatsApp } = useWhatsAppSupport();
   if (loading || !whatsappNumber) return null;
@@ -40,28 +73,12 @@ function MobileSidebarSupport() {
   );
 }
 
-interface NavItem {
-  icon: any;
-  label: string;
-  path: string;
-}
-
-interface NavGroup {
-  icon: any;
-  label: string;
-  children: NavItem[];
-}
-
-type NavEntry = NavItem | NavGroup;
-
-function isGroup(entry: NavEntry): entry is NavGroup {
-  return "children" in entry;
-}
-
 const navItems: NavEntry[] = [
+  { type: "label", text: "PRINCIPAL" },
   { icon: ShoppingCart, label: "PDV", path: "/pdv" },
   { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
   { icon: PieChart, label: "Painel do Dono", path: "/painel-dono" },
+  { type: "label", text: "GESTÃO" },
   {
     icon: Package,
     label: "Estoque",
@@ -115,6 +132,7 @@ const navItems: NavEntry[] = [
       { icon: Stethoscope, label: "Diagnóstico IA", path: "/diagnostico-financeiro" },
     ],
   },
+  { type: "label", text: "ADMINISTRAÇÃO" },
   {
     icon: ClipboardList,
     label: "Cadastro",
@@ -160,6 +178,11 @@ const footerNavItems: NavItem[] = [
 
 const adminNavItem: NavItem = { icon: ShieldCheck, label: "Admin", path: "/admin" };
 
+// ─── Shared styles ───
+const activeItemClass = "bg-primary/10 text-primary font-semibold relative before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:w-[3px] before:h-5 before:rounded-r-full before:bg-primary";
+const inactiveItemClass = "text-sidebar-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground hover:translate-x-0.5";
+const itemTransition = "transition-all duration-200 ease-out";
+
 interface AppSidebarProps {
   mobileOpen?: boolean;
   onMobileClose?: () => void;
@@ -188,7 +211,7 @@ export function AppSidebar({ mobileOpen, onMobileClose }: AppSidebarProps) {
     }
   }, [location.pathname]);
 
-  let visibleNavItems: NavEntry[] = navItems;
+  let visibleNavItems: NavEntry[] = [...navItems];
   if (isSuperAdmin) {
     visibleNavItems = [...visibleNavItems, adminNavItem];
   }
@@ -201,6 +224,122 @@ export function AppSidebar({ mobileOpen, onMobileClose }: AppSidebarProps) {
   const isChildActive = (group: NavGroup) =>
     group.children.some((c) => location.pathname === c.path);
 
+  // ─── Render helpers ───
+  const renderSectionLabel = (label: SectionLabel, showLabel: boolean) => {
+    if (!showLabel) return <div key={label.text} className="pt-2" />;
+    return (
+      <div key={label.text} className="pt-3 pb-1 px-3">
+        <span className="text-[10px] font-bold tracking-[0.12em] uppercase text-muted-foreground/60">
+          {label.text}
+        </span>
+      </div>
+    );
+  };
+
+  const renderNavItem = (entry: NavItem, isCollapsed: boolean) => {
+    const isActive = location.pathname === entry.path;
+    const linkEl = (
+      <Link
+        key={entry.path}
+        to={entry.path}
+        className={cn(
+          "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium",
+          itemTransition,
+          isActive ? activeItemClass : inactiveItemClass,
+          isCollapsed && "justify-center px-2"
+        )}
+      >
+        <entry.icon className={cn("w-[18px] h-[18px] flex-shrink-0", isActive && "text-primary")} />
+        <AnimatePresence>
+          {!isCollapsed && (
+            <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="whitespace-nowrap">
+              {entry.label}
+            </motion.span>
+          )}
+        </AnimatePresence>
+      </Link>
+    );
+    if (isCollapsed) {
+      return (
+        <Tooltip key={entry.path}>
+          <TooltipTrigger asChild>{linkEl}</TooltipTrigger>
+          <TooltipContent side="right" className="font-medium">{entry.label}</TooltipContent>
+        </Tooltip>
+      );
+    }
+    return linkEl;
+  };
+
+  const renderNavGroup = (entry: NavGroup, isCollapsed: boolean) => {
+    const groupOpen = !!openGroups[entry.label];
+    const active = isChildActive(entry);
+    const groupButton = (
+      <button
+        onClick={() => toggleGroup(entry.label)}
+        className={cn(
+          "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium",
+          itemTransition,
+          active ? "text-primary font-semibold" : "text-sidebar-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground",
+          isCollapsed && "justify-center px-2"
+        )}
+      >
+        <entry.icon className={cn("w-[18px] h-[18px] flex-shrink-0", active && "text-primary")} />
+        <AnimatePresence>
+          {!isCollapsed && (
+            <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="whitespace-nowrap flex-1 text-left">
+              {entry.label}
+            </motion.span>
+          )}
+        </AnimatePresence>
+        {!isCollapsed && (
+          <ChevronDown className={cn("w-3.5 h-3.5 transition-transform duration-200", groupOpen && "rotate-180")} />
+        )}
+      </button>
+    );
+    return (
+      <div key={entry.label}>
+        {isCollapsed ? (
+          <Tooltip>
+            <TooltipTrigger asChild>{groupButton}</TooltipTrigger>
+            <TooltipContent side="right" className="font-medium">{entry.label}</TooltipContent>
+          </Tooltip>
+        ) : groupButton}
+        <AnimatePresence>
+          {groupOpen && !isCollapsed && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="overflow-hidden ml-3 border-l-2 border-primary/15 pl-2 space-y-0.5 mt-0.5"
+            >
+              {entry.children.map((child) => {
+                const isActive = location.pathname === child.path;
+                return (
+                  <Link
+                    key={child.path}
+                    to={child.path}
+                    className={cn(
+                      "flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-xs font-medium",
+                      itemTransition,
+                      isActive
+                        ? "bg-primary/10 text-primary font-semibold"
+                        : "text-sidebar-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground hover:translate-x-0.5"
+                    )}
+                  >
+                    <child.icon className={cn("w-3.5 h-3.5 flex-shrink-0", isActive && "text-primary")} />
+                    <span className="whitespace-nowrap">{child.label}</span>
+                  </Link>
+                );
+              })}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    );
+  };
+
+  // ─── Mobile ───
   if (isMobile) {
     return (
       <AnimatePresence>
@@ -210,122 +349,43 @@ export function AppSidebar({ mobileOpen, onMobileClose }: AppSidebarProps) {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/50 z-40"
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40"
               onClick={onMobileClose}
             />
             <motion.aside
-              initial={{ x: -280 }}
+              initial={{ x: -300 }}
               animate={{ x: 0 }}
-              exit={{ x: -280 }}
-              transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              className="fixed top-0 left-0 bottom-0 w-[280px] bg-sidebar border-r border-sidebar-border z-50 flex flex-col safe-area-top safe-area-left safe-area-bottom"
+              exit={{ x: -300 }}
+              transition={{ type: "spring", damping: 28, stiffness: 320 }}
+              className="fixed top-0 left-0 bottom-0 w-[280px] bg-sidebar z-50 flex flex-col safe-area-top safe-area-left safe-area-bottom shadow-2xl"
             >
-              <div className="flex items-center justify-between px-3 py-3">
-                <div className="flex items-center gap-2">
-                  <img src={anthoLogo} alt="AnthoSystem" className="h-10 w-10 object-contain" />
-                  <span className="text-sm font-bold text-sidebar-foreground">AnthoSystem</span>
+              {/* Logo with gradient */}
+              <div className="flex items-center justify-between px-3 py-3 bg-gradient-to-r from-primary/5 to-transparent">
+                <div className="flex items-center gap-2.5">
+                  <img src={anthoLogo} alt="AnthoSystem" className="h-9 w-9 object-contain" />
+                  <span className="text-sm font-bold text-sidebar-foreground tracking-wide">AnthoSystem</span>
                 </div>
-                <button onClick={onMobileClose} className="p-2 rounded-lg text-sidebar-foreground hover:bg-sidebar-accent">
+                <button onClick={onMobileClose} className="p-2 rounded-lg text-sidebar-foreground hover:bg-sidebar-accent transition-colors">
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
-              <nav className="flex-1 py-3 px-2 space-y-1 overflow-y-auto">
+              <nav className="flex-1 py-2 px-2 space-y-0.5 overflow-y-auto">
                 {visibleNavItems.map((entry) => {
-                  if (isGroup(entry)) {
-                    const groupOpen = !!openGroups[entry.label];
-                    return (
-                      <div key={entry.label}>
-                        <button
-                          onClick={() => toggleGroup(entry.label)}
-                          className={cn(
-                            "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
-                            isChildActive(entry)
-                              ? "text-sidebar-primary"
-                              : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-                          )}
-                        >
-                          <entry.icon className="w-5 h-5 flex-shrink-0" />
-                          <span className="whitespace-nowrap flex-1 text-left">{entry.label}</span>
-                          <ChevronDown className={cn("w-4 h-4 transition-transform", groupOpen && "rotate-180")} />
-                        </button>
-                        <AnimatePresence>
-                          {groupOpen && (
-                            <motion.div
-                              initial={{ height: 0, opacity: 0 }}
-                              animate={{ height: "auto", opacity: 1 }}
-                              exit={{ height: 0, opacity: 0 }}
-                              className="overflow-hidden ml-4 border-l border-sidebar-border pl-2 space-y-0.5"
-                            >
-                              {entry.children.map((child) => {
-                                const isActive = location.pathname === child.path;
-                                return (
-                  <Link
-                    key={child.path}
-                    to={child.path}
-                    className={cn(
-                      "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
-                                      isActive
-                                        ? "bg-sidebar-accent text-sidebar-primary"
-                                        : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-                                    )}
-                                  >
-                                    <child.icon className={cn("w-4 h-4 flex-shrink-0", isActive && "text-sidebar-primary")} />
-                                    <span className="whitespace-nowrap">{child.label}</span>
-                                  </Link>
-                                );
-                              })}
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
-                      </div>
-                    );
-                  }
-
-                  const isActive = location.pathname === entry.path;
-                  return (
-                    <Link
-                      key={entry.path}
-                      to={entry.path}
-                      className={cn(
-                        "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
-                        isActive
-                          ? "bg-sidebar-accent text-sidebar-primary"
-                          : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-                      )}
-                    >
-                      <entry.icon className={cn("w-5 h-5 flex-shrink-0", isActive && "text-sidebar-primary")} />
-                      <span className="whitespace-nowrap">{entry.label}</span>
-                    </Link>
-                  );
+                  if (isLabel(entry)) return renderSectionLabel(entry, true);
+                  if (isGroup(entry)) return renderNavGroup(entry, false);
+                  return renderNavItem(entry, false);
                 })}
-                {/* Footer nav items */}
-                <div className="border-t border-sidebar-border mt-2 pt-2 space-y-0.5">
-                  {footerNavItems.map((item) => {
-                    const isActive = location.pathname === item.path;
-                    return (
-                      <Link
-                        key={item.path}
-                        to={item.path}
-                        className={cn(
-                          "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
-                          isActive
-                            ? "bg-sidebar-accent text-sidebar-primary"
-                            : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-                        )}
-                      >
-                        <item.icon className={cn("w-5 h-5 flex-shrink-0", isActive && "text-sidebar-primary")} />
-                        <span className="whitespace-nowrap">{item.label}</span>
-                      </Link>
-                    );
-                  })}
+                {/* Footer items */}
+                <div className="border-t border-sidebar-border mt-3 pt-2 space-y-0.5">
+                  {footerNavItems.map((item) => renderNavItem(item, false))}
                 </div>
               </nav>
 
               <MobileSidebarSupport />
-              <div className="px-2 pb-2 space-y-0.5 border-t border-sidebar-border pt-2">
-                <div className="flex items-center gap-2 px-2 py-1 rounded-lg">
-                  <User className="w-3.5 h-3.5 text-sidebar-foreground flex-shrink-0" />
+              <div className="px-2 pb-2 space-y-0.5 border-t border-sidebar-border pt-2 bg-gradient-to-t from-primary/3 to-transparent">
+                <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg">
+                  <UserAvatar email={user?.email} />
                   <span className="text-[11px] text-sidebar-foreground font-medium truncate">{user?.email}</span>
                 </div>
                 {pendingCount > 0 && (
@@ -355,158 +415,41 @@ export function AppSidebar({ mobileOpen, onMobileClose }: AppSidebarProps) {
     );
   }
 
-   return (
+  // ─── Desktop ───
+  return (
     <TooltipProvider delayDuration={0}>
     <aside
       className={cn(
         "flex flex-col h-full shrink-0 bg-sidebar border-r border-sidebar-border transition-all duration-300 relative z-10",
-        collapsed ? "w-[72px]" : "w-[240px]"
+        collapsed ? "w-[68px]" : "w-[240px]"
       )}
     >
-      <div className="flex flex-col items-center justify-center px-2 py-2 shrink-0">
+      {/* Logo area with gradient background */}
+      <div className={cn(
+        "flex flex-col items-center justify-center px-2 py-3 shrink-0 bg-gradient-to-b from-primary/5 to-transparent",
+        collapsed ? "py-2" : ""
+      )}>
         <img src={anthoLogo} alt="AnthoSystem" className={cn("object-contain", collapsed ? "w-8 h-8" : "h-20 w-full -mb-3")} style={collapsed ? undefined : { marginTop: '0px', marginBottom: '-12px' }} />
         {!collapsed && <span className="text-sm font-bold text-sidebar-foreground tracking-wide -mt-1">AnthoSystem</span>}
       </div>
 
-      <nav className="flex-1 min-h-0 py-3 px-2 space-y-1 overflow-y-auto scrollbar-thin">
+      <nav className="flex-1 min-h-0 py-2 px-2 space-y-0.5 overflow-y-auto scrollbar-thin">
         {visibleNavItems.map((entry) => {
-          if (isGroup(entry)) {
-            const groupOpen = !!openGroups[entry.label];
-            const groupButton = (
-              <button
-                onClick={() => toggleGroup(entry.label)}
-                className={cn(
-                  "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
-                  isChildActive(entry)
-                    ? "text-sidebar-primary"
-                    : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-                  collapsed && "justify-center"
-                )}
-              >
-                <entry.icon className="w-5 h-5 flex-shrink-0" />
-                <AnimatePresence>
-                  {!collapsed && (
-                    <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="whitespace-nowrap flex-1 text-left">
-                      {entry.label}
-                    </motion.span>
-                  )}
-                </AnimatePresence>
-                {!collapsed && (
-                  <ChevronDown className={cn("w-4 h-4 transition-transform", groupOpen && "rotate-180")} />
-                )}
-              </button>
-            );
-            return (
-              <div key={entry.label}>
-                {collapsed ? (
-                  <Tooltip>
-                    <TooltipTrigger asChild>{groupButton}</TooltipTrigger>
-                    <TooltipContent side="right">{entry.label}</TooltipContent>
-                  </Tooltip>
-                ) : groupButton}
-                <AnimatePresence>
-                  {groupOpen && !collapsed && (
-                    <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: "auto", opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      className="overflow-hidden ml-4 border-l border-sidebar-border pl-2 space-y-0.5"
-                    >
-                      {entry.children.map((child) => {
-                        const isActive = location.pathname === child.path;
-                        return (
-                          <Link
-                            key={child.path}
-                            to={child.path}
-                            className={cn(
-                              "flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200",
-                              isActive
-                                ? "bg-sidebar-accent text-sidebar-primary"
-                                : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-                            )}
-                          >
-                            <child.icon className={cn("w-4 h-4 flex-shrink-0", isActive && "text-sidebar-primary")} />
-                            <span className="whitespace-nowrap">{child.label}</span>
-                          </Link>
-                        );
-                      })}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            );
-          }
-
-          const isActive = location.pathname === entry.path;
-          const linkEl = (
-            <Link
-              key={entry.path}
-              to={entry.path}
-              className={cn(
-                "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
-                isActive
-                  ? "bg-sidebar-accent text-sidebar-primary"
-                  : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-                collapsed && "justify-center"
-              )}
-            >
-              <entry.icon className={cn("w-5 h-5 flex-shrink-0", isActive && "text-sidebar-primary")} />
-              <AnimatePresence>
-                {!collapsed && (
-                  <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="whitespace-nowrap">
-                    {entry.label}
-                  </motion.span>
-                )}
-              </AnimatePresence>
-            </Link>
-          );
-          return collapsed ? (
-            <Tooltip key={entry.path}>
-              <TooltipTrigger asChild>{linkEl}</TooltipTrigger>
-              <TooltipContent side="right">{entry.label}</TooltipContent>
-            </Tooltip>
-          ) : linkEl;
+          if (isLabel(entry)) return renderSectionLabel(entry, !collapsed);
+          if (isGroup(entry)) return renderNavGroup(entry, collapsed);
+          return renderNavItem(entry, collapsed);
         })}
 
         {/* Footer nav items with separator */}
-        <div className="border-t border-sidebar-border mt-2 pt-2 space-y-0.5">
-          {footerNavItems.map((item) => {
-            const isActive = location.pathname === item.path;
-            const footerLink = (
-              <Link
-                key={item.path}
-                to={item.path}
-                className={cn(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
-                  isActive
-                    ? "bg-sidebar-accent text-sidebar-primary"
-                    : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-                  collapsed && "justify-center"
-                )}
-              >
-                <item.icon className={cn("w-5 h-5 flex-shrink-0", isActive && "text-sidebar-primary")} />
-                <AnimatePresence>
-                  {!collapsed && (
-                    <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="whitespace-nowrap">
-                      {item.label}
-                    </motion.span>
-                  )}
-                </AnimatePresence>
-              </Link>
-            );
-            return collapsed ? (
-              <Tooltip key={item.path}>
-                <TooltipTrigger asChild>{footerLink}</TooltipTrigger>
-                <TooltipContent side="right">{item.label}</TooltipContent>
-              </Tooltip>
-            ) : footerLink;
-          })}
+        <div className="border-t border-sidebar-border mt-3 pt-2 space-y-0.5">
+          {footerNavItems.map((item) => renderNavItem(item, collapsed))}
         </div>
       </nav>
 
-      <div className="px-2 pb-2 space-y-0.5 border-t border-sidebar-border pt-2 shrink-0">
-        <div className={cn("flex items-center gap-2 px-2 py-1 rounded-lg", collapsed && "justify-center")}>
-          <User className="w-3.5 h-3.5 text-sidebar-foreground flex-shrink-0" />
+      {/* Bottom section with subtle gradient */}
+      <div className="px-2 pb-2 space-y-0.5 border-t border-sidebar-border pt-2 shrink-0 bg-gradient-to-t from-primary/3 to-transparent">
+        <div className={cn("flex items-center gap-2 px-2 py-1.5 rounded-lg", collapsed && "justify-center")}>
+          <UserAvatar email={user?.email} collapsed={collapsed} />
           {!collapsed && (
             <span className="text-[11px] text-sidebar-foreground font-medium truncate">{user?.email}</span>
           )}
@@ -530,8 +473,8 @@ export function AppSidebar({ mobileOpen, onMobileClose }: AppSidebarProps) {
         <button onClick={signOut} className={cn("w-full flex items-center gap-2 px-2 py-1 rounded-lg text-sidebar-foreground hover:bg-sidebar-accent transition-colors", collapsed && "justify-center")}>
           <LogOut className="w-3.5 h-3.5 flex-shrink-0" />{!collapsed && <span className="text-[11px]">Sair</span>}
         </button>
-        <button onClick={() => setCollapsed(!collapsed)} className="w-full flex items-center justify-center py-1 rounded-lg text-sidebar-foreground hover:bg-sidebar-accent transition-colors">
-          {collapsed ? <ChevronRight className="w-3.5 h-3.5" /> : <ChevronLeft className="w-3.5 h-3.5" />}
+        <button onClick={() => setCollapsed(!collapsed)} className="w-full flex items-center justify-center py-1.5 rounded-lg text-sidebar-foreground hover:bg-sidebar-accent transition-colors">
+          {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
         </button>
       </div>
     </aside>
