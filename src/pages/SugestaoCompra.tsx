@@ -36,7 +36,7 @@ export default function SugestaoCompra() {
       // Fetch products with low stock and their sales
       const { data: products } = await supabase
         .from("products")
-        .select("id, name, barcode, stock_quantity, min_stock, category, cost_price, sale_price")
+        .select("id, name, barcode, stock_quantity, min_stock, category, cost_price, price")
         .eq("company_id", companyId)
         .or("is_active.is.null,is_active.eq.true")
         .order("stock_quantity", { ascending: true })
@@ -71,7 +71,7 @@ export default function SugestaoCompra() {
         min: p.min_stock || 0,
         vendas_30d: salesMap[p.id] || 0,
         custo: p.cost_price || 0,
-        preco: p.sale_price || 0,
+        preco: p.price || 0,
         categoria: p.category || "Sem categoria",
       }));
 

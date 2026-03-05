@@ -87,20 +87,20 @@ export function useDashboardStats() {
         totalProductsResult, totalClientsResult, saleItemsResult,
         yesterdayResult, fiadoResult, billsDueResult, overdueBillsResult,
       ] = await Promise.all([
-        supabase.from("sales").select("total").eq("company_id", companyId).gte("created_at", today + "T00:00:00"),
-        supabase.from("sales").select("total").eq("company_id", companyId).gte("created_at", monthStart + "T00:00:00"),
+        supabase.from("sales").select("total").eq("company_id", companyId).gte("created_at", today + "T00:00:00").or("status.is.null,status.neq.cancelled"),
+        supabase.from("sales").select("total").eq("company_id", companyId).gte("created_at", monthStart + "T00:00:00").or("status.is.null,status.neq.cancelled"),
         supabase.from("sales").select("id, sale_number, payments, total, status").eq("company_id", companyId).order("created_at", { ascending: false }).limit(5),
         supabase.from("products").select("id, stock_quantity, min_stock").eq("company_id", companyId),
         supabase.from("financial_entries").select("id").eq("company_id", companyId).eq("status", "pendente").lte("due_date", today),
         supabase.from("fiscal_configs").select("id").eq("company_id", companyId).eq("is_active", true).limit(1),
         supabase.from("financial_entries").select("type, amount").eq("company_id", companyId).eq("status", "pago").gte("due_date", monthStart),
-        supabase.from("sales").select("total, created_at").eq("company_id", companyId).gte("created_at", sevenDaysAgo + "T00:00:00").order("created_at", { ascending: true }),
-        supabase.from("sales").select("total").eq("company_id", companyId).gte("created_at", fourteenDaysAgo + "T00:00:00").lt("created_at", sevenDaysAgo + "T00:00:00"),
+        supabase.from("sales").select("total, created_at").eq("company_id", companyId).gte("created_at", sevenDaysAgo + "T00:00:00").or("status.is.null,status.neq.cancelled").order("created_at", { ascending: true }),
+        supabase.from("sales").select("total").eq("company_id", companyId).gte("created_at", fourteenDaysAgo + "T00:00:00").lt("created_at", sevenDaysAgo + "T00:00:00").or("status.is.null,status.neq.cancelled"),
         supabase.from("products").select("id", { count: "exact", head: true }).eq("company_id", companyId),
         supabase.from("clients").select("id", { count: "exact", head: true }).eq("company_id", companyId),
         supabase.from("sale_items").select("product_name, quantity, unit_price, sale_id, sales!inner(company_id, created_at)").eq("sales.company_id", companyId).gte("sales.created_at", monthStart + "T00:00:00").limit(500),
         // Yesterday sales
-        supabase.from("sales").select("total").eq("company_id", companyId).gte("created_at", yesterday + "T00:00:00").lt("created_at", today + "T00:00:00"),
+        supabase.from("sales").select("total").eq("company_id", companyId).gte("created_at", yesterday + "T00:00:00").lt("created_at", today + "T00:00:00").or("status.is.null,status.neq.cancelled"),
         // Fiado (credit sales pending)
         supabase.from("sales").select("total").eq("company_id", companyId).eq("status", "fiado"),
         // Bills due today

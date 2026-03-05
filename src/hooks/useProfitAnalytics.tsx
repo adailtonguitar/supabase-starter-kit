@@ -47,7 +47,8 @@ export function useProfitAnalytics(dateFrom?: Date, dateTo?: Date) {
           .select("id, total")
           .eq("company_id", companyId)
           .gte("created_at", from.toISOString())
-          .lte("created_at", to.toISOString()),
+          .lte("created_at", to.toISOString())
+          .or("status.is.null,status.neq.cancelled"),
         supabase
           .from("products")
           .select("id, name, sku, price, cost_price, ncm")

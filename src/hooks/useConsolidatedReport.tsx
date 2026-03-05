@@ -60,7 +60,8 @@ export function useConsolidatedReport(dateFrom?: Date, dateTo?: Date) {
               .select("id, total")
               .eq("company_id", cid)
               .gte("created_at", from.toISOString())
-              .lte("created_at", to.toISOString()),
+              .lte("created_at", to.toISOString())
+              .or("status.is.null,status.neq.cancelled"),
             supabase
               .from("products")
               .select("id", { count: "exact", head: true })

@@ -561,7 +561,7 @@ Deno.serve(async (req) => {
 
     const [salesRes, productsRes, financialRes, prevSalesRes] = await Promise.all([
       supabase.from("sales").select("total, created_at, payments, status, items").eq("company_id", company_id).gte("created_at", monthStart + "T00:00:00").order("created_at", { ascending: false }).limit(500),
-      supabase.from("products").select("name, stock_quantity, min_stock, sale_price, cost_price, category").eq("company_id", company_id).limit(500),
+      supabase.from("products").select("name, stock_quantity, min_stock, price, cost_price, category").eq("company_id", company_id).limit(500),
       supabase.from("financial_entries").select("type, amount, status, due_date, description").eq("company_id", company_id).gte("due_date", monthStart).limit(200),
       supabase.from("sales").select("total, created_at, payments, items").eq("company_id", company_id).gte("created_at", prevMonthStart + "T00:00:00").lte("created_at", prevMonthEnd + "T23:59:59").limit(500),
     ]);
