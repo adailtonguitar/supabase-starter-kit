@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useCallback } from "react";
-import { Search, User, DollarSign, CreditCard, AlertTriangle } from "lucide-react";
+import { Search, User, DollarSign, CreditCard, AlertTriangle, FileText } from "lucide-react";
 import { useClients } from "@/hooks/useClients";
 import { useFinancialEntries } from "@/hooks/useFinancialEntries";
 import { useCompany } from "@/hooks/useCompany";
@@ -8,7 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { CashSessionService } from "@/services/CashSessionService";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { formatCurrency } from "@/lib/utils";
-import { format, parseISO } from "date-fns";
+import { format, parseISO, addMonths } from "date-fns";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { PDVCreditReceipt, type CreditReceiptData } from "@/components/pdv/PDVCreditReceipt";
+import { CarnePrint, type CarneData } from "@/components/pos/CarnePrint";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 const paymentMethods = [
@@ -32,6 +33,9 @@ export default function Fiado() {
   const [customAmount, setCustomAmount] = useState(0);
   const [isProcessing, setIsProcessing] = useState(false);
   const [receiptData, setReceiptData] = useState<CreditReceiptData | null>(null);
+  const [carneData, setCarneData] = useState<CarneData | null>(null);
+  const carneEnabled = localStorage.getItem("carne_enabled") === "true";
+  const carneFormat = (localStorage.getItem("carne_format") as "a4" | "matricial") || "a4";
 
   const { data: clients = [] } = useClients();
   const { data: entries = [] } = useFinancialEntries();
@@ -99,6 +103,29 @@ export default function Fiado() {
     await executePayment(payAmount, false, null);
   };
 
+  const handleGenerateCarne = () => {
+    if (!selectedClient || clientEntries.length === 0) {
+      toast.error("Selecione um cliente com parcelas pendentes");
+      return;
+    }
+    const installments = clientEntries.map((e: any, i: number) => ({
+      number: i + 1,
+      dueDate: e.due_date,
+      amount: Number(e.amount),
+    }));
+    setCarneData({
+      storeName: companyName || "Loja",
+      clientName: selectedClient.name,
+      clientDoc: selectedClient.cpf_cnpj || undefined,
+      clientPhone: selectedClient.phone || undefined,
+      totalAmount: clientBalance,
+      installments,
+      saleDate: new Date().toISOString(),
+      description: clientEntries[0]?.description || undefined,
+    });
+  };
+
+  if (carneData) return <CarnePrint data={carneData} onClose={() => setCarneData(null)} format={carneFormat} />;
   if (receiptData) return <PDVCreditReceipt data={receiptData} onClose={() => setReceiptData(null)} />;
 
   return (
@@ -155,6 +182,13 @@ export default function Fiado() {
                   </div>
                 </div>
               </div>
+              {carneEnabled && clientEntries.length > 0 && (
+                <div className="px-4 pb-3">
+                  <Button variant="secondary" size="sm" onClick={handleGenerateCarne} className="w-full sm:w-auto">
+                    <FileText className="w-4 h-4 mr-2" /> Gerar Carnê ({clientEntries.length} parcelas)
+                  </Button>
+                </div>
+              )}
               <div className="flex-1 overflow-y-auto p-4">
                 <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Parcelas Pendentes ({clientEntries.length})</h3>
                 {clientEntries.length === 0 ? (<p className="text-sm text-muted-foreground text-center py-6">Nenhuma parcela pendente registrada</p>) : (
