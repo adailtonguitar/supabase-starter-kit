@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
-import { DollarSign, Lock, Unlock, ArrowDownCircle, ArrowUpCircle, Banknote, CreditCard, QrCode, X, Loader2, Clock, ShoppingCart, Wallet, TrendingUp, ChevronRight, Printer } from "lucide-react";
+import { DollarSign, Lock, Unlock, ArrowDownCircle, ArrowUpCircle, Banknote, CreditCard, QrCode, X, Loader2, Clock, ShoppingCart, Wallet, TrendingUp, ChevronRight, Printer, HandCoins } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { CashSessionService } from "@/services";
+import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useCompany } from "@/hooks/useCompany";
 import { toast } from "sonner";
@@ -63,16 +64,29 @@ export function CashRegister({ onClose, terminalId = "01", preventClose = false,
   const [countedCredito, setCountedCredito] = useState("");
   const [countedPix, setCountedPix] = useState("");
   const [closingNotes, setClosingNotes] = useState("");
+  const [totalFiadoRecebido, setTotalFiadoRecebido] = useState(0);
+  const [fiadoCount, setFiadoCount] = useState(0);
+
+  const loadFiadoMovements = useCallback(async (sessionId: string) => {
+    if (!sessionId || sessionId.startsWith("offline_")) { setTotalFiadoRecebido(0); setFiadoCount(0); return; }
+    try {
+      const { data } = await supabase.from("cash_movements").select("amount").eq("session_id", sessionId).eq("type", "suprimento").ilike("description", "Recebimento fiado%");
+      if (data && data.length > 0) {
+        setTotalFiadoRecebido(data.reduce((s: number, m: any) => s + Number(m.amount), 0));
+        setFiadoCount(data.length);
+      } else { setTotalFiadoRecebido(0); setFiadoCount(0); }
+    } catch { setTotalFiadoRecebido(0); setFiadoCount(0); }
+  }, []);
 
   const loadSession = useCallback(async () => {
     if (!companyId) { setLoading(false); return; }
     setLoading(true);
     const online = await canReachServer();
-    if (!online) { const cached = getCachedSession(companyId); if (cached) setSession(cached); setLoading(false); return; }
-    try { const data = await CashSessionService.getCurrentSession(companyId, terminalId); setSession(data); }
-    catch { const cached = getCachedSession(companyId); if (cached) setSession(cached); }
+    if (!online) { const cached = getCachedSession(companyId); if (cached) { setSession(cached); loadFiadoMovements(cached.id); } setLoading(false); return; }
+    try { const data = await CashSessionService.getCurrentSession(companyId, terminalId); setSession(data); if (data) loadFiadoMovements(data.id); }
+    catch { const cached = getCachedSession(companyId); if (cached) { setSession(cached); loadFiadoMovements(cached.id); } }
     finally { setLoading(false); }
-  }, [companyId, terminalId]);
+  }, [companyId, terminalId, loadFiadoMovements]);
 
   useEffect(() => { if (!skipInitialLoad) loadSession(); }, [loadSession, skipInitialLoad]);
 
@@ -87,6 +101,7 @@ export function CashRegister({ onClose, terminalId = "01", preventClose = false,
   const salesCount = Number(session?.sales_count || 0);
   const openBalance = Number(session?.opening_balance || 0);
   const expectedCash = openBalance + totalDinheiro + totalSuprimento - totalSangria;
+  const totalSuprimentoManual = Math.max(0, totalSuprimento - totalFiadoRecebido);
   const totalCounted = (Number(countedDinheiro) || 0) + (Number(countedDebito) || 0) + (Number(countedCredito) || 0) + (Number(countedPix) || 0);
   const totalExpected = openBalance + totalDinheiro + totalDebito + totalCredito + totalPix + totalSuprimento - totalSangria;
   const difference = totalCounted - totalExpected;
@@ -122,7 +137,8 @@ export function CashRegister({ onClose, terminalId = "01", preventClose = false,
         closed_at: new Date().toISOString(),
         openBalance, totalVendas, salesCount,
         totalDinheiro, totalDebito, totalCredito, totalPix,
-        totalSangria, totalSuprimento,
+        totalSangria, totalSuprimento, totalFiadoRecebido, fiadoCount,
+        totalSuprimentoManual,
         totalExpected, totalCounted, difference,
         countedDinheiro: Number(countedDinheiro) || 0,
         countedDebito: Number(countedDebito) || 0,
@@ -152,6 +168,9 @@ export function CashRegister({ onClose, terminalId = "01", preventClose = false,
     const pTotalPix = s?.totalPix ?? totalPix;
     const pTotalSangria = s?.totalSangria ?? totalSangria;
     const pTotalSuprimento = s?.totalSuprimento ?? totalSuprimento;
+    const pTotalFiado = s?.totalFiadoRecebido ?? totalFiadoRecebido;
+    const pFiadoCount = s?.fiadoCount ?? fiadoCount;
+    const pSuprimentoManual = Math.max(0, pTotalSuprimento - pTotalFiado);
     const pTotalExpected = s?.totalExpected ?? totalExpected;
     const pTotalCounted = s?.totalCounted ?? totalCounted;
     const pDifference = s?.difference ?? difference;
@@ -195,7 +214,8 @@ export function CashRegister({ onClose, terminalId = "01", preventClose = false,
         <div class="row"><span>PIX:</span><span>${formatCurrency(pTotalPix)}</span></div>
         <div class="line"></div>
         <div class="row"><span>Sangrias:</span><span>-${formatCurrency(pTotalSangria)}</span></div>
-        <div class="row"><span>Suprimentos:</span><span>+${formatCurrency(pTotalSuprimento)}</span></div>
+        <div class="row"><span>Suprimentos:</span><span>+${formatCurrency(pSuprimentoManual)}</span></div>
+        ${pTotalFiado > 0 ? `<div class="row bold"><span>Receb. Fiado (${pFiadoCount}):</span><span>+${formatCurrency(pTotalFiado)}</span></div>` : ''}
         <div class="line"></div>
         <div class="section bold">CONFERÊNCIA</div>
         <div class="row"><span>Esperado Total:</span><span>${formatCurrency(pTotalExpected)}</span></div>
@@ -215,7 +235,7 @@ export function CashRegister({ onClose, terminalId = "01", preventClose = false,
       w.document.close();
       setTimeout(() => { w.print(); }, 300);
     }
-  }, [session, closedSnapshot, companyName, terminalId, openBalance, totalVendas, salesCount, totalDinheiro, totalDebito, totalCredito, totalPix, totalSangria, totalSuprimento, totalExpected, totalCounted, difference, closingNotes]);
+  }, [session, closedSnapshot, companyName, terminalId, openBalance, totalVendas, salesCount, totalDinheiro, totalDebito, totalCredito, totalPix, totalSangria, totalSuprimento, totalFiadoRecebido, fiadoCount, totalExpected, totalCounted, difference, closingNotes]);
 
   const handleMovement = async () => {
     if (!companyId || !user || !session) return;
@@ -354,7 +374,7 @@ export function CashRegister({ onClose, terminalId = "01", preventClose = false,
                           <span className="font-mono font-bold text-sm text-foreground">{formatCurrency(pm.value)}</span>
                         </div>
                       ))}
-                      {/* Sangria / Suprimento */}
+                      {/* Sangria / Suprimento / Fiado */}
                       <div className="flex items-center justify-between px-4 py-2.5 bg-destructive/[0.03]">
                         <div className="flex items-center gap-2.5">
                           <ArrowDownCircle className="w-4 h-4 text-destructive" />
@@ -367,8 +387,18 @@ export function CashRegister({ onClose, terminalId = "01", preventClose = false,
                           <ArrowUpCircle className="w-4 h-4 text-primary" />
                           <span className="text-sm text-foreground">Suprimentos</span>
                         </div>
-                        <span className="font-mono font-bold text-sm text-primary">+{formatCurrency(totalSuprimento)}</span>
+                        <span className="font-mono font-bold text-sm text-primary">+{formatCurrency(totalSuprimentoManual)}</span>
                       </div>
+                      {totalFiadoRecebido > 0 && (
+                        <div className="flex items-center justify-between px-4 py-2.5 bg-success/[0.05]">
+                          <div className="flex items-center gap-2.5">
+                            <HandCoins className="w-4 h-4 text-success" />
+                            <span className="text-sm text-foreground">Recebimentos Fiado</span>
+                            <span className="text-[10px] text-muted-foreground">({fiadoCount})</span>
+                          </div>
+                          <span className="font-mono font-bold text-sm text-success">+{formatCurrency(totalFiadoRecebido)}</span>
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -562,6 +592,16 @@ export function CashRegister({ onClose, terminalId = "01", preventClose = false,
                   <div className="flex justify-between px-4 py-2"><span className="text-muted-foreground">Débito</span><span className="font-mono font-bold">{formatCurrency(closedSnapshot.totalDebito)}</span></div>
                   <div className="flex justify-between px-4 py-2"><span className="text-muted-foreground">Crédito</span><span className="font-mono font-bold">{formatCurrency(closedSnapshot.totalCredito)}</span></div>
                   <div className="flex justify-between px-4 py-2"><span className="text-muted-foreground">PIX</span><span className="font-mono font-bold">{formatCurrency(closedSnapshot.totalPix)}</span></div>
+                  <div className="flex justify-between px-4 py-2"><span className="text-muted-foreground">Sangrias</span><span className="font-mono font-bold text-destructive">-{formatCurrency(closedSnapshot.totalSangria)}</span></div>
+                  <div className="flex justify-between px-4 py-2"><span className="text-muted-foreground">Suprimentos</span><span className="font-mono font-bold text-primary">+{formatCurrency(closedSnapshot.totalSuprimentoManual)}</span></div>
+                  {closedSnapshot.totalFiadoRecebido > 0 && (
+                    <div className="flex justify-between px-4 py-2 bg-success/[0.05]">
+                      <span className="text-success font-medium flex items-center gap-1.5">
+                        <HandCoins className="w-3.5 h-3.5" /> Receb. Fiado ({closedSnapshot.fiadoCount})
+                      </span>
+                      <span className="font-mono font-bold text-success">+{formatCurrency(closedSnapshot.totalFiadoRecebido)}</span>
+                    </div>
+                  )}
                 </div>
               </div>
 
