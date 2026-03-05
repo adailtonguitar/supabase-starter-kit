@@ -83,17 +83,24 @@ export default function RelatorioVendas() {
 
       // Fetch sale_items in batches to avoid URL length limits
       const saleIds = salesData.map((s: any) => s.id);
-      const BATCH_SIZE = 20;
+      console.log("[RelatorioVendas] Fetching items for", saleIds.length, "sales");
+      const BATCH_SIZE = 15;
       let allItems: any[] = [];
       for (let i = 0; i < saleIds.length; i += BATCH_SIZE) {
         const batch = saleIds.slice(i, i + BATCH_SIZE);
+        console.log("[RelatorioVendas] Batch", Math.floor(i / BATCH_SIZE) + 1, "with", batch.length, "sale IDs");
         const { data: batchItems, error: batchError } = await supabase
           .from("sale_items")
           .select("sale_id, product_id, product_name, quantity, unit_price, cost_price")
           .in("sale_id", batch);
-        if (batchError) throw batchError;
+        if (batchError) {
+          console.error("[RelatorioVendas] Batch error:", batchError);
+          throw batchError;
+        }
+        console.log("[RelatorioVendas] Batch returned", batchItems?.length || 0, "items");
         if (batchItems) allItems = allItems.concat(batchItems);
       }
+      console.log("[RelatorioVendas] Total items fetched:", allItems.length);
       const itemsData = allItems;
 
       // Attach items to each sale
