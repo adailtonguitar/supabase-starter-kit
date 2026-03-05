@@ -94,64 +94,59 @@ export function LandingHero() {
             </div>
           </motion.div>
 
-          {/* Right — Hero Composition: PDV on monitor in supermarket */}
+          {/* Right — Clean laptop mockup with PDV screenshot */}
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.2 }}
             className="relative"
           >
-            {/* Supermarket scene + PDV overlapping from the cashier's side */}
-            <div className="relative">
-              {/* Supermarket scene — full width */}
-              <div className="rounded-2xl overflow-hidden shadow-2xl shadow-primary/10 border border-border/30">
+            {/* Laptop mockup */}
+            <div
+              className="relative cursor-pointer group"
+              onClick={() => setZoomed(true)}
+            >
+              {/* Laptop screen */}
+              <div className="bg-[hsl(220,20%,8%)] rounded-t-xl border-2 border-b-0 border-[hsl(220,15%,20%)] shadow-2xl shadow-primary/10 overflow-hidden">
+                {/* Browser chrome */}
+                <div className="flex items-center gap-2 px-4 py-2 bg-[hsl(220,15%,11%)] border-b border-[hsl(220,15%,16%)]">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-2.5 h-2.5 rounded-full bg-[hsl(0,60%,50%)]" />
+                    <div className="w-2.5 h-2.5 rounded-full bg-[hsl(45,80%,50%)]" />
+                    <div className="w-2.5 h-2.5 rounded-full bg-[hsl(120,50%,45%)]" />
+                  </div>
+                  <div className="flex-1 mx-4 bg-[hsl(220,15%,15%)] rounded-md h-5 flex items-center px-3">
+                    <span className="text-[9px] text-muted-foreground/60 truncate">anthosystem.com.br/pdv</span>
+                  </div>
+                </div>
+                {/* PDV Screenshot */}
                 <img
-                  src={supermarketScene}
-                  alt="Comércio moderno com sistema AnthoSystem"
+                  src={pdvScreen}
+                  alt="PDV AnthoSystem — Tela do ponto de venda com produtos, pagamentos e atalhos"
                   className="w-full h-auto"
                   loading="eager"
                 />
               </div>
+              {/* Laptop base/hinge */}
+              <div className="relative">
+                <div className="h-3 bg-gradient-to-b from-[hsl(220,15%,18%)] to-[hsl(220,15%,14%)] rounded-b-lg border-2 border-t-0 border-[hsl(220,15%,20%)]" />
+                <div className="mx-auto -mt-px w-[110%] -ml-[5%] h-2 bg-gradient-to-b from-[hsl(220,10%,16%)] to-[hsl(220,10%,12%)] rounded-b-xl" />
+              </div>
 
-              {/* PDV screen — positioned on the overhead digital panel in the store */}
-              <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.7, delay: 0.5 }}
-                className="absolute top-[2%] left-[15%] w-[50%] cursor-pointer group z-10"
-                onClick={() => setZoomed(true)}
-              >
-                {/* Screen frame matching the store panel */}
-                <div className="bg-[hsl(220,15%,8%)] rounded-md border border-primary/20 shadow-2xl shadow-primary/20 overflow-hidden">
-                  {/* Browser top bar */}
-                  <div className="flex items-center gap-1 px-2 py-1 bg-[hsl(220,15%,6%)] border-b border-border/20">
-                    <div className="w-1.5 h-1.5 rounded-full bg-destructive/60" />
-                    <div className="w-1.5 h-1.5 rounded-full bg-[hsl(45,80%,50%)]" />
-                    <div className="w-1.5 h-1.5 rounded-full bg-primary/60" />
-                    <div className="ml-1.5 flex-1 bg-[hsl(220,15%,12%)] rounded h-3 flex items-center px-1.5">
-                      <span className="text-[6px] text-muted-foreground/40 truncate">anthosystem.com.br/pdv</span>
-                    </div>
-                  </div>
-                  <img
-                    src={pdvScreen}
-                    alt="PDV AnthoSystem — Tela do ponto de venda"
-                    className="w-full h-auto"
-                    loading="eager"
-                  />
-                </div>
+              {/* Zoom hint */}
+              <div className="absolute top-6 right-6 bg-background/70 backdrop-blur-sm rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity border border-border/50">
+                <ZoomIn className="w-4 h-4 text-primary" />
+              </div>
 
-                {/* Zoom hint */}
-                <div className="absolute top-2 right-2 bg-background/70 backdrop-blur-sm rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity border border-border/50">
-                  <ZoomIn className="w-3 h-3 text-primary" />
-                </div>
-              </motion.div>
+              {/* Subtle glow behind laptop */}
+              <div className="absolute -inset-4 -z-10 bg-primary/5 rounded-3xl blur-2xl" />
             </div>
 
             {/* Floating cards */}
             <motion.div
               animate={{ y: [0, -5, 0] }}
               transition={{ duration: 3, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
-              className="absolute -bottom-4 -left-4 bg-card border border-border rounded-xl p-3 shadow-lg flex items-center gap-3"
+              className="absolute -bottom-6 -left-4 bg-card border border-border rounded-xl p-3 shadow-lg flex items-center gap-3 z-20"
             >
               <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
                 <ShoppingCart className="w-4 h-4 text-primary" />
@@ -165,7 +160,7 @@ export function LandingHero() {
             <motion.div
               animate={{ y: [0, -6, 0] }}
               transition={{ duration: 3.5, repeat: Infinity, ease: "easeInOut", delay: 0.3 }}
-              className="absolute top-8 -right-4 bg-card border border-border rounded-xl p-3 shadow-lg flex items-center gap-3"
+              className="absolute top-8 -right-4 bg-card border border-border rounded-xl p-3 shadow-lg flex items-center gap-3 z-20"
             >
               <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
                 <TrendingUp className="w-4 h-4 text-primary" />
