@@ -81,31 +81,40 @@ export default function RelatorioVendas() {
       console.log("[RelatorioVendas] Sales found:", salesData?.length || 0);
       if (!salesData || salesData.length === 0) return [];
 
-      // Fetch sale_items in batches to avoid URL length limits
+      // Fetch sale_items in batches + product cost from products table
       const saleIds = salesData.map((s: any) => s.id);
-      console.log("[RelatorioVendas] Fetching items for", saleIds.length, "sales");
       const BATCH_SIZE = 15;
       let allItems: any[] = [];
       for (let i = 0; i < saleIds.length; i += BATCH_SIZE) {
         const batch = saleIds.slice(i, i + BATCH_SIZE);
-        console.log("[RelatorioVendas] Batch", Math.floor(i / BATCH_SIZE) + 1, "with", batch.length, "sale IDs");
         const { data: batchItems, error: batchError } = await supabase
           .from("sale_items")
-          .select("sale_id, product_id, product_name, quantity, unit_price, cost_price")
+          .select("sale_id, product_id, product_name, quantity, unit_price, subtotal")
           .in("sale_id", batch);
         if (batchError) {
           console.error("[RelatorioVendas] Batch error:", batchError);
           throw batchError;
         }
-        console.log("[RelatorioVendas] Batch returned", batchItems?.length || 0, "items");
         if (batchItems) allItems = allItems.concat(batchItems);
       }
-      console.log("[RelatorioVendas] Total items fetched:", allItems.length);
-      const itemsData = allItems;
+
+      // Fetch cost_price from products table
+      const productIds = [...new Set(allItems.map(i => i.product_id).filter(Boolean))];
+      const costMap: Record<string, number> = {};
+      if (productIds.length > 0) {
+        for (let i = 0; i < productIds.length; i += BATCH_SIZE) {
+          const batch = productIds.slice(i, i + BATCH_SIZE);
+          const { data: prods } = await supabase
+            .from("products")
+            .select("id, cost_price")
+            .in("id", batch);
+          (prods || []).forEach((p: any) => { costMap[p.id] = p.cost_price || 0; });
+        }
+      }
 
       // Attach items to each sale
       const itemsBySale: Record<string, any[]> = {};
-      (itemsData || []).forEach((item: any) => {
+      allItems.forEach((item: any) => {
         if (!itemsBySale[item.sale_id]) itemsBySale[item.sale_id] = [];
         itemsBySale[item.sale_id].push({
           product_id: item.product_id,
@@ -113,7 +122,7 @@ export default function RelatorioVendas() {
           sku: "",
           quantity: Number(item.quantity),
           unit_price: Number(item.unit_price),
-          cost_price: Number(item.cost_price || 0),
+          cost_price: costMap[item.product_id] || 0,
         });
       });
 

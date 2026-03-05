@@ -103,12 +103,32 @@ export default function Relatorios() {
 
       if (sales.length === 0) return { sales: [], items: [] };
 
-      const { data: items } = await supabase
-        .from("sale_items")
-        .select("product_id, product_name, quantity, unit_price, cost_price, sale_id")
-        .in("sale_id", sales.map(s => s.id));
+      // Fetch sale_items in batches (no cost_price column in sale_items)
+      const saleIds = sales.map(s => s.id);
+      const BATCH_SIZE = 15;
+      let allItems: any[] = [];
+      for (let i = 0; i < saleIds.length; i += BATCH_SIZE) {
+        const batch = saleIds.slice(i, i + BATCH_SIZE);
+        const { data: batchItems } = await supabase
+          .from("sale_items")
+          .select("product_id, product_name, quantity, unit_price, sale_id")
+          .in("sale_id", batch);
+        if (batchItems) allItems = allItems.concat(batchItems);
+      }
 
-      return { sales, items: items || [] };
+      // Get cost_price from products
+      const productIds = [...new Set(allItems.map(i => i.product_id).filter(Boolean))];
+      const costMap: Record<string, number> = {};
+      if (productIds.length > 0) {
+        for (let i = 0; i < productIds.length; i += BATCH_SIZE) {
+          const batch = productIds.slice(i, i + BATCH_SIZE);
+          const { data: prods } = await supabase.from("products").select("id, cost_price").in("id", batch);
+          (prods || []).forEach((p: any) => { costMap[p.id] = p.cost_price || 0; });
+        }
+      }
+
+      const items = allItems.map(i => ({ ...i, cost_price: costMap[i.product_id] || 0 }));
+      return { sales, items };
     },
   });
 
