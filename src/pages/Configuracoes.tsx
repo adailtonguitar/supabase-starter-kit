@@ -584,6 +584,20 @@ function CarneConfigSection() {
                 <div className="text-[10px] mt-0.5 opacity-70">Formulário contínuo, LX-350, FX-890</div>
               </button>
             </div>
+
+            {format === "matricial" && (
+              <div className="mt-3 p-3 rounded-xl bg-primary/5 border border-primary/10 space-y-1.5">
+                <p className="text-xs font-semibold text-primary">💡 Dica: Configuração da impressora matricial</p>
+                <ul className="text-[11px] text-muted-foreground space-y-1 list-disc list-inside">
+                  <li>No <strong>Windows</strong>, vá em Painel de Controle → Dispositivos e Impressoras</li>
+                  <li>Clique com o botão direito na <strong>EPSON LX-350</strong> → Propriedades</li>
+                  <li>Em "Papel", selecione <strong>"Formulário contínuo"</strong> ou <strong>"Fanfold"</strong></li>
+                  <li>Configure a largura para <strong>80 colunas</strong> (padrão)</li>
+                  <li>Conecte via <strong>USB</strong> ou <strong>porta paralela (LPT1)</strong></li>
+                  <li>Modelos compatíveis: LX-350, LX-300+II, FX-890, FX-2190</li>
+                </ul>
+              </div>
+            )}
           </div>
         )}
       </div>
