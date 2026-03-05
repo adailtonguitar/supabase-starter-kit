@@ -21,8 +21,8 @@ export function LandingNav() {
       <div className="max-w-7xl mx-auto flex items-center justify-between px-6 h-16">
         <Link to="/" className="flex items-center gap-2">
           <img src={logoAs} alt="AnthoSystem" className="w-8 h-8 rounded-lg object-contain" />
-          <span className="text-lg font-extrabold tracking-tight">
-            <span className="text-primary">Antho</span>
+          <span className="font-display text-lg font-extrabold tracking-tight">
+            <span className="gradient-text">Antho</span>
             <span className="text-foreground">System</span>
           </span>
         </Link>

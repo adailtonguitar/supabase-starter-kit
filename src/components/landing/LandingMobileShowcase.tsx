@@ -50,7 +50,7 @@ export function LandingMobileShowcase() {
               Mobile
             </div>
 
-            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
+            <h2 className="font-display text-3xl sm:text-4xl font-extrabold tracking-tight">
               Sua gestão na palma da mão
             </h2>
 

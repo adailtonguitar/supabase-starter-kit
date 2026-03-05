@@ -52,7 +52,7 @@ export function LandingComparison() {
             <span className="text-primary text-sm font-semibold uppercase tracking-wider">
               Comparativo
             </span>
-            <h2 className="mt-3 text-3xl sm:text-4xl font-bold tracking-tight">
+            <h2 className="mt-3 font-display text-3xl sm:text-4xl font-extrabold tracking-tight">
               AnthoSystem vs. Concorrentes
             </h2>
             <p className="mt-4 text-muted-foreground max-w-2xl mx-auto text-lg">

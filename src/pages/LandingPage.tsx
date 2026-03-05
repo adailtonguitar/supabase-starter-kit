@@ -30,15 +30,20 @@ export default function LandingPage() {
       <LandingHero />
       <Suspense fallback={<SectionFallback />}>
         <LandingFeatures />
+        <div className="section-divider max-w-5xl mx-auto" />
         <LandingMobileShowcase />
         <LandingHowItWorks />
+        <div className="section-divider max-w-5xl mx-auto" />
         <LandingLoyalty />
         <LandingAnalytics />
+        <div className="section-divider max-w-5xl mx-auto" />
         <LandingAI />
         <LandingMultiStore />
+        <div className="section-divider max-w-5xl mx-auto" />
         <LandingCalculator />
         <LandingAdvantages />
         <LandingComparison />
+        <div className="section-divider max-w-5xl mx-auto" />
         <LandingTestimonials />
         <LandingAuthority />
         <LandingPricing />

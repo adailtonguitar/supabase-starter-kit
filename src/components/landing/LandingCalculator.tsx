@@ -33,7 +33,7 @@ export function LandingCalculator() {
             <span className="text-primary text-sm font-semibold uppercase tracking-wider">
               Calculadora de Economia
             </span>
-            <h2 className="mt-3 text-3xl sm:text-4xl font-bold tracking-tight">
+            <h2 className="mt-3 font-display text-3xl sm:text-4xl font-extrabold tracking-tight">
               Quanto você perde sem controle?
             </h2>
             <p className="mt-4 text-muted-foreground max-w-2xl mx-auto text-lg">

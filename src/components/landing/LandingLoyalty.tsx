@@ -41,7 +41,7 @@ export function LandingLoyalty() {
             <span className="text-amber-500 text-sm font-semibold uppercase tracking-wider">
               Fidelização
             </span>
-            <h2 className="mt-3 text-3xl sm:text-4xl font-bold tracking-tight">
+            <h2 className="mt-3 font-display text-3xl sm:text-4xl font-extrabold tracking-tight">
               Fidelize seus clientes e venda mais
             </h2>
             <p className="mt-4 text-muted-foreground max-w-2xl mx-auto text-lg">
