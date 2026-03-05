@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Menu, X } from "lucide-react";
 import logoAs from "@/assets/logo-as.png";
@@ -65,39 +66,49 @@ export function LandingNav() {
       </div>
 
       {/* Mobile menu */}
-      {open && (
-        <div className="md:hidden border-t border-border/50 bg-background/95 backdrop-blur-xl px-6 py-4 space-y-1">
-          {links.map((l) =>
-            (l as any).isRoute ? (
-              <Link
-                key={l.href}
-                to={l.href}
-                onClick={() => setOpen(false)}
-                className="block px-4 py-2.5 text-sm font-medium text-cyan-600 hover:text-cyan-500 rounded-lg hover:bg-accent/50"
-              >
-                {l.label}
-              </Link>
-            ) : (
-              <a
-                key={l.href}
-                href={l.href}
-                onClick={() => setOpen(false)}
-                className="block px-4 py-2.5 text-sm font-medium text-muted-foreground hover:text-foreground rounded-lg hover:bg-accent/50"
-              >
-                {l.label}
-              </a>
-            )
-          )}
-          <div className="pt-3 flex flex-col gap-2">
-            <Button asChild variant="outline" size="sm" className="w-full">
-              <Link to="/auth">Entrar</Link>
-            </Button>
-            <Button asChild size="sm" className="w-full">
-              <Link to="/auth">Teste grátis</Link>
-            </Button>
-          </div>
-        </div>
-      )}
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.25, ease: "easeInOut" }}
+            className="md:hidden overflow-hidden border-t border-border/50 bg-background/95 backdrop-blur-xl"
+          >
+            <div className="px-6 py-4 space-y-1">
+              {links.map((l) =>
+                (l as any).isRoute ? (
+                  <Link
+                    key={l.href}
+                    to={l.href}
+                    onClick={() => setOpen(false)}
+                    className="block px-4 py-2.5 text-sm font-medium text-cyan-600 hover:text-cyan-500 rounded-lg hover:bg-accent/50"
+                  >
+                    {l.label}
+                  </Link>
+                ) : (
+                  <a
+                    key={l.href}
+                    href={l.href}
+                    onClick={() => setOpen(false)}
+                    className="block px-4 py-2.5 text-sm font-medium text-muted-foreground hover:text-foreground rounded-lg hover:bg-accent/50"
+                  >
+                    {l.label}
+                  </a>
+                )
+              )}
+              <div className="pt-3 flex flex-col gap-2">
+                <Button asChild variant="outline" size="sm" className="w-full">
+                  <Link to="/auth">Entrar</Link>
+                </Button>
+                <Button asChild size="sm" className="w-full">
+                  <Link to="/auth">Teste grátis</Link>
+                </Button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </nav>
   );
 }
