@@ -128,7 +128,7 @@ export function LandingHero() {
             <motion.div
               animate={{ y: [0, -5, 0] }}
               transition={{ duration: 3, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
-              className="absolute -bottom-6 -left-4 bg-card border border-border rounded-xl p-3 shadow-lg flex items-center gap-3 z-20"
+              className="hidden lg:flex absolute -bottom-6 -left-4 bg-card border border-border rounded-xl p-3 shadow-lg items-center gap-3 z-20"
             >
               <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
                 <ShoppingCart className="w-4 h-4 text-primary" />
@@ -142,7 +142,7 @@ export function LandingHero() {
             <motion.div
               animate={{ y: [0, -6, 0] }}
               transition={{ duration: 3.5, repeat: Infinity, ease: "easeInOut", delay: 0.3 }}
-              className="absolute top-8 -right-4 bg-card border border-border rounded-xl p-3 shadow-lg flex items-center gap-3 z-20"
+              className="hidden lg:flex absolute top-8 -right-4 bg-card border border-border rounded-xl p-3 shadow-lg items-center gap-3 z-20"
             >
               <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
                 <TrendingUp className="w-4 h-4 text-primary" />
