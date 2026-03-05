@@ -46,19 +46,18 @@ export function FurnitureModeProvider({ children }: { children: ReactNode }) {
   }, [companyId]);
 
   const toggle = useCallback(async () => {
-    if (!companyId) return;
     const newVal = !enabled;
+    setEnabled(newVal);
+    localStorage.setItem(CACHE_KEY, String(newVal));
+    
+    if (!companyId) return;
     try {
       await supabase
         .from("companies")
         .update({ segment: newVal ? "moveis" : null } as any)
         .eq("id", companyId);
-      setEnabled(newVal);
-      localStorage.setItem(CACHE_KEY, String(newVal));
     } catch {
-      // Fallback to localStorage only
-      setEnabled(newVal);
-      localStorage.setItem(CACHE_KEY, String(newVal));
+      // DB update failed but localStorage is already saved
     }
   }, [companyId, enabled]);
 
