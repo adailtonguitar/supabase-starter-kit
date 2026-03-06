@@ -22,7 +22,7 @@ import { useSync } from "@/hooks/useSync";
 import { useAdminRole } from "@/hooks/useAdminRole";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useWhatsAppSupport } from "@/hooks/useWhatsAppSupport";
-import { useFurnitureMode } from "@/hooks/useFurnitureMode";
+
 
 // ─── Section labels ───
 type SectionLabel = { type: "label"; text: string };
