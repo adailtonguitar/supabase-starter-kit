@@ -325,9 +325,9 @@ export class SystemDiagnosticService {
       .single();
     testProductId = prod?.id || null;
 
-    await this.runTest("Vendas", "Registrar venda", async () => {
+    await this.runTest("Vendas", "Registrar venda (RPC atômica)", async () => {
       if (!testProductId || !prod) throw new Error("Produto não criado");
-      const items = [
+      const saleItems = [
         {
           product_id: testProductId,
           product_name: prod.name,
@@ -337,22 +337,24 @@ export class SystemDiagnosticService {
           subtotal: prod.price * 3,
         },
       ];
+      const total = prod.price * 3;
 
-      const { data, error } = await supabase
-        .from("sales")
-        .insert({
-          company_id: this.companyId,
-          items,
-          total: prod.price * 3,
-          payment_method: "dinheiro",
-          status: "finalizada",
-          created_by: this.userId,
-          is_demo: true,
-        } as any)
-        .select("id, total")
-        .single();
+      const { data: rpcResult, error } = await supabase.rpc("finalize_sale_atomic", {
+        p_company_id: this.companyId,
+        p_terminal_id: "DIAG_TEST",
+        p_session_id: null,
+        p_items: saleItems,
+        p_subtotal: total,
+        p_discount_pct: 0,
+        p_discount_val: 0,
+        p_total: total,
+        p_payments: [{ method: "dinheiro", amount: total }],
+        p_sold_by: this.userId,
+      });
       if (error) throw error;
-      testSaleId = data.id;
+      const result = rpcResult as any;
+      if (!result?.success) throw new Error(result?.error || "RPC falhou");
+      testSaleId = result.sale_id;
     });
 
     await this.runTest("Vendas", "Verificar venda no histórico", async () => {
