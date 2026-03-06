@@ -6,9 +6,10 @@ export interface CreditReceiptData {
   clientName: string;
   cpf?: string;
   clientDoc?: string;
-  installmentNumber: string;
-  value: number;
-  dueDate: string;
+  installmentNumber?: string;
+  value?: number;
+  amount?: number;
+  dueDate?: string;
   paidDate?: string;
   paymentMethod?: string;
   companyName?: string;

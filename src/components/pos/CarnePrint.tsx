@@ -45,7 +45,7 @@ export function CarnePrint({ data, onClose, format = "a4" }: Props) {
           <div className="center bold">{data.companyName || "Carnê"}</div>
           <div>Cliente: <span className="bold">{data.clientName}</span></div>
           {data.cpf && <div>CPF: {data.cpf}</div>}
-          <div>Total: <span className="bold">{fmt(data.total)}</span></div>
+          <div>Total: <span className="bold">{fmt(data.total ?? data.totalAmount ?? 0)}</span></div>
           <table>
             <thead>
               <tr><th>#</th><th>Vencimento</th><th>Valor</th><th>Pago</th></tr>

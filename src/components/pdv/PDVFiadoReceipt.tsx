@@ -6,8 +6,8 @@ export interface FiadoReceiptData {
   clientName: string;
   cpf?: string;
   total: number;
-  items: { name: string; qty?: number; quantity?: number; price: number; [key: string]: any }[];
-  date: string;
+  items?: { name: string; qty?: number; quantity?: number; price: number; [key: string]: any }[];
+  date?: string;
   companyName?: string;
   [key: string]: any;
 }
