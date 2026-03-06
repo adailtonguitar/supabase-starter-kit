@@ -41,7 +41,8 @@ export function PDVReturnExchangeDialog({ open, onClose }: PDVReturnExchangeProp
     try {
       // Search by sale ID prefix (uuid columns don't support ilike, so we fetch recent and filter in JS)
       const query = searchQuery.trim().toLowerCase();
-      const { data: sales } = await supabase
+      console.log("[DevReturn] searching for:", query, "companyId:", companyId);
+      const { data: sales, error: salesError } = await supabase
         .from("sales")
         .select("id, total, created_at, status")
         .eq("company_id", companyId)
@@ -49,7 +50,13 @@ export function PDVReturnExchangeDialog({ open, onClose }: PDVReturnExchangeProp
         .order("created_at", { ascending: false })
         .limit(200);
 
+      console.log("[DevReturn] sales fetched:", sales?.length, "error:", salesError?.message);
+      if (sales && sales.length > 0) {
+        console.log("[DevReturn] first 5 sale IDs:", sales.slice(0, 5).map(s => s.id.substring(0, 8)));
+      }
+
       const matched = (sales || []).filter(s => s.id.toLowerCase().startsWith(query));
+      console.log("[DevReturn] matched:", matched.length);
 
       if (matched.length === 0) {
         toast.warning("Venda não encontrada", { duration: 1500 });
