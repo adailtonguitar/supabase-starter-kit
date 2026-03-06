@@ -748,6 +748,7 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
                   </FormItem>
                 )} />
             </div>
+            </div>
 
             {/* Preços e Estoque */}
             <div>
