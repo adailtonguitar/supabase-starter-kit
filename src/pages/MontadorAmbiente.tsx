@@ -1,10 +1,13 @@
-import { useState, useRef, useCallback } from "react";
-import { Move, RotateCw, Trash2, Plus, Save, Printer, ZoomIn, ZoomOut } from "lucide-react";
+import { useState, useRef, useCallback, useEffect } from "react";
+import { Move, RotateCw, Trash2, Plus, Save, Printer, ZoomIn, ZoomOut, Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { useCompany } from "@/hooks/useCompany";
+import { useAuth } from "@/hooks/useAuth";
 
 interface FurnitureItem {
   id: string;
@@ -33,11 +36,15 @@ const CANVAS_W = 800;
 const CANVAS_H = 600;
 
 export default function MontadorAmbiente() {
+  const { companyId } = useCompany();
+  const { user } = useAuth();
   const [items, setItems] = useState<FurnitureItem[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [dragging, setDragging] = useState<{ id: string; offsetX: number; offsetY: number } | null>(null);
   const [roomName, setRoomName] = useState("Sala de Estar");
   const [zoom, setZoom] = useState(1);
+  const [saving, setSaving] = useState(false);
+  const [planId, setPlanId] = useState<string | null>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
 
   const addItem = (catalog: typeof furnitureCatalog[0]) => {
@@ -84,7 +91,37 @@ export default function MontadorAmbiente() {
 
   const handleMouseUp = () => setDragging(null);
 
-  const savePlan = () => toast.success("Planta salva com sucesso!");
+  const savePlan = async () => {
+    if (!companyId || !user) {
+      toast.error("Faça login para salvar");
+      return;
+    }
+    setSaving(true);
+    try {
+      const payload = {
+        company_id: companyId,
+        name: roomName,
+        items: items as any,
+        created_by: user.id,
+        updated_at: new Date().toISOString(),
+      };
+      if (planId) {
+        const { error } = await supabase.from("room_plans").update(payload as any).eq("id", planId);
+        if (error) throw error;
+        toast.success("Planta atualizada com sucesso!");
+      } else {
+        const { data, error } = await supabase.from("room_plans").insert(payload as any).select("id").single();
+        if (error) throw error;
+        setPlanId((data as any)?.id);
+        toast.success("Planta salva com sucesso!");
+      }
+    } catch (e: any) {
+      console.error("[MontadorAmbiente] save error", e);
+      toast.error("Erro ao salvar planta");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const printPlan = () => {
     const win = window.open("", "_blank");
@@ -105,7 +142,10 @@ export default function MontadorAmbiente() {
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={printPlan}><Printer className="w-4 h-4 mr-1" /> Imprimir</Button>
-          <Button size="sm" onClick={savePlan}><Save className="w-4 h-4 mr-1" /> Salvar</Button>
+          <Button size="sm" onClick={savePlan} disabled={saving}>
+            {saving ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Save className="w-4 h-4 mr-1" />}
+            {saving ? "Salvando..." : "Salvar"}
+          </Button>
         </div>
       </div>
 
