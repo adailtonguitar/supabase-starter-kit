@@ -244,6 +244,7 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
               Venda <span className="font-bold text-foreground">#{saleId.substring(0, 8).toUpperCase()}</span>
             </p>
           )}
+        </div>
 
         {/* Payment details */}
         {payments && payments.length > 0 && (
