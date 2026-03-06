@@ -704,20 +704,40 @@ export default function PDV() {
         const { data: { user: authUser } } = await supabase.auth.getUser();
         const userId = authUser?.id || null;
 
-        const updates: Array<PromiseLike<any>> = [
-          supabase.from("sales").update({ status: isSignal ? "sinal" : "fiado" } as any).eq("id", result.saleId),
-          supabase.from("clients").update({ credit_balance: newBalance }).eq("id", client.id),
-        ];
+        // ── Critical updates: run sequentially to avoid silent failures ──
+        const throwErr = (label: string, error: any) => {
+          if (error) {
+            console.error(`[Fiado] ${label} failed:`, error);
+            throw new Error(`${label}: ${error.message}`);
+          }
+        };
 
-        if (isSignal) {
-          // Delete the auto-generated financial entry, then create signal + remaining entries
-          updates.push(
-            supabase.from("financial_entries").delete().eq("reference", result.saleId).eq("company_id", companyId)
-          );
+        // 1) Update sale status
+        const { error: saleErr } = await supabase.from("sales")
+          .update({ status: isSignal ? "sinal" : "fiado" } as any)
+          .eq("id", result.saleId);
+        throwErr("Atualizar status da venda", saleErr);
 
-          // Entry for the signal (already paid)
-          updates.push(
-            supabase.from("financial_entries").insert({
+        // 2) Update client credit balance
+        const { error: balErr } = await supabase.from("clients")
+          .update({ credit_balance: newBalance })
+          .eq("id", client.id);
+        throwErr("Atualizar saldo do cliente", balErr);
+
+        // 3) Handle financial entries based on mode
+        if (isSignal || (mode === "parcelado" && installments > 1)) {
+          // Delete the auto-generated 'pago' entry first
+          const { error: delErr } = await supabase.from("financial_entries")
+            .delete()
+            .eq("reference", result.saleId)
+            .eq("company_id", companyId);
+          throwErr("Remover lançamento automático", delErr);
+
+          const entriesToInsert: any[] = [];
+
+          if (isSignal) {
+            // Signal (already paid)
+            entriesToInsert.push({
               company_id: companyId,
               type: "receber",
               description: `Sinal (entrada) - ${client.name}`,
@@ -729,87 +749,47 @@ export default function PDV() {
               paid_amount: downPaymentAmount,
               paid_date: new Date().toISOString().split("T")[0],
               created_by: userId,
-            } as any)
-          );
-
-          // Remaining balance entries
-          if (installments > 1) {
-            // Parcelado remaining
-            const installmentAmount = Math.round((remainingAmount / installments) * 100) / 100;
-            for (let i = 0; i < installments; i++) {
-              const dueDate = new Date();
-              dueDate.setMonth(dueDate.getMonth() + i + 1);
-              updates.push(
-                supabase.from("financial_entries").insert({
-                  company_id: companyId,
-                  type: "receber",
-                  description: `Parcela ${i + 1}/${installments} (saldo) - ${client.name}`,
-                  reference: result.saleId,
-                  counterpart: client.name,
-                  amount: i === installments - 1 ? remainingAmount - installmentAmount * (installments - 1) : installmentAmount,
-                  due_date: dueDate.toISOString().split("T")[0],
-                  status: "pendente",
-                  created_by: userId,
-                } as any)
-              );
-            }
-          } else {
-            // Fiado remaining (single entry, due on delivery)
-            const dueDate = new Date();
-            dueDate.setMonth(dueDate.getMonth() + 1);
-            updates.push(
-              supabase.from("financial_entries").insert({
-                company_id: companyId,
-                type: "receber",
-                description: `Saldo (na entrega) - ${client.name}`,
-                reference: result.saleId,
-                counterpart: client.name,
-                amount: remainingAmount,
-                due_date: dueDate.toISOString().split("T")[0],
-                status: "pendente",
-                created_by: userId,
-              } as any)
-            );
+            });
           }
-        } else if (mode === "parcelado" && installments > 1) {
-          // Delete auto-generated 'pago' entry, then create installments
-          updates.push(
-            supabase.from("financial_entries").delete().eq("reference", result.saleId).eq("company_id", companyId)
-          );
-          const installmentAmount = Math.round((savedTotal / installments) * 100) / 100;
-          for (let i = 0; i < installments; i++) {
+
+          const baseAmount = isSignal ? remainingAmount : savedTotal;
+          const numInstallments = isSignal ? (installments > 1 ? installments : 1) : installments;
+          const installmentAmount = Math.round((baseAmount / numInstallments) * 100) / 100;
+
+          for (let i = 0; i < numInstallments; i++) {
             const dueDate = new Date();
             dueDate.setMonth(dueDate.getMonth() + i + 1);
-            updates.push(
-              supabase.from("financial_entries").insert({
-                company_id: companyId,
-                type: "receber",
-                description: `Parcela ${i + 1}/${installments} - ${client.name}`,
-                reference: result.saleId,
-                counterpart: client.name,
-                amount: i === installments - 1 ? savedTotal - installmentAmount * (installments - 1) : installmentAmount,
-                due_date: dueDate.toISOString().split("T")[0],
-                status: "pendente",
-                created_by: userId,
-              } as any)
-            );
+            const isLast = i === numInstallments - 1;
+            entriesToInsert.push({
+              company_id: companyId,
+              type: "receber",
+              description: numInstallments > 1
+                ? `Parcela ${i + 1}/${numInstallments}${isSignal ? " (saldo)" : ""} - ${client.name}`
+                : `Saldo (na entrega) - ${client.name}`,
+              reference: result.saleId,
+              counterpart: client.name,
+              amount: isLast ? baseAmount - installmentAmount * (numInstallments - 1) : installmentAmount,
+              due_date: dueDate.toISOString().split("T")[0],
+              status: "pendente",
+              created_by: userId,
+            });
           }
+
+          const { error: insErr } = await supabase.from("financial_entries").insert(entriesToInsert);
+          throwErr("Criar parcelas financeiras", insErr);
         } else {
-          // Fiado: update existing entry to pendente
-          updates.push(
-            supabase.from("financial_entries").update({
+          // Fiado simples: update existing entry to pendente
+          const { error: updErr } = await supabase.from("financial_entries")
+            .update({
               status: "pendente",
               paid_amount: 0,
               paid_date: null,
               counterpart: client.name,
-            } as any).eq("reference", result.saleId).eq("company_id", companyId)
-          );
+            } as any)
+            .eq("reference", result.saleId)
+            .eq("company_id", companyId);
+          throwErr("Atualizar lançamento para pendente", updErr);
         }
-
-        const results = await Promise.allSettled(updates);
-        results.forEach((r, i) => {
-          if (r.status === "rejected") console.error(`[Fiado] Update ${i} failed:`, r.reason);
-        });
       }
 
       setReceipt({
