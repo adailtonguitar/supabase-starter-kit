@@ -34,7 +34,7 @@ export function UpdateNoticeModal() {
         });
 
         // Periodically check for updates (every 60s)
-        setInterval(() => reg.update(), 60 * 1000);
+        setInterval(() => reg.update().catch(() => {}), 60 * 1000);
       })
       .catch((err) => console.warn("[SW] Registration failed:", err));
 
