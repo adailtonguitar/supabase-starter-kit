@@ -103,7 +103,7 @@ export default function Terminais() {
                       <div className="flex justify-between text-xs"><span className="text-muted-foreground">Crédito:</span><span className="text-foreground">{formatCurrency(session.total_credito)}</span></div>
                       <div className="flex justify-between text-xs"><span className="text-muted-foreground">PIX:</span><span className="text-foreground">{formatCurrency(session.total_pix)}</span></div>
                       <div className="border-t border-border mt-1 pt-1 flex justify-between text-xs"><span className="text-muted-foreground">Sangrias:</span><span className="text-destructive">{formatCurrency(session.total_sangria)}</span></div>
-                      <div className="flex justify-between text-xs"><span className="text-muted-foreground">Suprimentos:</span><span className="text-emerald-500">{formatCurrency(session.total_suprimento)}</span></div>
+                      <div className="flex justify-between text-xs"><span className="text-muted-foreground">Suprimentos:</span><span className="text-success">{formatCurrency(session.total_suprimento)}</span></div>
                       <div className="flex justify-between text-xs"><span className="text-muted-foreground">Qtd vendas:</span><span className="font-medium text-foreground">{session.sales_count || 0}</span></div>
                     </div>
                   )}
