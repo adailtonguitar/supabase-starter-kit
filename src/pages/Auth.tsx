@@ -275,7 +275,7 @@ export default function Auth() {
           console.warn("seedDemoData retornou 0 produtos — possível falha de RLS");
           toast.success("Conta demo criada! Verifique as permissões de dados.");
         } else {
-          toast.success(`Demo criada: ${result.products} produtos, ${result.clients} clientes, ${result.sales} vendas, ${result.suppliers} fornecedores e ${result.expenses} despesas!`);
+          toast.success(`Dados demo criados: ${result.products} produtos · ${result.clients} clientes · ${result.sales} vendas · ${result.suppliers} fornecedores · ${result.expenses} despesas`);
         }
       } catch (seedErr: any) {
         console.error("Erro ao gerar dados demo:", seedErr);
