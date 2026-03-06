@@ -119,7 +119,7 @@ export default function PrevisaoDemanda() {
                   <Badge variant="outline" className="text-[10px]">{s.date}</Badge>
                 </div>
                 <p className="text-xs text-muted-foreground">{s.impact}</p>
-                <Badge variant="outline" className={`text-[10px] mt-1 ${s.severity === "alta" ? "border-destructive/30 text-destructive" : "border-amber-500/30 text-amber-600"}`}>
+                <Badge variant="outline" className={`text-[10px] mt-1 ${s.severity === "alta" ? "border-destructive/30 text-destructive" : "border-warning/30 text-warning"}`}>
                   Impacto {s.severity}
                 </Badge>
               </CardContent>

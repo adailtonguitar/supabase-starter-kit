@@ -49,10 +49,10 @@ export default function ConsolidatedSection() {
       {/* Totals */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { label: "Vendas Total", value: formatCurrency(report.totalSales), icon: DollarSign, color: "text-green-600" },
-          { label: "Nº Vendas", value: String(report.totalSalesCount), icon: TrendingUp, color: "text-blue-600" },
-          { label: "Produtos", value: String(report.totalProducts), icon: Package, color: "text-orange-600" },
-          { label: "Clientes", value: String(report.totalClients), icon: Users, color: "text-purple-600" },
+          { label: "Vendas Total", value: formatCurrency(report.totalSales), icon: DollarSign, color: "text-success" },
+          { label: "Nº Vendas", value: String(report.totalSalesCount), icon: TrendingUp, color: "text-info" },
+          { label: "Produtos", value: String(report.totalProducts), icon: Package, color: "text-warning" },
+          { label: "Clientes", value: String(report.totalClients), icon: Users, color: "text-chart-4" },
         ].map(card => (
           <div key={card.label} className="bg-card border border-border rounded-xl p-4">
             <div className="flex items-center gap-2 mb-1">

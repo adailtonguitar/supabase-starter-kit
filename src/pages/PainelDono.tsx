@@ -314,7 +314,7 @@ export default function PainelDono() {
             { label: "PDV", path: "/pdv", icon: ShoppingCart, accent: "text-primary" },
             { label: "Dashboard", path: "/dashboard", icon: BarChart3, accent: "text-foreground" },
             { label: "Financeiro", path: "/financeiro", icon: Wallet, accent: "text-warning" },
-            { label: "Fiado", path: "/fiado", icon: CreditCard, accent: "text-amber-500" },
+            { label: "Fiado", path: "/fiado", icon: CreditCard, accent: "text-warning" },
             { label: "Relatórios", path: "/relatorio-vendas", icon: FileText, accent: "text-primary" },
             { label: "Estoque", path: "/produtos", icon: Package, accent: "text-foreground" },
           ].map((action) => (

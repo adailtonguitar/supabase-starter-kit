@@ -144,7 +144,7 @@ export default function Ruptura() {
                           className={`font-bold ${
                             item.stock_quantity <= 0
                               ? "text-destructive"
-                              : "text-amber-600"
+                              : "text-warning"
                           }`}
                         >
                           {item.stock_quantity}
