@@ -91,20 +91,6 @@ const existingArts: ArtAsset[] = [
   },
 ];
 
-const aiPromptTemplates = [
-  { id: "pdv", label: "Foco no PDV", prompt: "Professional social media art for AnthoSystem POS software. Show a modern checkout/POS terminal with sales interface. Bold dark blue and electric green. Text: 'AnthoSystem PDV — Venda rápido, sem complicação'. Brazilian Portuguese." },
-  { id: "estoque", label: "Foco no Estoque", prompt: "Professional social media art for AnthoSystem inventory management. Show organized warehouse shelves with barcode scanning. Dark blue and green. Text: 'Controle de Estoque Inteligente — AnthoSystem'. Brazilian Portuguese." },
-  { id: "fiscal", label: "Foco Fiscal / NF-e", prompt: "Professional social media art for AnthoSystem fiscal/tax invoice system. Show NF-e documents with government seal. Dark blue and green. Text: 'Emissão de NF-e e NFC-e — AnthoSystem'. Brazilian Portuguese." },
-  { id: "teste-gratis", label: "Teste Grátis 15 dias", prompt: "Eye-catching promotional social media art for AnthoSystem. Bold urgency style. Dark blue background with vibrant green. Text: 'TESTE GRÁTIS 15 DIAS — AnthoSystem — Sistema Completo para seu Comércio'. Call to action button style. Brazilian Portuguese." },
-  { id: "financeiro", label: "Foco Financeiro", prompt: "Professional social media art for AnthoSystem financial management. Show charts, cash flow graphs, profit analytics. Dark blue and green. Text: 'Gestão Financeira Completa — AnthoSystem'. Brazilian Portuguese." },
-  { id: "ia", label: "Foco IA", prompt: "Futuristic social media art for AnthoSystem AI features. Neural network visuals, AI brain icon, data analytics. Dark blue and neon green. Text: 'Inteligência Artificial para seu Negócio — AnthoSystem'. Brazilian Portuguese." },
-];
-
-const formatOptions = [
-  { id: "feed", label: "Feed Instagram (1080×1080)", width: 1080, height: 1080 },
-  { id: "stories", label: "Stories (1080×1920)", width: 1080, height: 1920 },
-  { id: "banner", label: "Banner Facebook (1920×1080)", width: 1920, height: 1080 },
-];
 
 export function AdminMarketing() {
   const [selectedFormat, setSelectedFormat] = useState("feed");
