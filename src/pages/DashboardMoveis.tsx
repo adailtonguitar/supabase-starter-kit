@@ -1,6 +1,9 @@
 import { useMemo } from "react";
 import { useProducts } from "@/hooks/useProducts";
 import { useSales } from "@/hooks/useSales";
+import { useDeliveryTracking } from "@/hooks/useDeliveryTracking";
+import { useFurnitureProjects } from "@/hooks/useFurnitureProjects";
+import { useTechnicalTickets } from "@/hooks/useTechnicalTickets";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -10,18 +13,12 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 
-function loadJSON<T>(key: string, fallback: T): T {
-  try { return JSON.parse(localStorage.getItem(key) || "") || fallback; } catch { return fallback; }
-}
-
 export default function DashboardMoveis() {
   const { data: products = [] } = useProducts();
   const { data: sales = [] } = useSales();
-
-  const deliveries = loadJSON<any[]>("as_furniture_deliveries", []);
-  const assemblies = loadJSON<any[]>("as_furniture_assemblies", []);
-  const showroomData = loadJSON<Record<string, any>>("as_showroom_items", {});
-  const reviews = loadJSON<any[]>("as_furniture_reviews", []);
+  const { deliveries } = useDeliveryTracking();
+  const { projects } = useFurnitureProjects();
+  const { tickets } = useTechnicalTickets();
 
   const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
@@ -31,13 +28,13 @@ export default function DashboardMoveis() {
     const stockValue = products.reduce((s, p) => s + (p.price || 0) * (p.stock_quantity || 0), 0);
     const lowStock = products.filter(p => p.min_stock && p.stock_quantity <= p.min_stock).length;
 
-    const pendingDeliveries = deliveries.filter(d => d.status === "pendente" || d.status === "em_rota").length;
+    // Entregas do banco (delivery_tracking)
+    const pendingDeliveries = deliveries.filter(d => d.status === "em_separacao" || d.status === "em_rota" || d.status === "proximo").length;
     const completedDeliveries = deliveries.filter(d => d.status === "entregue").length;
-    const pendingAssemblies = assemblies.filter(a => a.status === "agendada" || a.status === "em_andamento").length;
-    const completedAssemblies = assemblies.filter(a => a.status === "concluida").length;
 
-    const showroomMontado = Object.values(showroomData).filter((s: any) => s.status === "montado").length;
-    const showroomRepor = Object.values(showroomData).filter((s: any) => s.status === "reposicao" || s.status === "desmontado" || s.status === "danificado").length;
+    // Tickets técnicos do banco
+    const pendingTickets = tickets.filter(t => t.status === "aberto" || t.status === "em_andamento" || t.status === "aguardando_peca").length;
+    const completedTickets = tickets.filter(t => t.status === "concluido").length;
 
     const totalSales = sales.length;
     const totalRevenue = sales.reduce((s: number, v: any) => s + (v.total || 0), 0);
@@ -46,18 +43,22 @@ export default function DashboardMoveis() {
     const totalCost = products.reduce((s, p) => s + (p.cost_price || 0) * (p.stock_quantity || 0), 0);
     const avgMargin = stockValue > 0 ? ((stockValue - totalCost) / stockValue * 100) : 0;
 
-    const avgRating = reviews.length > 0 ? reviews.reduce((s: number, r: any) => s + (r.rating || 0), 0) / reviews.length : 0;
     const deliveryRate = deliveries.length > 0 ? (completedDeliveries / deliveries.length * 100) : 0;
+
+    // Projetos (galeria antes/depois) do banco
+    const totalProjects = projects.length;
+    const avgRating = projects.length > 0
+      ? projects.reduce((s, p: any) => s + (p.rating || 0), 0) / projects.filter((p: any) => p.rating > 0).length || 0
+      : 0;
 
     return {
       totalProducts, totalStock, stockValue, lowStock,
       pendingDeliveries, completedDeliveries,
-      pendingAssemblies, completedAssemblies,
-      showroomMontado, showroomRepor,
+      pendingTickets, completedTickets,
       totalSales, totalRevenue, avgTicket,
-      avgMargin, avgRating, deliveryRate, reviewCount: reviews.length,
+      avgMargin, avgRating, deliveryRate, totalProjects,
     };
-  }, [products, deliveries, assemblies, showroomData, sales, reviews]);
+  }, [products, deliveries, sales, projects, tickets]);
 
   const financialCards = [
     { label: "Faturamento", value: fmt(stats.totalRevenue), icon: DollarSign, color: "text-emerald-600" },
@@ -69,15 +70,15 @@ export default function DashboardMoveis() {
   const operationalCards = [
     { label: "Entregas Pendentes", value: stats.pendingDeliveries, icon: Truck, color: stats.pendingDeliveries > 0 ? "text-amber-600" : "text-emerald-600", alert: stats.pendingDeliveries > 0 },
     { label: "Entregas Concluídas", value: stats.completedDeliveries, icon: CheckCircle, color: "text-emerald-600" },
-    { label: "Montagens Pendentes", value: stats.pendingAssemblies, icon: Wrench, color: stats.pendingAssemblies > 0 ? "text-amber-600" : "text-emerald-600", alert: stats.pendingAssemblies > 0 },
+    { label: "Chamados Abertos", value: stats.pendingTickets, icon: Wrench, color: stats.pendingTickets > 0 ? "text-amber-600" : "text-emerald-600", alert: stats.pendingTickets > 0 },
     { label: "Taxa de Entrega", value: `${stats.deliveryRate.toFixed(0)}%`, icon: CheckCircle, color: "text-emerald-600" },
   ];
 
   const showroomCards = [
-    { label: "Montados na Exposição", value: stats.showroomMontado, icon: Armchair, color: "text-emerald-600" },
-    { label: "Falta Repor/Montar", value: stats.showroomRepor, icon: AlertTriangle, color: stats.showroomRepor > 0 ? "text-destructive" : "text-muted-foreground", alert: stats.showroomRepor > 0 },
-    { label: "Avaliação Clientes", value: stats.avgRating > 0 ? `${stats.avgRating.toFixed(1)} ⭐` : "—", icon: Star, color: "text-amber-500" },
-    { label: "Avaliações", value: stats.reviewCount, icon: Star, color: "text-primary" },
+    { label: "Produtos Cadastrados", value: stats.totalProducts, icon: Armchair, color: "text-primary" },
+    { label: "Estoque Baixo", value: stats.lowStock, icon: AlertTriangle, color: stats.lowStock > 0 ? "text-destructive" : "text-muted-foreground", alert: stats.lowStock > 0 },
+    { label: "Projetos (Galeria)", value: stats.totalProjects, icon: Home, color: "text-primary" },
+    { label: "Avaliação Média", value: stats.avgRating > 0 ? `${stats.avgRating.toFixed(1)} ⭐` : "—", icon: Star, color: "text-amber-500" },
   ];
 
   const renderCardSection = (title: string, emoji: string, cards: { label: string; value: string | number; icon: any; color: string; alert?: boolean }[], delay: number) => (
@@ -119,9 +120,9 @@ export default function DashboardMoveis() {
               <span>•</span>
               <span><strong>{stats.totalSales}</strong> vendas</span>
               <span>•</span>
-              <span><strong>{stats.showroomMontado}</strong> em exposição</span>
+              <span><strong>{stats.totalProjects}</strong> projetos</span>
               <span>•</span>
-              <span><strong>{stats.pendingDeliveries + stats.pendingAssemblies}</strong> pendências</span>
+              <span><strong>{stats.pendingDeliveries + stats.pendingTickets}</strong> pendências</span>
               {stats.avgRating > 0 && (
                 <>
                   <span>•</span>
@@ -135,9 +136,9 @@ export default function DashboardMoveis() {
 
       {renderCardSection("Financeiro", "💰", financialCards, 0)}
       {renderCardSection("Operações", "🚚", operationalCards, 0.2)}
-      {renderCardSection("Exposição & Clientes", "🏬", showroomCards, 0.4)}
+      {renderCardSection("Showroom & Portfólio", "🏬", showroomCards, 0.4)}
 
-      {(stats.pendingDeliveries > 0 || stats.pendingAssemblies > 0 || stats.showroomRepor > 0 || stats.lowStock > 0) && (
+      {(stats.pendingDeliveries > 0 || stats.pendingTickets > 0 || stats.lowStock > 0) && (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 }}>
           <Card className="border-amber-500/30 bg-amber-500/5">
             <CardHeader className="pb-2">
@@ -147,8 +148,7 @@ export default function DashboardMoveis() {
             </CardHeader>
             <CardContent className="space-y-1">
               {stats.pendingDeliveries > 0 && <p className="text-sm">🚚 {stats.pendingDeliveries} entrega{stats.pendingDeliveries > 1 ? "s" : ""} pendente{stats.pendingDeliveries > 1 ? "s" : ""}</p>}
-              {stats.pendingAssemblies > 0 && <p className="text-sm">🔧 {stats.pendingAssemblies} montagem{stats.pendingAssemblies > 1 ? "ns" : ""} pendente{stats.pendingAssemblies > 1 ? "s" : ""}</p>}
-              {stats.showroomRepor > 0 && <p className="text-sm">🏬 {stats.showroomRepor} item{stats.showroomRepor > 1 ? "ns" : ""} para repor na exposição</p>}
+              {stats.pendingTickets > 0 && <p className="text-sm">🔧 {stats.pendingTickets} chamado{stats.pendingTickets > 1 ? "s" : ""} técnico{stats.pendingTickets > 1 ? "s" : ""} aberto{stats.pendingTickets > 1 ? "s" : ""}</p>}
               {stats.lowStock > 0 && <p className="text-sm">⚠️ {stats.lowStock} produto{stats.lowStock > 1 ? "s" : ""} com estoque baixo</p>}
             </CardContent>
           </Card>
