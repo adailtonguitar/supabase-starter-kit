@@ -255,7 +255,6 @@ export default function DiagnosticoSistema() {
                   );
                 })}
               </div>
-            </div>
           </CardContent>
         </Card>
       )}
