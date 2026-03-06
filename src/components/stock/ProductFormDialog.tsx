@@ -284,7 +284,7 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
     try {
       const { reorder_point, reorder_quantity, ...rest } = data as any;
       // Auto-generate SKU if empty to avoid unique constraint violation
-      const finalSku = data.sku?.trim() || `PRD-${Date.now().toString(36).toUpperCase()}`;
+      const finalSku = data.sku?.trim() || `PRD-${Date.now().toString(36).toUpperCase()}-${crypto.randomUUID().substring(0, 4)}`;
       const payload = {
         ...rest,
         sku: finalSku,

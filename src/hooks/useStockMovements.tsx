@@ -61,6 +61,7 @@ export function useCreateStockMovement() {
         case "saida":
         case "venda":
           newStock = previous - movement.quantity;
+          if (newStock < 0) throw new Error(`Estoque insuficiente. Disponível: ${previous}, solicitado: ${movement.quantity}`);
           break;
         case "ajuste":
           newStock = movement.quantity;
