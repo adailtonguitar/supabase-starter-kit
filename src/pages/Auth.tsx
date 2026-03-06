@@ -269,7 +269,7 @@ export default function Auth() {
       try {
         const { DemoDataService } = await import("@/services/DemoDataService");
         const result = await DemoDataService.seedDemoData(data.company_id, data.user_id);
-        toast.success(`Conta demo criada com ${result.products} produtos, ${result.clients} clientes e ${result.sales} vendas!`);
+        toast.success(`Demo criada: ${result.products} produtos, ${result.clients} clientes, ${result.sales} vendas, ${result.suppliers} fornecedores e ${result.expenses} despesas!`);
       } catch (seedErr: any) {
         console.error("Erro ao gerar dados demo:", seedErr);
         toast.success("Conta demo criada! Os dados serão gerados ao carregar o painel.");
