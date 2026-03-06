@@ -466,11 +466,11 @@ export class SystemDiagnosticService {
         .like("name", `${TEST_PREFIX}%`);
 
       // Delete test stock movements
-      await supabase
+      await (supabase
         .from("stock_movements")
-        .delete()
+        .delete() as any)
         .eq("company_id", this.companyId)
-        .eq("reason" as any, TEST_PREFIX);
+        .eq("reason", TEST_PREFIX);
 
       // Delete test financial entries
       await supabase
