@@ -147,6 +147,9 @@ export default function Admin() {
         <TabsContent value="diagnostic">
           <DiagnosticTab />
         </TabsContent>
+        <TabsContent value="marketing">
+          <AdminMarketing />
+        </TabsContent>
       </Tabs>
     </div>
   );
