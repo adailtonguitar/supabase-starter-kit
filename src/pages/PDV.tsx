@@ -646,6 +646,7 @@ export default function PDV() {
           isContingency: result.isContingency,
           saleId: result.saleId,
           customerCpf: savedClient?.cpf || undefined,
+          itemNotes: { ...itemNotes },
         });
         setSelectedClient(null);
         const newNum = saleNumber + 1;
