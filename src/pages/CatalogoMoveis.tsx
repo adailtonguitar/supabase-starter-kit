@@ -16,6 +16,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import FichaTecnicaVisual, { type TechSpec } from "@/components/catalogo/FichaTecnicaVisual";
 import { useTechSpecs } from "@/hooks/useTechSpecs";
+import { useProductExtras, type Volume, type Variation, type FurnitureExtra } from "@/hooks/useProductExtras";
 import SimuladorParcelas from "@/components/catalogo/SimuladorParcelas";
 import EtiquetaShowroom from "@/components/catalogo/EtiquetaShowroom";
 
@@ -27,34 +28,7 @@ import imgRack from "@/assets/furniture/rack-tv.jpg";
 import imgEscrivaninha from "@/assets/furniture/escrivaninha.jpg";
 import AmbientesGallery from "@/components/catalogo/AmbientesGallery";
 
-// ── Types ──
-interface Volume {
-  id: string;
-  label: string; // "Caixa 1", "Kit Ferragens"
-  dimensions?: string; // "120x60x40cm"
-  weight?: string;
-}
-
-interface Variation {
-  id: string;
-  type: "cor" | "tecido" | "tamanho";
-  value: string;
-  priceAdjust?: number; // +/- price
-}
-
-interface FurnitureExtra {
-  volumes: Volume[];
-  variations: Variation[];
-}
-
-// ── localStorage persistence ──
-const EXTRAS_KEY = "as_furniture_extras";
-function loadExtras(): Record<string, FurnitureExtra> {
-  try { return JSON.parse(localStorage.getItem(EXTRAS_KEY) || "{}"); } catch { return {}; }
-}
-function saveExtras(data: Record<string, FurnitureExtra>) {
-  localStorage.setItem(EXTRAS_KEY, JSON.stringify(data));
-}
+// Types re-exported from hook
 
 // ── Demo data ──
 const demoProducts = [
@@ -94,10 +68,7 @@ export default function CatalogoMoveis() {
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
-  const [extras, setExtras] = useState<Record<string, FurnitureExtra>>(() => {
-    const saved = loadExtras();
-    return { ...defaultDemoExtras, ...saved };
-  });
+  const { getExtras, updateExtras } = useProductExtras();
   const { allSpecs: specs } = useTechSpecs();
 
   // Volume/Variation editing
@@ -120,15 +91,6 @@ export default function CatalogoMoveis() {
   }, [products, search, categoryFilter]);
 
   const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-
-  const getExtras = (productId: string): FurnitureExtra => extras[productId] || { volumes: [], variations: [] };
-
-  const updateExtras = (productId: string, update: Partial<FurnitureExtra>) => {
-    const current = getExtras(productId);
-    const updated = { ...extras, [productId]: { ...current, ...update } };
-    setExtras(updated);
-    saveExtras(updated);
-  };
 
   const addVolume = () => {
     if (!volForm.label || !selectedProduct) return;
