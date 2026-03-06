@@ -183,9 +183,14 @@ export function AdminSubscriptions() {
                   <div className="text-xs text-muted-foreground">
                     Máx. Usuários: {row.max_users === 0 ? "∞" : row.max_users} | Fiscal: {row.fiscal_enabled ? "✓" : "✗"} | Relatórios: {row.advanced_reports_enabled ? "✓" : "✗"} | Financeiro: {row.financial_module_level}
                   </div>
-                  <Button size="sm" className="w-full" onClick={() => savePlan(row)} disabled={saving === row.id}>
-                    <Save className="h-3.5 w-3.5 mr-1" /> {saving === row.id ? "Salvando..." : "Salvar"}
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button size="sm" variant={row.is_demo ? "destructive" : "outline"} className="flex-1" onClick={() => toggleDemo(row)}>
+                      {row.is_demo ? "🔶 Demo" : "Marcar Demo"}
+                    </Button>
+                    <Button size="sm" className="flex-1" onClick={() => savePlan(row)} disabled={saving === row.id}>
+                      <Save className="h-3.5 w-3.5 mr-1" /> {saving === row.id ? "Salvando..." : "Salvar"}
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>
