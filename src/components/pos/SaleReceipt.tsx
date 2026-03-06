@@ -239,7 +239,11 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
           </h2>
           {companyName && <p className="text-sm text-muted-foreground mt-1">{companyName}</p>}
           <p className="text-3xl font-black text-primary font-mono mt-3">{formatCurrency(total)}</p>
-        </div>
+          {saleId && (
+            <p className="text-xs font-mono text-muted-foreground mt-2 bg-muted px-3 py-1.5 rounded-lg inline-block">
+              Venda <span className="font-bold text-foreground">#{saleId.substring(0, 8).toUpperCase()}</span>
+            </p>
+          )}
 
         {/* Payment details */}
         {payments && payments.length > 0 && (
