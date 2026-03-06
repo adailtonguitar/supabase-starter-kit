@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Building2, Package, ShoppingCart, CheckCircle2, ArrowRight, ArrowLeft, Rocket, Armchair, Store } from "lucide-react";
+import { Building2, Package, ShoppingCart, CheckCircle2, ArrowRight, ArrowLeft, Rocket } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import logoAs from "@/assets/logo-as.png";
