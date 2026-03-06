@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAdminRole } from "@/hooks/useAdminRole";
 import { trackError } from "@/services/ErrorTracker";
 import { format, subDays, startOfDay, endOfDay } from "date-fns";
-import { AlertTriangle, Search, Monitor, User, Calendar, RefreshCw, Bug, FlaskConical } from "lucide-react";
+import { AlertTriangle, Search, Monitor, User, Calendar, RefreshCw, Bug, FlaskConical, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -179,6 +179,25 @@ export default function RegistroErros() {
         >
           <FlaskConical className="w-4 h-4" />
           Gerar erro teste
+        </Button>
+
+        <Button
+          variant="destructive"
+          size="sm"
+          disabled={loading || errors.length === 0}
+          onClick={async () => {
+            if (!confirm("Apagar todos os registros de erros?")) return;
+            try {
+              await (supabase as any).from("system_errors").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+              setErrors([]);
+            } catch (err) {
+              console.error("[RegistroErros] Delete error:", err);
+            }
+          }}
+          className="gap-1.5 text-xs"
+        >
+          <Trash2 className="w-4 h-4" />
+          Limpar registros
         </Button>
       </div>
 
