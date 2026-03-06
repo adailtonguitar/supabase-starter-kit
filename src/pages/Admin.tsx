@@ -116,6 +116,9 @@ export default function Admin() {
         <TabsContent value="simulation">
           <AdminStoreSimulation />
         </TabsContent>
+        <TabsContent value="errors">
+          <ErrorsTab />
+        </TabsContent>
       </Tabs>
     </div>
   );
