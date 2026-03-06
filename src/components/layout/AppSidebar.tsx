@@ -12,6 +12,7 @@ import {
   HelpCircle, X, Wallet, PieChart, LineChart, AreaChart, CircleDollarSign, Scale,
   BadgeDollarSign, Bell, Stethoscope, Scan, FileDown, FilePen, FileSearch, Cog,
   Network, Smartphone, LifeBuoy, Boxes, BarChart, Calculator, Armchair, Wrench, Eye,
+  Ruler, Camera, Box, Navigation, Move, Brain as BrainIcon, User as UserIcon,
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
@@ -183,6 +184,9 @@ const furnitureNavItems: NavEntry[] = [
     children: [
       { icon: Armchair, label: "Catálogo", path: "/catalogo-moveis" },
       { icon: Eye, label: "Exposição", path: "/exposicao" },
+      { icon: Eye, label: "Showroom Virtual", path: "/showroom-virtual" },
+      { icon: Camera, label: "Antes & Depois", path: "/galeria-antes-depois" },
+      { icon: Box, label: "Visualizador AR", path: "/visualizador-ar" },
     ],
   },
   {
@@ -190,9 +194,22 @@ const furnitureNavItems: NavEntry[] = [
     label: "Operações",
     children: [
       { icon: FileText, label: "Orçamentos", path: "/orcamentos" },
+      { icon: Move, label: "Montador Ambiente", path: "/montador-ambiente" },
+      { icon: Ruler, label: "Medição", path: "/medicao-ambiente" },
       { icon: ShoppingCart, label: "Pedidos Compra", path: "/pedidos-compra" },
       { icon: Truck, label: "Entregas", path: "/entregas" },
+      { icon: Navigation, label: "Rastreio", path: "/rastreio-entrega" },
       { icon: Wrench, label: "Montagem", path: "/montagem" },
+      { icon: Wrench, label: "Assistência Técnica", path: "/assistencia-tecnica" },
+    ],
+  },
+  {
+    icon: UserIcon,
+    label: "Clientes",
+    children: [
+      { icon: UserIcon, label: "Portal do Cliente", path: "/portal-cliente" },
+      { icon: BadgeDollarSign, label: "Crediário Próprio", path: "/crediario" },
+      { icon: BrainIcon, label: "Previsão Demanda", path: "/previsao-demanda" },
     ],
   },
 ];
@@ -208,6 +225,9 @@ const furnitureAllowedPaths = new Set([
   "/fiscal", "/fiscal/nfe", "/fiscal/config",
   "/configuracoes", "/terminais",
   "/catalogo-moveis", "/entregas", "/montagem", "/exposicao", "/dashboard-moveis",
+  "/galeria-antes-depois", "/medicao-ambiente", "/assistencia-tecnica", "/portal-cliente",
+  "/crediario", "/previsao-demanda", "/montador-ambiente", "/rastreio-entrega",
+  "/visualizador-ar", "/showroom-virtual", "/orcamentos", "/pedidos-compra",
 ]);
 
 function filterNavForFurniture(items: NavEntry[]): NavEntry[] {
