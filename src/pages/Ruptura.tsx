@@ -95,7 +95,7 @@ export default function Ruptura() {
       ) : filtered.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
-            <Package className="w-12 h-12 text-emerald-500 mx-auto mb-3" />
+            <Package className="w-12 h-12 text-success mx-auto mb-3" />
             <h3 className="font-semibold text-lg">Nenhuma ruptura detectada!</h3>
             <p className="text-sm text-muted-foreground mt-1">
               Todos os produtos com vendas recentes estão com estoque adequado.
