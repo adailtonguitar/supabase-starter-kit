@@ -95,7 +95,7 @@ export function AdminStoreSimulation() {
           company_id: companyId,
           terminal_id: terminalId,
           opened_by: user.id,
-          initial_amount: 0,
+          opening_balance: 0,
           status: "aberto",
         })
         .select("id")
