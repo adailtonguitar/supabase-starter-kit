@@ -67,6 +67,16 @@ export function PDVCreditReceipt({ data, onClose }: PDVCreditReceiptProps) {
         <div class="bold line">Cliente: ${data.clientName}</div>
         ${data.clientDoc ? `<div class="line">Doc: ${data.clientDoc}</div>` : ""}
         <div class="separator"></div>
+        ${data.items && data.items.length > 0 ? `
+        <div class="bold line">PRODUTOS DA(S) VENDA(S):</div>
+        <table style="width:100%;border-collapse:collapse;">
+          ${data.items.map(i => `
+            <tr><td style="padding:1px 0;">${i.quantity}x ${i.name}</td><td style="text-align:right;padding:1px 0;">${formatCurrency(i.unitPrice * i.quantity)}</td></tr>
+            <tr><td colspan="2" style="font-size:9px;color:#555;padding-left:12px;">${i.quantity} x ${formatCurrency(i.unitPrice)}</td></tr>
+          `).join("")}
+        </table>
+        <div class="separator"></div>
+        ` : ""}
         <div class="line">Saldo anterior: ${formatCurrency(data.previousBalance)}</div>
         <div class="total center">Valor recebido: ${formatCurrency(data.amount)}</div>
         <div class="line">Saldo remanescente: ${formatCurrency(data.newBalance)}</div>
