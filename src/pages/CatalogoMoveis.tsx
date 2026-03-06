@@ -14,7 +14,8 @@ import { Search, Package, Armchair, Eye, Grid3X3, List, Boxes, Palette, Plus, Tr
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
-import FichaTecnicaVisual, { loadSpecs, saveSpecs, defaultDemoSpecs, type TechSpec } from "@/components/catalogo/FichaTecnicaVisual";
+import FichaTecnicaVisual, { type TechSpec } from "@/components/catalogo/FichaTecnicaVisual";
+import { useTechSpecs } from "@/hooks/useTechSpecs";
 import SimuladorParcelas from "@/components/catalogo/SimuladorParcelas";
 import EtiquetaShowroom from "@/components/catalogo/EtiquetaShowroom";
 
@@ -97,10 +98,7 @@ export default function CatalogoMoveis() {
     const saved = loadExtras();
     return { ...defaultDemoExtras, ...saved };
   });
-  const [specs] = useState<Record<string, TechSpec>>(() => {
-    const saved = loadSpecs();
-    return { ...defaultDemoSpecs, ...saved };
-  });
+  const { allSpecs: specs } = useTechSpecs();
 
   // Volume/Variation editing
   const [editVolDialog, setEditVolDialog] = useState(false);
