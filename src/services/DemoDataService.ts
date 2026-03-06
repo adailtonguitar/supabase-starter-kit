@@ -82,11 +82,23 @@ export class DemoDataService {
   }
 
   static async seedDemoData(companyId: string, userId: string): Promise<{ products: number; clients: number; sales: number; suppliers: number; expenses: number }> {
+    // Check if already seeded (DB-level check to avoid duplicates)
+    const { data: existingProducts } = await supabase
+      .from("products")
+      .select("id")
+      .eq("company_id", companyId)
+      .limit(1);
+
+    if (existingProducts && existingProducts.length > 0) {
+      DemoDataService.markSeeded(companyId);
+      return { products: 0, clients: 0, sales: 0, suppliers: 0, expenses: 0 };
+    }
+
     // 1) Insert products
     const productRows = DEMO_PRODUCTS.map(p => ({
       company_id: companyId,
       name: p.name,
-      sku: p.barcode,
+      sku: `${p.barcode}-${companyId.slice(0, 6)}`,
       barcode: p.barcode,
       price: p.price,
       cost_price: p.cost,
