@@ -18,6 +18,9 @@ interface SaleReceiptProps {
   companyPhone?: string;
   companyAddress?: string;
   isContingency?: boolean;
+  customerCpf?: string;
+  protocolNumber?: string;
+  protocolDate?: string;
   onClose: () => void;
 }
 
