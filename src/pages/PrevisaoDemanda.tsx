@@ -100,7 +100,7 @@ export default function PrevisaoDemanda() {
                   </div>
                 </div>
                 <Badge variant={p.action.includes("urgente") ? "destructive" : p.action === "Estoque OK" ? "default" : "outline"}
-                  className={p.action === "Estoque OK" ? "bg-emerald-500" : ""}>
+                  className={p.action === "Estoque OK" ? "bg-success" : ""}>
                   {p.action}
                 </Badge>
               </CardContent>
