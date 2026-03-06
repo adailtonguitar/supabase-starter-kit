@@ -33,7 +33,7 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
 
   const handlePrint = useCallback(() => {
     const itemsHtml = (items || []).map((item: any) =>
-      `<div class="row"><span>${item.quantity || 1}x ${item.name}</span><span>${formatCurrency((item.quantity || 1) * item.price)}</span></div>`
+      `<div class="row"><span>${item.quantity || 1}x ${item.name}</span><span>${formatCurrency((item.quantity || 1) * item.price)}</span></div>${item.notes ? `<div class="obs">  📝 ${item.notes}</div>` : ""}`
     ).join("");
 
     const paymentsHtml = (payments || []).map((p: any) =>
@@ -70,6 +70,7 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
             .row span:last-child { text-align: right; white-space: nowrap; }
             .total-row { font-size: 14px; font-weight: bold; margin: 4px 0; }
             .sm { font-size: 9px; }
+            .obs { font-size: 9px; font-style: italic; padding-left: 8px; color: #555; }
             h2 { font-size: 13px; margin: 2px 0; }
             .cut { margin-top: 6px; text-align: center; font-size: 9px; letter-spacing: 2px; }
             .logo { max-height: 40px; max-width: 60mm; object-fit: contain; margin: 0 auto 4px; display: block; }
@@ -119,7 +120,7 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
     }
 
     const itemsHtml = (items || []).map((item: any, idx: number) =>
-      `<div class="row"><span>${String(idx + 1).padStart(3, '0')} ${(item.quantity || 1)}x ${item.name}</span><span>${formatCurrency((item.quantity || 1) * item.price)}</span></div>`
+      `<div class="row"><span>${String(idx + 1).padStart(3, '0')} ${(item.quantity || 1)}x ${item.name}</span><span>${formatCurrency((item.quantity || 1) * item.price)}</span></div>${item.notes ? `<div class="obs">  📝 ${item.notes}</div>` : ""}`
     ).join("");
 
     const paymentsHtml = (payments || []).map((p: any) =>
@@ -156,6 +157,7 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
             .row span:last-child { text-align: right; white-space: nowrap; }
             .total-row { font-size: 14px; font-weight: bold; margin: 4px 0; }
             .sm { font-size: 9px; }
+            .obs { font-size: 9px; font-style: italic; padding-left: 8px; color: #555; }
             .xs { font-size: 7px; }
             h2 { font-size: 13px; margin: 2px 0; }
             .cut { margin-top: 6px; text-align: center; font-size: 9px; letter-spacing: 2px; }
