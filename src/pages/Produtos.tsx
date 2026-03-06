@@ -128,7 +128,7 @@ export default function Produtos() {
                 <th className="text-right px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-widest">Preço</th>
                 <th className="text-right px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-widest">Estoque</th>
                 <th className="text-right px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-widest">Mínimo</th>
-                {isFurnitureMode && <th className="text-center px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-widest">Voltagem</th>}
+                
                 <th className="text-center px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-widest">Ações</th>
               </tr>
             </thead>
