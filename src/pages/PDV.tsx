@@ -1620,6 +1620,9 @@ export default function PDV() {
             }} className="flex items-center gap-1 font-bold text-xs cursor-pointer rounded-lg px-1.5 py-1 transition-all hover:scale-[1.03] active:scale-95 bg-sidebar-background hover:bg-sidebar-accent text-sidebar-foreground border border-sidebar-border">
               <MessageSquare className="w-3 h-3" /> Obs.
             </button>
+            <button onClick={() => setShowReceiveCredit(true)} className="flex items-center gap-1 font-bold text-xs cursor-pointer rounded-lg px-1.5 py-1 transition-all hover:scale-[1.03] active:scale-95 bg-sidebar-background hover:bg-sidebar-accent text-sidebar-foreground border border-sidebar-border">
+              <Wallet className="w-3 h-3" /> Receber Fiado
+            </button>
             <button onClick={() => customerDisplay.openDisplay()} className="flex items-center gap-1 font-bold text-xs cursor-pointer rounded-lg px-1.5 py-1 transition-all hover:scale-[1.03] active:scale-95 bg-sidebar-background hover:bg-sidebar-accent text-sidebar-foreground border border-sidebar-border">
               <Tv className="w-3 h-3" /> 2º Monitor
             </button>
