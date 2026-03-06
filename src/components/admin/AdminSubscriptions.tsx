@@ -207,6 +207,7 @@ export function AdminSubscriptions() {
                     <TableHead className="text-center">Fiscal</TableHead>
                     <TableHead className="text-center">Relatórios</TableHead>
                     <TableHead className="text-center">Financeiro</TableHead>
+                    <TableHead className="text-center">Demo</TableHead>
                     <TableHead className="text-right">Ação</TableHead>
                   </TableRow>
                 </TableHeader>
