@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { AlertTriangle, Trash2, Loader2, Clock } from "lucide-react";
+import { AlertTriangle, Trash2, Loader2, Clock, RotateCcw } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/hooks/useCompany";
 import { useAuth } from "@/hooks/useAuth";
