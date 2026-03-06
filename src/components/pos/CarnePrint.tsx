@@ -5,9 +5,10 @@ import { Printer, X } from "lucide-react";
 export interface CarneData {
   clientName: string;
   cpf?: string;
-  installments: { number: number; value: number; dueDate: string }[];
+  installments: { number: number; value?: number; amount?: number; dueDate: string; [key: string]: any }[];
   total: number;
   companyName?: string;
+  [key: string]: any;
 }
 
 interface Props {
