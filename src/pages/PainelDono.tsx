@@ -189,7 +189,7 @@ export default function PainelDono() {
           label="Lucro Mês"
           value={formatBRL(stats.monthProfit)}
           sub={`Margem ${margemLucro}%`}
-          color={stats.monthProfit >= 0 ? "bg-emerald-500/10 text-emerald-500" : "bg-destructive/10 text-destructive"}
+          color={stats.monthProfit >= 0 ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive"}
           delay={0.25}
         />
         <KpiCard
