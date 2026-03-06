@@ -466,6 +466,19 @@ export default function Auth() {
           )}
         </div>
 
+        {/* Demo button */}
+        <div className="mt-4 p-4 rounded-2xl border border-dashed border-primary/30 bg-primary/5 text-center">
+          <p className="text-sm text-muted-foreground mb-2">Quer conhecer o sistema sem compromisso?</p>
+          <button
+            onClick={handleDemoSignUp}
+            disabled={loading}
+            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-accent text-accent-foreground text-sm font-semibold hover:opacity-90 transition-all disabled:opacity-50"
+          >
+            <Play className="w-4 h-4" />
+            {loading ? "Criando conta demo..." : "Testar gratuitamente"}
+          </button>
+        </div>
+
         {/* Link para planos */}
         <p className="text-center text-sm text-muted-foreground mt-4">
           <Link to="/" className="text-primary hover:underline font-medium">
