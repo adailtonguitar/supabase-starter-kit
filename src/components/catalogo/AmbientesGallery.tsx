@@ -6,9 +6,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { Home, ShoppingCart, Eye, Sparkles, Copy, Check, Armchair } from "lucide-react";
+import { Home, ShoppingCart, Eye, Sparkles, Copy, Check, Armchair, Share2, FileText } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
+import SimuladorParcelas from "./SimuladorParcelas";
+import CatalogoShareDialog from "./CatalogoShareDialog";
+import PropostaPDFDialog from "./PropostaPDFDialog";
+import AvaliacoesClientes from "./AvaliacoesClientes";
 
 import imgSalaEstar from "@/assets/ambientes/sala-estar.jpg";
 import imgQuartoCasal from "@/assets/ambientes/quarto-casal.jpg";
@@ -197,7 +201,8 @@ export default function AmbientesGallery({ onGenerateQuote }: Props) {
   const [selectedCombo, setSelectedCombo] = useState<string | null>(null);
   const [selectedItems, setSelectedItems] = useState<Record<string, boolean>>({});
   const [copied, setCopied] = useState(false);
-
+  const [showShare, setShowShare] = useState(false);
+  const [showProposta, setShowProposta] = useState(false);
   const openAmbiente = (amb: Ambiente) => {
     setSelectedAmbiente(amb);
     setSelectedCombo(amb.combos[0]?.id || null);
@@ -441,24 +446,61 @@ export default function AmbientesGallery({ onGenerateQuote }: Props) {
                         </div>
                       );
                     })()}
+
+                    {/* Simulador de Parcelas */}
+                    <SimuladorParcelas total={getComboTotal(activeCombo).total} />
                   </div>
                 )}
               </div>
             </ScrollArea>
           )}
 
-          <DialogFooter className="flex-row gap-2 sm:gap-2">
-            <Button variant="outline" onClick={handleCopyQuote} className="flex-1">
+          <DialogFooter className="flex-row gap-2 sm:gap-2 flex-wrap">
+            <Button variant="outline" size="sm" onClick={handleCopyQuote} className="flex-1">
               {copied ? <Check className="w-4 h-4 mr-1" /> : <Copy className="w-4 h-4 mr-1" />}
-              {copied ? "Copiado!" : "Copiar Orçamento"}
+              {copied ? "Copiado!" : "Copiar"}
             </Button>
-            <Button onClick={handleGenerateQuote} className="flex-1">
-              <ShoppingCart className="w-4 h-4 mr-1" />
-              Gerar Orçamento
+            <Button variant="outline" size="sm" onClick={() => setShowShare(true)} className="flex-1">
+              <Share2 className="w-4 h-4 mr-1" /> WhatsApp
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setShowProposta(true)} className="flex-1">
+              <FileText className="w-4 h-4 mr-1" /> Proposta
+            </Button>
+            <Button size="sm" onClick={handleGenerateQuote} className="flex-1">
+              <ShoppingCart className="w-4 h-4 mr-1" /> Orçamento
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Share Dialog */}
+      {activeCombo && selectedAmbiente && (
+        <>
+          <CatalogoShareDialog
+            open={showShare}
+            onOpenChange={setShowShare}
+            ambienteName={selectedAmbiente.name}
+            comboName={activeCombo.name}
+            items={activeCombo.items.filter((_, i) => selectedItems[`${activeCombo.id}-${i}`])}
+            total={getComboTotal(activeCombo).total}
+            discount={activeCombo.discount}
+          />
+          <PropostaPDFDialog
+            open={showProposta}
+            onOpenChange={setShowProposta}
+            ambienteName={selectedAmbiente.name}
+            comboName={activeCombo.name}
+            items={activeCombo.items.filter((_, i) => selectedItems[`${activeCombo.id}-${i}`])}
+            total={getComboTotal(activeCombo).total}
+            discount={getComboTotal(activeCombo).discount}
+            discountPercent={activeCombo.discount}
+          />
+        </>
+      )}
+
+      {/* Reviews Section */}
+      <Separator />
+      <AvaliacoesClientes />
     </div>
   );
 }

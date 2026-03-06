@@ -9,10 +9,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Search, Package, Armchair, Eye, Grid3X3, List, Boxes, Palette, Plus, Trash2, Home } from "lucide-react";
+import { Search, Package, Armchair, Eye, Grid3X3, List, Boxes, Palette, Plus, Trash2, Home, Ruler } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
+import FichaTecnicaVisual, { loadSpecs, saveSpecs, defaultDemoSpecs, type TechSpec } from "@/components/catalogo/FichaTecnicaVisual";
+import SimuladorParcelas from "@/components/catalogo/SimuladorParcelas";
+import EtiquetaShowroom from "@/components/catalogo/EtiquetaShowroom";
 
 import imgSofa from "@/assets/furniture/sofa-3-lugares.jpg";
 import imgMesa from "@/assets/furniture/mesa-jantar.jpg";
@@ -92,6 +95,10 @@ export default function CatalogoMoveis() {
     const saved = loadExtras();
     return { ...defaultDemoExtras, ...saved };
   });
+  const [specs] = useState<Record<string, TechSpec>>(() => {
+    const saved = loadSpecs();
+    return { ...defaultDemoSpecs, ...saved };
+  });
 
   // Volume/Variation editing
   const [editVolDialog, setEditVolDialog] = useState(false);
@@ -156,6 +163,7 @@ export default function CatalogoMoveis() {
   };
 
   const selectedExtras = selectedProduct ? getExtras(selectedProduct.id) : { volumes: [], variations: [] };
+  const selectedSpec = selectedProduct ? (specs[selectedProduct.id] || {}) : {};
 
   return (
     <div className="space-y-6">
@@ -312,8 +320,11 @@ export default function CatalogoMoveis() {
                 </div>
               )}
               <Tabs defaultValue="info">
-                <TabsList className="w-full">
-                  <TabsTrigger value="info" className="flex-1">Informações</TabsTrigger>
+                <TabsList className="w-full flex-wrap h-auto gap-1">
+                  <TabsTrigger value="info" className="flex-1">Info</TabsTrigger>
+                  <TabsTrigger value="ficha" className="flex-1">
+                    <Ruler className="w-3.5 h-3.5 mr-1" />Ficha Técnica
+                  </TabsTrigger>
                   <TabsTrigger value="volumes" className="flex-1">
                     <Boxes className="w-3.5 h-3.5 mr-1" />Volumes ({selectedExtras.volumes.length})
                   </TabsTrigger>
@@ -352,6 +363,24 @@ export default function CatalogoMoveis() {
                     <div className="flex items-center gap-2">
                       <span className="text-sm text-muted-foreground">Código:</span>
                       <span className="text-sm font-mono">{selectedProduct.barcode}</span>
+                    </div>
+                  )}
+                  {/* Simulador de Parcelas + Etiqueta */}
+                  <SimuladorParcelas total={selectedProduct.price || 0} className="mt-2" />
+                  <div className="flex gap-2 mt-2">
+                    <EtiquetaShowroom product={selectedProduct} spec={selectedSpec} />
+                  </div>
+                </TabsContent>
+
+                {/* Ficha Técnica Tab */}
+                <TabsContent value="ficha" className="space-y-3 mt-3">
+                  {Object.keys(selectedSpec).length > 0 ? (
+                    <FichaTecnicaVisual spec={selectedSpec} />
+                  ) : (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <Ruler className="w-10 h-10 mx-auto mb-2 opacity-30" />
+                      <p className="text-sm">Ficha técnica não cadastrada para este produto</p>
+                      <p className="text-xs mt-1">Os produtos demo possuem fichas técnicas de exemplo</p>
                     </div>
                   )}
                 </TabsContent>

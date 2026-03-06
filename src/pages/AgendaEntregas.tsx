@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-import { Truck, Plus, CalendarIcon, MapPin, Clock, Phone, CheckCircle, AlertCircle, Search, Camera, X, Image, Users } from "lucide-react";
+import { Truck, Plus, CalendarIcon, MapPin, Clock, Phone, CheckCircle, AlertCircle, Search, Camera, X, Image, Users, LayoutGrid, List } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 
@@ -57,6 +57,7 @@ function saveDeliveries(deliveries: Delivery[]) {
 
 export default function AgendaEntregas() {
   const [deliveries, setDeliveries] = useState<Delivery[]>(loadDeliveries);
+  const [viewMode, setViewMode] = useState<"list" | "kanban">("list");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [showDialog, setShowDialog] = useState(false);
@@ -187,9 +188,13 @@ export default function AgendaEntregas() {
           </h1>
           <p className="text-muted-foreground text-sm mt-1">Gerencie entregas, equipe e confirmações</p>
         </div>
-        <Button onClick={() => { resetForm(); setShowDialog(true); }} className="gap-2">
-          <Plus className="w-4 h-4" /> Nova Entrega
-        </Button>
+        <div className="flex gap-2">
+          <Button variant={viewMode === "list" ? "default" : "outline"} size="icon" onClick={() => setViewMode("list")}><List className="w-4 h-4" /></Button>
+          <Button variant={viewMode === "kanban" ? "default" : "outline"} size="icon" onClick={() => setViewMode("kanban")}><LayoutGrid className="w-4 h-4" /></Button>
+          <Button onClick={() => { resetForm(); setShowDialog(true); }} className="gap-2">
+            <Plus className="w-4 h-4" /> Nova Entrega
+          </Button>
+        </div>
       </div>
 
       {/* Stats */}
@@ -228,8 +233,48 @@ export default function AgendaEntregas() {
         </Select>
       </div>
 
-      {/* Deliveries List */}
-      {filtered.length === 0 ? (
+      {/* Kanban View */}
+      {viewMode === "kanban" ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {(["pendente", "em_rota", "entregue", "cancelada"] as DeliveryStatus[]).map(status => {
+            const sc = statusConfig[status];
+            const StatusIcon = sc.icon;
+            const items = filtered.filter(d => d.status === status);
+            return (
+              <div key={status} className="space-y-2">
+                <div className={cn("flex items-center gap-2 p-2 rounded-lg border", sc.color)}>
+                  <StatusIcon className="w-4 h-4" />
+                  <span className="text-sm font-semibold">{sc.label}</span>
+                  <Badge variant="secondary" className="ml-auto text-xs">{items.length}</Badge>
+                </div>
+                <div className="space-y-2 min-h-[100px]">
+                  {items.map(d => (
+                    <Card key={d.id} className="cursor-pointer hover:border-primary/20 transition-all" onClick={() => handleEdit(d)}>
+                      <CardContent className="p-3 space-y-1">
+                        <p className="text-sm font-semibold">{d.clientName}</p>
+                        <p className="text-xs text-muted-foreground flex items-center gap-1">
+                          <CalendarIcon className="w-3 h-3" />
+                          {format(d.scheduledDate, "dd/MM", { locale: ptBR })} {d.scheduledTime}
+                        </p>
+                        <p className="text-xs text-muted-foreground flex items-center gap-1">
+                          <MapPin className="w-3 h-3" /> {d.address.substring(0, 30)}...
+                        </p>
+                        {d.needsAssembly && <Badge variant="secondary" className="text-[9px]">🔧 Montagem</Badge>}
+                        {d.driver && <p className="text-[10px] text-muted-foreground">🚛 {d.driver}</p>}
+                      </CardContent>
+                    </Card>
+                  ))}
+                  {items.length === 0 && (
+                    <p className="text-xs text-muted-foreground text-center py-4 opacity-50">Nenhuma entrega</p>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+      /* Deliveries List */
+      filtered.length === 0 ? (
         <div className="text-center py-12 text-muted-foreground">
           <Truck className="w-12 h-12 mx-auto mb-3 opacity-30" />
           <p>Nenhuma entrega encontrada</p>
@@ -308,6 +353,7 @@ export default function AgendaEntregas() {
             );
           })}
         </div>
+      )
       )}
 
       {/* New/Edit Dialog */}
