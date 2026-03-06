@@ -20,7 +20,7 @@ import { OnboardingWizard } from "@/components/onboarding/OnboardingWizard";
 import { EmissorOnboardingWizard } from "@/components/onboarding/EmissorOnboardingWizard";
 import { useTermsAcceptance } from "@/hooks/useTermsAcceptance";
 import { WalkthroughProvider } from "@/hooks/useWalkthrough";
-import { FurnitureModeProvider } from "@/hooks/useFurnitureMode";
+
 import { WalkthroughRunner } from "@/components/WalkthroughRunner";
 import { toast } from "sonner";
 
@@ -93,27 +93,9 @@ const EmissorNFe = lazy(() => import("./pages/EmissorNFe"));
 const EmissorLanding = lazy(() => import("./pages/EmissorLanding"));
 const ConsultaDFe = lazy(() => import("./pages/ConsultaDFe"));
 const Relatorios = lazy(() => import("./pages/Relatorios"));
-const CatalogoMoveis = lazy(() => import("./pages/CatalogoMoveis"));
-const AgendaEntregas = lazy(() => import("./pages/AgendaEntregas"));
-const ControleMontagem = lazy(() => import("./pages/ControleMontagem"));
-const ControleExposicao = lazy(() => import("./pages/ControleExposicao"));
-const DashboardMoveis = lazy(() => import("./pages/DashboardMoveis"));
 const PDVCustomerDisplayPage = lazy(() => import("./pages/PDVDisplay"));
-const GaleriaAntesDepois = lazy(() => import("./pages/GaleriaAntesDepois"));
-const MedicaoAmbiente = lazy(() => import("./pages/MedicaoAmbiente"));
-const AssistenciaTecnica = lazy(() => import("./pages/AssistenciaTecnica"));
-const PortalCliente = lazy(() => import("./pages/PortalCliente"));
-const CrediarioProprio = lazy(() => import("./pages/CrediarioProprio"));
 const PrevisaoDemanda = lazy(() => import("./pages/PrevisaoDemanda"));
-const MontadorAmbiente = lazy(() => import("./pages/MontadorAmbiente"));
-const RastreioEntrega = lazy(() => import("./pages/RastreioEntrega"));
-const VisualizadorAR = lazy(() => import("./pages/VisualizadorAR"));
-const ShowroomVirtual = lazy(() => import("./pages/ShowroomVirtual"));
-const RelatoriosMoveis = lazy(() => import("./pages/RelatoriosMoveis"));
-const ComissoesMoveis = lazy(() => import("./pages/ComissoesMoveis"));
-const Kits = lazy(() => import("./pages/Kits"));
-const FollowUp = lazy(() => import("./pages/FollowUp"));
-const TrocasDevolucoes = lazy(() => import("./pages/TrocasDevolucoes"));
+
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -460,26 +442,8 @@ function AppRoutes() {
                       </PlanGate>
                     } />
                     <Route path="/consulta-dfe" element={<ConsultaDFe />} />
-                    <Route path="/catalogo-moveis" element={<CatalogoMoveis />} />
-                    <Route path="/entregas" element={<AgendaEntregas />} />
-                    <Route path="/montagem" element={<ControleMontagem />} />
-                    <Route path="/exposicao" element={<ControleExposicao />} />
-                    <Route path="/dashboard-moveis" element={<DashboardMoveis />} />
-                    <Route path="/galeria-antes-depois" element={<GaleriaAntesDepois />} />
-                    <Route path="/medicao-ambiente" element={<MedicaoAmbiente />} />
-                    <Route path="/assistencia-tecnica" element={<AssistenciaTecnica />} />
-                    <Route path="/portal-cliente" element={<PortalCliente />} />
-                    <Route path="/crediario" element={<CrediarioProprio />} />
+                    
                     <Route path="/previsao-demanda" element={<PrevisaoDemanda />} />
-                    <Route path="/montador-ambiente" element={<MontadorAmbiente />} />
-                    <Route path="/rastreio-entrega" element={<RastreioEntrega />} />
-                    <Route path="/visualizador-ar" element={<VisualizadorAR />} />
-                    <Route path="/showroom-virtual" element={<ShowroomVirtual />} />
-                    <Route path="/relatorios-moveis" element={<RelatoriosMoveis />} />
-                    <Route path="/comissoes-moveis" element={<ComissoesMoveis />} />
-                    <Route path="/kits" element={<Kits />} />
-                    <Route path="/follow-up" element={<FollowUp />} />
-                    <Route path="/trocas-devolucoes" element={<TrocasDevolucoes />} />
                     <Route path="/admin" element={<Admin />} />
                     <Route path="/ajuda" element={<Ajuda />} />
                     <Route path="*" element={<NotFound />} />
@@ -506,14 +470,12 @@ const App = () => (
           <AuthProvider>
             <SubscriptionProvider>
               <PlanProvider>
-                <FurnitureModeProvider>
                 <LocalDBProvider>
                   <WalkthroughProvider>
                     <WalkthroughRunner />
                     <AppRoutes />
                   </WalkthroughProvider>
                 </LocalDBProvider>
-                </FurnitureModeProvider>
               </PlanProvider>
             </SubscriptionProvider>
           </AuthProvider>

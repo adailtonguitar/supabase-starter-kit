@@ -3,7 +3,7 @@ import { Search, Plus, Edit, Package, Upload, Trash2, FileText, ArrowUpDown, His
 import { formatCurrency } from "@/lib/utils";
 import { motion } from "framer-motion";
 import { useProducts, useDeleteProduct, type Product } from "@/hooks/useProducts";
-import { useFurnitureMode } from "@/hooks/useFurnitureMode";
+
 import { ProductFormDialog } from "@/components/stock/ProductFormDialog";
 import { StockMovementDialog } from "@/components/stock/StockMovementDialog";
 import { MovementHistoryDialog } from "@/components/stock/MovementHistoryDialog";
@@ -28,7 +28,7 @@ export default function Produtos() {
   const [search, setSearch] = useState("");
   const { data: products = [], isLoading } = useProducts();
   const deleteProduct = useDeleteProduct();
-  const { enabled: isFurnitureMode } = useFurnitureMode();
+  
 
   const [showForm, setShowForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -128,7 +128,7 @@ export default function Produtos() {
                 <th className="text-right px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-widest">Preço</th>
                 <th className="text-right px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-widest">Estoque</th>
                 <th className="text-right px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-widest">Mínimo</th>
-                {isFurnitureMode && <th className="text-center px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-widest">Voltagem</th>}
+                
                 <th className="text-center px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-widest">Ações</th>
               </tr>
             </thead>
@@ -136,12 +136,12 @@ export default function Produtos() {
               {isLoading ? (
                 [...Array(6)].map((_, i) => (
                   <tr key={i} className="border-b border-border">
-                    <td className="px-5 py-3" colSpan={isFurnitureMode ? 9 : 8}><Skeleton className="h-8 w-full" /></td>
+                    <td className="px-5 py-3" colSpan={8}><Skeleton className="h-8 w-full" /></td>
                   </tr>
                 ))
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={isFurnitureMode ? 9 : 8} className="px-5 py-12 text-center text-muted-foreground">
+                  <td colSpan={8} className="px-5 py-12 text-center text-muted-foreground">
                     {products.length === 0
                       ? "Nenhum produto cadastrado. Clique em \"Novo Produto\" ou importe via CSV."
                       : "Nenhum produto encontrado para a busca."}
@@ -179,18 +179,6 @@ export default function Produtos() {
                       <td className="px-5 py-3 text-right font-mono text-muted-foreground">
                         {product.min_stock ?? "—"}
                       </td>
-                      {isFurnitureMode && (
-                        <td className="px-5 py-3 text-center">
-                          {(product as any).voltage ? (
-                            <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-accent text-accent-foreground">
-                              <Zap className="w-3 h-3" />
-                              {(product as any).voltage}
-                            </span>
-                          ) : (
-                            <span className="text-muted-foreground">—</span>
-                          )}
-                        </td>
-                      )}
                       <td className="px-5 py-3">
                          <div className="flex items-center justify-center gap-0.5">
                           <button onClick={() => setMovementProduct(product)} title="Movimentar estoque" className="p-1.5 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors">
@@ -253,11 +241,6 @@ export default function Produtos() {
                       Est: {product.stock_quantity} {product.unit.toLowerCase()}
                     </span>
                     {product.category && <span>{product.category}</span>}
-                    {isFurnitureMode && (product as any).voltage && (
-                      <span className="inline-flex items-center gap-0.5 text-accent-foreground">
-                        <Zap className="w-3 h-3" /> {(product as any).voltage}
-                      </span>
-                    )}
                   </div>
                   <div className="flex items-center gap-2">
                     <button onClick={() => setMovementProduct(product)} className="p-2.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted active:scale-95 transition-all" title="Movimentar estoque">

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Building2, Package, ShoppingCart, CheckCircle2, ArrowRight, ArrowLeft, Rocket, Armchair, Store } from "lucide-react";
+import { Building2, Package, ShoppingCart, CheckCircle2, ArrowRight, ArrowLeft, Rocket } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import logoAs from "@/assets/logo-as.png";
@@ -21,8 +21,7 @@ export function OnboardingWizard({ onComplete }: Props) {
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
 
-  // Step 0 — Segment
-  const [segment, setSegment] = useState<"varejo" | "moveis">("varejo");
+
 
   // Step 1 — Company
   const [companyName, setCompanyName] = useState("");
@@ -50,26 +49,6 @@ export function OnboardingWizard({ onComplete }: Props) {
         p_cnpj: cnpj.replace(/\D/g, "") || "",
         p_phone: phone.trim() || null,
       });
-
-      // Set segment after company creation
-      if (!error && segment === "moveis") {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          const { data: cu } = await supabase
-            .from("company_users")
-            .select("company_id")
-            .eq("user_id", user.id)
-            .eq("is_active", true)
-            .limit(1)
-            .single();
-          if (cu) {
-            await supabase
-              .from("companies")
-              .update({ segment: "moveis" } as any)
-              .eq("id", cu.company_id);
-          }
-        }
-      }
 
       if (error) throw error;
 
@@ -157,32 +136,27 @@ export function OnboardingWizard({ onComplete }: Props) {
                 <div>
                   <h1 className="text-2xl font-bold text-foreground">Bem-vindo ao AnthoSystem!</h1>
                   <p className="text-muted-foreground mt-2">
-                    Qual o segmento do seu negócio?
+                    Vamos configurar seu negócio em poucos passos. Leva menos de 2 minutos.
                   </p>
                 </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    onClick={() => { setSegment("varejo"); next(); }}
-                    className={`flex flex-col items-center gap-3 p-5 rounded-xl border-2 transition-all hover:border-primary/60 hover:bg-primary/5 ${segment === "varejo" ? "border-primary bg-primary/5" : "border-border"}`}
-                  >
-                    <Store className="w-8 h-8 text-primary" />
-                    <div>
-                      <p className="text-sm font-semibold text-foreground">Varejo Geral</p>
-                      <p className="text-[11px] text-muted-foreground mt-0.5">Supermercado, conveniência, pet shop, etc.</p>
+                <div className="grid grid-cols-3 gap-3 text-center">
+                  {[
+                    { icon: "🛒", label: "PDV Rápido" },
+                    { icon: "📦", label: "Estoque" },
+                    { icon: "💰", label: "Financeiro" },
+                  ].map((f) => (
+                    <div key={f.label} className="bg-muted/50 rounded-xl p-3">
+                      <span className="text-2xl">{f.icon}</span>
+                      <p className="text-xs text-muted-foreground mt-1 font-medium">{f.label}</p>
                     </div>
-                  </button>
-                  <button
-                    onClick={() => { setSegment("moveis"); next(); }}
-                    className={`flex flex-col items-center gap-3 p-5 rounded-xl border-2 transition-all hover:border-primary/60 hover:bg-primary/5 ${segment === "moveis" ? "border-primary bg-primary/5" : "border-border"}`}
-                  >
-                    <Armchair className="w-8 h-8 text-primary" />
-                    <div>
-                      <p className="text-sm font-semibold text-foreground">Loja de Móveis</p>
-                      <p className="text-[11px] text-muted-foreground mt-0.5">Móveis, eletro, decoração, colchões</p>
-                    </div>
-                  </button>
+                  ))}
                 </div>
+                <button
+                  onClick={next}
+                  className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-xl font-semibold hover:bg-primary/90 transition-colors"
+                >
+                  Começar <ArrowRight className="w-4 h-4" />
+                </button>
               </div>
             )}
 

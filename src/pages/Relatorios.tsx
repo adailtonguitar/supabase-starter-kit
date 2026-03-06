@@ -15,7 +15,7 @@ import {
   GitGraph, Percent, Scale, Bell, Stethoscope, Wallet, ClipboardList,
   Scan, BarChart, AlertTriangle, ShoppingCart, Package, Printer, CalendarIcon,
 } from "lucide-react";
-import { useFurnitureMode } from "@/hooks/useFurnitureMode";
+
 
 type ReportCard = { icon: any; label: string; desc: string; path: string };
 
@@ -74,7 +74,7 @@ function extractPaymentMethod(payments: any): string {
 
 export default function Relatorios() {
   const { companyId } = useCompany();
-  const { enabled: furnitureMode } = useFurnitureMode();
+  
   const now = new Date();
   const [dateFrom, setDateFrom] = useState<Date>(startOfMonth(now));
   const [dateTo, setDateTo] = useState<Date>(now);
@@ -220,14 +220,7 @@ export default function Relatorios() {
     "/diagnostico-financeiro",
   ]);
 
-  const filteredCategories = furnitureMode
-    ? categories
-        .map(cat => ({
-          ...cat,
-          cards: cat.cards.filter(c => !furnitureHiddenPaths.has(c.path)),
-        }))
-        .filter(cat => cat.cards.length > 0)
-    : categories;
+  const filteredCategories = categories;
 
   const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 

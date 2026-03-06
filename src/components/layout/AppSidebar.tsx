@@ -22,7 +22,7 @@ import { useSync } from "@/hooks/useSync";
 import { useAdminRole } from "@/hooks/useAdminRole";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useWhatsAppSupport } from "@/hooks/useWhatsAppSupport";
-import { useFurnitureMode } from "@/hooks/useFurnitureMode";
+
 
 // ─── Section labels ───
 type SectionLabel = { type: "label"; text: string };
@@ -174,98 +174,6 @@ const navItems: NavEntry[] = [
   },
 ];
 
-// Furniture-only nav items (inserted when furniture mode is active)
-const furnitureNavItems: NavEntry[] = [
-  { type: "label", text: "LOJA DE MÓVEIS" },
-  { icon: LayoutDashboard, label: "Painel Móveis", path: "/dashboard-moveis" },
-  {
-    icon: Armchair,
-    label: "Showroom",
-    children: [
-      { icon: Armchair, label: "Catálogo", path: "/catalogo-moveis" },
-      { icon: Eye, label: "Exposição", path: "/exposicao" },
-      { icon: Eye, label: "Showroom Virtual", path: "/showroom-virtual" },
-      { icon: Camera, label: "Antes & Depois", path: "/galeria-antes-depois" },
-      { icon: Box, label: "Visualizador AR", path: "/visualizador-ar" },
-    ],
-  },
-  {
-    icon: Wrench,
-    label: "Operações",
-    children: [
-      { icon: FileText, label: "Orçamentos", path: "/orcamentos" },
-      { icon: Move, label: "Montador Ambiente", path: "/montador-ambiente" },
-      { icon: Ruler, label: "Medição", path: "/medicao-ambiente" },
-      { icon: ShoppingCart, label: "Pedidos Compra", path: "/pedidos-compra" },
-      { icon: Truck, label: "Entregas", path: "/entregas" },
-      { icon: Navigation, label: "Rastreio", path: "/rastreio-entrega" },
-      { icon: Wrench, label: "Montagem", path: "/montagem" },
-      { icon: Wrench, label: "Assistência Técnica", path: "/assistencia-tecnica" },
-      { icon: Package, label: "Kits & Combos", path: "/kits" },
-      { icon: RotateCcw, label: "Trocas/Devoluções", path: "/trocas-devolucoes" },
-    ],
-  },
-  {
-    icon: UserIcon,
-    label: "Clientes",
-    children: [
-      { icon: UserIcon, label: "Portal do Cliente", path: "/portal-cliente" },
-      { icon: BadgeDollarSign, label: "Crediário Próprio", path: "/crediario" },
-      { icon: BrainIcon, label: "Previsão Demanda", path: "/previsao-demanda" },
-      { icon: BarChart3, label: "Relatórios Móveis", path: "/relatorios-moveis" },
-      { icon: Percent, label: "Comissões", path: "/comissoes-moveis" },
-      { icon: Calendar, label: "Follow-up", path: "/follow-up" },
-    ],
-  },
-];
-
-// Furniture store mode: only show relevant paths
-const furnitureAllowedPaths = new Set([
-  "/pdv", "/dashboard", "/painel-dono",
-  "/produtos", "/estoque/movimentacoes", "/estoque/inventario", "/etiquetas",
-  "/vendas", "/fiado",
-  "/relatorios", "/relatorio-vendas",
-  "/financeiro", "/caixa", "/lucro-diario", "/painel-lucro", "/comissoes",
-  "/cadastro/empresas", "/cadastro/clientes", "/cadastro/fornecedores", "/cadastro/funcionarios", "/cadastro/transportadoras", "/usuarios",
-  "/fiscal", "/fiscal/nfe", "/fiscal/config",
-  "/configuracoes", "/terminais",
-  "/catalogo-moveis", "/entregas", "/montagem", "/exposicao", "/dashboard-moveis",
-  "/galeria-antes-depois", "/medicao-ambiente", "/assistencia-tecnica", "/portal-cliente",
-  "/crediario", "/previsao-demanda", "/montador-ambiente", "/rastreio-entrega",
-  "/visualizador-ar", "/showroom-virtual", "/orcamentos", "/pedidos-compra",
-  "/relatorios-moveis", "/comissoes-moveis",
-  "/kits", "/follow-up", "/trocas-devolucoes",
-]);
-
-function filterNavForFurniture(items: NavEntry[]): NavEntry[] {
-  const result: NavEntry[] = [];
-  for (const entry of items) {
-    if (isLabel(entry)) {
-      result.push(entry);
-    } else if (isGroup(entry)) {
-      const filtered = entry.children.filter(c => furnitureAllowedPaths.has(c.path));
-      if (filtered.length > 0) {
-        result.push({ ...entry, children: filtered });
-      }
-    } else {
-      if (furnitureAllowedPaths.has(entry.path)) {
-        result.push(entry);
-      }
-    }
-  }
-  // Remove trailing labels with no items after them
-  const cleaned: NavEntry[] = [];
-  for (let i = 0; i < result.length; i++) {
-    if (isLabel(result[i])) {
-      // Check if next non-label exists
-      const next = result[i + 1];
-      if (next && !isLabel(next)) cleaned.push(result[i]);
-    } else {
-      cleaned.push(result[i]);
-    }
-  }
-  return cleaned;
-}
 
 const footerNavItems: NavItem[] = [
   { icon: LifeBuoy, label: "Ajuda", path: "/ajuda" },
@@ -291,7 +199,7 @@ export function AppSidebar({ mobileOpen, onMobileClose }: AppSidebarProps) {
   const { isOnline, pendingCount, syncing, syncAll } = useSync();
   const { signOut, user } = useAuth();
   const { isSuperAdmin } = useAdminRole();
-  const { enabled: furnitureMode } = useFurnitureMode();
+  
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
     const initial: Record<string, boolean> = {};
     navItems.forEach((entry) => {
@@ -308,7 +216,7 @@ export function AppSidebar({ mobileOpen, onMobileClose }: AppSidebarProps) {
     }
   }, [location.pathname]);
 
-  let visibleNavItems: NavEntry[] = furnitureMode ? [...furnitureNavItems, ...filterNavForFurniture(navItems)] : [...navItems];
+  let visibleNavItems: NavEntry[] = [...navItems];
   if (isSuperAdmin) {
     visibleNavItems = [...visibleNavItems, adminNavItem];
   }
