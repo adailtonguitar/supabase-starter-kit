@@ -1,9 +1,39 @@
-import { Link } from "react-router-dom";
-import { ArrowRight } from "lucide-react";
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { ArrowRight, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 export function LandingCTA() {
+  const [demoLoading, setDemoLoading] = useState(false);
+  const navigate = useNavigate();
+
+  const handleDemo = async () => {
+    setDemoLoading(true);
+    try {
+      const demoId = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+      const companyName = `Loja Demo ${demoId.toUpperCase()}`;
+      const { data, error } = await supabase.functions.invoke("create-demo-account", {
+        body: { company_name: companyName },
+      });
+      if (error || !data?.email) throw new Error(error?.message || "Erro ao criar conta demo");
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: data.email,
+        password: data.password,
+      });
+      if (signInError) throw signInError;
+      localStorage.setItem("as_selected_company", data.company_id);
+      toast.success("Conta demo criada! Explore o sistema à vontade.");
+      navigate("/dashboard");
+    } catch (err: any) {
+      toast.error(err?.message || "Erro ao criar demo");
+    } finally {
+      setDemoLoading(false);
+    }
+  };
+
   return (
     <section className="py-28 relative overflow-hidden">
       {/* Dramatic gradient background */}
@@ -28,12 +58,24 @@ export function LandingCTA() {
           <br />
           <strong className="text-foreground font-semibold">15 dias grátis, sem compromisso.</strong>
         </p>
-        <Button asChild size="lg" className="mt-10 text-base px-10 h-14 font-semibold shadow-xl shadow-primary/30 rounded-xl">
-          <Link to="/auth">
-            Criar conta grátis
-            <ArrowRight className="w-4 h-4 ml-2" />
-          </Link>
-        </Button>
+        <div className="flex flex-col sm:flex-row gap-3 justify-center mt-10">
+          <Button asChild size="lg" className="text-base px-10 h-14 font-semibold shadow-xl shadow-primary/30 rounded-xl">
+            <Link to="/auth">
+              Criar conta grátis
+              <ArrowRight className="w-4 h-4 ml-2" />
+            </Link>
+          </Button>
+          <Button
+            size="lg"
+            variant="outline"
+            className="text-base px-10 h-14 font-medium rounded-xl border-primary/30 hover:bg-primary/5"
+            onClick={handleDemo}
+            disabled={demoLoading}
+          >
+            <Zap className="w-4 h-4 mr-2" />
+            {demoLoading ? "Criando demo..." : "Testar sem cadastro"}
+          </Button>
+        </div>
       </motion.div>
     </section>
   );

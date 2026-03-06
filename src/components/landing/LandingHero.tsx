@@ -1,8 +1,10 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowRight, Play, CheckCircle2, Wifi, MessageCircle, Rocket, ShoppingCart, TrendingUp, Brain, Package, ZoomIn, X } from "lucide-react";
+import { ArrowRight, Play, CheckCircle2, Wifi, MessageCircle, Rocket, ShoppingCart, TrendingUp, Brain, Package, ZoomIn, X, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 import pdvScreen from "@/assets/pdv-screen.png";
 import checkoutScene from "@/assets/pdv-checkout-scene.jpg";
 
@@ -20,7 +22,32 @@ const trustBadges = [
 
 export function LandingHero() {
   const [zoomed, setZoomed] = useState(false);
+  const [demoLoading, setDemoLoading] = useState(false);
+  const navigate = useNavigate();
 
+  const handleDemo = async () => {
+    setDemoLoading(true);
+    try {
+      const demoId = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+      const companyName = `Loja Demo ${demoId.toUpperCase()}`;
+      const { data, error } = await supabase.functions.invoke("create-demo-account", {
+        body: { company_name: companyName },
+      });
+      if (error || !data?.email) throw new Error(error?.message || "Erro ao criar conta demo");
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: data.email,
+        password: data.password,
+      });
+      if (signInError) throw signInError;
+      localStorage.setItem("as_selected_company", data.company_id);
+      toast.success("Conta demo criada! Explore o sistema à vontade.");
+      navigate("/dashboard");
+    } catch (err: any) {
+      toast.error(err?.message || "Erro ao criar demo");
+    } finally {
+      setDemoLoading(false);
+    }
+  };
   return (
     <section className="relative overflow-hidden">
       {/* Background gradient mesh */}
@@ -69,11 +96,15 @@ export function LandingHero() {
                   <ArrowRight className="w-4 h-4 ml-2" />
                 </Link>
               </Button>
-              <Button asChild variant="outline" size="lg" className="text-base px-8 h-13 font-medium">
-                <a href="#recursos">
-                  <Play className="w-4 h-4 mr-2 fill-current" />
-                  Ver recursos
-                </a>
+              <Button
+                size="lg"
+                variant="outline"
+                className="text-base px-8 h-13 font-medium border-primary/30 hover:bg-primary/5"
+                onClick={handleDemo}
+                disabled={demoLoading}
+              >
+                <Zap className="w-4 h-4 mr-2" />
+                {demoLoading ? "Criando..." : "Testar sem cadastro"}
               </Button>
             </div>
 
