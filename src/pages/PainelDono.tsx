@@ -197,7 +197,7 @@ export default function PainelDono() {
           label="Fiado Pendente"
           value={formatBRL(stats.fiadoTotal)}
           sub={`${stats.fiadoCount} clientes`}
-          color={stats.fiadoTotal > 0 ? "bg-amber-500/10 text-amber-600" : "bg-emerald-500/10 text-emerald-500"}
+          color={stats.fiadoTotal > 0 ? "bg-warning/10 text-warning" : "bg-success/10 text-success"}
           delay={0.3}
           onClick={() => navigate("/fiado")}
         />
