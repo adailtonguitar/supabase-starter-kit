@@ -24,6 +24,12 @@ import AdminPlanTester from "@/components/admin/AdminPlanTester";
 import { AdminCreateEmissorClient } from "@/components/admin/AdminCreateEmissorClient";
 import { AdminBulkEmail } from "@/components/admin/AdminBulkEmail";
 import { AdminStoreSimulation } from "@/components/admin/AdminStoreSimulation";
+import { lazy, Suspense } from "react";
+
+const RegistroErros = lazy(() => import("./RegistroErros"));
+function ErrorsTab() {
+  return <Suspense fallback={<div className="py-8 text-center text-muted-foreground">Carregando...</div>}><RegistroErros /></Suspense>;
+}
 
 interface CompanyRow {
   id: string;
