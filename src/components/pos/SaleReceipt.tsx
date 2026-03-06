@@ -44,7 +44,7 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
     ).join("");
 
     const changeHtml = changeAmount > 0 ? `<div class="row bold"><span>Troco</span><span>${formatCurrency(changeAmount)}</span></div>` : "";
-    const nfceHtml = nfceNumber ? `<p class="center">NFC-e: ${nfceNumber}</p>` : "";
+    
 
     const now = new Date().toLocaleString("pt-BR");
     const qtyTotal = (items || []).reduce((s: number, i: any) => s + (i.quantity || 1), 0);
