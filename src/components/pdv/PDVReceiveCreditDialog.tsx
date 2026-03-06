@@ -118,6 +118,9 @@ export function PDVReceiveCreditDialog({ open, onClose }: PDVReceiveCreditDialog
         paymentMethod: selectedMethod,
         storeName: companyName || undefined,
         storeSlogan: slogan || undefined,
+        storeCnpj: cnpj || undefined,
+        storePhone: phone || undefined,
+        storeAddress: [addressStreet, addressNumber, addressNeighborhood, addressCity, addressState].filter(Boolean).join(", ") || undefined,
       });
     } catch (err: any) {
       toast.error(`Erro: ${err.message}`);
