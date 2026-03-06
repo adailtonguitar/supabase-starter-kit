@@ -568,7 +568,7 @@ export default function RelatorioVendas() {
                     <td className="px-5 py-3 text-right font-mono text-foreground">{totals.quantity}</td>
                     <td className="px-5 py-3 text-right font-mono text-foreground">{formatCurrency(totals.revenue)}</td>
                     <td className="px-5 py-3 text-right font-mono text-muted-foreground">{formatCurrency(totals.cost)}</td>
-                    <td className={`px-5 py-3 text-right font-mono ${totals.profit >= 0 ? "text-emerald-500" : "text-destructive"}`}>
+                    <td className={`px-5 py-3 text-right font-mono ${totals.profit >= 0 ? "text-success" : "text-destructive"}`}>
                       {formatCurrency(totals.profit)}
                     </td>
                     <td className="px-5 py-3 text-right">
