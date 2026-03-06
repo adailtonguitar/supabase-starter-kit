@@ -77,7 +77,7 @@ const units = ["UN", "KG", "LT", "MT", "CX", "PCT"];
 
 export function ProductFormDialog({ open, onOpenChange, product }: Props) {
   const { data: fiscalCategories = [] } = useFiscalCategories();
-  const { enabled: isFurnitureMode } = useFurnitureMode();
+  
   const { data: suppliers = [] } = useSuppliers();
   const { user } = useAuth();
   const planFeatures = usePlanFeatures();
