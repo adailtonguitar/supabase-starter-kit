@@ -1,20 +1,45 @@
 import { useState, useEffect, useCallback } from "react";
-import { AlertTriangle, Trash2, Loader2 } from "lucide-react";
+import { AlertTriangle, Trash2, Loader2, Clock } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/hooks/useCompany";
 import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 import { DemoDataService } from "@/services/DemoDataService";
 import { toast } from "sonner";
 
 export function DemoBanner() {
   const { companyId } = useCompany();
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [isDemo, setIsDemo] = useState(false);
+  const [daysLeft, setDaysLeft] = useState<number | null>(null);
   const [clearing, setClearing] = useState(false);
   const [seeding, setSeeding] = useState(false);
 
   useEffect(() => {
     if (!companyId) { setIsDemo(false); return; }
-    DemoDataService.isDemoCompany(companyId).then(setIsDemo);
+    
+    const check = async () => {
+      const demo = await DemoDataService.isDemoCompany(companyId);
+      setIsDemo(demo);
+      
+      if (demo) {
+        // Check plan expiration
+        const { data } = await supabase
+          .from("company_plans")
+          .select("expires_at")
+          .eq("company_id", companyId)
+          .eq("status", "active")
+          .maybeSingle();
+        
+        if (data?.expires_at) {
+          const diff = new Date(data.expires_at).getTime() - Date.now();
+          const days = Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
+          setDaysLeft(days);
+        }
+      }
+    };
+    check();
   }, [companyId]);
 
   // Auto-seed on first load
@@ -48,6 +73,25 @@ export function DemoBanner() {
 
   if (!isDemo) return null;
 
+  const expired = daysLeft !== null && daysLeft <= 0;
+
+  if (expired) {
+    return (
+      <div className="w-full bg-destructive/90 text-destructive-foreground px-4 py-3 flex items-center justify-between gap-3 text-sm font-medium">
+        <div className="flex items-center gap-2">
+          <Clock className="w-4 h-4 shrink-0" />
+          <span>Seu período de teste expirou. Assine um plano para continuar usando o sistema.</span>
+        </div>
+        <button
+          onClick={() => navigate("/renovar")}
+          className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-background text-foreground text-xs font-bold whitespace-nowrap hover:opacity-90 transition-colors"
+        >
+          Assinar agora
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="w-full bg-amber-500/90 text-amber-950 px-4 py-2 flex items-center justify-between gap-3 text-sm font-medium">
       <div className="flex items-center gap-2">
@@ -55,7 +99,7 @@ export function DemoBanner() {
         <span>
           {seeding
             ? "Gerando dados de demonstração..."
-            : "Você está usando a versão de demonstração do sistema."}
+            : `Versão de demonstração${daysLeft !== null ? ` — ${daysLeft} dia${daysLeft !== 1 ? "s" : ""} restante${daysLeft !== 1 ? "s" : ""}` : ""}`}
         </span>
         {seeding && <Loader2 className="w-4 h-4 animate-spin" />}
       </div>
@@ -65,7 +109,7 @@ export function DemoBanner() {
         className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-amber-950/20 hover:bg-amber-950/30 transition-colors text-xs font-bold disabled:opacity-50 whitespace-nowrap"
       >
         {clearing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
-        Limpar dados de demonstração
+        Limpar dados demo
       </button>
     </div>
   );
