@@ -446,6 +446,7 @@ function AppRoutes() {
                     
                     <Route path="/previsao-demanda" element={<PrevisaoDemanda />} />
                     <Route path="/admin" element={<Admin />} />
+                    <Route path="/admin/erros" element={<RegistroErros />} />
                     <Route path="/ajuda" element={<Ajuda />} />
                     <Route path="*" element={<NotFound />} />
                   </Routes>
