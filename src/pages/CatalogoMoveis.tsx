@@ -1,4 +1,5 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useProducts } from "@/hooks/useProducts";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -84,6 +85,7 @@ const variationTypeLabels: Record<string, string> = { cor: "Cor", tecido: "Tecid
 const variationTypeIcons: Record<string, string> = { cor: "🎨", tecido: "🧵", tamanho: "📐" };
 
 export default function CatalogoMoveis() {
+  const [searchParams] = useSearchParams();
   const { data: realProducts = [], isLoading: loading } = useProducts();
   const products = useMemo(() => [...realProducts, ...demoProducts], [realProducts]);
   const [search, setSearch] = useState("");
@@ -164,6 +166,15 @@ export default function CatalogoMoveis() {
 
   const selectedExtras = selectedProduct ? getExtras(selectedProduct.id) : { volumes: [], variations: [] };
   const selectedSpec = selectedProduct ? (specs[selectedProduct.id] || {}) : {};
+
+  // Handle ?produto=ID deep link
+  useEffect(() => {
+    const produtoId = searchParams.get("produto");
+    if (produtoId && products.length > 0 && !selectedProduct) {
+      const found = products.find(p => p.id === produtoId || p.barcode === produtoId || p.sku === produtoId);
+      if (found) setSelectedProduct(found);
+    }
+  }, [searchParams, products, selectedProduct]);
 
   return (
     <div className="space-y-6">
