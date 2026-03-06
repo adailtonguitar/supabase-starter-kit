@@ -173,7 +173,7 @@ export default function PainelDono() {
           icon={ShoppingCart}
           label="Ticket Médio"
           value={formatBRL(stats.ticketMedio)}
-          color="bg-blue-500/10 text-blue-500"
+          color="bg-info/10 text-info"
           delay={0.15}
         />
         <KpiCard
