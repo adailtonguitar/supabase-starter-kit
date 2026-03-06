@@ -157,6 +157,7 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
             .row span:last-child { text-align: right; white-space: nowrap; }
             .total-row { font-size: 14px; font-weight: bold; margin: 4px 0; }
             .sm { font-size: 9px; }
+            .obs { font-size: 9px; font-style: italic; padding-left: 8px; color: #555; }
             .xs { font-size: 7px; }
             h2 { font-size: 13px; margin: 2px 0; }
             .cut { margin-top: 6px; text-align: center; font-size: 9px; letter-spacing: 2px; }
