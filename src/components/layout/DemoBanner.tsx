@@ -14,6 +14,7 @@ export function DemoBanner() {
   const [isDemo, setIsDemo] = useState(false);
   const [daysLeft, setDaysLeft] = useState<number | null>(null);
   const [clearing, setClearing] = useState(false);
+  const [resetting, setResetting] = useState(false);
   const [seeding, setSeeding] = useState(false);
 
   useEffect(() => {
