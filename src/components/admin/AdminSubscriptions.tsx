@@ -20,6 +20,7 @@ interface PlanRow {
   financial_module_level: string;
   expires_at: string | null;
   company_name?: string;
+  is_demo?: boolean;
 }
 
 const PLAN_PRESETS: Record<string, Partial<PlanRow>> = {
