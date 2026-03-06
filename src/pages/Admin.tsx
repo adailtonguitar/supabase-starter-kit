@@ -27,8 +27,15 @@ import { AdminStoreSimulation } from "@/components/admin/AdminStoreSimulation";
 import { AdminLeads } from "@/components/admin/AdminLeads";
 import { lazy, Suspense } from "react";
 
-const RegistroErros = lazy(() => import("./RegistroErros"));
-const DiagnosticoSistema = lazy(() => import("./DiagnosticoSistema"));
+const lazyRetry = (fn: () => Promise<any>) =>
+  lazy(() => fn().catch(() => {
+    // Force reload on chunk load failure (stale deploy)
+    window.location.reload();
+    return fn();
+  }));
+
+const RegistroErros = lazyRetry(() => import("./RegistroErros"));
+const DiagnosticoSistema = lazyRetry(() => import("./DiagnosticoSistema"));
 function ErrorsTab() {
   return <Suspense fallback={<div className="py-8 text-center text-muted-foreground">Carregando...</div>}><RegistroErros /></Suspense>;
 }
