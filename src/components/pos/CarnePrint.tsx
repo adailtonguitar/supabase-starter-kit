@@ -14,7 +14,7 @@ export interface CarneData {
 interface Props {
   data: CarneData;
   onClose: () => void;
-  format?: "a4" | "thermal";
+  format?: "a4" | "thermal" | "matricial";
 }
 
 export function CarnePrint({ data, onClose, format = "a4" }: Props) {
