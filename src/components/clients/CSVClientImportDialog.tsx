@@ -259,7 +259,7 @@ export function CSVClientImportDialog({ open, onOpenChange }: CSVClientImportDia
 
           {step === "done" && (
             <div className="text-center py-8 space-y-3">
-              <CheckCircle2 className="w-12 h-12 text-emerald-500 mx-auto" />
+              <CheckCircle2 className="w-12 h-12 text-success mx-auto" />
               <p className="text-lg font-semibold text-foreground">Importação concluída!</p>
               <p className="text-sm text-muted-foreground">{result.imported} cliente(s) importado(s){result.errors > 0 ? `, ${result.errors} com erro` : ""}.</p>
             </div>

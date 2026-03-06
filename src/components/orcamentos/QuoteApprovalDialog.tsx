@@ -160,7 +160,7 @@ export function QuoteApprovalDialog({ quote, onClose, onApproved }: Props) {
                       {stock && (
                         <p
                           className={`text-[10px] ${
-                            stock.sufficient ? "text-emerald-500" : "text-destructive"
+                            stock.sufficient ? "text-success" : "text-destructive"
                           }`}
                         >
                           Estoque: {stock.available} {stock.sufficient ? "✓" : `(faltam ${item.quantity - stock.available})`}

@@ -467,7 +467,7 @@ export default function EmissorSettingsTab({ companyId }: { companyId: string })
                   {selectedCert && (
                     <div className="p-4 rounded-xl bg-muted/50 space-y-2">
                       <div className="flex items-center gap-2">
-                        <CheckCircle className="w-4 h-4 text-emerald-500" />
+                        <CheckCircle className="w-4 h-4 text-success" />
                         <span className="text-sm font-medium text-foreground">Certificado selecionado</span>
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1 text-xs text-muted-foreground">
