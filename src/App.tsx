@@ -442,7 +442,7 @@ function AppRoutes() {
                       </PlanGate>
                     } />
                     <Route path="/consulta-dfe" element={<ConsultaDFe />} />
-                    <Route path="/kits" element={<Kits />} />
+                    
                     <Route path="/previsao-demanda" element={<PrevisaoDemanda />} />
                     <Route path="/admin" element={<Admin />} />
                     <Route path="/ajuda" element={<Ajuda />} />
