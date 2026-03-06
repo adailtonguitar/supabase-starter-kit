@@ -1,0 +1,330 @@
+import { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { toast } from "sonner";
+import { Download, Image, Sparkles, Loader2, Eye, Copy, ExternalLink } from "lucide-react";
+
+interface ArtAsset {
+  id: string;
+  name: string;
+  format: string;
+  dimensions: string;
+  url: string;
+  category: string;
+}
+
+const existingArts: ArtAsset[] = [
+  {
+    id: "feed-1",
+    name: "Feed Instagram — Gestão Completa",
+    format: "Feed Instagram",
+    dimensions: "1080×1080",
+    url: "/marketing/feed-instagram-1080x1080.png",
+    category: "geral",
+  },
+  {
+    id: "stories-1",
+    name: "Stories — PDV + Estoque + Fiscal",
+    format: "Stories",
+    dimensions: "1080×1920",
+    url: "/marketing/stories-1080x1920.png",
+    category: "geral",
+  },
+  {
+    id: "banner-1",
+    name: "Banner Facebook — Sistema Completo",
+    format: "Banner Facebook",
+    dimensions: "1920×1080",
+    url: "/marketing/banner-facebook-1920x1080.png",
+    category: "geral",
+  },
+];
+
+const aiPromptTemplates = [
+  { id: "pdv", label: "Foco no PDV", prompt: "Professional social media art for AnthoSystem POS software. Show a modern checkout/POS terminal with sales interface. Bold dark blue and electric green. Text: 'AnthoSystem PDV — Venda rápido, sem complicação'. Brazilian Portuguese." },
+  { id: "estoque", label: "Foco no Estoque", prompt: "Professional social media art for AnthoSystem inventory management. Show organized warehouse shelves with barcode scanning. Dark blue and green. Text: 'Controle de Estoque Inteligente — AnthoSystem'. Brazilian Portuguese." },
+  { id: "fiscal", label: "Foco Fiscal / NF-e", prompt: "Professional social media art for AnthoSystem fiscal/tax invoice system. Show NF-e documents with government seal. Dark blue and green. Text: 'Emissão de NF-e e NFC-e — AnthoSystem'. Brazilian Portuguese." },
+  { id: "teste-gratis", label: "Teste Grátis 15 dias", prompt: "Eye-catching promotional social media art for AnthoSystem. Bold urgency style. Dark blue background with vibrant green. Text: 'TESTE GRÁTIS 15 DIAS — AnthoSystem — Sistema Completo para seu Comércio'. Call to action button style. Brazilian Portuguese." },
+  { id: "financeiro", label: "Foco Financeiro", prompt: "Professional social media art for AnthoSystem financial management. Show charts, cash flow graphs, profit analytics. Dark blue and green. Text: 'Gestão Financeira Completa — AnthoSystem'. Brazilian Portuguese." },
+  { id: "ia", label: "Foco IA", prompt: "Futuristic social media art for AnthoSystem AI features. Neural network visuals, AI brain icon, data analytics. Dark blue and neon green. Text: 'Inteligência Artificial para seu Negócio — AnthoSystem'. Brazilian Portuguese." },
+];
+
+const formatOptions = [
+  { id: "feed", label: "Feed Instagram (1080×1080)", width: 1080, height: 1080 },
+  { id: "stories", label: "Stories (1080×1920)", width: 1080, height: 1920 },
+  { id: "banner", label: "Banner Facebook (1920×1080)", width: 1920, height: 1080 },
+];
+
+export function AdminMarketing() {
+  const [selectedFormat, setSelectedFormat] = useState("feed");
+  const [selectedTheme, setSelectedTheme] = useState("pdv");
+  const [customPrompt, setCustomPrompt] = useState("");
+  const [generating, setGenerating] = useState(false);
+  const [generatedImage, setGeneratedImage] = useState<string | null>(null);
+  const [previewArt, setPreviewArt] = useState<ArtAsset | null>(null);
+  const [filter, setFilter] = useState("all");
+
+  const handleDownload = (url: string, name: string) => {
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = name;
+    a.click();
+    toast.success("Download iniciado!");
+  };
+
+  const handleCopyLink = (url: string) => {
+    const fullUrl = window.location.origin + url;
+    navigator.clipboard.writeText(fullUrl);
+    toast.success("Link copiado!");
+  };
+
+  const handleGenerate = async () => {
+    setGenerating(true);
+    setGeneratedImage(null);
+    try {
+      const format = formatOptions.find((f) => f.id === selectedFormat)!;
+      const theme = aiPromptTemplates.find((t) => t.id === selectedTheme);
+      const prompt = customPrompt.trim() || theme?.prompt || "Promotional art for AnthoSystem retail management system";
+
+      // Use the Lovable AI gateway for image generation
+      const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash-image",
+          messages: [
+            {
+              role: "user",
+              content: `Generate a ${format.width}x${format.height} professional social media promotional image. ${prompt}`,
+            },
+          ],
+          modalities: ["image", "text"],
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Erro ao gerar imagem");
+      }
+
+      const data = await response.json();
+      const imageUrl = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+
+      if (imageUrl) {
+        setGeneratedImage(imageUrl);
+        toast.success("Arte gerada com sucesso!");
+      } else {
+        throw new Error("Nenhuma imagem retornada");
+      }
+    } catch (err: any) {
+      console.error("[AdminMarketing] Generate error:", err);
+      toast.error(err.message || "Erro ao gerar arte");
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const handleDownloadGenerated = () => {
+    if (!generatedImage) return;
+    const format = formatOptions.find((f) => f.id === selectedFormat)!;
+    const theme = aiPromptTemplates.find((t) => t.id === selectedTheme);
+    const a = document.createElement("a");
+    a.href = generatedImage;
+    a.download = `anthosystem-${theme?.id || "custom"}-${format.id}.png`;
+    a.click();
+    toast.success("Download iniciado!");
+  };
+
+  const filteredArts = filter === "all" ? existingArts : existingArts.filter((a) => a.category === filter);
+
+  return (
+    <div className="space-y-6">
+      {/* Gallery Section */}
+      <Card>
+        <CardHeader className="p-3 sm:p-6">
+          <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+            <Image className="h-4 w-4 text-primary" />
+            Galeria de Artes
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filteredArts.map((art) => (
+              <div
+                key={art.id}
+                className="group rounded-xl border border-border bg-card overflow-hidden hover:border-primary/30 hover:shadow-lg transition-all"
+              >
+                <div className="relative aspect-video bg-muted overflow-hidden">
+                  <img
+                    src={art.url}
+                    alt={art.name}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    loading="lazy"
+                  />
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100">
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      className="h-8 text-xs"
+                      onClick={() => setPreviewArt(art)}
+                    >
+                      <Eye className="w-3.5 h-3.5 mr-1" /> Ver
+                    </Button>
+                    <Button
+                      size="sm"
+                      className="h-8 text-xs"
+                      onClick={() => handleDownload(art.url, `${art.id}.png`)}
+                    >
+                      <Download className="w-3.5 h-3.5 mr-1" /> Baixar
+                    </Button>
+                  </div>
+                </div>
+                <div className="p-3 space-y-2">
+                  <p className="text-sm font-medium truncate">{art.name}</p>
+                  <div className="flex items-center justify-between">
+                    <div className="flex gap-1.5">
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0">{art.format}</Badge>
+                      <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{art.dimensions}</Badge>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 w-6 p-0"
+                      onClick={() => handleCopyLink(art.url)}
+                    >
+                      <Copy className="w-3 h-3" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* AI Generator Section */}
+      <Card>
+        <CardHeader className="p-3 sm:p-6">
+          <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+            <Sparkles className="h-4 w-4 text-primary" />
+            Gerador de Artes com IA
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0 space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Gere artes promocionais automaticamente usando IA. Escolha o tema, formato e clique em gerar.
+          </p>
+
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Formato</label>
+              <Select value={selectedFormat} onValueChange={setSelectedFormat}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {formatOptions.map((f) => (
+                    <SelectItem key={f.id} value={f.id}>{f.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Tema</label>
+              <Select value={selectedTheme} onValueChange={setSelectedTheme}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {aiPromptTemplates.map((t) => (
+                    <SelectItem key={t.id} value={t.id}>{t.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Prompt personalizado (opcional)</label>
+            <Input
+              value={customPrompt}
+              onChange={(e) => setCustomPrompt(e.target.value)}
+              placeholder="Descreva a arte que deseja gerar... (deixe vazio para usar o tema selecionado)"
+            />
+          </div>
+
+          <Button
+            onClick={handleGenerate}
+            disabled={generating}
+            className="gap-2"
+          >
+            {generating ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" /> Gerando arte...
+              </>
+            ) : (
+              <>
+                <Sparkles className="w-4 h-4" /> Gerar Arte com IA
+              </>
+            )}
+          </Button>
+
+          {/* Generated Result */}
+          {generatedImage && (
+            <div className="rounded-xl border-2 border-primary/30 bg-primary/5 p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-semibold text-primary">Arte gerada!</p>
+                <Button size="sm" onClick={handleDownloadGenerated} className="gap-1.5">
+                  <Download className="w-3.5 h-3.5" /> Baixar
+                </Button>
+              </div>
+              <div className="rounded-lg overflow-hidden border border-border">
+                <img
+                  src={generatedImage}
+                  alt="Arte gerada por IA"
+                  className="w-full max-h-[500px] object-contain bg-muted"
+                />
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Full Preview Modal */}
+      {previewArt && (
+        <div
+          className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setPreviewArt(null)}
+        >
+          <div className="max-w-4xl w-full space-y-3" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-white font-bold">{previewArt.name}</p>
+                <p className="text-white/60 text-sm">{previewArt.format} — {previewArt.dimensions}</p>
+              </div>
+              <div className="flex gap-2">
+                <Button size="sm" variant="secondary" onClick={() => handleCopyLink(previewArt.url)} className="gap-1.5">
+                  <Copy className="w-3.5 h-3.5" /> Copiar Link
+                </Button>
+                <Button size="sm" onClick={() => handleDownload(previewArt.url, `${previewArt.id}.png`)} className="gap-1.5">
+                  <Download className="w-3.5 h-3.5" /> Baixar
+                </Button>
+                <Button size="sm" variant="ghost" className="text-white" onClick={() => setPreviewArt(null)}>
+                  ✕
+                </Button>
+              </div>
+            </div>
+            <div className="rounded-xl overflow-hidden border border-white/10">
+              <img src={previewArt.url} alt={previewArt.name} className="w-full object-contain max-h-[80vh]" />
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
