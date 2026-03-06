@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Search, Package, Armchair, Eye, Grid3X3, List, Boxes, Palette, Plus, Trash2 } from "lucide-react";
+import { Search, Package, Armchair, Eye, Grid3X3, List, Boxes, Palette, Plus, Trash2, Home } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
@@ -20,6 +20,7 @@ import imgCama from "@/assets/furniture/cama-casal.jpg";
 import imgGuardaRoupa from "@/assets/furniture/guarda-roupa.jpg";
 import imgRack from "@/assets/furniture/rack-tv.jpg";
 import imgEscrivaninha from "@/assets/furniture/escrivaninha.jpg";
+import AmbientesGallery from "@/components/catalogo/AmbientesGallery";
 
 // ── Types ──
 interface Volume {
@@ -83,6 +84,7 @@ export default function CatalogoMoveis() {
   const { data: realProducts = [], isLoading: loading } = useProducts();
   const products = useMemo(() => [...realProducts, ...demoProducts], [realProducts]);
   const [search, setSearch] = useState("");
+  const [mainTab, setMainTab] = useState<"catalogo" | "ambientes">("catalogo");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
@@ -166,11 +168,25 @@ export default function CatalogoMoveis() {
           <p className="text-muted-foreground text-sm mt-1">Visualize e gerencie seu catálogo de produtos</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant={viewMode === "grid" ? "default" : "outline"} size="icon" onClick={() => setViewMode("grid")}><Grid3X3 className="w-4 h-4" /></Button>
-          <Button variant={viewMode === "list" ? "default" : "outline"} size="icon" onClick={() => setViewMode("list")}><List className="w-4 h-4" /></Button>
+          <Button variant={mainTab === "catalogo" ? "default" : "outline"} size="sm" onClick={() => setMainTab("catalogo")}>
+            <Grid3X3 className="w-4 h-4 mr-1" />Produtos
+          </Button>
+          <Button variant={mainTab === "ambientes" ? "default" : "outline"} size="sm" onClick={() => setMainTab("ambientes")}>
+            <Home className="w-4 h-4 mr-1" />Ambientes
+          </Button>
+          {mainTab === "catalogo" && (
+            <>
+              <Button variant={viewMode === "grid" ? "default" : "outline"} size="icon" onClick={() => setViewMode("grid")}><Grid3X3 className="w-4 h-4" /></Button>
+              <Button variant={viewMode === "list" ? "default" : "outline"} size="icon" onClick={() => setViewMode("list")}><List className="w-4 h-4" /></Button>
+            </>
+          )}
         </div>
       </div>
 
+      {mainTab === "ambientes" ? (
+        <AmbientesGallery />
+      ) : (
+      <>
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
@@ -466,6 +482,8 @@ export default function CatalogoMoveis() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      </>
+      )}
     </div>
   );
 }
