@@ -85,6 +85,7 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
             ${companyPhone ? `<p class="sm">Fone: ${companyPhone}</p>` : ""}
             <p class="sm">${now}</p>
             ${saleId ? `<p class="bold" style="margin-top:3px; font-size:12px;">Venda #${saleId.substring(0, 8).toUpperCase()}</p>` : ""}
+          </div>
           <div class="dashed"></div>
           <div class="row bold"><span>QTD ITEM</span><span>VALOR</span></div>
           <div class="dashed"></div>
