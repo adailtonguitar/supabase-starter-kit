@@ -21,7 +21,7 @@ interface SaleReceiptProps {
   onClose: () => void;
 }
 
-export function SaleReceipt({ items, total, payments, onClose, companyName, companyCnpj, companyIe, companyPhone, companyAddress, nfceNumber, accessKey, serie, isContingency, logoUrl }: SaleReceiptProps) {
+export function SaleReceipt({ items, total, payments, onClose, saleId, companyName, companyCnpj, companyIe, companyPhone, companyAddress, nfceNumber, accessKey, serie, isContingency, logoUrl }: SaleReceiptProps) {
   const formatCurrency = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 
   const methodLabel = (m: string) => {
