@@ -5,7 +5,6 @@ import { useCompany } from "./useCompany";
 interface FurnitureModeContextType {
   enabled: boolean;
   loading: boolean;
-  toggle: () => Promise<void>;
 }
 
 const FurnitureModeContext = createContext<FurnitureModeContextType>({

@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Download, Upload, Clock, HardDrive, Percent, Save, Loader2, Crown, Check, ArrowRight, MessageCircle, Pencil, Calculator, Send, Mail, Lock, Eye, EyeOff, Wallet, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Button } from "@/components/ui/button";
 import { TEFConfigSection } from "@/components/settings/TEFConfigSection";
 import { ScaleConfigSection } from "@/components/settings/ScaleConfigSection";
 import { motion } from "framer-motion";
