@@ -200,23 +200,32 @@ export function PDVCreditReceipt({ data, onClose }: PDVCreditReceiptProps) {
           <p className="text-xs text-muted-foreground italic leading-relaxed">{formalText}</p>
         </div>
         <div className="px-6 py-4 border-t border-border space-y-3">
-          {data.items && data.items.length > 0 && (
-            <div className="space-y-1.5 pb-3 border-b border-border">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Produtos</p>
-              {data.items.map((item, idx) => (
-                <div key={idx} className="flex justify-between text-sm">
-                  <span className="text-foreground truncate mr-2">{item.quantity}x {item.name}</span>
-                  <span className="font-mono text-foreground flex-shrink-0">{formatCurrency(item.unitPrice * item.quantity)}</span>
-                </div>
-              ))}
-            </div>
-          )}
           <div className="flex justify-between text-sm"><span className="text-muted-foreground">Saldo anterior</span><span className="font-mono text-foreground">{formatCurrency(data.previousBalance)}</span></div>
           <div className="flex justify-between items-center"><span className="text-sm text-muted-foreground">Valor recebido</span><span className="text-lg font-bold font-mono text-primary">{formatCurrency(data.amount)}</span></div>
           <p className="text-xs italic text-muted-foreground text-right">( {extenso} )</p>
           <div className="flex justify-between text-sm"><span className="text-muted-foreground">Saldo remanescente</span><span className="font-mono text-foreground">{formatCurrency(data.newBalance)}</span></div>
           <div className="flex justify-between text-sm pt-2 border-t border-border"><span className="text-muted-foreground">Forma de pagamento</span><span className="font-medium text-foreground">{methodLabels[data.paymentMethod] || data.paymentMethod}</span></div>
           <div className="flex justify-between text-sm"><span className="text-muted-foreground">Data/Hora</span><span className="font-mono text-foreground text-xs">{now.toLocaleString("pt-BR")}</span></div>
+          {data.items && data.items.length > 0 && (
+            <div className="space-y-2 pt-3 border-t border-border">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Itens da Venda</p>
+              <div className="grid grid-cols-[1fr_32px_56px_60px] gap-x-1 text-[11px] font-semibold text-muted-foreground border-b border-border pb-1">
+                <span>Produto</span><span className="text-center">Qtd</span><span className="text-right">Unit</span><span className="text-right">Total</span>
+              </div>
+              {data.items.map((item, idx) => (
+                <div key={idx} className="grid grid-cols-[1fr_32px_56px_60px] gap-x-1 text-sm">
+                  <span className="text-foreground truncate">{item.name}</span>
+                  <span className="text-center text-foreground">{item.quantity}</span>
+                  <span className="text-right font-mono text-muted-foreground">{formatCurrency(item.unitPrice)}</span>
+                  <span className="text-right font-mono text-foreground">{formatCurrency(item.unitPrice * item.quantity)}</span>
+                </div>
+              ))}
+              <div className="flex justify-between pt-2 border-t border-border text-sm font-bold">
+                <span className="text-muted-foreground">Total da Venda</span>
+                <span className="font-mono text-foreground">{formatCurrency(data.items.reduce((s, i) => s + i.unitPrice * i.quantity, 0))}</span>
+              </div>
+            </div>
+          )}
         </div>
         <div className="flex gap-2 p-4 border-t border-border">
           <button onClick={onClose} className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-muted text-muted-foreground text-sm font-medium hover:bg-accent transition-all"><X className="w-4 h-4" />Fechar</button>
