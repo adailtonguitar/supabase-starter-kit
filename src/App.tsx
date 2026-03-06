@@ -98,6 +98,7 @@ const AgendaEntregas = lazy(() => import("./pages/AgendaEntregas"));
 const ControleMontagem = lazy(() => import("./pages/ControleMontagem"));
 const ControleExposicao = lazy(() => import("./pages/ControleExposicao"));
 const DashboardMoveis = lazy(() => import("./pages/DashboardMoveis"));
+const PDVCustomerDisplayPage = lazy(() => import("./pages/PDVDisplay"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -270,6 +271,7 @@ function AppRoutes() {
         <Route path="/privacidade" element={<Privacidade />} />
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/trial-expirado" element={user ? <TrialExpirado /> : <Navigate to="/" replace />} />
+        <Route path="/pdv-display" element={<PDVCustomerDisplayPage />} />
         <Route path="/renovar" element={user ? <Renovar /> : <Navigate to="/auth" replace />} />
         {/* PDV: full-screen, outside AppLayout */}
         <Route

@@ -11,6 +11,10 @@ import { PDVLoyaltyClientList } from "@/components/pdv/PDVLoyaltyClientList";
 import { PDVQuickProductDialog } from "@/components/pdv/PDVQuickProductDialog";
 import { PDVClientSelector, type CreditClient } from "@/components/pdv/PDVClientSelector";
 import { PDVFiadoReceipt, type FiadoReceiptData } from "@/components/pdv/PDVFiadoReceipt";
+import { PDVHoldRecallDialog, saveHeldSale, getHeldSales, type HeldSale } from "@/components/pdv/PDVHoldRecall";
+import { PDVReturnExchangeDialog } from "@/components/pdv/PDVReturnExchange";
+import { PDVItemNotesDialog } from "@/components/pdv/PDVItemNotes";
+import { useCustomerDisplay } from "@/components/pdv/PDVCustomerDisplay";
 import { SaleReceipt } from "@/components/pos/SaleReceipt";
 import { TEFProcessor, type TEFResult } from "@/components/pos/TEFProcessor";
 import { CashRegister } from "@/components/pos/CashRegister";
@@ -21,7 +25,7 @@ import { useQuotes } from "@/hooks/useQuotes";
 import { useCompany } from "@/hooks/useCompany";
 import { useBarcodeScanner } from "@/hooks/useBarcodeScanner";
 import { useTEFConfig } from "@/hooks/useTEFConfig";
-import { Wifi, WifiOff, Keyboard, X, Search, Monitor, FileText, User, PackageX, PackagePlus, Package, Maximize, Minimize, Banknote, CreditCard, QrCode, Smartphone, Ticket, MoreHorizontal, Clock as ClockIcon, Trash2, Hash, Percent, AlertTriangle, Plus, Wallet } from "lucide-react";
+import { Wifi, WifiOff, Keyboard, X, Search, Monitor, FileText, User, PackageX, PackagePlus, Package, Maximize, Minimize, Banknote, CreditCard, QrCode, Smartphone, Ticket, MoreHorizontal, Clock as ClockIcon, Trash2, Hash, Percent, AlertTriangle, Plus, Wallet, Pause, Play, RotateCcw, MessageSquare, Tv } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import type { PaymentResult } from "@/services/types";
@@ -88,6 +92,13 @@ export default function PDV() {
   const lastAddedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const finalizingSale = pdv.finalizingSale;
   const requireCashSession = localStorage.getItem("pdv_require_cash_session") !== "false";
+  // ── New features ──
+  const [showHoldRecall, setShowHoldRecall] = useState(false);
+  const [showReturnExchange, setShowReturnExchange] = useState(false);
+  const [editingItemNoteId, setEditingItemNoteId] = useState<string | null>(null);
+  const [itemNotes, setItemNotes] = useState<Record<string, string>>({});
+  const [itemDiscountValues, setItemDiscountValues] = useState<Record<string, number>>({}); // R$ discount per item
+  const customerDisplay = useCustomerDisplay();
 
   const toggleFullscreen = useCallback(() => {
     if (!document.fullscreenElement) {
@@ -137,7 +148,7 @@ export default function PDV() {
   }, [pdv.sessionEverLoaded, pdv.loadingSession, pdv.currentSession, showCashRegister, requireCashSession]);
 
   // Always re-focus barcode input when no modal is open
-  const noModalOpen = !showTEF && !receipt && !showCashRegister && !showProductList && !showShortcuts && !showPriceLookup && !showLoyaltyClientSelector && !showQuickProduct && !showSaveQuote && !showTerminalPicker && !showClientSelector && !showReceiveCredit && !zeroStockProduct && !stockMovementProduct && !editingQtyItemId && !editingItemDiscountId && !editingGlobalDiscount;
+  const noModalOpen = !showTEF && !receipt && !showCashRegister && !showProductList && !showShortcuts && !showPriceLookup && !showLoyaltyClientSelector && !showQuickProduct && !showSaveQuote && !showTerminalPicker && !showClientSelector && !showReceiveCredit && !zeroStockProduct && !stockMovementProduct && !editingQtyItemId && !editingItemDiscountId && !editingGlobalDiscount && !showHoldRecall && !showReturnExchange && !editingItemNoteId;
 
   useEffect(() => {
     if (noModalOpen) {
@@ -159,7 +170,77 @@ export default function PDV() {
     return () => clearInterval(interval);
   }, [noModalOpen]);
 
-  // Auto-scroll to last item
+  // Broadcast to customer display on cart/total changes
+  useEffect(() => {
+    customerDisplay.broadcast({
+      items: pdv.cartItems,
+      total: pdv.total,
+      subtotal: pdv.subtotal,
+      globalDiscountPercent: pdv.globalDiscountPercent,
+      globalDiscountValue: pdv.globalDiscountValue,
+      itemDiscounts: pdv.itemDiscounts,
+      companyName: companyName || "",
+      logoUrl,
+      lastAdded: lastAddedItem,
+    });
+  }, [pdv.cartItems, pdv.total, pdv.subtotal, pdv.globalDiscountPercent, pdv.itemDiscounts, lastAddedItem]);
+
+  // Hold current sale
+  const handleHoldSale = useCallback(() => {
+    if (pdv.cartItems.length === 0) { toast.warning("Carrinho vazio", { duration: 1200 }); return; }
+    const held: HeldSale = {
+      id: crypto.randomUUID(),
+      items: pdv.cartItems.map(i => ({ ...i })),
+      itemDiscounts: { ...pdv.itemDiscounts },
+      globalDiscountPercent: pdv.globalDiscountPercent,
+      clientName: selectedClient?.name,
+      total: pdv.total,
+      heldAt: new Date().toISOString(),
+    };
+    saveHeldSale(held);
+    pdv.clearCart();
+    setSelectedClient(null);
+    setSelectedCartItemId(null);
+    toast.success(`Venda suspensa (${getHeldSales().length} pendente${getHeldSales().length > 1 ? "s" : ""})`, { duration: 1500 });
+  }, [pdv, selectedClient]);
+
+  // Recall a held sale
+  const handleRecallSale = useCallback((sale: HeldSale) => {
+    if (pdv.cartItems.length > 0) {
+      // Auto-hold current sale before recalling
+      handleHoldSale();
+    }
+    // Restore items
+    sale.items.forEach(item => {
+      const product = pdv.products.find(p => p.id === item.id);
+      if (product) {
+        for (let i = 0; i < item.quantity; i++) pdv.addToCart(product);
+      }
+    });
+    // Restore discounts
+    Object.entries(sale.itemDiscounts).forEach(([id, disc]) => pdv.setItemDiscount(id, disc));
+    pdv.setGlobalDiscountPercent(sale.globalDiscountPercent);
+    toast.info("Venda retomada", { duration: 1200 });
+  }, [pdv, handleHoldSale]);
+
+  // Set item note
+  const setItemNote = useCallback((id: string, note: string) => {
+    setItemNotes(prev => ({ ...prev, [id]: note }));
+    setEditingItemNoteId(null);
+  }, []);
+
+  // Set item fixed discount (R$)
+  const setItemFixedDiscount = useCallback((id: string, value: number) => {
+    setItemDiscountValues(prev => ({ ...prev, [id]: value }));
+    // Convert R$ discount to % for the existing system
+    const item = pdv.cartItems.find(i => i.id === id);
+    if (item && item.price > 0) {
+      const pct = Math.min((value / item.price) * 100, 100);
+      pdv.setItemDiscount(id, pct);
+    }
+  }, [pdv.cartItems, pdv.setItemDiscount]);
+
+
   useEffect(() => {
     if (pdv.cartItems.length > 0) {
       tableEndRef.current?.scrollIntoView({ behavior: "auto", block: "end" });
@@ -453,7 +534,7 @@ export default function PDV() {
           }
           break;
         case "F10": e.preventDefault(); setShowPriceLookup(true); setPriceLookupQuery(""); break;
-        case "F11": e.preventDefault(); pdv.repeatLastSale(); break;
+        case "F11": e.preventDefault(); handleHoldSale(); break;
         case "F12": e.preventDefault(); handleCheckout(); break;
         case "Delete":
           e.preventDefault();
@@ -463,11 +544,14 @@ export default function PDV() {
           }
           break;
         case "Escape": {
-          const anyModalOpen = showShortcuts || showPriceLookup || showProductList || editingQtyItemId || editingItemDiscountId || editingGlobalDiscount || showSaveQuote || showLoyaltyClientSelector || showQuickProduct || showClientSelector || showReceiveCredit || !!zeroStockProduct;
+          const anyModalOpen = showShortcuts || showPriceLookup || showProductList || editingQtyItemId || editingItemDiscountId || editingGlobalDiscount || showSaveQuote || showLoyaltyClientSelector || showQuickProduct || showClientSelector || showReceiveCredit || !!zeroStockProduct || showHoldRecall || showReturnExchange || !!editingItemNoteId;
           if (anyModalOpen) {
             e.preventDefault();
             // Close the topmost modal
-            if (showShortcuts) setShowShortcuts(false);
+            if (showHoldRecall) setShowHoldRecall(false);
+            else if (showReturnExchange) setShowReturnExchange(false);
+            else if (editingItemNoteId) setEditingItemNoteId(null);
+            else if (showShortcuts) setShowShortcuts(false);
             else if (showPriceLookup) setShowPriceLookup(false);
             else if (showProductList) setShowProductList(false);
             else if (editingQtyItemId) setEditingQtyItemId(null);
@@ -513,7 +597,7 @@ export default function PDV() {
     };
     window.addEventListener("keydown", handler, true);
     return () => window.removeEventListener("keydown", handler, true);
-  }, [showTEF, receipt, showCashRegister, showShortcuts, showPriceLookup, showProductList, handleCheckout, pdv, editingQtyItemId, editingItemDiscountId, editingGlobalDiscount, isFullscreen, selectedCartItemId, stockMovementProduct]);
+  }, [showTEF, receipt, showCashRegister, showShortcuts, showPriceLookup, showProductList, handleCheckout, pdv, editingQtyItemId, editingItemDiscountId, editingGlobalDiscount, isFullscreen, selectedCartItemId, stockMovementProduct, showHoldRecall, showReturnExchange, editingItemNoteId, handleHoldSale]);
 
   const checkLowStockAfterSale = useCallback((soldItems: typeof pdv.cartItems) => {
     const lowStockItems: string[] = [];
@@ -1013,6 +1097,11 @@ export default function PDV() {
                               }
                               return null;
                             })()}
+                            {itemNotes[item.id] && (
+                              <span className="ml-1 text-[9px] text-accent-foreground bg-accent/50 rounded px-1 truncate max-w-[80px]" title={itemNotes[item.id]}>
+                                📝 {itemNotes[item.id]}
+                              </span>
+                            )}
                           </div>
                         </td>
                         <td className="px-1 py-1.5 text-center font-mono font-bold text-foreground text-[10px]">
@@ -1419,6 +1508,19 @@ export default function PDV() {
         >
           <FileText className="w-3 h-3" /> Orçamento
         </button>
+        <button
+          onClick={() => handleHoldSale()}
+          disabled={pdv.cartItems.length === 0}
+          className="flex items-center gap-1.5 px-3 py-2.5 rounded-lg bg-amber-900/70 text-amber-50 border border-amber-600/50 text-xs font-bold whitespace-nowrap disabled:opacity-30 active:scale-95 transition-transform"
+        >
+          <Pause className="w-3 h-3" /> Suspender
+        </button>
+        <button
+          onClick={() => setShowHoldRecall(true)}
+          className="flex items-center gap-1.5 px-3 py-2.5 rounded-lg bg-sidebar-background text-sidebar-foreground border border-sidebar-border text-xs font-bold whitespace-nowrap active:scale-95 transition-transform"
+        >
+          <Play className="w-3 h-3" /> Retomar
+        </button>
       </div>
 
       {/* ════════ BOTTOM PAYMENT BAR — ELITE ════════ */}
@@ -1473,7 +1575,7 @@ export default function PDV() {
               { key: "F5", label: "Cliente", color: "bg-sidebar-background hover:bg-sidebar-accent text-sidebar-foreground border border-sidebar-border", action: () => setShowLoyaltyClientSelector(true) },
               { key: "F10", label: "Consulta", color: "bg-sidebar-background hover:bg-sidebar-accent text-sidebar-foreground border border-sidebar-border", action: () => { setShowPriceLookup(true); setPriceLookupQuery(""); } },
               { key: "+", label: "Repetir", color: "bg-sidebar-background hover:bg-sidebar-accent text-sidebar-foreground border border-sidebar-border", action: () => { if (pdv.cartItems.length > 0) { const lastItem = pdv.cartItems[pdv.cartItems.length - 1]; const product = pdv.products.find(p => p.id === lastItem.id); if (product) pdv.addToCart(product); } } },
-              { key: "F11", label: "Rep.Venda", color: "bg-sidebar-background hover:bg-sidebar-accent text-sidebar-foreground border border-sidebar-border", action: () => pdv.repeatLastSale() },
+              { key: "F11", label: "Suspender", color: "bg-amber-900/70 hover:bg-amber-800 text-amber-50 border border-amber-600/50", action: () => handleHoldSale() },
             ].map(({ key, label, color, action }) => (
               <button key={key} onClick={action} className={`flex items-center gap-1 font-bold text-xs cursor-pointer rounded-lg px-1.5 py-1 transition-all hover:scale-[1.03] active:scale-95 ${color}`}>
                 <span className="font-mono font-black px-1.5 py-0.5 rounded bg-black/25 text-[10px] border border-white/20 shadow-sm">{key}</span>
@@ -1495,11 +1597,29 @@ export default function PDV() {
               </button>
             ))}
           </div>
+          {/* Grupo: Extras */}
+          <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-lg bg-background/50 border border-border/40">
+            <button onClick={() => setShowHoldRecall(true)} className="flex items-center gap-1 font-bold text-xs cursor-pointer rounded-lg px-1.5 py-1 transition-all hover:scale-[1.03] active:scale-95 bg-sidebar-background hover:bg-sidebar-accent text-sidebar-foreground border border-sidebar-border">
+              <Play className="w-3 h-3" /> Retomar
+            </button>
+            <button onClick={() => setShowReturnExchange(true)} className="flex items-center gap-1 font-bold text-xs cursor-pointer rounded-lg px-1.5 py-1 transition-all hover:scale-[1.03] active:scale-95 bg-sidebar-background hover:bg-sidebar-accent text-sidebar-foreground border border-sidebar-border">
+              <RotateCcw className="w-3 h-3" /> Devolução
+            </button>
+            <button onClick={() => {
+              const targetItem = selectedCartItemId ? pdv.cartItems.find(i => i.id === selectedCartItemId) : pdv.cartItems[pdv.cartItems.length - 1];
+              if (targetItem) setEditingItemNoteId(targetItem.id);
+            }} className="flex items-center gap-1 font-bold text-xs cursor-pointer rounded-lg px-1.5 py-1 transition-all hover:scale-[1.03] active:scale-95 bg-sidebar-background hover:bg-sidebar-accent text-sidebar-foreground border border-sidebar-border">
+              <MessageSquare className="w-3 h-3" /> Obs.
+            </button>
+            <button onClick={() => customerDisplay.openDisplay()} className="flex items-center gap-1 font-bold text-xs cursor-pointer rounded-lg px-1.5 py-1 transition-all hover:scale-[1.03] active:scale-95 bg-sidebar-background hover:bg-sidebar-accent text-sidebar-foreground border border-sidebar-border">
+              <Tv className="w-3 h-3" /> 2º Monitor
+            </button>
+          </div>
           {/* Grupo: Finalização */}
           <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-lg bg-primary/10 border border-primary/30">
             {[
               { key: "Orç.", label: "Orçamento", color: "bg-sidebar-background hover:bg-sidebar-accent text-sidebar-foreground border border-sidebar-border", action: () => { if (pdv.cartItems.length > 0) setShowSaveQuote(true); else toast.warning("Carrinho vazio", { duration: 1200 }); } },
-              { key: "F6", label: "Cancelar", color: "bg-destructive/80 hover:bg-destructive text-white border border-destructive/50", action: () => { if (pdv.cartItems.length > 0) { pdv.clearCart(); setSelectedClient(null); setSelectedCartItemId(null); toast.info("Venda cancelada"); } } },
+              { key: "F6", label: "Cancelar", color: "bg-destructive/80 hover:bg-destructive text-white border border-destructive/50", action: () => { if (pdv.cartItems.length > 0) { pdv.clearCart(); setSelectedClient(null); setSelectedCartItemId(null); setItemNotes({}); setItemDiscountValues({}); toast.info("Venda cancelada"); } } },
               { key: "F12", label: "FINALIZAR", color: "bg-primary hover:bg-primary/90 text-primary-foreground border border-primary/50 shadow-md shadow-primary/20", action: () => handleCheckout() },
             ].map(({ key, label, color, action }) => (
               <button key={key} onClick={action} className={`flex items-center gap-1 font-black text-xs cursor-pointer rounded-lg px-2 py-1.5 transition-all hover:scale-[1.05] active:scale-95 ${color}`}>
@@ -1927,6 +2047,21 @@ export default function PDV() {
           </div>
         </div>
       )}
+
+      {/* Hold/Recall Dialog */}
+      <PDVHoldRecallDialog open={showHoldRecall} onClose={() => setShowHoldRecall(false)} onRecall={handleRecallSale} />
+
+      {/* Return/Exchange Dialog */}
+      <PDVReturnExchangeDialog open={showReturnExchange} onClose={() => setShowReturnExchange(false)} />
+
+      {/* Item Notes Dialog */}
+      <PDVItemNotesDialog
+        open={!!editingItemNoteId}
+        itemName={pdv.cartItems.find(i => i.id === editingItemNoteId)?.name || ""}
+        currentNote={editingItemNoteId ? itemNotes[editingItemNoteId] || "" : ""}
+        onSave={(note) => { if (editingItemNoteId) setItemNote(editingItemNoteId, note); }}
+        onClose={() => setEditingItemNoteId(null)}
+      />
 
       {/* Exit confirmation when cash register is open */}
       <AlertDialog open={showExitConfirm} onOpenChange={setShowExitConfirm}>
