@@ -48,7 +48,7 @@ function KpiCard({
         {sub && <p className="text-[10px] text-muted-foreground mt-0.5">{sub}</p>}
       </div>
       {trend !== undefined && trend !== 0 && (
-        <div className={`flex items-center gap-0.5 text-[11px] font-bold ${trend > 0 ? "text-emerald-500" : "text-destructive"}`}>
+        <div className={`flex items-center gap-0.5 text-[11px] font-bold ${trend > 0 ? "text-success" : "text-destructive"}`}>
           {trend > 0 ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />}
           {Math.abs(Math.round(trend))}%
         </div>
