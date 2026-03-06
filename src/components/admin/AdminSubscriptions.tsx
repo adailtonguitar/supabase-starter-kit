@@ -51,13 +51,14 @@ export function AdminSubscriptions() {
     const companyIds = planData.map((p: any) => p.company_id);
     const { data: companies } = await supabase
       .from("companies")
-      .select("id, name")
+      .select("id, name, is_demo")
       .in("id", companyIds);
 
     const nameMap: Record<string, string> = {};
-    (companies ?? []).forEach((c: any) => { nameMap[c.id] = c.name; });
+    const demoMap: Record<string, boolean> = {};
+    (companies ?? []).forEach((c: any) => { nameMap[c.id] = c.name; demoMap[c.id] = c.is_demo === true; });
 
-    setPlans(planData.map((p: any) => ({ ...p, company_name: nameMap[p.company_id] || p.company_id.slice(0, 8) })));
+    setPlans(planData.map((p: any) => ({ ...p, company_name: nameMap[p.company_id] || p.company_id.slice(0, 8), is_demo: demoMap[p.company_id] || false })));
     setLoading(false);
   };
 
