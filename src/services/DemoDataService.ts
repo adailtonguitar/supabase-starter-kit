@@ -91,7 +91,8 @@ export class DemoDataService {
 
     if (existingProducts && existingProducts.length > 0) {
       DemoDataService.markSeeded(companyId);
-      return { products: 0, clients: 0, sales: 0, suppliers: 0, expenses: 0 };
+      // Return -1 to signal "already seeded" vs "failed"
+      return { products: -1, clients: -1, sales: -1, suppliers: -1, expenses: -1 };
     }
 
     // 1) Insert products
@@ -108,11 +109,13 @@ export class DemoDataService {
       is_demo: true,
     }));
 
+    console.log("[DemoData] Inserting", productRows.length, "products for company", companyId);
     const { data: insertedProducts, error: pErr } = await supabase
       .from("products")
       .insert(productRows as any)
       .select("id, name, price, cost_price, stock_quantity");
 
+    console.log("[DemoData] Insert result:", { insertedProducts: insertedProducts?.length, error: pErr });
     if (pErr) throw new Error(`Erro ao criar produtos demo: ${pErr.message}`);
 
     // 2) Insert clients

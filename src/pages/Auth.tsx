@@ -269,7 +269,14 @@ export default function Auth() {
       try {
         const { DemoDataService } = await import("@/services/DemoDataService");
         const result = await DemoDataService.seedDemoData(data.company_id, data.user_id);
-        toast.success(`Demo criada: ${result.products} produtos, ${result.clients} clientes, ${result.sales} vendas, ${result.suppliers} fornecedores e ${result.expenses} despesas!`);
+        if (result.products === -1) {
+          toast.success("Conta demo criada! Dados já existiam.");
+        } else if (result.products === 0) {
+          console.warn("seedDemoData retornou 0 produtos — possível falha de RLS");
+          toast.success("Conta demo criada! Verifique as permissões de dados.");
+        } else {
+          toast.success(`Demo criada: ${result.products} produtos, ${result.clients} clientes, ${result.sales} vendas, ${result.suppliers} fornecedores e ${result.expenses} despesas!`);
+        }
       } catch (seedErr: any) {
         console.error("Erro ao gerar dados demo:", seedErr);
         toast.success("Conta demo criada! Os dados serão gerados ao carregar o painel.");
