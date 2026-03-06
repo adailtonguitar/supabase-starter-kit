@@ -147,7 +147,7 @@ export default function PainelDono() {
         <div className="flex items-center justify-between mb-3">
           <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">📊 Hoje vs Ontem</p>
           {dailyTrend !== 0 && (
-            <span className={`text-xs font-bold flex items-center gap-0.5 ${dailyTrend > 0 ? "text-emerald-500" : "text-destructive"}`}>
+            <span className={`text-xs font-bold flex items-center gap-0.5 ${dailyTrend > 0 ? "text-success" : "text-destructive"}`}>
               {dailyTrend > 0 ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />}
               {Math.abs(Math.round(dailyTrend))}%
             </span>
