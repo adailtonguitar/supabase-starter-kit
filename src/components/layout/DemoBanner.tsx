@@ -3,6 +3,7 @@ import { AlertTriangle, Trash2, Loader2, Clock, RotateCcw } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/hooks/useCompany";
 import { useAuth } from "@/hooks/useAuth";
+import { useAdminRole } from "@/hooks/useAdminRole";
 import { supabase } from "@/integrations/supabase/client";
 import { DemoDataService } from "@/services/DemoDataService";
 import { toast } from "sonner";
@@ -10,6 +11,7 @@ import { toast } from "sonner";
 export function DemoBanner() {
   const { companyId } = useCompany();
   const { user } = useAuth();
+  const { isSuperAdmin } = useAdminRole();
   const navigate = useNavigate();
   const [isDemo, setIsDemo] = useState(false);
   const [daysLeft, setDaysLeft] = useState<number | null>(null);
@@ -91,7 +93,7 @@ export function DemoBanner() {
     setResetting(false);
   }, [companyId]);
 
-  if (!isDemo) return null;
+  if (!isDemo || isSuperAdmin) return null;
 
   const expired = daysLeft !== null && daysLeft <= 0;
 
