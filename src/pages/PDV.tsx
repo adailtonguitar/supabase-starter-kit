@@ -1714,6 +1714,7 @@ export default function PDV() {
           items={receipt.items.map((i) => ({
             id: i.id, name: i.name, price: i.price, category: i.category || "",
             sku: i.sku, ncm: i.ncm || "", unit: i.unit, stock: i.stock_quantity, quantity: i.quantity,
+            notes: receipt.itemNotes?.[i.id] || undefined,
           }))}
           total={receipt.total} payments={receipt.payments} nfceNumber={receipt.nfceNumber}
           accessKey={receipt.accessKey} serie={receipt.serie}
