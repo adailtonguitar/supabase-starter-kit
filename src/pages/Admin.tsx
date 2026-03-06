@@ -13,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Shield, Activity, Search, Ban, CheckCircle, LayoutDashboard, Users, CreditCard, FileText, DollarSign, Trash2, FlaskConical, MessageCircle, Save, Loader2, Pencil, Mail, ShoppingCart, Bug, Stethoscope } from "lucide-react";
+import { Shield, Activity, Search, Ban, CheckCircle, LayoutDashboard, Users, CreditCard, FileText, DollarSign, Trash2, FlaskConical, MessageCircle, Save, Loader2, Pencil, Mail, ShoppingCart, Bug, Stethoscope, TrendingUp } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { AdminDashboard } from "@/components/admin/AdminDashboard";
 import { AdminSubscriptions } from "@/components/admin/AdminSubscriptions";
@@ -24,6 +24,7 @@ import AdminPlanTester from "@/components/admin/AdminPlanTester";
 import { AdminCreateEmissorClient } from "@/components/admin/AdminCreateEmissorClient";
 import { AdminBulkEmail } from "@/components/admin/AdminBulkEmail";
 import { AdminStoreSimulation } from "@/components/admin/AdminStoreSimulation";
+import { AdminLeads } from "@/components/admin/AdminLeads";
 import { lazy, Suspense } from "react";
 
 const RegistroErros = lazy(() => import("./RegistroErros"));
@@ -89,6 +90,7 @@ export default function Admin() {
           <TabsTrigger value="plans" className="text-xs sm:text-sm"><FlaskConical className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" /> Planos</TabsTrigger>
           <TabsTrigger value="support" className="text-xs sm:text-sm"><MessageCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" /> Suporte</TabsTrigger>
           <TabsTrigger value="email" className="text-xs sm:text-sm"><Mail className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" /> E-mail</TabsTrigger>
+          <TabsTrigger value="leads" className="text-xs sm:text-sm"><TrendingUp className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" /> Leads</TabsTrigger>
           <TabsTrigger value="simulation" className="text-xs sm:text-sm"><ShoppingCart className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" /> Simulação</TabsTrigger>
           <TabsTrigger value="errors" className="text-xs sm:text-sm"><Bug className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" /> Erros</TabsTrigger>
           <TabsTrigger value="diagnostic" className="text-xs sm:text-sm"><Stethoscope className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" /> Diagnóstico</TabsTrigger>
@@ -123,6 +125,9 @@ export default function Admin() {
         </TabsContent>
         <TabsContent value="email">
           <AdminBulkEmail />
+        </TabsContent>
+        <TabsContent value="leads">
+          <AdminLeads />
         </TabsContent>
         <TabsContent value="simulation">
           <AdminStoreSimulation />
