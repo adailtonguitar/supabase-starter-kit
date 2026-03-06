@@ -141,7 +141,7 @@ export default function Produtos() {
                 ))
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={isFurnitureMode ? 9 : 8} className="px-5 py-12 text-center text-muted-foreground">
+                  <td colSpan={8} className="px-5 py-12 text-center text-muted-foreground">
                     {products.length === 0
                       ? "Nenhum produto cadastrado. Clique em \"Novo Produto\" ou importe via CSV."
                       : "Nenhum produto encontrado para a busca."}
