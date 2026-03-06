@@ -1723,6 +1723,7 @@ export default function PDV() {
           companyCnpj={cnpj || undefined}
           companyIe={ie || undefined}
           companyPhone={phone || undefined}
+          customerCpf={receipt.customerCpf}
           companyAddress={[addressStreet, addressNumber, addressNeighborhood, addressCity, addressState].filter(Boolean).join(', ') || undefined}
           onClose={() => setReceipt(null)}
         />
