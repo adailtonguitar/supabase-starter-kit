@@ -59,6 +59,9 @@ export default function PDV() {
     serie?: string;
     isContingency?: boolean;
     saleId?: string;
+    customerCpf?: string;
+    protocolNumber?: string;
+    protocolDate?: string;
   } | null>(null);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showProductList, setShowProductList] = useState(false);
