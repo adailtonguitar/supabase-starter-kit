@@ -35,9 +35,13 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
   const changeAmount = payments?.find(p => p.changeAmount > 0)?.changeAmount || 0;
 
   const handlePrint = useCallback(() => {
-    const itemsHtml = (items || []).map((item: any) =>
-      `<div class="row"><span>${item.quantity || 1}x ${item.name}</span><span>${formatCurrency((item.quantity || 1) * item.price)}</span></div>${item.notes ? `<div class="obs">  📝 ${item.notes}</div>` : ""}`
-    ).join("");
+    const itemsHtml = (items || []).map((item: any) => {
+      const qty = item.quantity || 1;
+      const unitPrice = item.price || 0;
+      const totalItem = qty * unitPrice;
+      return `<div class="item-name">${item.name}</div>
+              <div class="row item-detail"><span>${qty} x ${formatCurrency(unitPrice)}</span><span>${formatCurrency(totalItem)}</span></div>${item.notes ? `<div class="obs">  📝 ${item.notes}</div>` : ""}`;
+    }).join("");
 
     const paymentsHtml = (payments || []).map((p: any) =>
       `<div class="row"><span>${methodLabel(p.method)}</span><span>${formatCurrency(p.amount)}</span></div>`
