@@ -1,4 +1,5 @@
 import { useState, useMemo, useRef, useCallback } from "react";
+import { useFurnitureMode } from "@/hooks/useFurnitureMode";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -58,6 +59,9 @@ const schema = z.object({
   gtin_tributavel: z.string().trim().max(20).optional(),
   supplier_id: z.string().uuid().optional().or(z.literal("")),
   shelf_location: z.string().trim().max(50).optional(),
+  voltage: z.string().optional().or(z.literal("")),
+  warranty_months: z.coerce.number().min(0).optional(),
+  serial_number: z.string().trim().max(100).optional(),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -73,6 +77,7 @@ const units = ["UN", "KG", "LT", "MT", "CX", "PCT"];
 
 export function ProductFormDialog({ open, onOpenChange, product }: Props) {
   const { data: fiscalCategories = [] } = useFiscalCategories();
+  const { enabled: isFurnitureMode } = useFurnitureMode();
   const { data: suppliers = [] } = useSuppliers();
   const { user } = useAuth();
   const planFeatures = usePlanFeatures();
@@ -180,6 +185,9 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
       gtin_tributavel: (product as any)?.gtin_tributavel ?? "",
       supplier_id: (product as any)?.supplier_id ?? "",
       shelf_location: (product as any)?.shelf_location ?? "",
+      voltage: (product as any)?.voltage ?? "",
+      warranty_months: (product as any)?.warranty_months ?? 0,
+      serial_number: (product as any)?.serial_number ?? "",
     },
   });
 
@@ -282,6 +290,9 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
         sku: finalSku,
         fiscal_category_id: data.fiscal_category_id || null,
         supplier_id: data.supplier_id || null,
+        voltage: data.voltage || null,
+        serial_number: data.serial_number || null,
+        warranty_months: data.warranty_months || null,
       };
 
       let savedProduct: any;
@@ -736,7 +747,47 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
                     <FormMessage />
                   </FormItem>
                 )} />
+            </div>
+
+            {/* Eletro / Móveis — Voltagem, Garantia, Nº Série */}
+            {isFurnitureMode && (
+              <div>
+                <h2 className="text-lg font-semibold text-foreground mb-4">Eletro & Garantia</h2>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <FormField control={form.control} name="voltage" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Voltagem</FormLabel>
+                      <Select onValueChange={(v) => field.onChange(v === "__none__" ? "" : v)} defaultValue={field.value || "__none__"}>
+                        <FormControl>
+                          <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="__none__">Não se aplica</SelectItem>
+                          <SelectItem value="110V">110V</SelectItem>
+                          <SelectItem value="220V">220V</SelectItem>
+                          <SelectItem value="Bivolt">Bivolt</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                  <FormField control={form.control} name="warranty_months" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Garantia (meses)</FormLabel>
+                      <FormControl><Input type="number" min="0" placeholder="Ex: 12" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                  <FormField control={form.control} name="serial_number" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Nº de Série</FormLabel>
+                      <FormControl><Input placeholder="Ex: SN-ABC123456" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                </div>
               </div>
+            )}
             </div>
 
             {/* Preços e Estoque */}

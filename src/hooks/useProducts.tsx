@@ -19,6 +19,9 @@ export interface Product {
   is_active?: boolean;
   image_url?: string;
   shelf_location?: string;
+  voltage?: string;
+  warranty_months?: number;
+  serial_number?: string;
 }
 
 export function useProducts() {
