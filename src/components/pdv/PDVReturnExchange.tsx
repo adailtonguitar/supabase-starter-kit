@@ -51,13 +51,13 @@ export function PDVReturnExchangeDialog({ open, onClose }: PDVReturnExchangeProp
 
       const matched = (sales || []).filter(s => s.id.toLowerCase().startsWith(query));
 
-      if (!sales || sales.length === 0) {
+      if (matched.length === 0) {
         toast.warning("Venda não encontrada", { duration: 1500 });
         setSearching(false);
         return;
       }
 
-      const sale = sales[0];
+      const sale = matched[0];
       const { data: items } = await supabase
         .from("sale_items")
         .select("id, product_id, product_name, quantity, unit_price, subtotal")
