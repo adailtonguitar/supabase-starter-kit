@@ -109,6 +109,8 @@ const MontadorAmbiente = lazy(() => import("./pages/MontadorAmbiente"));
 const RastreioEntrega = lazy(() => import("./pages/RastreioEntrega"));
 const VisualizadorAR = lazy(() => import("./pages/VisualizadorAR"));
 const ShowroomVirtual = lazy(() => import("./pages/ShowroomVirtual"));
+const RelatoriosMoveis = lazy(() => import("./pages/RelatoriosMoveis"));
+const ComissoesMoveis = lazy(() => import("./pages/ComissoesMoveis"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -470,6 +472,8 @@ function AppRoutes() {
                     <Route path="/rastreio-entrega" element={<RastreioEntrega />} />
                     <Route path="/visualizador-ar" element={<VisualizadorAR />} />
                     <Route path="/showroom-virtual" element={<ShowroomVirtual />} />
+                    <Route path="/relatorios-moveis" element={<RelatoriosMoveis />} />
+                    <Route path="/comissoes-moveis" element={<ComissoesMoveis />} />
                     <Route path="/admin" element={<Admin />} />
                     <Route path="/ajuda" element={<Ajuda />} />
                     <Route path="*" element={<NotFound />} />

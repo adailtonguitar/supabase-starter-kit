@@ -210,6 +210,8 @@ const furnitureNavItems: NavEntry[] = [
       { icon: UserIcon, label: "Portal do Cliente", path: "/portal-cliente" },
       { icon: BadgeDollarSign, label: "Crediário Próprio", path: "/crediario" },
       { icon: BrainIcon, label: "Previsão Demanda", path: "/previsao-demanda" },
+      { icon: BarChart3, label: "Relatórios Móveis", path: "/relatorios-moveis" },
+      { icon: Percent, label: "Comissões", path: "/comissoes-moveis" },
     ],
   },
 ];
@@ -228,6 +230,7 @@ const furnitureAllowedPaths = new Set([
   "/galeria-antes-depois", "/medicao-ambiente", "/assistencia-tecnica", "/portal-cliente",
   "/crediario", "/previsao-demanda", "/montador-ambiente", "/rastreio-entrega",
   "/visualizador-ar", "/showroom-virtual", "/orcamentos", "/pedidos-compra",
+  "/relatorios-moveis", "/comissoes-moveis",
 ]);
 
 function filterNavForFurniture(items: NavEntry[]): NavEntry[] {
