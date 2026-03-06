@@ -28,7 +28,7 @@ export default function Produtos() {
   const [search, setSearch] = useState("");
   const { data: products = [], isLoading } = useProducts();
   const deleteProduct = useDeleteProduct();
-  const { enabled: isFurnitureMode } = useFurnitureMode();
+  
 
   const [showForm, setShowForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);

@@ -749,47 +749,6 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
                 )} />
             </div>
 
-            {/* Eletro / Móveis — Voltagem, Garantia, Nº Série */}
-            {isFurnitureMode && (
-              <div>
-                <h2 className="text-lg font-semibold text-foreground mb-4">Eletro & Garantia</h2>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <FormField control={form.control} name="voltage" render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Voltagem</FormLabel>
-                      <Select onValueChange={(v) => field.onChange(v === "__none__" ? "" : v)} defaultValue={field.value || "__none__"}>
-                        <FormControl>
-                          <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="__none__">Não se aplica</SelectItem>
-                          <SelectItem value="110V">110V</SelectItem>
-                          <SelectItem value="220V">220V</SelectItem>
-                          <SelectItem value="Bivolt">Bivolt</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )} />
-                  <FormField control={form.control} name="warranty_months" render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Garantia (meses)</FormLabel>
-                      <FormControl><Input type="number" min="0" placeholder="Ex: 12" {...field} /></FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )} />
-                  <FormField control={form.control} name="serial_number" render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Nº de Série</FormLabel>
-                      <FormControl><Input placeholder="Ex: SN-ABC123456" {...field} /></FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )} />
-                </div>
-              </div>
-            )}
-            </div>
-
             {/* Preços e Estoque */}
             <div>
               <h2 className="text-lg font-semibold text-foreground mb-4">Preços e Estoque</h2>

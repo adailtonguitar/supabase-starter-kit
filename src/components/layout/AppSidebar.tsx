@@ -216,7 +216,7 @@ export function AppSidebar({ mobileOpen, onMobileClose }: AppSidebarProps) {
     }
   }, [location.pathname]);
 
-  let visibleNavItems: NavEntry[] = furnitureMode ? [...furnitureNavItems, ...filterNavForFurniture(navItems)] : [...navItems];
+  let visibleNavItems: NavEntry[] = [...navItems];
   if (isSuperAdmin) {
     visibleNavItems = [...visibleNavItems, adminNavItem];
   }

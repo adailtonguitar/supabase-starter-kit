@@ -220,14 +220,7 @@ export default function Relatorios() {
     "/diagnostico-financeiro",
   ]);
 
-  const filteredCategories = furnitureMode
-    ? categories
-        .map(cat => ({
-          ...cat,
-          cards: cat.cards.filter(c => !furnitureHiddenPaths.has(c.path)),
-        }))
-        .filter(cat => cat.cards.length > 0)
-    : categories;
+  const filteredCategories = categories;
 
   const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
