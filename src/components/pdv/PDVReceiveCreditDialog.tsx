@@ -142,6 +142,8 @@ export function PDVReceiveCreditDialog({ open, onClose }: PDVReceiveCreditDialog
         storeCnpj: cnpj || undefined,
         storePhone: phone || undefined,
         storeAddress: [addressStreet, addressNumber, addressNeighborhood, addressCity, addressState].filter(Boolean).join(", ") || undefined,
+        storeCity: addressCity || undefined,
+        storeState: addressState || undefined,
         items: receiptItems,
       });
     } catch (err: any) {
