@@ -18,13 +18,63 @@ interface ArtAsset {
 }
 
 const existingArts: ArtAsset[] = [
+  // Screenshots reais do sistema
+  {
+    id: "screenshot-pdv",
+    name: "PDV — Tela de Vendas",
+    format: "Screenshot",
+    dimensions: "1920×1080",
+    url: "/marketing/screenshot-pdv.png",
+    category: "screenshot",
+  },
+  {
+    id: "screenshot-pdv-tela",
+    name: "PDV — Interface Completa",
+    format: "Screenshot",
+    dimensions: "1920×1080",
+    url: "/marketing/screenshot-pdv-tela.png",
+    category: "screenshot",
+  },
+  {
+    id: "screenshot-pdv-composicao",
+    name: "PDV — Composição Visual",
+    format: "Screenshot",
+    dimensions: "1920×1080",
+    url: "/marketing/screenshot-pdv-composicao.png",
+    category: "screenshot",
+  },
+  {
+    id: "screenshot-dashboard",
+    name: "Dashboard — Painel Principal",
+    format: "Screenshot",
+    dimensions: "1920×1080",
+    url: "/marketing/screenshot-dashboard.png",
+    category: "screenshot",
+  },
+  {
+    id: "screenshot-financeiro",
+    name: "Financeiro — Gestão Completa",
+    format: "Screenshot",
+    dimensions: "1920×1080",
+    url: "/marketing/screenshot-financeiro.png",
+    category: "screenshot",
+  },
+  {
+    id: "screenshot-mobile",
+    name: "Mobile — Mockup Responsivo",
+    format: "Screenshot",
+    dimensions: "Mobile",
+    url: "/marketing/screenshot-mobile.png",
+    category: "screenshot",
+  },
+  // Artes promocionais
   {
     id: "feed-1",
     name: "Feed Instagram — Gestão Completa",
     format: "Feed Instagram",
     dimensions: "1080×1080",
     url: "/marketing/feed-instagram-1080x1080.png",
-    category: "geral",
+    category: "arte",
   },
   {
     id: "stories-1",
@@ -32,7 +82,7 @@ const existingArts: ArtAsset[] = [
     format: "Stories",
     dimensions: "1080×1920",
     url: "/marketing/stories-1080x1920.png",
-    category: "geral",
+    category: "arte",
   },
   {
     id: "banner-1",
@@ -40,7 +90,7 @@ const existingArts: ArtAsset[] = [
     format: "Banner Facebook",
     dimensions: "1920×1080",
     url: "/marketing/banner-facebook-1920x1080.png",
-    category: "geral",
+    category: "arte",
   },
 ];
 
@@ -145,10 +195,29 @@ export function AdminMarketing() {
       {/* Gallery Section */}
       <Card>
         <CardHeader className="p-3 sm:p-6">
-          <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
-            <Image className="h-4 w-4 text-primary" />
-            Galeria de Artes
-          </CardTitle>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+              <Image className="h-4 w-4 text-primary" />
+              Galeria de Marketing
+            </CardTitle>
+            <div className="flex gap-1.5">
+              {[
+                { value: "all", label: "Tudo" },
+                { value: "screenshot", label: "Screenshots" },
+                { value: "arte", label: "Artes" },
+              ].map((f) => (
+                <Button
+                  key={f.value}
+                  size="sm"
+                  variant={filter === f.value ? "default" : "outline"}
+                  className="h-7 text-xs px-3"
+                  onClick={() => setFilter(f.value)}
+                >
+                  {f.label}
+                </Button>
+              ))}
+            </div>
+          </div>
         </CardHeader>
         <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0">
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
