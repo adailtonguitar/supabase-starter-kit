@@ -91,7 +91,8 @@ export class DemoDataService {
 
     if (existingProducts && existingProducts.length > 0) {
       DemoDataService.markSeeded(companyId);
-      return { products: 0, clients: 0, sales: 0, suppliers: 0, expenses: 0 };
+      // Return -1 to signal "already seeded" vs "failed"
+      return { products: -1, clients: -1, sales: -1, suppliers: -1, expenses: -1 };
     }
 
     // 1) Insert products
