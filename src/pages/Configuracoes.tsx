@@ -768,7 +768,7 @@ export default function Configuracoes() {
         <p className="text-xs sm:text-sm text-muted-foreground mt-1">Configurações gerais do sistema</p>
       </motion.div>
 
-      <FurnitureModeSection />
+      
       <ChangePasswordSection />
       <MyPlanSection />
       <CashRegisterToggleSection />
