@@ -36,7 +36,7 @@ export function PDVReceiveCreditDialog({ open, onClose }: PDVReceiveCreditDialog
 
   const { data: clients = [] } = useClients();
   const { data: entries = [] } = useFinancialEntries();
-  const { companyId, companyName, slogan } = useCompany();
+  const { companyId, companyName, slogan, cnpj, phone, addressStreet, addressNumber, addressNeighborhood, addressCity, addressState } = useCompany();
   const { user } = useAuth();
   const qc = useQueryClient();
 
