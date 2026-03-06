@@ -8,7 +8,7 @@ const aiFeatures = [
     title: "Insight IA no Dashboard",
     desc: "A cada acesso, a IA analisa suas vendas, estoque e finanças e entrega um resumo inteligente com recomendações práticas.",
     badge: "Todos os planos",
-    badgeClass: "bg-emerald-500/15 text-emerald-600",
+    badgeClass: "bg-success/15 text-success",
   },
   {
     icon: Stethoscope,
