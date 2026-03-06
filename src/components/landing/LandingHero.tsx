@@ -22,7 +22,32 @@ const trustBadges = [
 
 export function LandingHero() {
   const [zoomed, setZoomed] = useState(false);
+  const [demoLoading, setDemoLoading] = useState(false);
+  const navigate = useNavigate();
 
+  const handleDemo = async () => {
+    setDemoLoading(true);
+    try {
+      const demoId = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+      const companyName = `Loja Demo ${demoId.toUpperCase()}`;
+      const { data, error } = await supabase.functions.invoke("create-demo-account", {
+        body: { company_name: companyName },
+      });
+      if (error || !data?.email) throw new Error(error?.message || "Erro ao criar conta demo");
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: data.email,
+        password: data.password,
+      });
+      if (signInError) throw signInError;
+      localStorage.setItem("as_selected_company", data.company_id);
+      toast.success("Conta demo criada! Explore o sistema à vontade.");
+      navigate("/dashboard");
+    } catch (err: any) {
+      toast.error(err?.message || "Erro ao criar demo");
+    } finally {
+      setDemoLoading(false);
+    }
+  };
   return (
     <section className="relative overflow-hidden">
       {/* Background gradient mesh */}
