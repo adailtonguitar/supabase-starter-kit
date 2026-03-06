@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "./useCompany";
+import { toast } from "sonner";
 
 export function useClients() {
   const { companyId } = useCompany();
@@ -24,7 +25,11 @@ export function useCreateClient() {
       const { error } = await supabase.from("clients").insert({ ...data, company_id: companyId });
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["clients"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["clients"] });
+      toast.success("Cliente cadastrado com sucesso");
+    },
+    onError: (e: Error) => toast.error(`Erro ao cadastrar cliente: ${e.message}`),
   });
 }
 
@@ -38,7 +43,11 @@ export function useUpdateClient() {
       const { error } = await supabase.from("clients").update(rest).eq("id", id).eq("company_id", companyId);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["clients"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["clients"] });
+      toast.success("Cliente atualizado");
+    },
+    onError: (e: Error) => toast.error(`Erro ao atualizar cliente: ${e.message}`),
   });
 }
 
@@ -51,6 +60,10 @@ export function useDeleteClient() {
       const { error } = await supabase.from("clients").delete().eq("id", id).eq("company_id", companyId);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["clients"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["clients"] });
+      toast.success("Cliente excluído");
+    },
+    onError: (e: Error) => toast.error(`Erro ao excluir cliente: ${e.message}`),
   });
 }

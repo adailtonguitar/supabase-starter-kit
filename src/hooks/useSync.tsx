@@ -22,18 +22,25 @@ type SyncProcessor = (item: SyncQueueItem) => Promise<void>;
 
 const processors: Record<string, SyncProcessor> = {
   sale: async (item) => {
-    const payload = item.payload;
-    const { error } = await supabase.from("fiscal_documents").insert({
-      company_id: payload.company_id as string,
-      doc_type: "nfce",
-      total_value: payload.total as number,
-      payment_method: payload.payment_method as string,
-      items_json: payload.items as any,
-      status: "pendente",
-      issued_by: payload.user_id as string,
-      created_at: payload.created_at as string,
+    const p = item.payload;
+
+    // Use the atomic RPC — same as online PDV flow
+    const { data: rpcResult, error: rpcError } = await supabase.rpc("finalize_sale_atomic", {
+      p_company_id: p.company_id as string,
+      p_terminal_id: p.terminal_id as string || "OFFLINE",
+      p_session_id: p.session_id as string || null,
+      p_items: p.items as any,
+      p_subtotal: p.subtotal as number || p.total as number,
+      p_discount_pct: (p.discount_pct as number) || 0,
+      p_discount_val: (p.discount_val as number) || 0,
+      p_total: p.total as number,
+      p_payments: p.payments as any || [{ method: p.payment_method || "dinheiro", amount: p.total, approved: true }],
+      p_sold_by: (p.user_id as string) || null,
     });
-    if (error) throw new Error(error.message);
+
+    if (rpcError) throw new Error(rpcError.message);
+    const result = rpcResult as any;
+    if (result && !result.success) throw new Error(result.error || "Erro ao sincronizar venda");
   },
   stock_movement: async (item) => {
     const p = item.payload;
