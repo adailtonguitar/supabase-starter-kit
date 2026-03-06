@@ -265,7 +265,16 @@ export default function Auth() {
 
       if (signInError) throw signInError;
 
-      toast.success("Conta demo criada! Explore o sistema à vontade.");
+      // Seed demo data immediately after login
+      try {
+        const { DemoDataService } = await import("@/services/DemoDataService");
+        const result = await DemoDataService.seedDemoData(data.company_id, data.user_id);
+        toast.success(`Conta demo criada com ${result.products} produtos, ${result.clients} clientes e ${result.sales} vendas!`);
+      } catch (seedErr: any) {
+        console.error("Erro ao gerar dados demo:", seedErr);
+        toast.success("Conta demo criada! Os dados serão gerados ao carregar o painel.");
+      }
+
       navigate("/");
     } catch (error: any) {
       toast.error(error.message || "Erro ao criar conta demo");
