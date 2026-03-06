@@ -90,33 +90,15 @@ export function AdminMarketing() {
       const theme = aiPromptTemplates.find((t) => t.id === selectedTheme);
       const prompt = customPrompt.trim() || theme?.prompt || "Promotional art for AnthoSystem retail management system";
 
-      // Use the Lovable AI gateway for image generation
-      const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "google/gemini-2.5-flash-image",
-          messages: [
-            {
-              role: "user",
-              content: `Generate a ${format.width}x${format.height} professional social media promotional image. ${prompt}`,
-            },
-          ],
-          modalities: ["image", "text"],
-        }),
+      const { data, error } = await supabase.functions.invoke("generate-marketing-art", {
+        body: { prompt, width: format.width, height: format.height },
       });
 
-      if (!response.ok) {
-        throw new Error("Erro ao gerar imagem");
-      }
+      if (error) throw new Error("Erro ao gerar imagem");
+      if (data?.error) throw new Error(data.error);
 
-      const data = await response.json();
-      const imageUrl = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
-
-      if (imageUrl) {
-        setGeneratedImage(imageUrl);
+      if (data?.image) {
+        setGeneratedImage(data.image);
         toast.success("Arte gerada com sucesso!");
       } else {
         throw new Error("Nenhuma imagem retornada");
