@@ -11,6 +11,7 @@ interface Props {
     barcode?: string;
     sku?: string;
   };
+  productId?: string;
   spec?: {
     width?: string;
     height?: string;
@@ -22,13 +23,17 @@ interface Props {
 
 const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-export default function EtiquetaShowroom({ product, spec }: Props) {
+export default function EtiquetaShowroom({ product, productId, spec }: Props) {
   const handlePrint = () => {
     const storeName = localStorage.getItem("as_store_name") || "Nossa Loja";
     const dimensions = [spec?.width, spec?.height, spec?.depth].filter(Boolean).join(" × ");
     const materials = spec?.materials?.join(", ") || "";
     const colors = spec?.colors?.join(", ") || "";
     const parcela = product.price > 0 ? fmt(product.price / 10) : "";
+
+    // URL do catálogo com produto específico
+    const catalogUrl = `${window.location.origin}/catalogo-moveis${productId ? `?produto=${productId}` : ""}`;
+    const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(catalogUrl)}`;
 
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Etiqueta - ${product.name}</title>
     <style>
@@ -43,6 +48,7 @@ export default function EtiquetaShowroom({ product, spec }: Props) {
       .specs { font-size:10px; color:#555; border-top:1px solid #eee; padding-top:8px; margin-top:8px; }
       .specs .row { display:flex; justify-content:space-between; padding:2px 0; }
       .qr-area { text-align:center; margin-top:10px; padding-top:8px; border-top:1px solid #eee; }
+      .qr-area img { margin:6px auto; display:block; }
       .qr-area span { font-size:9px; color:#aaa; }
       .sku { font-size:9px; color:#aaa; text-align:center; margin-top:4px; font-family:monospace; }
       @media print { body { margin:0; } .label { border-color:#000; margin:0; } }
@@ -59,7 +65,8 @@ export default function EtiquetaShowroom({ product, spec }: Props) {
         ${colors ? `<div class="row"><span>🎨 Cores</span><span>${colors}</span></div>` : ""}
       </div>
       <div class="qr-area">
-        <span>Escaneie para ver ficha técnica completa</span>
+        <img src="${qrImageUrl}" width="100" height="100" alt="QR Code" />
+        <span>Escaneie para ver fotos e ficha técnica completa</span>
       </div>
       ${product.sku ? `<div class="sku">SKU: ${product.sku}${product.barcode ? ` | EAN: ${product.barcode}` : ""}</div>` : ""}
     </div>
