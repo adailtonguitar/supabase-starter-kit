@@ -66,3 +66,6 @@ verify_jwt = false
 
 [functions.send-bulk-email]
 verify_jwt = false
+
+[functions.create-demo-account]
+verify_jwt = false
