@@ -70,12 +70,19 @@ Deno.serve(async (req) => {
       is_active: true,
     });
 
-    // 4) Create starter plan
+    // 4) Create Pro plan with 7-day expiration
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 7);
+
     await supabaseAdmin.from("company_plans").insert({
       company_id: company.id,
-      plan: "starter",
+      plan: "pro",
       status: "active",
-      max_users: 1,
+      max_users: 0,
+      fiscal_enabled: true,
+      advanced_reports_enabled: true,
+      financial_module_level: "full",
+      expires_at: expiresAt.toISOString(),
     });
 
     // 5) Create profile if profiles table exists
