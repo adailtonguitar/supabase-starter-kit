@@ -36,6 +36,7 @@ export function useSessionControl() {
   const { user, signOut } = useAuth();
   const { companyId } = useCompany();
   const { isSuperAdmin } = useAdminRole();
+  const isDemoRef = useRef(false);
   const registeredRef = useRef(false);
 
   const registerSession = useCallback(async () => {
