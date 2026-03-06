@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { QrCode, Printer } from "lucide-react";
 import { toast } from "sonner";
+import { useCompany } from "@/hooks/useCompany";
 
 interface Props {
   product: {
@@ -24,8 +25,9 @@ interface Props {
 const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 export default function EtiquetaShowroom({ product, productId, spec }: Props) {
+  const { companyName } = useCompany();
   const handlePrint = () => {
-    const storeName = localStorage.getItem("as_store_name") || "Nossa Loja";
+    const storeName = companyName || "Nossa Loja";
     const dimensions = [spec?.width, spec?.height, spec?.depth].filter(Boolean).join(" × ");
     const materials = spec?.materials?.join(", ") || "";
     const colors = spec?.colors?.join(", ") || "";

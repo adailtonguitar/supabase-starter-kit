@@ -4,6 +4,7 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { FileText, Printer } from "lucide-react";
 import { toast } from "sonner";
+import { useCompany } from "@/hooks/useCompany";
 
 interface PropostaItem {
   name: string;
@@ -26,8 +27,9 @@ interface Props {
 const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 export default function PropostaPDFDialog({ open, onOpenChange, ambienteName, comboName, items, total, discount, discountPercent, imageUrl }: Props) {
-  const storeName = localStorage.getItem("as_store_name") || "Nossa Loja de Móveis";
-  const storePhone = localStorage.getItem("as_store_phone") || "";
+  const { companyName, phone } = useCompany();
+  const storeName = companyName || "Nossa Loja de Móveis";
+  const storePhone = phone || "";
 
   const handlePrint = () => {
     const subtotal = items.reduce((s, it) => s + it.price * it.quantity, 0);

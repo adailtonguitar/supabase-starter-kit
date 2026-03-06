@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { QrCode, Share2, Copy, Check, MessageCircle } from "lucide-react";
 import { toast } from "sonner";
+import { useCompany } from "@/hooks/useCompany";
 
 interface ShareItem {
   name: string;
@@ -28,9 +29,10 @@ interface Props {
 const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 export default function CatalogoShareDialog({ open, onOpenChange, ambienteName, comboName, items, total, discount, imageUrl }: Props) {
+  const { companyName, phone: companyPhone } = useCompany();
   const [copied, setCopied] = useState(false);
-  const [storeName, setStoreName] = useState(() => localStorage.getItem("as_store_name") || "Nossa Loja");
-  const [storePhone, setStorePhone] = useState(() => localStorage.getItem("as_store_phone") || "");
+  const [storeName, setStoreName] = useState(companyName || "Nossa Loja");
+  const [storePhone, setStorePhone] = useState(companyPhone || "");
   const [customMessage, setCustomMessage] = useState("");
 
   const buildMessage = () => {
