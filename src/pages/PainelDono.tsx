@@ -288,7 +288,7 @@ export default function PainelDono() {
             {stats.topProducts.slice(0, 5).map((p, i) => (
               <div key={p.name} className="flex items-center gap-3">
                 <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
-                  i === 0 ? "bg-amber-500/15 text-amber-500" : i === 1 ? "bg-muted text-muted-foreground" : i === 2 ? "bg-orange-500/10 text-orange-500" : "bg-muted/50 text-muted-foreground"
+                  i === 0 ? "bg-warning/15 text-warning" : i === 1 ? "bg-muted text-muted-foreground" : i === 2 ? "bg-warning/10 text-warning" : "bg-muted/50 text-muted-foreground"
                 }`}>
                   {i + 1}
                 </span>
