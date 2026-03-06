@@ -58,6 +58,7 @@ export default function PDV() {
     accessKey?: string;
     serie?: string;
     isContingency?: boolean;
+    saleId?: string;
   } | null>(null);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showProductList, setShowProductList] = useState(false);
