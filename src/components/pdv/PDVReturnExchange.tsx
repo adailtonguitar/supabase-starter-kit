@@ -39,15 +39,17 @@ export function PDVReturnExchangeDialog({ open, onClose }: PDVReturnExchangeProp
     setFoundSale(null);
     setSelectedItems({});
     try {
-      // Search by sale ID prefix
+      // Search by sale ID prefix (uuid columns don't support ilike, so we fetch recent and filter in JS)
+      const query = searchQuery.trim().toLowerCase();
       const { data: sales } = await supabase
         .from("sales")
         .select("id, total, created_at, status")
         .eq("company_id", companyId)
         .eq("status", "completed")
-        .ilike("id", `${searchQuery.trim()}%`)
         .order("created_at", { ascending: false })
-        .limit(1);
+        .limit(200);
+
+      const matched = (sales || []).filter(s => s.id.toLowerCase().startsWith(query));
 
       if (!sales || sales.length === 0) {
         toast.warning("Venda não encontrada", { duration: 1500 });
