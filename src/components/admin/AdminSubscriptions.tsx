@@ -96,6 +96,14 @@ export function AdminSubscriptions() {
     setSaving(null);
   };
 
+  const toggleDemo = async (row: PlanRow) => {
+    const newVal = !row.is_demo;
+    const { error } = await (supabase.from("companies").update({ is_demo: newVal } as any) as any).eq("id", row.company_id);
+    if (error) { toast.error("Erro: " + error.message); return; }
+    setPlans(prev => prev.map(r => r.id === row.id ? { ...r, is_demo: newVal } : r));
+    toast.success(newVal ? "Empresa marcada como Demo" : "Modo demo desativado");
+  };
+
   const filtered = plans.filter(p => {
     if (filterPlan !== "all" && p.plan !== filterPlan) return false;
     return !search.trim() || (p.company_name || "").toLowerCase().includes(search.toLowerCase());
