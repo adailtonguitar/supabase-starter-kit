@@ -69,7 +69,7 @@ interface SimpleRecipient {
 }
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: typeof CheckCircle }> = {
-  autorizado: { label: "Autorizada", color: "text-emerald-500 bg-emerald-500/10", icon: CheckCircle },
+  autorizado: { label: "Autorizada", color: "text-success bg-success/10", icon: CheckCircle },
   cancelado: { label: "Cancelada", color: "text-destructive bg-destructive/10", icon: AlertTriangle },
   rejeitado: { label: "Rejeitada", color: "text-destructive bg-destructive/10", icon: AlertTriangle },
   pendente: { label: "Pendente", color: "text-warning bg-warning/10", icon: Clock },
