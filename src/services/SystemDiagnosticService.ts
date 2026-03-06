@@ -58,6 +58,7 @@ export class SystemDiagnosticService {
         duration: Math.round(performance.now() - start),
       });
     } catch (err: any) {
+      console.error(`[DIAG] ${group} > ${name} FAILED:`, err);
       this.addResult({
         group,
         name,
