@@ -91,6 +91,7 @@ export default function Admin() {
           <TabsTrigger value="email" className="text-xs sm:text-sm"><Mail className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" /> E-mail</TabsTrigger>
           <TabsTrigger value="simulation" className="text-xs sm:text-sm"><ShoppingCart className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" /> Simulação</TabsTrigger>
           <TabsTrigger value="errors" className="text-xs sm:text-sm"><Bug className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" /> Erros</TabsTrigger>
+          <TabsTrigger value="diagnostic" className="text-xs sm:text-sm"><Stethoscope className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" /> Diagnóstico</TabsTrigger>
         </TabsList>
 
         <TabsContent value="dashboard">
