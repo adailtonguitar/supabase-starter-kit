@@ -171,8 +171,7 @@ export default function DiagnosticoSistema() {
             <CardTitle className="text-lg">Resultado Detalhado</CardTitle>
           </CardHeader>
           <CardContent>
-            <ScrollArea className="max-h-[60vh]">
-              <div className="space-y-6">
+            <div className="space-y-6">
                 {Object.entries(groups).map(([groupName, tests]) => {
                   const Icon = groupIcons[groupName] || Activity;
                   const groupPassed = tests.filter((t) => t.status === "pass").length;
