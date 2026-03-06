@@ -120,7 +120,7 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
     }
 
     const itemsHtml = (items || []).map((item: any, idx: number) =>
-      `<div class="row"><span>${String(idx + 1).padStart(3, '0')} ${(item.quantity || 1)}x ${item.name}</span><span>${formatCurrency((item.quantity || 1) * item.price)}</span></div>`
+      `<div class="row"><span>${String(idx + 1).padStart(3, '0')} ${(item.quantity || 1)}x ${item.name}</span><span>${formatCurrency((item.quantity || 1) * item.price)}</span></div>${item.notes ? `<div class="obs">  📝 ${item.notes}</div>` : ""}`
     ).join("");
 
     const paymentsHtml = (payments || []).map((p: any) =>
