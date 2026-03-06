@@ -81,8 +81,8 @@ function RankingTab() {
     <div className="space-y-4">
       <div className="grid gap-4 md:grid-cols-3">
         <Card><CardContent className="pt-6 text-center"><Users className="w-8 h-8 text-primary mx-auto mb-2" /><p className="text-2xl font-bold">{topClients.length}</p><p className="text-xs text-muted-foreground">Clientes com pontos</p></CardContent></Card>
-        <Card><CardContent className="pt-6 text-center"><Star className="w-8 h-8 text-yellow-500 mx-auto mb-2" /><p className="text-2xl font-bold">{topClients.reduce((s: number, c: any) => s + c.loyalty_points, 0).toLocaleString("pt-BR")}</p><p className="text-xs text-muted-foreground">Total de pontos ativos</p></CardContent></Card>
-        <Card><CardContent className="pt-6 text-center"><TrendingUp className="w-8 h-8 text-emerald-500 mx-auto mb-2" /><p className="text-2xl font-bold">R$ {(topClients.reduce((s: number, c: any) => s + c.loyalty_points, 0) * (config?.redemption_value || 0.01)).toFixed(2)}</p><p className="text-xs text-muted-foreground">Valor em pontos (potencial)</p></CardContent></Card>
+        <Card><CardContent className="pt-6 text-center"><Star className="w-8 h-8 text-warning mx-auto mb-2" /><p className="text-2xl font-bold">{topClients.reduce((s: number, c: any) => s + c.loyalty_points, 0).toLocaleString("pt-BR")}</p><p className="text-xs text-muted-foreground">Total de pontos ativos</p></CardContent></Card>
+        <Card><CardContent className="pt-6 text-center"><TrendingUp className="w-8 h-8 text-success mx-auto mb-2" /><p className="text-2xl font-bold">R$ {(topClients.reduce((s: number, c: any) => s + c.loyalty_points, 0) * (config?.redemption_value || 0.01)).toFixed(2)}</p><p className="text-xs text-muted-foreground">Valor em pontos (potencial)</p></CardContent></Card>
       </div>
       <Card>
         <CardHeader><CardTitle className="text-base flex items-center gap-2"><Trophy className="w-4 h-4 text-primary" />Ranking de Clientes</CardTitle></CardHeader>
