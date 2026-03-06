@@ -37,6 +37,16 @@ CREATE POLICY "system_errors_anon_insert" ON public.system_errors
   FOR INSERT TO anon
   WITH CHECK (true);
 
+-- Only super_admin can delete errors
+CREATE POLICY "system_errors_admin_delete" ON public.system_errors
+  FOR DELETE TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.admin_roles ar
+      WHERE ar.user_id = auth.uid() AND ar.role = 'super_admin'
+    )
+  );
+
 -- Indexes
 CREATE INDEX IF NOT EXISTS idx_system_errors_created ON public.system_errors(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_system_errors_user ON public.system_errors(user_email);
