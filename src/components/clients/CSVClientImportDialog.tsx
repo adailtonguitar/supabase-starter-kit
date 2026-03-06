@@ -242,7 +242,7 @@ export function CSVClientImportDialog({ open, onOpenChange }: CSVClientImportDia
                   <tbody>
                     {clients.slice(0, 50).map((c, i) => (
                       <tr key={i} className={`border-t border-border ${!c.valid ? "bg-destructive/5" : ""}`}>
-                        <td className="px-3 py-1.5">{c.valid ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> : <AlertCircle className="w-3.5 h-3.5 text-destructive" />}</td>
+                        <td className="px-3 py-1.5">{c.valid ? <CheckCircle2 className="w-3.5 h-3.5 text-success" /> : <AlertCircle className="w-3.5 h-3.5 text-destructive" />}</td>
                         <td className="px-3 py-1.5 text-foreground truncate max-w-[180px]">{c.name}</td>
                         <td className="px-3 py-1.5 text-muted-foreground font-mono">{c.cpf_cnpj || "—"}</td>
                         <td className="px-3 py-1.5 text-muted-foreground truncate max-w-[150px]">{c.email || "—"}</td>
