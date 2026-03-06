@@ -148,6 +148,46 @@ export function useFinishInventory() {
   return useMutation({
     mutationFn: async (inventoryId: string) => {
       if (!companyId) throw new Error("Empresa não encontrada");
+
+      // 1) Buscar itens contados para aplicar ajustes
+      const { data: items, error: itemsErr } = await supabase
+        .from("inventory_count_items")
+        .select("product_id, system_quantity, counted_quantity")
+        .eq("inventory_id", inventoryId)
+        .eq("company_id", companyId)
+        .not("counted_quantity", "is", null);
+      if (itemsErr) throw itemsErr;
+
+      // 2) Aplicar ajustes de estoque para cada produto contado
+      if (items && items.length > 0) {
+        for (const item of items as any[]) {
+          const counted = Number(item.counted_quantity);
+          const system = Number(item.system_quantity);
+          if (counted !== system) {
+            await supabase
+              .from("products")
+              .update({ stock_quantity: counted })
+              .eq("id", item.product_id)
+              .eq("company_id", companyId);
+
+            // Registrar movimentação de ajuste
+            await supabase
+              .from("stock_movements" as any)
+              .insert({
+                company_id: companyId,
+                product_id: item.product_id,
+                type: "ajuste",
+                quantity: Math.abs(counted - system),
+                previous_stock: system,
+                new_stock: counted,
+                reason: `Ajuste de inventário #${inventoryId.substring(0, 8)}`,
+                reference: inventoryId,
+              });
+          }
+        }
+      }
+
+      // 3) Finalizar inventário
       const { error } = await supabase
         .from("inventory_counts")
         .update({ status: "finalizado", finished_at: new Date().toISOString() })
@@ -157,7 +197,9 @@ export function useFinishInventory() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["inventory_counts"] });
-      toast.success("Inventário finalizado");
+      qc.invalidateQueries({ queryKey: ["products"] });
+      qc.invalidateQueries({ queryKey: ["stock_movements"] });
+      toast.success("Inventário finalizado e estoque ajustado");
     },
     onError: (e: Error) => toast.error(`Erro: ${e.message}`),
   });

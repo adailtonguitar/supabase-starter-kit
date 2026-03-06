@@ -78,10 +78,32 @@ export function useCreditSystem() {
   };
 
   const markPaid = async (installmentId: string) => {
+    // Buscar valor da parcela e client_id antes de atualizar
+    const { data: installment } = await supabase.from("credit_installments")
+      .select("value, credit_client_id")
+      .eq("id", installmentId)
+      .single();
+
     const { error } = await supabase.from("credit_installments")
       .update({ paid: true, paid_date: new Date().toISOString().split("T")[0] } as any)
       .eq("id", installmentId);
     if (error) { toast.error("Erro ao marcar parcela"); return; }
+
+    // Decrementar credit_used do cliente
+    if (installment) {
+      const { data: client } = await supabase.from("credit_clients")
+        .select("credit_used")
+        .eq("id", (installment as any).credit_client_id)
+        .single();
+
+      if (client) {
+        const newUsed = Math.max(0, Number((client as any).credit_used) - Number((installment as any).value));
+        await supabase.from("credit_clients")
+          .update({ credit_used: newUsed } as any)
+          .eq("id", (installment as any).credit_client_id);
+      }
+    }
+
     toast.success("Parcela marcada como paga!");
     fetch();
   };

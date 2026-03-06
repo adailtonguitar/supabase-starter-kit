@@ -421,6 +421,7 @@ export function usePDV() {
     }
     if (!companyId || !currentSession) throw new Error("Sessão de caixa não encontrada");
     if (cartItems.length === 0) throw new Error("Carrinho vazio");
+    if (total <= 0) throw new Error("Total da venda deve ser maior que zero");
 
     finalizingRef.current = true;
     setFinalizingSale(true);
