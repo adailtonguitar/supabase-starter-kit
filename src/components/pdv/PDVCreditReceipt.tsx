@@ -8,6 +8,12 @@ const methodLabels: Record<string, string> = {
   dinheiro: "Dinheiro", debito: "Cartão Débito", credito: "Cartão Crédito", pix: "PIX",
 };
 
+export interface CreditReceiptItem {
+  name: string;
+  quantity: number;
+  unitPrice: number;
+}
+
 export interface CreditReceiptData {
   clientName: string;
   clientDoc?: string;
@@ -20,6 +26,7 @@ export interface CreditReceiptData {
   storeSlogan?: string;
   storePhone?: string;
   storeAddress?: string;
+  items?: CreditReceiptItem[];
 }
 
 interface PDVCreditReceiptProps {
@@ -60,6 +67,16 @@ export function PDVCreditReceipt({ data, onClose }: PDVCreditReceiptProps) {
         <div class="bold line">Cliente: ${data.clientName}</div>
         ${data.clientDoc ? `<div class="line">Doc: ${data.clientDoc}</div>` : ""}
         <div class="separator"></div>
+        ${data.items && data.items.length > 0 ? `
+        <div class="bold line">PRODUTOS DA(S) VENDA(S):</div>
+        <table style="width:100%;border-collapse:collapse;">
+          ${data.items.map(i => `
+            <tr><td style="padding:1px 0;">${i.quantity}x ${i.name}</td><td style="text-align:right;padding:1px 0;">${formatCurrency(i.unitPrice * i.quantity)}</td></tr>
+            <tr><td colspan="2" style="font-size:9px;color:#555;padding-left:12px;">${i.quantity} x ${formatCurrency(i.unitPrice)}</td></tr>
+          `).join("")}
+        </table>
+        <div class="separator"></div>
+        ` : ""}
         <div class="line">Saldo anterior: ${formatCurrency(data.previousBalance)}</div>
         <div class="total center">Valor recebido: ${formatCurrency(data.amount)}</div>
         <div class="line">Saldo remanescente: ${formatCurrency(data.newBalance)}</div>
@@ -96,6 +113,17 @@ export function PDVCreditReceipt({ data, onClose }: PDVCreditReceiptProps) {
           <p className="text-sm text-muted-foreground mt-1">{data.clientName}</p>
         </div>
         <div className="px-6 py-4 border-t border-border space-y-3">
+          {data.items && data.items.length > 0 && (
+            <div className="space-y-1.5 pb-3 border-b border-border">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Produtos</p>
+              {data.items.map((item, idx) => (
+                <div key={idx} className="flex justify-between text-sm">
+                  <span className="text-foreground truncate mr-2">{item.quantity}x {item.name}</span>
+                  <span className="font-mono text-foreground flex-shrink-0">{formatCurrency(item.unitPrice * item.quantity)}</span>
+                </div>
+              ))}
+            </div>
+          )}
           <div className="flex justify-between text-sm"><span className="text-muted-foreground">Saldo anterior</span><span className="font-mono text-foreground">{formatCurrency(data.previousBalance)}</span></div>
           <div className="flex justify-between items-center"><span className="text-sm text-muted-foreground">Valor recebido</span><span className="text-lg font-bold font-mono text-primary">{formatCurrency(data.amount)}</span></div>
           <div className="flex justify-between text-sm"><span className="text-muted-foreground">Saldo remanescente</span><span className="font-mono text-foreground">{formatCurrency(data.newBalance)}</span></div>
