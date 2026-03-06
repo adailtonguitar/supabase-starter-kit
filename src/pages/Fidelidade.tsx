@@ -115,11 +115,11 @@ function TransactionsTab() {
   if (transactionsLoading) return <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>;
   const clientMap = new Map(topClients.map((c: any) => [c.id, c.name]));
   const typeConfig: Record<string, { label: string; color: string; icon: React.ElementType }> = {
-    earn: { label: "Acúmulo", color: "text-emerald-500", icon: ArrowUpRight },
+    earn: { label: "Acúmulo", color: "text-success", icon: ArrowUpRight },
     redeem: { label: "Resgate", color: "text-destructive", icon: ArrowDownRight },
     bonus: { label: "Bônus", color: "text-primary", icon: Award },
     expire: { label: "Expirado", color: "text-muted-foreground", icon: History },
-    adjust: { label: "Ajuste", color: "text-amber-500", icon: Settings2 },
+    adjust: { label: "Ajuste", color: "text-warning", icon: Settings2 },
   };
   return (
     <Card>
