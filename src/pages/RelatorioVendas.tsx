@@ -479,8 +479,8 @@ export default function RelatorioVendas() {
                   <p className="text-xs text-muted-foreground font-mono">{p.sku}</p>
                 </div>
                 <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium shrink-0 ${
-                  p.margin_percent >= 30 ? "bg-emerald-500/10 text-emerald-500"
-                    : p.margin_percent >= 10 ? "bg-amber-500/10 text-amber-500"
+                  p.margin_percent >= 30 ? "bg-success/10 text-success"
+                    : p.margin_percent >= 10 ? "bg-warning/10 text-warning"
                     : "bg-destructive/10 text-destructive"
                 }`}>
                   {p.margin_percent.toFixed(1)}%
