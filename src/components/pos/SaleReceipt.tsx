@@ -101,7 +101,7 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
           ${changeHtml}
           <div class="dashed"></div>
           <p class="center sm">Qtd. total de itens: ${qtyTotal}</p>
-          ${nfceHtml}
+          <p class="center sm">Qtd. total de itens: ${qtyTotal}</p>
           <p class="center sm" style="margin-top:4px">Obrigado pela preferência!</p>
           <p class="cut">--------------------------------</p>
           <script>
