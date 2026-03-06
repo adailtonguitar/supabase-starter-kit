@@ -43,7 +43,7 @@ export function PDVReturnExchangeDialog({ open, onClose }: PDVReturnExchangeProp
       const query = searchQuery.trim().toLowerCase();
       const { data: sales, error: salesError } = await supabase
         .from("sales")
-        .select("id, total, created_at, status")
+        .select("id, total, created_at, status, items")
         .eq("company_id", companyId)
         .or("status.neq.cancelled,status.is.null")
         .order("created_at", { ascending: false })
@@ -64,14 +64,32 @@ export function PDVReturnExchangeDialog({ open, onClose }: PDVReturnExchangeProp
       }
 
       const sale = matched[0];
-      const { data: items } = await supabase
+      
+      // Try sale_items table first, fallback to JSONB items column
+      const { data: saleItems } = await supabase
         .from("sale_items")
         .select("id, product_id, product_name, quantity, unit_price, subtotal")
         .eq("sale_id", sale.id);
 
+      let parsedItems = saleItems || [];
+      
+      // Fallback: parse JSONB items from sales table
+      if (parsedItems.length === 0 && sale.items) {
+        const jsonItems = Array.isArray(sale.items) ? sale.items : 
+          typeof sale.items === "string" ? JSON.parse(sale.items) : [];
+        parsedItems = jsonItems.map((it: any, idx: number) => ({
+          id: it.id || `json-${idx}`,
+          product_id: it.product_id,
+          product_name: it.product_name || it.name || "Produto",
+          quantity: it.quantity || 1,
+          unit_price: it.unit_price || it.price || 0,
+          subtotal: it.subtotal || (it.quantity || 1) * (it.unit_price || it.price || 0),
+        }));
+      }
+
       setFoundSale({
         ...sale,
-        items: items || [],
+        items: parsedItems,
       });
     } catch (err: any) {
       toast.error(`Erro na busca: ${err.message}`);
