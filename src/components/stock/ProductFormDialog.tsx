@@ -709,7 +709,7 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
                           }
                         }
                       }}
-                      defaultValue={field.value || "__none__"}
+                      value={field.value || "__none__"}
                     >
                       <FormControl>
                         <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
