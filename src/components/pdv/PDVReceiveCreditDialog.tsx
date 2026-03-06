@@ -105,6 +105,27 @@ export function PDVReceiveCreditDialog({ open, onClose }: PDVReceiveCreditDialog
         }
       }
 
+      // Fetch sale items from related sales
+      const saleIds = clientEntries
+        .map((e: any) => e.reference)
+        .filter(Boolean)
+        .filter((v: string, i: number, a: string[]) => a.indexOf(v) === i);
+
+      let receiptItems: { name: string; quantity: number; unitPrice: number }[] = [];
+      if (saleIds.length > 0) {
+        const { data: saleItems } = await supabase
+          .from("sale_items")
+          .select("product_name, quantity, unit_price")
+          .in("sale_id", saleIds);
+        if (saleItems) {
+          receiptItems = saleItems.map((si: any) => ({
+            name: si.product_name,
+            quantity: Number(si.quantity),
+            unitPrice: Number(si.unit_price),
+          }));
+        }
+      }
+
       qc.invalidateQueries({ queryKey: ["clients"] });
       qc.invalidateQueries({ queryKey: ["financial_entries"] });
       toast.success(`Recebimento de ${formatCurrency(payAmount)} registrado!`);
@@ -121,6 +142,7 @@ export function PDVReceiveCreditDialog({ open, onClose }: PDVReceiveCreditDialog
         storeCnpj: cnpj || undefined,
         storePhone: phone || undefined,
         storeAddress: [addressStreet, addressNumber, addressNeighborhood, addressCity, addressState].filter(Boolean).join(", ") || undefined,
+        items: receiptItems,
       });
     } catch (err: any) {
       toast.error(`Erro: ${err.message}`);
