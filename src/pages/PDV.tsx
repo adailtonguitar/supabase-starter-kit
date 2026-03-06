@@ -645,8 +645,6 @@ export default function PDV() {
           isContingency: result.isContingency,
           saleId: result.saleId,
           customerCpf: savedClient?.cpf || undefined,
-          protocolNumber: result.protocolNumber,
-          protocolDate: result.protocolDate,
         });
         setSelectedClient(null);
         const newNum = saleNumber + 1;
