@@ -2,6 +2,7 @@ import { useState, memo } from "react";
 import { AppSidebar } from "./AppSidebar";
 import { MobileBottomNav } from "./MobileBottomNav";
 import { SubscriptionBanner } from "./SubscriptionBanner";
+import { DemoBanner } from "./DemoBanner";
 import { UpdateNoticeModal } from "@/components/UpdateNoticeModal";
 import { OnlineStatusIndicator } from "./OnlineStatusIndicator";
 import { AppHeader } from "./AppHeader";
@@ -22,6 +23,7 @@ export const AppLayout = memo(function AppLayout({ children }: AppLayoutProps) {
       <div className="flex-1 flex flex-col min-w-0 min-h-0">
         <UpdateNoticeModal />
         <OnlineStatusIndicator />
+        <DemoBanner />
         <SubscriptionBanner />
         <AppHeader />
         <main className={`flex-1 overflow-y-auto overflow-x-hidden min-h-0 ${isMobile ? "pb-20" : ""}`}>{children}</main>

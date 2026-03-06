@@ -168,10 +168,10 @@ export class DemoDataService {
     }
 
     // Delete demo products
-    await supabase.from("products").delete().eq("company_id", companyId).eq("is_demo" as any, true);
+    await (supabase.from("products").delete() as any).eq("company_id", companyId).eq("is_demo", true);
 
     // Delete demo clients
-    await supabase.from("clients").delete().eq("company_id", companyId).eq("is_demo" as any, true);
+    await (supabase.from("clients").delete() as any).eq("company_id", companyId).eq("is_demo", true);
 
     // Clear seeded flag
     try { localStorage.removeItem(`${DEMO_SEEDED_KEY}_${companyId}`); } catch {}
