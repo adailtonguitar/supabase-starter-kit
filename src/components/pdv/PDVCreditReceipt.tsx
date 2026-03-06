@@ -8,6 +8,12 @@ const methodLabels: Record<string, string> = {
   dinheiro: "Dinheiro", debito: "Cartão Débito", credito: "Cartão Crédito", pix: "PIX",
 };
 
+export interface CreditReceiptItem {
+  name: string;
+  quantity: number;
+  unitPrice: number;
+}
+
 export interface CreditReceiptData {
   clientName: string;
   clientDoc?: string;
@@ -20,6 +26,7 @@ export interface CreditReceiptData {
   storeSlogan?: string;
   storePhone?: string;
   storeAddress?: string;
+  items?: CreditReceiptItem[];
 }
 
 interface PDVCreditReceiptProps {
