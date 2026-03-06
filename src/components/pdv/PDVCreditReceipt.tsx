@@ -134,16 +134,6 @@ export function PDVCreditReceipt({ data, onClose }: PDVCreditReceiptProps) {
         <div class="bold line">Cliente: ${data.clientName}</div>
         ${data.clientDoc ? `<div class="line">CPF: ${data.clientDoc}</div>` : ""}
         <div class="separator"></div>
-        ${data.items && data.items.length > 0 ? `
-        <div class="bold line">PRODUTOS DA(S) VENDA(S):</div>
-        <table style="width:100%;border-collapse:collapse;">
-          ${data.items.map(i => `
-            <tr><td style="padding:1px 0;">${i.quantity}x ${i.name}</td><td style="text-align:right;padding:1px 0;">${formatCurrency(i.unitPrice * i.quantity)}</td></tr>
-            <tr><td colspan="2" style="font-size:9px;color:#555;padding-left:12px;">${i.quantity} x ${formatCurrency(i.unitPrice)}</td></tr>
-          `).join("")}
-        </table>
-        <div class="separator"></div>
-        ` : ""}
         <div class="line">Saldo anterior: ${formatCurrency(data.previousBalance)}</div>
         <div class="total center">Valor recebido: ${formatCurrency(data.amount)}</div>
         <div class="extenso center">( ${extenso} )</div>
@@ -151,6 +141,27 @@ export function PDVCreditReceipt({ data, onClose }: PDVCreditReceiptProps) {
         <div class="separator"></div>
         <div class="line">Forma: ${methodLabels[data.paymentMethod] || data.paymentMethod}</div>
         <div class="separator"></div>
+        ${data.items && data.items.length > 0 ? `
+        <div class="center bold line" style="font-size:12px;">ITENS DA VENDA</div>
+        <table style="width:100%;border-collapse:collapse;font-size:11px;">
+          <tr style="border-bottom:1px dashed #000;">
+            <th style="text-align:left;padding:2px 0;">Produto</th>
+            <th style="text-align:center;padding:2px 0;width:30px;">Qtd</th>
+            <th style="text-align:right;padding:2px 0;width:55px;">Unit</th>
+            <th style="text-align:right;padding:2px 0;width:60px;">Total</th>
+          </tr>
+          ${data.items.map(i => `
+          <tr>
+            <td style="padding:2px 0;word-break:break-word;">${i.name}</td>
+            <td style="text-align:center;padding:2px 0;">${i.quantity}</td>
+            <td style="text-align:right;padding:2px 0;">${formatCurrency(i.unitPrice)}</td>
+            <td style="text-align:right;padding:2px 0;">${formatCurrency(i.unitPrice * i.quantity)}</td>
+          </tr>`).join("")}
+        </table>
+        <div class="separator"></div>
+        <div class="bold center" style="font-size:13px;">TOTAL DA VENDA: ${formatCurrency(data.items.reduce((s, i) => s + i.unitPrice * i.quantity, 0))}</div>
+        <div class="separator"></div>
+        ` : ""}
         <div class="local-data">${localData}</div>
         <div class="sig-area">
           <div class="sig-line">Assinatura do Cliente</div>
