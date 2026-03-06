@@ -77,10 +77,12 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
             .row span:last-child { text-align: right; white-space: nowrap; }
             .total-row { font-size: 14px; font-weight: bold; margin: 4px 0; }
             .sm { font-size: 9px; }
-            .obs { font-size: 9px; font-style: italic; padding-left: 8px; color: #555; }
+            .item-name { font-size: 10px; font-weight: bold; margin-top: 2px; }
+            .item-detail { font-size: 10px; }
             h2 { font-size: 13px; margin: 2px 0; }
             .cut { margin-top: 6px; text-align: center; font-size: 9px; letter-spacing: 2px; }
             .logo { max-height: 40px; max-width: 60mm; object-fit: contain; margin: 0 auto 4px; display: block; }
+            .no-fiscal { border: 1px dashed #000; padding: 2px; text-align: center; font-size: 9px; font-weight: bold; margin: 3px 0; }
           </style>
         </head>
         <body>
@@ -94,8 +96,10 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
             <p class="sm">${now}</p>
             ${saleId ? `<p class="bold" style="margin-top:3px; font-size:12px;">Venda #${saleId.substring(0, 8).toUpperCase()}</p>` : ""}
           </div>
+          <div class="no-fiscal">*** NÃO É DOCUMENTO FISCAL ***</div>
           <div class="dashed"></div>
-          <div class="row bold"><span>QTD ITEM</span><span>VALOR</span></div>
+          <div class="row bold"><span>DESCRIÇÃO</span><span>VALOR</span></div>
+          <div class="row bold sm"><span>QTD x VL UNIT</span><span></span></div>
           <div class="dashed"></div>
           ${itemsHtml}
           <div class="dashed"></div>
@@ -105,7 +109,7 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
           ${changeHtml}
           <div class="dashed"></div>
           <p class="center sm">Qtd. total de itens: ${qtyTotal}</p>
-          <p class="center sm">Qtd. total de itens: ${qtyTotal}</p>
+          ${slogan ? `<p class="center sm" style="margin-top:4px; font-style:italic">${slogan}</p>` : ""}
           <p class="center sm" style="margin-top:4px">Obrigado pela preferência!</p>
           <p class="cut">--------------------------------</p>
           <script>
