@@ -639,8 +639,13 @@ export function usePDV() {
       try {
         await queueOperation("sale", {
           company_id: companyId,
+          terminal_id: currentSession?.terminal_id || "OFFLINE",
+          session_id: currentSession?.id || null,
           total,
-          payment_method: payments[0]?.method || "outros",
+          subtotal,
+          discount_pct: globalDiscountPercent,
+          discount_val: globalDiscountValue,
+          payments: payments.map(p => ({ method: p.method, amount: p.amount, approved: p.approved })),
           items: saleItems,
           user_id: userId,
           created_at: new Date().toISOString(),
