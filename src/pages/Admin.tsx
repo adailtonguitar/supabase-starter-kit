@@ -126,6 +126,9 @@ export default function Admin() {
         <TabsContent value="email">
           <AdminBulkEmail />
         </TabsContent>
+        <TabsContent value="leads">
+          <AdminLeads />
+        </TabsContent>
         <TabsContent value="simulation">
           <AdminStoreSimulation />
         </TabsContent>
