@@ -108,7 +108,7 @@ export default function Terminais() {
                     </div>
                   )}
                   {!isOpen && session.difference !== null && session.difference !== 0 && (
-                    <div className="flex items-center gap-2 text-sm"><AlertTriangle className="w-4 h-4 text-amber-500" /><span className="text-amber-500 font-medium">Diferença: {formatCurrency(session.difference)}</span></div>
+                    <div className="flex items-center gap-2 text-sm"><AlertTriangle className="w-4 h-4 text-warning" /><span className="text-warning font-medium">Diferença: {formatCurrency(session.difference)}</span></div>
                   )}
                   {isOpen && <Button variant="destructive" size="sm" className="w-full mt-2" onClick={() => setForceCloseTarget(session)}><Power className="w-4 h-4 mr-1" /> Forçar Fechamento</Button>}
                 </>) : <p className="text-sm text-muted-foreground text-center py-4">Nenhuma sessão registrada</p>}
