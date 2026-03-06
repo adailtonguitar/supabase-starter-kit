@@ -20,7 +20,7 @@ import { OnboardingWizard } from "@/components/onboarding/OnboardingWizard";
 import { EmissorOnboardingWizard } from "@/components/onboarding/EmissorOnboardingWizard";
 import { useTermsAcceptance } from "@/hooks/useTermsAcceptance";
 import { WalkthroughProvider } from "@/hooks/useWalkthrough";
-import { FurnitureModeProvider } from "@/hooks/useFurnitureMode";
+
 import { WalkthroughRunner } from "@/components/WalkthroughRunner";
 import { toast } from "sonner";
 
