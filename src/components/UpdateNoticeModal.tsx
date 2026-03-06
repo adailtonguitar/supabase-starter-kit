@@ -23,20 +23,26 @@ export function UpdateNoticeModal() {
 
         // Listen for new SW installing
         reg.addEventListener("updatefound", () => {
-          const newSW = reg.installing;
-          if (!newSW) return;
-          newSW.addEventListener("statechange", () => {
-            if (newSW.state === "installed" && navigator.serviceWorker.controller) {
-              waitingSWRef.current = newSW;
-              setShow(true);
-            }
-          });
+          try {
+            const newSW = reg.installing;
+            if (!newSW) return;
+            newSW.addEventListener("statechange", () => {
+              if (newSW.state === "installed" && navigator.serviceWorker.controller) {
+                waitingSWRef.current = newSW;
+                setShow(true);
+              }
+            });
+          } catch {
+            // Safari may throw when accessing installing worker
+          }
         });
 
         // Periodically check for updates (every 60s)
-        setInterval(() => reg.update().catch(() => {}), 60 * 1000);
+        setInterval(() => {
+          try { reg.update().catch(() => {}); } catch { /* Safari quirk */ }
+        }, 60 * 1000);
       })
-      .catch((err) => console.warn("[SW] Registration failed:", err));
+      .catch(() => {});
 
     // Reload when new SW takes control
     let refreshing = false;
