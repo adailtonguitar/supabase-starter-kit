@@ -3,7 +3,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Activity, CheckCircle2, XCircle, Clock, Play, RotateCcw,
   ShieldCheck, Package, ArrowUpDown, ShoppingCart, DollarSign, BarChart3,
@@ -171,8 +170,7 @@ export default function DiagnosticoSistema() {
             <CardTitle className="text-lg">Resultado Detalhado</CardTitle>
           </CardHeader>
           <CardContent>
-            <ScrollArea className="max-h-[60vh]">
-              <div className="space-y-6">
+            <div className="space-y-6">
                 {Object.entries(groups).map(([groupName, tests]) => {
                   const Icon = groupIcons[groupName] || Activity;
                   const groupPassed = tests.filter((t) => t.status === "pass").length;
@@ -256,7 +254,6 @@ export default function DiagnosticoSistema() {
                   );
                 })}
               </div>
-            </ScrollArea>
           </CardContent>
         </Card>
       )}
