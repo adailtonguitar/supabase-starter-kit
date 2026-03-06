@@ -109,11 +109,13 @@ export class DemoDataService {
       is_demo: true,
     }));
 
+    console.log("[DemoData] Inserting", productRows.length, "products for company", companyId);
     const { data: insertedProducts, error: pErr } = await supabase
       .from("products")
       .insert(productRows as any)
       .select("id, name, price, cost_price, stock_quantity");
 
+    console.log("[DemoData] Insert result:", { insertedProducts: insertedProducts?.length, error: pErr });
     if (pErr) throw new Error(`Erro ao criar produtos demo: ${pErr.message}`);
 
     // 2) Insert clients
