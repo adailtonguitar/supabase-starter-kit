@@ -435,7 +435,7 @@ export const ProductFormDialog = forwardRef<HTMLDivElement, Props>(function Prod
 
       <div className="bg-card rounded-xl border border-border p-6">
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          <div className="space-y-6">
             {/* Dados Básicos */}
             <div>
               <h2 className="text-lg font-semibold text-foreground mb-4">Dados Básicos</h2>
