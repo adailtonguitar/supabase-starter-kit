@@ -96,6 +96,7 @@ const Relatorios = lazy(() => import("./pages/Relatorios"));
 const PDVCustomerDisplayPage = lazy(() => import("./pages/PDVDisplay"));
 const PrevisaoDemanda = lazy(() => import("./pages/PrevisaoDemanda"));
 const RegistroErros = lazy(() => import("./pages/RegistroErros"));
+const DiagnosticoSistema = lazy(() => import("./pages/DiagnosticoSistema"));
 
 
 const queryClient = new QueryClient({
@@ -447,6 +448,7 @@ function AppRoutes() {
                     <Route path="/previsao-demanda" element={<PrevisaoDemanda />} />
                     <Route path="/admin" element={<Admin />} />
                     <Route path="/admin/erros" element={<RegistroErros />} />
+                    <Route path="/admin/diagnostico" element={<DiagnosticoSistema />} />
                     <Route path="/ajuda" element={<Ajuda />} />
                     <Route path="*" element={<NotFound />} />
                   </Routes>

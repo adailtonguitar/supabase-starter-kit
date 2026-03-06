@@ -13,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Shield, Activity, Search, Ban, CheckCircle, LayoutDashboard, Users, CreditCard, FileText, DollarSign, Trash2, FlaskConical, MessageCircle, Save, Loader2, Pencil, Mail, ShoppingCart, Bug } from "lucide-react";
+import { Shield, Activity, Search, Ban, CheckCircle, LayoutDashboard, Users, CreditCard, FileText, DollarSign, Trash2, FlaskConical, MessageCircle, Save, Loader2, Pencil, Mail, ShoppingCart, Bug, Stethoscope } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { AdminDashboard } from "@/components/admin/AdminDashboard";
 import { AdminSubscriptions } from "@/components/admin/AdminSubscriptions";
@@ -27,8 +27,12 @@ import { AdminStoreSimulation } from "@/components/admin/AdminStoreSimulation";
 import { lazy, Suspense } from "react";
 
 const RegistroErros = lazy(() => import("./RegistroErros"));
+const DiagnosticoSistema = lazy(() => import("./DiagnosticoSistema"));
 function ErrorsTab() {
   return <Suspense fallback={<div className="py-8 text-center text-muted-foreground">Carregando...</div>}><RegistroErros /></Suspense>;
+}
+function DiagnosticTab() {
+  return <Suspense fallback={<div className="py-8 text-center text-muted-foreground">Carregando...</div>}><DiagnosticoSistema /></Suspense>;
 }
 
 interface CompanyRow {
@@ -87,6 +91,7 @@ export default function Admin() {
           <TabsTrigger value="email" className="text-xs sm:text-sm"><Mail className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" /> E-mail</TabsTrigger>
           <TabsTrigger value="simulation" className="text-xs sm:text-sm"><ShoppingCart className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" /> Simulação</TabsTrigger>
           <TabsTrigger value="errors" className="text-xs sm:text-sm"><Bug className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" /> Erros</TabsTrigger>
+          <TabsTrigger value="diagnostic" className="text-xs sm:text-sm"><Stethoscope className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" /> Diagnóstico</TabsTrigger>
         </TabsList>
 
         <TabsContent value="dashboard">
@@ -124,6 +129,9 @@ export default function Admin() {
         </TabsContent>
         <TabsContent value="errors">
           <ErrorsTab />
+        </TabsContent>
+        <TabsContent value="diagnostic">
+          <DiagnosticTab />
         </TabsContent>
       </Tabs>
     </div>
