@@ -119,7 +119,7 @@ export default function PainelDono() {
                 d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                 fill="none" stroke="currentColor" strokeWidth="3"
                 strokeDasharray={`${stats.healthScore}, 100`}
-                className={stats.healthScore >= 70 ? "text-emerald-500" : stats.healthScore >= 40 ? "text-amber-500" : "text-destructive"}
+                className={stats.healthScore >= 70 ? "text-success" : stats.healthScore >= 40 ? "text-warning" : "text-destructive"}
               />
             </svg>
             <span className="absolute inset-0 flex items-center justify-center text-lg font-black">
