@@ -93,27 +93,9 @@ const EmissorNFe = lazy(() => import("./pages/EmissorNFe"));
 const EmissorLanding = lazy(() => import("./pages/EmissorLanding"));
 const ConsultaDFe = lazy(() => import("./pages/ConsultaDFe"));
 const Relatorios = lazy(() => import("./pages/Relatorios"));
-const CatalogoMoveis = lazy(() => import("./pages/CatalogoMoveis"));
-const AgendaEntregas = lazy(() => import("./pages/AgendaEntregas"));
-const ControleMontagem = lazy(() => import("./pages/ControleMontagem"));
-const ControleExposicao = lazy(() => import("./pages/ControleExposicao"));
-const DashboardMoveis = lazy(() => import("./pages/DashboardMoveis"));
 const PDVCustomerDisplayPage = lazy(() => import("./pages/PDVDisplay"));
-const GaleriaAntesDepois = lazy(() => import("./pages/GaleriaAntesDepois"));
-const MedicaoAmbiente = lazy(() => import("./pages/MedicaoAmbiente"));
-const AssistenciaTecnica = lazy(() => import("./pages/AssistenciaTecnica"));
-const PortalCliente = lazy(() => import("./pages/PortalCliente"));
-const CrediarioProprio = lazy(() => import("./pages/CrediarioProprio"));
 const PrevisaoDemanda = lazy(() => import("./pages/PrevisaoDemanda"));
-const MontadorAmbiente = lazy(() => import("./pages/MontadorAmbiente"));
-const RastreioEntrega = lazy(() => import("./pages/RastreioEntrega"));
-const VisualizadorAR = lazy(() => import("./pages/VisualizadorAR"));
-const ShowroomVirtual = lazy(() => import("./pages/ShowroomVirtual"));
-const RelatoriosMoveis = lazy(() => import("./pages/RelatoriosMoveis"));
-const ComissoesMoveis = lazy(() => import("./pages/ComissoesMoveis"));
 const Kits = lazy(() => import("./pages/Kits"));
-const FollowUp = lazy(() => import("./pages/FollowUp"));
-const TrocasDevolucoes = lazy(() => import("./pages/TrocasDevolucoes"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
