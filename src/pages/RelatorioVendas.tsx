@@ -423,7 +423,7 @@ export default function RelatorioVendas() {
           { label: "Vendas", value: totals.salesCount.toString(), icon: BarChart3, color: "text-primary" },
           { label: "Receita Total", value: formatCurrency(totals.revenue), icon: DollarSign, color: "text-primary" },
           { label: "Custo Total", value: formatCurrency(totals.cost), icon: TrendingDown, color: "text-destructive" },
-          { label: "Lucro Total", value: formatCurrency(totals.profit), icon: TrendingUp, color: totals.profit >= 0 ? "text-emerald-500" : "text-destructive" },
+          { label: "Lucro Total", value: formatCurrency(totals.profit), icon: TrendingUp, color: totals.profit >= 0 ? "text-success" : "text-destructive" },
         ].map((card, i) => (
           <motion.div
             key={card.label}
