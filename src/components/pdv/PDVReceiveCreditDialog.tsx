@@ -113,16 +113,35 @@ export function PDVReceiveCreditDialog({ open, onClose }: PDVReceiveCreditDialog
 
       let receiptItems: { name: string; quantity: number; unitPrice: number }[] = [];
       if (saleIds.length > 0) {
+        // Try sale_items table first
         const { data: saleItems } = await supabase
           .from("sale_items")
           .select("product_name, quantity, unit_price")
           .in("sale_id", saleIds);
-        if (saleItems) {
+        if (saleItems && saleItems.length > 0) {
           receiptItems = saleItems.map((si: any) => ({
             name: si.product_name,
             quantity: Number(si.quantity),
             unitPrice: Number(si.unit_price),
           }));
+        } else {
+          // Fallback: read items JSONB from sales table
+          const { data: salesData } = await supabase
+            .from("sales")
+            .select("items")
+            .in("id", saleIds);
+          if (salesData) {
+            for (const sale of salesData) {
+              const items = Array.isArray(sale.items) ? sale.items : [];
+              for (const item of items) {
+                receiptItems.push({
+                  name: item.product_name || item.name || "Produto",
+                  quantity: Number(item.quantity || item.qty || 1),
+                  unitPrice: Number(item.unit_price || item.price || 0),
+                });
+              }
+            }
+          }
         }
       }
 
