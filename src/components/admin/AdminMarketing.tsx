@@ -90,18 +90,29 @@ export function AdminMarketing() {
       const theme = aiPromptTemplates.find((t) => t.id === selectedTheme);
       const prompt = customPrompt.trim() || theme?.prompt || "Promotional art for AnthoSystem retail management system";
 
+      console.log("[AdminMarketing] Calling generate-marketing-art with:", { prompt: prompt.substring(0, 50), width: format.width, height: format.height });
+      
       const { data, error } = await supabase.functions.invoke("generate-marketing-art", {
         body: { prompt, width: format.width, height: format.height },
       });
 
-      if (error) throw new Error("Erro ao gerar imagem");
+      console.log("[AdminMarketing] Response data:", data);
+      console.log("[AdminMarketing] Response error:", error);
+
+      if (error) {
+        // Try to extract the actual error message from the response
+        const errorMsg = typeof error === 'object' && error.message ? error.message : String(error);
+        console.error("[AdminMarketing] Function invoke error details:", JSON.stringify(error, null, 2));
+        throw new Error(errorMsg || "Erro ao gerar imagem");
+      }
       if (data?.error) throw new Error(data.error);
 
       if (data?.image) {
         setGeneratedImage(data.image);
         toast.success("Arte gerada com sucesso!");
       } else {
-        throw new Error("Nenhuma imagem retornada");
+        console.error("[AdminMarketing] No image in data:", JSON.stringify(data));
+        throw new Error("Nenhuma imagem retornada pelo modelo");
       }
     } catch (err: any) {
       console.error("[AdminMarketing] Generate error:", err);
