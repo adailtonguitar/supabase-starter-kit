@@ -452,7 +452,7 @@ export default function RelatorioVendas() {
           </div>
           <div className="mt-2 w-full bg-muted rounded-full h-2.5">
             <div
-              className={`h-2.5 rounded-full transition-all ${totals.profit >= 0 ? "bg-emerald-500" : "bg-destructive"}`}
+              className={`h-2.5 rounded-full transition-all ${totals.profit >= 0 ? "bg-success" : "bg-destructive"}`}
               style={{ width: `${Math.min(Math.max((totals.profit / totals.revenue) * 100, 0), 100)}%` }}
             />
           </div>
