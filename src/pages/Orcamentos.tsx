@@ -163,9 +163,9 @@ export default function Orcamentos() {
                            </button>
                            {q.status === "pendente" && (
                              <>
-                               <button onClick={() => setApprovalQuote(q)} className="p-1.5 rounded-lg hover:bg-emerald-500/10 transition-colors" title="Aprovar">
-                                 <ThumbsUp className="w-4 h-4 text-emerald-500" />
-                               </button>
+                                <button onClick={() => setApprovalQuote(q)} className="p-1.5 rounded-lg hover:bg-success/10 transition-colors" title="Aprovar">
+                                  <ThumbsUp className="w-4 h-4 text-success" />
+                                </button>
                                <button onClick={() => handleConvertToSale(q)} className="p-1.5 rounded-lg hover:bg-primary/10 transition-colors" title="Converter em Venda">
                                  <ShoppingCart className="w-4 h-4 text-primary" />
                                </button>
