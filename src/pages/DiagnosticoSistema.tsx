@@ -3,7 +3,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Activity, CheckCircle2, XCircle, Clock, Play, RotateCcw,
   ShieldCheck, Package, ArrowUpDown, ShoppingCart, DollarSign, BarChart3,
