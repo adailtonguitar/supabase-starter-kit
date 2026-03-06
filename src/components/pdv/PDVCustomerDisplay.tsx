@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { formatCurrency } from "@/lib/utils";
 
 interface CartItem {
@@ -59,21 +59,21 @@ export function useCustomerDisplay() {
  */
 export function PDVCustomerDisplayPage() {
   const channelRef = useRef<BroadcastChannel | null>(null);
+  const [connected, setConnected] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
-
-  // State stored in ref for perf (avoid re-renders on every broadcast)
   const dataRef = useRef<CustomerDisplayData | null>(null);
 
   useEffect(() => {
     channelRef.current = new BroadcastChannel(CHANNEL_KEY);
     channelRef.current.onmessage = (e) => {
       dataRef.current = e.data;
-      render();
+      setConnected(true);
+      renderDisplay();
     };
     return () => channelRef.current?.close();
   }, []);
 
-  const render = () => {
+  const renderDisplay = () => {
     const el = containerRef.current;
     const d = dataRef.current;
     if (!el || !d) return;
@@ -152,8 +152,23 @@ export function PDVCustomerDisplayPage() {
         .cd-total { display: flex; justify-content: space-between; align-items: center; }
         .cd-total-label { font-size: 16px; font-weight: 900; letter-spacing: 0.3em; text-transform: uppercase; color: #aaa; }
         .cd-total-value { font-size: 56px; font-weight: 900; font-family: monospace; color: #22c55e; text-shadow: 0 0 30px #22c55e44; }
+        .waiting { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; gap: 24px; }
+        .waiting-icon { width: 80px; height: 80px; border: 3px solid #333; border-top-color: #22c55e; border-radius: 50%; animation: spin 1s linear infinite; }
+        .waiting-text { font-size: 20px; font-weight: 700; color: #888; letter-spacing: 0.1em; }
+        .waiting-sub { font-size: 14px; color: #555; }
+        @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
       `}</style>
+      {!connected && (
+        <div className="waiting">
+          <div className="waiting-icon" />
+          <div className="waiting-text">Visor do Cliente</div>
+          <div className="waiting-sub">Aguardando conexão com o PDV...</div>
+          <div className="waiting-sub" style={{ marginTop: 8, fontSize: 12, color: '#444' }}>
+            Abra esta tela no monitor voltado para o cliente
+          </div>
+        </div>
+      )}
       <div ref={containerRef} />
     </>
   );
