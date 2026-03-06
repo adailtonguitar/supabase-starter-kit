@@ -283,7 +283,7 @@ export class SystemDiagnosticService {
 
     // Cleanup
     if (testProductId) {
-      await supabase.from("stock_movements").delete().eq("product_id", testProductId).eq("reason" as any, TEST_PREFIX);
+      await (supabase.from("stock_movements").delete() as any).eq("product_id", testProductId).eq("reason", TEST_PREFIX);
       await supabase.from("products").delete().eq("id", testProductId);
     }
   }
