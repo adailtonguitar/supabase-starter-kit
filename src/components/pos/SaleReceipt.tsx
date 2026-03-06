@@ -6,6 +6,7 @@ interface SaleReceiptProps {
   items: any[];
   total: number;
   payments: any[];
+  saleId?: string;
   nfceNumber?: string;
   accessKey?: string;
   serie?: string;
