@@ -253,11 +253,6 @@ export default function Produtos() {
                       Est: {product.stock_quantity} {product.unit.toLowerCase()}
                     </span>
                     {product.category && <span>{product.category}</span>}
-                    {isFurnitureMode && (product as any).voltage && (
-                      <span className="inline-flex items-center gap-0.5 text-accent-foreground">
-                        <Zap className="w-3 h-3" /> {(product as any).voltage}
-                      </span>
-                    )}
                   </div>
                   <div className="flex items-center gap-2">
                     <button onClick={() => setMovementProduct(product)} className="p-2.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted active:scale-95 transition-all" title="Movimentar estoque">
