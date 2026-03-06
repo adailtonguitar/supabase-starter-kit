@@ -15,9 +15,11 @@ type ShowroomStatus = "montado" | "desmontado" | "danificado" | "reposicao";
 interface ShowroomItem {
   productId: string;
   status: ShowroomStatus;
-  location: string; // ex: "Vitrine A", "Salão 2"
+  location: string;
   notes: string;
   updatedAt: string;
+  isMostruario?: boolean; // peça de mostruário
+  mostruarioDiscount?: number; // % desconto mostruário
 }
 
 const statusConfig: Record<ShowroomStatus, { label: string; icon: any; color: string }> = {
@@ -253,11 +255,17 @@ export default function ControleExposicao() {
                             <StatusIcon className="w-3 h-3 mr-1" /> {sc.label}
                           </Badge>
                         </div>
-                        <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
+                        <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5 flex-wrap">
                           {p.category && <span>{p.category}</span>}
                           <span>{fmt(p.price)}</span>
                           <span>Estoque: {p.stock_quantity}</span>
                           {item?.location && <span>📍 {item.location}</span>}
+                          {item?.isMostruario && (
+                            <Badge variant="outline" className="text-[9px] border-amber-500/30 text-amber-600">
+                              🏷️ Mostruário {item.mostruarioDiscount ? `(-${item.mostruarioDiscount}%)` : ""} 
+                              {item.mostruarioDiscount ? ` = ${fmt(p.price * (1 - (item.mostruarioDiscount || 0) / 100))}` : ""}
+                            </Badge>
+                          )}
                         </div>
                       </div>
 
@@ -279,6 +287,26 @@ export default function ControleExposicao() {
                             ))}
                           </SelectContent>
                         </Select>
+                        <label className="flex items-center gap-1 text-[10px] cursor-pointer whitespace-nowrap">
+                          <input
+                            type="checkbox"
+                            checked={item?.isMostruario || false}
+                            onChange={e => updateItem(p.id, { isMostruario: e.target.checked, mostruarioDiscount: e.target.checked ? 15 : 0 })}
+                            className="rounded border-border w-3 h-3"
+                          />
+                          🏷️ Mostr.
+                        </label>
+                        {item?.isMostruario && (
+                          <Input
+                            type="number"
+                            placeholder="%"
+                            value={item?.mostruarioDiscount || ""}
+                            onChange={e => updateItem(p.id, { mostruarioDiscount: Number(e.target.value) })}
+                            className="w-[60px] h-8 text-xs"
+                            min={0}
+                            max={100}
+                          />
+                        )}
                       </div>
                     </div>
                   </CardContent>

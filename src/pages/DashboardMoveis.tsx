@@ -6,11 +6,10 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import {
   Armchair, Package, Truck, Wrench, TrendingUp, DollarSign,
-  AlertTriangle, CheckCircle, Clock, ShoppingCart,
+  AlertTriangle, CheckCircle, Clock, ShoppingCart, Home, Star, BarChart3,
 } from "lucide-react";
 import { motion } from "framer-motion";
 
-// Load localStorage data
 function loadJSON<T>(key: string, fallback: T): T {
   try { return JSON.parse(localStorage.getItem(key) || "") || fallback; } catch { return fallback; }
 }
@@ -22,6 +21,7 @@ export default function DashboardMoveis() {
   const deliveries = loadJSON<any[]>("as_furniture_deliveries", []);
   const assemblies = loadJSON<any[]>("as_furniture_assemblies", []);
   const showroomData = loadJSON<Record<string, any>>("as_showroom_items", {});
+  const reviews = loadJSON<any[]>("as_furniture_reviews", []);
 
   const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
@@ -43,35 +43,63 @@ export default function DashboardMoveis() {
     const totalRevenue = sales.reduce((s: number, v: any) => s + (v.total || 0), 0);
     const avgTicket = totalSales > 0 ? totalRevenue / totalSales : 0;
 
+    const totalCost = products.reduce((s, p) => s + (p.cost_price || 0) * (p.stock_quantity || 0), 0);
+    const avgMargin = stockValue > 0 ? ((stockValue - totalCost) / stockValue * 100) : 0;
+
+    const avgRating = reviews.length > 0 ? reviews.reduce((s: number, r: any) => s + (r.rating || 0), 0) / reviews.length : 0;
+    const deliveryRate = deliveries.length > 0 ? (completedDeliveries / deliveries.length * 100) : 0;
+
     return {
       totalProducts, totalStock, stockValue, lowStock,
       pendingDeliveries, completedDeliveries,
       pendingAssemblies, completedAssemblies,
       showroomMontado, showroomRepor,
       totalSales, totalRevenue, avgTicket,
+      avgMargin, avgRating, deliveryRate, reviewCount: reviews.length,
     };
-  }, [products, deliveries, assemblies, showroomData, sales]);
+  }, [products, deliveries, assemblies, showroomData, sales, reviews]);
 
-  const cards = [
-    { label: "Produtos Ativos", value: stats.totalProducts, icon: Package, color: "text-primary" },
+  const financialCards = [
     { label: "Faturamento", value: fmt(stats.totalRevenue), icon: DollarSign, color: "text-emerald-600" },
     { label: "Ticket Médio", value: fmt(stats.avgTicket), icon: TrendingUp, color: "text-blue-600" },
     { label: "Valor em Estoque", value: fmt(stats.stockValue), icon: ShoppingCart, color: "text-primary" },
+    { label: "Margem Média", value: `${stats.avgMargin.toFixed(1)}%`, icon: BarChart3, color: stats.avgMargin > 30 ? "text-emerald-600" : "text-amber-600" },
   ];
 
   const operationalCards = [
     { label: "Entregas Pendentes", value: stats.pendingDeliveries, icon: Truck, color: stats.pendingDeliveries > 0 ? "text-amber-600" : "text-emerald-600", alert: stats.pendingDeliveries > 0 },
     { label: "Entregas Concluídas", value: stats.completedDeliveries, icon: CheckCircle, color: "text-emerald-600" },
     { label: "Montagens Pendentes", value: stats.pendingAssemblies, icon: Wrench, color: stats.pendingAssemblies > 0 ? "text-amber-600" : "text-emerald-600", alert: stats.pendingAssemblies > 0 },
-    { label: "Montagens Concluídas", value: stats.completedAssemblies, icon: CheckCircle, color: "text-emerald-600" },
+    { label: "Taxa de Entrega", value: `${stats.deliveryRate.toFixed(0)}%`, icon: CheckCircle, color: "text-emerald-600" },
   ];
 
   const showroomCards = [
     { label: "Montados na Exposição", value: stats.showroomMontado, icon: Armchair, color: "text-emerald-600" },
     { label: "Falta Repor/Montar", value: stats.showroomRepor, icon: AlertTriangle, color: stats.showroomRepor > 0 ? "text-destructive" : "text-muted-foreground", alert: stats.showroomRepor > 0 },
-    { label: "Estoque Baixo", value: stats.lowStock, icon: AlertTriangle, color: stats.lowStock > 0 ? "text-amber-600" : "text-emerald-600", alert: stats.lowStock > 0 },
-    { label: "Total Vendas", value: stats.totalSales, icon: ShoppingCart, color: "text-primary" },
+    { label: "Avaliação Clientes", value: stats.avgRating > 0 ? `${stats.avgRating.toFixed(1)} ⭐` : "—", icon: Star, color: "text-amber-500" },
+    { label: "Avaliações", value: stats.reviewCount, icon: Star, color: "text-primary" },
   ];
+
+  const renderCardSection = (title: string, emoji: string, cards: { label: string; value: string | number; icon: any; color: string; alert?: boolean }[], delay: number) => (
+    <div>
+      <h2 className="text-sm font-semibold text-muted-foreground uppercase mb-3">{emoji} {title}</h2>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {cards.map((c, i) => (
+          <motion.div key={c.label} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: delay + i * 0.05 }}>
+            <Card className={(c as any).alert ? "border-amber-500/30" : ""}>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-muted-foreground uppercase">{c.label}</p>
+                  <c.icon className={cn("w-4 h-4", c.color)} />
+                </div>
+                <p className={cn("text-xl font-bold mt-2", c.color)}>{c.value}</p>
+              </CardContent>
+            </Card>
+          </motion.div>
+        ))}
+      </div>
+    </div>
+  );
 
   return (
     <div className="space-y-6">
@@ -80,70 +108,35 @@ export default function DashboardMoveis() {
           <Armchair className="w-6 h-6 text-primary" />
           Dashboard — Loja de Móveis
         </h1>
-        <p className="text-muted-foreground text-sm mt-1">Visão geral do seu negócio de móveis</p>
+        <p className="text-muted-foreground text-sm mt-1">Visão completa do seu negócio de móveis</p>
       </div>
 
-      {/* Financial KPIs */}
-      <div>
-        <h2 className="text-sm font-semibold text-muted-foreground uppercase mb-3">💰 Financeiro</h2>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          {cards.map((c, i) => (
-            <motion.div key={c.label} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
-              <Card>
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs text-muted-foreground uppercase">{c.label}</p>
-                    <c.icon className={cn("w-4 h-4", c.color)} />
-                  </div>
-                  <p className={cn("text-xl font-bold mt-2", c.color)}>{c.value}</p>
-                </CardContent>
-              </Card>
-            </motion.div>
-          ))}
-        </div>
-      </div>
+      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
+        <Card className="bg-primary/5 border-primary/20">
+          <CardContent className="p-4">
+            <div className="flex flex-wrap gap-6 items-center justify-center text-sm">
+              <span><strong>{stats.totalProducts}</strong> produtos</span>
+              <span>•</span>
+              <span><strong>{stats.totalSales}</strong> vendas</span>
+              <span>•</span>
+              <span><strong>{stats.showroomMontado}</strong> em exposição</span>
+              <span>•</span>
+              <span><strong>{stats.pendingDeliveries + stats.pendingAssemblies}</strong> pendências</span>
+              {stats.avgRating > 0 && (
+                <>
+                  <span>•</span>
+                  <span>⭐ <strong>{stats.avgRating.toFixed(1)}</strong> avaliação</span>
+                </>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
 
-      {/* Operational KPIs */}
-      <div>
-        <h2 className="text-sm font-semibold text-muted-foreground uppercase mb-3">🚚 Operações</h2>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          {operationalCards.map((c, i) => (
-            <motion.div key={c.label} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 + i * 0.05 }}>
-              <Card className={c.alert ? "border-amber-500/30" : ""}>
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs text-muted-foreground uppercase">{c.label}</p>
-                    <c.icon className={cn("w-4 h-4", c.color)} />
-                  </div>
-                  <p className={cn("text-2xl font-bold mt-2", c.color)}>{c.value}</p>
-                </CardContent>
-              </Card>
-            </motion.div>
-          ))}
-        </div>
-      </div>
+      {renderCardSection("Financeiro", "💰", financialCards, 0)}
+      {renderCardSection("Operações", "🚚", operationalCards, 0.2)}
+      {renderCardSection("Exposição & Clientes", "🏬", showroomCards, 0.4)}
 
-      {/* Showroom & Stock */}
-      <div>
-        <h2 className="text-sm font-semibold text-muted-foreground uppercase mb-3">🏬 Exposição & Estoque</h2>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          {showroomCards.map((c, i) => (
-            <motion.div key={c.label} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 + i * 0.05 }}>
-              <Card className={c.alert ? "border-destructive/30" : ""}>
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs text-muted-foreground uppercase">{c.label}</p>
-                    <c.icon className={cn("w-4 h-4", c.color)} />
-                  </div>
-                  <p className={cn("text-2xl font-bold mt-2", c.color)}>{c.value}</p>
-                </CardContent>
-              </Card>
-            </motion.div>
-          ))}
-        </div>
-      </div>
-
-      {/* Alerts */}
       {(stats.pendingDeliveries > 0 || stats.pendingAssemblies > 0 || stats.showroomRepor > 0 || stats.lowStock > 0) && (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 }}>
           <Card className="border-amber-500/30 bg-amber-500/5">
