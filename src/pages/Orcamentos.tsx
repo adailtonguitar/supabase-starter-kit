@@ -102,8 +102,8 @@ export default function Orcamentos() {
                          <Eye className="w-4 h-4 text-muted-foreground" />
                        </button>
                        {q.status === "pendente" && (
-                         <button onClick={() => setApprovalQuote(q)} className="p-1.5 rounded-lg hover:bg-emerald-500/10" title="Aprovar">
-                           <ThumbsUp className="w-4 h-4 text-emerald-500" />
+                         <button onClick={() => setApprovalQuote(q)} className="p-1.5 rounded-lg hover:bg-success/10" title="Aprovar">
+                           <ThumbsUp className="w-4 h-4 text-success" />
                          </button>
                        )}
                        {(q.status === "pendente" || q.status === "aprovado") && (
