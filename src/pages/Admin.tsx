@@ -24,6 +24,7 @@ import AdminPlanTester from "@/components/admin/AdminPlanTester";
 import { AdminCreateEmissorClient } from "@/components/admin/AdminCreateEmissorClient";
 import { AdminBulkEmail } from "@/components/admin/AdminBulkEmail";
 import { AdminStoreSimulation } from "@/components/admin/AdminStoreSimulation";
+import { AdminLeads } from "@/components/admin/AdminLeads";
 import { lazy, Suspense } from "react";
 
 const RegistroErros = lazy(() => import("./RegistroErros"));
