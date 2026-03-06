@@ -3,6 +3,7 @@ import { AlertTriangle, Trash2, Loader2, Clock, RotateCcw } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/hooks/useCompany";
 import { useAuth } from "@/hooks/useAuth";
+import { useAdminRole } from "@/hooks/useAdminRole";
 import { supabase } from "@/integrations/supabase/client";
 import { DemoDataService } from "@/services/DemoDataService";
 import { toast } from "sonner";
