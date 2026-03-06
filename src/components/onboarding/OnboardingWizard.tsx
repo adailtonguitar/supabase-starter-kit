@@ -21,6 +21,9 @@ export function OnboardingWizard({ onComplete }: Props) {
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
 
+  // Step 0 — Segment
+  const [segment, setSegment] = useState<"varejo" | "moveis">("varejo");
+
   // Step 1 — Company
   const [companyName, setCompanyName] = useState("");
   const [cnpj, setCnpj] = useState("");
