@@ -11,12 +11,16 @@ import { toast } from "sonner";
 export function DemoBanner() {
   const { companyId } = useCompany();
   const { user } = useAuth();
+  const { isSuperAdmin } = useAdminRole();
   const navigate = useNavigate();
   const [isDemo, setIsDemo] = useState(false);
   const [daysLeft, setDaysLeft] = useState<number | null>(null);
   const [clearing, setClearing] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [seeding, setSeeding] = useState(false);
+
+  // Hide banner for super_admin
+  if (isSuperAdmin) return null;
 
   useEffect(() => {
     if (!companyId) { setIsDemo(false); return; }
