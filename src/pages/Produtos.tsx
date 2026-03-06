@@ -179,18 +179,6 @@ export default function Produtos() {
                       <td className="px-5 py-3 text-right font-mono text-muted-foreground">
                         {product.min_stock ?? "—"}
                       </td>
-                      {isFurnitureMode && (
-                        <td className="px-5 py-3 text-center">
-                          {(product as any).voltage ? (
-                            <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-accent text-accent-foreground">
-                              <Zap className="w-3 h-3" />
-                              {(product as any).voltage}
-                            </span>
-                          ) : (
-                            <span className="text-muted-foreground">—</span>
-                          )}
-                        </td>
-                      )}
                       <td className="px-5 py-3">
                          <div className="flex items-center justify-center gap-0.5">
                           <button onClick={() => setMovementProduct(product)} title="Movimentar estoque" className="p-1.5 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors">
