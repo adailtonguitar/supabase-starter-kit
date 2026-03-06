@@ -1,6 +1,7 @@
 import { Printer, X, Check } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
+import { format, addMonths } from "date-fns";
 
 const formatCurrency = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
@@ -9,11 +10,12 @@ export interface FiadoReceiptData {
   clientName: string;
   clientDoc?: string;
   total: number;
-  items: { name: string; quantity: number; price: number }[];
+  items: { name: string; quantity: number; price: number; note?: string }[];
   mode: "fiado" | "parcelado" | "sinal";
   installments: number;
   saleNumber?: number;
   storeName?: string;
+  storeSlogan?: string;
   storeCnpj?: string;
   storePhone?: string;
   storeAddress?: string;
@@ -39,13 +41,25 @@ export function PDVFiadoReceipt({ data, onClose }: Props) {
     return data.mode === "parcelado" ? `Parcelado ${data.installments}x de ${formatCurrency(installmentValue)}` : "Fiado (pagamento único)";
   };
 
+  const buildDueDates = () => {
+    if (data.installments <= 1) return "";
+    let html = `<div class="bold line" style="margin-top:4px;">VENCIMENTOS:</div><table>`;
+    for (let i = 1; i <= data.installments; i++) {
+      const dueDate = addMonths(now, i);
+      html += `<tr><td>${i}ª parcela - ${format(dueDate, "dd/MM/yyyy")}</td><td class="right">${formatCurrency(installmentValue)}</td></tr>`;
+    }
+    html += `</table>`;
+    return html;
+  };
+
   const buildVia = (viaLabel: string, showSignature: boolean) => `
   <div class="center bold big">COMPROVANTE DE VENDA A PRAZO</div>
   ${data.storeName ? `<div class="center line">${data.storeName}</div>` : ""}
+  ${data.storeSlogan ? `<div class="center line" style="font-size:10px;font-style:italic;">${data.storeSlogan}</div>` : ""}
   ${data.storeCnpj ? `<div class="center line">CNPJ: ${data.storeCnpj}</div>` : ""}
   ${data.storeAddress ? `<div class="center line" style="font-size:10px;">${data.storeAddress}</div>` : ""}
   ${data.storePhone ? `<div class="center line" style="font-size:10px;">Fone: ${data.storePhone}</div>` : ""}
-  <div class="center line" style="font-size:10px; margin-top:2px;">DOCUMENTO NÃO FISCAL</div>
+  <div class="center line no-fiscal">*** NÃO É DOCUMENTO FISCAL ***</div>
   <div class="sep"></div>
   <div class="center line">${now.toLocaleString("pt-BR")}</div>
   ${data.saleNumber ? `<div class="center line">Venda #${data.saleNumber}</div>` : ""}
@@ -55,11 +69,19 @@ export function PDVFiadoReceipt({ data, onClose }: Props) {
   <div class="sep"></div>
   <div class="bold line">ITENS:</div>
   <table>
-    ${data.items.map(i => `<tr><td>${i.quantity}x ${i.name}</td><td class="right">${formatCurrency(i.price * i.quantity)}</td></tr><tr><td colspan="2" style="font-size:9px; color:#555; padding-left:12px;">${i.quantity} x ${formatCurrency(i.price)}</td></tr>`).join("")}
+    ${data.items.map(i => {
+      let row = `<tr><td>${i.quantity}x ${i.name}</td><td class="right">${formatCurrency(i.price * i.quantity)}</td></tr>`;
+      row += `<tr><td colspan="2" style="font-size:9px; color:#555; padding-left:12px;">${i.quantity} x ${formatCurrency(i.price)}</td></tr>`;
+      if (i.note) {
+        row += `<tr><td colspan="2" style="font-size:9px; color:#333; padding-left:12px;">📝 ${i.note}</td></tr>`;
+      }
+      return row;
+    }).join("")}
   </table>
   <div class="sep"></div>
   <div class="big center">TOTAL: ${formatCurrency(data.total)}</div>
   <div class="center line">Modalidade: ${modeLabel()}</div>
+  ${buildDueDates()}
   <div class="sep"></div>
   ${showSignature ? `
   <div class="sig-area">
@@ -82,6 +104,7 @@ export function PDVFiadoReceipt({ data, onClose }: Props) {
   .sep { border-top: 1px dashed #000; margin: 6px 0; }
   .line { margin: 3px 0; }
   .big { font-size: 14px; font-weight: bold; }
+  .no-fiscal { font-size: 11px; font-weight: bold; margin: 4px 0; border: 1px solid #000; padding: 2px 0; }
   table { width: 100%; border-collapse: collapse; }
   td { padding: 1px 0; vertical-align: top; }
   .right { text-align: right; }
@@ -177,6 +200,12 @@ export function PDVFiadoReceipt({ data, onClose }: Props) {
               <span className="flex items-center gap-1">✍️ Assinatura</span>
               <span className="text-muted-foreground">•</span>
               <span className="flex items-center gap-1">📋 CPF</span>
+              {data.installments > 1 && (
+                <>
+                  <span className="text-muted-foreground">•</span>
+                  <span className="flex items-center gap-1">📅 Vencimentos</span>
+                </>
+              )}
             </div>
           </div>
         </div>
