@@ -117,12 +117,24 @@ export function useSessionControl() {
     registeredRef.current = false;
   }, []);
 
-  // Register on login
+  // Check if demo company & register on login
   useEffect(() => {
     if (user && companyId) {
-      registerSession();
+      // Check if this is a demo company — skip session control for demos
+      supabase
+        .from("companies")
+        .select("is_demo")
+        .eq("id", companyId)
+        .maybeSingle()
+        .then(({ data }) => {
+          isDemoRef.current = !!(data as any)?.is_demo;
+          if (!isDemoRef.current) {
+            registerSession();
+          }
+        });
     } else {
       registeredRef.current = false;
+      isDemoRef.current = false;
     }
   }, [user, companyId, registerSession]);
 
