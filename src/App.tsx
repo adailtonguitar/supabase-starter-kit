@@ -95,7 +95,7 @@ const ConsultaDFe = lazy(() => import("./pages/ConsultaDFe"));
 const Relatorios = lazy(() => import("./pages/Relatorios"));
 const PDVCustomerDisplayPage = lazy(() => import("./pages/PDVDisplay"));
 const PrevisaoDemanda = lazy(() => import("./pages/PrevisaoDemanda"));
-const Kits = lazy(() => import("./pages/Kits"));
+
 
 const queryClient = new QueryClient({
   defaultOptions: {
