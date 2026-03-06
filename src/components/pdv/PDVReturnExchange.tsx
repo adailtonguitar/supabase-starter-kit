@@ -45,7 +45,7 @@ export function PDVReturnExchangeDialog({ open, onClose }: PDVReturnExchangeProp
         .from("sales")
         .select("id, total, created_at, status")
         .eq("company_id", companyId)
-        .eq("status", "completed")
+        .or("status.eq.completed,status.is.null")
         .order("created_at", { ascending: false })
         .limit(200);
 
