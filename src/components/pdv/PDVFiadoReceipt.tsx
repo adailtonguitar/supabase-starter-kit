@@ -49,12 +49,15 @@ export function PDVFiadoReceipt({ data, onClose }: Props) {
           <div className="line" />
           <table>
             <tbody>
-              {data.items.map((item, i) => (
-                <tr key={i}>
-                  <td>{item.qty}x {item.name}</td>
-                  <td className="right">{fmt(item.price * item.qty)}</td>
-                </tr>
-              ))}
+              {data.items.map((item, i) => {
+                const q = item.qty ?? item.quantity ?? 1;
+                return (
+                  <tr key={i}>
+                    <td>{q}x {item.name}</td>
+                    <td className="right">{fmt(item.price * q)}</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
           <div className="line" />

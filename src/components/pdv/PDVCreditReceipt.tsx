@@ -5,12 +5,14 @@ import { Printer, X } from "lucide-react";
 export interface CreditReceiptData {
   clientName: string;
   cpf?: string;
+  clientDoc?: string;
   installmentNumber: string;
   value: number;
   dueDate: string;
   paidDate?: string;
   paymentMethod?: string;
   companyName?: string;
+  [key: string]: any;
 }
 
 interface Props {

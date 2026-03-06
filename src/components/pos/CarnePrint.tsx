@@ -54,7 +54,7 @@ export function CarnePrint({ data, onClose, format = "a4" }: Props) {
                 <tr key={inst.number}>
                   <td>{inst.number}</td>
                   <td>{inst.dueDate}</td>
-                  <td>{fmt(inst.value)}</td>
+                  <td>{fmt(inst.value ?? inst.amount ?? 0)}</td>
                   <td className="center">☐</td>
                 </tr>
               ))}
