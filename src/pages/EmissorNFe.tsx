@@ -662,7 +662,7 @@ function EmissorReportTab({ companyId }: { companyId: string }) {
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             <div className="bg-card rounded-xl border border-border p-4">
               <p className="text-[11px] text-muted-foreground uppercase tracking-wider">Autorizadas</p>
-              <p className="text-2xl font-bold font-mono text-emerald-500">{stats.autorizadas}</p>
+              <p className="text-2xl font-bold font-mono text-success">{stats.autorizadas}</p>
               <p className="text-xs text-muted-foreground mt-1">{formatCurrency(stats.totalValue)}</p>
             </div>
             <div className="bg-card rounded-xl border border-border p-4">
