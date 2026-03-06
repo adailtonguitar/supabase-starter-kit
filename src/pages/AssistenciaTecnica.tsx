@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Wrench, Plus, Clock, CheckCircle2, AlertCircle, MessageSquare } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -9,22 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { toast } from "sonner";
-
-type TicketStatus = "aberto" | "em_andamento" | "aguardando_peca" | "concluido";
-type TicketPriority = "baixa" | "media" | "alta" | "urgente";
-
-interface Ticket {
-  id: string;
-  clientName: string;
-  product: string;
-  issue: string;
-  status: TicketStatus;
-  priority: TicketPriority;
-  createdAt: string;
-  slaDeadline: string;
-  notes: string[];
-}
+import { useTechnicalTickets, type TicketStatus, type TicketPriority } from "@/hooks/useTechnicalTickets";
 
 const statusMap: Record<TicketStatus, { label: string; color: string; icon: any }> = {
   aberto: { label: "Aberto", color: "bg-blue-500/10 text-blue-600 border-blue-500/20", icon: AlertCircle },
@@ -34,58 +19,24 @@ const statusMap: Record<TicketStatus, { label: string; color: string; icon: any 
 };
 
 const priorityColors: Record<TicketPriority, string> = {
-  baixa: "bg-muted text-muted-foreground",
-  media: "bg-blue-500/10 text-blue-600",
-  alta: "bg-amber-500/10 text-amber-600",
-  urgente: "bg-destructive/10 text-destructive",
+  baixa: "bg-muted text-muted-foreground", media: "bg-blue-500/10 text-blue-600",
+  alta: "bg-amber-500/10 text-amber-600", urgente: "bg-destructive/10 text-destructive",
 };
 
-const mockTickets: Ticket[] = [
-  {
-    id: "AT-001", clientName: "Maria Silva", product: "Guarda-Roupa Casal 6 Portas",
-    issue: "Porta corrediça desalinhada após 3 meses de uso", status: "em_andamento", priority: "media",
-    createdAt: "2026-02-28", slaDeadline: "2026-03-07", notes: ["Técnico agendado para 05/03", "Peça de reposição em estoque"],
-  },
-  {
-    id: "AT-002", clientName: "João Santos", product: "Mesa de Jantar 8 Lugares",
-    issue: "Pé da mesa com rachadura", status: "aguardando_peca", priority: "alta",
-    createdAt: "2026-03-01", slaDeadline: "2026-03-08", notes: ["Pé de reposição encomendado ao fornecedor"],
-  },
-  {
-    id: "AT-003", clientName: "Ana Costa", product: "Sofá Retrátil 3 Lugares",
-    issue: "Mecanismo retrátil travando", status: "aberto", priority: "urgente",
-    createdAt: "2026-03-05", slaDeadline: "2026-03-07", notes: [],
-  },
-];
-
 export default function AssistenciaTecnica() {
-  const [tickets, setTickets] = useState<Ticket[]>(mockTickets);
+  const { tickets, loading, create, updateStatus } = useTechnicalTickets();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("todos");
-  const [form, setForm] = useState({ clientName: "", product: "", issue: "", priority: "media" as TicketPriority });
+  const [form, setForm] = useState({ client_name: "", product: "", issue: "", priority: "media" as TicketPriority });
 
   const handleCreate = () => {
-    if (!form.clientName || !form.product || !form.issue) { toast.error("Preencha todos os campos"); return; }
-    const sla = new Date(); sla.setDate(sla.getDate() + (form.priority === "urgente" ? 2 : form.priority === "alta" ? 5 : 7));
-    const ticket: Ticket = {
-      id: `AT-${String(tickets.length + 1).padStart(3, "0")}`,
-      ...form, status: "aberto",
-      createdAt: new Date().toISOString().split("T")[0],
-      slaDeadline: sla.toISOString().split("T")[0], notes: [],
-    };
-    setTickets(prev => [ticket, ...prev]);
-    setForm({ clientName: "", product: "", issue: "", priority: "media" });
+    if (!form.client_name || !form.product || !form.issue) { return; }
+    create(form);
+    setForm({ client_name: "", product: "", issue: "", priority: "media" });
     setDialogOpen(false);
-    toast.success(`Chamado ${ticket.id} criado`);
-  };
-
-  const updateStatus = (id: string, status: TicketStatus) => {
-    setTickets(prev => prev.map(t => t.id === id ? { ...t, status } : t));
-    toast.success(`Status atualizado para ${statusMap[status].label}`);
   };
 
   const filtered = activeTab === "todos" ? tickets : tickets.filter(t => t.status === activeTab);
-
   const counts = {
     todos: tickets.length,
     aberto: tickets.filter(t => t.status === "aberto").length,
@@ -93,8 +44,9 @@ export default function AssistenciaTecnica() {
     aguardando_peca: tickets.filter(t => t.status === "aguardando_peca").length,
     concluido: tickets.filter(t => t.status === "concluido").length,
   };
+  const isOverdue = (deadline: string) => deadline && new Date(deadline) < new Date();
 
-  const isOverdue = (deadline: string) => new Date(deadline) < new Date();
+  if (loading) return <div className="flex justify-center py-20"><div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>;
 
   return (
     <div className="p-4 md:p-6 space-y-6 max-w-6xl mx-auto">
@@ -112,7 +64,7 @@ export default function AssistenciaTecnica() {
           <DialogContent>
             <DialogHeader><DialogTitle>Abrir Chamado Técnico</DialogTitle></DialogHeader>
             <div className="space-y-3">
-              <div><Label>Cliente</Label><Input placeholder="Nome do cliente" value={form.clientName} onChange={e => setForm(f => ({ ...f, clientName: e.target.value }))} /></div>
+              <div><Label>Cliente</Label><Input placeholder="Nome do cliente" value={form.client_name} onChange={e => setForm(f => ({ ...f, client_name: e.target.value }))} /></div>
               <div><Label>Produto</Label><Input placeholder="Produto com problema" value={form.product} onChange={e => setForm(f => ({ ...f, product: e.target.value }))} /></div>
               <div><Label>Problema</Label><Textarea placeholder="Descreva o defeito..." value={form.issue} onChange={e => setForm(f => ({ ...f, issue: e.target.value }))} /></div>
               <div><Label>Prioridade</Label>
@@ -132,7 +84,6 @@ export default function AssistenciaTecnica() {
         </Dialog>
       </div>
 
-      {/* Summary cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {(["aberto", "em_andamento", "aguardando_peca", "concluido"] as TicketStatus[]).map(s => {
           const { label, icon: Icon, color } = statusMap[s];
@@ -152,34 +103,33 @@ export default function AssistenciaTecnica() {
           <TabsTrigger value="todos">Todos ({counts.todos})</TabsTrigger>
           <TabsTrigger value="aberto">Abertos</TabsTrigger>
           <TabsTrigger value="em_andamento">Em Andamento</TabsTrigger>
-          <TabsTrigger value="aguardando_peca">Aguard. Peça</TabsTrigger>
           <TabsTrigger value="concluido">Concluídos</TabsTrigger>
         </TabsList>
 
         <TabsContent value={activeTab} className="space-y-3 mt-4">
           {filtered.map(ticket => {
             const { label, color, icon: StatusIcon } = statusMap[ticket.status];
-            const overdue = ticket.status !== "concluido" && isOverdue(ticket.slaDeadline);
+            const overdue = ticket.status !== "concluido" && isOverdue(ticket.sla_deadline);
             return (
-              <Card key={ticket.id} className={`${overdue ? "border-destructive/50" : ""}`}>
+              <Card key={ticket.id} className={overdue ? "border-destructive/50" : ""}>
                 <CardContent className="p-4">
                   <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
-                        <span className="font-mono text-xs text-muted-foreground">{ticket.id}</span>
+                        <span className="font-mono text-xs text-muted-foreground">{ticket.ticket_number}</span>
                         <Badge className={priorityColors[ticket.priority]} variant="outline">{ticket.priority.toUpperCase()}</Badge>
                         <Badge className={color} variant="outline"><StatusIcon className="w-3 h-3 mr-1" />{label}</Badge>
                         {overdue && <Badge variant="destructive" className="text-[10px]">SLA ESTOURADO</Badge>}
                       </div>
-                      <h3 className="font-semibold text-sm">{ticket.clientName} — {ticket.product}</h3>
+                      <h3 className="font-semibold text-sm">{ticket.client_name} — {ticket.product}</h3>
                       <p className="text-xs text-muted-foreground mt-0.5">{ticket.issue}</p>
                       <div className="flex items-center gap-3 mt-2 text-[11px] text-muted-foreground">
-                        <span>Aberto: {ticket.createdAt}</span>
-                        <span>SLA: {ticket.slaDeadline}</span>
+                        <span>Aberto: {new Date(ticket.created_at).toLocaleDateString("pt-BR")}</span>
+                        {ticket.sla_deadline && <span>SLA: {ticket.sla_deadline}</span>}
                       </div>
-                      {ticket.notes.length > 0 && (
+                      {(ticket.notes || []).length > 0 && (
                         <div className="mt-2 space-y-1">
-                          {ticket.notes.map((n, i) => (
+                          {(ticket.notes as string[]).map((n, i) => (
                             <div key={i} className="flex items-start gap-1.5 text-xs text-muted-foreground">
                               <MessageSquare className="w-3 h-3 mt-0.5 flex-shrink-0" /><span>{n}</span>
                             </div>
