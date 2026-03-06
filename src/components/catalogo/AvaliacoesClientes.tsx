@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -6,64 +6,28 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Star, Camera, Plus, MessageCircle, Armchair, Image } from "lucide-react";
+import { Star, Camera, Plus, Armchair } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
-
-interface Review {
-  id: string;
-  clientName: string;
-  rating: number;
-  comment: string;
-  ambienteName: string;
-  photo?: string; // base64
-  createdAt: string;
-}
-
-const REVIEWS_KEY = "as_furniture_reviews";
-function loadReviews(): Review[] {
-  try { return JSON.parse(localStorage.getItem(REVIEWS_KEY) || "[]"); } catch { return []; }
-}
-function saveReviews(reviews: Review[]) {
-  localStorage.setItem(REVIEWS_KEY, JSON.stringify(reviews));
-}
-
-// Demo reviews
-const demoReviews: Review[] = [
-  { id: "demo-1", clientName: "Maria Silva", rating: 5, comment: "Sala ficou linda! Entrega rápida e montagem perfeita.", ambienteName: "Sala de Estar", createdAt: "2025-12-15T10:00:00Z" },
-  { id: "demo-2", clientName: "João Santos", rating: 4, comment: "Quarto muito confortável. Recomendo o combo completo.", ambienteName: "Quarto de Casal", createdAt: "2025-12-20T14:00:00Z" },
-  { id: "demo-3", clientName: "Ana Oliveira", rating: 5, comment: "Home office ficou perfeito para trabalhar em casa. Material de qualidade!", ambienteName: "Home Office", createdAt: "2026-01-05T09:00:00Z" },
-];
+import { useCustomerReviews } from "@/hooks/useCustomerReviews";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function AvaliacoesClientes() {
-  const [reviews, setReviews] = useState<Review[]>(() => {
-    const saved = loadReviews();
-    return saved.length > 0 ? saved : demoReviews;
-  });
+  const { reviews, loading, avgRating, addReview } = useCustomerReviews();
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ clientName: "", rating: 5, comment: "", ambienteName: "", photo: "" });
+  const [saving, setSaving] = useState(false);
 
-  const avgRating = useMemo(() => {
-    if (reviews.length === 0) return 0;
-    return reviews.reduce((s, r) => s + r.rating, 0) / reviews.length;
-  }, [reviews]);
-
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!form.clientName || !form.comment) {
       toast.error("Preencha nome e comentário");
       return;
     }
-    const newReview: Review = {
-      id: crypto.randomUUID(),
-      ...form,
-      createdAt: new Date().toISOString(),
-    };
-    const updated = [newReview, ...reviews];
-    setReviews(updated);
-    saveReviews(updated);
+    setSaving(true);
+    await addReview(form);
+    setSaving(false);
     setShowForm(false);
     setForm({ clientName: "", rating: 5, comment: "", ambienteName: "", photo: "" });
-    toast.success("Avaliação adicionada!");
   };
 
   const handlePhotoUpload = (files: FileList | null) => {
@@ -85,6 +49,17 @@ export default function AvaliacoesClientes() {
     </div>
   );
 
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-8 w-64" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {[1, 2, 3].map(i => <Skeleton key={i} className="h-32" />)}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -99,7 +74,6 @@ export default function AvaliacoesClientes() {
         </Button>
       </div>
 
-      {/* Reviews Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         <AnimatePresence mode="popLayout">
           {reviews.slice(0, 6).map((review, i) => (
@@ -131,7 +105,10 @@ export default function AvaliacoesClientes() {
         </AnimatePresence>
       </div>
 
-      {/* Add Review Dialog */}
+      {reviews.length === 0 && (
+        <p className="text-center text-sm text-muted-foreground py-8">Nenhuma avaliação ainda. Adicione a primeira!</p>
+      )}
+
       <Dialog open={showForm} onOpenChange={setShowForm}>
         <DialogContent className="max-w-md">
           <DialogHeader>
@@ -174,7 +151,7 @@ export default function AvaliacoesClientes() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowForm(false)}>Cancelar</Button>
-            <Button onClick={handleSubmit}>Salvar Avaliação</Button>
+            <Button onClick={handleSubmit} disabled={saving}>{saving ? "Salvando..." : "Salvar Avaliação"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
