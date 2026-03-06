@@ -253,27 +253,35 @@ export class SystemDiagnosticService {
 
     await this.runTest("Estoque", "Registrar saída de estoque", async () => {
       if (!testProductId) throw new Error("Produto de teste não criado");
-      const { error } = await supabase.from("stock_movements").insert({
+
+      const { data: before } = await supabase
+        .from("products")
+        .select("stock_quantity")
+        .eq("id", testProductId)
+        .single();
+      const prevQty = Number(before?.stock_quantity ?? 120);
+      const newQty = prevQty - 30;
+
+      const { error } = await supabase.from("stock_movements" as any).insert({
         company_id: this.companyId,
         product_id: testProductId,
         type: "saida",
         quantity: 30,
+        previous_stock: prevQty,
+        new_stock: newQty,
         reason: TEST_PREFIX,
-        created_by: this.userId,
+        performed_by: this.userId,
       });
       if (error) throw error;
 
-      await supabase
-        .from("products")
-        .update({ stock_quantity: 90 })
-        .eq("id", testProductId);
+      await supabase.from("products").update({ stock_quantity: newQty }).eq("id", testProductId);
 
       const { data } = await supabase
         .from("products")
         .select("stock_quantity")
         .eq("id", testProductId)
         .single();
-      if (data?.stock_quantity !== 90) throw new Error(`Esperado 90, obteve ${data?.stock_quantity}`);
+      if (data?.stock_quantity !== newQty) throw new Error(`Esperado ${newQty}, obteve ${data?.stock_quantity}`);
     });
 
     await this.runTest("Estoque", "Impedir estoque negativo", async () => {
