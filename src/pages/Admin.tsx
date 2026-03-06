@@ -23,6 +23,7 @@ import { AdminRevenue } from "@/components/admin/AdminRevenue";
 import AdminPlanTester from "@/components/admin/AdminPlanTester";
 import { AdminCreateEmissorClient } from "@/components/admin/AdminCreateEmissorClient";
 import { AdminBulkEmail } from "@/components/admin/AdminBulkEmail";
+import { AdminStoreSimulation } from "@/components/admin/AdminStoreSimulation";
 
 interface CompanyRow {
   id: string;
