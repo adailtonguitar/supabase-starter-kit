@@ -90,29 +90,38 @@ export function AdminMarketing() {
       const theme = aiPromptTemplates.find((t) => t.id === selectedTheme);
       const prompt = customPrompt.trim() || theme?.prompt || "Promotional art for AnthoSystem retail management system";
 
-      console.log("[AdminMarketing] Calling generate-marketing-art with:", { prompt: prompt.substring(0, 50), width: format.width, height: format.height });
+      console.log("[AdminMarketing] Calling generate-marketing-art...");
       
-      const { data, error } = await supabase.functions.invoke("generate-marketing-art", {
+      const response = await supabase.functions.invoke("generate-marketing-art", {
         body: { prompt, width: format.width, height: format.height },
       });
 
-      console.log("[AdminMarketing] Response data:", data);
-      console.log("[AdminMarketing] Response error:", error);
+      console.log("[AdminMarketing] Full response:", JSON.stringify(response));
 
-      if (error) {
-        // Try to extract the actual error message from the response
-        const errorMsg = typeof error === 'object' && error.message ? error.message : String(error);
-        console.error("[AdminMarketing] Function invoke error details:", JSON.stringify(error, null, 2));
-        throw new Error(errorMsg || "Erro ao gerar imagem");
+      // supabase.functions.invoke returns { data, error }
+      // When function returns non-2xx, error is set but data may contain the error details
+      const result = response.data || response.error;
+      
+      if (response.error) {
+        // Try to get detailed error from the response body
+        let errorMsg = "Erro ao gerar imagem";
+        if (typeof response.error === "object" && response.error.message) {
+          errorMsg = response.error.message;
+        }
+        // If the function returned JSON with error details, prefer that
+        if (result && typeof result === "object" && result.error) {
+          errorMsg = result.error;
+        }
+        console.error("[AdminMarketing] Error:", errorMsg);
+        throw new Error(errorMsg);
       }
-      if (data?.error) throw new Error(data.error);
 
-      if (data?.image) {
-        setGeneratedImage(data.image);
+      if (result?.image) {
+        setGeneratedImage(result.image);
         toast.success("Arte gerada com sucesso!");
       } else {
-        console.error("[AdminMarketing] No image in data:", JSON.stringify(data));
-        throw new Error("Nenhuma imagem retornada pelo modelo");
+        console.error("[AdminMarketing] Unexpected response:", JSON.stringify(result));
+        throw new Error(result?.error || "Nenhuma imagem retornada pelo modelo");
       }
     } catch (err: any) {
       console.error("[AdminMarketing] Generate error:", err);
