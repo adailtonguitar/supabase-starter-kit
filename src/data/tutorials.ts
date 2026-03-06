@@ -2,6 +2,7 @@ import {
   HelpCircle, ShoppingCart, LayoutDashboard, Package, FileText,
   BarChart3, ArrowUpDown, Landmark, ClipboardList, Receipt, Settings,
   Building2, TrendingUp, AlertTriangle, Stethoscope, FileCheck, ShieldCheck,
+  Armchair, Truck, Wrench, RotateCcw, Calendar, ShieldCheck as WarrantyIcon, Zap,
 } from "lucide-react";
 
 export interface TutorialSection {
@@ -13,6 +14,7 @@ export interface TutorialSection {
   shortcuts?: { key: string; action: string }[];
   videoUrl?: string;
   walkthroughId?: string;
+  mode?: "pdv" | "loja" | "both"; // pdv = só PDV geral, loja = só modo loja, both = ambos (default)
   example?: {
     title: string;
     description: string;
@@ -26,6 +28,7 @@ export const tutorials: TutorialSection[] = [
     icon: ShoppingCart,
     title: "PDV — Ponto de Venda",
     description: "Tela principal para realizar vendas rápidas com leitor de código de barras, busca de produtos e múltiplas formas de pagamento.",
+    mode: "both",
     videoUrl: "",
     walkthroughId: "pdv",
     steps: [
@@ -240,6 +243,7 @@ export const tutorials: TutorialSection[] = [
     icon: Building2,
     title: "Filiais — Gestão Multilojas",
     description: "Gerencie múltiplas lojas (matriz e filiais) com CNPJs independentes, estoques separados e visão consolidada.",
+    mode: "pdv",
     videoUrl: "",
     walkthroughId: "filiais",
     steps: [
@@ -444,6 +448,145 @@ export const tutorials: TutorialSection[] = [
       "Use a barra de busca para encontrar tutoriais por palavra-chave.",
       "Clique em uma seção para expandir o passo a passo completo.",
       "Cada tutorial inclui dicas e atalhos quando disponíveis.",
+    ],
+  },
+  // ========== TUTORIAIS EXCLUSIVOS MODO LOJA ==========
+  {
+    icon: Armchair,
+    title: "Catálogo de Móveis & Eletro",
+    description: "Catálogo visual com ficha técnica, QR Code de showroom, compartilhamento via WhatsApp e simulador de parcelas.",
+    mode: "loja",
+    steps: [
+      "Acesse 'Catálogo' no menu do Modo Loja.",
+      "Visualize todos os produtos com fotos, dimensões e ficha técnica.",
+      "Clique em um produto para ver detalhes, voltagem, garantia e variações.",
+      "Use o QR Code da etiqueta de showroom para o cliente acessar a ficha no celular.",
+      "Compartilhe produtos ou propostas via WhatsApp diretamente pelo catálogo.",
+      "Use o Simulador de Parcelas para mostrar opções de pagamento ao cliente.",
+    ],
+    tips: [
+      "Cadastre voltagem (110V/220V/Bivolt) e garantia no produto para fichas completas.",
+      "O deep-link '?produto=ID' abre o produto automaticamente no catálogo.",
+      "Etiquetas de showroom com QR Code são geradas em 'Exposição'.",
+    ],
+  },
+  {
+    icon: Package,
+    title: "Kits & Combos Inteligentes",
+    description: "Crie combos de produtos (ex: Cozinha Completa) com desconto automático para aumentar o ticket médio.",
+    mode: "loja",
+    steps: [
+      "Acesse 'Operações > Kits & Combos' no menu lateral.",
+      "Clique em 'Novo Kit' para criar um combo.",
+      "Dê um nome ao kit (ex: 'Quarto Casal Completo').",
+      "Adicione os produtos do combo selecionando na lista.",
+      "Defina o tipo de desconto: percentual (%) ou valor fixo (R$).",
+      "Ative 'Desconto Progressivo' para que mais itens = maior desconto.",
+      "Clique em 'Criar Kit' para salvar.",
+    ],
+    tips: [
+      "Kits com 3+ produtos costumam aumentar o ticket médio em 30-40%.",
+      "Use kits para montar ambientes completos: sala, cozinha, quarto.",
+      "O desconto é aplicado automaticamente sobre o total dos produtos.",
+    ],
+  },
+  {
+    icon: Calendar,
+    title: "Follow-up Comercial",
+    description: "Agenda de contatos pendentes para recuperar orçamentos não fechados e manter relacionamento com clientes.",
+    mode: "loja",
+    steps: [
+      "Acesse 'Clientes > Follow-up' no menu lateral.",
+      "Clique em 'Novo Follow-up' para agendar um contato.",
+      "Selecione o cliente e o tipo de contato (WhatsApp, telefone, e-mail ou visita).",
+      "Defina a data do contato e adicione uma observação.",
+      "Na lista, acompanhe follow-ups pendentes com destaque para atrasados.",
+      "Marque como 'Concluído' ou 'Pular' após realizar o contato.",
+    ],
+    tips: [
+      "Follow-ups atrasados aparecem em vermelho para priorização.",
+      "Agende follow-ups 3 e 7 dias após enviar um orçamento.",
+      "Use as abas para filtrar entre pendentes, concluídos e todos.",
+    ],
+  },
+  {
+    icon: RotateCcw,
+    title: "Trocas & Devoluções",
+    description: "Fluxo completo de trocas e devoluções com rastreamento de motivo, análise do produto e reentrada no estoque.",
+    mode: "loja",
+    steps: [
+      "Acesse 'Operações > Trocas/Devoluções' no menu lateral.",
+      "Clique em 'Nova Troca/Devolução'.",
+      "Selecione a venda de origem na lista.",
+      "Escolha o tipo: Troca ou Devolução.",
+      "Selecione a categoria do motivo: Defeito, Voltagem Errada, Avaria no Transporte, etc.",
+      "Descreva o problema em detalhes.",
+      "O fluxo segue as etapas: Aberto → Em Análise → Aprovado → Concluído.",
+      "Clique em 'Avançar' para mover entre as etapas.",
+    ],
+    tips: [
+      "'Voltagem Errada' é um motivo específico para eletrodomésticos.",
+      "Na conclusão, o estoque é reentrado automaticamente.",
+      "Use as abas para acompanhar solicitações por status.",
+    ],
+  },
+  {
+    icon: Zap,
+    title: "Cadastro de Eletrodomésticos",
+    description: "Campos exclusivos para eletrodomésticos: voltagem (110V/220V/Bivolt), garantia em meses e número de série.",
+    mode: "loja",
+    steps: [
+      "Acesse 'Produtos' e clique em 'Novo Produto'.",
+      "Preencha os dados básicos normalmente (nome, SKU, preço).",
+      "Na seção 'Eletro & Garantia' (visível no Modo Loja), preencha:",
+      "  - Voltagem: selecione 110V, 220V ou Bivolt.",
+      "  - Garantia: informe o prazo em meses (ex: 12).",
+      "  - Nº de Série: código único da unidade.",
+      "A voltagem aparece na listagem de produtos com ícone ⚡.",
+      "Gere o Certificado de Garantia Digital a partir da venda.",
+    ],
+    tips: [
+      "A voltagem é exibida na listagem de produtos e no catálogo.",
+      "O número de série permite rastreabilidade individual em assistência técnica.",
+      "O certificado de garantia usa QR Code para verificação de autenticidade.",
+    ],
+  },
+  {
+    icon: Truck,
+    title: "Entregas & Montagem",
+    description: "Controle de entregas e montagens com Kanban, equipes, fotos de conclusão e rastreio em tempo real.",
+    mode: "loja",
+    steps: [
+      "Acesse 'Operações > Entregas' para a agenda de entregas.",
+      "Acesse 'Operações > Montagem' para controle de montagens.",
+      "Vincule equipes: motoristas, montadores e ajudantes.",
+      "Acompanhe o status em formato Kanban: Pendente → Em Rota → Entregue.",
+      "Na conclusão, faça upload de fotos da entrega/montagem realizada.",
+      "Use 'Rastreio' para acompanhar entregas em tempo real.",
+    ],
+    tips: [
+      "Imprima listas de montagem para a equipe de campo.",
+      "Fotos de conclusão servem como comprovante para o cliente.",
+      "O cliente pode acompanhar pelo Portal do Cliente.",
+    ],
+  },
+  {
+    icon: Wrench,
+    title: "Assistência Técnica",
+    description: "Gerenciamento de tickets de assistência técnica com SLA, diagnóstico e acompanhamento.",
+    mode: "loja",
+    steps: [
+      "Acesse 'Operações > Assistência Técnica'.",
+      "Abra um novo ticket informando cliente, produto e descrição do problema.",
+      "Acompanhe o status: Aberto → Diagnosticando → Orçado → Em Reparo → Concluído.",
+      "Registre o diagnóstico técnico e o orçamento.",
+      "Aguarde a aprovação do cliente antes de prosseguir com o reparo.",
+      "Conclua o ticket e notifique o cliente.",
+    ],
+    tips: [
+      "O SLA ajuda a manter prazos sob controle.",
+      "Vincule o número de série do produto para rastreabilidade.",
+      "Fotos do defeito podem ser anexadas ao ticket.",
     ],
   },
 ];
