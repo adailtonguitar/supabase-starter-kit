@@ -733,7 +733,7 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
                 <FormField control={form.control} name="supplier_id" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Fornecedor</FormLabel>
-                    <Select onValueChange={(v) => field.onChange(v === "__none__" ? "" : v)} defaultValue={field.value || "__none__"}>
+                    <Select onValueChange={(v) => field.onChange(v === "__none__" ? "" : v)} value={field.value || "__none__"}>
                       <FormControl>
                         <SelectTrigger><SelectValue placeholder="Selecione um fornecedor" /></SelectTrigger>
                       </FormControl>
