@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { AlertTriangle, Trash2, Loader2, Clock } from "lucide-react";
+import { AlertTriangle, Trash2, Loader2, Clock, RotateCcw } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/hooks/useCompany";
 import { useAuth } from "@/hooks/useAuth";
@@ -14,6 +14,7 @@ export function DemoBanner() {
   const [isDemo, setIsDemo] = useState(false);
   const [daysLeft, setDaysLeft] = useState<number | null>(null);
   const [clearing, setClearing] = useState(false);
+  const [resetting, setResetting] = useState(false);
   const [seeding, setSeeding] = useState(false);
 
   useEffect(() => {
@@ -71,6 +72,20 @@ export function DemoBanner() {
     setClearing(false);
   }, [companyId]);
 
+  const handleResetAll = useCallback(async () => {
+    if (!companyId) return;
+    if (!confirm("⚠️ ATENÇÃO: Isso vai apagar TODOS os dados desta empresa demo (produtos, clientes, vendas, financeiro). Deseja continuar?")) return;
+    setResetting(true);
+    try {
+      await DemoDataService.resetAllData(companyId);
+      toast.success("Todos os dados foram removidos! Os dados demo serão recriados ao recarregar.");
+      setTimeout(() => window.location.reload(), 1500);
+    } catch (err: any) {
+      toast.error(`Erro ao resetar: ${err.message}`);
+    }
+    setResetting(false);
+  }, [companyId]);
+
   if (!isDemo) return null;
 
   const expired = daysLeft !== null && daysLeft <= 0;
@@ -103,14 +118,24 @@ export function DemoBanner() {
         </span>
         {seeding && <Loader2 className="w-4 h-4 animate-spin" />}
       </div>
-      <button
-        onClick={handleClear}
-        disabled={clearing || seeding}
-        className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-amber-950/20 hover:bg-amber-950/30 transition-colors text-xs font-bold disabled:opacity-50 whitespace-nowrap"
-      >
-        {clearing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
-        Limpar dados demo
-      </button>
+      <div className="flex items-center gap-2">
+        <button
+          onClick={handleClear}
+          disabled={clearing || seeding || resetting}
+          className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-amber-950/20 hover:bg-amber-950/30 transition-colors text-xs font-bold disabled:opacity-50 whitespace-nowrap"
+        >
+          {clearing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+          Limpar demo
+        </button>
+        <button
+          onClick={handleResetAll}
+          disabled={resetting || seeding || clearing}
+          className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-amber-950/30 hover:bg-amber-950/40 transition-colors text-xs font-bold disabled:opacity-50 whitespace-nowrap"
+        >
+          {resetting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RotateCcw className="w-3.5 h-3.5" />}
+          Resetar tudo
+        </button>
+      </div>
     </div>
   );
 }
