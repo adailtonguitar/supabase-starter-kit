@@ -69,6 +69,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSession(session);
       setUser(session?.user ?? null);
       cacheUser(session?.user ?? null);
+      setErrorTrackerUser(session?.user?.id ?? null, session?.user?.email ?? null);
       setLoading(false);
     }).catch(() => {
       if (!navigator.onLine && getCachedUser()) {
