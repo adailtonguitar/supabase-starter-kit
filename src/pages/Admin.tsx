@@ -27,8 +27,12 @@ import { AdminStoreSimulation } from "@/components/admin/AdminStoreSimulation";
 import { lazy, Suspense } from "react";
 
 const RegistroErros = lazy(() => import("./RegistroErros"));
+const DiagnosticoSistema = lazy(() => import("./DiagnosticoSistema"));
 function ErrorsTab() {
   return <Suspense fallback={<div className="py-8 text-center text-muted-foreground">Carregando...</div>}><RegistroErros /></Suspense>;
+}
+function DiagnosticTab() {
+  return <Suspense fallback={<div className="py-8 text-center text-muted-foreground">Carregando...</div>}><DiagnosticoSistema /></Suspense>;
 }
 
 interface CompanyRow {
