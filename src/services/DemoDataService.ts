@@ -154,17 +154,19 @@ export class DemoDataService {
 
   static async clearDemoData(companyId: string): Promise<void> {
     // Delete demo sales + sale_items (cascade)
-    const { data: demoSales } = await supabase
+    const { data: demoSales } = await (supabase
       .from("sales")
       .select("id")
-      .eq("company_id", companyId)
-      .eq("is_demo" as any, true);
+      .eq("company_id", companyId) as any)
+      .eq("is_demo", true);
 
     if (demoSales && demoSales.length > 0) {
-      const saleIds = demoSales.map(s => s.id);
-      await supabase.from("sale_items").delete().in("sale_id", saleIds);
-      await supabase.from("financial_entries").delete().in("reference", saleIds.map(String));
-      await supabase.from("sales").delete().in("id", saleIds);
+      const saleIds = demoSales.map((s: any) => s.id);
+      for (const sid of saleIds) {
+        await supabase.from("sale_items").delete().eq("sale_id", sid);
+        await (supabase.from("financial_entries").delete() as any).eq("reference", sid);
+        await supabase.from("sales").delete().eq("id", sid);
+      }
     }
 
     // Delete demo products
