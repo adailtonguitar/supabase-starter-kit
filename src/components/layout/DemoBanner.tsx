@@ -51,7 +51,12 @@ export function DemoBanner() {
     setSeeding(true);
     DemoDataService.seedDemoData(companyId, user.id)
       .then((r) => {
-        toast.success(`Dados demo criados: ${r.products} produtos, ${r.clients} clientes, ${r.sales} vendas`);
+        if (r.products > 0) {
+          toast.success("Dados demo prontos! 🎉", {
+            description: `${r.products} produtos, ${r.clients} clientes, ${r.sales} vendas criados.`,
+          });
+        }
+        // If -1 (already seeded) or 0 (failed), don't show toast — Auth.tsx already handled it
       })
       .catch((err) => {
         toast.error(`Erro ao gerar dados demo: ${err.message}`);
