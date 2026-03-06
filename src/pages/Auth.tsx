@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Mail, Lock, ArrowRight, KeyRound, Eye, EyeOff } from "lucide-react";
+import { Mail, Lock, ArrowRight, KeyRound, Eye, EyeOff, Play } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 
