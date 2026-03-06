@@ -180,6 +180,25 @@ export default function RegistroErros() {
           <FlaskConical className="w-4 h-4" />
           Gerar erro teste
         </Button>
+
+        <Button
+          variant="destructive"
+          size="sm"
+          disabled={loading || errors.length === 0}
+          onClick={async () => {
+            if (!confirm("Apagar todos os registros de erros?")) return;
+            try {
+              await (supabase as any).from("system_errors").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+              setErrors([]);
+            } catch (err) {
+              console.error("[RegistroErros] Delete error:", err);
+            }
+          }}
+          className="gap-1.5 text-xs"
+        >
+          <Trash2 className="w-4 h-4" />
+          Limpar registros
+        </Button>
       </div>
 
       {/* Error list */}
