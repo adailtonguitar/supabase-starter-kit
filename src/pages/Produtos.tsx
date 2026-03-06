@@ -3,7 +3,7 @@ import { Search, Plus, Edit, Package, Upload, Trash2, FileText, ArrowUpDown, His
 import { formatCurrency } from "@/lib/utils";
 import { motion } from "framer-motion";
 import { useProducts, useDeleteProduct, type Product } from "@/hooks/useProducts";
-import { useFurnitureMode } from "@/hooks/useFurnitureMode";
+
 import { ProductFormDialog } from "@/components/stock/ProductFormDialog";
 import { StockMovementDialog } from "@/components/stock/StockMovementDialog";
 import { MovementHistoryDialog } from "@/components/stock/MovementHistoryDialog";
