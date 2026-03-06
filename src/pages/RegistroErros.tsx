@@ -1,8 +1,9 @@
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAdminRole } from "@/hooks/useAdminRole";
+import { trackError } from "@/services/ErrorTracker";
 import { format, subDays, startOfDay, endOfDay } from "date-fns";
-import { AlertTriangle, Search, Monitor, User, Calendar, RefreshCw, Bug } from "lucide-react";
+import { AlertTriangle, Search, Monitor, User, Calendar, RefreshCw, Bug, FlaskConical } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -165,6 +166,19 @@ export default function RegistroErros() {
 
         <Button variant="outline" size="icon" onClick={fetchErrors} disabled={loading}>
           <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+        </Button>
+
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-1.5 text-xs"
+          onClick={async () => {
+            await trackError({ page: "/admin", action: "botao_teste", error: new Error("Erro de teste gerado pelo admin") });
+            fetchErrors();
+          }}
+        >
+          <FlaskConical className="w-4 h-4" />
+          Gerar erro teste
         </Button>
       </div>
 
