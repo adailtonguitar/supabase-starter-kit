@@ -138,7 +138,7 @@ function TransactionsTab() {
                   <div className="flex-1 min-w-0"><p className="text-sm font-medium">{clientMap.get(tx.client_id) || "Cliente"}</p><p className="text-xs text-muted-foreground truncate">{tx.description}</p></div>
                   <Badge variant="outline" className={cfg.color}>{cfg.label}</Badge>
                   <div className="text-right">
-                    <p className={`text-sm font-bold ${tx.points > 0 ? "text-emerald-500" : "text-destructive"}`}>{tx.points > 0 ? "+" : ""}{tx.points}</p>
+                    <p className={`text-sm font-bold ${tx.points > 0 ? "text-success" : "text-destructive"}`}>{tx.points > 0 ? "+" : ""}{tx.points}</p>
                     <p className="text-[10px] text-muted-foreground">Saldo: {tx.balance_after}</p>
                   </div>
                   <span className="text-[10px] text-muted-foreground whitespace-nowrap">{new Date(tx.created_at).toLocaleDateString("pt-BR")}</span>

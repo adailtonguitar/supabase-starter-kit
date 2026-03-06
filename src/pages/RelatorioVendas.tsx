@@ -572,10 +572,10 @@ export default function RelatorioVendas() {
                       {formatCurrency(totals.profit)}
                     </td>
                     <td className="px-5 py-3 text-right">
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
                         totals.revenue > 0 && (totals.profit / totals.revenue) * 100 >= 30
-                          ? "bg-emerald-500/10 text-emerald-500"
-                          : "bg-amber-500/10 text-amber-500"
+                          ? "bg-success/10 text-success"
+                          : "bg-warning/10 text-warning"
                       }`}>
                         {totals.revenue > 0 ? ((totals.profit / totals.revenue) * 100).toFixed(1) : "0.0"}%
                       </span>
