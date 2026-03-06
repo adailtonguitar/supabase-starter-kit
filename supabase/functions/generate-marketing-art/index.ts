@@ -9,10 +9,11 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
+    const GEMINI_KEY = Deno.env.get("GOOGLE_GEMINI_KEY");
+    if (!GEMINI_KEY) {
+      console.error("[generate-marketing-art] GOOGLE_GEMINI_KEY not found");
       return new Response(
-        JSON.stringify({ error: "LOVABLE_API_KEY não configurada" }),
+        JSON.stringify({ error: "GOOGLE_GEMINI_KEY não configurada. Configure no Supabase Dashboard > Edge Functions > Secrets." }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -29,26 +30,28 @@ Deno.serve(async (req) => {
       );
     }
 
-    const fullPrompt = `Generate a ${width}x${height} professional social media promotional image. ${prompt}. The image should be high quality, vibrant, and ready for social media posting.`;
+    // Use Imagen model for image generation via Gemini API
+    const imagenUrl = `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${GEMINI_KEY}`;
 
-    console.log("[generate-marketing-art] Calling Lovable AI Gateway");
+    const fullPrompt = `Professional social media promotional image, ${width}x${height} pixels. ${prompt}. High quality, vibrant colors, ready for social media posting.`;
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    console.log("[generate-marketing-art] Calling Imagen API with prompt:", fullPrompt.substring(0, 100));
+
+    const response = await fetch(imagenUrl, {
       method: "POST",
-      headers: {
-        "Authorization": `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash-image",
-        messages: [{ role: "user", content: fullPrompt }],
-        modalities: ["image", "text"],
+        instances: [{ prompt: fullPrompt }],
+        parameters: {
+          sampleCount: 1,
+          aspectRatio: width > height ? "16:9" : width < height ? "9:16" : "1:1",
+        },
       }),
     });
 
     if (!response.ok) {
       const errText = await response.text();
-      console.error("[generate-marketing-art] Gateway error:", response.status, errText);
+      console.error("[generate-marketing-art] Imagen error:", response.status, errText.substring(0, 300));
 
       if (response.status === 429) {
         return new Response(
@@ -56,42 +59,28 @@ Deno.serve(async (req) => {
           { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-      if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ error: "Créditos insuficientes para geração de imagem." }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
 
-      return new Response(
-        JSON.stringify({ error: "Erro no gateway de IA: " + response.status }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      // Fallback: try Gemini native image generation (Nano Banana)
+      console.log("[generate-marketing-art] Imagen failed, trying Gemini native image generation...");
+      return await tryGeminiNativeImage(GEMINI_KEY, fullPrompt);
     }
 
     const data = await response.json();
-    console.log("[generate-marketing-art] Response keys:", Object.keys(data));
+    console.log("[generate-marketing-art] Imagen response keys:", Object.keys(data));
 
-    const choices = data.choices;
-    if (choices && choices.length > 0) {
-      const message = choices[0].message;
-      const images = message?.images;
-      if (images && images.length > 0) {
-        const imageUrl = images[0].image_url?.url || images[0].url;
-        if (imageUrl) {
-          return new Response(
-            JSON.stringify({ success: true, image: imageUrl }),
-            { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-          );
-        }
-      }
+    const predictions = data.predictions;
+    if (predictions && predictions.length > 0 && predictions[0].bytesBase64Encoded) {
+      const base64 = predictions[0].bytesBase64Encoded;
+      const imageDataUrl = `data:image/png;base64,${base64}`;
+      return new Response(
+        JSON.stringify({ success: true, image: imageDataUrl }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
-    console.error("[generate-marketing-art] No image in response:", JSON.stringify(data).substring(0, 500));
-    return new Response(
-      JSON.stringify({ error: "Modelo não retornou imagem. Tente novamente." }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    console.error("[generate-marketing-art] No predictions in Imagen response");
+    // Fallback to Gemini native
+    return await tryGeminiNativeImage(GEMINI_KEY, fullPrompt);
   } catch (err) {
     console.error("[generate-marketing-art] Fatal error:", err);
     return new Response(
@@ -100,3 +89,57 @@ Deno.serve(async (req) => {
     );
   }
 });
+
+async function tryGeminiNativeImage(apiKey: string, prompt: string): Promise<Response> {
+  const models = ["gemini-2.0-flash-exp-image-generation", "gemini-2.0-flash"];
+
+  for (const model of models) {
+    try {
+      console.log(`[generate-marketing-art] Trying Gemini native model: ${model}`);
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+      const resp = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: {
+            responseModalities: ["IMAGE", "TEXT"],
+          },
+        }),
+      });
+
+      if (!resp.ok) {
+        const errText = await resp.text();
+        console.error(`[generate-marketing-art] ${model} error: ${resp.status} - ${errText.substring(0, 200)}`);
+        continue;
+      }
+
+      const data = await resp.json();
+      const parts = data.candidates?.[0]?.content?.parts;
+
+      if (parts) {
+        for (const part of parts) {
+          if (part.inlineData?.data) {
+            const mimeType = part.inlineData.mimeType || "image/png";
+            const imageDataUrl = `data:${mimeType};base64,${part.inlineData.data}`;
+            console.log(`[generate-marketing-art] Success with ${model}`);
+            return new Response(
+              JSON.stringify({ success: true, image: imageDataUrl }),
+              { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+            );
+          }
+        }
+      }
+
+      console.warn(`[generate-marketing-art] ${model} returned no image data`);
+    } catch (err) {
+      console.error(`[generate-marketing-art] ${model} exception:`, err);
+    }
+  }
+
+  return new Response(
+    JSON.stringify({ error: "Não foi possível gerar a imagem. Todos os modelos falharam. Tente novamente." }),
+    { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+  );
+}
