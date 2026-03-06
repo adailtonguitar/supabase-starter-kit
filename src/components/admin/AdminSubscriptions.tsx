@@ -240,6 +240,11 @@ export function AdminSubscriptions() {
                       <TableCell className="text-center">{row.fiscal_enabled ? "✅" : "❌"}</TableCell>
                       <TableCell className="text-center">{row.advanced_reports_enabled ? "✅" : "❌"}</TableCell>
                       <TableCell className="text-center">{row.financial_module_level === "full" ? "Completo" : "Básico"}</TableCell>
+                      <TableCell className="text-center">
+                        <Button size="sm" variant={row.is_demo ? "destructive" : "ghost"} onClick={() => toggleDemo(row)} className="text-xs h-7 px-2">
+                          {row.is_demo ? "🔶 Sim" : "Não"}
+                        </Button>
+                      </TableCell>
                       <TableCell className="text-right">
                         <Button size="sm" variant="outline" onClick={() => savePlan(row)} disabled={saving === row.id}>
                           <Save className="h-3.5 w-3.5 mr-1" /> {saving === row.id ? "..." : "Salvar"}
