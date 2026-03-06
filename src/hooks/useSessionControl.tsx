@@ -79,8 +79,8 @@ export function useSessionControl() {
   }, [user, companyId]);
 
   const validateSession = useCallback(async () => {
-    // Super admins bypass session validation entirely
-    if (isSuperAdmin) return;
+    // Super admins and demo accounts bypass session validation
+    if (isSuperAdmin || isDemoRef.current) return;
 
     const token = getStoredToken();
     if (!token || !user) return;
