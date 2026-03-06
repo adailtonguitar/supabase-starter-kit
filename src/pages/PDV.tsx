@@ -811,6 +811,7 @@ export default function PDV() {
         nfceNumber: result.nfceNumber,
         accessKey: result.accessKey, serie: result.serie,
         isContingency: result.isContingency,
+        saleId: result.saleId,
       });
       setFiadoReceipt({
         clientName: client.name,

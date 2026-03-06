@@ -177,6 +177,7 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
             ${companyAddress ? `<p class="sm">${companyAddress}</p>` : ""}
             ${companyPhone ? `<p class="sm">Fone: ${companyPhone}</p>` : ""}
           </div>
+          ${saleId ? `<p class="center bold" style="margin-top:3px; font-size:11px;">Venda #${saleId.substring(0, 8).toUpperCase()}</p>` : ""}
           <div class="fiscal-header">DANFE NFC-e - DOCUMENTO AUXILIAR</div>
           <div class="fiscal-header" style="font-size:8px; background:#333;">DA NOTA FISCAL DE CONSUMIDOR ELETRÔNICA</div>
           ${isSimulation ? `<div class="sim-badge">*** SIMULAÇÃO - SEM VALOR FISCAL ***</div>` : ""}
