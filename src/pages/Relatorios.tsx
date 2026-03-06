@@ -74,7 +74,7 @@ function extractPaymentMethod(payments: any): string {
 
 export default function Relatorios() {
   const { companyId } = useCompany();
-  const { enabled: furnitureMode } = useFurnitureMode();
+  
   const now = new Date();
   const [dateFrom, setDateFrom] = useState<Date>(startOfMonth(now));
   const [dateTo, setDateTo] = useState<Date>(now);
