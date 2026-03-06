@@ -113,6 +113,17 @@ export function PDVCreditReceipt({ data, onClose }: PDVCreditReceiptProps) {
           <p className="text-sm text-muted-foreground mt-1">{data.clientName}</p>
         </div>
         <div className="px-6 py-4 border-t border-border space-y-3">
+          {data.items && data.items.length > 0 && (
+            <div className="space-y-1.5 pb-3 border-b border-border">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Produtos</p>
+              {data.items.map((item, idx) => (
+                <div key={idx} className="flex justify-between text-sm">
+                  <span className="text-foreground truncate mr-2">{item.quantity}x {item.name}</span>
+                  <span className="font-mono text-foreground flex-shrink-0">{formatCurrency(item.unitPrice * item.quantity)}</span>
+                </div>
+              ))}
+            </div>
+          )}
           <div className="flex justify-between text-sm"><span className="text-muted-foreground">Saldo anterior</span><span className="font-mono text-foreground">{formatCurrency(data.previousBalance)}</span></div>
           <div className="flex justify-between items-center"><span className="text-sm text-muted-foreground">Valor recebido</span><span className="text-lg font-bold font-mono text-primary">{formatCurrency(data.amount)}</span></div>
           <div className="flex justify-between text-sm"><span className="text-muted-foreground">Saldo remanescente</span><span className="font-mono text-foreground">{formatCurrency(data.newBalance)}</span></div>
