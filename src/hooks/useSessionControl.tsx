@@ -36,6 +36,7 @@ export function useSessionControl() {
   const { user, signOut } = useAuth();
   const { companyId } = useCompany();
   const { isSuperAdmin } = useAdminRole();
+  const isDemoRef = useRef(false);
   const registeredRef = useRef(false);
 
   const registerSession = useCallback(async () => {
@@ -78,8 +79,8 @@ export function useSessionControl() {
   }, [user, companyId]);
 
   const validateSession = useCallback(async () => {
-    // Super admins bypass session validation entirely
-    if (isSuperAdmin) return;
+    // Super admins and demo accounts bypass session validation
+    if (isSuperAdmin || isDemoRef.current) return;
 
     const token = getStoredToken();
     if (!token || !user) return;
@@ -116,12 +117,24 @@ export function useSessionControl() {
     registeredRef.current = false;
   }, []);
 
-  // Register on login
+  // Check if demo company & register on login
   useEffect(() => {
     if (user && companyId) {
-      registerSession();
+      // Check if this is a demo company — skip session control for demos
+      supabase
+        .from("companies")
+        .select("is_demo")
+        .eq("id", companyId)
+        .maybeSingle()
+        .then(({ data }) => {
+          isDemoRef.current = !!(data as any)?.is_demo;
+          if (!isDemoRef.current) {
+            registerSession();
+          }
+        });
     } else {
       registeredRef.current = false;
+      isDemoRef.current = false;
     }
   }, [user, companyId, registerSession]);
 
