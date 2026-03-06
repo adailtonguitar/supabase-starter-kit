@@ -17,7 +17,10 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { prompt, width, height } = await req.json();
+    const body = await req.json();
+    const prompt = body.prompt || "";
+    const width = body.width || 1080;
+    const height = body.height || 1080;
 
     if (!prompt) {
       return new Response(
@@ -26,14 +29,14 @@ Deno.serve(async (req) => {
       );
     }
 
-    const fullPrompt = `Generate a ${width || 1080}x${height || 1080} professional social media promotional image. ${prompt}. The image should be high quality, vibrant, and ready for social media posting.`;
+    const fullPrompt = `Generate a ${width}x${height} professional social media promotional image. ${prompt}. The image should be high quality, vibrant, and ready for social media posting.`;
 
-    console.log("[generate-marketing-art] Calling Lovable AI Gateway with gemini-2.5-flash-image");
+    console.log("[generate-marketing-art] Calling Lovable AI Gateway");
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Authorization": `Bearer ${LOVABLE_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
@@ -45,7 +48,7 @@ Deno.serve(async (req) => {
 
     if (!response.ok) {
       const errText = await response.text();
-      console.error(`[generate-marketing-art] Gateway error ${response.status}: ${errText}`);
+      console.error("[generate-marketing-art] Gateway error:", response.status, errText);
 
       if (response.status === 429) {
         return new Response(
@@ -61,21 +64,30 @@ Deno.serve(async (req) => {
       }
 
       return new Response(
-        JSON.stringify({ error: `Erro no gateway de IA: ${response.status}` }),
+        JSON.stringify({ error: "Erro no gateway de IA: " + response.status }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     const data = await response.json();
-    const imageUrl = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+    console.log("[generate-marketing-art] Response keys:", Object.keys(data));
 
-    if (imageUrl) {
-      return new Response(
-        JSON.stringify({ success: true, image: imageUrl }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    const choices = data.choices;
+    if (choices && choices.length > 0) {
+      const message = choices[0].message;
+      const images = message?.images;
+      if (images && images.length > 0) {
+        const imageUrl = images[0].image_url?.url || images[0].url;
+        if (imageUrl) {
+          return new Response(
+            JSON.stringify({ success: true, image: imageUrl }),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+      }
     }
 
+    console.error("[generate-marketing-art] No image in response:", JSON.stringify(data).substring(0, 500));
     return new Response(
       JSON.stringify({ error: "Modelo não retornou imagem. Tente novamente." }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -83,7 +95,7 @@ Deno.serve(async (req) => {
   } catch (err) {
     console.error("[generate-marketing-art] Fatal error:", err);
     return new Response(
-      JSON.stringify({ error: err.message || "Erro interno" }),
+      JSON.stringify({ error: String(err) }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
