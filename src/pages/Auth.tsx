@@ -248,61 +248,27 @@ export default function Auth() {
     setLoading(true);
     try {
       const demoId = Date.now().toString(36);
-      const demoEmail = `demo_${demoId}@demo.anthosystem.com`;
-      const demoPassword = `Demo${demoId}!`;
+      const companyName = `Loja Demo ${demoId.toUpperCase()}`;
 
-      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-        email: demoEmail,
-        password: demoPassword,
-        options: {
-          data: { full_name: "Usuário Demo" },
-          emailRedirectTo: window.location.origin,
-        },
+      const { data, error } = await supabase.functions.invoke("create-demo-account", {
+        body: { company_name: companyName },
       });
 
-      if (signUpError) throw signUpError;
+      if (error) throw new Error(error.message || "Erro ao criar conta demo");
+      if (data?.error) throw new Error(data.error);
 
-      // Sign in immediately (demo accounts skip email confirmation)
+      // Sign in with the created credentials
       const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: demoEmail,
-        password: demoPassword,
+        email: data.email,
+        password: data.password,
       });
 
-      if (signInError) {
-        // If email confirmation is required, create via edge function approach
-        toast.info("Conta demo criada! Faça login com: " + demoEmail);
-        setEmail(demoEmail);
-        setPassword(demoPassword);
-        setLoading(false);
-        return;
-      }
+      if (signInError) throw signInError;
 
-      // Create demo company via onboarding RPC
-      const { error: companyError } = await supabase.rpc("create_onboarding_company" as any, {
-        p_name: `Loja Demo ${demoId.toUpperCase()}`,
-        p_cnpj: "",
-        p_phone: null,
-      });
-
-      if (companyError) console.error("[Demo] Company creation error:", companyError);
-
-      // Mark company as demo
-      const { data: cu } = await supabase
-        .from("company_users")
-        .select("company_id")
-        .eq("user_id", signUpData.user?.id || "")
-        .eq("is_active", true)
-        .maybeSingle();
-
-      if (cu?.company_id) {
-        await (supabase.from("companies").update({ is_demo: true } as any) as any)
-          .eq("id", cu.company_id);
-      }
-
-      toast.success("Conta demo criada! Aproveite para explorar o sistema.");
+      toast.success("Conta demo criada! Explore o sistema à vontade.");
       navigate("/");
     } catch (error: any) {
-      toast.error(translateAuthError(error.message || "Erro ao criar conta demo"));
+      toast.error(error.message || "Erro ao criar conta demo");
     } finally {
       setLoading(false);
     }
