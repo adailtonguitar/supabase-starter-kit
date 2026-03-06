@@ -87,8 +87,8 @@ export default function PrevisaoDemanda() {
             <Card key={i}>
               <CardContent className="p-3 flex items-center justify-between">
                 <div className="flex items-center gap-3 flex-1">
-                  <div className={`p-1.5 rounded-lg ${p.trend === "up" ? "bg-emerald-500/10" : "bg-blue-500/10"}`}>
-                    {p.trend === "up" ? <ArrowUpRight className="w-4 h-4 text-emerald-500" /> : <ArrowDownRight className="w-4 h-4 text-blue-500" />}
+                  <div className={`p-1.5 rounded-lg ${p.trend === "up" ? "bg-success/10" : "bg-info/10"}`}>
+                    {p.trend === "up" ? <ArrowUpRight className="w-4 h-4 text-success" /> : <ArrowDownRight className="w-4 h-4 text-info" />}
                   </div>
                   <div className="flex-1">
                     <p className="font-medium text-sm">{p.name}</p>
