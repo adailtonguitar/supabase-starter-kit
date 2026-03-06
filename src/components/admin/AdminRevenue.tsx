@@ -45,9 +45,18 @@ export function AdminRevenue() {
 
   useEffect(() => {
     const load = async () => {
+      // Get all plans
       const { data } = await supabase
         .from("company_plans")
-        .select("plan, status");
+        .select("plan, status, company_id");
+
+      // Get demo company IDs to exclude
+      const { data: demoCompanies } = await supabase
+        .from("companies")
+        .select("id")
+        .eq("is_demo", true);
+
+      const demoIds = new Set((demoCompanies ?? []).map((c: any) => c.id));
 
       const grouped: Record<string, { active: number; trial: number; total: number }> = {};
 
@@ -56,6 +65,9 @@ export function AdminRevenue() {
       }
 
       (data ?? []).forEach((row: any) => {
+        // Skip demo companies
+        if (demoIds.has(row.company_id)) return;
+
         const plan = (row.plan || "starter").toLowerCase();
         if (!grouped[plan]) grouped[plan] = { active: 0, trial: 0, total: 0 };
         grouped[plan].total++;

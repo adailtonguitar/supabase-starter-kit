@@ -23,13 +23,14 @@ export function AdminDashboard() {
   useEffect(() => {
     const load = async () => {
       const [companiesRes, usersRes, subsRes, recentRes] = await Promise.all([
-        supabase.from("companies").select("id, is_blocked"),
+        supabase.from("companies").select("id, is_blocked, is_demo"),
         supabase.from("company_users").select("id", { count: "exact", head: true }),
         supabase.from("subscriptions").select("status"),
-        supabase.from("companies").select("id, name, created_at").order("created_at", { ascending: false }).limit(5),
+        supabase.from("companies").select("id, name, created_at").eq("is_demo", false).order("created_at", { ascending: false }).limit(5),
       ]);
 
-      const companies = companiesRes.data ?? [];
+      // Exclude demo companies from metrics
+      const companies = (companiesRes.data ?? []).filter((c: any) => !c.is_demo);
       const subs = subsRes.data ?? [];
 
       setMetrics({
