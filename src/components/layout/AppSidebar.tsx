@@ -12,7 +12,7 @@ import {
   HelpCircle, X, Wallet, PieChart, LineChart, AreaChart, CircleDollarSign, Scale,
   BadgeDollarSign, Bell, Stethoscope, Scan, FileDown, FilePen, FileSearch, Cog,
   Network, Smartphone, LifeBuoy, Boxes, BarChart, Calculator, Armchair, Wrench, Eye,
-  Ruler, Camera, Box, Navigation, Move, Brain as BrainIcon, User as UserIcon,
+  Ruler, Camera, Box, Navigation, Move, Brain as BrainIcon, User as UserIcon, RotateCcw, Calendar,
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
@@ -201,6 +201,8 @@ const furnitureNavItems: NavEntry[] = [
       { icon: Navigation, label: "Rastreio", path: "/rastreio-entrega" },
       { icon: Wrench, label: "Montagem", path: "/montagem" },
       { icon: Wrench, label: "Assistência Técnica", path: "/assistencia-tecnica" },
+      { icon: Package, label: "Kits & Combos", path: "/kits" },
+      { icon: RotateCcw, label: "Trocas/Devoluções", path: "/trocas-devolucoes" },
     ],
   },
   {
@@ -212,6 +214,7 @@ const furnitureNavItems: NavEntry[] = [
       { icon: BrainIcon, label: "Previsão Demanda", path: "/previsao-demanda" },
       { icon: BarChart3, label: "Relatórios Móveis", path: "/relatorios-moveis" },
       { icon: Percent, label: "Comissões", path: "/comissoes-moveis" },
+      { icon: Calendar, label: "Follow-up", path: "/follow-up" },
     ],
   },
 ];
@@ -231,6 +234,7 @@ const furnitureAllowedPaths = new Set([
   "/crediario", "/previsao-demanda", "/montador-ambiente", "/rastreio-entrega",
   "/visualizador-ar", "/showroom-virtual", "/orcamentos", "/pedidos-compra",
   "/relatorios-moveis", "/comissoes-moveis",
+  "/kits", "/follow-up", "/trocas-devolucoes",
 ]);
 
 function filterNavForFurniture(items: NavEntry[]): NavEntry[] {
