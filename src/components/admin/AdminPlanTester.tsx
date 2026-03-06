@@ -151,9 +151,9 @@ export default function AdminPlanTester() {
       </div>
 
       {Object.keys(testResults).length > 0 && (
-        <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 flex items-start gap-2">
-          <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
-          <p className="text-xs text-amber-700">
+        <div className="bg-warning/10 border border-warning/20 rounded-xl p-3 flex items-start gap-2">
+          <AlertTriangle className="w-4 h-4 text-warning mt-0.5 shrink-0" />
+          <p className="text-xs text-warning">
             O plano foi alterado no banco. <strong>Recarregue a página (F5)</strong> para que o PlanGate reflita a mudança. Após testar, restaure o plano correto.
           </p>
         </div>

@@ -273,7 +273,7 @@ export default function Orcamentos() {
                   {viewQuote.status === "pendente" && (
                     <button
                       onClick={() => { setApprovalQuote(viewQuote); setViewQuote(null); }}
-                      className="flex-1 py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-bold hover:bg-emerald-500 transition-all flex items-center justify-center gap-2"
+                      className="flex-1 py-2.5 rounded-xl bg-success text-success-foreground text-sm font-bold hover:opacity-90 transition-all flex items-center justify-center gap-2"
                     >
                       <ThumbsUp className="w-4 h-4" />
                       Aprovar

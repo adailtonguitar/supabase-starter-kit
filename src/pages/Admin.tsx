@@ -426,7 +426,7 @@ function CompaniesTab() {
                         {c.is_blocked ? (
                           <Badge variant="destructive">Bloqueada</Badge>
                         ) : (
-                          <Badge variant="outline" className="text-green-600 border-green-600">
+                          <Badge variant="outline" className="text-success border-success">
                             <CheckCircle className="h-3 w-3 mr-1" /> Ativa
                           </Badge>
                         )}
