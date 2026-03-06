@@ -111,6 +111,9 @@ const VisualizadorAR = lazy(() => import("./pages/VisualizadorAR"));
 const ShowroomVirtual = lazy(() => import("./pages/ShowroomVirtual"));
 const RelatoriosMoveis = lazy(() => import("./pages/RelatoriosMoveis"));
 const ComissoesMoveis = lazy(() => import("./pages/ComissoesMoveis"));
+const Kits = lazy(() => import("./pages/Kits"));
+const FollowUp = lazy(() => import("./pages/FollowUp"));
+const TrocasDevolucoes = lazy(() => import("./pages/TrocasDevolucoes"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -474,6 +477,9 @@ function AppRoutes() {
                     <Route path="/showroom-virtual" element={<ShowroomVirtual />} />
                     <Route path="/relatorios-moveis" element={<RelatoriosMoveis />} />
                     <Route path="/comissoes-moveis" element={<ComissoesMoveis />} />
+                    <Route path="/kits" element={<Kits />} />
+                    <Route path="/follow-up" element={<FollowUp />} />
+                    <Route path="/trocas-devolucoes" element={<TrocasDevolucoes />} />
                     <Route path="/admin" element={<Admin />} />
                     <Route path="/ajuda" element={<Ajuda />} />
                     <Route path="*" element={<NotFound />} />
