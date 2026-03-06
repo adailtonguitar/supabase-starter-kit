@@ -53,7 +53,7 @@ export default function Ruptura() {
         <Card>
           <CardContent className="pt-5">
             <div className="flex items-center gap-3">
-              <TrendingDown className="w-8 h-8 text-amber-500" />
+              <TrendingDown className="w-8 h-8 text-warning" />
               <div>
                 <p className="text-xs text-muted-foreground">Total de Itens Críticos</p>
                 <p className="text-2xl font-black">{filtered.length}</p>
