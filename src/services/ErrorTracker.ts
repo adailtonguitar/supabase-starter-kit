@@ -45,7 +45,7 @@ export async function trackError(opts: {
     const { browser, device } = getDeviceInfo();
     const page = opts.page || window.location.pathname;
 
-    await supabase.from("system_errors" as any).insert({
+    const { error: insertError } = await supabase.from("system_errors" as any).insert({
       user_id: _userId,
       user_email: _userEmail,
       page,
@@ -55,8 +55,11 @@ export async function trackError(opts: {
       browser,
       device,
     });
-  } catch {
-    // Never throw from error tracker
+    if (insertError) {
+      console.warn("[ErrorTracker] Failed to log error:", insertError.message);
+    }
+  } catch (e) {
+    console.warn("[ErrorTracker] Exception:", e);
   }
 }
 
