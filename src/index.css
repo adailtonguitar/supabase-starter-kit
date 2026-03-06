@@ -63,9 +63,16 @@
     --success-foreground: 0 0% 100%;
     --warning: 38 92% 52%;
     --warning-foreground: 0 0% 100%;
+    --info: 210 70% 52%;
+    --info-foreground: 0 0% 100%;
     --border: 220 12% 22%;
     --input: 220 12% 22%;
     --ring: 168 72% 40%;
+    --chart-1: 168 72% 42%;
+    --chart-2: 210 70% 52%;
+    --chart-3: 187 70% 45%;
+    --chart-4: 270 60% 55%;
+    --chart-5: 330 65% 55%;
     --radius: 0.75rem;
     --pos-bg: 220 16% 11%;
     --pos-surface: 220 14% 15%;
