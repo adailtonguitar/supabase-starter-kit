@@ -110,7 +110,7 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
       </html>
     `);
     printWindow.document.close();
-  }, [items, total, payments, changeAmount, companyName, companyCnpj, companyIe, companyPhone, companyAddress, nfceNumber, logoUrl]);
+  }, [items, total, payments, changeAmount, companyName, companyCnpj, companyIe, companyPhone, companyAddress, nfceNumber, logoUrl, saleId]);
 
   const handlePrintFiscal = useCallback(() => {
     if (!nfceNumber) {
