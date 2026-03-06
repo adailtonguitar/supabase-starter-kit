@@ -663,9 +663,43 @@ export function usePDV() {
     }
   }, [companyId, currentSession, cartItems, subtotal, globalDiscountPercent, globalDiscountValue, total, itemDiscounts, clearCart, queueOperation, enqueueFiscal, processFiscalEmission]);
 
-  const repeatLastSale = useCallback(() => {
-    toast.info("Funcionalidade em desenvolvimento", { duration: 1500 });
-  }, []);
+  const repeatLastSale = useCallback(async () => {
+    // Buscar última venda e recarregar itens no carrinho
+    if (!companyId) { toast.info("Sem empresa"); return; }
+    try {
+      const { data: lastSale } = await supabase
+        .from("sales")
+        .select("id")
+        .eq("company_id", companyId)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (!lastSale) { toast.info("Nenhuma venda anterior encontrada"); return; }
+
+      const { data: items } = await supabase
+        .from("sale_items")
+        .select("product_id, quantity")
+        .eq("sale_id", lastSale.id);
+
+      if (!items || items.length === 0) { toast.info("Itens da última venda não encontrados"); return; }
+
+      let added = 0;
+      for (const item of items as any[]) {
+        const product = products.find(p => p.id === item.product_id);
+        if (product && product.stock_quantity > 0) {
+          const qty = Math.min(Number(item.quantity), product.stock_quantity);
+          for (let i = 0; i < qty; i++) {
+            addToCart(product);
+          }
+          added++;
+        }
+      }
+      if (added > 0) toast.success(`${added} produto(s) da última venda adicionados`);
+      else toast.warning("Produtos da última venda estão sem estoque");
+    } catch {
+      toast.error("Erro ao repetir última venda");
+    }
+  }, [companyId, products, addToCart]);
 
   const refreshProducts = useCallback(() => { loadProducts(); }, [loadProducts]);
 
