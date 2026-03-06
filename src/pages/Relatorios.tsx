@@ -15,7 +15,7 @@ import {
   GitGraph, Percent, Scale, Bell, Stethoscope, Wallet, ClipboardList,
   Scan, BarChart, AlertTriangle, ShoppingCart, Package, Printer, CalendarIcon,
 } from "lucide-react";
-import { useFurnitureMode } from "@/hooks/useFurnitureMode";
+
 
 type ReportCard = { icon: any; label: string; desc: string; path: string };
 
