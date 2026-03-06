@@ -932,7 +932,7 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
                 <FormField control={form.control} name="csosn" render={({ field }) => (
                   <FormItem>
                     <FormLabel>CSOSN (Simples)</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value || "102"}>
+                    <Select onValueChange={field.onChange} value={field.value || "102"}>
                       <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
                       <SelectContent>
                         <SelectItem value="101">101 - Tributada com permissão de crédito</SelectItem>
