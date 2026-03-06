@@ -664,7 +664,7 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
                 <FormField control={form.control} name="category" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Categoria</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value || ""}>
                       <FormControl>
                         <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                       </FormControl>
