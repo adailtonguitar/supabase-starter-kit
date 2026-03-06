@@ -639,6 +639,7 @@ export default function PDV() {
           payments: tefResults, nfceNumber: result.nfceNumber,
           accessKey: result.accessKey, serie: result.serie,
           isContingency: result.isContingency,
+          saleId: result.saleId,
         });
         setSelectedClient(null);
         const newNum = saleNumber + 1;
