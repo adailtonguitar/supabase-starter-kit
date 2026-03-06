@@ -43,7 +43,7 @@ export function PDVReturnExchangeDialog({ open, onClose }: PDVReturnExchangeProp
       const query = searchQuery.trim().toLowerCase();
       const { data: sales, error: salesError } = await supabase
         .from("sales")
-        .select("id, total, created_at, status")
+        .select("id, total, created_at, status, items")
         .eq("company_id", companyId)
         .or("status.neq.cancelled,status.is.null")
         .order("created_at", { ascending: false })
