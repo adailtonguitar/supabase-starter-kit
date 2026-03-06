@@ -1,12 +1,9 @@
 import { useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { Download, Image, Sparkles, Loader2, Eye, Copy, ExternalLink } from "lucide-react";
+import { Download, Image, Eye, Copy } from "lucide-react";
 
 interface ArtAsset {
   id: string;
