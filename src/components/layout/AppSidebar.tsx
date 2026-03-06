@@ -199,7 +199,7 @@ export function AppSidebar({ mobileOpen, onMobileClose }: AppSidebarProps) {
   const { isOnline, pendingCount, syncing, syncAll } = useSync();
   const { signOut, user } = useAuth();
   const { isSuperAdmin } = useAdminRole();
-  const { enabled: furnitureMode } = useFurnitureMode();
+  
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
     const initial: Record<string, boolean> = {};
     navItems.forEach((entry) => {
