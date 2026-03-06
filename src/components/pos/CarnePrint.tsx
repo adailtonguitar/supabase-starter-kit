@@ -6,7 +6,8 @@ export interface CarneData {
   clientName: string;
   cpf?: string;
   installments: { number: number; value?: number; amount?: number; dueDate: string; [key: string]: any }[];
-  total: number;
+  total?: number;
+  totalAmount?: number;
   companyName?: string;
   [key: string]: any;
 }
