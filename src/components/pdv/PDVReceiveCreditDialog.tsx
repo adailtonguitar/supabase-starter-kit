@@ -145,6 +145,16 @@ export function PDVReceiveCreditDialog({ open, onClose }: PDVReceiveCreditDialog
         }
       }
 
+      // Get next sequential receipt number
+      let receiptNumber = 1;
+      try {
+        const { data: rpcData } = await supabase.rpc("next_receipt_number", {
+          p_company_id: companyId,
+          p_type: "credit_receipt",
+        });
+        if (rpcData) receiptNumber = rpcData;
+      } catch { /* fallback to 1 */ }
+
       qc.invalidateQueries({ queryKey: ["clients"] });
       qc.invalidateQueries({ queryKey: ["financial_entries"] });
       toast.success(`Recebimento de ${formatCurrency(payAmount)} registrado!`);
@@ -164,6 +174,7 @@ export function PDVReceiveCreditDialog({ open, onClose }: PDVReceiveCreditDialog
         storeCity: addressCity || undefined,
         storeState: addressState || undefined,
         items: receiptItems,
+        receiptNumber,
       });
     } catch (err: any) {
       toast.error(`Erro: ${err.message}`);
