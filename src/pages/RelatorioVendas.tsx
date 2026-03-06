@@ -491,7 +491,7 @@ export default function RelatorioVendas() {
                 <span>Custo: <strong className="text-foreground font-mono">{formatCurrency(p.unit_cost)}</strong></span>
                 <span>Qtd: <strong className="text-foreground font-mono">{p.total_quantity}</strong></span>
                 <span>Receita: <strong className="text-foreground font-mono">{formatCurrency(p.total_revenue)}</strong></span>
-                <span>Lucro: <strong className={`font-mono ${p.total_profit >= 0 ? "text-emerald-500" : "text-destructive"}`}>{formatCurrency(p.total_profit)}</strong></span>
+                <span>Lucro: <strong className={`font-mono ${p.total_profit >= 0 ? "text-success" : "text-destructive"}`}>{formatCurrency(p.total_profit)}</strong></span>
               </div>
             </div>
           ))
