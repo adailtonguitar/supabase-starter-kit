@@ -75,7 +75,7 @@ interface Props {
 const categories = ["Bebidas", "Alimentos", "Limpeza", "Higiene", "Hortifrúti", "Padaria", "Frios", "Outros"];
 const units = ["UN", "KG", "LT", "MT", "CX", "PCT"];
 
-export function ProductFormDialog({ open, onOpenChange, product }: Props) {
+export const ProductFormDialog = forwardRef<HTMLDivElement, Props>(function ProductFormDialog({ open, onOpenChange, product }, _ref) {
   const { data: fiscalCategories = [] } = useFiscalCategories();
   
   const { data: suppliers = [] } = useSuppliers();
