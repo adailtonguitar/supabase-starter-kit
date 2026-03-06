@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useCallback } from "react";
+import { useState, useMemo, useRef, useCallback, forwardRef } from "react";
 
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -75,7 +75,7 @@ interface Props {
 const categories = ["Bebidas", "Alimentos", "Limpeza", "Higiene", "Hortifrúti", "Padaria", "Frios", "Outros"];
 const units = ["UN", "KG", "LT", "MT", "CX", "PCT"];
 
-export function ProductFormDialog({ open, onOpenChange, product }: Props) {
+export const ProductFormDialog = forwardRef<HTMLDivElement, Props>(function ProductFormDialog({ open, onOpenChange, product }, _ref) {
   const { data: fiscalCategories = [] } = useFiscalCategories();
   
   const { data: suppliers = [] } = useSuppliers();
@@ -435,7 +435,7 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
 
       <div className="bg-card rounded-xl border border-border p-6">
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          <div className="space-y-6">
             {/* Dados Básicos */}
             <div>
               <h2 className="text-lg font-semibold text-foreground mb-4">Dados Básicos</h2>
@@ -664,7 +664,7 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
                 <FormField control={form.control} name="category" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Categoria</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value || ""}>
                       <FormControl>
                         <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                       </FormControl>
@@ -678,7 +678,7 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
                 <FormField control={form.control} name="unit" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Unidade</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value || "UN"}>
                       <FormControl>
                         <SelectTrigger><SelectValue /></SelectTrigger>
                       </FormControl>
@@ -709,7 +709,7 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
                           }
                         }
                       }}
-                      defaultValue={field.value || "__none__"}
+                      value={field.value || "__none__"}
                     >
                       <FormControl>
                         <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
@@ -733,7 +733,7 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
                 <FormField control={form.control} name="supplier_id" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Fornecedor</FormLabel>
-                    <Select onValueChange={(v) => field.onChange(v === "__none__" ? "" : v)} defaultValue={field.value || "__none__"}>
+                    <Select onValueChange={(v) => field.onChange(v === "__none__" ? "" : v)} value={field.value || "__none__"}>
                       <FormControl>
                         <SelectTrigger><SelectValue placeholder="Selecione um fornecedor" /></SelectTrigger>
                       </FormControl>
@@ -879,7 +879,7 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
                 <FormField control={form.control} name="origem" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Origem</FormLabel>
-                    <Select onValueChange={(v) => field.onChange(Number(v))} defaultValue={String(field.value ?? 0)}>
+                    <Select onValueChange={(v) => field.onChange(Number(v))} value={String(field.value ?? 0)}>
                       <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
                       <SelectContent>
                         <SelectItem value="0">0 - Nacional</SelectItem>
@@ -898,7 +898,7 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
                 <FormField control={form.control} name="cfop" render={({ field }) => (
                   <FormItem>
                     <FormLabel>CFOP</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value || "5102"}>
+                    <Select onValueChange={field.onChange} value={field.value || "5102"}>
                       <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
                       <SelectContent>
                         <SelectItem value="5101">5101 - Venda prod. estab.</SelectItem>
@@ -932,7 +932,7 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
                 <FormField control={form.control} name="csosn" render={({ field }) => (
                   <FormItem>
                     <FormLabel>CSOSN (Simples)</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value || "102"}>
+                    <Select onValueChange={field.onChange} value={field.value || "102"}>
                       <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
                       <SelectContent>
                         <SelectItem value="101">101 - Tributada com permissão de crédito</SelectItem>
@@ -952,7 +952,7 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
                 <FormField control={form.control} name="cst_icms" render={({ field }) => (
                   <FormItem>
                     <FormLabel>CST ICMS</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value || "00"}>
+                    <Select onValueChange={field.onChange} value={field.value || "00"}>
                       <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
                       <SelectContent>
                         <SelectItem value="00">00 - Tributada integralmente</SelectItem>
@@ -984,7 +984,7 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
                 <FormField control={form.control} name="cst_pis" render={({ field }) => (
                   <FormItem>
                     <FormLabel>CST PIS</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value || "01"}>
+                    <Select onValueChange={field.onChange} value={field.value || "01"}>
                       <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
                       <SelectContent>
                         <SelectItem value="01">01 - Tributável (BC = Valor)</SelectItem>
@@ -1012,7 +1012,7 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
                 <FormField control={form.control} name="cst_cofins" render={({ field }) => (
                   <FormItem>
                     <FormLabel>CST COFINS</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value || "01"}>
+                    <Select onValueChange={field.onChange} value={field.value || "01"}>
                       <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
                       <SelectContent>
                         <SelectItem value="01">01 - Tributável (BC = Valor)</SelectItem>
@@ -1042,13 +1042,13 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
 
             <div className="flex justify-end gap-3 pt-4 border-t border-border">
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-              <Button type="submit" disabled={isPending}>
+              <Button type="button" disabled={isPending} onClick={form.handleSubmit(onSubmit)}>
                 {isPending ? "Salvando..." : isEditing ? "Salvar" : "Criar Produto"}
               </Button>
             </div>
-          </form>
+          </div>
         </Form>
       </div>
     </div>
   );
-}
+});
