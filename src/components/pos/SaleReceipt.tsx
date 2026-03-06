@@ -6,6 +6,7 @@ interface SaleReceiptProps {
   items: any[];
   total: number;
   payments: any[];
+  saleId?: string;
   nfceNumber?: string;
   accessKey?: string;
   serie?: string;
@@ -20,7 +21,7 @@ interface SaleReceiptProps {
   onClose: () => void;
 }
 
-export function SaleReceipt({ items, total, payments, onClose, companyName, companyCnpj, companyIe, companyPhone, companyAddress, nfceNumber, accessKey, serie, isContingency, logoUrl }: SaleReceiptProps) {
+export function SaleReceipt({ items, total, payments, onClose, saleId, companyName, companyCnpj, companyIe, companyPhone, companyAddress, nfceNumber, accessKey, serie, isContingency, logoUrl }: SaleReceiptProps) {
   const formatCurrency = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 
   const methodLabel = (m: string) => {
@@ -83,6 +84,7 @@ export function SaleReceipt({ items, total, payments, onClose, companyName, comp
             ${companyAddress ? `<p class="sm">${companyAddress}</p>` : ""}
             ${companyPhone ? `<p class="sm">Fone: ${companyPhone}</p>` : ""}
             <p class="sm">${now}</p>
+            ${saleId ? `<p class="bold" style="margin-top:3px; font-size:12px;">Venda #${saleId.substring(0, 8).toUpperCase()}</p>` : ""}
           </div>
           <div class="dashed"></div>
           <div class="row bold"><span>QTD ITEM</span><span>VALOR</span></div>
@@ -108,7 +110,7 @@ export function SaleReceipt({ items, total, payments, onClose, companyName, comp
       </html>
     `);
     printWindow.document.close();
-  }, [items, total, payments, changeAmount, companyName, companyCnpj, companyIe, companyPhone, companyAddress, nfceNumber, logoUrl]);
+  }, [items, total, payments, changeAmount, companyName, companyCnpj, companyIe, companyPhone, companyAddress, nfceNumber, logoUrl, saleId]);
 
   const handlePrintFiscal = useCallback(() => {
     if (!nfceNumber) {
@@ -175,6 +177,7 @@ export function SaleReceipt({ items, total, payments, onClose, companyName, comp
             ${companyAddress ? `<p class="sm">${companyAddress}</p>` : ""}
             ${companyPhone ? `<p class="sm">Fone: ${companyPhone}</p>` : ""}
           </div>
+          ${saleId ? `<p class="center bold" style="margin-top:3px; font-size:11px;">Venda #${saleId.substring(0, 8).toUpperCase()}</p>` : ""}
           <div class="fiscal-header">DANFE NFC-e - DOCUMENTO AUXILIAR</div>
           <div class="fiscal-header" style="font-size:8px; background:#333;">DA NOTA FISCAL DE CONSUMIDOR ELETRÔNICA</div>
           ${isSimulation ? `<div class="sim-badge">*** SIMULAÇÃO - SEM VALOR FISCAL ***</div>` : ""}
@@ -226,7 +229,7 @@ export function SaleReceipt({ items, total, payments, onClose, companyName, comp
       </html>
     `);
     printWindow.document.close();
-  }, [items, total, payments, changeAmount, companyName, companyCnpj, companyIe, companyPhone, companyAddress, nfceNumber, accessKey, serie, logoUrl]);
+  }, [items, total, payments, changeAmount, companyName, companyCnpj, companyIe, companyPhone, companyAddress, nfceNumber, accessKey, serie, logoUrl, saleId]);
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
       <div className="bg-card rounded-2xl border border-border shadow-2xl p-6 w-full max-w-sm mx-4" onClick={e => e.stopPropagation()}>
@@ -238,6 +241,11 @@ export function SaleReceipt({ items, total, payments, onClose, companyName, comp
           </h2>
           {companyName && <p className="text-sm text-muted-foreground mt-1">{companyName}</p>}
           <p className="text-3xl font-black text-primary font-mono mt-3">{formatCurrency(total)}</p>
+          {saleId && (
+            <p className="text-xs font-mono text-muted-foreground mt-2 bg-muted px-3 py-1.5 rounded-lg inline-block">
+              Venda <span className="font-bold text-foreground">#{saleId.substring(0, 8).toUpperCase()}</span>
+            </p>
+          )}
         </div>
 
         {/* Payment details */}
