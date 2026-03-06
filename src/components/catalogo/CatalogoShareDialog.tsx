@@ -66,9 +66,8 @@ export default function CatalogoShareDialog({ open, onOpenChange, ambienteName, 
   };
 
   const handleSaveSettings = () => {
-    localStorage.setItem("as_store_name", storeName);
-    localStorage.setItem("as_store_phone", storePhone);
-    toast.success("Dados da loja salvos");
+    // Data comes from useCompany; no need to persist separately
+    toast.success("Dados atualizados");
   };
 
   return (
