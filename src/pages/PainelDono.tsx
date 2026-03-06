@@ -214,7 +214,7 @@ export default function PainelDono() {
           icon={Users}
           label="Clientes"
           value={String(stats.totalClients)}
-          color="bg-violet-500/10 text-violet-500"
+          color="bg-chart-4/10 text-chart-4"
           delay={0.4}
           onClick={() => navigate("/cadastro/clientes")}
         />
