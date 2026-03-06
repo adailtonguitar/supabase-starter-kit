@@ -488,14 +488,12 @@ const App = () => (
           <AuthProvider>
             <SubscriptionProvider>
               <PlanProvider>
-                <FurnitureModeProvider>
                 <LocalDBProvider>
                   <WalkthroughProvider>
                     <WalkthroughRunner />
                     <AppRoutes />
                   </WalkthroughProvider>
                 </LocalDBProvider>
-                </FurnitureModeProvider>
               </PlanProvider>
             </SubscriptionProvider>
           </AuthProvider>
