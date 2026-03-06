@@ -72,6 +72,20 @@ export function DemoBanner() {
     setClearing(false);
   }, [companyId]);
 
+  const handleResetAll = useCallback(async () => {
+    if (!companyId) return;
+    if (!confirm("⚠️ ATENÇÃO: Isso vai apagar TODOS os dados desta empresa demo (produtos, clientes, vendas, financeiro). Deseja continuar?")) return;
+    setResetting(true);
+    try {
+      await DemoDataService.resetAllData(companyId);
+      toast.success("Todos os dados foram removidos! Os dados demo serão recriados ao recarregar.");
+      setTimeout(() => window.location.reload(), 1500);
+    } catch (err: any) {
+      toast.error(`Erro ao resetar: ${err.message}`);
+    }
+    setResetting(false);
+  }, [companyId]);
+
   if (!isDemo) return null;
 
   const expired = daysLeft !== null && daysLeft <= 0;
