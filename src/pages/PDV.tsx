@@ -59,6 +59,9 @@ export default function PDV() {
     serie?: string;
     isContingency?: boolean;
     saleId?: string;
+    customerCpf?: string;
+    protocolNumber?: string;
+    protocolDate?: string;
   } | null>(null);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showProductList, setShowProductList] = useState(false);
@@ -641,6 +644,7 @@ export default function PDV() {
           accessKey: result.accessKey, serie: result.serie,
           isContingency: result.isContingency,
           saleId: result.saleId,
+          customerCpf: savedClient?.cpf || undefined,
         });
         setSelectedClient(null);
         const newNum = saleNumber + 1;
@@ -1719,6 +1723,7 @@ export default function PDV() {
           companyCnpj={cnpj || undefined}
           companyIe={ie || undefined}
           companyPhone={phone || undefined}
+          customerCpf={receipt.customerCpf}
           companyAddress={[addressStreet, addressNumber, addressNeighborhood, addressCity, addressState].filter(Boolean).join(', ') || undefined}
           onClose={() => setReceipt(null)}
         />

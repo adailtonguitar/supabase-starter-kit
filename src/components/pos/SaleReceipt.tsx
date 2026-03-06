@@ -18,10 +18,13 @@ interface SaleReceiptProps {
   companyPhone?: string;
   companyAddress?: string;
   isContingency?: boolean;
+  customerCpf?: string;
+  protocolNumber?: string;
+  protocolDate?: string;
   onClose: () => void;
 }
 
-export function SaleReceipt({ items, total, payments, onClose, saleId, companyName, companyCnpj, companyIe, companyPhone, companyAddress, nfceNumber, accessKey, serie, isContingency, logoUrl }: SaleReceiptProps) {
+export function SaleReceipt({ items, total, payments, onClose, saleId, companyName, companyCnpj, companyIe, companyPhone, companyAddress, nfceNumber, accessKey, serie, isContingency, logoUrl, customerCpf, protocolNumber, protocolDate }: SaleReceiptProps) {
   const formatCurrency = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 
   const methodLabel = (m: string) => {
@@ -119,9 +122,14 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
       return;
     }
 
-    const itemsHtml = (items || []).map((item: any, idx: number) =>
-      `<div class="row"><span>${String(idx + 1).padStart(3, '0')} ${(item.quantity || 1)}x ${item.name}</span><span>${formatCurrency((item.quantity || 1) * item.price)}</span></div>`
-    ).join("");
+    const itemsHtml = (items || []).map((item: any, idx: number) => {
+      const qty = item.quantity || 1;
+      const unitPrice = item.price || 0;
+      const totalItem = qty * unitPrice;
+      const unit = item.unit || "UN";
+      return `<div class="item-desc">${String(idx + 1).padStart(3, '0')} ${item.name}</div>
+              <div class="row item-detail"><span>${qty} ${unit} x ${formatCurrency(unitPrice)}</span><span>${formatCurrency(totalItem)}</span></div>`;
+    }).join("");
 
     const paymentsHtml = (payments || []).map((p: any) =>
       `<div class="row"><span>${methodLabel(p.method)}</span><span>${formatCurrency(p.amount)}</span></div>`
@@ -133,6 +141,14 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
 
     const formattedKey = accessKey ? accessKey.replace(/(\d{4})(?=\d)/g, "$1 ") : "";
     const isSimulation = nfceNumber.startsWith("SIM-");
+
+    const consumerHtml = customerCpf 
+      ? `<p class="center sm bold">CPF DO CONSUMIDOR: ${customerCpf}</p>`
+      : `<p class="center sm bold">CONSUMIDOR NÃO IDENTIFICADO</p>`;
+
+    const protocolHtml = protocolNumber 
+      ? `<p class="center xs" style="margin-top:2px">Protocolo de Autorização: ${protocolNumber}</p>${protocolDate ? `<p class="center xs">${protocolDate}</p>` : ""}`
+      : "";
 
     const printWindow = window.open("", "_blank", "width=320,height=700");
     if (!printWindow) return;
@@ -155,9 +171,10 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
             .dashed { border-top: 1px dashed #000; margin: 3px 0; }
             .row { display: flex; justify-content: space-between; gap: 4px; }
             .row span:last-child { text-align: right; white-space: nowrap; }
+            .item-desc { font-size: 10px; font-weight: bold; margin-top: 2px; }
+            .item-detail { font-size: 10px; }
             .total-row { font-size: 14px; font-weight: bold; margin: 4px 0; }
             .sm { font-size: 9px; }
-            .obs { font-size: 9px; font-style: italic; padding-left: 8px; color: #555; }
             .xs { font-size: 7px; }
             h2 { font-size: 13px; margin: 2px 0; }
             .cut { margin-top: 6px; text-align: center; font-size: 9px; letter-spacing: 2px; }
@@ -168,6 +185,7 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
             .qr-container { text-align: center; margin: 6px 0; }
             .qr-container canvas, .qr-container img { margin: 0 auto; }
             #qrcode { display: inline-block; }
+            .tax-info { border: 1px solid #000; padding: 3px; margin: 3px 0; font-size: 8px; text-align: center; }
           </style>
         </head>
         <body>
@@ -179,12 +197,12 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
             ${companyAddress ? `<p class="sm">${companyAddress}</p>` : ""}
             ${companyPhone ? `<p class="sm">Fone: ${companyPhone}</p>` : ""}
           </div>
-          ${saleId ? `<p class="center bold" style="margin-top:3px; font-size:11px;">Venda #${saleId.substring(0, 8).toUpperCase()}</p>` : ""}
           <div class="fiscal-header">DANFE NFC-e - DOCUMENTO AUXILIAR</div>
           <div class="fiscal-header" style="font-size:8px; background:#333;">DA NOTA FISCAL DE CONSUMIDOR ELETRÔNICA</div>
           ${isSimulation ? `<div class="sim-badge">*** SIMULAÇÃO - SEM VALOR FISCAL ***</div>` : ""}
           <div class="dashed"></div>
-          <div class="row bold"><span>#  QTD DESCRIÇÃO</span><span>VALOR</span></div>
+          <div class="row bold"><span>DESCRIÇÃO</span><span>VALOR</span></div>
+          <div class="row bold sm"><span>QTD UN x VL UNIT</span><span></span></div>
           <div class="dashed"></div>
           ${itemsHtml}
           <div class="dashed"></div>
@@ -194,8 +212,35 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
           ${paymentsHtml}
           ${changeHtml}
           <div class="dashed"></div>
+          ${consumerHtml}
+          <div class="dashed"></div>
+          <div class="tax-info">
+            Val. aprox. tributos: ${formatCurrency(total * 0.32)} (32.00%) Fonte: IBPT
+            <br/><span style="font-size:7px">Lei Federal 12.741/2012</span>
+          </div>
+          <div class="dashed"></div>
           <p class="center sm">Qtd. total de itens: ${qtyTotal}</p>
           <p class="center sm">${now}</p>
+          <div class="dashed"></div>
+          <p class="center bold sm">NFC-e Nº ${nfceNumber}${serie ? ` | Série ${serie}` : ""}</p>
+          ${protocolHtml}
+          ${accessKey ? `
+            <p class="center xs" style="margin-top:2px">CHAVE DE ACESSO</p>
+            <div class="key-box">${formattedKey}</div>
+          ` : ""}
+          <div class="qr-container">
+            <div id="qrcode"></div>
+            <p class="xs" style="margin-top:2px">Consulte pela chave de acesso em</p>
+            <p class="xs">www.nfe.fazenda.gov.br/portal</p>
+          </div>
+          <div class="dashed"></div>
+          ${isSimulation
+            ? `<p class="center bold sm" style="margin-top:4px">EMITIDA EM AMBIENTE DE HOMOLOGAÇÃO</p><p class="center xs">SEM VALOR FISCAL</p>`
+            : ""
+          }
+          ${saleId ? `<p class="center xs" style="margin-top:2px">Ref. Interna: #${saleId.substring(0, 8).toUpperCase()}</p>` : ""}
+          <p class="center sm" style="margin-top:4px">Obrigado pela preferência!</p>
+          <p class="cut">--------------------------------</p>
           <div class="dashed"></div>
           <p class="center bold sm">NFC-e Nº ${nfceNumber}${serie ? ` | Série ${serie}` : ""}</p>
           ${accessKey ? `
@@ -231,7 +276,7 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
       </html>
     `);
     printWindow.document.close();
-  }, [items, total, payments, changeAmount, companyName, companyCnpj, companyIe, companyPhone, companyAddress, nfceNumber, accessKey, serie, logoUrl, saleId]);
+  }, [items, total, payments, changeAmount, companyName, companyCnpj, companyIe, companyPhone, companyAddress, nfceNumber, accessKey, serie, logoUrl, saleId, customerCpf, protocolNumber, protocolDate]);
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
       <div className="bg-card rounded-2xl border border-border shadow-2xl p-6 w-full max-w-sm mx-4" onClick={e => e.stopPropagation()}>
