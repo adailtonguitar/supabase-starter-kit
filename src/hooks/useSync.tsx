@@ -60,7 +60,7 @@ const processors: Record<string, SyncProcessor> = {
     const p = item.payload;
     const { error } = await supabase.from("cash_movements").insert({
       company_id: p.company_id as string,
-      session_id: p.session_id as string,
+      session_id: typeof p.session_id === "string" && p.session_id.startsWith("offline_") ? null : (p.session_id as string),
       type: p.type as any,
       amount: p.amount as number,
       performed_by: p.performed_by as string,
