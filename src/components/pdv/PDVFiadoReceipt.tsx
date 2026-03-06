@@ -15,6 +15,8 @@ export interface FiadoReceiptData {
   saleNumber?: number;
   storeName?: string;
   storeCnpj?: string;
+  storePhone?: string;
+  storeAddress?: string;
   downPayment?: number;
 }
 
