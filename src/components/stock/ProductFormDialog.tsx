@@ -1042,11 +1042,11 @@ export const ProductFormDialog = forwardRef<HTMLDivElement, Props>(function Prod
 
             <div className="flex justify-end gap-3 pt-4 border-t border-border">
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-              <Button type="submit" disabled={isPending}>
+              <Button type="button" disabled={isPending} onClick={form.handleSubmit(onSubmit)}>
                 {isPending ? "Salvando..." : isEditing ? "Salvar" : "Criar Produto"}
               </Button>
             </div>
-          </form>
+          </div>
         </Form>
       </div>
     </div>
