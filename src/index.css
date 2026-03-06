@@ -157,9 +157,16 @@
     --accent-foreground: 168 72% 42%;
     --destructive: 0 62% 30.6%;
     --destructive-foreground: 210 40% 98%;
+    --info: 210 70% 52%;
+    --info-foreground: 0 0% 100%;
     --border: 220 18% 18%;
     --input: 220 18% 18%;
     --ring: 168 72% 42%;
+    --chart-1: 168 72% 42%;
+    --chart-2: 210 70% 52%;
+    --chart-3: 187 70% 45%;
+    --chart-4: 270 60% 55%;
+    --chart-5: 330 65% 55%;
   }
 }
 
