@@ -19,9 +19,6 @@ export function DemoBanner() {
   const [resetting, setResetting] = useState(false);
   const [seeding, setSeeding] = useState(false);
 
-  // Hide banner for super_admin
-  if (isSuperAdmin) return null;
-
   useEffect(() => {
     if (!companyId) { setIsDemo(false); return; }
     
