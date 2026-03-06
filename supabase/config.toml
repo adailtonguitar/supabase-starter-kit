@@ -69,3 +69,6 @@ verify_jwt = false
 
 [functions.create-demo-account]
 verify_jwt = false
+
+[functions.generate-marketing-art]
+verify_jwt = false
