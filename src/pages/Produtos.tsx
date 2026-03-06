@@ -136,7 +136,7 @@ export default function Produtos() {
               {isLoading ? (
                 [...Array(6)].map((_, i) => (
                   <tr key={i} className="border-b border-border">
-                    <td className="px-5 py-3" colSpan={isFurnitureMode ? 9 : 8}><Skeleton className="h-8 w-full" /></td>
+                    <td className="px-5 py-3" colSpan={8}><Skeleton className="h-8 w-full" /></td>
                   </tr>
                 ))
               ) : filtered.length === 0 ? (
