@@ -211,6 +211,28 @@
     --chart-3: 187 70% 45%;
     --chart-4: 270 60% 55%;
     --chart-5: 330 65% 55%;
+    --purple: 270 60% 58%;
+    --purple-foreground: 0 0% 100%;
+    --amber: 38 92% 54%;
+    --amber-foreground: 0 0% 100%;
+    --cyan: 187 70% 48%;
+    --cyan-foreground: 0 0% 100%;
+    --lime: 84 60% 48%;
+    --lime-foreground: 0 0% 100%;
+    --rose: 350 65% 58%;
+    --rose-foreground: 0 0% 100%;
+    --indigo: 230 60% 58%;
+    --indigo-foreground: 0 0% 100%;
+    --teal: 168 50% 44%;
+    --teal-foreground: 0 0% 100%;
+    --orange: 24 85% 52%;
+    --orange-foreground: 0 0% 100%;
+    --pink: 330 65% 58%;
+    --pink-foreground: 0 0% 100%;
+    --violet: 260 55% 58%;
+    --violet-foreground: 0 0% 100%;
+    --slate-accent: 220 12% 58%;
+    --slate-accent-foreground: 0 0% 100%;
   }
 }
 
