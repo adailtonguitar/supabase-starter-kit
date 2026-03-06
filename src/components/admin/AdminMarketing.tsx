@@ -93,11 +93,6 @@ const existingArts: ArtAsset[] = [
 
 
 export function AdminMarketing() {
-  const [selectedFormat, setSelectedFormat] = useState("feed");
-  const [selectedTheme, setSelectedTheme] = useState("pdv");
-  const [customPrompt, setCustomPrompt] = useState("");
-  const [generating, setGenerating] = useState(false);
-  const [generatedImage, setGeneratedImage] = useState<string | null>(null);
   const [previewArt, setPreviewArt] = useState<ArtAsset | null>(null);
   const [filter, setFilter] = useState("all");
 
