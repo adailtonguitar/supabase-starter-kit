@@ -130,6 +130,9 @@ export default function Admin() {
         <TabsContent value="errors">
           <ErrorsTab />
         </TabsContent>
+        <TabsContent value="diagnostic">
+          <DiagnosticTab />
+        </TabsContent>
       </Tabs>
     </div>
   );
