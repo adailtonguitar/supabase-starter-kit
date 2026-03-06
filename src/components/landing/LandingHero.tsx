@@ -96,11 +96,15 @@ export function LandingHero() {
                   <ArrowRight className="w-4 h-4 ml-2" />
                 </Link>
               </Button>
-              <Button asChild variant="outline" size="lg" className="text-base px-8 h-13 font-medium">
-                <a href="#recursos">
-                  <Play className="w-4 h-4 mr-2 fill-current" />
-                  Ver recursos
-                </a>
+              <Button
+                size="lg"
+                variant="outline"
+                className="text-base px-8 h-13 font-medium border-primary/30 hover:bg-primary/5"
+                onClick={handleDemo}
+                disabled={demoLoading}
+              >
+                <Zap className="w-4 h-4 mr-2" />
+                {demoLoading ? "Criando..." : "Testar sem cadastro"}
               </Button>
             </div>
 
