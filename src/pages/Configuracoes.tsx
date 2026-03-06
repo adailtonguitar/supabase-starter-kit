@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Download, Upload, Clock, HardDrive, Percent, Save, Loader2, Crown, Check, ArrowRight, MessageCircle, Pencil, Calculator, Send, Mail, Lock, Eye, EyeOff, Wallet, FileText, Armchair } from "lucide-react";
-import { useFurnitureMode } from "@/hooks/useFurnitureMode";
+import { Download, Upload, Clock, HardDrive, Percent, Save, Loader2, Crown, Check, ArrowRight, MessageCircle, Pencil, Calculator, Send, Mail, Lock, Eye, EyeOff, Wallet, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TEFConfigSection } from "@/components/settings/TEFConfigSection";
 import { ScaleConfigSection } from "@/components/settings/ScaleConfigSection";
@@ -641,63 +640,7 @@ function CashRegisterToggleSection() {
   );
 }
 
-function FurnitureModeSection() {
-  const { role } = usePermissions();
-  const { enabled, loading, toggle } = useFurnitureMode();
-  const [toggling, setToggling] = useState(false);
-
-  if (role !== "admin" && role !== "gerente") return null;
-
-  const handleToggle = async () => {
-    setToggling(true);
-    await toggle();
-    setToggling(false);
-    toast.success(enabled ? "Modo Loja de Móveis desativado" : "Modo Loja de Móveis ativado! A sidebar será adaptada.");
-  };
-
-  return (
-    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.01 }} className="bg-card rounded-2xl card-shadow border border-border overflow-hidden">
-      <div className="px-5 py-4 border-b border-border flex items-center gap-2">
-        <Armchair className="w-4 h-4 text-primary" />
-        <h2 className="text-base font-semibold text-foreground">Modo Loja de Móveis</h2>
-      </div>
-      <div className="p-5 space-y-4">
-        <p className="text-sm text-muted-foreground">
-          Ative para transformar o sistema em um ERP especializado para lojas de móveis, com entregas, montagem, orçamentos com medidas e catálogo visual.
-        </p>
-
-        <div className="flex items-center justify-between py-3 px-4 rounded-xl bg-muted/50 border border-border">
-          <div>
-            <p className="text-sm font-medium text-foreground">Ativar módulo Loja de Móveis</p>
-            <p className="text-xs text-muted-foreground">A sidebar será adaptada para exibir apenas os módulos relevantes</p>
-          </div>
-          <button
-            onClick={handleToggle}
-            disabled={loading || toggling}
-            className={`relative w-11 h-6 rounded-full transition-colors ${enabled ? "bg-primary" : "bg-muted-foreground/30"} disabled:opacity-50`}
-          >
-            <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${enabled ? "translate-x-5" : "translate-x-0"}`} />
-          </button>
-        </div>
-
-        {enabled && (
-          <div className="p-3 rounded-xl bg-primary/5 border border-primary/10 space-y-1.5">
-            <p className="text-xs font-semibold text-primary">🪑 Módulos ativos no modo Móveis:</p>
-            <ul className="text-[11px] text-muted-foreground space-y-1 list-disc list-inside">
-              <li><strong>PDV</strong> — Venda com sinal e saldo na entrega</li>
-              <li><strong>Catálogo</strong> — Produtos com variações (cor, tamanho, tecido)</li>
-              <li><strong>Entregas</strong> — Agendamento, rotas e status</li>
-              <li><strong>Montagem</strong> — Controle de montadores</li>
-              <li><strong>Orçamentos</strong> — Medidas e ambientes</li>
-              <li><strong>Financeiro</strong> — Carnê, fiado e parcelas</li>
-              <li><strong>Clientes / Fornecedores / Funcionários</strong></li>
-            </ul>
-          </div>
-        )}
-      </div>
-    </motion.div>
-  );
-}
+// FurnitureModeSection removed — segment is now defined at onboarding only
 
 export default function Configuracoes() {
   const [exporting, setExporting] = useState(false);
@@ -768,7 +711,7 @@ export default function Configuracoes() {
         <p className="text-xs sm:text-sm text-muted-foreground mt-1">Configurações gerais do sistema</p>
       </motion.div>
 
-      <FurnitureModeSection />
+      
       <ChangePasswordSection />
       <MyPlanSection />
       <CashRegisterToggleSection />

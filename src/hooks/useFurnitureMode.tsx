@@ -1,17 +1,15 @@
-import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "./useCompany";
 
 interface FurnitureModeContextType {
   enabled: boolean;
   loading: boolean;
-  toggle: () => Promise<void>;
 }
 
 const FurnitureModeContext = createContext<FurnitureModeContextType>({
   enabled: false,
   loading: true,
-  toggle: async () => {},
 });
 
 const CACHE_KEY = "as_furniture_mode";
@@ -35,7 +33,6 @@ export function FurnitureModeProvider({ children }: { children: ReactNode }) {
           setEnabled(val);
           localStorage.setItem(CACHE_KEY, String(val));
         }
-        // If error (column doesn't exist), keep localStorage value
       } catch {
         // Use cached value
       } finally {
@@ -45,24 +42,8 @@ export function FurnitureModeProvider({ children }: { children: ReactNode }) {
     load();
   }, [companyId]);
 
-  const toggle = useCallback(async () => {
-    const newVal = !enabled;
-    setEnabled(newVal);
-    localStorage.setItem(CACHE_KEY, String(newVal));
-    
-    if (!companyId) return;
-    try {
-      await supabase
-        .from("companies")
-        .update({ segment: newVal ? "moveis" : null } as any)
-        .eq("id", companyId);
-    } catch {
-      // DB update failed but localStorage is already saved
-    }
-  }, [companyId, enabled]);
-
   return (
-    <FurnitureModeContext.Provider value={{ enabled, loading, toggle }}>
+    <FurnitureModeContext.Provider value={{ enabled, loading }}>
       {children}
     </FurnitureModeContext.Provider>
   );
