@@ -206,7 +206,7 @@ export default function PainelDono() {
           label="Produtos"
           value={String(stats.totalProducts)}
           sub={`${stats.productsAtRisk} em risco`}
-          color="bg-amber-500/10 text-amber-600"
+          color="bg-warning/10 text-warning"
           delay={0.35}
           onClick={() => navigate("/produtos")}
         />
