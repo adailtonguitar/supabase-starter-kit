@@ -25,6 +25,7 @@ import { AdminCreateEmissorClient } from "@/components/admin/AdminCreateEmissorC
 import { AdminBulkEmail } from "@/components/admin/AdminBulkEmail";
 import { AdminStoreSimulation } from "@/components/admin/AdminStoreSimulation";
 import { AdminLeads } from "@/components/admin/AdminLeads";
+import { AdminMarketing } from "@/components/admin/AdminMarketing";
 import { lazy, Suspense } from "react";
 
 const lazyRetry = (fn: () => Promise<any>) =>
