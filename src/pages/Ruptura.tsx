@@ -53,7 +53,7 @@ export default function Ruptura() {
         <Card>
           <CardContent className="pt-5">
             <div className="flex items-center gap-3">
-              <TrendingDown className="w-8 h-8 text-amber-500" />
+              <TrendingDown className="w-8 h-8 text-warning" />
               <div>
                 <p className="text-xs text-muted-foreground">Total de Itens Críticos</p>
                 <p className="text-2xl font-black">{filtered.length}</p>
@@ -95,7 +95,7 @@ export default function Ruptura() {
       ) : filtered.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
-            <Package className="w-12 h-12 text-emerald-500 mx-auto mb-3" />
+            <Package className="w-12 h-12 text-success mx-auto mb-3" />
             <h3 className="font-semibold text-lg">Nenhuma ruptura detectada!</h3>
             <p className="text-sm text-muted-foreground mt-1">
               Todos os produtos com vendas recentes estão com estoque adequado.
@@ -144,7 +144,7 @@ export default function Ruptura() {
                           className={`font-bold ${
                             item.stock_quantity <= 0
                               ? "text-destructive"
-                              : "text-amber-600"
+                              : "text-warning"
                           }`}
                         >
                           {item.stock_quantity}

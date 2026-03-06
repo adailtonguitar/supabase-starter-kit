@@ -55,6 +55,15 @@ export default {
           DEFAULT: "hsl(var(--warning))",
           foreground: "hsl(var(--warning-foreground))",
         },
+        info: {
+          DEFAULT: "hsl(var(--info))",
+          foreground: "hsl(var(--info-foreground))",
+        },
+        "chart-1": "hsl(var(--chart-1))",
+        "chart-2": "hsl(var(--chart-2))",
+        "chart-3": "hsl(var(--chart-3))",
+        "chart-4": "hsl(var(--chart-4))",
+        "chart-5": "hsl(var(--chart-5))",
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",

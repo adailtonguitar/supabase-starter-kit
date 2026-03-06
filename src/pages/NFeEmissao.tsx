@@ -762,7 +762,7 @@ export default function NFeEmissao() {
           {logoUrl && (
             <img src={logoUrl} alt={companyName || "Logo"} className="h-16 object-contain mx-auto mb-2" />
           )}
-          <CheckCircle className="w-16 h-16 text-emerald-500 mx-auto" />
+          <CheckCircle className="w-16 h-16 text-success mx-auto" />
           <h2 className="text-lg font-semibold text-foreground">NF-e Emitida com Sucesso!</h2>
           {successData?.access_key && (
             <p className="text-xs font-mono text-muted-foreground break-all">Chave: {successData.access_key}</p>

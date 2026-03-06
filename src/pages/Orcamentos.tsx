@@ -7,8 +7,8 @@ import { AnimatePresence, motion } from "framer-motion";
 import { QuoteApprovalDialog } from "@/components/orcamentos/QuoteApprovalDialog";
 
 const statusLabels: Record<string, { label: string; color: string; icon: any }> = {
-  pendente: { label: "Pendente", color: "text-amber-600 bg-amber-500/10 border-amber-500/20", icon: Clock },
-  aprovado: { label: "Aprovado", color: "text-emerald-600 bg-emerald-500/10 border-emerald-500/20", icon: CheckCircle },
+  pendente: { label: "Pendente", color: "text-warning bg-warning/10 border-warning/20", icon: Clock },
+  aprovado: { label: "Aprovado", color: "text-success bg-success/10 border-success/20", icon: CheckCircle },
   convertido: { label: "Convertido", color: "text-primary bg-primary/10 border-primary/20", icon: ShoppingCart },
   cancelado: { label: "Cancelado", color: "text-destructive bg-destructive/10 border-destructive/20", icon: XCircle },
 };
@@ -102,8 +102,8 @@ export default function Orcamentos() {
                          <Eye className="w-4 h-4 text-muted-foreground" />
                        </button>
                        {q.status === "pendente" && (
-                         <button onClick={() => setApprovalQuote(q)} className="p-1.5 rounded-lg hover:bg-emerald-500/10" title="Aprovar">
-                           <ThumbsUp className="w-4 h-4 text-emerald-500" />
+                         <button onClick={() => setApprovalQuote(q)} className="p-1.5 rounded-lg hover:bg-success/10" title="Aprovar">
+                           <ThumbsUp className="w-4 h-4 text-success" />
                          </button>
                        )}
                        {(q.status === "pendente" || q.status === "aprovado") && (
@@ -163,9 +163,9 @@ export default function Orcamentos() {
                            </button>
                            {q.status === "pendente" && (
                              <>
-                               <button onClick={() => setApprovalQuote(q)} className="p-1.5 rounded-lg hover:bg-emerald-500/10 transition-colors" title="Aprovar">
-                                 <ThumbsUp className="w-4 h-4 text-emerald-500" />
-                               </button>
+                                <button onClick={() => setApprovalQuote(q)} className="p-1.5 rounded-lg hover:bg-success/10 transition-colors" title="Aprovar">
+                                  <ThumbsUp className="w-4 h-4 text-success" />
+                                </button>
                                <button onClick={() => handleConvertToSale(q)} className="p-1.5 rounded-lg hover:bg-primary/10 transition-colors" title="Converter em Venda">
                                  <ShoppingCart className="w-4 h-4 text-primary" />
                                </button>
@@ -273,7 +273,7 @@ export default function Orcamentos() {
                   {viewQuote.status === "pendente" && (
                     <button
                       onClick={() => { setApprovalQuote(viewQuote); setViewQuote(null); }}
-                      className="flex-1 py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-bold hover:bg-emerald-500 transition-all flex items-center justify-center gap-2"
+                      className="flex-1 py-2.5 rounded-xl bg-success text-success-foreground text-sm font-bold hover:opacity-90 transition-all flex items-center justify-center gap-2"
                     >
                       <ThumbsUp className="w-4 h-4" />
                       Aprovar

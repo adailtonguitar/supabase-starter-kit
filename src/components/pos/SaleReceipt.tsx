@@ -317,7 +317,7 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
               </div>
             ))}
             {changeAmount > 0 && (
-              <div className="flex justify-between text-emerald-500 font-bold">
+              <div className="flex justify-between text-success font-bold">
                 <span>Troco</span>
                 <span className="font-mono">{formatCurrency(changeAmount)}</span>
               </div>

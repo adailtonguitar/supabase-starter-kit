@@ -69,7 +69,7 @@ interface SimpleRecipient {
 }
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: typeof CheckCircle }> = {
-  autorizado: { label: "Autorizada", color: "text-emerald-500 bg-emerald-500/10", icon: CheckCircle },
+  autorizado: { label: "Autorizada", color: "text-success bg-success/10", icon: CheckCircle },
   cancelado: { label: "Cancelada", color: "text-destructive bg-destructive/10", icon: AlertTriangle },
   rejeitado: { label: "Rejeitada", color: "text-destructive bg-destructive/10", icon: AlertTriangle },
   pendente: { label: "Pendente", color: "text-warning bg-warning/10", icon: Clock },
@@ -662,7 +662,7 @@ function EmissorReportTab({ companyId }: { companyId: string }) {
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             <div className="bg-card rounded-xl border border-border p-4">
               <p className="text-[11px] text-muted-foreground uppercase tracking-wider">Autorizadas</p>
-              <p className="text-2xl font-bold font-mono text-emerald-500">{stats.autorizadas}</p>
+              <p className="text-2xl font-bold font-mono text-success">{stats.autorizadas}</p>
               <p className="text-xs text-muted-foreground mt-1">{formatCurrency(stats.totalValue)}</p>
             </div>
             <div className="bg-card rounded-xl border border-border p-4">

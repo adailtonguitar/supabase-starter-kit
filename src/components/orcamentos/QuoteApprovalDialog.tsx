@@ -121,8 +121,8 @@ export function QuoteApprovalDialog({ quote, onClose, onApproved }: Props) {
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-border">
           <div className="flex items-center gap-2">
-            <div className="w-9 h-9 rounded-xl bg-emerald-500/10 flex items-center justify-center">
-              <CheckCircle className="w-5 h-5 text-emerald-500" />
+            <div className="w-9 h-9 rounded-xl bg-success/10 flex items-center justify-center">
+              <CheckCircle className="w-5 h-5 text-success" />
             </div>
             <div>
               <h2 className="text-lg font-bold text-foreground">Aprovar Orçamento</h2>
@@ -160,7 +160,7 @@ export function QuoteApprovalDialog({ quote, onClose, onApproved }: Props) {
                       {stock && (
                         <p
                           className={`text-[10px] ${
-                            stock.sufficient ? "text-emerald-500" : "text-destructive"
+                            stock.sufficient ? "text-success" : "text-destructive"
                           }`}
                         >
                           Estoque: {stock.available} {stock.sufficient ? "✓" : `(faltam ${item.quantity - stock.available})`}

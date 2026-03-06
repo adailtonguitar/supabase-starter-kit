@@ -423,7 +423,7 @@ export default function RelatorioVendas() {
           { label: "Vendas", value: totals.salesCount.toString(), icon: BarChart3, color: "text-primary" },
           { label: "Receita Total", value: formatCurrency(totals.revenue), icon: DollarSign, color: "text-primary" },
           { label: "Custo Total", value: formatCurrency(totals.cost), icon: TrendingDown, color: "text-destructive" },
-          { label: "Lucro Total", value: formatCurrency(totals.profit), icon: TrendingUp, color: totals.profit >= 0 ? "text-emerald-500" : "text-destructive" },
+          { label: "Lucro Total", value: formatCurrency(totals.profit), icon: TrendingUp, color: totals.profit >= 0 ? "text-success" : "text-destructive" },
         ].map((card, i) => (
           <motion.div
             key={card.label}
@@ -446,13 +446,13 @@ export default function RelatorioVendas() {
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-card rounded-xl card-shadow border border-border p-4">
           <div className="flex items-center justify-between">
             <span className="text-sm font-medium text-foreground">Margem de Lucro Geral</span>
-            <span className={`text-lg font-bold font-mono ${totals.profit >= 0 ? "text-emerald-500" : "text-destructive"}`}>
+            <span className={`text-lg font-bold font-mono ${totals.profit >= 0 ? "text-success" : "text-destructive"}`}>
               {((totals.profit / totals.revenue) * 100).toFixed(1)}%
             </span>
           </div>
           <div className="mt-2 w-full bg-muted rounded-full h-2.5">
             <div
-              className={`h-2.5 rounded-full transition-all ${totals.profit >= 0 ? "bg-emerald-500" : "bg-destructive"}`}
+              className={`h-2.5 rounded-full transition-all ${totals.profit >= 0 ? "bg-success" : "bg-destructive"}`}
               style={{ width: `${Math.min(Math.max((totals.profit / totals.revenue) * 100, 0), 100)}%` }}
             />
           </div>
@@ -479,8 +479,8 @@ export default function RelatorioVendas() {
                   <p className="text-xs text-muted-foreground font-mono">{p.sku}</p>
                 </div>
                 <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium shrink-0 ${
-                  p.margin_percent >= 30 ? "bg-emerald-500/10 text-emerald-500"
-                    : p.margin_percent >= 10 ? "bg-amber-500/10 text-amber-500"
+                  p.margin_percent >= 30 ? "bg-success/10 text-success"
+                    : p.margin_percent >= 10 ? "bg-warning/10 text-warning"
                     : "bg-destructive/10 text-destructive"
                 }`}>
                   {p.margin_percent.toFixed(1)}%
@@ -491,7 +491,7 @@ export default function RelatorioVendas() {
                 <span>Custo: <strong className="text-foreground font-mono">{formatCurrency(p.unit_cost)}</strong></span>
                 <span>Qtd: <strong className="text-foreground font-mono">{p.total_quantity}</strong></span>
                 <span>Receita: <strong className="text-foreground font-mono">{formatCurrency(p.total_revenue)}</strong></span>
-                <span>Lucro: <strong className={`font-mono ${p.total_profit >= 0 ? "text-emerald-500" : "text-destructive"}`}>{formatCurrency(p.total_profit)}</strong></span>
+                <span>Lucro: <strong className={`font-mono ${p.total_profit >= 0 ? "text-success" : "text-destructive"}`}>{formatCurrency(p.total_profit)}</strong></span>
               </div>
             </div>
           ))
@@ -547,13 +547,13 @@ export default function RelatorioVendas() {
                       <td className="px-5 py-3 text-right font-mono text-foreground">{p.total_quantity}</td>
                       <td className="px-5 py-3 text-right font-mono text-foreground">{formatCurrency(p.total_revenue)}</td>
                       <td className="px-5 py-3 text-right font-mono text-muted-foreground">{formatCurrency(p.total_cost)}</td>
-                      <td className={`px-5 py-3 text-right font-mono font-medium ${p.total_profit >= 0 ? "text-emerald-500" : "text-destructive"}`}>
+                      <td className={`px-5 py-3 text-right font-mono font-medium ${p.total_profit >= 0 ? "text-success" : "text-destructive"}`}>
                         {formatCurrency(p.total_profit)}
                       </td>
                       <td className="px-5 py-3 text-right">
                         <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                          p.margin_percent >= 30 ? "bg-emerald-500/10 text-emerald-500"
-                            : p.margin_percent >= 10 ? "bg-amber-500/10 text-amber-500"
+                          p.margin_percent >= 30 ? "bg-success/10 text-success"
+                            : p.margin_percent >= 10 ? "bg-warning/10 text-warning"
                             : "bg-destructive/10 text-destructive"
                         }`}>
                           {p.margin_percent.toFixed(1)}%
@@ -568,14 +568,14 @@ export default function RelatorioVendas() {
                     <td className="px-5 py-3 text-right font-mono text-foreground">{totals.quantity}</td>
                     <td className="px-5 py-3 text-right font-mono text-foreground">{formatCurrency(totals.revenue)}</td>
                     <td className="px-5 py-3 text-right font-mono text-muted-foreground">{formatCurrency(totals.cost)}</td>
-                    <td className={`px-5 py-3 text-right font-mono ${totals.profit >= 0 ? "text-emerald-500" : "text-destructive"}`}>
+                    <td className={`px-5 py-3 text-right font-mono ${totals.profit >= 0 ? "text-success" : "text-destructive"}`}>
                       {formatCurrency(totals.profit)}
                     </td>
                     <td className="px-5 py-3 text-right">
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
                         totals.revenue > 0 && (totals.profit / totals.revenue) * 100 >= 30
-                          ? "bg-emerald-500/10 text-emerald-500"
-                          : "bg-amber-500/10 text-amber-500"
+                          ? "bg-success/10 text-success"
+                          : "bg-warning/10 text-warning"
                       }`}>
                         {totals.revenue > 0 ? ((totals.profit / totals.revenue) * 100).toFixed(1) : "0.0"}%
                       </span>

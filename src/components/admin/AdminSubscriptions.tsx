@@ -112,7 +112,7 @@ export function AdminSubscriptions() {
   const emissorCount = plans.filter(p => p.plan === "emissor").length;
 
   const statusBadge = (s: string) => {
-    if (s === "active") return <Badge className="bg-green-600 text-white">Ativo</Badge>;
+    if (s === "active") return <Badge className="bg-success text-success-foreground">Ativo</Badge>;
     if (s === "suspended") return <Badge variant="destructive">Suspenso</Badge>;
     return <Badge variant="secondary">Cancelado</Badge>;
   };

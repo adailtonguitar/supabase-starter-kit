@@ -48,7 +48,7 @@ function KpiCard({
         {sub && <p className="text-[10px] text-muted-foreground mt-0.5">{sub}</p>}
       </div>
       {trend !== undefined && trend !== 0 && (
-        <div className={`flex items-center gap-0.5 text-[11px] font-bold ${trend > 0 ? "text-emerald-500" : "text-destructive"}`}>
+        <div className={`flex items-center gap-0.5 text-[11px] font-bold ${trend > 0 ? "text-success" : "text-destructive"}`}>
           {trend > 0 ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />}
           {Math.abs(Math.round(trend))}%
         </div>
@@ -119,7 +119,7 @@ export default function PainelDono() {
                 d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                 fill="none" stroke="currentColor" strokeWidth="3"
                 strokeDasharray={`${stats.healthScore}, 100`}
-                className={stats.healthScore >= 70 ? "text-emerald-500" : stats.healthScore >= 40 ? "text-amber-500" : "text-destructive"}
+                className={stats.healthScore >= 70 ? "text-success" : stats.healthScore >= 40 ? "text-warning" : "text-destructive"}
               />
             </svg>
             <span className="absolute inset-0 flex items-center justify-center text-lg font-black">
@@ -147,7 +147,7 @@ export default function PainelDono() {
         <div className="flex items-center justify-between mb-3">
           <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">📊 Hoje vs Ontem</p>
           {dailyTrend !== 0 && (
-            <span className={`text-xs font-bold flex items-center gap-0.5 ${dailyTrend > 0 ? "text-emerald-500" : "text-destructive"}`}>
+            <span className={`text-xs font-bold flex items-center gap-0.5 ${dailyTrend > 0 ? "text-success" : "text-destructive"}`}>
               {dailyTrend > 0 ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />}
               {Math.abs(Math.round(dailyTrend))}%
             </span>
@@ -173,7 +173,7 @@ export default function PainelDono() {
           icon={ShoppingCart}
           label="Ticket Médio"
           value={formatBRL(stats.ticketMedio)}
-          color="bg-blue-500/10 text-blue-500"
+          color="bg-info/10 text-info"
           delay={0.15}
         />
         <KpiCard
@@ -189,7 +189,7 @@ export default function PainelDono() {
           label="Lucro Mês"
           value={formatBRL(stats.monthProfit)}
           sub={`Margem ${margemLucro}%`}
-          color={stats.monthProfit >= 0 ? "bg-emerald-500/10 text-emerald-500" : "bg-destructive/10 text-destructive"}
+          color={stats.monthProfit >= 0 ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive"}
           delay={0.25}
         />
         <KpiCard
@@ -197,7 +197,7 @@ export default function PainelDono() {
           label="Fiado Pendente"
           value={formatBRL(stats.fiadoTotal)}
           sub={`${stats.fiadoCount} clientes`}
-          color={stats.fiadoTotal > 0 ? "bg-amber-500/10 text-amber-600" : "bg-emerald-500/10 text-emerald-500"}
+          color={stats.fiadoTotal > 0 ? "bg-warning/10 text-warning" : "bg-success/10 text-success"}
           delay={0.3}
           onClick={() => navigate("/fiado")}
         />
@@ -206,7 +206,7 @@ export default function PainelDono() {
           label="Produtos"
           value={String(stats.totalProducts)}
           sub={`${stats.productsAtRisk} em risco`}
-          color="bg-amber-500/10 text-amber-600"
+          color="bg-warning/10 text-warning"
           delay={0.35}
           onClick={() => navigate("/produtos")}
         />
@@ -214,7 +214,7 @@ export default function PainelDono() {
           icon={Users}
           label="Clientes"
           value={String(stats.totalClients)}
-          color="bg-violet-500/10 text-violet-500"
+          color="bg-chart-4/10 text-chart-4"
           delay={0.4}
           onClick={() => navigate("/cadastro/clientes")}
         />
@@ -263,10 +263,10 @@ export default function PainelDono() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.45 }}
-          className="rounded-2xl border border-amber-500/20 bg-amber-500/5 p-4 flex items-center gap-3"
+          className="rounded-2xl border border-warning/20 bg-warning/5 p-4 flex items-center gap-3"
           onClick={() => navigate("/estoque/ruptura")}
         >
-          <AlertTriangle className="w-6 h-6 text-amber-500 flex-shrink-0" />
+          <AlertTriangle className="w-6 h-6 text-warning flex-shrink-0" />
           <div className="flex-1">
             <p className="text-sm font-semibold">{stats.productsAtRisk} produtos com estoque baixo</p>
             <p className="text-xs text-muted-foreground">Toque para ver o relatório de ruptura</p>
@@ -288,7 +288,7 @@ export default function PainelDono() {
             {stats.topProducts.slice(0, 5).map((p, i) => (
               <div key={p.name} className="flex items-center gap-3">
                 <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
-                  i === 0 ? "bg-amber-500/15 text-amber-500" : i === 1 ? "bg-muted text-muted-foreground" : i === 2 ? "bg-orange-500/10 text-orange-500" : "bg-muted/50 text-muted-foreground"
+                  i === 0 ? "bg-warning/15 text-warning" : i === 1 ? "bg-muted text-muted-foreground" : i === 2 ? "bg-warning/10 text-warning" : "bg-muted/50 text-muted-foreground"
                 }`}>
                   {i + 1}
                 </span>
@@ -314,7 +314,7 @@ export default function PainelDono() {
             { label: "PDV", path: "/pdv", icon: ShoppingCart, accent: "text-primary" },
             { label: "Dashboard", path: "/dashboard", icon: BarChart3, accent: "text-foreground" },
             { label: "Financeiro", path: "/financeiro", icon: Wallet, accent: "text-warning" },
-            { label: "Fiado", path: "/fiado", icon: CreditCard, accent: "text-amber-500" },
+            { label: "Fiado", path: "/fiado", icon: CreditCard, accent: "text-warning" },
             { label: "Relatórios", path: "/relatorio-vendas", icon: FileText, accent: "text-primary" },
             { label: "Estoque", path: "/produtos", icon: Package, accent: "text-foreground" },
           ].map((action) => (

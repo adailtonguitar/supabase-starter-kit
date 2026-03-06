@@ -31,7 +31,7 @@ export function OnlineStatusIndicator() {
     <div
       className={`flex items-center justify-center gap-2 px-4 py-1.5 text-xs font-medium transition-colors ${
         online
-          ? "bg-emerald-500/15 text-emerald-400"
+          ? "bg-success/15 text-success"
           : "bg-destructive/15 text-destructive"
       }`}
     >

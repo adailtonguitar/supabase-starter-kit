@@ -214,7 +214,7 @@ export function CSVClientImportDialog({ open, onOpenChange }: CSVClientImportDia
           {step === "preview" && (
             <div className="space-y-4">
               <div className="flex items-center gap-4 text-sm">
-                <span className="flex items-center gap-1.5 text-emerald-500"><CheckCircle2 className="w-4 h-4" /> {validCount} válido(s)</span>
+                <span className="flex items-center gap-1.5 text-success"><CheckCircle2 className="w-4 h-4" /> {validCount} válido(s)</span>
                 {invalidCount > 0 && <span className="flex items-center gap-1.5 text-destructive"><AlertCircle className="w-4 h-4" /> {invalidCount} com erro</span>}
               </div>
 
@@ -242,7 +242,7 @@ export function CSVClientImportDialog({ open, onOpenChange }: CSVClientImportDia
                   <tbody>
                     {clients.slice(0, 50).map((c, i) => (
                       <tr key={i} className={`border-t border-border ${!c.valid ? "bg-destructive/5" : ""}`}>
-                        <td className="px-3 py-1.5">{c.valid ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> : <AlertCircle className="w-3.5 h-3.5 text-destructive" />}</td>
+                        <td className="px-3 py-1.5">{c.valid ? <CheckCircle2 className="w-3.5 h-3.5 text-success" /> : <AlertCircle className="w-3.5 h-3.5 text-destructive" />}</td>
                         <td className="px-3 py-1.5 text-foreground truncate max-w-[180px]">{c.name}</td>
                         <td className="px-3 py-1.5 text-muted-foreground font-mono">{c.cpf_cnpj || "—"}</td>
                         <td className="px-3 py-1.5 text-muted-foreground truncate max-w-[150px]">{c.email || "—"}</td>
@@ -259,7 +259,7 @@ export function CSVClientImportDialog({ open, onOpenChange }: CSVClientImportDia
 
           {step === "done" && (
             <div className="text-center py-8 space-y-3">
-              <CheckCircle2 className="w-12 h-12 text-emerald-500 mx-auto" />
+              <CheckCircle2 className="w-12 h-12 text-success mx-auto" />
               <p className="text-lg font-semibold text-foreground">Importação concluída!</p>
               <p className="text-sm text-muted-foreground">{result.imported} cliente(s) importado(s){result.errors > 0 ? `, ${result.errors} com erro` : ""}.</p>
             </div>

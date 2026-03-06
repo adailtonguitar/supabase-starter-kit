@@ -80,9 +80,9 @@ export default function Terminais() {
       </div>
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card><CardContent className="p-4 flex items-center gap-3"><div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center"><Monitor className="w-5 h-5 text-primary" /></div><div><p className="text-sm text-muted-foreground">Terminais Abertos</p><p className="text-2xl font-bold text-foreground">{openTerminals.length}</p></div></CardContent></Card>
-        <Card><CardContent className="p-4 flex items-center gap-3"><div className="w-10 h-10 rounded-lg bg-emerald-500/10 flex items-center justify-center"><DollarSign className="w-5 h-5 text-emerald-500" /></div><div><p className="text-sm text-muted-foreground">Total Vendas (abertos)</p><p className="text-2xl font-bold text-foreground">{formatCurrency(totalSalesAll)}</p></div></CardContent></Card>
-        <Card><CardContent className="p-4 flex items-center gap-3"><div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center"><ShoppingCart className="w-5 h-5 text-blue-500" /></div><div><p className="text-sm text-muted-foreground">Transações Hoje</p><p className="text-2xl font-bold text-foreground">{totalTransactions}</p></div></CardContent></Card>
-        <Card><CardContent className="p-4 flex items-center gap-3"><div className="w-10 h-10 rounded-lg bg-amber-500/10 flex items-center justify-center"><TrendingUp className="w-5 h-5 text-amber-500" /></div><div><p className="text-sm text-muted-foreground">Ticket Médio</p><p className="text-2xl font-bold text-foreground">{totalTransactions > 0 ? formatCurrency(totalSalesAll / totalTransactions) : "R$ 0,00"}</p></div></CardContent></Card>
+        <Card><CardContent className="p-4 flex items-center gap-3"><div className="w-10 h-10 rounded-lg bg-success/10 flex items-center justify-center"><DollarSign className="w-5 h-5 text-success" /></div><div><p className="text-sm text-muted-foreground">Total Vendas (abertos)</p><p className="text-2xl font-bold text-foreground">{formatCurrency(totalSalesAll)}</p></div></CardContent></Card>
+        <Card><CardContent className="p-4 flex items-center gap-3"><div className="w-10 h-10 rounded-lg bg-info/10 flex items-center justify-center"><ShoppingCart className="w-5 h-5 text-info" /></div><div><p className="text-sm text-muted-foreground">Transações Hoje</p><p className="text-2xl font-bold text-foreground">{totalTransactions}</p></div></CardContent></Card>
+        <Card><CardContent className="p-4 flex items-center gap-3"><div className="w-10 h-10 rounded-lg bg-warning/10 flex items-center justify-center"><TrendingUp className="w-5 h-5 text-warning" /></div><div><p className="text-sm text-muted-foreground">Ticket Médio</p><p className="text-2xl font-bold text-foreground">{totalTransactions > 0 ? formatCurrency(totalSalesAll / totalTransactions) : "R$ 0,00"}</p></div></CardContent></Card>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {ALL_TERMINALS.map((tid) => {
@@ -103,12 +103,12 @@ export default function Terminais() {
                       <div className="flex justify-between text-xs"><span className="text-muted-foreground">Crédito:</span><span className="text-foreground">{formatCurrency(session.total_credito)}</span></div>
                       <div className="flex justify-between text-xs"><span className="text-muted-foreground">PIX:</span><span className="text-foreground">{formatCurrency(session.total_pix)}</span></div>
                       <div className="border-t border-border mt-1 pt-1 flex justify-between text-xs"><span className="text-muted-foreground">Sangrias:</span><span className="text-destructive">{formatCurrency(session.total_sangria)}</span></div>
-                      <div className="flex justify-between text-xs"><span className="text-muted-foreground">Suprimentos:</span><span className="text-emerald-500">{formatCurrency(session.total_suprimento)}</span></div>
+                      <div className="flex justify-between text-xs"><span className="text-muted-foreground">Suprimentos:</span><span className="text-success">{formatCurrency(session.total_suprimento)}</span></div>
                       <div className="flex justify-between text-xs"><span className="text-muted-foreground">Qtd vendas:</span><span className="font-medium text-foreground">{session.sales_count || 0}</span></div>
                     </div>
                   )}
                   {!isOpen && session.difference !== null && session.difference !== 0 && (
-                    <div className="flex items-center gap-2 text-sm"><AlertTriangle className="w-4 h-4 text-amber-500" /><span className="text-amber-500 font-medium">Diferença: {formatCurrency(session.difference)}</span></div>
+                    <div className="flex items-center gap-2 text-sm"><AlertTriangle className="w-4 h-4 text-warning" /><span className="text-warning font-medium">Diferença: {formatCurrency(session.difference)}</span></div>
                   )}
                   {isOpen && <Button variant="destructive" size="sm" className="w-full mt-2" onClick={() => setForceCloseTarget(session)}><Power className="w-4 h-4 mr-1" /> Forçar Fechamento</Button>}
                 </>) : <p className="text-sm text-muted-foreground text-center py-4">Nenhuma sessão registrada</p>}
