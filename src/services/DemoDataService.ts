@@ -62,9 +62,10 @@ export class DemoDataService {
 
   static async seedDemoData(companyId: string, userId: string): Promise<{ products: number; clients: number; sales: number }> {
     // 1) Insert products
-    const productRows = DEMO_PRODUCTS.map(p => ({
+    const productRows = DEMO_PRODUCTS.map((p, idx) => ({
       company_id: companyId,
       name: p.name,
+      sku: p.barcode,
       barcode: p.barcode,
       price: p.price,
       cost_price: p.cost,
