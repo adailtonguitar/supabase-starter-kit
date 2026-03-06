@@ -1,12 +1,9 @@
 import { useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { Download, Image, Sparkles, Loader2, Eye, Copy, ExternalLink } from "lucide-react";
+import { Download, Image, Eye, Copy } from "lucide-react";
 
 interface ArtAsset {
   id: string;
@@ -94,27 +91,8 @@ const existingArts: ArtAsset[] = [
   },
 ];
 
-const aiPromptTemplates = [
-  { id: "pdv", label: "Foco no PDV", prompt: "Professional social media art for AnthoSystem POS software. Show a modern checkout/POS terminal with sales interface. Bold dark blue and electric green. Text: 'AnthoSystem PDV — Venda rápido, sem complicação'. Brazilian Portuguese." },
-  { id: "estoque", label: "Foco no Estoque", prompt: "Professional social media art for AnthoSystem inventory management. Show organized warehouse shelves with barcode scanning. Dark blue and green. Text: 'Controle de Estoque Inteligente — AnthoSystem'. Brazilian Portuguese." },
-  { id: "fiscal", label: "Foco Fiscal / NF-e", prompt: "Professional social media art for AnthoSystem fiscal/tax invoice system. Show NF-e documents with government seal. Dark blue and green. Text: 'Emissão de NF-e e NFC-e — AnthoSystem'. Brazilian Portuguese." },
-  { id: "teste-gratis", label: "Teste Grátis 15 dias", prompt: "Eye-catching promotional social media art for AnthoSystem. Bold urgency style. Dark blue background with vibrant green. Text: 'TESTE GRÁTIS 15 DIAS — AnthoSystem — Sistema Completo para seu Comércio'. Call to action button style. Brazilian Portuguese." },
-  { id: "financeiro", label: "Foco Financeiro", prompt: "Professional social media art for AnthoSystem financial management. Show charts, cash flow graphs, profit analytics. Dark blue and green. Text: 'Gestão Financeira Completa — AnthoSystem'. Brazilian Portuguese." },
-  { id: "ia", label: "Foco IA", prompt: "Futuristic social media art for AnthoSystem AI features. Neural network visuals, AI brain icon, data analytics. Dark blue and neon green. Text: 'Inteligência Artificial para seu Negócio — AnthoSystem'. Brazilian Portuguese." },
-];
-
-const formatOptions = [
-  { id: "feed", label: "Feed Instagram (1080×1080)", width: 1080, height: 1080 },
-  { id: "stories", label: "Stories (1080×1920)", width: 1080, height: 1920 },
-  { id: "banner", label: "Banner Facebook (1920×1080)", width: 1920, height: 1080 },
-];
 
 export function AdminMarketing() {
-  const [selectedFormat, setSelectedFormat] = useState("feed");
-  const [selectedTheme, setSelectedTheme] = useState("pdv");
-  const [customPrompt, setCustomPrompt] = useState("");
-  const [generating, setGenerating] = useState(false);
-  const [generatedImage, setGeneratedImage] = useState<string | null>(null);
   const [previewArt, setPreviewArt] = useState<ArtAsset | null>(null);
   const [filter, setFilter] = useState("all");
 
@@ -132,61 +110,6 @@ export function AdminMarketing() {
     toast.success("Link copiado!");
   };
 
-  const handleGenerate = async () => {
-    setGenerating(true);
-    setGeneratedImage(null);
-    try {
-      const format = formatOptions.find((f) => f.id === selectedFormat)!;
-      const theme = aiPromptTemplates.find((t) => t.id === selectedTheme);
-      const prompt = customPrompt.trim() || theme?.prompt || "Promotional art for AnthoSystem retail management system";
-
-      console.log("[AdminMarketing] Calling generate-marketing-art...");
-      
-      // Use fetch directly to capture error response body
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "https://fsvxpxziotklbxkivyug.supabase.co";
-      const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZzdnhweHppb3RrbGJ4a2l2eXVnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE3ODU5NTMsImV4cCI6MjA4NzM2MTk1M30.8I3ABsRZBZuE1IpK_g9z3PdRUd9Omt_F5qNx0Pgqvyo";
-      
-      const resp = await fetch(`${supabaseUrl}/functions/v1/generate-marketing-art`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${supabaseKey}`,
-          "apikey": supabaseKey,
-        },
-        body: JSON.stringify({ prompt, width: format.width, height: format.height }),
-      });
-
-      const result = await resp.json();
-      console.log("[AdminMarketing] Status:", resp.status, "Response:", JSON.stringify(result).substring(0, 500));
-
-      if (!resp.ok || result.error) {
-        throw new Error(result.error || `Erro ${resp.status}`);
-      }
-
-      if (result?.image) {
-        setGeneratedImage(result.image);
-        toast.success("Arte gerada com sucesso!");
-      } else {
-        throw new Error("Nenhuma imagem retornada pelo modelo");
-      }
-    } catch (err: any) {
-      console.error("[AdminMarketing] Generate error:", err);
-      toast.error(err.message || "Erro ao gerar arte");
-    } finally {
-      setGenerating(false);
-    }
-  };
-
-  const handleDownloadGenerated = () => {
-    if (!generatedImage) return;
-    const format = formatOptions.find((f) => f.id === selectedFormat)!;
-    const theme = aiPromptTemplates.find((t) => t.id === selectedTheme);
-    const a = document.createElement("a");
-    a.href = generatedImage;
-    a.download = `anthosystem-${theme?.id || "custom"}-${format.id}.png`;
-    a.click();
-    toast.success("Download iniciado!");
-  };
 
   const filteredArts = filter === "all" ? existingArts : existingArts.filter((a) => a.category === filter);
 
@@ -271,95 +194,6 @@ export function AdminMarketing() {
               </div>
             ))}
           </div>
-        </CardContent>
-      </Card>
-
-      {/* AI Generator Section */}
-      <Card>
-        <CardHeader className="p-3 sm:p-6">
-          <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
-            <Sparkles className="h-4 w-4 text-primary" />
-            Gerador de Artes com IA
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0 space-y-4">
-          <p className="text-sm text-muted-foreground">
-            Gere artes promocionais automaticamente usando IA. Escolha o tema, formato e clique em gerar.
-          </p>
-
-          <div className="grid sm:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Formato</label>
-              <Select value={selectedFormat} onValueChange={setSelectedFormat}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {formatOptions.map((f) => (
-                    <SelectItem key={f.id} value={f.id}>{f.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Tema</label>
-              <Select value={selectedTheme} onValueChange={setSelectedTheme}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {aiPromptTemplates.map((t) => (
-                    <SelectItem key={t.id} value={t.id}>{t.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Prompt personalizado (opcional)</label>
-            <Input
-              value={customPrompt}
-              onChange={(e) => setCustomPrompt(e.target.value)}
-              placeholder="Descreva a arte que deseja gerar... (deixe vazio para usar o tema selecionado)"
-            />
-          </div>
-
-          <Button
-            onClick={handleGenerate}
-            disabled={generating}
-            className="gap-2"
-          >
-            {generating ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" /> Gerando arte...
-              </>
-            ) : (
-              <>
-                <Sparkles className="w-4 h-4" /> Gerar Arte com IA
-              </>
-            )}
-          </Button>
-
-          {/* Generated Result */}
-          {generatedImage && (
-            <div className="rounded-xl border-2 border-primary/30 bg-primary/5 p-4 space-y-3">
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-semibold text-primary">Arte gerada!</p>
-                <Button size="sm" onClick={handleDownloadGenerated} className="gap-1.5">
-                  <Download className="w-3.5 h-3.5" /> Baixar
-                </Button>
-              </div>
-              <div className="rounded-lg overflow-hidden border border-border">
-                <img
-                  src={generatedImage}
-                  alt="Arte gerada por IA"
-                  className="w-full max-h-[500px] object-contain bg-muted"
-                />
-              </div>
-            </div>
-          )}
         </CardContent>
       </Card>
 
