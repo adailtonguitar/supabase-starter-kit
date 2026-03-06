@@ -1051,4 +1051,4 @@ export const ProductFormDialog = forwardRef<HTMLDivElement, Props>(function Prod
       </div>
     </div>
   );
-}
+});
