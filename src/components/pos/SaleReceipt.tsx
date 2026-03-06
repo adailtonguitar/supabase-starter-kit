@@ -33,7 +33,7 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
 
   const handlePrint = useCallback(() => {
     const itemsHtml = (items || []).map((item: any) =>
-      `<div class="row"><span>${item.quantity || 1}x ${item.name}</span><span>${formatCurrency((item.quantity || 1) * item.price)}</span></div>`
+      `<div class="row"><span>${item.quantity || 1}x ${item.name}</span><span>${formatCurrency((item.quantity || 1) * item.price)}</span></div>${item.notes ? `<div class="obs">  📝 ${item.notes}</div>` : ""}`
     ).join("");
 
     const paymentsHtml = (payments || []).map((p: any) =>
