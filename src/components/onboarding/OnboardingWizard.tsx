@@ -50,26 +50,6 @@ export function OnboardingWizard({ onComplete }: Props) {
         p_phone: phone.trim() || null,
       });
 
-      // Set segment after company creation
-      if (!error && segment === "moveis") {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          const { data: cu } = await supabase
-            .from("company_users")
-            .select("company_id")
-            .eq("user_id", user.id)
-            .eq("is_active", true)
-            .limit(1)
-            .single();
-          if (cu) {
-            await supabase
-              .from("companies")
-              .update({ segment: "moveis" } as any)
-              .eq("id", cu.company_id);
-          }
-        }
-      }
-
       if (error) throw error;
 
       toast.success("Empresa criada com sucesso!");
