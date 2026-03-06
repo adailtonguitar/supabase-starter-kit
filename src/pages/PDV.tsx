@@ -62,6 +62,7 @@ export default function PDV() {
     customerCpf?: string;
     protocolNumber?: string;
     protocolDate?: string;
+    itemNotes?: Record<string, string>;
   } | null>(null);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showProductList, setShowProductList] = useState(false);
