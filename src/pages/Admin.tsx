@@ -13,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Shield, Activity, Search, Ban, CheckCircle, LayoutDashboard, Users, CreditCard, FileText, DollarSign, Trash2, FlaskConical, MessageCircle, Save, Loader2, Pencil, Mail, ShoppingCart, Bug, Stethoscope, TrendingUp } from "lucide-react";
+import { Shield, Activity, Search, Ban, CheckCircle, LayoutDashboard, Users, CreditCard, FileText, DollarSign, Trash2, FlaskConical, MessageCircle, Save, Loader2, Pencil, Mail, ShoppingCart, Bug, Stethoscope, TrendingUp, Megaphone } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { AdminDashboard } from "@/components/admin/AdminDashboard";
 import { AdminSubscriptions } from "@/components/admin/AdminSubscriptions";
@@ -25,6 +25,7 @@ import { AdminCreateEmissorClient } from "@/components/admin/AdminCreateEmissorC
 import { AdminBulkEmail } from "@/components/admin/AdminBulkEmail";
 import { AdminStoreSimulation } from "@/components/admin/AdminStoreSimulation";
 import { AdminLeads } from "@/components/admin/AdminLeads";
+import { AdminMarketing } from "@/components/admin/AdminMarketing";
 import { lazy, Suspense } from "react";
 
 const lazyRetry = (fn: () => Promise<any>) =>
@@ -101,6 +102,7 @@ export default function Admin() {
           <TabsTrigger value="simulation" className="text-xs sm:text-sm"><ShoppingCart className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" /> Simulação</TabsTrigger>
           <TabsTrigger value="errors" className="text-xs sm:text-sm"><Bug className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" /> Erros</TabsTrigger>
           <TabsTrigger value="diagnostic" className="text-xs sm:text-sm"><Stethoscope className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" /> Diagnóstico</TabsTrigger>
+          <TabsTrigger value="marketing" className="text-xs sm:text-sm"><Megaphone className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" /> Marketing</TabsTrigger>
         </TabsList>
 
         <TabsContent value="dashboard">
@@ -144,6 +146,9 @@ export default function Admin() {
         </TabsContent>
         <TabsContent value="diagnostic">
           <DiagnosticTab />
+        </TabsContent>
+        <TabsContent value="marketing">
+          <AdminMarketing />
         </TabsContent>
       </Tabs>
     </div>
