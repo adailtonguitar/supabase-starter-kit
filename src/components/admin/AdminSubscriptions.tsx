@@ -20,6 +20,7 @@ interface PlanRow {
   financial_module_level: string;
   expires_at: string | null;
   company_name?: string;
+  is_demo?: boolean;
 }
 
 const PLAN_PRESETS: Record<string, Partial<PlanRow>> = {
@@ -50,13 +51,14 @@ export function AdminSubscriptions() {
     const companyIds = planData.map((p: any) => p.company_id);
     const { data: companies } = await supabase
       .from("companies")
-      .select("id, name")
+      .select("id, name, is_demo")
       .in("id", companyIds);
 
     const nameMap: Record<string, string> = {};
-    (companies ?? []).forEach((c: any) => { nameMap[c.id] = c.name; });
+    const demoMap: Record<string, boolean> = {};
+    (companies ?? []).forEach((c: any) => { nameMap[c.id] = c.name; demoMap[c.id] = c.is_demo === true; });
 
-    setPlans(planData.map((p: any) => ({ ...p, company_name: nameMap[p.company_id] || p.company_id.slice(0, 8) })));
+    setPlans(planData.map((p: any) => ({ ...p, company_name: nameMap[p.company_id] || p.company_id.slice(0, 8), is_demo: demoMap[p.company_id] || false })));
     setLoading(false);
   };
 
@@ -92,6 +94,14 @@ export function AdminSubscriptions() {
       toast.success(`Plano de ${row.company_name} atualizado.`);
     }
     setSaving(null);
+  };
+
+  const toggleDemo = async (row: PlanRow) => {
+    const newVal = !row.is_demo;
+    const { error } = await (supabase.from("companies").update({ is_demo: newVal } as any) as any).eq("id", row.company_id);
+    if (error) { toast.error("Erro: " + error.message); return; }
+    setPlans(prev => prev.map(r => r.id === row.id ? { ...r, is_demo: newVal } : r));
+    toast.success(newVal ? "Empresa marcada como Demo" : "Modo demo desativado");
   };
 
   const filtered = plans.filter(p => {
@@ -173,9 +183,14 @@ export function AdminSubscriptions() {
                   <div className="text-xs text-muted-foreground">
                     Máx. Usuários: {row.max_users === 0 ? "∞" : row.max_users} | Fiscal: {row.fiscal_enabled ? "✓" : "✗"} | Relatórios: {row.advanced_reports_enabled ? "✓" : "✗"} | Financeiro: {row.financial_module_level}
                   </div>
-                  <Button size="sm" className="w-full" onClick={() => savePlan(row)} disabled={saving === row.id}>
-                    <Save className="h-3.5 w-3.5 mr-1" /> {saving === row.id ? "Salvando..." : "Salvar"}
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button size="sm" variant={row.is_demo ? "destructive" : "outline"} className="flex-1" onClick={() => toggleDemo(row)}>
+                      {row.is_demo ? "🔶 Demo" : "Marcar Demo"}
+                    </Button>
+                    <Button size="sm" className="flex-1" onClick={() => savePlan(row)} disabled={saving === row.id}>
+                      <Save className="h-3.5 w-3.5 mr-1" /> {saving === row.id ? "Salvando..." : "Salvar"}
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -192,6 +207,7 @@ export function AdminSubscriptions() {
                     <TableHead className="text-center">Fiscal</TableHead>
                     <TableHead className="text-center">Relatórios</TableHead>
                     <TableHead className="text-center">Financeiro</TableHead>
+                    <TableHead className="text-center">Demo</TableHead>
                     <TableHead className="text-right">Ação</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -224,6 +240,11 @@ export function AdminSubscriptions() {
                       <TableCell className="text-center">{row.fiscal_enabled ? "✅" : "❌"}</TableCell>
                       <TableCell className="text-center">{row.advanced_reports_enabled ? "✅" : "❌"}</TableCell>
                       <TableCell className="text-center">{row.financial_module_level === "full" ? "Completo" : "Básico"}</TableCell>
+                      <TableCell className="text-center">
+                        <Button size="sm" variant={row.is_demo ? "destructive" : "ghost"} onClick={() => toggleDemo(row)} className="text-xs h-7 px-2">
+                          {row.is_demo ? "🔶 Sim" : "Não"}
+                        </Button>
+                      </TableCell>
                       <TableCell className="text-right">
                         <Button size="sm" variant="outline" onClick={() => savePlan(row)} disabled={saving === row.id}>
                           <Save className="h-3.5 w-3.5 mr-1" /> {saving === row.id ? "..." : "Salvar"}

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Mail, Lock, ArrowRight, KeyRound, Eye, EyeOff } from "lucide-react";
+import { Mail, Lock, ArrowRight, KeyRound, Eye, EyeOff, Play } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 
@@ -244,6 +244,70 @@ export default function Auth() {
     }
   };
 
+  const handleDemoSignUp = async () => {
+    setLoading(true);
+    try {
+      const demoId = Date.now().toString(36);
+      const demoEmail = `demo_${demoId}@demo.anthosystem.com`;
+      const demoPassword = `Demo${demoId}!`;
+
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+        email: demoEmail,
+        password: demoPassword,
+        options: {
+          data: { full_name: "Usuário Demo" },
+          emailRedirectTo: window.location.origin,
+        },
+      });
+
+      if (signUpError) throw signUpError;
+
+      // Sign in immediately (demo accounts skip email confirmation)
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: demoEmail,
+        password: demoPassword,
+      });
+
+      if (signInError) {
+        // If email confirmation is required, create via edge function approach
+        toast.info("Conta demo criada! Faça login com: " + demoEmail);
+        setEmail(demoEmail);
+        setPassword(demoPassword);
+        setLoading(false);
+        return;
+      }
+
+      // Create demo company via onboarding RPC
+      const { error: companyError } = await supabase.rpc("create_onboarding_company" as any, {
+        p_name: `Loja Demo ${demoId.toUpperCase()}`,
+        p_cnpj: "",
+        p_phone: null,
+      });
+
+      if (companyError) console.error("[Demo] Company creation error:", companyError);
+
+      // Mark company as demo
+      const { data: cu } = await supabase
+        .from("company_users")
+        .select("company_id")
+        .eq("user_id", signUpData.user?.id || "")
+        .eq("is_active", true)
+        .maybeSingle();
+
+      if (cu?.company_id) {
+        await (supabase.from("companies").update({ is_demo: true } as any) as any)
+          .eq("id", cu.company_id);
+      }
+
+      toast.success("Conta demo criada! Aproveite para explorar o sistema.");
+      navigate("/");
+    } catch (error: any) {
+      toast.error(translateAuthError(error.message || "Erro ao criar conta demo"));
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (mode === "processing") {
     return (
       <div className="h-screen overflow-y-auto flex items-center justify-center bg-background">
@@ -464,6 +528,19 @@ export default function Auth() {
               )}
             </>
           )}
+        </div>
+
+        {/* Demo button */}
+        <div className="mt-4 p-4 rounded-2xl border border-dashed border-primary/30 bg-primary/5 text-center">
+          <p className="text-sm text-muted-foreground mb-2">Quer conhecer o sistema sem compromisso?</p>
+          <button
+            onClick={handleDemoSignUp}
+            disabled={loading}
+            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-accent text-accent-foreground text-sm font-semibold hover:opacity-90 transition-all disabled:opacity-50"
+          >
+            <Play className="w-4 h-4" />
+            {loading ? "Criando conta demo..." : "Testar gratuitamente"}
+          </button>
         </div>
 
         {/* Link para planos */}
