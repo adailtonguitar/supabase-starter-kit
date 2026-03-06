@@ -97,6 +97,13 @@ export function usePDV() {
 
   useEffect(() => { loadProducts(); }, [loadProducts]);
 
+  // Refresh products every 2 minutes to keep stock in sync across terminals
+  useEffect(() => {
+    if (!companyId) return;
+    const interval = setInterval(() => { loadProducts(); }, 2 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [companyId, loadProducts]);
+
   const reloadSession = useCallback(async (terminalId: string) => {
     setLoadingSession(true);
     try {
