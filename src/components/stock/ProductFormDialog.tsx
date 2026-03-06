@@ -879,7 +879,7 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
                 <FormField control={form.control} name="origem" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Origem</FormLabel>
-                    <Select onValueChange={(v) => field.onChange(Number(v))} defaultValue={String(field.value ?? 0)}>
+                    <Select onValueChange={(v) => field.onChange(Number(v))} value={String(field.value ?? 0)}>
                       <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
                       <SelectContent>
                         <SelectItem value="0">0 - Nacional</SelectItem>
