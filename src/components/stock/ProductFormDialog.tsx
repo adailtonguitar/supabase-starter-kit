@@ -952,7 +952,7 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
                 <FormField control={form.control} name="cst_icms" render={({ field }) => (
                   <FormItem>
                     <FormLabel>CST ICMS</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value || "00"}>
+                    <Select onValueChange={field.onChange} value={field.value || "00"}>
                       <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
                       <SelectContent>
                         <SelectItem value="00">00 - Tributada integralmente</SelectItem>
