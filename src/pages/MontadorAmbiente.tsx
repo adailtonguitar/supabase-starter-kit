@@ -46,6 +46,36 @@ export default function MontadorAmbiente() {
   const [saving, setSaving] = useState(false);
   const [planId, setPlanId] = useState<string | null>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
+  const [loadingPlan, setLoadingPlan] = useState(false);
+
+  // Load saved plans on mount
+  useEffect(() => {
+    if (!companyId) return;
+    const loadPlans = async () => {
+      setLoadingPlan(true);
+      try {
+        const { data, error } = await supabase
+          .from("room_plans")
+          .select("*")
+          .eq("company_id", companyId)
+          .order("updated_at", { ascending: false })
+          .limit(1);
+        if (!error && data && data.length > 0) {
+          const plan = data[0] as any;
+          setPlanId(plan.id);
+          setRoomName(plan.name || "Sala de Estar");
+          if (Array.isArray(plan.items)) {
+            setItems(plan.items);
+          }
+        }
+      } catch (e) {
+        console.error("[MontadorAmbiente] load error", e);
+      } finally {
+        setLoadingPlan(false);
+      }
+    };
+    loadPlans();
+  }, [companyId]);
 
   const addItem = (catalog: typeof furnitureCatalog[0]) => {
     const item: FurnitureItem = {
