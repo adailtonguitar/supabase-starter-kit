@@ -92,36 +92,32 @@ export function AdminMarketing() {
 
       console.log("[AdminMarketing] Calling generate-marketing-art...");
       
-      const response = await supabase.functions.invoke("generate-marketing-art", {
-        body: { prompt, width: format.width, height: format.height },
+      // Use fetch directly to capture error response body
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "https://fsvxpxziotklbxkivyug.supabase.co";
+      const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZzdnhweHppb3RrbGJ4a2l2eXVnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE3ODU5NTMsImV4cCI6MjA4NzM2MTk1M30.8I3ABsRZBZuE1IpK_g9z3PdRUd9Omt_F5qNx0Pgqvyo";
+      
+      const resp = await fetch(`${supabaseUrl}/functions/v1/generate-marketing-art`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${supabaseKey}`,
+          "apikey": supabaseKey,
+        },
+        body: JSON.stringify({ prompt, width: format.width, height: format.height }),
       });
 
-      console.log("[AdminMarketing] Full response:", JSON.stringify(response));
+      const result = await resp.json();
+      console.log("[AdminMarketing] Status:", resp.status, "Response:", JSON.stringify(result).substring(0, 500));
 
-      // supabase.functions.invoke returns { data, error }
-      // When function returns non-2xx, error is set but data may contain the error details
-      const result = response.data || response.error;
-      
-      if (response.error) {
-        // Try to get detailed error from the response body
-        let errorMsg = "Erro ao gerar imagem";
-        if (typeof response.error === "object" && response.error.message) {
-          errorMsg = response.error.message;
-        }
-        // If the function returned JSON with error details, prefer that
-        if (result && typeof result === "object" && result.error) {
-          errorMsg = result.error;
-        }
-        console.error("[AdminMarketing] Error:", errorMsg);
-        throw new Error(errorMsg);
+      if (!resp.ok || result.error) {
+        throw new Error(result.error || `Erro ${resp.status}`);
       }
 
       if (result?.image) {
         setGeneratedImage(result.image);
         toast.success("Arte gerada com sucesso!");
       } else {
-        console.error("[AdminMarketing] Unexpected response:", JSON.stringify(result));
-        throw new Error(result?.error || "Nenhuma imagem retornada pelo modelo");
+        throw new Error("Nenhuma imagem retornada pelo modelo");
       }
     } catch (err: any) {
       console.error("[AdminMarketing] Generate error:", err);
