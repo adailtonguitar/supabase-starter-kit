@@ -446,7 +446,7 @@ export default function RelatorioVendas() {
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-card rounded-xl card-shadow border border-border p-4">
           <div className="flex items-center justify-between">
             <span className="text-sm font-medium text-foreground">Margem de Lucro Geral</span>
-            <span className={`text-lg font-bold font-mono ${totals.profit >= 0 ? "text-emerald-500" : "text-destructive"}`}>
+            <span className={`text-lg font-bold font-mono ${totals.profit >= 0 ? "text-success" : "text-destructive"}`}>
               {((totals.profit / totals.revenue) * 100).toFixed(1)}%
             </span>
           </div>
