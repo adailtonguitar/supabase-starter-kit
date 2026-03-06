@@ -178,4 +178,36 @@ export class DemoDataService {
     // Clear seeded flag
     try { localStorage.removeItem(`${DEMO_SEEDED_KEY}_${companyId}`); } catch {}
   }
+
+  /** Reset ALL data from a demo company (not just is_demo flagged) */
+  static async resetAllData(companyId: string): Promise<void> {
+    // 1) Delete all sales + items + financial entries
+    const { data: allSales } = await supabase
+      .from("sales")
+      .select("id")
+      .eq("company_id", companyId);
+
+    if (allSales && allSales.length > 0) {
+      for (const sale of allSales) {
+        await supabase.from("sale_items").delete().eq("sale_id", sale.id);
+        await (supabase.from("financial_entries").delete() as any).eq("reference", sale.id);
+      }
+      await supabase.from("sales").delete().eq("company_id", companyId);
+    }
+
+    // 2) Delete remaining financial entries
+    await supabase.from("financial_entries").delete().eq("company_id", companyId);
+
+    // 3) Delete all stock movements
+    await (supabase.from("stock_movements").delete() as any).eq("company_id", companyId);
+
+    // 4) Delete all products
+    await supabase.from("products").delete().eq("company_id", companyId);
+
+    // 5) Delete all clients
+    await supabase.from("clients").delete().eq("company_id", companyId);
+
+    // Clear seeded flag
+    try { localStorage.removeItem(`${DEMO_SEEDED_KEY}_${companyId}`); } catch {}
+  }
 }
