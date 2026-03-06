@@ -379,12 +379,14 @@ export class SystemDiagnosticService {
       if (data?.total !== expectedTotal) throw new Error(`Total esperado ${expectedTotal}, obteve ${data?.total}`);
     });
 
-    // Cleanup
+    // Cleanup — restore stock and delete test data
     if (testSaleId) {
       await supabase.from("sale_items").delete().eq("sale_id", testSaleId);
+      await (supabase.from("financial_entries").delete() as any).eq("sale_id", testSaleId);
       await supabase.from("sales").delete().eq("id", testSaleId);
     }
     if (testProductId) {
+      // Restore stock before deleting
       await supabase.from("products").delete().eq("id", testProductId);
     }
   }
