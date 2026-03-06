@@ -18,6 +18,8 @@ export interface CreditReceiptData {
   storeName?: string;
   storeCnpj?: string;
   storeSlogan?: string;
+  storePhone?: string;
+  storeAddress?: string;
 }
 
 interface PDVCreditReceiptProps {
@@ -30,9 +32,49 @@ export function PDVCreditReceipt({ data, onClose }: PDVCreditReceiptProps) {
 
   const handlePrint = () => {
     try {
-      const receiptContent = `<html><head><title>Recibo</title><style>body{font-family:'Courier New',monospace;font-size:12px;width:300px;margin:0 auto;padding:20px}.center{text-align:center}.bold{font-weight:bold}.separator{border-top:1px dashed #000;margin:8px 0}.line{margin:4px 0}.total{font-size:16px;font-weight:bold;margin:8px 0}</style></head><body><div class="center bold" style="font-size:14px;">RECIBO DE RECEBIMENTO</div>${data.storeName ? `<div class="center line">${data.storeName}</div>` : ""}${data.storeSlogan ? `<div class="center line" style="font-style:italic;font-size:11px;">${data.storeSlogan}</div>` : ""}<div class="separator"></div><div class="center line">${now.toLocaleString("pt-BR")}</div><div class="separator"></div><div class="bold line">Cliente: ${data.clientName}</div>${data.clientDoc ? `<div class="line">Doc: ${data.clientDoc}</div>` : ""}<div class="separator"></div><div class="line">Saldo anterior: ${formatCurrency(data.previousBalance)}</div><div class="total center">Valor recebido: ${formatCurrency(data.amount)}</div><div class="line">Saldo remanescente: ${formatCurrency(data.newBalance)}</div><div class="separator"></div><div class="line">Forma: ${methodLabels[data.paymentMethod] || data.paymentMethod}</div></body></html>`;
+      const receiptContent = `<html><head><title>Recibo</title><style>
+        @page { size: 80mm auto; margin: 0; }
+        body { font-family: 'Courier New', monospace; font-size: 12px; width: 300px; margin: 0 auto; padding: 20px; color: #000; background: #fff; }
+        .center { text-align: center; }
+        .bold { font-weight: bold; }
+        .separator { border-top: 1px dashed #000; margin: 8px 0; }
+        .line { margin: 4px 0; }
+        .total { font-size: 16px; font-weight: bold; margin: 8px 0; }
+        .no-fiscal { font-size: 11px; font-weight: bold; margin: 4px 0; border: 1px solid #000; padding: 2px 0; text-align: center; }
+        .sig-area { margin-top: 24px; }
+        .sig-line { border-top: 1px solid #000; margin-top: 40px; padding-top: 4px; text-align: center; font-size: 10px; }
+        .cpf-line { margin-top: 12px; }
+        .cpf-field { border-bottom: 1px solid #000; display: inline-block; width: 180px; height: 16px; margin-left: 4px; }
+        @media print { body { margin: 0; } @page { margin: 0; } }
+      </style></head><body>
+        <div class="center bold" style="font-size:14px;">RECIBO DE RECEBIMENTO</div>
+        ${data.storeName ? `<div class="center line">${data.storeName}</div>` : ""}
+        ${data.storeSlogan ? `<div class="center line" style="font-style:italic;font-size:11px;">${data.storeSlogan}</div>` : ""}
+        ${data.storeCnpj ? `<div class="center line">CNPJ: ${data.storeCnpj}</div>` : ""}
+        ${data.storeAddress ? `<div class="center line" style="font-size:10px;">${data.storeAddress}</div>` : ""}
+        ${data.storePhone ? `<div class="center line" style="font-size:10px;">Fone: ${data.storePhone}</div>` : ""}
+        <div class="no-fiscal">*** NÃO É DOCUMENTO FISCAL ***</div>
+        <div class="separator"></div>
+        <div class="center line">${now.toLocaleString("pt-BR")}</div>
+        <div class="separator"></div>
+        <div class="bold line">Cliente: ${data.clientName}</div>
+        ${data.clientDoc ? `<div class="line">Doc: ${data.clientDoc}</div>` : ""}
+        <div class="separator"></div>
+        <div class="line">Saldo anterior: ${formatCurrency(data.previousBalance)}</div>
+        <div class="total center">Valor recebido: ${formatCurrency(data.amount)}</div>
+        <div class="line">Saldo remanescente: ${formatCurrency(data.newBalance)}</div>
+        <div class="separator"></div>
+        <div class="line">Forma: ${methodLabels[data.paymentMethod] || data.paymentMethod}</div>
+        <div class="separator"></div>
+        <div class="sig-area">
+          <div class="sig-line">Assinatura do Cliente</div>
+          <div class="cpf-line">CPF: <span class="cpf-field"></span></div>
+        </div>
+        <div class="separator" style="margin-top:20px;"></div>
+        <div class="center" style="font-size:9px;margin-top:4px;">Obrigado pela preferência!</div>
+      </body></html>`;
       const printWindow = window.open("", "_blank", "width=350,height=500");
-      if (printWindow) { printWindow.document.write(receiptContent); printWindow.document.close(); printWindow.focus(); printWindow.print(); }
+      if (printWindow) { printWindow.document.write(receiptContent); printWindow.document.close(); printWindow.focus(); setTimeout(() => printWindow.print(), 200); }
       else toast.error("Não foi possível abrir a janela de impressão.");
     } catch { toast.error("Erro ao imprimir recibo."); }
   };

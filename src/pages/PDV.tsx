@@ -824,12 +824,15 @@ export default function PDV() {
         clientName: client.name,
         clientDoc: client.cpf,
         total: savedTotal,
-        items: savedItems.map(i => ({ name: i.name, quantity: i.quantity, price: i.price })),
+        items: savedItems.map(i => ({ name: i.name, quantity: i.quantity, price: i.price, note: itemNotes[i.id] || undefined })),
         mode: isSignal ? "sinal" : mode,
         installments,
         saleNumber,
         storeName: companyName || undefined,
-        storeCnpj: undefined,
+        storeSlogan: slogan || undefined,
+        storeCnpj: cnpj || undefined,
+        storePhone: phone || undefined,
+        storeAddress: [addressStreet, addressNumber, addressNeighborhood, addressCity, addressState].filter(Boolean).join(", ") || undefined,
         downPayment: isSignal ? downPaymentAmount : undefined,
       });
       const modeLabel = isSignal ? `com sinal de ${formatCurrency(downPaymentAmount)}` : mode === "fiado" ? "fiado" : `parcelado ${installments}x`;
