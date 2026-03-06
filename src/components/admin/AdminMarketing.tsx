@@ -110,61 +110,6 @@ export function AdminMarketing() {
     toast.success("Link copiado!");
   };
 
-  const handleGenerate = async () => {
-    setGenerating(true);
-    setGeneratedImage(null);
-    try {
-      const format = formatOptions.find((f) => f.id === selectedFormat)!;
-      const theme = aiPromptTemplates.find((t) => t.id === selectedTheme);
-      const prompt = customPrompt.trim() || theme?.prompt || "Promotional art for AnthoSystem retail management system";
-
-      console.log("[AdminMarketing] Calling generate-marketing-art...");
-      
-      // Use fetch directly to capture error response body
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "https://fsvxpxziotklbxkivyug.supabase.co";
-      const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZzdnhweHppb3RrbGJ4a2l2eXVnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE3ODU5NTMsImV4cCI6MjA4NzM2MTk1M30.8I3ABsRZBZuE1IpK_g9z3PdRUd9Omt_F5qNx0Pgqvyo";
-      
-      const resp = await fetch(`${supabaseUrl}/functions/v1/generate-marketing-art`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${supabaseKey}`,
-          "apikey": supabaseKey,
-        },
-        body: JSON.stringify({ prompt, width: format.width, height: format.height }),
-      });
-
-      const result = await resp.json();
-      console.log("[AdminMarketing] Status:", resp.status, "Response:", JSON.stringify(result).substring(0, 500));
-
-      if (!resp.ok || result.error) {
-        throw new Error(result.error || `Erro ${resp.status}`);
-      }
-
-      if (result?.image) {
-        setGeneratedImage(result.image);
-        toast.success("Arte gerada com sucesso!");
-      } else {
-        throw new Error("Nenhuma imagem retornada pelo modelo");
-      }
-    } catch (err: any) {
-      console.error("[AdminMarketing] Generate error:", err);
-      toast.error(err.message || "Erro ao gerar arte");
-    } finally {
-      setGenerating(false);
-    }
-  };
-
-  const handleDownloadGenerated = () => {
-    if (!generatedImage) return;
-    const format = formatOptions.find((f) => f.id === selectedFormat)!;
-    const theme = aiPromptTemplates.find((t) => t.id === selectedTheme);
-    const a = document.createElement("a");
-    a.href = generatedImage;
-    a.download = `anthosystem-${theme?.id || "custom"}-${format.id}.png`;
-    a.click();
-    toast.success("Download iniciado!");
-  };
 
   const filteredArts = filter === "all" ? existingArts : existingArts.filter((a) => a.category === filter);
 
