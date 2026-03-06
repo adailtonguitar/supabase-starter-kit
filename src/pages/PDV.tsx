@@ -1714,6 +1714,7 @@ export default function PDV() {
           total={receipt.total} payments={receipt.payments} nfceNumber={receipt.nfceNumber}
           accessKey={receipt.accessKey} serie={receipt.serie}
           isContingency={receipt.isContingency}
+          saleId={receipt.saleId}
           slogan={slogan || undefined} logoUrl={logoUrl || undefined} companyName={companyName || undefined}
           companyCnpj={cnpj || undefined}
           companyIe={ie || undefined}
