@@ -28,7 +28,7 @@ const processors: Record<string, SyncProcessor> = {
     const { data: rpcResult, error: rpcError } = await supabase.rpc("finalize_sale_atomic", {
       p_company_id: p.company_id as string,
       p_terminal_id: p.terminal_id as string || "OFFLINE",
-      p_session_id: p.session_id as string || null,
+      p_session_id: typeof p.session_id === "string" && p.session_id.startsWith("offline_") ? null : (p.session_id as string || null),
       p_items: p.items as any,
       p_subtotal: p.subtotal as number || p.total as number,
       p_discount_pct: (p.discount_pct as number) || 0,
@@ -60,7 +60,7 @@ const processors: Record<string, SyncProcessor> = {
     const p = item.payload;
     const { error } = await supabase.from("cash_movements").insert({
       company_id: p.company_id as string,
-      session_id: p.session_id as string,
+      session_id: typeof p.session_id === "string" && p.session_id.startsWith("offline_") ? null : (p.session_id as string),
       type: p.type as any,
       amount: p.amount as number,
       performed_by: p.performed_by as string,

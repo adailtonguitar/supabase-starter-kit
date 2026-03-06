@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
 import { useCompany } from "./useCompany";
@@ -6,17 +6,26 @@ import { useCompany } from "./useCompany";
 export function usePermissions() {
   const { user } = useAuth();
   const { companyId } = useCompany();
-  const [role, setRole] = useState<string>("caixa");
-  const [maxDiscountPercent, setMaxDiscountPercent] = useState(0);
+  const [role, setRole] = useState<string>(() => {
+    try { return localStorage.getItem("as_cached_role") || "caixa"; } catch { return "caixa"; }
+  });
+  const [maxDiscountPercent, setMaxDiscountPercent] = useState(() => {
+    try { return Number(localStorage.getItem("as_cached_max_discount")) || 0; } catch { return 0; }
+  });
+  const checkedRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!user || !companyId) {
       setRole("caixa");
       setMaxDiscountPercent(0);
+      checkedRef.current = null;
       return;
     }
 
-    const fetch = async () => {
+    const cacheKey = `${user.id}_${companyId}`;
+    if (checkedRef.current === cacheKey) return;
+
+    const fetchPermissions = async () => {
       try {
         const { data } = await supabase
           .from("company_users")
@@ -28,8 +37,8 @@ export function usePermissions() {
 
         const userRole = data?.role || "caixa";
         setRole(userRole);
+        try { localStorage.setItem("as_cached_role", userRole); } catch {}
 
-        // Fetch discount limits for this role
         const { data: limits } = await supabase
           .from("discount_limits")
           .select("max_discount_percent")
@@ -37,18 +46,18 @@ export function usePermissions() {
           .eq("role", userRole)
           .maybeSingle();
 
-        if (limits) {
-          setMaxDiscountPercent(limits.max_discount_percent);
-        } else {
-          // Default discount by role
-          setMaxDiscountPercent(userRole === "admin" ? 100 : userRole === "gerente" ? 50 : userRole === "supervisor" ? 20 : 5);
-        }
+        const discount = limits
+          ? limits.max_discount_percent
+          : userRole === "admin" ? 100 : userRole === "gerente" ? 50 : userRole === "supervisor" ? 20 : 5;
+        setMaxDiscountPercent(discount);
+        try { localStorage.setItem("as_cached_max_discount", String(discount)); } catch {}
       } catch {
         setRole("caixa");
         setMaxDiscountPercent(0);
       }
+      checkedRef.current = cacheKey;
     };
-    fetch();
+    fetchPermissions();
   }, [user, companyId]);
 
   const canEdit = (module: string) => {

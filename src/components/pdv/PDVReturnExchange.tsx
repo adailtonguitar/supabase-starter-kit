@@ -39,31 +39,39 @@ export function PDVReturnExchangeDialog({ open, onClose }: PDVReturnExchangeProp
     setFoundSale(null);
     setSelectedItems({});
     try {
-      // Search by sale ID prefix (uuid columns don't support ilike, so we fetch recent and filter in JS)
       const query = searchQuery.trim().toLowerCase();
-      const { data: sales, error: salesError } = await supabase
-        .from("sales")
-        .select("id, total, created_at, status, items")
-        .eq("company_id", companyId)
-        .or("status.neq.cancelled,status.is.null")
-        .order("created_at", { ascending: false })
-        .limit(500);
-      
-      console.log("[DevReturn] query:", query, "fetched:", sales?.length, "err:", salesError?.message);
-      if (sales && sales.length > 0) {
-        console.log("[DevReturn] first 5 sale IDs:", sales.slice(0, 5).map(s => s.id.substring(0, 8)));
+
+      // Try exact UUID match first, then prefix search with limited fetch
+      let sale: any = null;
+
+      // If query looks like a full UUID, fetch directly
+      if (query.length >= 36) {
+        const { data } = await supabase
+          .from("sales")
+          .select("id, total, created_at, status, items")
+          .eq("company_id", companyId)
+          .eq("id", query)
+          .maybeSingle();
+        sale = data;
       }
 
-      const matched = (sales || []).filter(s => s.id.toLowerCase().startsWith(query));
-      console.log("[DevReturn] matched:", matched.length);
+      // Otherwise use server-side text search with limited results
+      if (!sale) {
+        const { data: sales } = await supabase
+          .from("sales")
+          .select("id, total, created_at, status, items")
+          .eq("company_id", companyId)
+          .order("created_at", { ascending: false })
+          .limit(50);
 
-      if (matched.length === 0) {
+        sale = (sales || []).find(s => s.id.toLowerCase().startsWith(query));
+      }
+
+      if (!sale) {
         toast.warning("Venda não encontrada", { duration: 1500 });
         setSearching(false);
         return;
       }
-
-      const sale = matched[0];
       
       // Try sale_items table first, fallback to JSONB items column
       const { data: saleItems } = await supabase
