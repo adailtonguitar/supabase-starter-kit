@@ -167,6 +167,19 @@ export default function RegistroErros() {
         <Button variant="outline" size="icon" onClick={fetchErrors} disabled={loading}>
           <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
         </Button>
+
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-1.5 text-xs"
+          onClick={async () => {
+            await trackError({ page: "/admin", action: "botao_teste", error: new Error("Erro de teste gerado pelo admin") });
+            fetchErrors();
+          }}
+        >
+          <FlaskConical className="w-4 h-4" />
+          Gerar erro teste
+        </Button>
       </div>
 
       {/* Error list */}
