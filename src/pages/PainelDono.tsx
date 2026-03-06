@@ -263,10 +263,10 @@ export default function PainelDono() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.45 }}
-          className="rounded-2xl border border-amber-500/20 bg-amber-500/5 p-4 flex items-center gap-3"
+          className="rounded-2xl border border-warning/20 bg-warning/5 p-4 flex items-center gap-3"
           onClick={() => navigate("/estoque/ruptura")}
         >
-          <AlertTriangle className="w-6 h-6 text-amber-500 flex-shrink-0" />
+          <AlertTriangle className="w-6 h-6 text-warning flex-shrink-0" />
           <div className="flex-1">
             <p className="text-sm font-semibold">{stats.productsAtRisk} produtos com estoque baixo</p>
             <p className="text-xs text-muted-foreground">Toque para ver o relatório de ruptura</p>
