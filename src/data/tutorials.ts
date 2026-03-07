@@ -542,6 +542,8 @@ export const tutorials: TutorialSection[] = [
     title: "Follow-up Comercial",
     description: "Agenda de contatos pendentes para recuperar orçamentos não fechados e manter relacionamento com clientes.",
     mode: "loja",
+    category: "loja",
+    difficulty: "intermediario",
     steps: [
       "Acesse 'Clientes > Follow-up' no menu lateral.",
       "Clique em 'Novo Follow-up' para agendar um contato.",
