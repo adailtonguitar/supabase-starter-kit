@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import { Building2, Plus, ChevronRight, Pencil, ArrowRightLeft, BarChart3, Shield, RefreshCw, GitBranch, Crown } from "lucide-react";
 import { useCnpjLookup } from "@/hooks/useCnpjLookup";
 import { motion, AnimatePresence } from "framer-motion";
@@ -153,7 +154,35 @@ export default function Filiais() {
                 key={b.id}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                onClick={() => {
+                onClick={async () => {
+                  if (b.id === companyId) return;
+                  // Ensure user has company_users record for this branch
+                  const { data: access } = await supabase
+                    .from("company_users")
+                    .select("company_id")
+                    .eq("user_id", user!.id)
+                    .eq("company_id", b.id)
+                    .eq("is_active", true)
+                    .maybeSingle();
+
+                  if (!access) {
+                    // Auto-link user to child branch they own
+                    const { error: linkErr } = await supabase.rpc("link_user_to_company" as any, {
+                      p_company_id: b.id,
+                      p_user_id: user!.id,
+                      p_role: "admin",
+                    });
+                    if (linkErr) {
+                      // Fallback: direct insert
+                      await supabase.from("company_users").insert({
+                        company_id: b.id,
+                        user_id: user!.id,
+                        role: "admin",
+                        is_active: true,
+                      } as any);
+                    }
+                  }
+
                   localStorage.setItem("as_selected_company", b.id);
                   switchCompany(b.id);
                   toast.success(`Alternado para: ${b.name}`);
