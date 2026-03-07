@@ -139,6 +139,7 @@ export default function PDV() {
   // Track if user manually dismissed the cash register dialog
   const cashRegisterDismissedRef = useRef(false);
   const [forceClosedAlert, setForceClosedAlert] = useState(false);
+  const [forceClosedSnapshot, setForceClosedSnapshot] = useState<any>(null);
 
   // Load session for current terminal on mount and terminal change
   useEffect(() => {
