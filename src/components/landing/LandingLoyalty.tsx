@@ -37,8 +37,8 @@ export function LandingLoyalty() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
           >
-            <Star className="w-8 h-8 text-amber-500 mx-auto mb-3" />
-            <span className="text-amber-500 text-sm font-semibold uppercase tracking-wider">
+             <Star className="w-8 h-8 text-amber mx-auto mb-3" />
+             <span className="text-amber text-sm font-semibold uppercase tracking-wider">
               Fidelização
             </span>
             <h2 className="mt-3 font-display text-3xl sm:text-4xl font-extrabold tracking-tight">
