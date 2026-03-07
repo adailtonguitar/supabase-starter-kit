@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from "react";
+import React, { useState, useCallback, useRef, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 
 interface CurrencyInputProps {
@@ -22,40 +22,76 @@ export function formatDecimalBRL(value: number): string {
   return formatBRL(Math.round(value * 100));
 }
 
-function parseToCents(raw: string): number {
-  const digits = raw.replace(/\D/g, "");
-  return parseInt(digits || "0", 10);
+function parseDecimalValue(raw: string): number {
+  if (!raw || raw.trim() === "") return 0;
+  // Remove thousand separators (dots), replace comma with dot for parsing
+  const cleaned = raw.replace(/\./g, "").replace(",", ".");
+  const num = parseFloat(cleaned);
+  return isNaN(num) ? 0 : num;
+}
+
+function formatDisplayValue(value: number): string {
+  if (value === 0) return "0,00";
+  return formatBRL(Math.round(value * 100));
 }
 
 export function CurrencyInput({ value, onChange, placeholder, className, name, onBlur }: CurrencyInputProps) {
-  const numValue = typeof value === "string" ? Math.round(parseFloat(value || "0") * 100) : Math.round((value || 0) * 100);
-  const lastCents = useRef(numValue);
-  const [display, setDisplay] = useState(() => formatBRL(numValue));
+  const numValue = typeof value === "string" ? parseFloat(value || "0") : (value || 0);
+  const [display, setDisplay] = useState(() => formatDisplayValue(numValue));
+  const [isFocused, setIsFocused] = useState(false);
+  const lastExternalValue = useRef(numValue);
 
-  React.useEffect(() => {
-    const newCents = typeof value === "string" ? Math.round(parseFloat(value || "0") * 100) : Math.round((value || 0) * 100);
-    if (newCents !== lastCents.current) {
-      lastCents.current = newCents;
-      setDisplay(formatBRL(newCents));
+  // Sync display when external value changes (but not while user is typing)
+  useEffect(() => {
+    if (!isFocused && numValue !== lastExternalValue.current) {
+      lastExternalValue.current = numValue;
+      setDisplay(formatDisplayValue(numValue));
     }
+  }, [value, isFocused, numValue]);
+
+  const handleFocus = useCallback((e: React.FocusEvent<HTMLInputElement>) => {
+    setIsFocused(true);
+    // Show raw number for easier editing
+    const num = typeof value === "string" ? parseFloat(value || "0") : (value || 0);
+    if (num === 0) {
+      setDisplay("");
+    } else {
+      // Show without thousand separators, with comma decimal
+      const parts = num.toFixed(2).split(".");
+      setDisplay(`${parts[0]},${parts[1]}`);
+    }
+    // Select all text for easy replacement
+    setTimeout(() => e.target.select(), 0);
   }, [value]);
 
   const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const raw = e.target.value;
-    const cents = parseToCents(raw);
-    lastCents.current = cents;
-    setDisplay(formatBRL(cents));
-    onChange(cents / 100);
+    // Allow digits, comma, dot, and minus
+    const filtered = raw.replace(/[^0-9.,-]/g, "");
+    setDisplay(filtered);
+    const parsed = parseDecimalValue(filtered);
+    lastExternalValue.current = parsed;
+    onChange(parsed);
   }, [onChange]);
+
+  const handleBlur = useCallback(() => {
+    setIsFocused(false);
+    const parsed = parseDecimalValue(display);
+    lastExternalValue.current = parsed;
+    setDisplay(formatDisplayValue(parsed));
+    onChange(parsed);
+    onBlur?.();
+  }, [display, onChange, onBlur]);
 
   return (
     <Input
       type="text"
-      inputMode="numeric"
+      inputMode="decimal"
       placeholder={placeholder || "0,00"}
       value={display}
       onChange={handleChange}
-      onBlur={onBlur}
+      onFocus={handleFocus}
+      onBlur={handleBlur}
       name={name}
       className={className}
     />
