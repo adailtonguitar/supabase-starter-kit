@@ -416,6 +416,8 @@ export const tutorials: TutorialSection[] = [
     icon: FileText,
     title: "Importação de Clientes via CSV",
     description: "Importe sua base de clientes de outro sistema para o AnthOS em poucos minutos usando um arquivo CSV.",
+    category: "cadastros",
+    difficulty: "intermediario",
     videoUrl: "",
     steps: [
       "Abra seu arquivo de clientes no Excel ou LibreOffice (pode ser .xlsx ou .xls).",
