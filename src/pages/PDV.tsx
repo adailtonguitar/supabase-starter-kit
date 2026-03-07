@@ -160,6 +160,27 @@ export default function PDV() {
         filter: `id=eq.${sessionId}`,
       }, (payload: any) => {
         if (payload.new?.status === "fechado") {
+          const s = payload.new;
+          setForceClosedSnapshot({
+            terminal_id: s.terminal_id || terminalId,
+            opened_at: s.opened_at,
+            closed_at: s.closed_at || new Date().toISOString(),
+            openBalance: Number(s.opening_balance || 0),
+            totalVendas: Number(s.total_vendas || 0),
+            salesCount: Number(s.sales_count || 0),
+            totalDinheiro: Number(s.total_dinheiro || 0),
+            totalDebito: Number(s.total_debito || 0),
+            totalCredito: Number(s.total_credito || 0),
+            totalPix: Number(s.total_pix || 0),
+            totalSangria: Number(s.total_sangria || 0),
+            totalSuprimento: Number(s.total_suprimento || 0),
+            totalFiadoRecebido: 0,
+            fiadoCount: 0,
+            totalExpected: Number(s.closing_balance || 0),
+            totalCounted: Number(s.closing_balance || 0),
+            difference: 0,
+            closingNotes: s.notes || "",
+          });
           setForceClosedAlert(true);
           pdv.reloadSession(terminalId);
           playErrorSound();
