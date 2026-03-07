@@ -278,10 +278,20 @@ export function useDeleteBranch() {
 
   return useMutation({
     mutationFn: async (companyId: string) => {
+      // Delete sale_items first (depends on sales)
+      const { data: saleIds } = await supabase
+        .from("sales").select("id").eq("company_id", companyId);
+      if (saleIds && saleIds.length > 0) {
+        await supabase.from("sale_items").delete().in("sale_id", saleIds.map((s: any) => s.id));
+      }
+
       const dependentTables = [
-        "fiscal_categories", "stock_movements", "financial_entries",
-        "sales", "products", "clients", "promotions", "employees",
-        "suppliers", "purchase_orders", "quotes",
+        "action_logs", "loyalty_transactions", "loyalty_config",
+        "cash_sessions", "sales", "stock_movements", "stock_transfers",
+        "financial_entries", "inventory_counts", "product_lots",
+        "fiscal_categories", "products", "product_categories",
+        "clients", "promotions", "employees", "suppliers",
+        "carriers", "purchase_orders", "quotes", "subscriptions",
       ];
 
       for (const table of dependentTables) {
