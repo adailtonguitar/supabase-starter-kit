@@ -226,6 +226,8 @@ export const tutorials: TutorialSection[] = [
     icon: Receipt,
     title: "Fiscal",
     description: "Emissão e gestão de documentos fiscais (NFC-e, NF-e, SAT) com integração SEFAZ.",
+    category: "fiscal",
+    difficulty: "avancado",
     videoUrl: "",
     walkthroughId: "fiscal",
     steps: [
