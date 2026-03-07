@@ -278,37 +278,11 @@ export function useDeleteBranch() {
 
   return useMutation({
     mutationFn: async (companyId: string) => {
-      // Delete sale_items first (depends on sales)
-      const { data: saleIds } = await supabase
-        .from("sales").select("id").eq("company_id", companyId);
-      if (saleIds && saleIds.length > 0) {
-        await supabase.from("sale_items").delete().in("sale_id", saleIds.map((s: any) => s.id));
-      }
-
-      const dependentTables = [
-        "action_logs", "loyalty_transactions", "loyalty_config",
-        "cash_sessions", "sales", "stock_movements", "stock_transfers",
-        "financial_entries", "inventory_counts", "product_lots",
-        "fiscal_categories", "products", "product_categories",
-        "clients", "promotions", "employees", "suppliers",
-        "carriers", "purchase_orders", "quotes", "subscriptions",
-      ];
-
-      for (const table of dependentTables) {
-        try {
-          await supabase.from(table).delete().eq("company_id", companyId);
-        } catch { /* skip */ }
-      }
-
-      const { error, data } = await supabase
-        .from("companies")
-        .delete()
-        .eq("id", companyId)
-        .select();
+      // Use the SECURITY DEFINER function that handles all FK dependencies
+      const { error } = await supabase.rpc("admin_delete_company" as any, {
+        p_company_id: companyId,
+      });
       if (error) throw error;
-      if (!data || data.length === 0) throw new Error("Falha ao excluir: permissão negada.");
-
-      await supabase.from("company_users").delete().eq("company_id", companyId);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["branches"] });
