@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { ArrowRightLeft, Package, Plus, Check, Clock, Truck, ArrowRight, Search } from "lucide-react";
+import { ArrowRightLeft, Package, Plus, Check, Clock, Truck, ArrowRight, Search, ShieldAlert } from "lucide-react";
 import { useStockTransfers, useCreateStockTransfer, useReceiveStockTransfer } from "@/hooks/useStockTransfers";
 import { useBranches } from "@/hooks/useBranches";
 import { useProducts } from "@/hooks/useProducts";
