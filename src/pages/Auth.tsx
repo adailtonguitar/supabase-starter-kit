@@ -509,9 +509,23 @@ export default function Auth() {
                   </label>
                 )}
 
+                {/* Rate limit warning */}
+                {isLocked && (
+                  <div className="flex items-center gap-2 p-3 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-sm">
+                    <ShieldAlert className="w-4 h-4 shrink-0" />
+                    <span>Muitas tentativas. Aguarde <strong>{lockCountdown}s</strong> para tentar novamente.</span>
+                  </div>
+                )}
+
+                {!isLocked && failedAttempts > 0 && !isSignUp && (
+                  <p className="text-xs text-destructive text-center">
+                    {MAX_ATTEMPTS - failedAttempts} tentativa{MAX_ATTEMPTS - failedAttempts > 1 ? "s" : ""} restante{MAX_ATTEMPTS - failedAttempts > 1 ? "s" : ""}
+                  </p>
+                )}
+
                 <button
                   type="submit"
-                  disabled={loading}
+                  disabled={loading || isLocked}
                   className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition-all disabled:opacity-50"
                 >
                   {loading ? "Processando..." : isSignUp ? "Criar Conta" : "Entrar"}
