@@ -22,7 +22,7 @@ const aiFeatures = [
     title: "Relatórios Inteligentes",
     desc: "Análises profundas sobre padrões de venda, sazonalidade e oportunidades que você não enxergaria em planilhas.",
     badge: "Business+",
-    badgeClass: "bg-blue-500/15 text-blue-600",
+    badgeClass: "bg-info/15 text-info",
   },
 ];
 
