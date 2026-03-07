@@ -5,6 +5,9 @@ import {
   Armchair, Truck, Wrench, RotateCcw, Calendar, ShieldCheck as WarrantyIcon, Zap,
 } from "lucide-react";
 
+export type TutorialCategory = "vendas" | "estoque" | "financeiro" | "fiscal" | "cadastros" | "config" | "loja";
+export type TutorialDifficulty = "basico" | "intermediario" | "avancado";
+
 export interface TutorialSection {
   icon: any;
   title: string;
@@ -14,7 +17,9 @@ export interface TutorialSection {
   shortcuts?: { key: string; action: string }[];
   videoUrl?: string;
   walkthroughId?: string;
-  mode?: "pdv" | "loja" | "both"; // pdv = só PDV geral, loja = só modo loja, both = ambos (default)
+  mode?: "pdv" | "loja" | "both";
+  category: TutorialCategory;
+  difficulty: TutorialDifficulty;
   example?: {
     title: string;
     description: string;
