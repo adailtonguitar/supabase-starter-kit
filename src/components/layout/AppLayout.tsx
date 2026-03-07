@@ -26,7 +26,7 @@ export const AppLayout = memo(function AppLayout({ children }: AppLayoutProps) {
         <DemoBanner />
         <SubscriptionBanner />
         <AppHeader />
-        <main className={`flex-1 overflow-auto min-h-0 min-w-0 ${isMobile ? "pb-20" : ""}`}>{children}</main>
+        <main className={`flex-1 overflow-y-auto overflow-x-hidden min-h-0 min-w-0 ${isMobile ? "pb-20" : ""}`}>{children}</main>
         {isMobile && <MobileBottomNav onMenuOpen={() => setMobileOpen(true)} />}
       </div>
     </div>
