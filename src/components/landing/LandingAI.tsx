@@ -43,7 +43,7 @@ export function LandingAI() {
         >
           <p className="text-lg sm:text-xl font-semibold text-foreground max-w-3xl mx-auto leading-relaxed">
             "Enquanto outros sistemas apenas registram dados, o AnthoSystem{" "}
-            <span className="text-purple-500">analisa e entrega decisões prontas</span>{" "}
+            <span className="text-purple">analisa e entrega decisões prontas</span>{" "}
             para você lucrar mais."
           </p>
         </motion.div>
