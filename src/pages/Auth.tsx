@@ -68,8 +68,7 @@ export default function Auth() {
       return () => { if (lockTimerRef.current) clearInterval(lockTimerRef.current); };
     }
   }, [lockedUntil]);
-  const [isSignUp, setIsSignUp] = useState(false);
-  const [signUpName, setSignUpName] = useState("");
+  
   const [mode, setMode] = useState<"login" | "set-password" | "processing">(() => {
     if (sessionStorage.getItem("needs-password-setup") === "true") {
       return "set-password";
