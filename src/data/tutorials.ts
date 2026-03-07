@@ -234,11 +234,13 @@ export const tutorials: TutorialSection[] = [
       "Informe CSC, série e ambiente (homologação ou produção).",
       "⚠️ IMPORTANTE: Em 'Fiscal > Config. Fiscal', localize o card da NFC-e e ative o botão (toggle) — sem isso, o sistema NÃO emitirá NFC-e nas vendas.",
       "Os documentos fiscais são emitidos automaticamente ao finalizar vendas no PDV.",
+      "No PDV, existe um checkbox 'Emitir NFC-e' (caixinha de marcar) no rodapé da lista de itens. Quando marcado ✅, a NFC-e será emitida ao fechar a venda. Se desmarcado, a venda é registrada sem nota fiscal. Essa opção só aparece quando o módulo fiscal está configurado.",
       "Em 'Fiscal > Documentos', consulte, cancele ou reimprima documentos.",
       "Use 'Fiscal > Comparar XML' para conferir notas de entrada vs. sistema.",
     ],
     tips: [
       "Lembre-se de ativar o toggle da NFC-e em Config. Fiscal — é o passo mais esquecido!",
+      "No PDV, o checkbox 'Emitir NFC-e' vem marcado por padrão. Desmarque apenas se quiser registrar vendas sem nota.",
       "O módulo de auditoria registra todas as operações fiscais.",
       "O 'Assinador Digital' é necessário para certificados A3.",
       "Em contingência, as notas são armazenadas e enviadas quando o SEFAZ voltar.",
