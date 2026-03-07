@@ -181,6 +181,8 @@ export const tutorials: TutorialSection[] = [
     icon: Landmark,
     title: "Financeiro (Análises)",
     description: "Lucro diário, painel de lucro, DRE, fluxo de caixa projetado, centro de custo, comissões e conciliação bancária.",
+    category: "financeiro",
+    difficulty: "avancado",
     videoUrl: "",
     walkthroughId: "financeiro",
     steps: [
