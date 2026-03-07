@@ -496,18 +496,26 @@ function TelemetryTab() {
   const [companyMap, setCompanyMap] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    const fetch = async () => {
-      const [telResult, compResult] = await Promise.all([
-        supabase.from("telemetry").select("*").order("period_date", { ascending: false }).limit(200),
-        supabase.from("companies").select("id, name").limit(500),
-      ]);
-      setTelemetry((telResult.data as TelemetryRow[]) ?? []);
-      const map: Record<string, string> = {};
-      (compResult.data ?? []).forEach((c: any) => { map[c.id] = c.name; });
-      setCompanyMap(map);
+    const load = async () => {
+      try {
+        const [telResult, compResult] = await Promise.all([
+          supabase.functions.invoke("admin-query", {
+            body: { table: "telemetry", select: "*", order: { column: "period_date", ascending: false }, limit: 200 },
+          }),
+          supabase.functions.invoke("admin-query", {
+            body: { table: "companies", select: "id, name", limit: 500 },
+          }),
+        ]);
+        setTelemetry((telResult.data?.data as TelemetryRow[]) ?? []);
+        const map: Record<string, string> = {};
+        (compResult.data?.data ?? []).forEach((c: any) => { map[c.id] = c.name; });
+        setCompanyMap(map);
+      } catch (err) {
+        console.error("[TelemetryTab] Error:", err);
+      }
       setLoading(false);
     };
-    fetch();
+    load();
   }, []);
 
   const fmt = (n: number) =>
