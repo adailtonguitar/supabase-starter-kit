@@ -145,6 +145,8 @@ export const tutorials: TutorialSection[] = [
     icon: BarChart3,
     title: "Relatórios",
     description: "Relatórios de vendas detalhados e análises inteligentes com IA.",
+    category: "vendas",
+    difficulty: "intermediario",
     videoUrl: "",
     steps: [
       "Em 'Relatórios > Relatório Vendas', veja gráficos e estatísticas por período.",
