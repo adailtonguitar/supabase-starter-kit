@@ -11,6 +11,8 @@ export function useStockMovements(productId?: string) {
     queryKey: ["stock_movements", companyId, productId],
     queryFn: async () => {
       if (!companyId) return [];
+
+      // Main query: movements belonging to this company
       let query = supabase
         .from("stock_movements" as any)
         .select("*, products(name, sku)")
@@ -20,7 +22,35 @@ export function useStockMovements(productId?: string) {
       if (productId) query = query.eq("product_id", productId);
       const { data, error } = await query;
       if (error) throw error;
-      return data as any[];
+
+      // Also fetch transfer movements from other companies that reference transfers involving this company
+      const { data: relatedTransfers } = await supabase
+        .from("stock_transfers" as any)
+        .select("id")
+        .or(`from_company_id.eq.${companyId},to_company_id.eq.${companyId}`);
+
+      const transferIds = (relatedTransfers || []).map((t: any) => t.id);
+
+      if (transferIds.length > 0) {
+        let relatedQuery = supabase
+          .from("stock_movements" as any)
+          .select("*, products(name, sku)")
+          .neq("company_id", companyId)
+          .in("reference", transferIds)
+          .order("created_at", { ascending: false })
+          .limit(100);
+        if (productId) relatedQuery = relatedQuery.eq("product_id", productId);
+        const { data: relatedData } = await relatedQuery;
+
+        if (relatedData && relatedData.length > 0) {
+          // Merge and sort by date
+          const all = [...(data || []), ...relatedData];
+          all.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+          return all as any[];
+        }
+      }
+
+      return (data || []) as any[];
     },
     enabled: !!companyId,
   });
