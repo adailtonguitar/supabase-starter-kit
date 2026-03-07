@@ -1,6 +1,7 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronDown, ChevronRight, Play } from "lucide-react";
+import { ChevronDown, ChevronRight, Play, CheckCircle2 } from "lucide-react";
 import { TutorialVideoPlayer } from "./TutorialVideoPlayer";
+import { DifficultyBadge } from "./DifficultyBadge";
 import { useWalkthrough } from "@/hooks/useWalkthrough";
 import type { TutorialSection } from "@/data/tutorials";
 
@@ -8,6 +9,8 @@ interface TutorialCardProps {
   section: TutorialSection;
   isOpen: boolean;
   onToggle: () => void;
+  isRead: boolean;
+  onMarkRead: () => void;
 }
 
 export function TutorialCard({ section, isOpen, onToggle }: TutorialCardProps) {
