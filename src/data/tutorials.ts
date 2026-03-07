@@ -204,6 +204,8 @@ export const tutorials: TutorialSection[] = [
     icon: ClipboardList,
     title: "Cadastros",
     description: "Cadastro de empresas, clientes, fornecedores, funcionários, transportadoras, ADM de cartões, categorias e usuários.",
+    category: "cadastros",
+    difficulty: "basico",
     videoUrl: "",
     steps: [
       "Acesse cada cadastro pelo menu 'Cadastro' na barra lateral.",
