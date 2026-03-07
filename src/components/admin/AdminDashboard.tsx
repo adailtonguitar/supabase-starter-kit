@@ -5,7 +5,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { motion } from "framer-motion";
 import { Building2, Users, CreditCard, ShoppingCart, TrendingUp, AlertTriangle, CheckCircle, Clock } from "lucide-react";
 import { AdminSystemAnalytics } from "./AdminSystemAnalytics";
-import { AdminQuickActions } from "./AdminQuickActions";
+
 import { AdminSystemStatus } from "./AdminSystemStatus";
 import { AdminRecentActivity } from "./AdminRecentActivity";
 import { AdminCompanyGrowthChart } from "./AdminCompanyGrowthChart";
@@ -122,7 +122,7 @@ export function AdminDashboard() {
       </Card>
 
       <AdminSystemAnalytics />
-      <AdminQuickActions />
+      
       <AdminSystemStatus />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
