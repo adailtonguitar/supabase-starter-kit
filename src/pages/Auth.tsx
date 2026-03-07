@@ -1,9 +1,12 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Mail, Lock, ArrowRight, KeyRound, Eye, EyeOff, Play } from "lucide-react";
+import { Mail, Lock, ArrowRight, KeyRound, Eye, EyeOff, Play, ShieldAlert } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
+
+const MAX_ATTEMPTS = 5;
+const LOCKOUT_DURATION = 2 * 60 * 1000; // 2 minutes
 
 const authErrorMap: Record<string, string> = {
   "Invalid login credentials": "E-mail ou senha incorretos",
@@ -39,6 +42,33 @@ export default function Auth() {
   const [forgotEmail, setForgotEmail] = useState("");
   const [isSignUp, setIsSignUp] = useState(false);
   const [signUpName, setSignUpName] = useState("");
+  
+  // Rate limiting state
+  const [failedAttempts, setFailedAttempts] = useState(0);
+  const [lockedUntil, setLockedUntil] = useState<number | null>(null);
+  const [lockCountdown, setLockCountdown] = useState(0);
+  const lockTimerRef = useRef<ReturnType<typeof setInterval>>();
+
+  const isLocked = lockedUntil !== null && Date.now() < lockedUntil;
+
+  // Countdown timer for lockout
+  useEffect(() => {
+    if (lockedUntil) {
+      const tick = () => {
+        const remaining = Math.max(0, Math.ceil((lockedUntil - Date.now()) / 1000));
+        setLockCountdown(remaining);
+        if (remaining <= 0) {
+          setLockedUntil(null);
+          setFailedAttempts(0);
+          if (lockTimerRef.current) clearInterval(lockTimerRef.current);
+        }
+      };
+      tick();
+      lockTimerRef.current = setInterval(tick, 1000);
+      return () => { if (lockTimerRef.current) clearInterval(lockTimerRef.current); };
+    }
+  }, [lockedUntil]);
+  
   const [mode, setMode] = useState<"login" | "set-password" | "processing">(() => {
     if (sessionStorage.getItem("needs-password-setup") === "true") {
       return "set-password";
@@ -222,6 +252,13 @@ export default function Auth() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Client-side rate limiting
+    if (isLocked) {
+      toast.error(`Muitas tentativas. Aguarde ${lockCountdown}s antes de tentar novamente.`);
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -232,13 +269,38 @@ export default function Auth() {
       }
       sessionStorage.removeItem("needs-password-setup");
       const { data: signInData, error } = await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password });
-      // signIn completed
       if (error) throw error;
+
+      // Success — reset attempts
+      setFailedAttempts(0);
+      setLockedUntil(null);
       toast.success("Login realizado com sucesso!");
       navigate("/");
     } catch (error: any) {
-      const msg = translateAuthError(error.message || "Erro ao fazer login");
-      toast.error(msg);
+      const newAttempts = failedAttempts + 1;
+      setFailedAttempts(newAttempts);
+
+      // Log failed attempt (fire-and-forget)
+      supabase
+        .from("system_errors" as any)
+        .insert({
+          error_type: "auth_failed_login",
+          message: `Tentativa ${newAttempts} falha para ${email.trim().toLowerCase()}`,
+          details: { email: email.trim().toLowerCase(), attempt: newAttempts, user_agent: navigator.userAgent },
+          severity: newAttempts >= MAX_ATTEMPTS ? "high" : "medium",
+        })
+        .then(() => {});
+
+      // Lock after MAX_ATTEMPTS
+      if (newAttempts >= MAX_ATTEMPTS) {
+        const lockTime = Date.now() + LOCKOUT_DURATION;
+        setLockedUntil(lockTime);
+        toast.error(`Conta bloqueada temporariamente. Tente novamente em ${LOCKOUT_DURATION / 1000}s.`);
+      } else {
+        const remaining = MAX_ATTEMPTS - newAttempts;
+        const msg = translateAuthError(error.message || "Erro ao fazer login");
+        toast.error(`${msg} (${remaining} tentativa${remaining > 1 ? "s" : ""} restante${remaining > 1 ? "s" : ""})`);
+      }
     } finally {
       setLoading(false);
     }
@@ -447,9 +509,23 @@ export default function Auth() {
                   </label>
                 )}
 
+                {/* Rate limit warning */}
+                {isLocked && (
+                  <div className="flex items-center gap-2 p-3 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-sm">
+                    <ShieldAlert className="w-4 h-4 shrink-0" />
+                    <span>Muitas tentativas. Aguarde <strong>{lockCountdown}s</strong> para tentar novamente.</span>
+                  </div>
+                )}
+
+                {!isLocked && failedAttempts > 0 && !isSignUp && (
+                  <p className="text-xs text-destructive text-center">
+                    {MAX_ATTEMPTS - failedAttempts} tentativa{MAX_ATTEMPTS - failedAttempts > 1 ? "s" : ""} restante{MAX_ATTEMPTS - failedAttempts > 1 ? "s" : ""}
+                  </p>
+                )}
+
                 <button
                   type="submit"
-                  disabled={loading}
+                  disabled={loading || isLocked}
                   className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition-all disabled:opacity-50"
                 >
                   {loading ? "Processando..." : isSignUp ? "Criar Conta" : "Entrar"}
