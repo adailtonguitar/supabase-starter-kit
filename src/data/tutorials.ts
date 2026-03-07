@@ -520,6 +520,8 @@ export const tutorials: TutorialSection[] = [
     title: "Kits & Combos Inteligentes",
     description: "Crie combos de produtos (ex: Cozinha Completa) com desconto automático para aumentar o ticket médio.",
     mode: "loja",
+    category: "loja",
+    difficulty: "intermediario",
     steps: [
       "Acesse 'Operações > Kits & Combos' no menu lateral.",
       "Clique em 'Novo Kit' para criar um combo.",
