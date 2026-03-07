@@ -140,7 +140,7 @@ export function useCreateStockTransfer() {
             .eq("company_id", input.from_company_id);
 
           // Register stock movement (saída)
-          await supabase.from("stock_movements" as any).insert({
+          const { error: movError } = await supabase.from("stock_movements" as any).insert({
             company_id: input.from_company_id,
             product_id: item.product_id,
             type: "saida",
@@ -152,6 +152,9 @@ export function useCreateStockTransfer() {
             reference: (transfer as any).id,
             performed_by: user.id,
           });
+          if (movError) console.error("Erro ao registrar movimentação de saída:", movError);
+        } else {
+          console.warn("Produto não encontrado na origem para movimentação:", item.product_id, input.from_company_id);
         }
       }
 
