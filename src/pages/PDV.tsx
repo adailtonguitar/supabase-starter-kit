@@ -2191,10 +2191,10 @@ export default function PDV() {
             }}>
               <Printer className="w-4 h-4 mr-1" /> Imprimir Relatório
             </Button>
-            <AlertDialogAction onClick={() => { setForceClosedAlert(false); setForceClosedSnapshot(null); setShowCashRegister(true); }} className="bg-primary text-primary-foreground">
+            <AlertDialogAction onClick={() => { forceClosedRef.current = false; setForceClosedAlert(false); setForceClosedSnapshot(null); pdv.reloadSession(terminalId); setShowCashRegister(true); }} className="bg-primary text-primary-foreground">
               Abrir Novo Caixa
             </AlertDialogAction>
-            <AlertDialogAction onClick={() => { setForceClosedAlert(false); setForceClosedSnapshot(null); navigate("/"); }} className="bg-muted text-foreground hover:bg-muted/80">
+            <AlertDialogAction onClick={() => { forceClosedRef.current = false; setForceClosedAlert(false); setForceClosedSnapshot(null); navigate("/"); }} className="bg-muted text-foreground hover:bg-muted/80">
               Sair do PDV
             </AlertDialogAction>
           </AlertDialogFooter>
