@@ -37,6 +37,10 @@ export default function StockTransfersSection() {
     if (!product) { toast.warning("Selecione um produto"); return; }
     if (tempQty <= 0) { toast.warning("Quantidade inválida"); return; }
     if (selectedItems.some(i => i.product_id === tempProductId)) { toast.warning("Produto já adicionado"); return; }
+    if (tempQty > (product.stock_quantity || 0)) {
+      toast.warning(`Estoque insuficiente. Disponível: ${product.stock_quantity || 0}`);
+      return;
+    }
     setSelectedItems(prev => [...prev, {
       product_id: product.id,
       product_name: product.name,
