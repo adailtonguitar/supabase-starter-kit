@@ -57,6 +57,7 @@ export default function StockTransfersSection() {
       unit_cost: product.cost_price || 0,
     }]);
     setTempProductId("");
+    setProductSearch("");
     setTempQty(1);
   };
 
