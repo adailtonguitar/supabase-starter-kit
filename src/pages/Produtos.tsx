@@ -155,8 +155,8 @@ export default function Produtos() {
                       key={product.id}
                       className={`border-b border-border last:border-0 hover:bg-primary/[0.03] transition-colors ${filtered.indexOf(product) % 2 === 1 ? "bg-muted/15" : ""}`}
                     >
-                      <td className="px-5 py-3">
-                        <div className="flex items-center gap-3">
+                      <td className="px-3 py-3">
+                        <div className="flex items-center gap-2 min-w-0">
                           <div className="w-8 h-8 rounded-lg bg-accent flex items-center justify-center overflow-hidden flex-shrink-0">
                             {product.image_url ? (
                               <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" />
@@ -164,19 +164,19 @@ export default function Produtos() {
                               <Package className="w-4 h-4 text-accent-foreground" />
                             )}
                           </div>
-                          <span className="font-medium text-foreground">{product.name}</span>
+                          <span className="font-medium text-foreground truncate">{product.name}</span>
                         </div>
                       </td>
-                      <td className="px-5 py-3 font-mono text-muted-foreground">{product.sku}</td>
-                      <td className="px-5 py-3 font-mono text-muted-foreground text-xs">{product.ncm || "—"}</td>
-                      <td className="px-5 py-3 text-muted-foreground">{product.category || "—"}</td>
-                      <td className="px-5 py-3 text-right font-mono font-semibold text-primary">
+                      <td className="px-3 py-3 font-mono text-muted-foreground truncate max-w-0">{product.sku}</td>
+                      <td className="px-3 py-3 font-mono text-muted-foreground text-xs truncate">{product.ncm || "—"}</td>
+                      <td className="px-3 py-3 text-muted-foreground truncate">{product.category || "—"}</td>
+                      <td className="px-3 py-3 text-right font-mono font-semibold text-primary whitespace-nowrap">
                         {formatCurrency(product.price)}
                       </td>
-                      <td className={`px-5 py-3 text-right font-mono font-semibold ${isLow ? "text-destructive" : "text-foreground"}`}>
+                      <td className={`px-3 py-3 text-right font-mono font-semibold whitespace-nowrap ${isLow ? "text-destructive" : "text-foreground"}`}>
                         {product.stock_quantity} {product.unit.toLowerCase()}
                       </td>
-                      <td className="px-5 py-3 text-right font-mono text-muted-foreground">
+                      <td className="px-3 py-3 text-right font-mono text-muted-foreground whitespace-nowrap">
                         {product.min_stock ?? "—"}
                       </td>
                       <td className="px-5 py-3">
