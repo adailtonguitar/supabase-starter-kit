@@ -61,11 +61,11 @@ export function ScaleConfigSection() {
           <h3 className="text-xs font-bold text-foreground uppercase tracking-wider">Formato do Código EAN-13</h3>
           <div className="flex items-center gap-0.5 font-mono text-sm flex-wrap">
             <span className="px-2 py-1 rounded bg-primary/20 text-primary font-bold">PP</span>
-            <span className="px-2 py-1 rounded bg-blue-500/20 text-blue-600 dark:text-blue-400 font-bold">
-              {"P".repeat(config.productCodeLength)}
-            </span>
-            <span className="px-2 py-1 rounded bg-amber-500/20 text-amber-600 dark:text-amber-400 font-bold">
-              {"V".repeat(config.valueLength)}
+             <span className="px-2 py-1 rounded bg-info/20 text-info font-bold">
+               {"P".repeat(config.productCodeLength)}
+             </span>
+             <span className="px-2 py-1 rounded bg-warning/20 text-warning font-bold">
+               {"V".repeat(config.valueLength)}
             </span>
             <span className="px-2 py-1 rounded bg-muted text-muted-foreground">C</span>
           </div>
