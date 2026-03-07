@@ -447,6 +447,8 @@ export const tutorials: TutorialSection[] = [
     icon: Package,
     title: "Importação de Produtos via CSV",
     description: "Importe seu catálogo de produtos de outro sistema para o AnthOS usando um arquivo CSV, com mapeamento automático de colunas.",
+    category: "estoque",
+    difficulty: "intermediario",
     videoUrl: "",
     steps: [
       "Abra seu arquivo de produtos no Excel ou LibreOffice (pode ser .xlsx ou .xls).",
