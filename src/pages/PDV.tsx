@@ -138,12 +138,36 @@ export default function PDV() {
 
   // Track if user manually dismissed the cash register dialog
   const cashRegisterDismissedRef = useRef(false);
+  const [forceClosedAlert, setForceClosedAlert] = useState(false);
 
   // Load session for current terminal on mount and terminal change
   useEffect(() => {
     cashRegisterDismissedRef.current = false;
     pdv.reloadSession(terminalId);
   }, [terminalId]);
+
+  // Realtime listener: detect force-close from Terminais panel
+  useEffect(() => {
+    if (!companyId || !pdv.currentSession) return;
+    const sessionId = pdv.currentSession.id;
+    const channel = supabase
+      .channel(`pdv-session-${sessionId}`)
+      .on("postgres_changes", {
+        event: "UPDATE",
+        schema: "public",
+        table: "cash_sessions",
+        filter: `id=eq.${sessionId}`,
+      }, (payload: any) => {
+        if (payload.new?.status === "fechado") {
+          setForceClosedAlert(true);
+          pdv.reloadSession(terminalId);
+          playErrorSound();
+          toast.error("Caixa fechado remotamente pelo gerente!", { duration: 10000 });
+        }
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [companyId, pdv.currentSession?.id, terminalId]);
 
   // Auto-open cash register dialog if no session is open (only after first load completes)
   useEffect(() => {
