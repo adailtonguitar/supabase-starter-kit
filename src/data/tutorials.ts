@@ -2,7 +2,6 @@ import {
   HelpCircle, ShoppingCart, LayoutDashboard, Package, FileText,
   BarChart3, ArrowUpDown, Landmark, ClipboardList, Receipt, Settings,
   Building2, TrendingUp, AlertTriangle, Stethoscope, FileCheck, ShieldCheck,
-  Armchair, Truck, Wrench, RotateCcw, Calendar, ShieldCheck as WarrantyIcon, Zap,
 } from "lucide-react";
 
 export type TutorialCategory = "vendas" | "estoque" | "financeiro" | "fiscal" | "cadastros" | "config" | "loja";
