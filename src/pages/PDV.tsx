@@ -182,6 +182,7 @@ export default function PDV() {
             difference: 0,
             closingNotes: s.notes || "",
           });
+          setShowCashRegister(false);
           setForceClosedAlert(true);
           pdv.reloadSession(terminalId);
           playErrorSound();
