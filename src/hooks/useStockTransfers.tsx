@@ -113,6 +113,14 @@ export function useCreateStockTransfer() {
 
       if (itemsError) throw itemsError;
 
+      // Fetch destination company name for movement reason
+      const { data: destCompany } = await supabase
+        .from("companies")
+        .select("name")
+        .eq("id", input.to_company_id)
+        .single();
+      const destName = (destCompany as any)?.name || "filial";
+
       // Decrement stock from origin company
       for (const item of input.items) {
         const { data: product } = await supabase
