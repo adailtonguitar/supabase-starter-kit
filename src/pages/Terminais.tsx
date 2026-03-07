@@ -61,7 +61,24 @@ export default function Terminais() {
     if (!forceCloseTarget) return;
     const session = forceCloseTarget; setForceCloseTarget(null);
     try {
-      const { error } = await supabase.from("cash_sessions").update({ status: "fechado" as any, closed_at: new Date().toISOString(), notes: "Fechamento forçado pelo gerente via painel de terminais" }).eq("id", session.id);
+      // Auto-calculate closing values based on recorded totals
+      const totalDinheiro = Number(session.total_dinheiro || 0);
+      const totalDebito = Number(session.total_debito || 0);
+      const totalCredito = Number(session.total_credito || 0);
+      const totalPix = Number(session.total_pix || 0);
+      const closingBalance = totalDinheiro + totalDebito + totalCredito + totalPix + Number(session.opening_balance || 0) + Number(session.total_suprimento || 0) - Number(session.total_sangria || 0);
+
+      const { error } = await supabase.from("cash_sessions").update({
+        status: "fechado" as any,
+        closed_at: new Date().toISOString(),
+        closing_balance: closingBalance,
+        counted_dinheiro: totalDinheiro,
+        counted_debito: totalDebito,
+        counted_credito: totalCredito,
+        counted_pix: totalPix,
+        difference: 0,
+        notes: "Fechamento forçado pelo gerente via painel de terminais (valores calculados automaticamente)"
+      }).eq("id", session.id);
       if (error) throw error;
       toast.success(`Terminal ${session.terminal_id} fechado com sucesso`); loadSessions();
     } catch { toast.error("Erro ao fechar terminal"); }

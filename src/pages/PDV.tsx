@@ -138,12 +138,36 @@ export default function PDV() {
 
   // Track if user manually dismissed the cash register dialog
   const cashRegisterDismissedRef = useRef(false);
+  const [forceClosedAlert, setForceClosedAlert] = useState(false);
 
   // Load session for current terminal on mount and terminal change
   useEffect(() => {
     cashRegisterDismissedRef.current = false;
     pdv.reloadSession(terminalId);
   }, [terminalId]);
+
+  // Realtime listener: detect force-close from Terminais panel
+  useEffect(() => {
+    if (!companyId || !pdv.currentSession) return;
+    const sessionId = pdv.currentSession.id;
+    const channel = supabase
+      .channel(`pdv-session-${sessionId}`)
+      .on("postgres_changes", {
+        event: "UPDATE",
+        schema: "public",
+        table: "cash_sessions",
+        filter: `id=eq.${sessionId}`,
+      }, (payload: any) => {
+        if (payload.new?.status === "fechado") {
+          setForceClosedAlert(true);
+          pdv.reloadSession(terminalId);
+          playErrorSound();
+          toast.error("Caixa fechado remotamente pelo gerente!", { duration: 10000 });
+        }
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [companyId, pdv.currentSession?.id, terminalId]);
 
   // Auto-open cash register dialog if no session is open (only after first load completes)
   useEffect(() => {
@@ -2083,6 +2107,29 @@ export default function PDV() {
               className="bg-primary text-primary-foreground"
             >
               Fechar caixa primeiro
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Force-closed alert from manager */}
+      <AlertDialog open={forceClosedAlert} onOpenChange={() => {}}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertTriangle className="w-5 h-5" />
+              Caixa Encerrado Remotamente
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              O gerente encerrou este terminal remotamente pelo painel de terminais. Não é possível registrar novas vendas. Para continuar operando, abra um novo caixa.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => { setForceClosedAlert(false); setShowCashRegister(true); }} className="bg-primary text-primary-foreground">
+              Abrir Novo Caixa
+            </AlertDialogAction>
+            <AlertDialogAction onClick={() => { setForceClosedAlert(false); navigate("/"); }} className="bg-muted text-foreground hover:bg-muted/80">
+              Sair do PDV
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
