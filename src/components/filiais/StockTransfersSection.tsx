@@ -21,8 +21,12 @@ export default function StockTransfersSection() {
   const { data: branches } = useBranches();
   const { data: products } = useProducts();
   const { companyId } = useCompany();
+  const { role } = usePermissions();
   const createTransfer = useCreateStockTransfer();
   const receiveTransfer = useReceiveStockTransfer();
+
+  const canSend = role === "admin" || role === "gerente";
+  const canReceive = role === "admin" || role === "gerente" || role === "supervisor";
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [toCompanyId, setToCompanyId] = useState("");
