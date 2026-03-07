@@ -73,7 +73,7 @@ export default function Produtos() {
   }
 
   return (
-    <div className="p-3 sm:p-6 space-y-4 sm:space-y-6">
+    <div className="p-3 sm:p-6 space-y-4 sm:space-y-6 w-full min-w-0 max-w-full overflow-hidden">
       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-foreground">Produtos & Estoque</h1>
@@ -115,10 +115,10 @@ export default function Produtos() {
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        className="hidden md:block bg-card rounded-2xl card-shadow border border-border overflow-hidden"
+        className="hidden md:block bg-card rounded-2xl card-shadow border border-border overflow-hidden min-w-0 max-w-full"
       >
-        <div className="overflow-x-auto scrollbar-thin">
-          <table className="w-full text-sm min-w-[700px]">
+        <div className="overflow-x-auto scrollbar-thin max-w-full">
+          <table className="w-full text-sm min-w-[700px] table-auto">
             <thead>
               <tr className="border-b border-border bg-muted/30">
                 <th className="text-left px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-widest">Produto</th>
