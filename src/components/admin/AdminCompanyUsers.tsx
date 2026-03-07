@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { adminQuery } from "@/lib/admin-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -24,34 +24,41 @@ export function AdminCompanyUsers() {
 
   const fetchUsers = async () => {
     setLoading(true);
-    const { data } = await supabase
-      .from("company_users")
-      .select("id, user_id, company_id, role, created_at")
-      .order("created_at", { ascending: false })
-      .limit(200);
+    try {
+      const data = await adminQuery({
+        table: "company_users",
+        select: "id, user_id, company_id, role, created_at",
+        order: { column: "created_at", ascending: false },
+        limit: 200,
+      });
 
-    if (!data || data.length === 0) {
+      if (!data || data.length === 0) {
+        setUsers([]);
+        setLoading(false);
+        return;
+      }
+
+      const companyIds = [...new Set(data.map((u: any) => u.company_id))];
+      const companies = await adminQuery({
+        table: "companies",
+        select: "id, name",
+        filters: [{ op: "in", column: "id", value: companyIds }],
+      });
+
+      const companyMap: Record<string, string> = {};
+      companies.forEach((c: any) => { companyMap[c.id] = c.name; });
+
+      const enriched = data.map((u: any) => ({
+        ...u,
+        company_name: companyMap[u.company_id] || u.company_id.slice(0, 8),
+        user_email: u.user_id.slice(0, 8) + "...",
+      }));
+
+      setUsers(enriched);
+    } catch (err) {
+      console.error("[AdminCompanyUsers] Error:", err);
       setUsers([]);
-      setLoading(false);
-      return;
     }
-
-    const companyIds = [...new Set(data.map((u) => u.company_id))];
-    const { data: companies } = await supabase
-      .from("companies")
-      .select("id, name")
-      .in("id", companyIds);
-
-    const companyMap: Record<string, string> = {};
-    (companies ?? []).forEach((c: any) => { companyMap[c.id] = c.name; });
-
-    const enriched = data.map((u) => ({
-      ...u,
-      company_name: companyMap[u.company_id] || u.company_id.slice(0, 8),
-      user_email: u.user_id.slice(0, 8) + "...",
-    }));
-
-    setUsers(enriched);
     setLoading(false);
   };
 
