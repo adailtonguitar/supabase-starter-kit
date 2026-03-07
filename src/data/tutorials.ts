@@ -630,6 +630,8 @@ export const tutorials: TutorialSection[] = [
     title: "Assistência Técnica",
     description: "Gerenciamento de tickets de assistência técnica com SLA, diagnóstico e acompanhamento.",
     mode: "loja",
+    category: "loja",
+    difficulty: "avancado",
     steps: [
       "Acesse 'Operações > Assistência Técnica'.",
       "Abra um novo ticket informando cliente, produto e descrição do problema.",
