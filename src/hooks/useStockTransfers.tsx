@@ -113,11 +113,31 @@ export function useCreateStockTransfer() {
 
       if (itemsError) throw itemsError;
 
+      // Decrement stock from origin company
+      for (const item of input.items) {
+        const { data: product } = await supabase
+          .from("products")
+          .select("stock_quantity")
+          .eq("id", item.product_id)
+          .eq("company_id", input.from_company_id)
+          .single();
+
+        if (product) {
+          const newStock = Math.max(0, (product as any).stock_quantity - item.quantity);
+          await supabase
+            .from("products")
+            .update({ stock_quantity: newStock } as any)
+            .eq("id", item.product_id)
+            .eq("company_id", input.from_company_id);
+        }
+      }
+
       return transfer;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["stock_transfers"] });
-      toast.success("Transferência criada com sucesso");
+      qc.invalidateQueries({ queryKey: ["products"] });
+      toast.success("Transferência criada! Estoque da origem atualizado.");
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -133,15 +153,16 @@ export function useReceiveStockTransfer() {
       if (!user) throw new Error("Não autenticado");
       if (!companyId) throw new Error("Empresa não encontrada");
 
-      // Verify the transfer belongs to this company (as destination)
+      // Fetch transfer with items
       const { data: transfer, error: fetchErr } = await supabase
         .from("stock_transfers" as any)
-        .select("to_company_id")
+        .select("*, stock_transfer_items(*)")
         .eq("id", transferId)
         .single();
       if (fetchErr) throw fetchErr;
       if ((transfer as any).to_company_id !== companyId) throw new Error("Transferência não pertence a esta empresa");
 
+      // Update transfer status
       const { error } = await supabase
         .from("stock_transfers" as any)
         .update({
@@ -153,11 +174,49 @@ export function useReceiveStockTransfer() {
         .eq("to_company_id", companyId);
 
       if (error) throw error;
+
+      // Increment stock in destination company
+      const items = (transfer as any).stock_transfer_items || [];
+      for (const item of items) {
+        // Check if product exists in destination
+        const { data: existingProduct } = await supabase
+          .from("products")
+          .select("id, stock_quantity")
+          .eq("id", item.product_id)
+          .eq("company_id", companyId)
+          .maybeSingle();
+
+        if (existingProduct) {
+          // Product exists — increment stock
+          const newStock = ((existingProduct as any).stock_quantity || 0) + item.quantity;
+          await supabase
+            .from("products")
+            .update({ stock_quantity: newStock } as any)
+            .eq("id", (existingProduct as any).id)
+            .eq("company_id", companyId);
+        } else {
+          // Product doesn't exist in destination — find by SKU/name from origin
+          const { data: sourceProduct } = await supabase
+            .from("products")
+            .select("*")
+            .eq("id", item.product_id)
+            .maybeSingle();
+
+          if (sourceProduct) {
+            const { id, created_at, updated_at, company_id, ...rest } = sourceProduct as any;
+            await supabase.from("products").insert({
+              ...rest,
+              company_id: companyId,
+              stock_quantity: item.quantity,
+            });
+          }
+        }
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["stock_transfers"] });
       qc.invalidateQueries({ queryKey: ["products"] });
-      toast.success("Transferência recebida! Estoque atualizado.");
+      toast.success("Transferência recebida! Estoque atualizado automaticamente.");
     },
     onError: (e: Error) => toast.error(e.message),
   });

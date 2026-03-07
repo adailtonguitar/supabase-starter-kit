@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "./useCompany";
 import { toast } from "sonner";
+import { autoSyncProductToBranches } from "./useBranches";
 
 export interface Product {
   id: string;
@@ -57,7 +58,13 @@ export function useCreateProduct() {
       if (error) throw error;
       return data as Product;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["products"] }),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      // Auto-sync: push new product to all branches if this is a matrix company
+      if (companyId && data?.id) {
+        autoSyncProductToBranches(data.id, companyId);
+      }
+    },
   });
 }
 
