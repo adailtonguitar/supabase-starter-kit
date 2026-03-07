@@ -9,6 +9,7 @@ import { useTEFConfig } from "@/hooks/useTEFConfig";
 import { MercadoPagoTEFService } from "@/services/MercadoPagoTEFService";
 import { NfceEmissionDialog } from "@/components/fiscal/NfceEmissionDialog";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 import { FiscalDashboard } from "@/components/FiscalDashboard";
 import { useFiscalDashboard } from "@/hooks/useFiscalDashboard";
 
