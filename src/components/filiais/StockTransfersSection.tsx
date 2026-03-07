@@ -1,9 +1,10 @@
 import { useState, useMemo } from "react";
-import { ArrowRightLeft, Package, Plus, Check, Clock, Truck, ArrowRight, Search } from "lucide-react";
+import { ArrowRightLeft, Package, Plus, Check, Clock, Truck, ArrowRight, Search, ShieldAlert } from "lucide-react";
 import { useStockTransfers, useCreateStockTransfer, useReceiveStockTransfer } from "@/hooks/useStockTransfers";
 import { useBranches } from "@/hooks/useBranches";
 import { useProducts } from "@/hooks/useProducts";
 import { useCompany } from "@/hooks/useCompany";
+import { usePermissions } from "@/hooks/usePermissions";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { motion } from "framer-motion";
@@ -20,8 +21,12 @@ export default function StockTransfersSection() {
   const { data: branches } = useBranches();
   const { data: products } = useProducts();
   const { companyId } = useCompany();
+  const { role } = usePermissions();
   const createTransfer = useCreateStockTransfer();
   const receiveTransfer = useReceiveStockTransfer();
+
+  const canSend = role === "admin" || role === "gerente";
+  const canReceive = role === "admin" || role === "gerente" || role === "supervisor";
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [toCompanyId, setToCompanyId] = useState("");
@@ -94,15 +99,21 @@ export default function StockTransfersSection() {
         <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
           <ArrowRightLeft className="w-4 h-4 text-primary" /> Transferências de Estoque
         </h3>
-        <motion.button
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.97 }}
-          onClick={() => setDialogOpen(true)}
-          disabled={otherBranches.length === 0}
-          className="flex items-center gap-1.5 px-4 py-2.5 bg-primary text-primary-foreground rounded-xl text-xs font-medium shadow-lg shadow-primary/20 hover:shadow-xl transition-shadow disabled:opacity-50"
-        >
-          <Plus className="w-3.5 h-3.5" /> Nova Transferência
-        </motion.button>
+        {canSend ? (
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.97 }}
+            onClick={() => setDialogOpen(true)}
+            disabled={otherBranches.length === 0}
+            className="flex items-center gap-1.5 px-4 py-2.5 bg-primary text-primary-foreground rounded-xl text-xs font-medium shadow-lg shadow-primary/20 hover:shadow-xl transition-shadow disabled:opacity-50"
+          >
+            <Plus className="w-3.5 h-3.5" /> Nova Transferência
+          </motion.button>
+        ) : (
+          <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <ShieldAlert className="w-3.5 h-3.5" /> Somente visualização
+          </span>
+        )}
       </div>
 
       {otherBranches.length === 0 && (
@@ -125,7 +136,7 @@ export default function StockTransfersSection() {
           {(transfers || []).map((t, i) => {
             const cfg = statusConfig[t.status] || statusConfig.pending;
             const StatusIcon = cfg.icon;
-            const isReceivable = t.status === "pending" && t.to_company_id === companyId;
+            const isReceivable = t.status === "pending" && t.to_company_id === companyId && canReceive;
 
             return (
               <motion.div
