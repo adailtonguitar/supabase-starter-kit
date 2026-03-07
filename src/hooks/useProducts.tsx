@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "./useCompany";
 import { toast } from "sonner";
 import { autoSyncProductToBranches } from "./useBranches";
+import { recordPriceChange } from "@/lib/price-history";
 
 export interface Product {
   id: string;

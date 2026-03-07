@@ -6,12 +6,40 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+// ── In-memory rate limiting ──
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute
+const RATE_LIMIT_MAX = 3; // max 3 demo accounts per IP per minute
+
+function isRateLimited(ip: string): boolean {
+  const now = Date.now();
+  const entry = rateLimitMap.get(ip);
+  if (!entry || now > entry.resetAt) {
+    rateLimitMap.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW });
+    return false;
+  }
+  entry.count++;
+  return entry.count > RATE_LIMIT_MAX;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
+    // Rate limiting by IP
+    const clientIp = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() 
+      || req.headers.get("cf-connecting-ip") 
+      || "unknown";
+    
+    if (isRateLimited(clientIp)) {
+      return new Response(
+        JSON.stringify({ error: "Muitas tentativas. Aguarde 1 minuto antes de criar outra conta demo." }),
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const { company_name } = await req.json();
 
     if (!company_name || typeof company_name !== "string") {
@@ -20,6 +48,9 @@ Deno.serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    // Sanitize company name
+    const safeName = company_name.trim().substring(0, 100);
 
     // Use service role to create user without email confirmation
     const supabaseAdmin = createClient(
@@ -51,7 +82,7 @@ Deno.serve(async (req) => {
     // 2) Create demo company
     const { data: company, error: companyError } = await supabaseAdmin
       .from("companies")
-      .insert({ name: company_name, is_demo: true })
+      .insert({ name: safeName, is_demo: true })
       .select("id")
       .single();
 
@@ -95,6 +126,8 @@ Deno.serve(async (req) => {
     } catch {
       // profiles table may not exist
     }
+
+    console.log(`[create-demo] Demo account created: ${email} from IP: ${clientIp}`);
 
     return new Response(
       JSON.stringify({
