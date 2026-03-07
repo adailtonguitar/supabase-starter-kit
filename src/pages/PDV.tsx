@@ -2134,23 +2134,59 @@ export default function PDV() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Force-closed alert from manager */}
+      {/* Force-closed alert from manager — full closing report */}
       <AlertDialog open={forceClosedAlert} onOpenChange={() => {}}>
-        <AlertDialogContent>
+        <AlertDialogContent className="max-w-md">
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2 text-destructive">
               <AlertTriangle className="w-5 h-5" />
               Caixa Encerrado Remotamente
             </AlertDialogTitle>
-            <AlertDialogDescription>
-              O gerente encerrou este terminal remotamente pelo painel de terminais. Não é possível registrar novas vendas. Para continuar operando, abra um novo caixa.
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                <p className="text-sm text-muted-foreground">O gerente encerrou este terminal remotamente. Confira o resumo abaixo:</p>
+                {forceClosedSnapshot && (
+                  <div className="bg-muted/50 rounded-lg p-4 space-y-2 text-sm">
+                    <div className="flex justify-between font-bold text-foreground border-b border-border pb-2">
+                      <span>Terminal T{forceClosedSnapshot.terminal_id}</span>
+                      <span>{forceClosedSnapshot.closed_at ? new Date(forceClosedSnapshot.closed_at).toLocaleString("pt-BR") : ""}</span>
+                    </div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Fundo Inicial:</span><span className="font-mono font-bold text-foreground">{formatCurrency(forceClosedSnapshot.openBalance)}</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Total Vendas:</span><span className="font-mono font-bold text-primary">{formatCurrency(forceClosedSnapshot.totalVendas)}</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Nº Vendas:</span><span className="font-mono font-bold text-foreground">{forceClosedSnapshot.salesCount}</span></div>
+                    <div className="border-t border-border pt-2 mt-2 space-y-1">
+                      <div className="flex justify-between text-xs"><span className="text-muted-foreground">Dinheiro:</span><span className="font-mono text-foreground">{formatCurrency(forceClosedSnapshot.totalDinheiro)}</span></div>
+                      <div className="flex justify-between text-xs"><span className="text-muted-foreground">Débito:</span><span className="font-mono text-foreground">{formatCurrency(forceClosedSnapshot.totalDebito)}</span></div>
+                      <div className="flex justify-between text-xs"><span className="text-muted-foreground">Crédito:</span><span className="font-mono text-foreground">{formatCurrency(forceClosedSnapshot.totalCredito)}</span></div>
+                      <div className="flex justify-between text-xs"><span className="text-muted-foreground">PIX:</span><span className="font-mono text-foreground">{formatCurrency(forceClosedSnapshot.totalPix)}</span></div>
+                    </div>
+                    <div className="border-t border-border pt-2 mt-2 space-y-1">
+                      <div className="flex justify-between text-xs"><span className="text-muted-foreground">Sangrias:</span><span className="font-mono text-destructive">-{formatCurrency(forceClosedSnapshot.totalSangria)}</span></div>
+                      <div className="flex justify-between text-xs"><span className="text-muted-foreground">Suprimentos:</span><span className="font-mono text-success">+{formatCurrency(forceClosedSnapshot.totalSuprimento)}</span></div>
+                    </div>
+                    <div className="border-t border-border pt-2 mt-2">
+                      <p className="text-xs italic text-muted-foreground">{forceClosedSnapshot.closingNotes}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogAction onClick={() => { setForceClosedAlert(false); setShowCashRegister(true); }} className="bg-primary text-primary-foreground">
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+            <Button variant="outline" size="sm" onClick={() => {
+              if (!forceClosedSnapshot) return;
+              const s = forceClosedSnapshot;
+              const now = new Date();
+              const html = `<html><head><title>Fechamento Forçado</title><style>@page{size:80mm auto;margin:0}*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Courier New',monospace;font-size:12px;padding:8px;width:80mm;color:#000;background:#fff}.center{text-align:center}.bold{font-weight:bold}.line{border-top:1px dashed #000;margin:6px 0}.row{display:flex;justify-content:space-between;padding:2px 0}.section{margin-top:8px}</style></head><body><div class="center bold"><h2>FECHAMENTO DE CAIXA</h2></div><div class="center">${companyName || "PDV"}</div><div class="center">Terminal: T${s.terminal_id}</div><div class="center">${now.toLocaleDateString("pt-BR")} ${now.toLocaleTimeString("pt-BR")}</div><div class="center bold" style="color:red;margin-top:4px">FECHAMENTO FORÇADO</div><div class="line"></div>${s.opened_at ? `<div class="row"><span>Abertura:</span><span>${new Date(s.opened_at).toLocaleString("pt-BR")}</span></div>` : ""}<div class="row"><span>Fechamento:</span><span>${s.closed_at ? new Date(s.closed_at).toLocaleString("pt-BR") : now.toLocaleString("pt-BR")}</span></div><div class="line"></div><div class="section bold">RESUMO</div><div class="row"><span>Fundo Inicial:</span><span>${formatCurrency(s.openBalance)}</span></div><div class="row"><span>Total Vendas:</span><span>${formatCurrency(s.totalVendas)}</span></div><div class="row"><span>Nº Vendas:</span><span>${s.salesCount}</span></div><div class="line"></div><div class="section bold">FORMAS DE PAGAMENTO</div><div class="row"><span>Dinheiro:</span><span>${formatCurrency(s.totalDinheiro)}</span></div><div class="row"><span>Débito:</span><span>${formatCurrency(s.totalDebito)}</span></div><div class="row"><span>Crédito:</span><span>${formatCurrency(s.totalCredito)}</span></div><div class="row"><span>PIX:</span><span>${formatCurrency(s.totalPix)}</span></div><div class="line"></div><div class="row"><span>Sangrias:</span><span>-${formatCurrency(s.totalSangria)}</span></div><div class="row"><span>Suprimentos:</span><span>+${formatCurrency(s.totalSuprimento)}</span></div><div class="line"></div><div class="section"><span class="bold">Obs:</span> ${s.closingNotes || ""}</div><div class="line"></div><div class="center" style="margin-top:8px;font-size:10px;">Documento não fiscal</div></body></html>`;
+              const w = window.open("", "_blank", "width=350,height=600");
+              if (w) { w.document.write(html); w.document.close(); setTimeout(() => w.print(), 300); }
+            }}>
+              <Printer className="w-4 h-4 mr-1" /> Imprimir Relatório
+            </Button>
+            <AlertDialogAction onClick={() => { setForceClosedAlert(false); setForceClosedSnapshot(null); setShowCashRegister(true); }} className="bg-primary text-primary-foreground">
               Abrir Novo Caixa
             </AlertDialogAction>
-            <AlertDialogAction onClick={() => { setForceClosedAlert(false); navigate("/"); }} className="bg-muted text-foreground hover:bg-muted/80">
+            <AlertDialogAction onClick={() => { setForceClosedAlert(false); setForceClosedSnapshot(null); navigate("/"); }} className="bg-muted text-foreground hover:bg-muted/80">
               Sair do PDV
             </AlertDialogAction>
           </AlertDialogFooter>
