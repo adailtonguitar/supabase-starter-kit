@@ -376,6 +376,8 @@ export const tutorials: TutorialSection[] = [
     icon: FileCheck,
     title: "Emissor NF-e",
     description: "Emissão de Nota Fiscal Eletrônica (NF-e) modelo 55 com integração SEFAZ.",
+    category: "fiscal",
+    difficulty: "avancado",
     videoUrl: "",
     steps: [
       "Acesse 'Fiscal > Emissor NF-e' pelo menu lateral.",
