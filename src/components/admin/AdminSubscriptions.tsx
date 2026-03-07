@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { adminQuery } from "@/lib/admin-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -7,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { Search, Save, RefreshCw } from "lucide-react";
+import { Save, RefreshCw } from "lucide-react";
 
 interface PlanRow {
   id: string;
@@ -39,26 +40,32 @@ export function AdminSubscriptions() {
 
   const fetchPlans = async () => {
     setLoading(true);
-    const { data: planData } = await supabase
-      .from("company_plans")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(200);
+    try {
+      const planData = await adminQuery({
+        table: "company_plans",
+        select: "*",
+        order: { column: "created_at", ascending: false },
+        limit: 200,
+      });
 
-    if (!planData) { setLoading(false); return; }
+      if (!planData || planData.length === 0) { setPlans([]); setLoading(false); return; }
 
-    // Get company names
-    const companyIds = planData.map((p: any) => p.company_id);
-    const { data: companies } = await supabase
-      .from("companies")
-      .select("id, name, is_demo")
-      .in("id", companyIds);
+      const companyIds = planData.map((p: any) => p.company_id);
+      const companies = await adminQuery({
+        table: "companies",
+        select: "id, name, is_demo",
+        filters: [{ op: "in", column: "id", value: companyIds }],
+      });
 
-    const nameMap: Record<string, string> = {};
-    const demoMap: Record<string, boolean> = {};
-    (companies ?? []).forEach((c: any) => { nameMap[c.id] = c.name; demoMap[c.id] = c.is_demo === true; });
+      const nameMap: Record<string, string> = {};
+      const demoMap: Record<string, boolean> = {};
+      (companies ?? []).forEach((c: any) => { nameMap[c.id] = c.name; demoMap[c.id] = c.is_demo === true; });
 
-    setPlans(planData.map((p: any) => ({ ...p, company_name: nameMap[p.company_id] || p.company_id.slice(0, 8), is_demo: demoMap[p.company_id] || false })));
+      setPlans(planData.map((p: any) => ({ ...p, company_name: nameMap[p.company_id] || p.company_id.slice(0, 8), is_demo: demoMap[p.company_id] || false })));
+    } catch (err) {
+      console.error("[AdminSubscriptions] Error:", err);
+      setPlans([]);
+    }
     setLoading(false);
   };
 

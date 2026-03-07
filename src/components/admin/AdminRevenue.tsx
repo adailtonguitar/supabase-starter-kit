@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { adminQuery } from "@/lib/admin-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { motion } from "framer-motion";
@@ -45,43 +45,39 @@ export function AdminRevenue() {
 
   useEffect(() => {
     const load = async () => {
-      // Get all plans
-      const { data } = await supabase
-        .from("company_plans")
-        .select("plan, status, company_id");
+      try {
+        const [planData, demoCompanies] = await Promise.all([
+          adminQuery({ table: "company_plans", select: "plan, status, company_id" }),
+          adminQuery({ table: "companies", select: "id", filters: [{ op: "eq", column: "is_demo", value: true }] }),
+        ]);
 
-      // Get demo company IDs to exclude
-      const { data: demoCompanies } = await supabase
-        .from("companies")
-        .select("id")
-        .eq("is_demo", true);
+        const demoIds = new Set(demoCompanies.map((c: any) => c.id));
 
-      const demoIds = new Set((demoCompanies ?? []).map((c: any) => c.id));
+        const grouped: Record<string, { active: number; trial: number; total: number }> = {};
+        for (const tier of ["starter", "business", "pro", "emissor"]) {
+          grouped[tier] = { active: 0, trial: 0, total: 0 };
+        }
 
-      const grouped: Record<string, { active: number; trial: number; total: number }> = {};
+        (planData ?? []).forEach((row: any) => {
+          if (demoIds.has(row.company_id)) return;
+          const plan = (row.plan || "starter").toLowerCase();
+          if (!grouped[plan]) grouped[plan] = { active: 0, trial: 0, total: 0 };
+          grouped[plan].total++;
+          if (row.status === "active") grouped[plan].active++;
+          if (row.status === "trial" || row.status === "trialing") grouped[plan].trial++;
+        });
 
-      for (const tier of ["starter", "business", "pro", "emissor"]) {
-        grouped[tier] = { active: 0, trial: 0, total: 0 };
+        const result: PlanMetrics[] = Object.entries(grouped).map(([plan, counts]) => ({
+          plan,
+          ...counts,
+          mrr: counts.active * (PLAN_PRICES[plan] || 0),
+        }));
+
+        setMetrics(result);
+      } catch (err) {
+        console.error("[AdminRevenue] Error:", err);
+        setMetrics([]);
       }
-
-      (data ?? []).forEach((row: any) => {
-        // Skip demo companies
-        if (demoIds.has(row.company_id)) return;
-
-        const plan = (row.plan || "starter").toLowerCase();
-        if (!grouped[plan]) grouped[plan] = { active: 0, trial: 0, total: 0 };
-        grouped[plan].total++;
-        if (row.status === "active") grouped[plan].active++;
-        if (row.status === "trial" || row.status === "trialing") grouped[plan].trial++;
-      });
-
-      const result: PlanMetrics[] = Object.entries(grouped).map(([plan, counts]) => ({
-        plan,
-        ...counts,
-        mrr: counts.active * (PLAN_PRICES[plan] || 0),
-      }));
-
-      setMetrics(result);
       setLoading(false);
     };
     load();
@@ -101,10 +97,7 @@ export function AdminRevenue() {
   return (
     <div className="space-y-6">
       {/* Total MRR Hero */}
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-      >
+      <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}>
         <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-primary/10">
           <CardContent className="p-6 text-center">
             <div className="flex items-center justify-center gap-2 mb-2">
@@ -128,19 +121,11 @@ export function AdminRevenue() {
       {/* Cards por plano */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {metrics.map((m, i) => (
-          <motion.div
-            key={m.plan}
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.08 }}
-          >
+          <motion.div key={m.plan} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08 }}>
             <Card>
               <CardContent className="p-5">
                 <div className="flex items-center gap-3 mb-3">
-                  <div
-                    className="w-10 h-10 rounded-xl flex items-center justify-center"
-                    style={{ backgroundColor: `${PLAN_COLORS[m.plan]}20`, color: PLAN_COLORS[m.plan] }}
-                  >
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${PLAN_COLORS[m.plan]}20`, color: PLAN_COLORS[m.plan] }}>
                     <DollarSign className="w-5 h-5" />
                   </div>
                   <div>
@@ -168,11 +153,7 @@ export function AdminRevenue() {
 
       {/* Gráfico MRR por plano */}
       {!loading && totalMRR > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-        >
+        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
           <Card>
             <CardContent className="p-5">
               <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
@@ -182,16 +163,8 @@ export function AdminRevenue() {
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={chartData} barSize={48}>
                     <XAxis dataKey="name" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
-                    <YAxis
-                      tick={{ fontSize: 11 }}
-                      axisLine={false}
-                      tickLine={false}
-                      tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`}
-                    />
-                    <Tooltip
-                      formatter={(value: number) => [formatBRL(value), "MRR"]}
-                      contentStyle={{ borderRadius: 12, fontSize: 13 }}
-                    />
+                    <YAxis tick={{ fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />
+                    <Tooltip formatter={(value: number) => [formatBRL(value), "MRR"]} contentStyle={{ borderRadius: 12, fontSize: 13 }} />
                     <Bar dataKey="value" radius={[8, 8, 0, 0]}>
                       {chartData.map((entry, index) => (
                         <Cell key={index} fill={entry.color} />
@@ -207,11 +180,7 @@ export function AdminRevenue() {
 
       {/* Tabela detalhada */}
       {!loading && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.4 }}
-        >
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}>
           <Card>
             <CardContent className="p-5">
               <h3 className="text-sm font-semibold text-foreground mb-3">Resumo Detalhado</h3>

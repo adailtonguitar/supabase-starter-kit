@@ -10,6 +10,7 @@ const ALLOWED_TABLES = [
   "action_logs",
   "companies",
   "company_users",
+  "company_plans",
   "subscriptions",
   "system_errors",
   "plan_subscriptions",
