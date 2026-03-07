@@ -278,16 +278,16 @@ export function PDVClientSelector({ open, onClose, onSelect, saleTotal }: PDVCli
                 <button
                   onClick={() => { setMode("sinal"); setDownPayment(""); }}
                   className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all ${
-                    mode === "sinal"
-                      ? "border-emerald-500 bg-emerald-500/5"
-                      : "border-border hover:border-muted-foreground/30"
-                  }`}
-                >
-                  <Banknote className={`w-5 h-5 ${mode === "sinal" ? "text-emerald-500" : "text-muted-foreground"}`} />
-                  <span className={`text-xs font-semibold ${mode === "sinal" ? "text-emerald-500" : "text-foreground"}`}>
-                    Com Sinal
-                  </span>
-                  <span className="text-[9px] text-muted-foreground text-center leading-tight">Entrada + saldo</span>
+                     mode === "sinal"
+                       ? "border-success bg-success/5"
+                       : "border-border hover:border-muted-foreground/30"
+                   }`}
+                 >
+                   <Banknote className={`w-5 h-5 ${mode === "sinal" ? "text-success" : "text-muted-foreground"}`} />
+                   <span className={`text-xs font-semibold ${mode === "sinal" ? "text-success" : "text-foreground"}`}>
+                     Com Sinal
+                   </span>
+                   <span className="text-[9px] text-muted-foreground text-center leading-tight">Entrada + saldo</span>
                 </button>
               </div>
             </div>
@@ -337,7 +337,7 @@ export function PDVClientSelector({ open, onClose, onSelect, saleTotal }: PDVCli
                       onChange={(e) => setDownPayment(e.target.value)}
                       placeholder="0,00"
                       autoFocus
-                      className="flex-1 text-center text-xl font-bold font-mono h-12 bg-background border-2 border-border rounded-xl focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 text-foreground"
+                      className="flex-1 text-center text-xl font-bold font-mono h-12 bg-background border-2 border-border rounded-xl focus:outline-none focus:border-success focus:ring-2 focus:ring-success/20 text-foreground"
                     />
                   </div>
                   {/* Quick sinal values */}
@@ -357,9 +357,9 @@ export function PDVClientSelector({ open, onClose, onSelect, saleTotal }: PDVCli
                 {parsedDownPayment > 0 && parsedDownPayment < saleTotal && (
                   <>
                     <div className="grid grid-cols-2 gap-2 text-center">
-                      <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
-                        <p className="text-[10px] text-muted-foreground uppercase">Entrada</p>
-                        <p className="text-sm font-bold font-mono text-emerald-500">{formatCurrency(parsedDownPayment)}</p>
+                       <div className="p-2 rounded-lg bg-success/10 border border-success/20">
+                         <p className="text-[10px] text-muted-foreground uppercase">Entrada</p>
+                         <p className="text-sm font-bold font-mono text-success">{formatCurrency(parsedDownPayment)}</p>
                       </div>
                       <div className="p-2 rounded-lg bg-muted/50 border border-border">
                         <p className="text-[10px] text-muted-foreground uppercase">Saldo Restante</p>

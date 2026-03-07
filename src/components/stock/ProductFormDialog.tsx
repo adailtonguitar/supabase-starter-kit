@@ -529,10 +529,10 @@ export const ProductFormDialog = forwardRef<HTMLDivElement, Props>(function Prod
 
                   {/* AI Confidence Badge */}
                   {aiConfidence !== null && (
-                    <div className={`inline-flex items-center gap-1.5 text-xs px-2 py-1 rounded-full ${
-                      aiConfidence >= 0.8 ? "bg-green-500/10 text-green-600 dark:text-green-400" :
-                      aiConfidence >= 0.5 ? "bg-amber-500/10 text-amber-600 dark:text-amber-400" :
-                      "bg-destructive/10 text-destructive"
+                     <div className={`inline-flex items-center gap-1.5 text-xs px-2 py-1 rounded-full ${
+                       aiConfidence >= 0.8 ? "bg-success/10 text-success" :
+                       aiConfidence >= 0.5 ? "bg-warning/10 text-warning" :
+                       "bg-destructive/10 text-destructive"
                     }`}>
                       <Sparkles className="w-3 h-3" />
                       Confiança IA: {(aiConfidence * 100).toFixed(0)}%
@@ -645,7 +645,7 @@ export const ProductFormDialog = forwardRef<HTMLDivElement, Props>(function Prod
                     {ncmIssues.warnings.length > 0 && (
                       <div className="mt-1 space-y-1">
                         {ncmIssues.warnings.map((issue, i) => (
-                          <div key={i} className="flex items-start gap-1.5 text-xs text-amber-600 dark:text-amber-400 bg-amber-500/10 rounded px-2 py-1.5">
+                          <div key={i} className="flex items-start gap-1.5 text-xs text-warning bg-warning/10 rounded px-2 py-1.5">
                             <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
                             <span>{issue.message}</span>
                           </div>
@@ -653,7 +653,7 @@ export const ProductFormDialog = forwardRef<HTMLDivElement, Props>(function Prod
                       </div>
                     )}
                     {field.value && ncmIssues.errors.length === 0 && ncmIssues.warnings.length === 0 && isValidNcmFormat(field.value) && (
-                      <div className="mt-1 flex items-center gap-1.5 text-xs text-green-600 dark:text-green-400">
+                      <div className="mt-1 flex items-center gap-1.5 text-xs text-success">
                         <Check className="w-3.5 h-3.5" />
                         <span>{getNcmDescription(field.value) || "NCM válido"}</span>
                       </div>

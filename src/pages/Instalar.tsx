@@ -96,8 +96,8 @@ export default function Instalar() {
             <Card>
               <CardContent className="p-6 space-y-5">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-green-500/10 flex items-center justify-center shrink-0">
-                    <Smartphone className="w-5 h-5 text-green-600" />
+                   <div className="w-10 h-10 rounded-xl bg-success/10 flex items-center justify-center shrink-0">
+                     <Smartphone className="w-5 h-5 text-success" />
                   </div>
                   <div>
                     <h2 className="font-semibold text-foreground">Android</h2>
@@ -156,8 +156,8 @@ export default function Instalar() {
             <Card>
               <CardContent className="p-6 space-y-5">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center shrink-0">
-                    <Apple className="w-5 h-5 text-blue-600" />
+                   <div className="w-10 h-10 rounded-xl bg-info/10 flex items-center justify-center shrink-0">
+                     <Apple className="w-5 h-5 text-info" />
                   </div>
                   <div>
                     <h2 className="font-semibold text-foreground">iPhone / iPad</h2>
@@ -165,7 +165,7 @@ export default function Instalar() {
                   </div>
                 </div>
 
-                <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3 text-xs text-amber-700 dark:text-amber-400">
+                <div className="bg-warning/10 border border-warning/20 rounded-lg p-3 text-xs text-warning">
                   ⚠️ <strong>Importante:</strong> No iOS, a instalação de apps PWA funciona <strong>apenas pelo Safari</strong>. Outros navegadores (Chrome, Firefox) não suportam essa funcionalidade no iOS.
                 </div>
 

@@ -8,7 +8,7 @@ const aiFeatures = [
     title: "Insight IA no Dashboard",
     desc: "A cada acesso, a IA analisa suas vendas, estoque e finanças e entrega um resumo inteligente com recomendações práticas.",
     badge: "Todos os planos",
-    badgeClass: "bg-emerald-500/15 text-emerald-600",
+    badgeClass: "bg-success/15 text-success",
   },
   {
     icon: Stethoscope,
@@ -22,7 +22,7 @@ const aiFeatures = [
     title: "Relatórios Inteligentes",
     desc: "Análises profundas sobre padrões de venda, sazonalidade e oportunidades que você não enxergaria em planilhas.",
     badge: "Business+",
-    badgeClass: "bg-blue-500/15 text-blue-600",
+    badgeClass: "bg-info/15 text-info",
   },
 ];
 
@@ -30,7 +30,7 @@ export function LandingAI() {
   return (
     <section className="py-24 relative overflow-hidden">
       <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] rounded-full bg-purple-500/8 blur-[120px]" />
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] rounded-full bg-purple/8 blur-[120px]" />
       </div>
 
       <div className="relative max-w-7xl mx-auto px-6">
@@ -43,7 +43,7 @@ export function LandingAI() {
         >
           <p className="text-lg sm:text-xl font-semibold text-foreground max-w-3xl mx-auto leading-relaxed">
             "Enquanto outros sistemas apenas registram dados, o AnthoSystem{" "}
-            <span className="text-purple-500">analisa e entrega decisões prontas</span>{" "}
+            <span className="text-purple">analisa e entrega decisões prontas</span>{" "}
             para você lucrar mais."
           </p>
         </motion.div>
@@ -54,7 +54,7 @@ export function LandingAI() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
           >
-            <span className="text-purple-500 text-sm font-semibold uppercase tracking-wider">
+            <span className="text-purple text-sm font-semibold uppercase tracking-wider">
               Inteligência Artificial
             </span>
             <h2 className="mt-3 font-display text-3xl sm:text-4xl font-extrabold tracking-tight">
@@ -109,12 +109,12 @@ export function LandingAI() {
             initial={{ opacity: 0, x: -20 }}
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}
-            className="rounded-2xl border border-purple-500/20 bg-gradient-to-br from-purple-500/5 to-pink-500/5 p-7"
-          >
-            <div className="flex items-center gap-2 mb-4">
-              <Sparkles className="w-5 h-5 text-purple-500" />
-              <span className="font-bold text-base">Insight IA — Dashboard</span>
-              <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 font-semibold">Todos os planos</span>
+             className="rounded-2xl border border-purple/20 bg-gradient-to-br from-purple/5 to-pink/5 p-7"
+           >
+             <div className="flex items-center gap-2 mb-4">
+               <Sparkles className="w-5 h-5 text-purple" />
+               <span className="font-bold text-base">Insight IA — Dashboard</span>
+               <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-success/15 text-success font-semibold">Todos os planos</span>
             </div>
             <div className="bg-background/60 rounded-xl p-4 border border-border">
               <p className="text-sm text-muted-foreground italic leading-relaxed">
@@ -129,10 +129,10 @@ export function LandingAI() {
             initial={{ opacity: 0, x: 20 }}
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}
-            className="rounded-2xl border border-purple-500/20 bg-gradient-to-br from-purple-500/5 to-indigo-500/5 p-7"
-          >
-            <div className="flex items-center gap-2 mb-4">
-              <Stethoscope className="w-5 h-5 text-purple-500" />
+             className="rounded-2xl border border-purple/20 bg-gradient-to-br from-purple/5 to-indigo/5 p-7"
+           >
+             <div className="flex items-center gap-2 mb-4">
+               <Stethoscope className="w-5 h-5 text-purple" />
               <span className="font-bold text-base">Diagnóstico Financeiro — IA</span>
               <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-primary/15 text-primary font-semibold">Plano Pro</span>
             </div>

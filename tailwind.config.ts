@@ -64,6 +64,50 @@ export default {
         "chart-3": "hsl(var(--chart-3))",
         "chart-4": "hsl(var(--chart-4))",
         "chart-5": "hsl(var(--chart-5))",
+        purple: {
+          DEFAULT: "hsl(var(--purple))",
+          foreground: "hsl(var(--purple-foreground))",
+        },
+        amber: {
+          DEFAULT: "hsl(var(--amber))",
+          foreground: "hsl(var(--amber-foreground))",
+        },
+        cyan: {
+          DEFAULT: "hsl(var(--cyan))",
+          foreground: "hsl(var(--cyan-foreground))",
+        },
+        lime: {
+          DEFAULT: "hsl(var(--lime))",
+          foreground: "hsl(var(--lime-foreground))",
+        },
+        rose: {
+          DEFAULT: "hsl(var(--rose))",
+          foreground: "hsl(var(--rose-foreground))",
+        },
+        indigo: {
+          DEFAULT: "hsl(var(--indigo))",
+          foreground: "hsl(var(--indigo-foreground))",
+        },
+        teal: {
+          DEFAULT: "hsl(var(--teal))",
+          foreground: "hsl(var(--teal-foreground))",
+        },
+        orange: {
+          DEFAULT: "hsl(var(--orange))",
+          foreground: "hsl(var(--orange-foreground))",
+        },
+        pink: {
+          DEFAULT: "hsl(var(--pink))",
+          foreground: "hsl(var(--pink-foreground))",
+        },
+        violet: {
+          DEFAULT: "hsl(var(--violet))",
+          foreground: "hsl(var(--violet-foreground))",
+        },
+        "slate-accent": {
+          DEFAULT: "hsl(var(--slate-accent))",
+          foreground: "hsl(var(--slate-accent-foreground))",
+        },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",
