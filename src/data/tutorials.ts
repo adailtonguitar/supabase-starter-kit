@@ -397,6 +397,8 @@ export const tutorials: TutorialSection[] = [
     icon: ShieldCheck,
     title: "Assinador Digital",
     description: "Aplicativo auxiliar para assinar documentos fiscais com certificados digitais A1 e A3.",
+    category: "fiscal",
+    difficulty: "avancado",
     videoUrl: "",
     steps: [
       "Acesse 'Fiscal > Assinador' pelo menu lateral.",
