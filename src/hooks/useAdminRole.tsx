@@ -2,13 +2,9 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
 
-const CACHE_KEY = "as_cached_admin_role";
-
 export function useAdminRole() {
   const { user } = useAuth();
-  const [isSuperAdmin, setIsSuperAdmin] = useState(() => {
-    try { return localStorage.getItem(CACHE_KEY) === "true"; } catch { return false; }
-  });
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const checkedRef = useRef<string | null>(null);
 
@@ -35,7 +31,6 @@ export function useAdminRole() {
           .maybeSingle();
         const isAdmin = data?.role === "super_admin";
         setIsSuperAdmin(isAdmin);
-        try { localStorage.setItem(CACHE_KEY, String(isAdmin)); } catch {}
       } catch {
         setIsSuperAdmin(false);
       }

@@ -67,5 +67,5 @@ export function usePermissions() {
     return false;
   };
 
-  return { role, permissions: [] as string[], maxDiscountPercent, canEdit };
+  return { role, permissions: [] as string[], maxDiscountPercent, canEdit, loading };
 }
