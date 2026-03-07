@@ -22,27 +22,24 @@ export function AdminDashboard() {
 
   useEffect(() => {
     const load = async () => {
-      const [companiesRes, usersRes, subsRes, recentRes] = await Promise.all([
-        supabase.from("companies").select("id, is_blocked, is_demo"),
-        supabase.from("company_users").select("id", { count: "exact", head: true }),
-        supabase.from("subscriptions").select("status"),
-        supabase.from("companies").select("id, name, created_at").eq("is_demo", false).order("created_at", { ascending: false }).limit(5),
-      ]);
-
-      // Exclude demo companies from metrics
-      const companies = (companiesRes.data ?? []).filter((c: any) => !c.is_demo);
-      const subs = subsRes.data ?? [];
-
-      setMetrics({
-        totalCompanies: companies.length,
-        activeCompanies: companies.filter((c) => !c.is_blocked).length,
-        blockedCompanies: companies.filter((c) => c.is_blocked).length,
-        totalUsers: usersRes.count ?? 0,
-        activeSubscriptions: subs.filter((s: any) => s.status === "active").length,
-        trialSubscriptions: subs.filter((s: any) => s.status === "trial" || s.status === "trialing").length,
-        expiredSubscriptions: subs.filter((s: any) => s.status === "expired" || s.status === "canceled" || s.status === "past_due").length,
-        recentCompanies: recentRes.data ?? [],
-      });
+      try {
+        const { data, error } = await supabase.functions.invoke("admin-metrics");
+        if (error) throw error;
+        setMetrics(data as DashboardMetrics);
+      } catch (err) {
+        console.error("[AdminDashboard] Failed to load metrics:", err);
+        // Fallback: set empty metrics so UI doesn't stay in loading state
+        setMetrics({
+          totalCompanies: 0,
+          activeCompanies: 0,
+          blockedCompanies: 0,
+          totalUsers: 0,
+          activeSubscriptions: 0,
+          trialSubscriptions: 0,
+          expiredSubscriptions: 0,
+          recentCompanies: [],
+        });
+      }
       setLoading(false);
     };
     load();
