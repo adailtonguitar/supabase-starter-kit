@@ -21,7 +21,6 @@ export function useBranches() {
     queryFn: async (): Promise<Branch[]> => {
       if (!user) return [];
 
-      // Get all companies this user belongs to
       const { data: cuData } = await supabase
         .from("company_users")
         .select("company_id")
@@ -39,7 +38,6 @@ export function useBranches() {
 
       if (!companies) return [];
 
-      // Also fetch children of these companies (filiais que o user pode não estar diretamente)
       const { data: children } = await supabase
         .from("companies")
         .select("id, name, cnpj, parent_company_id, logo_url")
@@ -90,7 +88,6 @@ export function useCreateBranch() {
 
   return useMutation({
     mutationFn: async ({ name, cnpj, parentId, userId }: { name: string; cnpj?: string; parentId: string; userId: string }) => {
-      // 1) Create the company (trigger was disabled — we handle company_users manually)
       const { data: company, error: companyErr } = await supabase
         .from("companies")
         .insert({ name, cnpj: cnpj || null, parent_company_id: parentId } as any)
@@ -101,7 +98,6 @@ export function useCreateBranch() {
         throw new Error(companyErr?.message || "Falha ao criar empresa");
       }
 
-      // 2) Link user as admin via SECURITY DEFINER function (bypasses RLS)
       const { error: linkErr } = await supabase.rpc("link_user_to_company" as any, {
         p_company_id: company.id,
         p_user_id: userId,
@@ -142,12 +138,43 @@ export function useUpdateBranch() {
   });
 }
 
-/** Sync products from parent to branch */
+/**
+ * Sync products from parent to branch.
+ * GOVERNANCE: Only the matrix (parent) can push products to branches.
+ * Supports local price margin per branch.
+ */
 export function useSyncProducts() {
   const qc = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ fromCompanyId, toCompanyId }: { fromCompanyId: string; toCompanyId: string }) => {
+    mutationFn: async ({ fromCompanyId, toCompanyId, priceMarginPct = 0 }: { 
+      fromCompanyId: string; 
+      toCompanyId: string;
+      priceMarginPct?: number;
+    }) => {
+      // GOVERNANCE: Verify fromCompanyId is a parent (matrix) company
+      const { data: fromCompany } = await supabase
+        .from("companies")
+        .select("id, parent_company_id")
+        .eq("id", fromCompanyId)
+        .single();
+
+      if (!fromCompany) throw new Error("Empresa origem não encontrada");
+      if ((fromCompany as any).parent_company_id) {
+        throw new Error("Apenas a matriz pode sincronizar produtos para filiais. Filiais não podem puxar dados.");
+      }
+
+      // Verify toCompanyId is a child of fromCompanyId
+      const { data: toCompany } = await supabase
+        .from("companies")
+        .select("id, parent_company_id")
+        .eq("id", toCompanyId)
+        .single();
+
+      if (!toCompany || (toCompany as any).parent_company_id !== fromCompanyId) {
+        throw new Error("A empresa destino não é filial desta matriz");
+      }
+
       // Fetch source products
       const { data: sourceProducts, error: fetchErr } = await supabase
         .from("products")
@@ -176,10 +203,16 @@ export function useSyncProducts() {
 
       if (newProducts.length === 0) throw new Error("Todos os produtos já existem na filial");
 
-      // Insert products with new company_id
+      // Insert products with new company_id, applying price margin
+      const marginMultiplier = 1 + (priceMarginPct / 100);
       const toInsert = newProducts.map((p: any) => {
-        const { id, created_at, updated_at, ...rest } = p;
-        return { ...rest, company_id: toCompanyId };
+        const { id, created_at, updated_at, stock_quantity, ...rest } = p;
+        return { 
+          ...rest, 
+          company_id: toCompanyId,
+          stock_quantity: 0, // Branch starts with zero stock
+          price: Math.round((rest.price || 0) * marginMultiplier * 100) / 100,
+        };
       });
 
       const { error: insertErr } = await supabase.from("products").insert(toInsert);
@@ -189,10 +222,54 @@ export function useSyncProducts() {
     },
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ["products"] });
-      toast.success(`${data.synced} produtos sincronizados!`);
+      toast.success(`${data.synced} produtos sincronizados com estoque zerado!`);
     },
     onError: (e: Error) => toast.error(e.message),
   });
+}
+
+/** Auto-sync: push a single new product to all branches of the parent */
+export async function autoSyncProductToBranches(productId: string, parentCompanyId: string) {
+  try {
+    // Get all branches of this parent
+    const { data: branches } = await supabase
+      .from("companies")
+      .select("id")
+      .eq("parent_company_id", parentCompanyId);
+
+    if (!branches || branches.length === 0) return;
+
+    // Get the product
+    const { data: product } = await supabase
+      .from("products")
+      .select("*")
+      .eq("id", productId)
+      .eq("company_id", parentCompanyId)
+      .single();
+
+    if (!product) return;
+
+    for (const branch of branches) {
+      // Check if already exists
+      const { data: existing } = await supabase
+        .from("products")
+        .select("id")
+        .eq("company_id", (branch as any).id)
+        .or(`sku.eq.${(product as any).sku || "NONE"},name.eq.${(product as any).name}`)
+        .maybeSingle();
+
+      if (existing) continue;
+
+      const { id, created_at, updated_at, stock_quantity, company_id, ...rest } = product as any;
+      await supabase.from("products").insert({
+        ...rest,
+        company_id: (branch as any).id,
+        stock_quantity: 0,
+      });
+    }
+  } catch (err) {
+    console.warn("[autoSync] Erro ao sincronizar produto para filiais:", err);
+  }
 }
 
 /** Delete a branch company */
