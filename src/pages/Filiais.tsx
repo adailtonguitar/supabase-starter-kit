@@ -393,19 +393,21 @@ function HierarchyTab({
                       </p>
                     </div>
                     <div className="flex gap-1.5 items-center flex-shrink-0">
-                      <motion.button
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        onClick={() => {
-                          if (!c.parent_company_id) return;
-                          syncProducts.mutate({ fromCompanyId: c.parent_company_id, toCompanyId: c.id });
-                        }}
-                        disabled={syncProducts.isPending}
-                        className="opacity-0 group-hover:opacity-100 flex items-center gap-1 px-2.5 py-1.5 bg-primary/10 text-primary rounded-lg text-[10px] font-medium hover:bg-primary/20 transition-all"
-                        title="Sincronizar produtos da matriz"
-                      >
-                        <RefreshCw className={`w-3 h-3 ${syncProducts.isPending ? "animate-spin" : ""}`} /> Sync
-                      </motion.button>
+                      {/* Sync only visible when current company is the matrix (parent) */}
+                      {c.parent_company_id === companyId && (
+                        <motion.button
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          onClick={() => {
+                            syncProducts.mutate({ fromCompanyId: companyId!, toCompanyId: c.id, priceMarginPct: 0 });
+                          }}
+                          disabled={syncProducts.isPending}
+                          className="opacity-0 group-hover:opacity-100 flex items-center gap-1 px-2.5 py-1.5 bg-primary/10 text-primary rounded-lg text-[10px] font-medium hover:bg-primary/20 transition-all"
+                          title="Empurrar catálogo da matriz para esta filial (governança centralizada)"
+                        >
+                          <RefreshCw className={`w-3 h-3 ${syncProducts.isPending ? "animate-spin" : ""}`} /> Sync
+                        </motion.button>
+                      )}
                       <button onClick={() => handleEdit(c)} className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg hover:bg-accent transition-all" title="Editar">
                         <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
                       </button>
