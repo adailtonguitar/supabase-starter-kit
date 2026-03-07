@@ -34,6 +34,8 @@ export const tutorials: TutorialSection[] = [
     title: "PDV — Ponto de Venda",
     description: "Tela principal para realizar vendas rápidas com leitor de código de barras, busca de produtos e múltiplas formas de pagamento.",
     mode: "both",
+    category: "vendas",
+    difficulty: "basico",
     videoUrl: "",
     walkthroughId: "pdv",
     steps: [
