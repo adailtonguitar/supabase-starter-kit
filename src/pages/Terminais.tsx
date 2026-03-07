@@ -80,6 +80,17 @@ export default function Terminais() {
         notes: "Fechamento forçado pelo gerente via painel de terminais (valores calculados automaticamente)"
       }).eq("id", session.id);
       if (error) throw error;
+      // Register closing movement for audit trail
+      try {
+        await supabase.from("cash_movements").insert({
+          company_id: companyId,
+          session_id: session.id,
+          type: "fechamento",
+          amount: closingBalance,
+          performed_by: (await supabase.auth.getUser()).data.user?.id || "",
+          description: `Fechamento forçado via painel de terminais – Diferença: R$ 0,00`
+        });
+      } catch {}
       toast.success(`Terminal ${session.terminal_id} fechado com sucesso`); loadSessions();
     } catch { toast.error("Erro ao fechar terminal"); }
   };
