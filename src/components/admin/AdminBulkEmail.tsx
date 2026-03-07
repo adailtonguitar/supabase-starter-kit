@@ -14,13 +14,16 @@ export function AdminBulkEmail() {
   const [sending, setSending] = useState(false);
   const [preview, setPreview] = useState(false);
 
+  const escapeHtml = (text: string) =>
+    text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+
   const buildHtml = (content: string) => `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
       <div style="background: #1a1a2e; padding: 24px; text-align: center; border-radius: 8px 8px 0 0;">
         <h1 style="color: #4ade80; margin: 0; font-size: 20px;">AnthoSystem</h1>
       </div>
       <div style="background: #ffffff; padding: 24px; border: 1px solid #e2e8f0;">
-        ${content.split("\n").map(line => line.trim() ? `<p style="margin: 0 0 12px;">${line}</p>` : "<br/>").join("")}
+        ${content.split("\n").map(line => line.trim() ? `<p style="margin: 0 0 12px;">${escapeHtml(line)}</p>` : "<br/>").join("")}
       </div>
       <div style="background: #1a1a2e; padding: 16px; text-align: center; border-radius: 0 0 8px 8px;">
         <p style="color: #64748b; margin: 0; font-size: 11px;">AnthoSystem — Sistema de Gestão Comercial</p>
