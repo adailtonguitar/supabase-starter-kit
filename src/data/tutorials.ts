@@ -586,6 +586,8 @@ export const tutorials: TutorialSection[] = [
     title: "Cadastro de Eletrodomésticos",
     description: "Campos exclusivos para eletrodomésticos: voltagem (110V/220V/Bivolt), garantia em meses e número de série.",
     mode: "loja",
+    category: "loja",
+    difficulty: "basico",
     steps: [
       "Acesse 'Produtos' e clique em 'Novo Produto'.",
       "Preencha os dados básicos normalmente (nome, SKU, preço).",
