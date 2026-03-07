@@ -2112,6 +2112,29 @@ export default function PDV() {
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Force-closed alert from manager */}
+      <AlertDialog open={forceClosedAlert} onOpenChange={() => {}}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertTriangle className="w-5 h-5" />
+              Caixa Encerrado Remotamente
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              O gerente encerrou este terminal remotamente pelo painel de terminais. Não é possível registrar novas vendas. Para continuar operando, abra um novo caixa.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => { setForceClosedAlert(false); setShowCashRegister(true); }} className="bg-primary text-primary-foreground">
+              Abrir Novo Caixa
+            </AlertDialogAction>
+            <AlertDialogAction onClick={() => { setForceClosedAlert(false); navigate("/"); }} className="bg-muted text-foreground hover:bg-muted/80">
+              Sair do PDV
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
     </div>
   );
 }
