@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Server, Database, Mail, HardDrive } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -11,6 +12,7 @@ interface ServiceStatus {
 }
 
 export function AdminSystemStatus() {
+  const [loading, setLoading] = useState(true);
   const [services, setServices] = useState<ServiceStatus[]>([
     { name: "API do Sistema", icon: Server, online: false },
     { name: "Banco de Dados", icon: Database, online: false },
@@ -21,37 +23,12 @@ export function AdminSystemStatus() {
   useEffect(() => {
     const check = async () => {
       const results: boolean[] = [];
-
-      // API check - invoke a lightweight function
-      try {
-        const { error } = await supabase.functions.invoke("admin-metrics");
-        results.push(!error);
-      } catch {
-        results.push(false);
-      }
-
-      // DB check - simple query
-      try {
-        const { error } = await supabase.from("companies").select("id", { count: "exact", head: true });
-        results.push(!error);
-      } catch {
-        results.push(false);
-      }
-
-      // Email - assume online if API is online (no direct check available)
+      try { const { error } = await supabase.functions.invoke("admin-metrics"); results.push(!error); } catch { results.push(false); }
+      try { const { error } = await supabase.from("companies").select("id", { count: "exact", head: true }); results.push(!error); } catch { results.push(false); }
       results.push(results[0]);
-
-      // Storage check
-      try {
-        const { error } = await supabase.storage.from("company-assets").list("", { limit: 1 });
-        results.push(!error);
-      } catch {
-        results.push(false);
-      }
-
-      setServices((prev) =>
-        prev.map((s, i) => ({ ...s, online: results[i] ?? false }))
-      );
+      try { const { error } = await supabase.storage.from("company-assets").list("", { limit: 1 }); results.push(!error); } catch { results.push(false); }
+      setServices((prev) => prev.map((s, i) => ({ ...s, online: results[i] ?? false })));
+      setLoading(false);
     };
     check();
   }, []);
@@ -68,9 +45,13 @@ export function AdminSystemStatus() {
               <s.icon className="w-4 h-4 text-muted-foreground shrink-0" />
               <div className="min-w-0">
                 <p className="text-xs font-medium text-foreground truncate">{s.name}</p>
-                <Badge variant={s.online ? "default" : "destructive"} className="text-[10px] px-1.5 py-0">
-                  {s.online ? "Online" : "Offline"}
-                </Badge>
+                {loading ? (
+                  <Skeleton className="h-4 w-12 mt-0.5" />
+                ) : (
+                  <Badge variant={s.online ? "default" : "destructive"} className="text-[10px] px-1.5 py-0">
+                    {s.online ? "Online" : "Offline"}
+                  </Badge>
+                )}
               </div>
             </div>
           ))}
