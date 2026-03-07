@@ -9,6 +9,7 @@ import { useTEFConfig } from "@/hooks/useTEFConfig";
 import { MercadoPagoTEFService } from "@/services/MercadoPagoTEFService";
 import { NfceEmissionDialog } from "@/components/fiscal/NfceEmissionDialog";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 import { FiscalDashboard } from "@/components/FiscalDashboard";
 import { useFiscalDashboard } from "@/hooks/useFiscalDashboard";
 
@@ -88,6 +89,17 @@ export default function Vendas() {
 
     if (result.success) {
       toast.success("Estorno realizado com sucesso!");
+      // Audit log: TEF refund
+      supabase.from("action_logs" as any).insert({
+        company_id: sales.find(s => s.id === confirmRefund.saleId)?.company_id,
+        action: "sale_tef_refund",
+        module: "vendas",
+        details: {
+          sale_id: confirmRefund.saleId,
+          payment_id: confirmRefund.paymentId,
+          amount: confirmRefund.amount,
+        },
+      }).then(() => {});
     } else {
       toast.error(result.errorMessage || "Erro ao estornar");
     }

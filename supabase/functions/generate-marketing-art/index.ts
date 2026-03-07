@@ -1,3 +1,5 @@
+import { createClient } from "npm:@supabase/supabase-js@2";
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
@@ -15,6 +17,24 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // ── JWT Authentication ──
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return jsonRes({ error: "Não autorizado" }, 401);
+    }
+
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      { global: { headers: { Authorization: authHeader } } }
+    );
+
+    const token = authHeader.replace("Bearer ", "");
+    const { data: { user }, error: authErr } = await supabase.auth.getUser(token);
+    if (authErr || !user) {
+      return jsonRes({ error: "Token inválido" }, 401);
+    }
+
     const GEMINI_KEY = Deno.env.get("GOOGLE_GEMINI_KEY");
     if (!GEMINI_KEY) {
       return jsonRes({ error: "GOOGLE_GEMINI_KEY não configurada" }, 500);
@@ -39,7 +59,7 @@ Deno.serve(async (req) => {
             await new Promise(r => setTimeout(r, 3000));
           }
 
-          console.log(`[marketing-art] Trying ${model} (attempt ${attempt})...`);
+          console.log(`[marketing-art] Trying ${model} (attempt ${attempt}) for user ${user.id}...`);
           const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_KEY}`;
 
           const resp = await fetch(url, {

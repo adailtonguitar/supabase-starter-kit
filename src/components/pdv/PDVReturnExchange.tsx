@@ -176,6 +176,27 @@ export function PDVReturnExchangeDialog({ open, onClose }: PDVReturnExchangeProp
         } as any)
       );
 
+      // Audit log: register the cancellation/return
+      updates.push(
+        supabase.from("action_logs" as any).insert({
+          company_id: companyId,
+          user_id: user?.id || null,
+          action: "sale_return",
+          module: "pdv",
+          details: {
+            sale_id: foundSale.id,
+            refund_amount: totalRefund,
+            original_total: foundSale.total,
+            returned_items: Object.entries(selectedItems)
+              .filter(([, qty]) => qty > 0)
+              .map(([itemId, qty]) => {
+                const item = foundSale.items.find(i => i.id === itemId);
+                return { product: item?.product_name, quantity: qty };
+              }),
+          },
+        })
+      );
+
       await Promise.allSettled(updates);
       toast.success(`Devolução processada: ${formatCurrency(totalRefund)} devolvido`, { duration: 3000 });
       onClose();
