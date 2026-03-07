@@ -1,9 +1,12 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Mail, Lock, ArrowRight, KeyRound, Eye, EyeOff, Play } from "lucide-react";
+import { Mail, Lock, ArrowRight, KeyRound, Eye, EyeOff, Play, ShieldAlert } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
+
+const MAX_ATTEMPTS = 5;
+const LOCKOUT_DURATION = 2 * 60 * 1000; // 2 minutes
 
 const authErrorMap: Record<string, string> = {
   "Invalid login credentials": "E-mail ou senha incorretos",
