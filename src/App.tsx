@@ -24,8 +24,14 @@ import { WalkthroughProvider } from "@/hooks/useWalkthrough";
 import { WalkthroughRunner } from "@/components/WalkthroughRunner";
 import { toast } from "sonner";
 
-// Lazy-loaded pages for code splitting
-const Dashboard = lazy(() => import("./pages/Dashboard"));
+// Lazy-loaded pages with retry on chunk failure (stale deploy)
+const lazyRetry = (fn: () => Promise<any>) =>
+  lazy(() => fn().catch(() => {
+    window.location.reload();
+    return new Promise(() => {});
+  }));
+
+const Dashboard = lazyRetry(() => import("./pages/Dashboard"));
 const LandingPage = lazy(() => import("./pages/LandingPage"));
 const TrialExpirado = lazy(() => import("./pages/TrialExpirado"));
 const Produtos = lazy(() => import("./pages/Produtos"));
