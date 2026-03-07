@@ -484,6 +484,8 @@ export const tutorials: TutorialSection[] = [
     icon: HelpCircle,
     title: "Ajuda",
     description: "Central de ajuda com tutoriais de todas as funções do sistema.",
+    category: "config",
+    difficulty: "basico",
     videoUrl: "",
     steps: [
       "Use a barra de busca para encontrar tutoriais por palavra-chave.",
