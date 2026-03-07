@@ -129,10 +129,10 @@ export function LandingAI() {
             initial={{ opacity: 0, x: 20 }}
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}
-            className="rounded-2xl border border-purple-500/20 bg-gradient-to-br from-purple-500/5 to-indigo-500/5 p-7"
-          >
-            <div className="flex items-center gap-2 mb-4">
-              <Stethoscope className="w-5 h-5 text-purple-500" />
+             className="rounded-2xl border border-purple/20 bg-gradient-to-br from-purple/5 to-indigo/5 p-7"
+           >
+             <div className="flex items-center gap-2 mb-4">
+               <Stethoscope className="w-5 h-5 text-purple" />
               <span className="font-bold text-base">Diagnóstico Financeiro — IA</span>
               <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-primary/15 text-primary font-semibold">Plano Pro</span>
             </div>
