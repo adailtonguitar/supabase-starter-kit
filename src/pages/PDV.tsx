@@ -1767,7 +1767,7 @@ export default function PDV() {
       )}
 
       {/* Cash Register */}
-      {showCashRegister && (
+      {showCashRegister && !forceClosedAlert && (
         <CashRegister
           terminalId={terminalId}
           onClose={async () => {
