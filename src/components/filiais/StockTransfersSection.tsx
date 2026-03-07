@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { ArrowRightLeft, Package, Plus, Check, Clock, Truck, ArrowRight } from "lucide-react";
+import { useState, useMemo } from "react";
+import { ArrowRightLeft, Package, Plus, Check, Clock, Truck, ArrowRight, Search } from "lucide-react";
 import { useStockTransfers, useCreateStockTransfer, useReceiveStockTransfer } from "@/hooks/useStockTransfers";
 import { useBranches } from "@/hooks/useBranches";
 import { useProducts } from "@/hooks/useProducts";
@@ -29,7 +29,15 @@ export default function StockTransfersSection() {
   const [selectedItems, setSelectedItems] = useState<{ product_id: string; product_name: string; product_sku?: string; quantity: number; unit_cost: number }[]>([]);
   const [tempProductId, setTempProductId] = useState("");
   const [tempQty, setTempQty] = useState(1);
+  const [productSearch, setProductSearch] = useState("");
+  const [showProductDropdown, setShowProductDropdown] = useState(false);
 
+  const filteredProducts = useMemo(() => {
+    if (!products) return [];
+    const term = productSearch.toLowerCase().trim();
+    if (!term) return products;
+    return products.filter(p => p.name.toLowerCase().includes(term) || (p.sku && p.sku.toLowerCase().includes(term)));
+  }, [products, productSearch]);
   const otherBranches = (branches || []).filter(b => b.id !== companyId);
 
   const addItem = () => {
@@ -49,6 +57,7 @@ export default function StockTransfersSection() {
       unit_cost: product.cost_price || 0,
     }]);
     setTempProductId("");
+    setProductSearch("");
     setTempQty(1);
   };
 
@@ -211,16 +220,44 @@ export default function StockTransfersSection() {
             <div className="space-y-2">
               <label className="text-xs font-semibold text-muted-foreground block uppercase tracking-wider">Produtos</label>
               <div className="flex gap-2 items-end">
-                <select
-                  value={tempProductId}
-                  onChange={e => setTempProductId(e.target.value)}
-                  className="min-w-0 flex-1 px-3 py-2.5 rounded-xl bg-background border border-border text-foreground text-xs truncate focus:border-primary/50 focus:ring-2 focus:ring-primary/10 transition-all outline-none"
-                >
-                  <option value="">Produto...</option>
-                  {(products || []).filter(p => p.stock_quantity > 0).map(p => (
-                    <option key={p.id} value={p.id}>{p.name} (est: {p.stock_quantity})</option>
-                  ))}
-                </select>
+                <div className="relative min-w-0 flex-1">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
+                    <input
+                      type="text"
+                      value={productSearch}
+                      onChange={e => { setProductSearch(e.target.value); setShowProductDropdown(true); setTempProductId(""); }}
+                      onFocus={() => setShowProductDropdown(true)}
+                      placeholder="Buscar produto..."
+                      className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-background border border-border text-foreground text-xs focus:border-primary/50 focus:ring-2 focus:ring-primary/10 transition-all outline-none"
+                    />
+                  </div>
+                  {showProductDropdown && (
+                    <div className="absolute z-50 top-full left-0 right-0 mt-1 max-h-48 overflow-y-auto bg-popover border border-border rounded-xl shadow-lg">
+                      {filteredProducts.length === 0 ? (
+                        <div className="px-3 py-2 text-xs text-muted-foreground">Nenhum produto encontrado</div>
+                      ) : (
+                        filteredProducts.map(p => {
+                          const isZero = (p.stock_quantity || 0) <= 0;
+                          return (
+                            <button
+                              key={p.id}
+                              type="button"
+                              onClick={() => {
+                                setTempProductId(p.id);
+                                setProductSearch(`${p.name} (est: ${p.stock_quantity || 0})`);
+                                setShowProductDropdown(false);
+                              }}
+                              className={`w-full text-left px-3 py-2 text-xs hover:bg-accent/50 transition-colors ${isZero ? "text-destructive" : "text-foreground"}`}
+                            >
+                              {p.name} <span className={isZero ? "text-destructive font-semibold" : "text-muted-foreground"}>(est: {p.stock_quantity || 0})</span>
+                            </button>
+                          );
+                        })
+                      )}
+                    </div>
+                  )}
+                </div>
                 <input
                   type="number"
                   min={1}
