@@ -2138,9 +2138,7 @@ export default function PDV() {
 
       {/* Force-closed alert from manager — full closing report */}
       <AlertDialog open={forceClosedAlert} onOpenChange={() => {}}>
-        <AlertDialogContent className="max-w-md !z-[9999]" style={{ zIndex: 9999 }}>
-          {/* Force overlay above CashRegister z-50 */}
-          <style>{`.force-close-overlay { z-index: 9998 !important; }`}</style>
+        <AlertDialogContent className="max-w-md z-[9999]">
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2 text-destructive">
               <AlertTriangle className="w-5 h-5" />
