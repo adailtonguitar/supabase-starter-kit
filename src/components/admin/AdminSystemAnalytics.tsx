@@ -2,15 +2,14 @@ import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { motion } from "framer-motion";
-import { Users, DollarSign, CalendarClock, TrendingUp } from "lucide-react";
-import { adminQuery, adminCount } from "@/lib/admin-query";
-import { formatCurrency } from "@/lib/utils";
+import { Users, CreditCard, CalendarClock, TrendingUp, Building2 } from "lucide-react";
+import { adminQuery } from "@/lib/admin-query";
 
 export function AdminSystemAnalytics() {
   const [loading, setLoading] = useState(true);
   const [onlineUsers, setOnlineUsers] = useState(0);
-  const [revenueToday, setRevenueToday] = useState(0);
-  const [revenueMonth, setRevenueMonth] = useState(0);
+  const [activeSubscriptions, setActiveSubscriptions] = useState(0);
+  const [newCompaniesMonth, setNewCompaniesMonth] = useState(0);
   const [expiringCompanies, setExpiringCompanies] = useState(0);
 
   useEffect(() => {
@@ -20,7 +19,7 @@ export function AdminSystemAnalytics() {
         const monthStart = today.slice(0, 7) + "-01";
         const threeDaysFromNow = new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10);
 
-        // Online users: companies active in last 30 min (approximation via action_logs)
+        // Online users: unique users in action_logs last 30 min
         const thirtyMinAgo = new Date(Date.now() - 30 * 60000).toISOString();
         const recentLogs = await adminQuery<{ user_id: string }>({
           table: "action_logs",
@@ -31,32 +30,31 @@ export function AdminSystemAnalytics() {
         const uniqueUsers = new Set(recentLogs.map((l) => l.user_id).filter(Boolean));
         setOnlineUsers(uniqueUsers.size);
 
-        // Revenue: use subscriptions table with available columns
-        const subs = await adminQuery<Record<string, any>>({
+        // Active subscriptions count
+        const activeSubs = await adminQuery<{ id: string }>({
           table: "subscriptions",
-          select: "*",
+          select: "id",
+          filters: [{ op: "eq", column: "status", value: "active" }],
+          limit: 1000,
+        });
+        setActiveSubscriptions(activeSubs.length);
+
+        // New companies this month
+        const newCompanies = await adminQuery<{ id: string }>({
+          table: "companies",
+          select: "id",
           filters: [{ op: "gte", column: "created_at", value: monthStart }],
           limit: 1000,
         });
+        setNewCompaniesMonth(newCompanies.length);
 
-        let todaySum = 0;
-        let monthSum = 0;
-        for (const s of subs) {
-          // Try common column names for price
-          const val = Number(s.price_amount ?? s.amount ?? s.price ?? s.value ?? 0);
-          monthSum += val;
-          if (s.created_at?.startsWith(today)) todaySum += val;
-        }
-        setRevenueToday(todaySum);
-        setRevenueMonth(monthSum);
-
-        // Expiring companies (subscriptions ending in 3 days)
+        // Expiring subscriptions (ending in 3 days)
         const expiring = await adminQuery<{ id: string }>({
           table: "subscriptions",
           select: "id",
           filters: [
-            { op: "lte", column: "current_period_end", value: threeDaysFromNow },
-            { op: "gte", column: "current_period_end", value: today },
+            { op: "lte", column: "subscription_end", value: threeDaysFromNow },
+            { op: "gte", column: "subscription_end", value: today },
             { op: "eq", column: "status", value: "active" },
           ],
           limit: 300,
@@ -72,8 +70,8 @@ export function AdminSystemAnalytics() {
 
   const cards = [
     { label: "Usuários Online Agora", value: onlineUsers, icon: Users, color: "text-primary", bg: "bg-primary/10" },
-    { label: "Receita Hoje", value: formatCurrency(revenueToday), icon: DollarSign, color: "text-success", bg: "bg-success/10" },
-    { label: "Receita do Mês", value: formatCurrency(revenueMonth), icon: TrendingUp, color: "text-primary", bg: "bg-primary/10" },
+    { label: "Assinaturas Ativas", value: activeSubscriptions, icon: CreditCard, color: "text-success", bg: "bg-success/10" },
+    { label: "Novas Empresas (Mês)", value: newCompaniesMonth, icon: Building2, color: "text-primary", bg: "bg-primary/10" },
     { label: "Vencimento em 3 Dias", value: expiringCompanies, icon: CalendarClock, color: "text-warning", bg: "bg-warning/10" },
   ];
 
