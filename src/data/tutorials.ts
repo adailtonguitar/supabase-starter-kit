@@ -609,6 +609,8 @@ export const tutorials: TutorialSection[] = [
     title: "Entregas & Montagem",
     description: "Controle de entregas e montagens com Kanban, equipes, fotos de conclusão e rastreio em tempo real.",
     mode: "loja",
+    category: "loja",
+    difficulty: "intermediario",
     steps: [
       "Acesse 'Operações > Entregas' para a agenda de entregas.",
       "Acesse 'Operações > Montagem' para controle de montagens.",
