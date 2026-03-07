@@ -113,6 +113,14 @@ export function useCreateStockTransfer() {
 
       if (itemsError) throw itemsError;
 
+      // Fetch destination company name for movement reason
+      const { data: destCompany } = await supabase
+        .from("companies")
+        .select("name")
+        .eq("id", input.to_company_id)
+        .single();
+      const destName = (destCompany as any)?.name || "filial";
+
       // Decrement stock from origin company
       for (const item of input.items) {
         const { data: product } = await supabase
@@ -140,7 +148,7 @@ export function useCreateStockTransfer() {
             previous_stock: previousStock,
             new_stock: newStock,
             unit_cost: item.unit_cost || 0,
-            reason: `Transferência para filial`,
+            reason: `Transferência enviada para ${destName}`,
             reference: (transfer as any).id,
             performed_by: user.id,
           });
@@ -176,6 +184,14 @@ export function useReceiveStockTransfer() {
         .single();
       if (fetchErr) throw fetchErr;
       if ((transfer as any).to_company_id !== companyId) throw new Error("Transferência não pertence a esta empresa");
+
+      // Fetch origin company name for movement reason
+      const { data: originCompany } = await supabase
+        .from("companies")
+        .select("name")
+        .eq("id", (transfer as any).from_company_id)
+        .single();
+      const originName = (originCompany as any)?.name || "matriz";
 
       // Update transfer status
       const { error } = await supabase
@@ -244,7 +260,7 @@ export function useReceiveStockTransfer() {
             previous_stock: previousStock,
             new_stock: newStock,
             unit_cost: item.unit_cost || 0,
-            reason: `Transferência recebida #${transferId.slice(0, 8)}`,
+            reason: `Transferência recebida de ${originName} #${transferId.slice(0, 8)}`,
             reference: transferId,
             performed_by: user.id,
           });
@@ -273,7 +289,7 @@ export function useReceiveStockTransfer() {
                 previous_stock: 0,
                 new_stock: item.quantity,
                 unit_cost: item.unit_cost || 0,
-                reason: `Transferência recebida #${transferId.slice(0, 8)} (produto criado)`,
+                reason: `Transferência recebida de ${originName} #${transferId.slice(0, 8)} (produto criado)`,
                 reference: transferId,
                 performed_by: user.id,
               });
