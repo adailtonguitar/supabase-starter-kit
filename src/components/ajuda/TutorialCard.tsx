@@ -13,21 +13,30 @@ interface TutorialCardProps {
   onMarkRead: () => void;
 }
 
-export function TutorialCard({ section, isOpen, onToggle }: TutorialCardProps) {
+export function TutorialCard({ section, isOpen, onToggle, isRead, onMarkRead }: TutorialCardProps) {
   const Icon = section.icon;
   const { startTour } = useWalkthrough();
 
+  const handleToggle = () => {
+    if (!isOpen) onMarkRead();
+    onToggle();
+  };
+
   return (
-    <div className="bg-card border border-border rounded-xl overflow-hidden">
+    <div className={`bg-card border rounded-xl overflow-hidden transition-colors ${isRead ? "border-border/50" : "border-border"}`}>
       <button
-        onClick={onToggle}
+        onClick={handleToggle}
         className="w-full flex items-center gap-3 px-5 py-4 hover:bg-muted/50 transition-colors text-left"
       >
         <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
           <Icon className="w-5 h-5 text-primary" />
         </div>
         <div className="flex-1 min-w-0">
-          <h3 className="font-semibold text-foreground text-sm">{section.title}</h3>
+          <div className="flex items-center gap-2 flex-wrap">
+            <h3 className="font-semibold text-foreground text-sm">{section.title}</h3>
+            <DifficultyBadge difficulty={section.difficulty} />
+            {isRead && <CheckCircle2 className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />}
+          </div>
           <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{section.description}</p>
         </div>
         {isOpen ? (
