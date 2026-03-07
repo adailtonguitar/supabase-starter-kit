@@ -278,16 +278,16 @@ export function PDVClientSelector({ open, onClose, onSelect, saleTotal }: PDVCli
                 <button
                   onClick={() => { setMode("sinal"); setDownPayment(""); }}
                   className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all ${
-                    mode === "sinal"
-                      ? "border-emerald-500 bg-emerald-500/5"
-                      : "border-border hover:border-muted-foreground/30"
-                  }`}
-                >
-                  <Banknote className={`w-5 h-5 ${mode === "sinal" ? "text-emerald-500" : "text-muted-foreground"}`} />
-                  <span className={`text-xs font-semibold ${mode === "sinal" ? "text-emerald-500" : "text-foreground"}`}>
-                    Com Sinal
-                  </span>
-                  <span className="text-[9px] text-muted-foreground text-center leading-tight">Entrada + saldo</span>
+                     mode === "sinal"
+                       ? "border-success bg-success/5"
+                       : "border-border hover:border-muted-foreground/30"
+                   }`}
+                 >
+                   <Banknote className={`w-5 h-5 ${mode === "sinal" ? "text-success" : "text-muted-foreground"}`} />
+                   <span className={`text-xs font-semibold ${mode === "sinal" ? "text-success" : "text-foreground"}`}>
+                     Com Sinal
+                   </span>
+                   <span className="text-[9px] text-muted-foreground text-center leading-tight">Entrada + saldo</span>
                 </button>
               </div>
             </div>
