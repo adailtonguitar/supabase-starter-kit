@@ -148,7 +148,7 @@ export function useCreateStockTransfer() {
             previous_stock: previousStock,
             new_stock: newStock,
             unit_cost: item.unit_cost || 0,
-            reason: `Transferência para filial`,
+            reason: `Transferência enviada para ${destName}`,
             reference: (transfer as any).id,
             performed_by: user.id,
           });
