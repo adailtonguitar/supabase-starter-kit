@@ -338,6 +338,8 @@ export const tutorials: TutorialSection[] = [
     icon: AlertTriangle,
     title: "Sugestão de Compra & Ruptura",
     description: "Ferramentas inteligentes para evitar falta de produtos e otimizar pedidos de reposição.",
+    category: "estoque",
+    difficulty: "intermediario",
     videoUrl: "",
     steps: [
       "Em 'Estoque > Sugestão de Compra', veja os produtos que precisam ser repostos com base no consumo médio.",
