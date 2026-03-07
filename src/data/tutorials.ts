@@ -563,6 +563,8 @@ export const tutorials: TutorialSection[] = [
     title: "Trocas & Devoluções",
     description: "Fluxo completo de trocas e devoluções com rastreamento de motivo, análise do produto e reentrada no estoque.",
     mode: "loja",
+    category: "loja",
+    difficulty: "intermediario",
     steps: [
       "Acesse 'Operações > Trocas/Devoluções' no menu lateral.",
       "Clique em 'Nova Troca/Devolução'.",
