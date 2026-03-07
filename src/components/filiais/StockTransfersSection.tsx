@@ -136,7 +136,7 @@ export default function StockTransfersSection() {
           {(transfers || []).map((t, i) => {
             const cfg = statusConfig[t.status] || statusConfig.pending;
             const StatusIcon = cfg.icon;
-            const isReceivable = t.status === "pending" && t.to_company_id === companyId;
+            const isReceivable = t.status === "pending" && t.to_company_id === companyId && canReceive;
 
             return (
               <motion.div
