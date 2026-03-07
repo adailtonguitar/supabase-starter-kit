@@ -123,12 +123,27 @@ export function useCreateStockTransfer() {
           .single();
 
         if (product) {
-          const newStock = Math.max(0, (product as any).stock_quantity - item.quantity);
+          const previousStock = (product as any).stock_quantity;
+          const newStock = Math.max(0, previousStock - item.quantity);
           await supabase
             .from("products")
             .update({ stock_quantity: newStock } as any)
             .eq("id", item.product_id)
             .eq("company_id", input.from_company_id);
+
+          // Register stock movement (saída)
+          await supabase.from("stock_movements" as any).insert({
+            company_id: input.from_company_id,
+            product_id: item.product_id,
+            type: "saida",
+            quantity: item.quantity,
+            previous_stock: previousStock,
+            new_stock: newStock,
+            unit_cost: item.unit_cost || 0,
+            reason: `Transferência para filial`,
+            reference: (transfer as any).id,
+            performed_by: user.id,
+          });
         }
       }
 
