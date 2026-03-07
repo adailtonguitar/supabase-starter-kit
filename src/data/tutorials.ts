@@ -232,11 +232,13 @@ export const tutorials: TutorialSection[] = [
     steps: [
       "Configure o certificado digital em 'Fiscal > Config. Fiscal'.",
       "Informe CSC, série e ambiente (homologação ou produção).",
+      "⚠️ IMPORTANTE: Em 'Fiscal > Config. Fiscal', localize o card da NFC-e e ative o botão (toggle) — sem isso, o sistema NÃO emitirá NFC-e nas vendas.",
       "Os documentos fiscais são emitidos automaticamente ao finalizar vendas no PDV.",
       "Em 'Fiscal > Documentos', consulte, cancele ou reimprima documentos.",
       "Use 'Fiscal > Comparar XML' para conferir notas de entrada vs. sistema.",
     ],
     tips: [
+      "Lembre-se de ativar o toggle da NFC-e em Config. Fiscal — é o passo mais esquecido!",
       "O módulo de auditoria registra todas as operações fiscais.",
       "O 'Assinador Digital' é necessário para certificados A3.",
       "Em contingência, as notas são armazenadas e enviadas quando o SEFAZ voltar.",
