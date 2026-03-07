@@ -2144,7 +2144,7 @@ export default function PDV() {
 
       {/* Force-closed alert from manager — full closing report */}
       <AlertDialog open={forceClosedAlert} onOpenChange={() => {}}>
-        <AlertDialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-md z-[9999] overflow-hidden">
+        <AlertDialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-lg z-[9999] overflow-y-auto max-h-[90vh]">
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2 text-destructive">
               <AlertTriangle className="w-5 h-5" />
