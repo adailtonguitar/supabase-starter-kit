@@ -162,6 +162,8 @@ export const tutorials: TutorialSection[] = [
     icon: ArrowUpDown,
     title: "Movimentações",
     description: "Movimentações de estoque, controle de caixa e lançamentos financeiros do dia a dia.",
+    category: "estoque",
+    difficulty: "basico",
     videoUrl: "",
     walkthroughId: "caixa",
     steps: [
