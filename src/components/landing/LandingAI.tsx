@@ -54,7 +54,7 @@ export function LandingAI() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
           >
-            <span className="text-purple-500 text-sm font-semibold uppercase tracking-wider">
+            <span className="text-purple text-sm font-semibold uppercase tracking-wider">
               Inteligência Artificial
             </span>
             <h2 className="mt-3 font-display text-3xl sm:text-4xl font-extrabold tracking-tight">
