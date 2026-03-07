@@ -118,18 +118,18 @@ export default function Produtos() {
         className="hidden md:block bg-card rounded-2xl card-shadow border border-border overflow-hidden min-w-0 max-w-full"
       >
         <div className="overflow-x-auto scrollbar-thin max-w-full">
-          <table className="w-full text-sm min-w-[700px] table-auto">
+          <table className="w-full text-sm table-fixed">
             <thead>
               <tr className="border-b border-border bg-muted/30">
-                <th className="text-left px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-widest">Produto</th>
-                <th className="text-left px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-widest">SKU</th>
-                <th className="text-left px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-widest">NCM</th>
-                <th className="text-left px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-widest">Categoria</th>
-                <th className="text-right px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-widest">Preço</th>
-                <th className="text-right px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-widest">Estoque</th>
-                <th className="text-right px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-widest">Mínimo</th>
+                <th className="text-left px-3 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-widest w-[22%]">Produto</th>
+                <th className="text-left px-3 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-widest w-[16%]">SKU</th>
+                <th className="text-left px-3 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-widest w-[10%]">NCM</th>
+                <th className="text-left px-3 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-widest w-[12%]">Categoria</th>
+                <th className="text-right px-3 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-widest w-[10%]">Preço</th>
+                <th className="text-right px-3 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-widest w-[10%]">Estoque</th>
+                <th className="text-right px-3 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-widest w-[8%]">Mínimo</th>
                 
-                <th className="text-center px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-widest">Ações</th>
+                <th className="text-center px-3 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-widest w-[12%]">Ações</th>
               </tr>
             </thead>
             <tbody>
