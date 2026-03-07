@@ -494,27 +494,6 @@ export const tutorials: TutorialSection[] = [
     ],
   },
   {
-    icon: TrendingUp,
-    title: "Previsão de Demanda",
-    description: "Projeção inteligente de demanda futura com base no histórico de vendas para antecipar necessidades de estoque.",
-    category: "estoque",
-    difficulty: "avancado",
-    videoUrl: "",
-    steps: [
-      "Acesse 'Previsão de Demanda' pelo menu lateral.",
-      "O sistema analisa o histórico de vendas dos últimos meses automaticamente.",
-      "Visualize a projeção de demanda por produto com gráficos de tendência.",
-      "Identifique produtos com demanda crescente ou decrescente.",
-      "Use as projeções para planejar compras e evitar rupturas ou excesso de estoque.",
-      "Exporte os dados para compartilhar com fornecedores.",
-    ],
-    tips: [
-      "Quanto mais histórico de vendas, mais precisa é a previsão.",
-      "Combine com a Sugestão de Compra para pedidos otimizados.",
-      "Produtos sazonais podem ter variações — analise por período.",
-    ],
-  },
-  {
     icon: FileText,
     title: "Consulta DF-e",
     description: "Consulte documentos fiscais eletrônicos (NF-e, NFC-e, CT-e) emitidos contra o CNPJ da empresa diretamente na SEFAZ.",

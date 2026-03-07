@@ -451,7 +451,7 @@ function AppRoutes() {
                     } />
                     <Route path="/consulta-dfe" element={<ConsultaDFe />} />
                     
-                    <Route path="/previsao-demanda" element={<PrevisaoDemanda />} />
+                    
                     <Route path="/admin" element={<Admin />} />
                     <Route path="/admin/erros" element={<RegistroErros />} />
                     <Route path="/admin/diagnostico" element={<DiagnosticoSistema />} />
