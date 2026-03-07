@@ -260,7 +260,7 @@ export function useReceiveStockTransfer() {
             previous_stock: previousStock,
             new_stock: newStock,
             unit_cost: item.unit_cost || 0,
-            reason: `Transferência recebida #${transferId.slice(0, 8)}`,
+            reason: `Transferência recebida de ${originName} #${transferId.slice(0, 8)}`,
             reference: transferId,
             performed_by: user.id,
           });
