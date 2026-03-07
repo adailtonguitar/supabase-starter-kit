@@ -357,9 +357,9 @@ export function PDVClientSelector({ open, onClose, onSelect, saleTotal }: PDVCli
                 {parsedDownPayment > 0 && parsedDownPayment < saleTotal && (
                   <>
                     <div className="grid grid-cols-2 gap-2 text-center">
-                      <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
-                        <p className="text-[10px] text-muted-foreground uppercase">Entrada</p>
-                        <p className="text-sm font-bold font-mono text-emerald-500">{formatCurrency(parsedDownPayment)}</p>
+                       <div className="p-2 rounded-lg bg-success/10 border border-success/20">
+                         <p className="text-[10px] text-muted-foreground uppercase">Entrada</p>
+                         <p className="text-sm font-bold font-mono text-success">{formatCurrency(parsedDownPayment)}</p>
                       </div>
                       <div className="p-2 rounded-lg bg-muted/50 border border-border">
                         <p className="text-[10px] text-muted-foreground uppercase">Saldo Restante</p>

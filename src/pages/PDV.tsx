@@ -1567,7 +1567,7 @@ export default function PDV() {
               { key: "F5", label: "Cliente", color: "bg-sidebar-background hover:bg-sidebar-accent text-sidebar-foreground border border-sidebar-border", action: () => setShowLoyaltyClientSelector(true) },
               { key: "F10", label: "Consulta", color: "bg-sidebar-background hover:bg-sidebar-accent text-sidebar-foreground border border-sidebar-border", action: () => { setShowPriceLookup(true); setPriceLookupQuery(""); } },
               { key: "+", label: "Repetir", color: "bg-sidebar-background hover:bg-sidebar-accent text-sidebar-foreground border border-sidebar-border", action: () => { if (pdv.cartItems.length > 0) { const lastItem = pdv.cartItems[pdv.cartItems.length - 1]; const product = pdv.products.find(p => p.id === lastItem.id); if (product) pdv.addToCart(product); } } },
-              { key: "F11", label: "Suspender", color: "bg-amber-900/70 hover:bg-amber-800 text-amber-50 border border-amber-600/50", action: () => handleHoldSale() },
+              { key: "F11", label: "Suspender", color: "bg-warning/70 hover:bg-warning/80 text-warning-foreground border border-warning/50", action: () => handleHoldSale() },
             ].map(({ key, label, color, action }) => (
               <button key={key} onClick={action} className={`flex items-center gap-1 font-bold text-xs cursor-pointer rounded-lg px-1.5 py-1 transition-all hover:scale-[1.03] active:scale-95 ${color}`}>
                 <span className="font-mono font-black px-1.5 py-0.5 rounded bg-black/25 text-[10px] border border-white/20 shadow-sm">{key}</span>

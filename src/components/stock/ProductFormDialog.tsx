@@ -653,7 +653,7 @@ export const ProductFormDialog = forwardRef<HTMLDivElement, Props>(function Prod
                       </div>
                     )}
                     {field.value && ncmIssues.errors.length === 0 && ncmIssues.warnings.length === 0 && isValidNcmFormat(field.value) && (
-                      <div className="mt-1 flex items-center gap-1.5 text-xs text-green-600 dark:text-green-400">
+                      <div className="mt-1 flex items-center gap-1.5 text-xs text-success">
                         <Check className="w-3.5 h-3.5" />
                         <span>{getNcmDescription(field.value) || "NCM válido"}</span>
                       </div>
