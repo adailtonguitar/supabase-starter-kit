@@ -130,6 +130,10 @@ export function useCreateStockTransfer() {
           .eq("company_id", input.from_company_id)
           .single();
 
+        if (product && item.quantity > ((product as any).stock_quantity || 0)) {
+          throw new Error(`Estoque insuficiente para "${item.product_name}". Disponível: ${(product as any).stock_quantity}`);
+        }
+
         if (product) {
           const previousStock = (product as any).stock_quantity;
           const newStock = Math.max(0, previousStock - item.quantity);
