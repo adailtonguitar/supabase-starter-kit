@@ -8,70 +8,48 @@ import { adminQuery } from "@/lib/admin-query";
 export function AdminSystemAnalytics() {
   const [loading, setLoading] = useState(true);
   const [onlineUsers, setOnlineUsers] = useState(0);
-  const [activeSubscriptions, setActiveSubscriptions] = useState(0);
+  const [totalUsers, setTotalUsers] = useState(0);
   const [newCompaniesMonth, setNewCompaniesMonth] = useState(0);
-  const [expiringCompanies, setExpiringCompanies] = useState(0);
+  const [totalErrors, setTotalErrors] = useState(0);
 
   useEffect(() => {
-    const safe = async <T,>(fn: () => Promise<T>, fallback: T): Promise<T> => {
-      try { return await fn(); } catch (e) { console.warn("[AdminSystemAnalytics] query failed:", e); return fallback; }
-    };
-
     const load = async () => {
-      const today = new Date().toISOString().slice(0, 10);
-      const monthStart = today.slice(0, 7) + "-01";
-
-      // Online users
-      const recentLogs = await safe(() => adminQuery<{ user_id: string }>({
+      // Online users (action_logs last 30 min)
+      const recentLogs = await adminQuery<{ user_id: string }>({
         table: "action_logs",
         select: "user_id",
         filters: [{ op: "gte", column: "created_at", value: new Date(Date.now() - 30 * 60000).toISOString() }],
         limit: 300,
-      }), []);
+      });
       setOnlineUsers(new Set(recentLogs.map((l) => l.user_id).filter(Boolean)).size);
 
-      // Active subscriptions
-      const activeSubs = await safe(() => adminQuery<{ id: string }>({
-        table: "subscriptions",
+      // Total users
+      const users = await adminQuery<{ id: string }>({
+        table: "company_users",
         select: "id",
-        filters: [{ op: "eq", column: "status", value: "active" }],
-        limit: 1000,
-      }), []);
-      setActiveSubscriptions(activeSubs.length);
+        limit: 5000,
+      });
+      setTotalUsers(users.length);
 
       // New companies this month
-      const newCompanies = await safe(() => adminQuery<{ id: string }>({
+      const monthStart = new Date().toISOString().slice(0, 7) + "-01";
+      const newCompanies = await adminQuery<{ id: string }>({
         table: "companies",
         select: "id",
         filters: [{ op: "gte", column: "created_at", value: monthStart }],
         limit: 1000,
-      }), []);
+      });
       setNewCompaniesMonth(newCompanies.length);
 
-      // Expiring - try subscription_end, if fails try current_period_end
-      let expiring = await safe(() => adminQuery<{ id: string }>({
-        table: "subscriptions",
+      // Errors last 24h
+      const dayAgo = new Date(Date.now() - 86400000).toISOString();
+      const errors = await adminQuery<{ id: string }>({
+        table: "system_errors",
         select: "id",
-        filters: [
-          { op: "lte", column: "subscription_end", value: new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10) },
-          { op: "gte", column: "subscription_end", value: today },
-          { op: "eq", column: "status", value: "active" },
-        ],
-        limit: 300,
-      }), null as any);
-      if (expiring === null) {
-        expiring = await safe(() => adminQuery<{ id: string }>({
-          table: "subscriptions",
-          select: "id",
-          filters: [
-            { op: "lte", column: "current_period_end", value: new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10) },
-            { op: "gte", column: "current_period_end", value: today },
-            { op: "eq", column: "status", value: "active" },
-          ],
-          limit: 300,
-        }), []);
-      }
-      setExpiringCompanies(expiring?.length ?? 0);
+        filters: [{ op: "gte", column: "created_at", value: dayAgo }],
+        limit: 1000,
+      });
+      setTotalErrors(errors.length);
 
       setLoading(false);
     };
@@ -80,9 +58,9 @@ export function AdminSystemAnalytics() {
 
   const cards = [
     { label: "Usuários Online Agora", value: onlineUsers, icon: Users, color: "text-primary", bg: "bg-primary/10" },
-    { label: "Assinaturas Ativas", value: activeSubscriptions, icon: CreditCard, color: "text-success", bg: "bg-success/10" },
+    { label: "Total de Usuários", value: totalUsers, icon: Users, color: "text-success", bg: "bg-success/10" },
     { label: "Novas Empresas (Mês)", value: newCompaniesMonth, icon: Building2, color: "text-primary", bg: "bg-primary/10" },
-    { label: "Vencimento em 3 Dias", value: expiringCompanies, icon: CalendarClock, color: "text-warning", bg: "bg-warning/10" },
+    { label: "Erros (24h)", value: totalErrors, icon: CalendarClock, color: "text-warning", bg: "bg-warning/10" },
   ];
 
   return (
