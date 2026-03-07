@@ -121,6 +121,8 @@ export const tutorials: TutorialSection[] = [
     icon: FileText,
     title: "Vendas",
     description: "Histórico de vendas, promoções, fiado, orçamentos e programa de fidelidade.",
+    category: "vendas",
+    difficulty: "basico",
     videoUrl: "",
     walkthroughId: "vendas",
     steps: [
