@@ -73,6 +73,8 @@ export const tutorials: TutorialSection[] = [
     icon: LayoutDashboard,
     title: "Dashboard",
     description: "Visão geral do negócio com indicadores de vendas, faturamento, estoque baixo e atalhos rápidos.",
+    category: "vendas",
+    difficulty: "basico",
     videoUrl: "",
     walkthroughId: "dashboard",
     steps: [
