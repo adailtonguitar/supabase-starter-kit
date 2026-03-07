@@ -29,7 +29,15 @@ export default function StockTransfersSection() {
   const [selectedItems, setSelectedItems] = useState<{ product_id: string; product_name: string; product_sku?: string; quantity: number; unit_cost: number }[]>([]);
   const [tempProductId, setTempProductId] = useState("");
   const [tempQty, setTempQty] = useState(1);
+  const [productSearch, setProductSearch] = useState("");
+  const [showProductDropdown, setShowProductDropdown] = useState(false);
 
+  const filteredProducts = useMemo(() => {
+    if (!products) return [];
+    const term = productSearch.toLowerCase().trim();
+    if (!term) return products;
+    return products.filter(p => p.name.toLowerCase().includes(term) || (p.sku && p.sku.toLowerCase().includes(term)));
+  }, [products, productSearch]);
   const otherBranches = (branches || []).filter(b => b.id !== companyId);
 
   const addItem = () => {
