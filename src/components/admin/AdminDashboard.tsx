@@ -120,6 +120,15 @@ export function AdminDashboard() {
           )}
         </CardContent>
       </Card>
+
+      <AdminSystemAnalytics />
+      <AdminQuickActions />
+      <AdminSystemStatus />
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <AdminRecentActivity />
+        <AdminCompanyGrowthChart />
+      </div>
     </div>
   );
 }
