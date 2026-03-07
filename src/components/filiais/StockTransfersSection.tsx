@@ -4,6 +4,7 @@ import { useStockTransfers, useCreateStockTransfer, useReceiveStockTransfer } fr
 import { useBranches } from "@/hooks/useBranches";
 import { useProducts } from "@/hooks/useProducts";
 import { useCompany } from "@/hooks/useCompany";
+import { usePermissions } from "@/hooks/usePermissions";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { motion } from "framer-motion";
