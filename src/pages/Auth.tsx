@@ -42,6 +42,34 @@ export default function Auth() {
   const [forgotEmail, setForgotEmail] = useState("");
   const [isSignUp, setIsSignUp] = useState(false);
   const [signUpName, setSignUpName] = useState("");
+  
+  // Rate limiting state
+  const [failedAttempts, setFailedAttempts] = useState(0);
+  const [lockedUntil, setLockedUntil] = useState<number | null>(null);
+  const [lockCountdown, setLockCountdown] = useState(0);
+  const lockTimerRef = useRef<ReturnType<typeof setInterval>>();
+
+  const isLocked = lockedUntil !== null && Date.now() < lockedUntil;
+
+  // Countdown timer for lockout
+  useEffect(() => {
+    if (lockedUntil) {
+      const tick = () => {
+        const remaining = Math.max(0, Math.ceil((lockedUntil - Date.now()) / 1000));
+        setLockCountdown(remaining);
+        if (remaining <= 0) {
+          setLockedUntil(null);
+          setFailedAttempts(0);
+          if (lockTimerRef.current) clearInterval(lockTimerRef.current);
+        }
+      };
+      tick();
+      lockTimerRef.current = setInterval(tick, 1000);
+      return () => { if (lockTimerRef.current) clearInterval(lockTimerRef.current); };
+    }
+  }, [lockedUntil]);
+  const [isSignUp, setIsSignUp] = useState(false);
+  const [signUpName, setSignUpName] = useState("");
   const [mode, setMode] = useState<"login" | "set-password" | "processing">(() => {
     if (sessionStorage.getItem("needs-password-setup") === "true") {
       return "set-password";
