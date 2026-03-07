@@ -16,7 +16,7 @@ export interface TutorialSection {
   shortcuts?: { key: string; action: string }[];
   videoUrl?: string;
   walkthroughId?: string;
-  mode?: "pdv" | "loja" | "both";
+  mode?: "pdv" | "both";
   category: TutorialCategory;
   difficulty: TutorialDifficulty;
   example?: {
