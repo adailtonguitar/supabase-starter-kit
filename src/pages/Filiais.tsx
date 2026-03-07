@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { Building2, Plus, ChevronRight, Pencil, ArrowRightLeft, BarChart3, Shield, RefreshCw } from "lucide-react";
+import { Building2, Plus, ChevronRight, Pencil, ArrowRightLeft, BarChart3, Shield, RefreshCw, GitBranch, Crown } from "lucide-react";
 import { useCnpjLookup } from "@/hooks/useCnpjLookup";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import StockTransfersSection from "@/components/filiais/StockTransfersSection";
 import ConsolidatedSection from "@/components/filiais/ConsolidatedSection";
 import PermissionsSection from "@/components/filiais/PermissionsSection";
@@ -11,6 +11,15 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import BranchCreateDialog from "@/components/filiais/BranchCreateDialog";
+import BranchEditDialog from "@/components/filiais/BranchEditDialog";
+
+const tabs = [
+  { key: "hierarquia", label: "Hierarquia", icon: GitBranch },
+  { key: "transferencias", label: "Transferências", icon: ArrowRightLeft },
+  { key: "consolidado", label: "Consolidado", icon: BarChart3 },
+  { key: "permissoes", label: "Permissões", icon: Shield },
+] as const;
 
 export default function Filiais() {
   const { data: branches, isLoading } = useBranches();
@@ -22,7 +31,7 @@ export default function Filiais() {
   const { companyId, switchCompany } = useCompany();
   const { user } = useAuth();
 
-  const [activeTab, setActiveTab] = useState<"hierarquia" | "transferencias" | "consolidado" | "permissoes">("hierarquia");
+  const [activeTab, setActiveTab] = useState<typeof tabs[number]["key"]>("hierarquia");
   const [open, setOpen] = useState(false);
   const [branchName, setBranchName] = useState("");
   const [branchCnpj, setBranchCnpj] = useState("");
@@ -33,7 +42,16 @@ export default function Filiais() {
   const [editName, setEditName] = useState("");
   const [editCnpj, setEditCnpj] = useState("");
 
-  if (isLoading) return <div className="p-8 text-center text-muted-foreground">Carregando...</div>;
+  if (isLoading) {
+    return (
+      <div className="p-8 flex items-center justify-center min-h-[60vh]">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-10 h-10 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+          <p className="text-sm text-muted-foreground">Carregando filiais...</p>
+        </div>
+      </div>
+    );
+  }
 
   const parents = (branches || []).filter(b => b.is_parent);
   const children = (branches || []).filter(b => !b.is_parent);
@@ -73,267 +91,333 @@ export default function Filiais() {
   };
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-4 md:p-6 max-w-5xl mx-auto space-y-6">
-      <div>
-        <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
-          <Building2 className="w-5 h-5 text-primary" /> Filiais
-        </h1>
-        <p className="text-sm text-muted-foreground mt-1">Gerencie filiais, transferências, relatórios consolidados e permissões</p>
+    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="p-4 md:p-6 max-w-5xl mx-auto space-y-6">
+      {/* Premium Header */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border border-primary/10 p-6">
+        <div className="absolute top-0 right-0 w-40 h-40 bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+        <div className="relative">
+          <div className="flex items-center gap-3 mb-1">
+            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+              <Building2 className="w-5 h-5 text-primary" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-foreground">Filiais</h1>
+              <p className="text-xs text-muted-foreground">Gerencie filiais, transferências e relatórios consolidados</p>
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* Tab Navigation */}
-      <div className="grid grid-cols-4 gap-1">
-        <button
-          onClick={() => setActiveTab("hierarquia")}
-          className={`flex items-center justify-center gap-1 px-2 py-2 rounded-lg text-[11px] font-medium transition-all ${
-            activeTab === "hierarquia" ? "bg-primary text-primary-foreground" : "bg-card border border-border text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          <Building2 className="w-3.5 h-3.5 flex-shrink-0" /> Hierarquia
-        </button>
-        <button
-          onClick={() => setActiveTab("transferencias")}
-          className={`flex items-center justify-center gap-1 px-2 py-2 rounded-lg text-[11px] font-medium transition-all ${
-            activeTab === "transferencias" ? "bg-primary text-primary-foreground" : "bg-card border border-border text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          <ArrowRightLeft className="w-3.5 h-3.5 flex-shrink-0" /> Transf.
-        </button>
-        <button
-          onClick={() => setActiveTab("consolidado")}
-          className={`flex items-center justify-center gap-1 px-2 py-2 rounded-lg text-[11px] font-medium transition-all ${
-            activeTab === "consolidado" ? "bg-primary text-primary-foreground" : "bg-card border border-border text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          <BarChart3 className="w-3.5 h-3.5 flex-shrink-0" /> Consolid.
-        </button>
-        <button
-          onClick={() => setActiveTab("permissoes")}
-          className={`flex items-center justify-center gap-1 px-2 py-2 rounded-lg text-[11px] font-medium transition-all ${
-            activeTab === "permissoes" ? "bg-primary text-primary-foreground" : "bg-card border border-border text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          <Shield className="w-3.5 h-3.5 flex-shrink-0" /> Permissões
-        </button>
+      {/* Premium Tab Navigation */}
+      <div className="bg-card/50 backdrop-blur-sm border border-border rounded-xl p-1.5 flex gap-1">
+        {tabs.map(tab => {
+          const Icon = tab.icon;
+          const isActive = activeTab === tab.key;
+          return (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className={`relative flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg text-xs font-medium transition-all duration-300 ${
+                isActive
+                  ? "text-primary-foreground shadow-md"
+                  : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
+              }`}
+            >
+              {isActive && (
+                <motion.div
+                  layoutId="active-tab-filiais"
+                  className="absolute inset-0 bg-primary rounded-lg"
+                  transition={{ type: "spring", bounce: 0.2, duration: 0.5 }}
+                />
+              )}
+              <span className="relative z-10 flex items-center gap-1.5">
+                <Icon className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">{tab.label}</span>
+              </span>
+            </button>
+          );
+        })}
       </div>
 
       {/* Company Switcher */}
       {branches && branches.length > 1 && (
-        <div className="bg-card border border-border rounded-xl p-4">
-          <p className="text-xs font-medium text-muted-foreground mb-2">Empresa Ativa</p>
+        <motion.div
+          initial={{ opacity: 0, scale: 0.98 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="bg-card border border-border rounded-xl p-4"
+        >
+          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-3">Empresa Ativa</p>
           <div className="flex flex-wrap gap-2">
             {branches.map(b => (
-              <button
+              <motion.button
                 key={b.id}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
                 onClick={() => {
                   switchCompany(b.id);
                   toast.success(`Alternado para: ${b.name}`);
                   setTimeout(() => window.location.reload(), 500);
                 }}
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-medium transition-all duration-200 ${
                   b.id === companyId
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-background border border-border text-foreground hover:bg-accent"
+                    ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20"
+                    : "bg-background border border-border text-foreground hover:border-primary/30 hover:shadow-sm"
                 }`}
               >
                 <Building2 className="w-3.5 h-3.5" />
                 {b.name}
-                {b.is_parent && <span className="text-[9px] opacity-70">(Matriz)</span>}
-              </button>
+                {b.is_parent && (
+                  <span className="flex items-center gap-0.5 text-[9px] opacity-80">
+                    <Crown className="w-2.5 h-2.5" /> Matriz
+                  </span>
+                )}
+              </motion.button>
             ))}
           </div>
-        </div>
+        </motion.div>
       )}
 
       {/* Tab Content */}
-      {activeTab === "hierarquia" && (
-        <>
-          {/* Header + Nova Filial */}
-          <div className="flex flex-wrap justify-between items-center gap-2">
-            <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-              <Building2 className="w-4 h-4 text-primary" /> Hierarquia
-            </h3>
-            <Dialog open={open} onOpenChange={setOpen}>
-              <DialogTrigger asChild>
-                <button className="flex items-center gap-1.5 px-3 py-2 bg-primary text-primary-foreground rounded-lg text-xs font-medium hover:opacity-90 transition-all">
-                  <Plus className="w-3.5 h-3.5" /> Nova Filial
-                </button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Cadastrar Nova Filial</DialogTitle>
-                </DialogHeader>
-                <div className="space-y-4 pt-2">
-                  <div>
-                    <label className="text-xs font-medium text-muted-foreground mb-1 block">Nome da Filial *</label>
-                    <input value={branchName} onChange={e => setBranchName(e.target.value)} placeholder="Ex: Loja Centro"
-                      className="w-full px-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm" />
-                  </div>
-                  <div>
-                    <label className="text-xs font-medium text-muted-foreground mb-1 block">CNPJ (opcional)</label>
-                    <div className="flex gap-2">
-                      <input value={branchCnpj} onChange={e => setBranchCnpj(e.target.value)} placeholder="00.000.000/0000-00"
-                        className="flex-1 px-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm" />
-                      <button type="button" disabled={branchCnpjLoading || branchCnpj.replace(/\D/g, "").length < 14}
-                        onClick={async () => {
-                          const result = await branchCnpjLookup(branchCnpj);
-                          if (result) { setBranchName(result.name || branchName); }
-                        }}
-                        className="px-3 py-2 rounded-lg bg-muted border border-border text-foreground text-xs font-medium hover:bg-accent disabled:opacity-50">
-                        {branchCnpjLoading ? "..." : "Consultar"}
-                      </button>
-                    </div>
-                  </div>
-                  <button onClick={handleCreateBranch} disabled={createBranch.isPending}
-                    className="w-full py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50">
-                    {createBranch.isPending ? "Criando..." : "Criar Filial"}
-                  </button>
-                </div>
-              </DialogContent>
-            </Dialog>
-          </div>
-
-          {/* Edit Dialog */}
-          <Dialog open={editOpen} onOpenChange={setEditOpen}>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Editar Filial</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4 pt-2">
-                <div>
-                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Nome *</label>
-                  <input value={editName} onChange={e => setEditName(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm" />
-                </div>
-                <div>
-                  <label className="text-xs font-medium text-muted-foreground mb-1 block">CNPJ</label>
-                  <div className="flex gap-2">
-                    <input value={editCnpj} onChange={e => setEditCnpj(e.target.value)}
-                      className="flex-1 px-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm" />
-                    <button type="button" disabled={branchCnpjLoading || (editCnpj || "").replace(/\D/g, "").length < 14}
-                      onClick={async () => {
-                        const result = await branchCnpjLookup(editCnpj);
-                        if (result) { setEditName(result.name || editName); }
-                      }}
-                      className="px-3 py-2 rounded-lg bg-muted border border-border text-foreground text-xs font-medium hover:bg-accent disabled:opacity-50">
-                      {branchCnpjLoading ? "..." : "Consultar"}
-                    </button>
-                  </div>
-                </div>
-                <button onClick={handleSaveEdit} disabled={updateBranch.isPending}
-                  className="w-full py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50">
-                  {updateBranch.isPending ? "Salvando..." : "Salvar"}
-                </button>
-              </div>
-            </DialogContent>
-          </Dialog>
-
-          {/* Matrizes */}
-          <div className="bg-card rounded-xl border border-border p-5">
-            <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
-              <Building2 className="w-4 h-4 text-primary" /> Matrizes
-            </h3>
-            {parents.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Nenhuma matriz encontrada.</p>
-            ) : (
-              <div className="space-y-3">
-                {parents.map(p => (
-                  <div key={p.id} className="flex items-center gap-3 p-3 rounded-lg bg-background border border-border">
-                    <Building2 className="w-5 h-5 text-primary" />
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-foreground">{p.name}</p>
-                      {p.cnpj && <p className="text-xs text-muted-foreground">{p.cnpj}</p>}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button onClick={() => handleEdit(p)} className="text-xs text-muted-foreground hover:text-foreground">
-                        <Pencil className="w-3.5 h-3.5" />
-                      </button>
-                      {p.id === companyId && (
-                        <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">Atual</span>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Filiais */}
-          <div className="bg-card rounded-xl border border-border p-5">
-            <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
-              <ChevronRight className="w-4 h-4 text-primary" /> Filiais
-            </h3>
-            {children.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Nenhuma filial cadastrada ainda.</p>
-            ) : (
-              <div className="space-y-3">
-                {children.map(c => {
-                  const parentName = parents.find(p => p.id === c.parent_company_id)?.name || "?";
-                  return (
-                    <div key={c.id} className="flex items-center gap-3 p-3 rounded-lg bg-background border border-border">
-                      <Building2 className="w-5 h-5 text-muted-foreground" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-foreground">{c.name}</p>
-                        <p className="text-xs text-muted-foreground">Matriz: {parentName}</p>
-                      </div>
-                      <div className="flex gap-2 items-center flex-shrink-0">
-                        <button
-                          onClick={() => {
-                            if (!c.parent_company_id) return;
-                            syncProducts.mutate({ fromCompanyId: c.parent_company_id, toCompanyId: c.id });
-                          }}
-                          disabled={syncProducts.isPending}
-                          className="text-xs text-primary hover:underline flex items-center gap-1"
-                          title="Sincronizar produtos da matriz"
-                        >
-                          <RefreshCw className={`w-3 h-3 ${syncProducts.isPending ? "animate-spin" : ""}`} /> Sync
-                        </button>
-                        <button onClick={() => handleEdit(c)} className="text-xs text-muted-foreground hover:text-foreground" title="Editar">
-                          <Pencil className="w-3.5 h-3.5" />
-                        </button>
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <button className="text-xs text-muted-foreground hover:underline">Desvincular</button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Desvincular filial</AlertDialogTitle>
-                              <AlertDialogDescription>A filial "{c.name}" será desvinculada da matriz.</AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => setParent.mutate({ companyId: c.id, parentId: null })}>Desvincular</AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <button className="text-xs text-destructive hover:underline">Excluir</button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Excluir filial permanentemente</AlertDialogTitle>
-                              <AlertDialogDescription>A filial "{c.name}" e todos os dados serão excluídos permanentemente.</AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                              <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => deleteBranch.mutate(c.id)}>Excluir</AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        </>
-      )}
-
-      {activeTab === "transferencias" && <StockTransfersSection />}
-      {activeTab === "consolidado" && <ConsolidatedSection />}
-      {activeTab === "permissoes" && <PermissionsSection />}
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={activeTab}
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -8 }}
+          transition={{ duration: 0.25 }}
+        >
+          {activeTab === "hierarquia" && (
+            <HierarchyTab
+              parents={parents}
+              children={children}
+              companyId={companyId}
+              open={open}
+              setOpen={setOpen}
+              branchName={branchName}
+              setBranchName={setBranchName}
+              branchCnpj={branchCnpj}
+              setBranchCnpj={setBranchCnpj}
+              branchCnpjLookup={branchCnpjLookup}
+              branchCnpjLoading={branchCnpjLoading}
+              handleCreateBranch={handleCreateBranch}
+              createBranch={createBranch}
+              handleEdit={handleEdit}
+              editOpen={editOpen}
+              setEditOpen={setEditOpen}
+              editName={editName}
+              setEditName={setEditName}
+              editCnpj={editCnpj}
+              setEditCnpj={setEditCnpj}
+              handleSaveEdit={handleSaveEdit}
+              updateBranch={updateBranch}
+              setParent={setParent}
+              deleteBranch={deleteBranch}
+              syncProducts={syncProducts}
+            />
+          )}
+          {activeTab === "transferencias" && <StockTransfersSection />}
+          {activeTab === "consolidado" && <ConsolidatedSection />}
+          {activeTab === "permissoes" && <PermissionsSection />}
+        </motion.div>
+      </AnimatePresence>
     </motion.div>
+  );
+}
+
+/* ─── Hierarchy Tab ─── */
+function HierarchyTab({
+  parents, children: childBranches, companyId, open, setOpen, branchName, setBranchName,
+  branchCnpj, setBranchCnpj, branchCnpjLookup, branchCnpjLoading, handleCreateBranch,
+  createBranch, handleEdit, editOpen, setEditOpen, editName, setEditName, editCnpj,
+  setEditCnpj, handleSaveEdit, updateBranch, setParent, deleteBranch, syncProducts,
+}: any) {
+  return (
+    <div className="space-y-5">
+      {/* Header + Nova Filial */}
+      <div className="flex flex-wrap justify-between items-center gap-2">
+        <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+          <GitBranch className="w-4 h-4 text-primary" /> Organograma
+        </h3>
+        <Dialog open={open} onOpenChange={setOpen}>
+          <DialogTrigger asChild>
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.97 }}
+              className="flex items-center gap-1.5 px-4 py-2.5 bg-primary text-primary-foreground rounded-xl text-xs font-medium shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 transition-shadow"
+            >
+              <Plus className="w-3.5 h-3.5" /> Nova Filial
+            </motion.button>
+          </DialogTrigger>
+          <BranchCreateDialog
+            branchName={branchName}
+            setBranchName={setBranchName}
+            branchCnpj={branchCnpj}
+            setBranchCnpj={setBranchCnpj}
+            branchCnpjLookup={branchCnpjLookup}
+            branchCnpjLoading={branchCnpjLoading}
+            handleCreateBranch={handleCreateBranch}
+            isPending={createBranch.isPending}
+          />
+        </Dialog>
+      </div>
+
+      {/* Edit Dialog */}
+      <BranchEditDialog
+        editOpen={editOpen}
+        setEditOpen={setEditOpen}
+        editName={editName}
+        setEditName={setEditName}
+        editCnpj={editCnpj}
+        setEditCnpj={setEditCnpj}
+        branchCnpjLookup={branchCnpjLookup}
+        branchCnpjLoading={branchCnpjLoading}
+        handleSaveEdit={handleSaveEdit}
+        isPending={updateBranch.isPending}
+      />
+
+      {/* Visual Org Chart */}
+      <div className="bg-card rounded-2xl border border-border overflow-hidden">
+        {/* Matrizes Header */}
+        <div className="px-5 py-4 border-b border-border bg-gradient-to-r from-primary/5 to-transparent">
+          <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+            <Crown className="w-4 h-4 text-primary" /> Matrizes
+          </h3>
+        </div>
+
+        <div className="p-5 space-y-3">
+          {parents.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-4 text-center">Nenhuma matriz encontrada.</p>
+          ) : (
+            parents.map((p: any, i: number) => (
+              <motion.div
+                key={p.id}
+                initial={{ opacity: 0, x: -12 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: i * 0.1 }}
+                className="group flex items-center gap-3 p-4 rounded-xl bg-gradient-to-r from-primary/5 via-background to-background border border-primary/10 hover:border-primary/30 hover:shadow-md transition-all duration-300"
+              >
+                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+                  <Building2 className="w-5 h-5 text-primary" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-foreground truncate">{p.name}</p>
+                  {p.cnpj && <p className="text-[11px] text-muted-foreground font-mono">{p.cnpj}</p>}
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <button onClick={() => handleEdit(p)} className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg hover:bg-accent transition-all">
+                    <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
+                  </button>
+                  {p.id === companyId && (
+                    <span className="text-[10px] bg-primary text-primary-foreground px-2.5 py-1 rounded-full font-semibold shadow-sm">Atual</span>
+                  )}
+                </div>
+              </motion.div>
+            ))
+          )}
+        </div>
+      </div>
+
+      {/* Filiais */}
+      <div className="bg-card rounded-2xl border border-border overflow-hidden">
+        <div className="px-5 py-4 border-b border-border bg-gradient-to-r from-accent/30 to-transparent flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+            <ChevronRight className="w-4 h-4 text-primary" /> Filiais
+            {childBranches.length > 0 && (
+              <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-semibold">
+                {childBranches.length}
+              </span>
+            )}
+          </h3>
+        </div>
+
+        <div className="p-5">
+          {childBranches.length === 0 ? (
+            <div className="text-center py-8">
+              <div className="w-14 h-14 rounded-2xl bg-muted/50 flex items-center justify-center mx-auto mb-3">
+                <Building2 className="w-6 h-6 text-muted-foreground" />
+              </div>
+              <p className="text-sm text-muted-foreground">Nenhuma filial cadastrada ainda.</p>
+              <p className="text-xs text-muted-foreground/60 mt-1">Clique em "Nova Filial" para começar</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {childBranches.map((c: any, i: number) => {
+                const parentName = parents.find((p: any) => p.id === c.parent_company_id)?.name || "?";
+                return (
+                  <motion.div
+                    key={c.id}
+                    initial={{ opacity: 0, x: -12 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: i * 0.08 }}
+                    className="group relative flex items-center gap-3 p-4 rounded-xl bg-background border border-border hover:border-primary/20 hover:shadow-md transition-all duration-300"
+                  >
+                    {/* Connection line */}
+                    <div className="absolute -left-px top-1/2 -translate-y-1/2 w-1 h-8 bg-gradient-to-b from-primary/30 to-primary/5 rounded-full" />
+                    
+                    <div className="w-9 h-9 rounded-lg bg-accent/50 flex items-center justify-center flex-shrink-0">
+                      <Building2 className="w-4 h-4 text-muted-foreground" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate">{c.name}</p>
+                      <p className="text-[10px] text-muted-foreground flex items-center gap-1">
+                        <Crown className="w-2.5 h-2.5" /> {parentName}
+                      </p>
+                    </div>
+                    <div className="flex gap-1.5 items-center flex-shrink-0">
+                      <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={() => {
+                          if (!c.parent_company_id) return;
+                          syncProducts.mutate({ fromCompanyId: c.parent_company_id, toCompanyId: c.id });
+                        }}
+                        disabled={syncProducts.isPending}
+                        className="opacity-0 group-hover:opacity-100 flex items-center gap-1 px-2.5 py-1.5 bg-primary/10 text-primary rounded-lg text-[10px] font-medium hover:bg-primary/20 transition-all"
+                        title="Sincronizar produtos da matriz"
+                      >
+                        <RefreshCw className={`w-3 h-3 ${syncProducts.isPending ? "animate-spin" : ""}`} /> Sync
+                      </motion.button>
+                      <button onClick={() => handleEdit(c)} className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg hover:bg-accent transition-all" title="Editar">
+                        <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
+                      </button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <button className="opacity-0 group-hover:opacity-100 px-2 py-1 text-[10px] text-muted-foreground hover:text-foreground rounded-lg hover:bg-accent transition-all">Desvincular</button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Desvincular filial</AlertDialogTitle>
+                            <AlertDialogDescription>A filial "{c.name}" será desvinculada da matriz.</AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => setParent.mutate({ companyId: c.id, parentId: null })}>Desvincular</AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <button className="opacity-0 group-hover:opacity-100 px-2 py-1 text-[10px] text-destructive hover:bg-destructive/10 rounded-lg transition-all">Excluir</button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Excluir filial permanentemente</AlertDialogTitle>
+                            <AlertDialogDescription>A filial "{c.name}" e todos os dados serão excluídos permanentemente.</AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => deleteBranch.mutate(c.id)}>Excluir</AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }

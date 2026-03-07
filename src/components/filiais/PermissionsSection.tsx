@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { Shield, Users, Check, X } from "lucide-react";
+import { Shield, Users, Check, X, UserCog } from "lucide-react";
 import { useBranches } from "@/hooks/useBranches";
 import { useCompany } from "@/hooks/useCompany";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { motion } from "framer-motion";
 
 interface BranchUser {
   id: string;
@@ -36,26 +37,18 @@ export default function PermissionsSection() {
     queryKey: ["branch-users", activeBranchId],
     queryFn: async (): Promise<BranchUser[]> => {
       if (!activeBranchId) return [];
-
       const { data } = await supabase
         .from("company_users")
         .select("id, user_id, company_id, role, is_active")
         .eq("company_id", activeBranchId);
-
       if (!data || data.length === 0) return [];
-
       const userIds = data.map((u: any) => u.user_id);
       const { data: profiles } = await supabase
         .from("profiles")
         .select("id, full_name, email")
         .in("id", userIds);
-
       const profileMap = new Map((profiles || []).map((p: any) => [p.id, p]));
-
-      return data.map((u: any) => ({
-        ...u,
-        profile: profileMap.get(u.user_id) || null,
-      }));
+      return data.map((u: any) => ({ ...u, profile: profileMap.get(u.user_id) || null }));
     },
     enabled: !!activeBranchId,
   });
@@ -77,7 +70,7 @@ export default function PermissionsSection() {
   const branchName = (branches || []).find(b => b.id === activeBranchId)?.name || "—";
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       {/* Header */}
       <div className="flex flex-wrap justify-between items-center gap-2">
         <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
@@ -86,82 +79,92 @@ export default function PermissionsSection() {
       </div>
 
       {/* Branch Selector */}
-      <div>
-        <label className="text-xs font-medium text-muted-foreground mb-1 block">Selecione a unidade</label>
-        <select
-          value={activeBranchId}
-          onChange={e => setSelectedBranch(e.target.value)}
-          className="w-full max-w-xs px-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm"
-        >
+      <div className="bg-card border border-border rounded-xl p-4">
+        <label className="text-[10px] font-semibold text-muted-foreground mb-2 block uppercase tracking-wider">Selecione a unidade</label>
+        <div className="flex flex-wrap gap-2">
           {(branches || []).map(b => (
-            <option key={b.id} value={b.id}>
-              {b.name} {b.is_parent ? "(Matriz)" : "(Filial)"}
-            </option>
+            <button
+              key={b.id}
+              onClick={() => setSelectedBranch(b.id)}
+              className={`px-4 py-2 rounded-xl text-xs font-medium transition-all duration-200 ${
+                b.id === activeBranchId
+                  ? "bg-primary text-primary-foreground shadow-md shadow-primary/20"
+                  : "bg-background border border-border text-foreground hover:border-primary/30"
+              }`}
+            >
+              {b.name} {b.is_parent ? "(Matriz)" : ""}
+            </button>
           ))}
-        </select>
+        </div>
       </div>
 
-      {/* Users Table */}
+      {/* Users */}
       {isLoading ? (
-        <p className="text-sm text-muted-foreground text-center py-8">Carregando usuários...</p>
+        <div className="flex items-center justify-center py-12">
+          <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+        </div>
       ) : !users || users.length === 0 ? (
-        <div className="bg-card border border-border rounded-xl p-6 text-center">
-          <Users className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-          <p className="text-sm text-muted-foreground">Nenhum usuário vinculado a "{branchName}".</p>
+        <div className="bg-card border border-border rounded-2xl p-10 text-center">
+          <div className="w-14 h-14 rounded-2xl bg-muted/50 flex items-center justify-center mx-auto mb-3">
+            <Users className="w-6 h-6 text-muted-foreground" />
+          </div>
+          <p className="text-sm font-medium text-muted-foreground">Nenhum usuário em "{branchName}"</p>
         </div>
       ) : (
-        <div className="bg-card border border-border rounded-xl overflow-hidden">
-          <div className="p-4 border-b border-border">
-            <h4 className="text-xs font-semibold text-foreground flex items-center gap-2">
-              <Users className="w-3.5 h-3.5 text-primary" /> Usuários em {branchName}
-            </h4>
+        <div className="bg-card rounded-2xl border border-border overflow-hidden">
+          <div className="px-5 py-4 border-b border-border bg-gradient-to-r from-primary/5 to-transparent flex items-center gap-2">
+            <UserCog className="w-4 h-4 text-primary" />
+            <h4 className="text-xs font-semibold text-foreground">Usuários em {branchName}</h4>
+            <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-semibold ml-auto">
+              {users.length}
+            </span>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="border-b border-border text-left">
-                  <th className="px-4 py-2.5 font-medium text-muted-foreground">Usuário</th>
-                  <th className="px-4 py-2.5 font-medium text-muted-foreground">E-mail</th>
-                  <th className="px-4 py-2.5 font-medium text-muted-foreground">Perfil</th>
-                  <th className="px-4 py-2.5 font-medium text-muted-foreground text-center">Ativo</th>
-                </tr>
-              </thead>
-              <tbody>
-                {users.map(u => (
-                  <tr key={u.id} className="border-b border-border last:border-0 hover:bg-accent/50 transition-colors">
-                    <td className="px-4 py-2.5 font-medium text-foreground">
-                      {u.profile?.full_name || "Sem nome"}
-                    </td>
-                    <td className="px-4 py-2.5 text-muted-foreground">
-                      {u.profile?.email || "—"}
-                    </td>
-                    <td className="px-4 py-2.5">
-                      <select
-                        value={u.role}
-                        onChange={e => handleUpdateRole(u.id, e.target.value)}
-                        className="px-2 py-1 rounded-md bg-background border border-border text-foreground text-xs"
-                      >
-                        {ROLES.map(r => (
-                          <option key={r.value} value={r.value}>{r.label}</option>
-                        ))}
-                      </select>
-                    </td>
-                    <td className="px-4 py-2.5 text-center">
-                      <button
-                        onClick={() => handleToggleActive(u.id, u.is_active)}
-                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium ${
-                          u.is_active
-                            ? "bg-green-500/10 text-green-600"
-                            : "bg-destructive/10 text-destructive"
-                        }`}
-                      >
-                        {u.is_active ? <><Check className="w-3 h-3" /> Ativo</> : <><X className="w-3 h-3" /> Inativo</>}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="divide-y divide-border">
+            {users.map((u, i) => (
+              <motion.div
+                key={u.id}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: i * 0.05 }}
+                className="flex items-center gap-4 px-5 py-4 hover:bg-accent/30 transition-colors"
+              >
+                {/* Avatar */}
+                <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+                  <span className="text-xs font-bold text-primary">
+                    {(u.profile?.full_name || "?")[0].toUpperCase()}
+                  </span>
+                </div>
+
+                {/* Info */}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-foreground truncate">{u.profile?.full_name || "Sem nome"}</p>
+                  <p className="text-[11px] text-muted-foreground truncate">{u.profile?.email || "—"}</p>
+                </div>
+
+                {/* Role selector */}
+                <select
+                  value={u.role}
+                  onChange={e => handleUpdateRole(u.id, e.target.value)}
+                  className="px-3 py-1.5 rounded-lg bg-background border border-border text-foreground text-xs font-medium focus:border-primary/50 focus:ring-2 focus:ring-primary/10 transition-all outline-none"
+                >
+                  {ROLES.map(r => (
+                    <option key={r.value} value={r.value}>{r.label}</option>
+                  ))}
+                </select>
+
+                {/* Active toggle */}
+                <button
+                  onClick={() => handleToggleActive(u.id, u.is_active)}
+                  className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-[10px] font-semibold border transition-all ${
+                    u.is_active
+                      ? "bg-green-500/10 text-green-600 border-green-500/20 hover:bg-green-500/20"
+                      : "bg-destructive/10 text-destructive border-destructive/20 hover:bg-destructive/20"
+                  }`}
+                >
+                  {u.is_active ? <><Check className="w-3 h-3" /> Ativo</> : <><X className="w-3 h-3" /> Inativo</>}
+                </button>
+              </motion.div>
+            ))}
           </div>
         </div>
       )}
