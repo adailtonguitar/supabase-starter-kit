@@ -5,6 +5,9 @@ import {
   Armchair, Truck, Wrench, RotateCcw, Calendar, ShieldCheck as WarrantyIcon, Zap,
 } from "lucide-react";
 
+export type TutorialCategory = "vendas" | "estoque" | "financeiro" | "fiscal" | "cadastros" | "config" | "loja";
+export type TutorialDifficulty = "basico" | "intermediario" | "avancado";
+
 export interface TutorialSection {
   icon: any;
   title: string;
@@ -14,7 +17,9 @@ export interface TutorialSection {
   shortcuts?: { key: string; action: string }[];
   videoUrl?: string;
   walkthroughId?: string;
-  mode?: "pdv" | "loja" | "both"; // pdv = só PDV geral, loja = só modo loja, both = ambos (default)
+  mode?: "pdv" | "loja" | "both";
+  category: TutorialCategory;
+  difficulty: TutorialDifficulty;
   example?: {
     title: string;
     description: string;
@@ -29,6 +34,8 @@ export const tutorials: TutorialSection[] = [
     title: "PDV — Ponto de Venda",
     description: "Tela principal para realizar vendas rápidas com leitor de código de barras, busca de produtos e múltiplas formas de pagamento.",
     mode: "both",
+    category: "vendas",
+    difficulty: "basico",
     videoUrl: "",
     walkthroughId: "pdv",
     steps: [
@@ -66,6 +73,8 @@ export const tutorials: TutorialSection[] = [
     icon: LayoutDashboard,
     title: "Dashboard",
     description: "Visão geral do negócio com indicadores de vendas, faturamento, estoque baixo e atalhos rápidos.",
+    category: "vendas",
+    difficulty: "basico",
     videoUrl: "",
     walkthroughId: "dashboard",
     steps: [
@@ -83,6 +92,8 @@ export const tutorials: TutorialSection[] = [
     icon: Package,
     title: "Estoque",
     description: "Gestão completa de produtos, inventário, curva ABC, lotes, perdas, pedidos de compra, etiquetas e produção.",
+    category: "estoque",
+    difficulty: "intermediario",
     videoUrl: "",
     walkthroughId: "produtos",
     steps: [
@@ -110,6 +121,8 @@ export const tutorials: TutorialSection[] = [
     icon: FileText,
     title: "Vendas",
     description: "Histórico de vendas, promoções, fiado, orçamentos e programa de fidelidade.",
+    category: "vendas",
+    difficulty: "basico",
     videoUrl: "",
     walkthroughId: "vendas",
     steps: [
@@ -132,6 +145,8 @@ export const tutorials: TutorialSection[] = [
     icon: BarChart3,
     title: "Relatórios",
     description: "Relatórios de vendas detalhados e análises inteligentes com IA.",
+    category: "vendas",
+    difficulty: "intermediario",
     videoUrl: "",
     steps: [
       "Em 'Relatórios > Relatório Vendas', veja gráficos e estatísticas por período.",
@@ -147,6 +162,8 @@ export const tutorials: TutorialSection[] = [
     icon: ArrowUpDown,
     title: "Movimentações",
     description: "Movimentações de estoque, controle de caixa e lançamentos financeiros do dia a dia.",
+    category: "estoque",
+    difficulty: "basico",
     videoUrl: "",
     walkthroughId: "caixa",
     steps: [
@@ -164,6 +181,8 @@ export const tutorials: TutorialSection[] = [
     icon: Landmark,
     title: "Financeiro (Análises)",
     description: "Lucro diário, painel de lucro, DRE, fluxo de caixa projetado, centro de custo, comissões e conciliação bancária.",
+    category: "financeiro",
+    difficulty: "avancado",
     videoUrl: "",
     walkthroughId: "financeiro",
     steps: [
@@ -185,6 +204,8 @@ export const tutorials: TutorialSection[] = [
     icon: ClipboardList,
     title: "Cadastros",
     description: "Cadastro de empresas, clientes, fornecedores, funcionários, transportadoras, ADM de cartões, categorias e usuários.",
+    category: "cadastros",
+    difficulty: "basico",
     videoUrl: "",
     steps: [
       "Acesse cada cadastro pelo menu 'Cadastro' na barra lateral.",
@@ -205,6 +226,8 @@ export const tutorials: TutorialSection[] = [
     icon: Receipt,
     title: "Fiscal",
     description: "Emissão e gestão de documentos fiscais (NFC-e, NF-e, SAT) com integração SEFAZ.",
+    category: "fiscal",
+    difficulty: "avancado",
     videoUrl: "",
     walkthroughId: "fiscal",
     steps: [
@@ -224,6 +247,8 @@ export const tutorials: TutorialSection[] = [
     icon: Settings,
     title: "Configurações & Terminais",
     description: "Configurações gerais do sistema, dados da empresa, integrações, terminais de venda e instalação do app.",
+    category: "config",
+    difficulty: "intermediario",
     videoUrl: "",
     walkthroughId: "configuracoes",
     steps: [
@@ -244,6 +269,8 @@ export const tutorials: TutorialSection[] = [
     title: "Filiais — Gestão Multilojas",
     description: "Gerencie múltiplas lojas (matriz e filiais) com CNPJs independentes, estoques separados e visão consolidada.",
     mode: "pdv",
+    category: "config",
+    difficulty: "avancado",
     videoUrl: "",
     walkthroughId: "filiais",
     steps: [
@@ -293,6 +320,8 @@ export const tutorials: TutorialSection[] = [
     icon: TrendingUp,
     title: "Painel do Dono",
     description: "Visão executiva do negócio com indicadores-chave para o proprietário acompanhar a saúde da empresa.",
+    category: "financeiro",
+    difficulty: "basico",
     videoUrl: "",
     steps: [
       "Acesse 'Painel do Dono' pelo menu lateral.",
@@ -309,6 +338,8 @@ export const tutorials: TutorialSection[] = [
     icon: AlertTriangle,
     title: "Sugestão de Compra & Ruptura",
     description: "Ferramentas inteligentes para evitar falta de produtos e otimizar pedidos de reposição.",
+    category: "estoque",
+    difficulty: "intermediario",
     videoUrl: "",
     steps: [
       "Em 'Estoque > Sugestão de Compra', veja os produtos que precisam ser repostos com base no consumo médio.",
@@ -327,6 +358,8 @@ export const tutorials: TutorialSection[] = [
     icon: Stethoscope,
     title: "Diagnóstico Financeiro",
     description: "Análise inteligente da saúde financeira do negócio com recomendações automáticas.",
+    category: "financeiro",
+    difficulty: "avancado",
     videoUrl: "",
     steps: [
       "Acesse 'Financeiro > Diagnóstico' pelo menu lateral.",
@@ -343,6 +376,8 @@ export const tutorials: TutorialSection[] = [
     icon: FileCheck,
     title: "Emissor NF-e",
     description: "Emissão de Nota Fiscal Eletrônica (NF-e) modelo 55 com integração SEFAZ.",
+    category: "fiscal",
+    difficulty: "avancado",
     videoUrl: "",
     steps: [
       "Acesse 'Fiscal > Emissor NF-e' pelo menu lateral.",
@@ -362,6 +397,8 @@ export const tutorials: TutorialSection[] = [
     icon: ShieldCheck,
     title: "Assinador Digital",
     description: "Aplicativo auxiliar para assinar documentos fiscais com certificados digitais A1 e A3.",
+    category: "fiscal",
+    difficulty: "avancado",
     videoUrl: "",
     steps: [
       "Acesse 'Fiscal > Assinador' pelo menu lateral.",
@@ -379,6 +416,8 @@ export const tutorials: TutorialSection[] = [
     icon: FileText,
     title: "Importação de Clientes via CSV",
     description: "Importe sua base de clientes de outro sistema para o AnthOS em poucos minutos usando um arquivo CSV.",
+    category: "cadastros",
+    difficulty: "intermediario",
     videoUrl: "",
     steps: [
       "Abra seu arquivo de clientes no Excel ou LibreOffice (pode ser .xlsx ou .xls).",
@@ -408,6 +447,8 @@ export const tutorials: TutorialSection[] = [
     icon: Package,
     title: "Importação de Produtos via CSV",
     description: "Importe seu catálogo de produtos de outro sistema para o AnthOS usando um arquivo CSV, com mapeamento automático de colunas.",
+    category: "estoque",
+    difficulty: "intermediario",
     videoUrl: "",
     steps: [
       "Abra seu arquivo de produtos no Excel ou LibreOffice (pode ser .xlsx ou .xls).",
@@ -443,6 +484,8 @@ export const tutorials: TutorialSection[] = [
     icon: HelpCircle,
     title: "Ajuda",
     description: "Central de ajuda com tutoriais de todas as funções do sistema.",
+    category: "config",
+    difficulty: "basico",
     videoUrl: "",
     steps: [
       "Use a barra de busca para encontrar tutoriais por palavra-chave.",
@@ -456,6 +499,8 @@ export const tutorials: TutorialSection[] = [
     title: "Catálogo de Móveis & Eletro",
     description: "Catálogo visual com ficha técnica, QR Code de showroom, compartilhamento via WhatsApp e simulador de parcelas.",
     mode: "loja",
+    category: "loja",
+    difficulty: "basico",
     steps: [
       "Acesse 'Catálogo' no menu do Modo Loja.",
       "Visualize todos os produtos com fotos, dimensões e ficha técnica.",
@@ -475,6 +520,8 @@ export const tutorials: TutorialSection[] = [
     title: "Kits & Combos Inteligentes",
     description: "Crie combos de produtos (ex: Cozinha Completa) com desconto automático para aumentar o ticket médio.",
     mode: "loja",
+    category: "loja",
+    difficulty: "intermediario",
     steps: [
       "Acesse 'Operações > Kits & Combos' no menu lateral.",
       "Clique em 'Novo Kit' para criar um combo.",
@@ -495,6 +542,8 @@ export const tutorials: TutorialSection[] = [
     title: "Follow-up Comercial",
     description: "Agenda de contatos pendentes para recuperar orçamentos não fechados e manter relacionamento com clientes.",
     mode: "loja",
+    category: "loja",
+    difficulty: "intermediario",
     steps: [
       "Acesse 'Clientes > Follow-up' no menu lateral.",
       "Clique em 'Novo Follow-up' para agendar um contato.",
@@ -514,6 +563,8 @@ export const tutorials: TutorialSection[] = [
     title: "Trocas & Devoluções",
     description: "Fluxo completo de trocas e devoluções com rastreamento de motivo, análise do produto e reentrada no estoque.",
     mode: "loja",
+    category: "loja",
+    difficulty: "intermediario",
     steps: [
       "Acesse 'Operações > Trocas/Devoluções' no menu lateral.",
       "Clique em 'Nova Troca/Devolução'.",
@@ -535,6 +586,8 @@ export const tutorials: TutorialSection[] = [
     title: "Cadastro de Eletrodomésticos",
     description: "Campos exclusivos para eletrodomésticos: voltagem (110V/220V/Bivolt), garantia em meses e número de série.",
     mode: "loja",
+    category: "loja",
+    difficulty: "basico",
     steps: [
       "Acesse 'Produtos' e clique em 'Novo Produto'.",
       "Preencha os dados básicos normalmente (nome, SKU, preço).",
@@ -556,6 +609,8 @@ export const tutorials: TutorialSection[] = [
     title: "Entregas & Montagem",
     description: "Controle de entregas e montagens com Kanban, equipes, fotos de conclusão e rastreio em tempo real.",
     mode: "loja",
+    category: "loja",
+    difficulty: "intermediario",
     steps: [
       "Acesse 'Operações > Entregas' para a agenda de entregas.",
       "Acesse 'Operações > Montagem' para controle de montagens.",
@@ -575,6 +630,8 @@ export const tutorials: TutorialSection[] = [
     title: "Assistência Técnica",
     description: "Gerenciamento de tickets de assistência técnica com SLA, diagnóstico e acompanhamento.",
     mode: "loja",
+    category: "loja",
+    difficulty: "avancado",
     steps: [
       "Acesse 'Operações > Assistência Técnica'.",
       "Abra um novo ticket informando cliente, produto e descrição do problema.",
