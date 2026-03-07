@@ -6,25 +6,27 @@ import { useCompany } from "./useCompany";
 export function usePermissions() {
   const { user } = useAuth();
   const { companyId } = useCompany();
-  const [role, setRole] = useState<string>(() => {
-    try { return localStorage.getItem("as_cached_role") || "caixa"; } catch { return "caixa"; }
-  });
-  const [maxDiscountPercent, setMaxDiscountPercent] = useState(() => {
-    try { return Number(localStorage.getItem("as_cached_max_discount")) || 0; } catch { return 0; }
-  });
+  const [role, setRole] = useState<string>("caixa");
+  const [maxDiscountPercent, setMaxDiscountPercent] = useState(0);
+  const [loading, setLoading] = useState(true);
   const checkedRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!user || !companyId) {
       setRole("caixa");
       setMaxDiscountPercent(0);
+      setLoading(false);
       checkedRef.current = null;
       return;
     }
 
     const cacheKey = `${user.id}_${companyId}`;
-    if (checkedRef.current === cacheKey) return;
+    if (checkedRef.current === cacheKey) {
+      setLoading(false);
+      return;
+    }
 
+    setLoading(true);
     const fetchPermissions = async () => {
       try {
         const { data } = await supabase
@@ -37,7 +39,6 @@ export function usePermissions() {
 
         const userRole = data?.role || "caixa";
         setRole(userRole);
-        try { localStorage.setItem("as_cached_role", userRole); } catch {}
 
         const { data: limits } = await supabase
           .from("discount_limits")
@@ -50,12 +51,12 @@ export function usePermissions() {
           ? limits.max_discount_percent
           : userRole === "admin" ? 100 : userRole === "gerente" ? 50 : userRole === "supervisor" ? 20 : 5;
         setMaxDiscountPercent(discount);
-        try { localStorage.setItem("as_cached_max_discount", String(discount)); } catch {}
       } catch {
         setRole("caixa");
         setMaxDiscountPercent(0);
       }
       checkedRef.current = cacheKey;
+      setLoading(false);
     };
     fetchPermissions();
   }, [user, companyId]);
