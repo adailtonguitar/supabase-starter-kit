@@ -100,7 +100,7 @@ const EmissorLanding = lazyRetry(() => import("./pages/EmissorLanding"));
 const ConsultaDFe = lazyRetry(() => import("./pages/ConsultaDFe"));
 const Relatorios = lazyRetry(() => import("./pages/Relatorios"));
 const PDVCustomerDisplayPage = lazyRetry(() => import("./pages/PDVDisplay"));
-const PrevisaoDemanda = lazyRetry(() => import("./pages/PrevisaoDemanda"));
+
 const RegistroErros = lazyRetry(() => import("./pages/RegistroErros"));
 const DiagnosticoSistema = lazyRetry(() => import("./pages/DiagnosticoSistema"));
 
@@ -451,7 +451,7 @@ function AppRoutes() {
                     } />
                     <Route path="/consulta-dfe" element={<ConsultaDFe />} />
                     
-                    <Route path="/previsao-demanda" element={<PrevisaoDemanda />} />
+                    
                     <Route path="/admin" element={<Admin />} />
                     <Route path="/admin/erros" element={<RegistroErros />} />
                     <Route path="/admin/diagnostico" element={<DiagnosticoSistema />} />
