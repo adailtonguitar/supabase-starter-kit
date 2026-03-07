@@ -4,7 +4,7 @@ import {
   Building2, TrendingUp, AlertTriangle, Stethoscope, FileCheck, ShieldCheck,
 } from "lucide-react";
 
-export type TutorialCategory = "vendas" | "estoque" | "financeiro" | "fiscal" | "cadastros" | "config" | "loja";
+export type TutorialCategory = "vendas" | "estoque" | "financeiro" | "fiscal" | "cadastros" | "config";
 export type TutorialDifficulty = "basico" | "intermediario" | "avancado";
 
 export interface TutorialSection {
