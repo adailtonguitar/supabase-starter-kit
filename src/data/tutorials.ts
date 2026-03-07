@@ -358,6 +358,8 @@ export const tutorials: TutorialSection[] = [
     icon: Stethoscope,
     title: "Diagnóstico Financeiro",
     description: "Análise inteligente da saúde financeira do negócio com recomendações automáticas.",
+    category: "financeiro",
+    difficulty: "avancado",
     videoUrl: "",
     steps: [
       "Acesse 'Financeiro > Diagnóstico' pelo menu lateral.",
