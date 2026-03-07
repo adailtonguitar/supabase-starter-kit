@@ -13,56 +13,66 @@ export function AdminSystemAnalytics() {
   const [expiringCompanies, setExpiringCompanies] = useState(0);
 
   useEffect(() => {
+    const safe = async <T,>(fn: () => Promise<T>, fallback: T): Promise<T> => {
+      try { return await fn(); } catch (e) { console.warn("[AdminSystemAnalytics] query failed:", e); return fallback; }
+    };
+
     const load = async () => {
-      try {
-        const today = new Date().toISOString().slice(0, 10);
-        const monthStart = today.slice(0, 7) + "-01";
-        const threeDaysFromNow = new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10);
+      const today = new Date().toISOString().slice(0, 10);
+      const monthStart = today.slice(0, 7) + "-01";
 
-        // Online users: unique users in action_logs last 30 min
-        const thirtyMinAgo = new Date(Date.now() - 30 * 60000).toISOString();
-        const recentLogs = await adminQuery<{ user_id: string }>({
-          table: "action_logs",
-          select: "user_id",
-          filters: [{ op: "gte", column: "created_at", value: thirtyMinAgo }],
-          limit: 300,
-        });
-        const uniqueUsers = new Set(recentLogs.map((l) => l.user_id).filter(Boolean));
-        setOnlineUsers(uniqueUsers.size);
+      // Online users
+      const recentLogs = await safe(() => adminQuery<{ user_id: string }>({
+        table: "action_logs",
+        select: "user_id",
+        filters: [{ op: "gte", column: "created_at", value: new Date(Date.now() - 30 * 60000).toISOString() }],
+        limit: 300,
+      }), []);
+      setOnlineUsers(new Set(recentLogs.map((l) => l.user_id).filter(Boolean)).size);
 
-        // Active subscriptions count
-        const activeSubs = await adminQuery<{ id: string }>({
-          table: "subscriptions",
-          select: "id",
-          filters: [{ op: "eq", column: "status", value: "active" }],
-          limit: 1000,
-        });
-        setActiveSubscriptions(activeSubs.length);
+      // Active subscriptions
+      const activeSubs = await safe(() => adminQuery<{ id: string }>({
+        table: "subscriptions",
+        select: "id",
+        filters: [{ op: "eq", column: "status", value: "active" }],
+        limit: 1000,
+      }), []);
+      setActiveSubscriptions(activeSubs.length);
 
-        // New companies this month
-        const newCompanies = await adminQuery<{ id: string }>({
-          table: "companies",
-          select: "id",
-          filters: [{ op: "gte", column: "created_at", value: monthStart }],
-          limit: 1000,
-        });
-        setNewCompaniesMonth(newCompanies.length);
+      // New companies this month
+      const newCompanies = await safe(() => adminQuery<{ id: string }>({
+        table: "companies",
+        select: "id",
+        filters: [{ op: "gte", column: "created_at", value: monthStart }],
+        limit: 1000,
+      }), []);
+      setNewCompaniesMonth(newCompanies.length);
 
-        // Expiring subscriptions (ending in 3 days)
-        const expiring = await adminQuery<{ id: string }>({
+      // Expiring - try subscription_end, if fails try current_period_end
+      let expiring = await safe(() => adminQuery<{ id: string }>({
+        table: "subscriptions",
+        select: "id",
+        filters: [
+          { op: "lte", column: "subscription_end", value: new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10) },
+          { op: "gte", column: "subscription_end", value: today },
+          { op: "eq", column: "status", value: "active" },
+        ],
+        limit: 300,
+      }), null as any);
+      if (expiring === null) {
+        expiring = await safe(() => adminQuery<{ id: string }>({
           table: "subscriptions",
           select: "id",
           filters: [
-            { op: "lte", column: "subscription_end", value: threeDaysFromNow },
-            { op: "gte", column: "subscription_end", value: today },
+            { op: "lte", column: "current_period_end", value: new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10) },
+            { op: "gte", column: "current_period_end", value: today },
             { op: "eq", column: "status", value: "active" },
           ],
           limit: 300,
-        });
-        setExpiringCompanies(expiring.length);
-      } catch (err) {
-        console.error("[AdminSystemAnalytics]", err);
+        }), []);
       }
+      setExpiringCompanies(expiring?.length ?? 0);
+
       setLoading(false);
     };
     load();
