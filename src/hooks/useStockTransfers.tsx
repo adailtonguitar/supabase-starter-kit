@@ -235,6 +235,7 @@ export function useReceiveStockTransfer() {
             });
           }
         }
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["stock_transfers"] });
