@@ -154,9 +154,9 @@ export default function Filiais() {
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={() => {
+                  localStorage.setItem("as_selected_company", b.id);
                   switchCompany(b.id);
                   toast.success(`Alternado para: ${b.name}`);
-                  setTimeout(() => window.location.reload(), 500);
                 }}
                 className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-medium transition-all duration-200 ${
                   b.id === companyId
