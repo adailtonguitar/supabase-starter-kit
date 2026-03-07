@@ -178,16 +178,40 @@ export function useReceiveStockTransfer() {
       // Increment stock in destination company
       const items = (transfer as any).stock_transfer_items || [];
       for (const item of items) {
-        // Check if product exists in destination
-        const { data: existingProduct } = await supabase
-          .from("products")
-          .select("id, stock_quantity")
-          .eq("id", item.product_id)
-          .eq("company_id", companyId)
-          .maybeSingle();
+        // Try to find product in destination by SKU first, then by ID
+        let existingProduct: any = null;
+
+        if (item.product_sku) {
+          const { data } = await supabase
+            .from("products")
+            .select("id, stock_quantity")
+            .eq("company_id", companyId)
+            .eq("sku", item.product_sku)
+            .maybeSingle();
+          existingProduct = data;
+        }
+
+        if (!existingProduct) {
+          const { data } = await supabase
+            .from("products")
+            .select("id, stock_quantity")
+            .eq("id", item.product_id)
+            .eq("company_id", companyId)
+            .maybeSingle();
+          existingProduct = data;
+        }
+
+        if (!existingProduct && item.product_name) {
+          const { data } = await supabase
+            .from("products")
+            .select("id, stock_quantity")
+            .eq("company_id", companyId)
+            .eq("name", item.product_name)
+            .maybeSingle();
+          existingProduct = data;
+        }
 
         if (existingProduct) {
-          // Product exists — increment stock
           const newStock = ((existingProduct as any).stock_quantity || 0) + item.quantity;
           await supabase
             .from("products")
@@ -195,7 +219,7 @@ export function useReceiveStockTransfer() {
             .eq("id", (existingProduct as any).id)
             .eq("company_id", companyId);
         } else {
-          // Product doesn't exist in destination — find by SKU/name from origin
+          // Product doesn't exist — clone from origin
           const { data: sourceProduct } = await supabase
             .from("products")
             .select("*")
@@ -211,7 +235,6 @@ export function useReceiveStockTransfer() {
             });
           }
         }
-      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["stock_transfers"] });
