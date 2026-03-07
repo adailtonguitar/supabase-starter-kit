@@ -247,6 +247,8 @@ export const tutorials: TutorialSection[] = [
     icon: Settings,
     title: "Configurações & Terminais",
     description: "Configurações gerais do sistema, dados da empresa, integrações, terminais de venda e instalação do app.",
+    category: "config",
+    difficulty: "intermediario",
     videoUrl: "",
     walkthroughId: "configuracoes",
     steps: [
