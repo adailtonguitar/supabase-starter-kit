@@ -32,7 +32,7 @@ export function useAdminRole() {
           .from("admin_roles")
           .select("role")
           .eq("user_id", user.id)
-          .single();
+          .maybeSingle();
         const isAdmin = data?.role === "super_admin";
         setIsSuperAdmin(isAdmin);
         try { localStorage.setItem(CACHE_KEY, String(isAdmin)); } catch {}
