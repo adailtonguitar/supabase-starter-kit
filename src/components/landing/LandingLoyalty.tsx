@@ -58,7 +58,7 @@ export function LandingLoyalty() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: i * 0.1 }}
-              className="group relative rounded-2xl border border-border bg-card p-7 hover:border-amber-500/30 hover:shadow-xl hover:shadow-amber-500/5 transition-all overflow-hidden"
+              className="group relative rounded-2xl border border-border bg-card p-7 hover:border-amber/30 hover:shadow-xl hover:shadow-amber/5 transition-all overflow-hidden"
             >
               <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${f.color} opacity-50 group-hover:opacity-100 transition-opacity`} />
 
