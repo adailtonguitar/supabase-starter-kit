@@ -1503,7 +1503,7 @@ export default function PDV() {
         <button
           onClick={() => handleHoldSale()}
           disabled={pdv.cartItems.length === 0}
-          className="flex items-center gap-1.5 px-3 py-2.5 rounded-lg bg-amber-900/70 text-amber-50 border border-amber-600/50 text-xs font-bold whitespace-nowrap disabled:opacity-30 active:scale-95 transition-transform"
+          className="flex items-center gap-1.5 px-3 py-2.5 rounded-lg bg-warning/70 text-warning-foreground border border-warning/50 text-xs font-bold whitespace-nowrap disabled:opacity-30 active:scale-95 transition-transform"
         >
           <Pause className="w-3 h-3" /> Suspender
         </button>
