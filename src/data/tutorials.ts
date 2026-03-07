@@ -269,6 +269,8 @@ export const tutorials: TutorialSection[] = [
     title: "Filiais — Gestão Multilojas",
     description: "Gerencie múltiplas lojas (matriz e filiais) com CNPJs independentes, estoques separados e visão consolidada.",
     mode: "pdv",
+    category: "config",
+    difficulty: "avancado",
     videoUrl: "",
     walkthroughId: "filiais",
     steps: [
