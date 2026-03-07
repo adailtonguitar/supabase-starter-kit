@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import { Building2, Plus, ChevronRight, Pencil, ArrowRightLeft, BarChart3, Shield, RefreshCw, GitBranch, Crown } from "lucide-react";
 import { useCnpjLookup } from "@/hooks/useCnpjLookup";
 import { motion, AnimatePresence } from "framer-motion";
