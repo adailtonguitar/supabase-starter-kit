@@ -92,6 +92,8 @@ export const tutorials: TutorialSection[] = [
     icon: Package,
     title: "Estoque",
     description: "Gestão completa de produtos, inventário, curva ABC, lotes, perdas, pedidos de compra, etiquetas e produção.",
+    category: "estoque",
+    difficulty: "intermediario",
     videoUrl: "",
     walkthroughId: "produtos",
     steps: [
