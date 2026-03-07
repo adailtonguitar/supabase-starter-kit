@@ -78,7 +78,7 @@ export function LandingLoyalty() {
           viewport={{ once: true }}
           className="mt-12 text-center"
         >
-          <Button asChild size="lg" variant="outline" className="text-base px-8 h-13 font-semibold border-amber-500/30 text-amber-600 hover:bg-amber-500/5">
+          <Button asChild size="lg" variant="outline" className="text-base px-8 h-13 font-semibold border-amber/30 text-amber hover:bg-amber/5">
             <Link to="/auth">
               Experimentar grátis
               <ArrowRight className="w-4 h-4 ml-2" />

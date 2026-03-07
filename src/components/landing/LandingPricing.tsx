@@ -173,27 +173,27 @@ export function LandingPricing() {
           viewport={{ once: true }}
           className="mt-12 max-w-3xl mx-auto"
         >
-          <div className="relative rounded-2xl border border-cyan-500/30 bg-gradient-to-r from-cyan-500/5 via-card to-cyan-500/5 p-7 flex flex-col sm:flex-row items-center gap-6">
-            <div className="flex-1">
-              <div className="flex items-center gap-2 mb-2">
-                <FileText className="w-5 h-5 text-cyan-500" />
-                <h3 className="text-lg font-bold">Emissor NF-e</h3>
-                <span className="px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-600 text-xs font-bold">
-                  Novo
-                </span>
-              </div>
-              <p className="text-sm text-muted-foreground">
-                Só precisa emitir notas fiscais? Plano exclusivo com emissão ilimitada de NF-e + Consulta DF-e por apenas
-              </p>
-              <div className="flex items-baseline gap-1 mt-2">
-                <span className="text-sm text-muted-foreground font-medium">R$</span>
-                <span className="text-3xl font-black tracking-tight text-cyan-600">99,90</span>
-                <span className="text-sm text-muted-foreground">/mês</span>
-              </div>
-            </div>
-            <Button asChild size="lg" className="bg-cyan-600 hover:bg-cyan-700 text-white font-semibold shadow-lg whitespace-nowrap">
-              <Link to="/emissor">Conhecer Emissor →</Link>
-            </Button>
+           <div className="relative rounded-2xl border border-cyan/30 bg-gradient-to-r from-cyan/5 via-card to-cyan/5 p-7 flex flex-col sm:flex-row items-center gap-6">
+             <div className="flex-1">
+               <div className="flex items-center gap-2 mb-2">
+                 <FileText className="w-5 h-5 text-cyan" />
+                 <h3 className="text-lg font-bold">Emissor NF-e</h3>
+                 <span className="px-2 py-0.5 rounded-full bg-cyan/10 text-cyan text-xs font-bold">
+                   Novo
+                 </span>
+               </div>
+               <p className="text-sm text-muted-foreground">
+                 Só precisa emitir notas fiscais? Plano exclusivo com emissão ilimitada de NF-e + Consulta DF-e por apenas
+               </p>
+               <div className="flex items-baseline gap-1 mt-2">
+                 <span className="text-sm text-muted-foreground font-medium">R$</span>
+                 <span className="text-3xl font-black tracking-tight text-cyan">99,90</span>
+                 <span className="text-sm text-muted-foreground">/mês</span>
+               </div>
+             </div>
+             <Button asChild size="lg" className="bg-cyan hover:bg-cyan/90 text-cyan-foreground font-semibold shadow-lg whitespace-nowrap">
+               <Link to="/emissor">Conhecer Emissor →</Link>
+             </Button>
           </div>
         </motion.div>
 

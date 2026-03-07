@@ -74,12 +74,12 @@ export function ScaleConfigSection() {
               <span className="w-3 h-3 rounded bg-primary/20" />
               <span className="text-muted-foreground">PP = Prefixo</span>
             </div>
-            <div className="flex items-center gap-1.5">
-              <span className="w-3 h-3 rounded bg-blue-500/20" />
-              <span className="text-muted-foreground">P = Código produto</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="w-3 h-3 rounded bg-amber-500/20" />
+             <div className="flex items-center gap-1.5">
+               <span className="w-3 h-3 rounded bg-info/20" />
+               <span className="text-muted-foreground">P = Código produto</span>
+             </div>
+             <div className="flex items-center gap-1.5">
+               <span className="w-3 h-3 rounded bg-warning/20" />
               <span className="text-muted-foreground">V = Peso/Preço</span>
             </div>
             <div className="flex items-center gap-1.5">

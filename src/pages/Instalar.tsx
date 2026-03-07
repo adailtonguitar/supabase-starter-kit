@@ -165,7 +165,7 @@ export default function Instalar() {
                   </div>
                 </div>
 
-                <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3 text-xs text-amber-700 dark:text-amber-400">
+                <div className="bg-warning/10 border border-warning/20 rounded-lg p-3 text-xs text-warning">
                   ⚠️ <strong>Importante:</strong> No iOS, a instalação de apps PWA funciona <strong>apenas pelo Safari</strong>. Outros navegadores (Chrome, Firefox) não suportam essa funcionalidade no iOS.
                 </div>
 
