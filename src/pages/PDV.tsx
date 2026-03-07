@@ -141,6 +141,7 @@ export default function PDV() {
   const cashRegisterDismissedRef = useRef(false);
   const [forceClosedAlert, setForceClosedAlert] = useState(false);
   const [forceClosedSnapshot, setForceClosedSnapshot] = useState<any>(null);
+  const forceClosedRef = useRef(false);
 
   // Load session for current terminal on mount and terminal change
   useEffect(() => {
@@ -182,9 +183,12 @@ export default function PDV() {
             difference: 0,
             closingNotes: s.notes || "",
           });
+          // Use ref for synchronous blocking of auto-open effect
+          forceClosedRef.current = true;
           setShowCashRegister(false);
           setForceClosedAlert(true);
-          pdv.reloadSession(terminalId);
+          // DON'T reload session here — it causes race condition with auto-open
+          // Session will be reloaded when user dismisses the alert
           playErrorSound();
           toast.error("Caixa fechado remotamente pelo gerente!", { duration: 10000 });
         }
@@ -195,6 +199,8 @@ export default function PDV() {
 
   // Auto-open cash register dialog if no session is open (only after first load completes)
   useEffect(() => {
+    // Use ref (synchronous) to prevent race condition with Realtime force-close
+    if (forceClosedRef.current) return;
     if (requireCashSession && pdv.sessionEverLoaded && !pdv.loadingSession && !pdv.currentSession && !showCashRegister && !cashRegisterDismissedRef.current && !forceClosedAlert) {
       setShowCashRegister(true);
     }
