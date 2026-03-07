@@ -27,43 +27,57 @@ export function AdminGlobalLogs() {
 
   const fetchLogs = async () => {
     setLoading(true);
-    let query = supabase
-      .from("action_logs")
-      .select("id, company_id, user_id, action, details, created_at")
-      .order("created_at", { ascending: false })
-      .limit(300);
+    try {
+      const filters: any[] = [];
+      if (actionFilter && actionFilter !== "all") {
+        filters.push({ op: "eq", column: "action", value: actionFilter });
+      }
 
-    if (actionFilter && actionFilter !== "all") {
-      query = query.eq("action", actionFilter);
-    }
+      const { data: logsRes, error: logsErr } = await supabase.functions.invoke("admin-query", {
+        body: {
+          table: "action_logs",
+          select: "id, company_id, user_id, action, details, created_at",
+          filters,
+          order: { column: "created_at", ascending: false },
+          limit: 300,
+        },
+      });
 
-    const { data } = await query;
+      if (logsErr) throw logsErr;
+      const data = logsRes?.data ?? [];
 
-    if (!data || data.length === 0) {
+      if (data.length === 0) {
+        setLogs([]);
+        setLoading(false);
+        return;
+      }
+
+      const companyIds = [...new Set(data.map((l: any) => l.company_id).filter(Boolean))];
+      const { data: companiesRes } = await supabase.functions.invoke("admin-query", {
+        body: {
+          table: "companies",
+          select: "id, name",
+          filters: [{ op: "in", column: "id", value: companyIds }],
+          limit: 500,
+        },
+      });
+
+      const companyMap: Record<string, string> = {};
+      (companiesRes?.data ?? []).forEach((c: any) => { companyMap[c.id] = c.name; });
+
+      const enriched = data.map((l: any) => ({
+        ...l,
+        company_name: companyMap[l.company_id] || l.company_id?.slice(0, 8) || "—",
+      }));
+
+      const uniqueActions = [...new Set(data.map((l: any) => l.action))].sort();
+      setActions(uniqueActions as string[]);
+
+      setLogs(enriched);
+    } catch (err) {
+      console.error("[AdminGlobalLogs] Error:", err);
       setLogs([]);
-      setLoading(false);
-      return;
     }
-
-    const companyIds = [...new Set(data.map((l) => l.company_id).filter(Boolean))];
-    const { data: companies } = await supabase
-      .from("companies")
-      .select("id, name")
-      .in("id", companyIds);
-
-    const companyMap: Record<string, string> = {};
-    (companies ?? []).forEach((c: any) => { companyMap[c.id] = c.name; });
-
-    const enriched = data.map((l) => ({
-      ...l,
-      company_name: companyMap[l.company_id] || l.company_id?.slice(0, 8) || "—",
-    }));
-
-    // Extract unique actions for filter
-    const uniqueActions = [...new Set(data.map((l) => l.action))].sort();
-    setActions(uniqueActions);
-
-    setLogs(enriched);
     setLoading(false);
   };
 
