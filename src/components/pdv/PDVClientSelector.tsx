@@ -337,7 +337,7 @@ export function PDVClientSelector({ open, onClose, onSelect, saleTotal }: PDVCli
                       onChange={(e) => setDownPayment(e.target.value)}
                       placeholder="0,00"
                       autoFocus
-                      className="flex-1 text-center text-xl font-bold font-mono h-12 bg-background border-2 border-border rounded-xl focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 text-foreground"
+                      className="flex-1 text-center text-xl font-bold font-mono h-12 bg-background border-2 border-border rounded-xl focus:outline-none focus:border-success focus:ring-2 focus:ring-success/20 text-foreground"
                     />
                   </div>
                   {/* Quick sinal values */}
