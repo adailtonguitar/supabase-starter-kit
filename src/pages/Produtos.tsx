@@ -179,7 +179,7 @@ export default function Produtos() {
                       <td className="px-3 py-3 text-right font-mono text-muted-foreground whitespace-nowrap">
                         {product.min_stock ?? "—"}
                       </td>
-                      <td className="px-5 py-3">
+                      <td className="px-3 py-3">
                          <div className="flex items-center justify-center gap-0.5">
                           <button onClick={() => setMovementProduct(product)} title="Movimentar estoque" className="p-1.5 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors">
                              <ArrowUpDown className="w-4 h-4" />
