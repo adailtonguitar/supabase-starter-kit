@@ -109,12 +109,12 @@ export function LandingAI() {
             initial={{ opacity: 0, x: -20 }}
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}
-            className="rounded-2xl border border-purple-500/20 bg-gradient-to-br from-purple-500/5 to-pink-500/5 p-7"
-          >
-            <div className="flex items-center gap-2 mb-4">
-              <Sparkles className="w-5 h-5 text-purple-500" />
-              <span className="font-bold text-base">Insight IA — Dashboard</span>
-              <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 font-semibold">Todos os planos</span>
+             className="rounded-2xl border border-purple/20 bg-gradient-to-br from-purple/5 to-pink/5 p-7"
+           >
+             <div className="flex items-center gap-2 mb-4">
+               <Sparkles className="w-5 h-5 text-purple" />
+               <span className="font-bold text-base">Insight IA — Dashboard</span>
+               <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-success/15 text-success font-semibold">Todos os planos</span>
             </div>
             <div className="bg-background/60 rounded-xl p-4 border border-border">
               <p className="text-sm text-muted-foreground italic leading-relaxed">
