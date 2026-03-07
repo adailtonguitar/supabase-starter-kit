@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,8 +7,9 @@ import { toast } from "sonner";
 import { usePlanFeatures } from "@/hooks/usePlanFeatures";
 import { useAdminRole } from "@/hooks/useAdminRole";
 import { useCompany } from "@/hooks/useCompany";
+import { useBranches } from "@/hooks/useBranches";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, UserPlus, Eye, EyeOff, Copy, Check } from "lucide-react";
+import { Loader2, UserPlus, Eye, EyeOff, Copy, Check, Building2 } from "lucide-react";
 
 interface Props {
   open: boolean;
@@ -28,13 +29,21 @@ export function InviteUserDialog({ open, onOpenChange }: Props) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState<CompanyRole>("caixa");
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [createdUser, setCreatedUser] = useState<{ email: string; password: string } | null>(null);
+  const [createdUser, setCreatedUser] = useState<{ email: string; password: string; companyName: string } | null>(null);
   const plan = usePlanFeatures();
   const { isSuperAdmin } = useAdminRole();
   const { companyId } = useCompany();
+  const { data: branches } = useBranches();
+
+  useEffect(() => {
+    if (open && companyId && !selectedCompanyId) {
+      setSelectedCompanyId(companyId);
+    }
+  }, [open, companyId]);
 
   const generatePassword = () => {
     const chars = "abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789!@#";
@@ -53,7 +62,8 @@ export function InviteUserDialog({ open, onOpenChange }: Props) {
   const handleCreate = async () => {
     if (!email.trim()) { toast.warning("Informe o email"); return; }
     if (!password.trim() || password.length < 6) { toast.warning("A senha deve ter pelo menos 6 caracteres"); return; }
-    if (!companyId) { toast.error("Empresa não identificada"); return; }
+    const targetCompanyId = selectedCompanyId || companyId;
+    if (!targetCompanyId) { toast.error("Empresa não identificada"); return; }
 
     if (!isSuperAdmin) {
       try {
@@ -76,7 +86,7 @@ export function InviteUserDialog({ open, onOpenChange }: Props) {
           password: password.trim(),
           full_name: name.trim() || email.split("@")[0],
           role,
-          company_id: companyId,
+          company_id: targetCompanyId,
         },
       });
 
@@ -86,8 +96,13 @@ export function InviteUserDialog({ open, onOpenChange }: Props) {
       if (result.error) {
         toast.error(result.error);
       } else {
+        const targetBranch = branches?.find(b => b.id === targetCompanyId);
         toast.success("Usuário criado com sucesso!");
-        setCreatedUser({ email: email.trim(), password: password.trim() });
+        setCreatedUser({
+          email: email.trim(),
+          password: password.trim(),
+          companyName: targetBranch?.name || "Empresa",
+        });
       }
     } catch (err: any) {
       toast.error(err.message || "Erro ao criar usuário");
@@ -102,11 +117,14 @@ export function InviteUserDialog({ open, onOpenChange }: Props) {
       setEmail("");
       setPassword("");
       setRole("caixa");
+      setSelectedCompanyId("");
       setCreatedUser(null);
       setCopied(false);
     }
     onOpenChange(v);
   };
+
+  const hasBranches = branches && branches.length > 1;
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -122,7 +140,10 @@ export function InviteUserDialog({ open, onOpenChange }: Props) {
           <div className="space-y-4">
             <div className="bg-success/10 border border-success/30 rounded-xl p-4 text-center">
               <p className="text-sm font-semibold text-success mb-1">✅ Usuário criado com sucesso!</p>
-              <p className="text-xs text-muted-foreground">Envie as credenciais abaixo para o funcionário</p>
+              <p className="text-xs text-muted-foreground">
+                Vinculado a: <strong>{createdUser.companyName}</strong>
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">Envie as credenciais abaixo para o funcionário</p>
             </div>
             <div className="bg-muted/50 rounded-xl p-4 space-y-2 font-mono text-sm">
               <div className="flex justify-between items-center">
@@ -144,22 +165,35 @@ export function InviteUserDialog({ open, onOpenChange }: Props) {
           </div>
         ) : (
           <div className="space-y-4">
+            {hasBranches && (
+              <div>
+                <Label className="flex items-center gap-1.5">
+                  <Building2 className="w-4 h-4" />
+                  Vincular à empresa
+                </Label>
+                <select
+                  value={selectedCompanyId}
+                  onChange={(e) => setSelectedCompanyId(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg bg-background border border-border text-foreground text-sm mt-1"
+                >
+                  {branches.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.name} {b.is_parent ? "(Matriz)" : "(Filial)"}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-muted-foreground mt-1">
+                  O usuário verá apenas os dados da empresa selecionada.
+                </p>
+              </div>
+            )}
             <div>
               <Label>Nome do funcionário</Label>
-              <Input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="João Silva"
-              />
+              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="João Silva" />
             </div>
             <div>
               <Label>Email</Label>
-              <Input
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="funcionario@email.com"
-                type="email"
-              />
+              <Input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="funcionario@email.com" type="email" />
             </div>
             <div>
               <Label>Senha temporária</Label>
