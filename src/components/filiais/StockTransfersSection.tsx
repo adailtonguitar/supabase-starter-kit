@@ -99,15 +99,21 @@ export default function StockTransfersSection() {
         <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
           <ArrowRightLeft className="w-4 h-4 text-primary" /> Transferências de Estoque
         </h3>
-        <motion.button
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.97 }}
-          onClick={() => setDialogOpen(true)}
-          disabled={otherBranches.length === 0}
-          className="flex items-center gap-1.5 px-4 py-2.5 bg-primary text-primary-foreground rounded-xl text-xs font-medium shadow-lg shadow-primary/20 hover:shadow-xl transition-shadow disabled:opacity-50"
-        >
-          <Plus className="w-3.5 h-3.5" /> Nova Transferência
-        </motion.button>
+        {canSend ? (
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.97 }}
+            onClick={() => setDialogOpen(true)}
+            disabled={otherBranches.length === 0}
+            className="flex items-center gap-1.5 px-4 py-2.5 bg-primary text-primary-foreground rounded-xl text-xs font-medium shadow-lg shadow-primary/20 hover:shadow-xl transition-shadow disabled:opacity-50"
+          >
+            <Plus className="w-3.5 h-3.5" /> Nova Transferência
+          </motion.button>
+        ) : (
+          <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <ShieldAlert className="w-3.5 h-3.5" /> Somente visualização
+          </span>
+        )}
       </div>
 
       {otherBranches.length === 0 && (
