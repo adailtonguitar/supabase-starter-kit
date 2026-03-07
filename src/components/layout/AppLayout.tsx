@@ -17,10 +17,10 @@ export const AppLayout = memo(function AppLayout({ children }: AppLayoutProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
    return (
-    <div className="flex h-full w-full">
+    <div className="flex h-full w-full max-w-full overflow-hidden">
       
       <AppSidebar mobileOpen={mobileOpen} onMobileClose={() => setMobileOpen(false)} />
-      <div className="flex-1 flex flex-col min-w-0 min-h-0">
+      <div className="flex-1 flex flex-col min-w-0 min-h-0 max-w-full">
         <UpdateNoticeModal />
         <OnlineStatusIndicator />
         <DemoBanner />
