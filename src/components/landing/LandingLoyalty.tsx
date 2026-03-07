@@ -8,23 +8,23 @@ const loyaltyFeatures = [
     icon: Gift,
     title: "Programa de Fidelidade",
     desc: "Clientes acumulam pontos a cada compra e trocam por descontos ou produtos. Retenção automática sem esforço.",
-    color: "from-amber-600 to-yellow-500",
-    iconBg: "bg-amber-500/15 text-amber-600",
-  },
-  {
-    icon: Tag,
-    title: "Promoções Automáticas",
-    desc: "Crie promoções por período, categoria ou produto. Desconto aplicado automaticamente no PDV sem erros manuais.",
-    color: "from-orange-600 to-amber-500",
-    iconBg: "bg-orange-500/15 text-orange-500",
-  },
-  {
-    icon: CreditCard,
-    title: "Sistema de Fiado",
-    desc: "Controle de crédito por cliente com limite, parcelas e cobrança. Ideal para mercearias e comércios de bairro.",
-    color: "from-blue-600 to-cyan-500",
-    iconBg: "bg-blue-500/15 text-blue-500",
-  },
+     color: "from-amber to-warning",
+     iconBg: "bg-amber/15 text-amber",
+   },
+   {
+     icon: Tag,
+     title: "Promoções Automáticas",
+     desc: "Crie promoções por período, categoria ou produto. Desconto aplicado automaticamente no PDV sem erros manuais.",
+     color: "from-orange to-amber",
+     iconBg: "bg-orange/15 text-orange",
+   },
+   {
+     icon: CreditCard,
+     title: "Sistema de Fiado",
+     desc: "Controle de crédito por cliente com limite, parcelas e cobrança. Ideal para mercearias e comércios de bairro.",
+     color: "from-info to-cyan",
+     iconBg: "bg-info/15 text-info",
+   },
 ];
 
 export function LandingLoyalty() {
