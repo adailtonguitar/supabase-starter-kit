@@ -123,12 +123,27 @@ export function useCreateStockTransfer() {
           .single();
 
         if (product) {
-          const newStock = Math.max(0, (product as any).stock_quantity - item.quantity);
+          const previousStock = (product as any).stock_quantity;
+          const newStock = Math.max(0, previousStock - item.quantity);
           await supabase
             .from("products")
             .update({ stock_quantity: newStock } as any)
             .eq("id", item.product_id)
             .eq("company_id", input.from_company_id);
+
+          // Register stock movement (saída)
+          await supabase.from("stock_movements" as any).insert({
+            company_id: input.from_company_id,
+            product_id: item.product_id,
+            type: "saida",
+            quantity: item.quantity,
+            previous_stock: previousStock,
+            new_stock: newStock,
+            unit_cost: item.unit_cost || 0,
+            reason: `Transferência para filial`,
+            reference: (transfer as any).id,
+            performed_by: user.id,
+          });
         }
       }
 
@@ -212,12 +227,27 @@ export function useReceiveStockTransfer() {
         }
 
         if (existingProduct) {
-          const newStock = ((existingProduct as any).stock_quantity || 0) + item.quantity;
+          const previousStock = (existingProduct as any).stock_quantity || 0;
+          const newStock = previousStock + item.quantity;
           await supabase
             .from("products")
             .update({ stock_quantity: newStock } as any)
             .eq("id", (existingProduct as any).id)
             .eq("company_id", companyId);
+
+          // Register stock movement
+          await supabase.from("stock_movements" as any).insert({
+            company_id: companyId,
+            product_id: (existingProduct as any).id,
+            type: "entrada",
+            quantity: item.quantity,
+            previous_stock: previousStock,
+            new_stock: newStock,
+            unit_cost: item.unit_cost || 0,
+            reason: `Transferência recebida #${transferId.slice(0, 8)}`,
+            reference: transferId,
+            performed_by: user.id,
+          });
         } else {
           // Product doesn't exist — clone from origin
           const { data: sourceProduct } = await supabase
@@ -228,11 +258,26 @@ export function useReceiveStockTransfer() {
 
           if (sourceProduct) {
             const { id, created_at, updated_at, company_id, ...rest } = sourceProduct as any;
-            await supabase.from("products").insert({
+            const { data: newProduct } = await supabase.from("products").insert({
               ...rest,
               company_id: companyId,
               stock_quantity: item.quantity,
-            });
+            }).select("id").single();
+
+            if (newProduct) {
+              await supabase.from("stock_movements" as any).insert({
+                company_id: companyId,
+                product_id: (newProduct as any).id,
+                type: "entrada",
+                quantity: item.quantity,
+                previous_stock: 0,
+                new_stock: item.quantity,
+                unit_cost: item.unit_cost || 0,
+                reason: `Transferência recebida #${transferId.slice(0, 8)} (produto criado)`,
+                reference: transferId,
+                performed_by: user.id,
+              });
+            }
           }
         }
       }
