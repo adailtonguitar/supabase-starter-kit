@@ -645,7 +645,7 @@ export const ProductFormDialog = forwardRef<HTMLDivElement, Props>(function Prod
                     {ncmIssues.warnings.length > 0 && (
                       <div className="mt-1 space-y-1">
                         {ncmIssues.warnings.map((issue, i) => (
-                          <div key={i} className="flex items-start gap-1.5 text-xs text-amber-600 dark:text-amber-400 bg-amber-500/10 rounded px-2 py-1.5">
+                          <div key={i} className="flex items-start gap-1.5 text-xs text-warning bg-warning/10 rounded px-2 py-1.5">
                             <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
                             <span>{issue.message}</span>
                           </div>
