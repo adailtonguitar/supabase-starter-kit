@@ -320,6 +320,8 @@ export const tutorials: TutorialSection[] = [
     icon: TrendingUp,
     title: "Painel do Dono",
     description: "Visão executiva do negócio com indicadores-chave para o proprietário acompanhar a saúde da empresa.",
+    category: "financeiro",
+    difficulty: "basico",
     videoUrl: "",
     steps: [
       "Acesse 'Painel do Dono' pelo menu lateral.",
