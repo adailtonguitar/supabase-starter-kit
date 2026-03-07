@@ -499,6 +499,8 @@ export const tutorials: TutorialSection[] = [
     title: "Catálogo de Móveis & Eletro",
     description: "Catálogo visual com ficha técnica, QR Code de showroom, compartilhamento via WhatsApp e simulador de parcelas.",
     mode: "loja",
+    category: "loja",
+    difficulty: "basico",
     steps: [
       "Acesse 'Catálogo' no menu do Modo Loja.",
       "Visualize todos os produtos com fotos, dimensões e ficha técnica.",
