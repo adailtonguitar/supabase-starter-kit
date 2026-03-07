@@ -252,6 +252,13 @@ export default function Auth() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Client-side rate limiting
+    if (isLocked) {
+      toast.error(`Muitas tentativas. Aguarde ${lockCountdown}s antes de tentar novamente.`);
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -262,13 +269,38 @@ export default function Auth() {
       }
       sessionStorage.removeItem("needs-password-setup");
       const { data: signInData, error } = await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password });
-      // signIn completed
       if (error) throw error;
+
+      // Success — reset attempts
+      setFailedAttempts(0);
+      setLockedUntil(null);
       toast.success("Login realizado com sucesso!");
       navigate("/");
     } catch (error: any) {
-      const msg = translateAuthError(error.message || "Erro ao fazer login");
-      toast.error(msg);
+      const newAttempts = failedAttempts + 1;
+      setFailedAttempts(newAttempts);
+
+      // Log failed attempt (fire-and-forget)
+      supabase
+        .from("system_errors" as any)
+        .insert({
+          error_type: "auth_failed_login",
+          message: `Tentativa ${newAttempts} falha para ${email.trim().toLowerCase()}`,
+          details: { email: email.trim().toLowerCase(), attempt: newAttempts, user_agent: navigator.userAgent },
+          severity: newAttempts >= MAX_ATTEMPTS ? "high" : "medium",
+        })
+        .then(() => {});
+
+      // Lock after MAX_ATTEMPTS
+      if (newAttempts >= MAX_ATTEMPTS) {
+        const lockTime = Date.now() + LOCKOUT_DURATION;
+        setLockedUntil(lockTime);
+        toast.error(`Conta bloqueada temporariamente. Tente novamente em ${LOCKOUT_DURATION / 1000}s.`);
+      } else {
+        const remaining = MAX_ATTEMPTS - newAttempts;
+        const msg = translateAuthError(error.message || "Erro ao fazer login");
+        toast.error(`${msg} (${remaining} tentativa${remaining > 1 ? "s" : ""} restante${remaining > 1 ? "s" : ""})`);
+      }
     } finally {
       setLoading(false);
     }
