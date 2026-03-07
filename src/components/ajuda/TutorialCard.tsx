@@ -1,9 +1,10 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronDown, ChevronRight, Play, CheckCircle2 } from "lucide-react";
+import { ChevronDown, ChevronRight, Play, CheckCircle2, MapPin } from "lucide-react";
 import { TutorialVideoPlayer } from "./TutorialVideoPlayer";
 import { DifficultyBadge } from "./DifficultyBadge";
 import { useWalkthrough } from "@/hooks/useWalkthrough";
 import type { TutorialSection } from "@/data/tutorials";
+import type { SearchMatch } from "@/pages/Ajuda";
 
 interface TutorialCardProps {
   section: TutorialSection;
@@ -11,9 +12,24 @@ interface TutorialCardProps {
   onToggle: () => void;
   isRead: boolean;
   onMarkRead: () => void;
+  searchMatches?: SearchMatch[];
+  searchQuery?: string;
 }
 
-export function TutorialCard({ section, isOpen, onToggle, isRead, onMarkRead }: TutorialCardProps) {
+function HighlightText({ text, query }: { text: string; query?: string }) {
+  if (!query) return <>{text}</>;
+  const idx = text.toLowerCase().indexOf(query.toLowerCase());
+  if (idx === -1) return <>{text}</>;
+  return (
+    <>
+      {text.slice(0, idx)}
+      <mark className="bg-primary/25 text-foreground rounded px-0.5">{text.slice(idx, idx + query.length)}</mark>
+      {text.slice(idx + query.length)}
+    </>
+  );
+}
+
+export function TutorialCard({ section, isOpen, onToggle, isRead, onMarkRead, searchMatches = [], searchQuery }: TutorialCardProps) {
   const Icon = section.icon;
   const { startTour } = useWalkthrough();
 
@@ -33,11 +49,29 @@ export function TutorialCard({ section, isOpen, onToggle, isRead, onMarkRead }: 
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <h3 className="font-semibold text-foreground text-sm">{section.title}</h3>
+            <h3 className="font-semibold text-foreground text-sm">
+              <HighlightText text={section.title} query={searchQuery} />
+            </h3>
             <DifficultyBadge difficulty={section.difficulty} />
             {isRead && <CheckCircle2 className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />}
           </div>
-          <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{section.description}</p>
+          <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
+            <HighlightText text={section.description} query={searchQuery} />
+          </p>
+          {/* Search match indicators */}
+          {searchMatches.length > 0 && !isOpen && (
+            <div className="flex flex-wrap gap-1 mt-1.5">
+              {searchMatches.slice(0, 4).map((match, i) => (
+                <span key={i} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary/10 text-primary text-[10px] font-medium">
+                  <MapPin className="w-2.5 h-2.5" />
+                  {match.location}
+                </span>
+              ))}
+              {searchMatches.length > 4 && (
+                <span className="text-[10px] text-muted-foreground">+{searchMatches.length - 4} mais</span>
+              )}
+            </div>
+          )}
         </div>
         {isOpen ? (
           <ChevronDown className="w-5 h-5 text-muted-foreground flex-shrink-0" />
@@ -56,6 +90,22 @@ export function TutorialCard({ section, isOpen, onToggle, isRead, onMarkRead }: 
             className="overflow-hidden"
           >
             <div className="px-5 pb-5 space-y-4 border-t border-border pt-4">
+              {/* Search matches summary */}
+              {searchMatches.length > 0 && (
+                <div className="p-3 rounded-lg bg-primary/5 border border-primary/15 space-y-1.5">
+                  <h4 className="text-xs font-semibold text-primary flex items-center gap-1.5">
+                    <MapPin className="w-3.5 h-3.5" />
+                    Encontrado em {searchMatches.length} {searchMatches.length === 1 ? "local" : "locais"}
+                  </h4>
+                  {searchMatches.map((match, i) => (
+                    <div key={i} className="text-xs text-muted-foreground">
+                      <span className="font-semibold text-foreground">{match.location}:</span>{" "}
+                      <HighlightText text={match.text} query={searchQuery} />
+                    </div>
+                  ))}
+                </div>
+              )}
+
               {/* Tour interativo */}
               {section.walkthroughId && (
                 <button
@@ -83,7 +133,9 @@ export function TutorialCard({ section, isOpen, onToggle, isRead, onMarkRead }: 
                       <span className="w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">
                         {i + 1}
                       </span>
-                      <span className="text-foreground/90">{step}</span>
+                      <span className="text-foreground/90">
+                        <HighlightText text={step} query={searchQuery} />
+                      </span>
                     </li>
                   ))}
                 </ol>
@@ -99,7 +151,7 @@ export function TutorialCard({ section, isOpen, onToggle, isRead, onMarkRead }: 
                     {section.tips.map((tip, i) => (
                       <li key={i} className="flex gap-2 text-sm text-muted-foreground">
                         <span className="text-primary">•</span>
-                        {tip}
+                        <HighlightText text={tip} query={searchQuery} />
                       </li>
                     ))}
                   </ul>
@@ -118,7 +170,9 @@ export function TutorialCard({ section, isOpen, onToggle, isRead, onMarkRead }: 
                         <kbd className="px-2 py-1 rounded bg-muted text-foreground font-mono text-xs border border-border">
                           {sc.key}
                         </kbd>
-                        <span className="text-muted-foreground text-xs">{sc.action}</span>
+                        <span className="text-muted-foreground text-xs">
+                          <HighlightText text={sc.action} query={searchQuery} />
+                        </span>
                       </div>
                     ))}
                   </div>
@@ -138,7 +192,9 @@ export function TutorialCard({ section, isOpen, onToggle, isRead, onMarkRead }: 
                         <span className="w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">
                           {i + 1}
                         </span>
-                        <span className="text-foreground/90">{step}</span>
+                        <span className="text-foreground/90">
+                          <HighlightText text={step} query={searchQuery} />
+                        </span>
                       </li>
                     ))}
                   </ol>
