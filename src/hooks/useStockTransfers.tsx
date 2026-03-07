@@ -185,6 +185,14 @@ export function useReceiveStockTransfer() {
       if (fetchErr) throw fetchErr;
       if ((transfer as any).to_company_id !== companyId) throw new Error("Transferência não pertence a esta empresa");
 
+      // Fetch origin company name for movement reason
+      const { data: originCompany } = await supabase
+        .from("companies")
+        .select("name")
+        .eq("id", (transfer as any).from_company_id)
+        .single();
+      const originName = (originCompany as any)?.name || "matriz";
+
       // Update transfer status
       const { error } = await supabase
         .from("stock_transfers" as any)
