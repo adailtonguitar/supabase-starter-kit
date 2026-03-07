@@ -416,17 +416,29 @@ export default function FiscalConfigEdit() {
       {/* Doc type configs */}
       {configs.map((config, idx) => (
         <motion.div key={config.docType} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: (idx + 1) * 0.1 }}
-          className="bg-card rounded-xl card-shadow border border-border overflow-hidden">
-          <div className="px-5 py-4 border-b border-border flex items-center justify-between">
+          className={`bg-card rounded-xl card-shadow border overflow-hidden ${config.docType === "nfce" ? "border-primary/50 ring-2 ring-primary/20" : "border-border"}`}>
+          <div className={`px-5 py-4 border-b flex items-center justify-between ${config.docType === "nfce" ? "border-primary/30 bg-primary/5" : "border-border"}`}>
             <div className="flex items-center gap-2">
               {config.docType === "sat" ? <Cpu className="w-4 h-4 text-primary" /> : <Settings2 className="w-4 h-4 text-primary" />}
               <h2 className="text-base font-semibold text-foreground">{config.label}</h2>
               {config.id && <span className="px-2 py-0.5 rounded-full bg-success/10 text-success text-[10px] font-semibold uppercase">Salvo</span>}
+              {config.docType === "nfce" && (
+                <span className="px-2 py-0.5 rounded-full bg-primary/15 text-primary text-[10px] font-bold uppercase animate-pulse">
+                  ← Ative aqui para emitir NFC-e
+                </span>
+              )}
             </div>
-            <button onClick={() => updateConfig(idx, { isActive: !config.isActive })}
-              className={`w-11 h-6 rounded-full relative transition-colors ${config.isActive ? "bg-primary" : "bg-muted"}`}>
-              <span className={`w-5 h-5 bg-primary-foreground rounded-full absolute top-0.5 transition-all ${config.isActive ? "right-0.5" : "left-0.5"}`} />
-            </button>
+            <div className="flex items-center gap-2">
+              {config.docType === "nfce" && (
+                <span className="text-[10px] text-muted-foreground font-medium hidden sm:inline">
+                  {config.isActive ? "Ativado ✅" : "Desativado"}
+                </span>
+              )}
+              <button onClick={() => updateConfig(idx, { isActive: !config.isActive })}
+                className={`w-11 h-6 rounded-full relative transition-colors ${config.isActive ? "bg-primary" : "bg-muted"} ${config.docType === "nfce" && !config.isActive ? "ring-2 ring-primary/40 animate-pulse" : ""}`}>
+                <span className={`w-5 h-5 bg-primary-foreground rounded-full absolute top-0.5 transition-all ${config.isActive ? "right-0.5" : "left-0.5"}`} />
+              </button>
+            </div>
           </div>
 
           {config.isActive && (
