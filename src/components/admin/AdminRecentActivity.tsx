@@ -46,14 +46,14 @@ export function AdminRecentActivity() {
         );
 
         // Recent users
-        const users = await adminQuery<{ id: string; email: string; created_at: string }>({
+        const users = await adminQuery<{ id: string; user_id: string; created_at: string }>({
           table: "company_users",
-          select: "id,email,created_at",
+          select: "id,user_id,created_at",
           order: { column: "created_at", ascending: false },
           limit: 5,
         });
         users.forEach((u) =>
-          activities.push({ id: `u-${u.id}`, type: "user", message: `Novo usuário: ${u.email}`, date: u.created_at })
+          activities.push({ id: `u-${u.id}`, type: "user", message: `Novo usuário registrado`, date: u.created_at })
         );
 
         // Recent errors

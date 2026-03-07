@@ -31,10 +31,10 @@ export function AdminSystemAnalytics() {
         const uniqueUsers = new Set(recentLogs.map((l) => l.user_id).filter(Boolean));
         setOnlineUsers(uniqueUsers.size);
 
-        // Revenue today & month from subscriptions/company_plans
-        const plans = await adminQuery<{ amount: number; created_at: string }>({
-          table: "company_plans",
-          select: "amount,created_at",
+        // Revenue today & month from plan_subscriptions
+        const plans = await adminQuery<{ price: number; created_at: string }>({
+          table: "plan_subscriptions",
+          select: "price,created_at",
           filters: [{ op: "gte", column: "created_at", value: monthStart }],
           limit: 1000,
         });
@@ -42,7 +42,7 @@ export function AdminSystemAnalytics() {
         let todaySum = 0;
         let monthSum = 0;
         for (const p of plans) {
-          const val = Number(p.amount) || 0;
+          const val = Number(p.price) || 0;
           monthSum += val;
           if (p.created_at?.startsWith(today)) todaySum += val;
         }
