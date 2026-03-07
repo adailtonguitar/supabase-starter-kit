@@ -14,7 +14,7 @@ const categories: { value: TutorialCategory | "todos"; label: string }[] = [
   { value: "fiscal", label: "Fiscal" },
   { value: "cadastros", label: "Cadastros" },
   { value: "config", label: "Config" },
-  { value: "loja", label: "Modo Loja" },
+  
 ];
 
 function getReadTutorials(): Set<string> {
