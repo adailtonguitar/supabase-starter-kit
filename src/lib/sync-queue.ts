@@ -101,11 +101,47 @@ export async function handleFailure(id: string, error: string): Promise<void> {
         item.last_attempt_at = new Date().toISOString();
         item.retry_count++;
         item.error = error;
+        // Keep as "failed" but getPending() now picks up failed items too
         item.status = item.retry_count >= item.max_retries ? "failed" : "pending";
         store.put(item);
       }
     };
     tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+/** Get all failed items with their error messages */
+export async function getFailedItems(): Promise<SyncQueueItem[]> {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_QUEUE, "readonly");
+    const index = tx.objectStore(STORE_QUEUE).index("status");
+    const request = index.getAll(IDBKeyRange.only("failed"));
+    request.onsuccess = () => resolve(request.result as SyncQueueItem[]);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+/** Reset all failed items back to pending for retry */
+export async function resetFailed(): Promise<number> {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_QUEUE, "readwrite");
+    const store = tx.objectStore(STORE_QUEUE);
+    const index = store.index("status");
+    const request = index.getAll(IDBKeyRange.only("failed"));
+    let count = 0;
+    request.onsuccess = () => {
+      for (const item of request.result as SyncQueueItem[]) {
+        item.status = "pending";
+        item.retry_count = 0;
+        item.error = undefined;
+        store.put(item);
+        count++;
+      }
+    };
+    tx.oncomplete = () => resolve(count);
     tx.onerror = () => reject(tx.error);
   });
 }
