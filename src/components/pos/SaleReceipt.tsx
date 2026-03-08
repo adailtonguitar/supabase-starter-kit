@@ -212,7 +212,13 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
     // Calculate subtotal and total discount
     let subtotal = 0;
     let totalDiscount = 0;
-    const itemsHtml = (items || []).map((item: any, idx: number) => {
+    // Filter out DIAG_TEST products from fiscal receipt too
+    const printableItems = (items || []).filter((item: any) => {
+      const name = (item.name || "").toUpperCase();
+      return !name.startsWith("DIAG_TEST") && !item.isTest;
+    });
+
+    const itemsHtml = printableItems.map((item: any, idx: number) => {
       const qty = item.quantity || 1;
       const unitPrice = item.price || 0;
       const totalItem = qty * unitPrice;
