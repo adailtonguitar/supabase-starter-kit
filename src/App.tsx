@@ -103,6 +103,7 @@ const PDVCustomerDisplayPage = lazyRetry(() => import("./pages/PDVDisplay"));
 
 const RegistroErros = lazyRetry(() => import("./pages/RegistroErros"));
 const DiagnosticoSistema = lazyRetry(() => import("./pages/DiagnosticoSistema"));
+const Assistente = lazyRetry(() => import("./pages/Assistente"));
 
 
 const queryClient = new QueryClient({
