@@ -94,7 +94,7 @@ export default function Promocoes() {
         buy_quantity: promoType === "leve_x_pague_y" ? buyQty : 1,
         pay_quantity: promoType === "leve_x_pague_y" ? payQty : 1,
         scope,
-        category_name: scope === "category" ? categoryName.trim() : null,
+        ...(scope === "category" && categoryName.trim() ? { category_name: categoryName.trim() } : {}),
         min_quantity: promoType !== "leve_x_pague_y" ? minQty : 1,
         starts_at: new Date(startsAt).toISOString(),
         product_ids: scope === "product" ? selectedProducts : [],
