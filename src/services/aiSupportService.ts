@@ -437,9 +437,10 @@ function normalize(text: string): string {
 
 function findBestMatch(input: string): string | null {
   const normalizedInput = normalize(input);
-  const inputWords = normalizedInput.split(/\s+/);
+  const inputWords = normalizedInput.split(/\s+/).filter(w => w.length >= 3);
 
-  // Score each entry
+  if (inputWords.length === 0) return null;
+
   let bestEntry: KnowledgeEntry | null = null;
   let bestScore = 0;
 
@@ -455,19 +456,22 @@ function findBestMatch(input: string): string | null {
         continue;
       }
 
-      // Word-level matching
-      const kwWords = normalizedKeyword.split(/\s+/);
+      // Word-level matching — only exact word matches (no substring)
+      const kwWords = normalizedKeyword.split(/\s+/).filter(w => w.length >= 3);
+      if (kwWords.length === 0) continue;
+
       let wordMatches = 0;
       for (const kw of kwWords) {
-        // Check if any input word contains this keyword word (or vice versa)
-        if (inputWords.some((iw) => iw.includes(kw) || kw.includes(iw))) {
+        if (inputWords.some((iw) => iw === kw)) {
           wordMatches++;
         }
       }
 
-      // Score: percentage of keyword words matched
       if (wordMatches > 0) {
-        const score = (wordMatches / kwWords.length) * 80;
+        // Require at least 50% of keyword words to match for multi-word keywords
+        const ratio = wordMatches / kwWords.length;
+        if (kwWords.length >= 2 && ratio < 0.5) continue;
+        const score = ratio * 80;
         entryScore = Math.max(entryScore, score);
       }
     }
@@ -478,32 +482,9 @@ function findBestMatch(input: string): string | null {
     }
   }
 
-  // Threshold: at least one meaningful word matched (score >= 40)
-  if (bestEntry && bestScore >= 40) {
+  // Require score >= 60 for a confident match
+  if (bestEntry && bestScore >= 60) {
     return bestEntry.answer;
-  }
-
-  // Last resort: check if ANY single important word from any keyword appears
-  const importantWords = new Set<string>();
-  const wordToEntry = new Map<string, KnowledgeEntry>();
-  for (const entry of knowledgeBase) {
-    for (const keyword of entry.keywords) {
-      for (const w of normalize(keyword).split(/\s+/)) {
-        if (w.length >= 4) { // only words with 4+ chars
-          importantWords.add(w);
-          wordToEntry.set(w, entry);
-        }
-      }
-    }
-  }
-
-  for (const iw of inputWords) {
-    if (iw.length < 3) continue;
-    for (const important of importantWords) {
-      if (important.includes(iw) || iw.includes(important)) {
-        return wordToEntry.get(important)!.answer;
-      }
-    }
   }
 
   return null;
