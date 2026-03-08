@@ -201,9 +201,30 @@ export function usePDV() {
     return sum + item.price * (1 - discount / 100) * item.quantity;
   }, 0);
 
+  // --- Promotions engine ---
+  const [activePromos, setActivePromos] = useState<any[]>([]);
+
+  const loadPromotions = useCallback(async () => {
+    if (!companyId) return;
+    try {
+      const { data } = await supabase
+        .from("promotions")
+        .select("*")
+        .eq("company_id", companyId)
+        .eq("is_active", true);
+      setActivePromos(data || []);
+    } catch {}
+  }, [companyId]);
+
+  useEffect(() => { loadPromotions(); }, [loadPromotions]);
+
+  const { matches: promoMatches, totalSavings: promoSavings } = useMemo(
+    () => calculateCartPromos(cartItems, activePromos),
+    [cartItems, activePromos]
+  );
+
   const globalDiscountValue = subtotal * (globalDiscountPercent / 100);
-  const total = subtotal - globalDiscountValue;
-  const promoSavings = 0;
+  const total = subtotal - globalDiscountValue - promoSavings;
 
   const handleBarcodeScan = useCallback((barcode: string) => {
     // Check for scale barcode (EAN-13 prefix 20-29)
