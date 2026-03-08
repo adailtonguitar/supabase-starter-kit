@@ -596,12 +596,14 @@ export function usePDV() {
       // Online sale failed, entering contingency mode
       setContingencyMode(true);
 
-      // Get user_id for contingency
+      // Get user_id for contingency — skip network calls if offline
       let userId = "";
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        userId = user?.id || "";
-      } catch { /* offline */ }
+      if (navigator.onLine) {
+        try {
+          const { data: { user } } = await supabase.auth.getUser();
+          userId = user?.id || "";
+        } catch { /* offline */ }
+      }
 
       const saleItems = cartItems.map(item => ({
         product_id: item.id,
@@ -620,36 +622,40 @@ export function usePDV() {
         let serie = 1;
         let emitente: { cnpj: string; name: string; ie: string; uf: string; crt: number } | undefined;
         let environment: "homologacao" | "producao" = "homologacao";
-        try {
-          const { data: configs } = await supabase
-            .from("fiscal_configs")
-            .select("id, serie, environment, crt")
-            .eq("company_id", companyId)
-            .eq("doc_type", "nfce")
-            .eq("is_active", true)
-            .limit(1);
-          if (configs && configs.length > 0) {
-            configId = configs[0].id;
-            serie = configs[0].serie || 1;
-            environment = configs[0].environment || "homologacao";
-          }
 
-          const { data: company } = await supabase
-            .from("companies")
-            .select("cnpj, name, state_registration, address_state")
-            .eq("id", companyId)
-            .single();
+        // Only query Supabase for fiscal config if online; when offline use cached defaults
+        if (navigator.onLine) {
+          try {
+            const { data: configs } = await supabase
+              .from("fiscal_configs")
+              .select("id, serie, environment, crt")
+              .eq("company_id", companyId)
+              .eq("doc_type", "nfce")
+              .eq("is_active", true)
+              .limit(1);
+            if (configs && configs.length > 0) {
+              configId = configs[0].id;
+              serie = configs[0].serie || 1;
+              environment = configs[0].environment || "homologacao";
+            }
 
-          if (company) {
-            emitente = {
-              cnpj: company.cnpj || "",
-              name: company.name || "",
-              ie: company.state_registration || "",
-              uf: company.address_state || "SP",
-              crt: configs?.[0]?.crt || 1,
-            };
-          }
-        } catch { /* use defaults */ }
+            const { data: company } = await supabase
+              .from("companies")
+              .select("cnpj, name, state_registration, address_state")
+              .eq("id", companyId)
+              .single();
+
+            if (company) {
+              emitente = {
+                cnpj: company.cnpj || "",
+                name: company.name || "",
+                ie: company.state_registration || "",
+                uf: company.address_state || "SP",
+                crt: configs?.[0]?.crt || 1,
+              };
+            }
+          } catch { /* use defaults */ }
+        }
 
         const contingencyPayload = await buildContingencyPayload({
           saleId: offlineSaleId,
