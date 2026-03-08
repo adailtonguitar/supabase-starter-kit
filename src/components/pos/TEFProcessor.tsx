@@ -131,21 +131,25 @@ export function TEFProcessor({ total, onComplete, onCancel, onPrazoRequested, de
     setVoucherCode("");
   };
 
-  const confirmPayment = useCallback((extra?: Partial<TEFResult>) => {
-    if (!selected) return;
+  const confirmPayment = useCallback(async (extra?: Partial<TEFResult>) => {
+    if (!selected || processing) return;
     setProcessing(true);
     setError(null);
-    // Simulate brief TEF authorization
-    setTimeout(() => {
-      setProcessing(false);
-      onComplete([{
+    // Brief delay for visual feedback
+    await new Promise(r => setTimeout(r, 300));
+    try {
+      await onComplete([{
         method: selected,
         approved: true,
         amount: total,
         ...extra,
       }]);
-    }, 300);
-  }, [selected, total, onComplete]);
+    } catch (err: any) {
+      setError(err.message || "Erro ao processar pagamento");
+    } finally {
+      setProcessing(false);
+    }
+  }, [selected, total, onComplete, processing]);
 
   const goBack = () => {
     setStep("select");
