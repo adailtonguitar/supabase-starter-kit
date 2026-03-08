@@ -85,16 +85,25 @@ export default function Promocoes() {
 
     setSaving(true);
     try {
-      // Build payload with only confirmed columns, adding optional ones via try
       const payload: Record<string, any> = {
         name: name.trim(),
         promo_type: promoType,
         discount_percent: promoType === "percentual" ? discountPercent : 0,
         starts_at: new Date(startsAt).toISOString(),
         is_active: true,
+        scope,
       };
       if (endsAt) payload.ends_at = new Date(endsAt).toISOString();
-      if (endsAt) payload.ends_at = new Date(endsAt).toISOString();
+      if (promoType === "preco_fixo") payload.fixed_price = fixedPrice;
+      if (promoType === "leve_x_pague_y") {
+        payload.buy_quantity = buyQty;
+        payload.pay_quantity = payQty;
+      }
+      if (scope === "product" && selectedProducts.length > 0) payload.product_ids = selectedProducts;
+      if (scope === "category" && categoryName) payload.category_name = categoryName;
+      if (minQty > 1) payload.min_quantity = minQty;
+      if (activeDays.length > 0) payload.active_days = activeDays;
+      if (description.trim()) payload.description = description.trim();
       await createPromotion(payload);
       setOpen(false);
       resetForm();
