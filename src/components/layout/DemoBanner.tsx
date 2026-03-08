@@ -93,7 +93,7 @@ export function DemoBanner() {
     setResetting(false);
   }, [companyId]);
 
-  if (!isDemo || isSuperAdmin) return null;
+  if (!isDemo) return null;
 
   const expired = daysLeft !== null && daysLeft <= 0;
 
