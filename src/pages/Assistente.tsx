@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, Component, ReactNode } from "react";
 import { Bot, Send, Headset, ArrowDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -15,6 +15,17 @@ import { useCompany } from "@/hooks/useCompany";
 import ReactMarkdown from "react-markdown";
 
 const WHATSAPP_SUPPORT = "https://wa.me/5500000000000";
+
+// Local ErrorBoundary to prevent ReactMarkdown crashes from killing the whole app
+class MarkdownErrorBoundary extends Component<{ fallback: ReactNode; children: ReactNode }, { hasError: boolean }> {
+  constructor(props: { fallback: ReactNode; children: ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+  static getDerivedStateFromError() { return { hasError: true }; }
+  componentDidCatch(err: Error) { console.warn("[MarkdownErrorBoundary]", err.message); }
+  render() { return this.state.hasError ? this.props.fallback : this.props.children; }
+}
 
 function TypingIndicator() {
   return (
@@ -34,15 +45,14 @@ function TypingIndicator() {
 }
 
 function SafeMarkdown({ content }: { content: string }) {
-  try {
-    return (
+  const safeContent = (content || "").replace(/\u0000/g, "");
+  return (
+    <MarkdownErrorBoundary fallback={<span>{safeContent}</span>}>
       <div className="prose prose-sm dark:prose-invert max-w-none [&>p]:m-0 [&>ul]:m-0 [&>ol]:m-0">
-        <ReactMarkdown>{content || ""}</ReactMarkdown>
+        <ReactMarkdown>{safeContent}</ReactMarkdown>
       </div>
-    );
-  } catch {
-    return <span>{content || ""}</span>;
-  }
+    </MarkdownErrorBoundary>
+  );
 }
 
 function ChatBubble({ msg }: { msg: SupportMessage }) {
