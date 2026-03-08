@@ -5,6 +5,7 @@ import { SubscriptionBanner } from "./SubscriptionBanner";
 import { DemoBanner } from "./DemoBanner";
 import { UpdateNoticeModal } from "@/components/UpdateNoticeModal";
 import { OnlineStatusIndicator } from "./OnlineStatusIndicator";
+import { SyncStatusPanel } from "./SyncStatusPanel";
 import { AppHeader } from "./AppHeader";
 import { useIsMobile } from "@/hooks/use-mobile";
 
