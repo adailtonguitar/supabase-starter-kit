@@ -27,8 +27,45 @@ export default defineConfig(({ mode }) => ({
         navigateFallbackDenylist: [/^\/~oauth/, /^\/functions\//],
         runtimeCaching: [
           {
-            urlPattern: /^https:\/\/.*supabase\.co\/.*/i,
+            // Supabase API — network only, never cache
+            urlPattern: /^https:\/\/.*supabase\.co\/rest\/.*/i,
             handler: "NetworkOnly",
+          },
+          {
+            // Supabase Auth — network only
+            urlPattern: /^https:\/\/.*supabase\.co\/auth\/.*/i,
+            handler: "NetworkOnly",
+          },
+          {
+            // Supabase Edge Functions — network only
+            urlPattern: /^https:\/\/.*supabase\.co\/functions\/.*/i,
+            handler: "NetworkOnly",
+          },
+          {
+            // Supabase Storage (product images, logos) — cache first with 7-day expiry
+            urlPattern: /^https:\/\/.*supabase\.co\/storage\/.*/i,
+            handler: "CacheFirst",
+            options: {
+              cacheName: "supabase-storage",
+              expiration: {
+                maxEntries: 500,
+                maxAgeSeconds: 7 * 24 * 60 * 60, // 7 days
+              },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+          {
+            // Google Fonts
+            urlPattern: /^https:\/\/fonts\.(googleapis|gstatic)\.com\/.*/i,
+            handler: "CacheFirst",
+            options: {
+              cacheName: "google-fonts",
+              expiration: {
+                maxEntries: 30,
+                maxAgeSeconds: 30 * 24 * 60 * 60, // 30 days
+              },
+              cacheableResponse: { statuses: [0, 200] },
+            },
           },
         ],
       },
