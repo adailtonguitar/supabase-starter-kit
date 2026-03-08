@@ -487,7 +487,7 @@ function wordsMatch(a: string, b: string): boolean {
   return false;
 }
 
-function findBestMatch(input: string): string | null {
+function findBestMatch(input: string): { answer: string; score: number } | null {
   const normalizedInput = normalize(input);
   const inputWords = normalizedInput.split(/\s+/).filter(w => w.length >= 2);
 
@@ -527,7 +527,6 @@ function findBestMatch(input: string): string | null {
 
       if (wordMatches > 0) {
         const ratio = wordMatches / kwWords.length;
-        // For single-word keywords, require exact match
         if (kwWords.length === 1 && wordMatches === 1) {
           entryScore = Math.max(entryScore, 70);
         } else if (ratio >= 0.5) {
@@ -543,7 +542,7 @@ function findBestMatch(input: string): string | null {
   }
 
   if (bestEntry && bestScore >= 50) {
-    return bestEntry.answer;
+    return { answer: bestEntry.answer, score: bestScore };
   }
 
   return null;
