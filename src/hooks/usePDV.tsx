@@ -106,13 +106,35 @@ export function usePDV() {
     return () => clearInterval(interval);
   }, [companyId, loadProducts]);
 
+  const loadOfflineSession = useCallback((terminalId: string): boolean => {
+    try {
+      const raw = localStorage.getItem("as_offline_cash_session");
+      if (raw) {
+        const offlineSession = JSON.parse(raw);
+        if (offlineSession?.company_id === companyId && offlineSession?.terminal_id === terminalId && offlineSession?.status === "aberto") {
+          setCurrentSession(offlineSession as CashSession);
+          return true;
+        }
+      }
+    } catch {}
+    return false;
+  }, [companyId]);
+
   const reloadSession = useCallback(async (terminalId: string) => {
     setLoadingSession(true);
     try {
       if (!companyId) { setCurrentSession(null); return; }
+
+      // When offline, load from localStorage immediately — don't hit Supabase
+      if (!navigator.onLine) {
+        if (!loadOfflineSession(terminalId)) {
+          setCurrentSession(null);
+        }
+        return;
+      }
       
-      // Try online first
-      const { data } = await supabase
+      // Try online
+      const { data, error } = await supabase
         .from("cash_sessions")
         .select("*")
         .eq("company_id", companyId)
@@ -121,34 +143,26 @@ export function usePDV() {
         .order("opened_at", { ascending: false })
         .limit(1)
         .maybeSingle();
+
+      if (error) throw error;
       
       if (data) {
         setCurrentSession(data as CashSession | null);
-        // Online query succeeded and found open session — clear any stale offline session
         try { localStorage.removeItem("as_offline_cash_session"); } catch {}
       } else {
-        // Online query succeeded but no open session — clear stale offline cache
         try { localStorage.removeItem("as_offline_cash_session"); } catch {}
         setCurrentSession(null);
       }
     } catch {
       // Network error — try offline session
-      try {
-        const raw = localStorage.getItem("as_offline_cash_session");
-        if (raw) {
-          const offlineSession = JSON.parse(raw);
-          if (offlineSession?.company_id === companyId && offlineSession?.terminal_id === terminalId && offlineSession?.status === "aberto") {
-            setCurrentSession(offlineSession as CashSession);
-            return;
-          }
-        }
-      } catch {}
-      setCurrentSession(null);
+      if (!loadOfflineSession(terminalId)) {
+        setCurrentSession(null);
+      }
     } finally {
       setLoadingSession(false);
       setSessionEverLoaded(true);
     }
-  }, [companyId]);
+  }, [companyId, loadOfflineSession]);
 
   const addToCart = useCallback((product: PDVProduct) => {
     let added = false;
