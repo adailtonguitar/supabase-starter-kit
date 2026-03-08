@@ -398,7 +398,7 @@ export function AppSidebar({ mobileOpen, onMobileClose }: AppSidebarProps) {
                 </div>
               </nav>
 
-              <MobileSidebarSupport />
+              
               <div className="px-2 pb-2 border-t border-sidebar-border pt-2">
                 <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg">
                   <div className="relative">
