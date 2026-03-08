@@ -134,9 +134,12 @@ const Empresas = () => {
     setSaving(false);
   };
 
+  const { guardFileUpload } = useDemoGuard();
+
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !companyId) return;
+    if (!guardFileUpload(file)) return;
     setUploading(true);
     try {
       const ext = file.name.split(".").pop();

@@ -12,6 +12,7 @@ import { useCreateProduct, useUpdateProduct, type Product } from "@/hooks/usePro
 import type { LocalProduct } from "@/hooks/useLocalProducts";
 import { useFiscalCategories } from "@/hooks/useFiscalCategories";
 import { useCompany } from "@/hooks/useCompany";
+import { useDemoGuard } from "@/hooks/useDemoGuard";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { recordPriceChange } from "@/lib/price-history";
