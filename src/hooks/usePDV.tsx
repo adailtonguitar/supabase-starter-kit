@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
@@ -6,6 +6,7 @@ import { useSync } from "@/hooks/useSync";
 import { buildContingencyPayload } from "@/services/ContingencyService";
 import type { PaymentResult } from "@/services/types";
 import { isScaleBarcode, parseScaleBarcode } from "@/lib/scale-barcode";
+import { calculateCartPromos, type PromoMatch } from "@/lib/promo-engine";
 
 export interface PDVProduct {
   id: string;
