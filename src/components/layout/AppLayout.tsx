@@ -5,6 +5,7 @@ import { SubscriptionBanner } from "./SubscriptionBanner";
 import { DemoBanner } from "./DemoBanner";
 import { UpdateNoticeModal } from "@/components/UpdateNoticeModal";
 import { OnlineStatusIndicator } from "./OnlineStatusIndicator";
+import { SyncStatusPanel } from "./SyncStatusPanel";
 import { AppHeader } from "./AppHeader";
 import { useIsMobile } from "@/hooks/use-mobile";
 
@@ -28,6 +29,7 @@ export const AppLayout = memo(function AppLayout({ children }: AppLayoutProps) {
         <AppHeader />
         <main className={`flex-1 overflow-y-auto overflow-x-hidden min-h-0 min-w-0 ${isMobile ? "pb-20" : ""}`}>{children}</main>
         {isMobile && <MobileBottomNav onMenuOpen={() => setMobileOpen(true)} />}
+        <SyncStatusPanel />
       </div>
     </div>
   );
