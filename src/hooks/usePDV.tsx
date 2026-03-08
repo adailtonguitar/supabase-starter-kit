@@ -606,13 +606,17 @@ export function usePDV() {
       // Online sale failed, entering contingency mode
       setContingencyMode(true);
 
-      // Get user_id for contingency — skip network calls if offline
+      // Get user_id for contingency — use cached value when offline
       let userId = "";
       if (navigator.onLine) {
         try {
           const { data: { user } } = await supabase.auth.getUser();
           userId = user?.id || "";
+          if (userId) localStorage.setItem("as_cached_user_id", userId);
         } catch { /* offline */ }
+      }
+      if (!userId) {
+        userId = localStorage.getItem("as_cached_user_id") || "";
       }
 
       const saleItems = cartItems.map(item => ({
