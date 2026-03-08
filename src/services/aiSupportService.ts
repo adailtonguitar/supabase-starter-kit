@@ -132,26 +132,71 @@ function normalize(text: string): string {
 
 function findBestMatch(input: string): string | null {
   const normalizedInput = normalize(input);
+  const inputWords = normalizedInput.split(/\s+/);
 
-  // Direct keyword match
+  // Score each entry
+  let bestEntry: KnowledgeEntry | null = null;
+  let bestScore = 0;
+
+  for (const entry of knowledgeBase) {
+    let entryScore = 0;
+
+    for (const keyword of entry.keywords) {
+      const normalizedKeyword = normalize(keyword);
+
+      // Exact phrase match — highest priority
+      if (normalizedInput.includes(normalizedKeyword)) {
+        entryScore = Math.max(entryScore, 100);
+        continue;
+      }
+
+      // Word-level matching
+      const kwWords = normalizedKeyword.split(/\s+/);
+      let wordMatches = 0;
+      for (const kw of kwWords) {
+        // Check if any input word contains this keyword word (or vice versa)
+        if (inputWords.some((iw) => iw.includes(kw) || kw.includes(iw))) {
+          wordMatches++;
+        }
+      }
+
+      // Score: percentage of keyword words matched
+      if (wordMatches > 0) {
+        const score = (wordMatches / kwWords.length) * 80;
+        entryScore = Math.max(entryScore, score);
+      }
+    }
+
+    if (entryScore > bestScore) {
+      bestScore = entryScore;
+      bestEntry = entry;
+    }
+  }
+
+  // Threshold: at least one meaningful word matched (score >= 40)
+  if (bestEntry && bestScore >= 40) {
+    return bestEntry.answer;
+  }
+
+  // Last resort: check if ANY single important word from any keyword appears
+  const importantWords = new Set<string>();
+  const wordToEntry = new Map<string, KnowledgeEntry>();
   for (const entry of knowledgeBase) {
     for (const keyword of entry.keywords) {
-      if (normalizedInput.includes(normalize(keyword))) {
-        return entry.answer;
+      for (const w of normalize(keyword).split(/\s+/)) {
+        if (w.length >= 4) { // only words with 4+ chars
+          importantWords.add(w);
+          wordToEntry.set(w, entry);
+        }
       }
     }
   }
 
-  // Partial word match (at least 2 keyword words must appear)
-  for (const entry of knowledgeBase) {
-    for (const keyword of entry.keywords) {
-      const words = normalize(keyword).split(/\s+/);
-      const matchCount = words.filter((w) => normalizedInput.includes(w)).length;
-      if (words.length >= 2 && matchCount >= 2) {
-        return entry.answer;
-      }
-      if (words.length === 1 && matchCount === 1 && normalizedInput.split(/\s+/).length <= 3) {
-        return entry.answer;
+  for (const iw of inputWords) {
+    if (iw.length < 3) continue;
+    for (const important of importantWords) {
+      if (important.includes(iw) || iw.includes(important)) {
+        return wordToEntry.get(important)!.answer;
       }
     }
   }
