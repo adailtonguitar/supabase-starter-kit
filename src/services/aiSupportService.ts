@@ -487,7 +487,7 @@ function wordsMatch(a: string, b: string): boolean {
   return false;
 }
 
-function findBestMatch(input: string): string | null {
+function findBestMatch(input: string): { answer: string; score: number } | null {
   const normalizedInput = normalize(input);
   const inputWords = normalizedInput.split(/\s+/).filter(w => w.length >= 2);
 
@@ -527,7 +527,6 @@ function findBestMatch(input: string): string | null {
 
       if (wordMatches > 0) {
         const ratio = wordMatches / kwWords.length;
-        // For single-word keywords, require exact match
         if (kwWords.length === 1 && wordMatches === 1) {
           entryScore = Math.max(entryScore, 70);
         } else if (ratio >= 0.5) {
@@ -543,7 +542,7 @@ function findBestMatch(input: string): string | null {
   }
 
   if (bestEntry && bestScore >= 50) {
-    return bestEntry.answer;
+    return { answer: bestEntry.answer, score: bestScore };
   }
 
   return null;
@@ -553,23 +552,31 @@ const FALLBACK_RESPONSE =
   "Desculpe, não encontrei uma resposta exata para sua pergunta. 🤔\n\nTente reformular ou clique em **Falar com suporte humano** para ajuda personalizada.\n\nVocê pode perguntar sobre:\n• PDV e vendas\n• Estoque e produtos\n• Financeiro\n• Relatórios\n• Cadastros";
 
 /**
- * Main entry point — uses local keyword matching.
- * Edge function (AI) is available but disabled until stable deploy is confirmed.
- * To enable AI: set AI_SUPPORT_ENABLED = true
+ * Hybrid mode: local keywords first for high-confidence matches (score >= 100),
+ * Gemini for complex/ambiguous questions, local fallback if Gemini fails.
  */
 const AI_SUPPORT_ENABLED = true;
+const HIGH_CONFIDENCE_THRESHOLD = 100; // Exact phrase match = use local instantly
 
 export async function getResponse(
   userMessage: string,
   conversationHistory?: Array<{ role: string; content: string }>
 ): Promise<string> {
-  let localMatch: string | null = null;
+  // Step 1: Try local match
+  let localResult: { answer: string; score: number } | null = null;
   try {
-    localMatch = findBestMatch(userMessage);
+    localResult = findBestMatch(userMessage);
   } catch {
     // ignore
   }
 
+  // Step 2: High-confidence local match → return instantly (no API call)
+  if (localResult && localResult.score >= HIGH_CONFIDENCE_THRESHOLD) {
+    console.log(`[Assistente] Resposta local (score ${localResult.score})`);
+    return localResult.answer;
+  }
+
+  // Step 3: No high-confidence match → try Gemini
   if (AI_SUPPORT_ENABLED && typeof navigator !== "undefined" && navigator.onLine) {
     try {
       const supabaseUrl = (import.meta.env.VITE_SUPABASE_URL || "https://fsvxpxziotklbxkivyug.supabase.co").trim();
@@ -577,7 +584,7 @@ export async function getResponse(
       const { supabase } = await import("@/integrations/supabase/client");
       const { data: sessionData } = await supabase.auth.getSession();
       const accessToken = sessionData?.session?.access_token;
-      if (!accessToken) return localMatch ?? FALLBACK_RESPONSE;
+      if (!accessToken) return localResult?.answer ?? FALLBACK_RESPONSE;
 
       const messages = conversationHistory && conversationHistory.length > 0
         ? [...conversationHistory, { role: "user", content: userMessage }]
@@ -600,7 +607,7 @@ export async function getResponse(
         });
       } catch {
         clearTimeout(timeout);
-        return localMatch ?? FALLBACK_RESPONSE;
+        return localResult?.answer ?? FALLBACK_RESPONSE;
       }
       clearTimeout(timeout);
 
@@ -608,21 +615,27 @@ export async function getResponse(
         try {
           const data = await res.json();
           if (data?.answer && typeof data.answer === "string") {
+            console.log("[Assistente] Resposta Gemini");
             return data.answer;
           }
         } catch {
-          // JSON parse failed, fall through
+          // JSON parse failed
         }
       } else {
-        // Consume body to avoid leaks
         try { await res.text(); } catch { /* ignore */ }
       }
     } catch {
-      // silent — any unexpected error falls back to local
+      // silent — falls back to local
     }
   }
 
-  return localMatch ?? FALLBACK_RESPONSE;
+  // Step 4: Gemini failed or offline → use local match (even low confidence)
+  if (localResult) {
+    console.log(`[Assistente] Fallback local (score ${localResult.score})`);
+    return localResult.answer;
+  }
+
+  return FALLBACK_RESPONSE;
 }
 
 export function getWelcomeMessage(): SupportMessage {
