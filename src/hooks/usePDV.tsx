@@ -148,7 +148,14 @@ export function usePDV() {
       
       if (data) {
         setCurrentSession(data as CashSession | null);
-        try { localStorage.removeItem("as_offline_cash_session"); } catch {}
+        // Cache session to localStorage for offline resilience
+        try {
+          localStorage.setItem("as_offline_cash_session", JSON.stringify({
+            ...data,
+            company_id: companyId,
+            status: "aberto",
+          }));
+        } catch {}
       } else {
         try { localStorage.removeItem("as_offline_cash_session"); } catch {}
         setCurrentSession(null);
