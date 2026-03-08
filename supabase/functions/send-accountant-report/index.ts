@@ -151,6 +151,19 @@ Deno.serve(async (req) => {
 
     const companyId = cu.company_id;
 
+    // Block demo accounts from sending emails
+    const { data: companyDemo } = await adminClient
+      .from("companies")
+      .select("is_demo")
+      .eq("id", companyId)
+      .maybeSingle();
+    if (companyDemo?.is_demo === true) {
+      return new Response(
+        JSON.stringify({ error: "Envio de e-mails não disponível em contas de demonstração." }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // Get company info
     const { data: company } = await adminClient
       .from("companies")
