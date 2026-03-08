@@ -43,28 +43,27 @@ export function SubscriptionBanner() {
 
   const [visibleBannerType, setVisibleBannerType] = useState<string | null>(null);
   const [hasSettled, setHasSettled] = useState(false);
+  const settledOnceRef = useRef(false);
 
-  // Wait for subscription data to fully settle before showing any banner
+  // Once subscription data settles the first time, never reset — prevents flash on navigation
   useEffect(() => {
+    if (settledOnceRef.current) return;
+
     if (adminLoading || subLoading) {
-      setHasSettled(false);
       setVisibleBannerType(null);
       return;
     }
 
-    // Data loaded — wait 1.5s to ensure it's stable (avoids flash on navigation)
     const settleTimer = window.setTimeout(() => {
       setHasSettled(true);
-    }, 1500);
+      settledOnceRef.current = true;
+    }, 1200);
 
     return () => window.clearTimeout(settleTimer);
   }, [adminLoading, subLoading]);
 
   useEffect(() => {
-    if (!hasSettled) {
-      setVisibleBannerType(null);
-      return;
-    }
+    if (!hasSettled) return;
 
     if (!bannerType) {
       setVisibleBannerType(null);
