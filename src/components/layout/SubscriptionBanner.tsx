@@ -42,19 +42,37 @@ export function SubscriptionBanner() {
   }, [adminLoading, subLoading, isSuperAdmin, subscribed, daysUntilExpiry, gracePeriodActive, graceDaysLeft, trialActive, trialDaysLeft, planKey]);
 
   const [visibleBannerType, setVisibleBannerType] = useState<string | null>(null);
+  const [hasSettled, setHasSettled] = useState(false);
+
+  // Wait for subscription data to fully settle before showing any banner
+  useEffect(() => {
+    if (adminLoading || subLoading) {
+      setHasSettled(false);
+      setVisibleBannerType(null);
+      return;
+    }
+
+    // Data loaded — wait 1.5s to ensure it's stable (avoids flash on navigation)
+    const settleTimer = window.setTimeout(() => {
+      setHasSettled(true);
+    }, 1500);
+
+    return () => window.clearTimeout(settleTimer);
+  }, [adminLoading, subLoading]);
 
   useEffect(() => {
+    if (!hasSettled) {
+      setVisibleBannerType(null);
+      return;
+    }
+
     if (!bannerType) {
       setVisibleBannerType(null);
       return;
     }
 
-    const timeoutId = window.setTimeout(() => {
-      setVisibleBannerType(bannerType);
-    }, 700);
-
-    return () => window.clearTimeout(timeoutId);
-  }, [bannerType]);
+    setVisibleBannerType(bannerType);
+  }, [bannerType, hasSettled]);
 
   if (dismissed || !visibleBannerType) return null;
 
