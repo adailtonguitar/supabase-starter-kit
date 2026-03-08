@@ -10,6 +10,8 @@ import {
   handleFailure,
   getQueueStats,
   cleanup,
+  resetFailed,
+  getFailedItems,
 } from "@/lib/sync-queue";
 import { supabase } from "@/integrations/supabase/client";
 import type { SyncQueueItem } from "@/services/types";
