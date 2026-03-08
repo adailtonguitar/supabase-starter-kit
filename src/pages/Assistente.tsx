@@ -14,7 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
 import ReactMarkdown from "react-markdown";
 
-const WHATSAPP_SUPPORT = "https://wa.me/5500000000000";
+const WHATSAPP_SUPPORT = "https://wa.me/5599982345366";
 
 // Local ErrorBoundary to prevent ReactMarkdown crashes from killing the whole app
 class MarkdownErrorBoundary extends Component<{ fallback: ReactNode; children: ReactNode }, { hasError: boolean }> {
