@@ -64,6 +64,7 @@ export default function PDV() {
     protocolNumber?: string;
     protocolDate?: string;
     itemNotes?: Record<string, string>;
+    promoMatches?: Record<string, { promoName: string; originalPrice: number; finalPrice: number; savingsPerUnit: number; totalSavings: number }>;
   } | null>(null);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showProductList, setShowProductList] = useState(false);
@@ -710,6 +711,7 @@ export default function PDV() {
           saleId: result.saleId,
           customerCpf: savedClient?.cpf || undefined,
           itemNotes: { ...itemNotes },
+          promoMatches: { ...pdv.promoMatches },
         });
         setSelectedClient(null);
         const newNum = saleNumber + 1;
@@ -862,6 +864,7 @@ export default function PDV() {
         accessKey: result.accessKey, serie: result.serie,
         isContingency: result.isContingency,
         saleId: result.saleId,
+        promoMatches: { ...pdv.promoMatches },
       });
       setFiadoReceipt({
         clientName: client.name,
@@ -1773,6 +1776,8 @@ export default function PDV() {
             id: i.id, name: i.name, price: i.price, category: i.category || "",
             sku: i.sku, ncm: i.ncm || "", unit: i.unit, stock: i.stock_quantity, quantity: i.quantity,
             notes: receipt.itemNotes?.[i.id] || undefined,
+            discount: receipt.promoMatches?.[i.id]?.totalSavings || 0,
+            promoName: receipt.promoMatches?.[i.id]?.promoName,
           }))}
           total={receipt.total} payments={receipt.payments} nfceNumber={receipt.nfceNumber}
           accessKey={receipt.accessKey} serie={receipt.serie}

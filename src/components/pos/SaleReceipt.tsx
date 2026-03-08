@@ -40,9 +40,12 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
       const unitPrice = item.price || 0;
       const totalItem = qty * unitPrice;
       const discount = item.discount || 0;
-      const discountLine = discount > 0 ? `<div class="obs" style="color:#666">  💲 Desconto: -${formatCurrency(discount)}</div>` : "";
+      const promoName = item.promoName;
+      const discountLine = discount > 0 
+        ? `<div class="obs" style="color:#666">  🏷️ ${promoName || 'Desconto'}: -${formatCurrency(discount)}</div>` 
+        : "";
       return `<div class="item-name">${item.name}</div>
-              <div class="row item-detail"><span>${qty} x ${formatCurrency(unitPrice)}</span><span>${formatCurrency(totalItem)}</span></div>${discountLine}${item.notes ? `<div class="obs">  📝 ${item.notes}</div>` : ""}`;
+              <div class="row item-detail"><span>${qty} x ${formatCurrency(unitPrice)}</span><span>${discount > 0 ? `<s>${formatCurrency(totalItem)}</s> ${formatCurrency(totalItem - discount)}` : formatCurrency(totalItem)}</span></div>${discountLine}${item.notes ? `<div class="obs">  📝 ${item.notes}</div>` : ""}`;
     }).join("");
 
     const paymentsHtml = (payments || []).map((p: any) =>
@@ -138,9 +141,12 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
       const totalItem = qty * unitPrice;
       const unit = item.unit || "UN";
       const discount = item.discount || 0;
-      const discountLine = discount > 0 ? `<div class="item-detail" style="color:#666; font-size:9px">  Desc: -${formatCurrency(discount)}</div>` : "";
+      const promoName = item.promoName;
+      const discountLine = discount > 0 
+        ? `<div class="item-detail" style="color:#666; font-size:9px">  🏷️ ${promoName || 'Desc'}: -${formatCurrency(discount)}</div>` 
+        : "";
       return `<div class="item-desc">${String(idx + 1).padStart(3, '0')} ${item.name}</div>
-              <div class="row item-detail"><span>${qty} ${unit} x ${formatCurrency(unitPrice)}</span><span>${formatCurrency(totalItem)}</span></div>${discountLine}`;
+              <div class="row item-detail"><span>${qty} ${unit} x ${formatCurrency(unitPrice)}</span><span>${discount > 0 ? `<s>${formatCurrency(totalItem)}</s> ${formatCurrency(totalItem - discount)}` : formatCurrency(totalItem)}</span></div>${discountLine}`;
     }).join("");
 
     const paymentsHtml = (payments || []).map((p: any) =>
