@@ -10,6 +10,8 @@ import {
   handleFailure,
   getQueueStats,
   cleanup,
+  resetFailed,
+  getFailedItems,
 } from "@/lib/sync-queue";
 import { supabase } from "@/integrations/supabase/client";
 import type { SyncQueueItem } from "@/services/types";
@@ -94,15 +96,28 @@ export function useSync() {
   const [syncing, setSyncing] = useState(false);
   const syncingRef = useRef(false);
 
+  const [failedErrors, setFailedErrors] = useState<Array<{ type: string; error: string }>>([]);
+
   const refreshStats = useCallback(async () => {
     const s = await getQueueStats();
     setStats(s);
+    if (s.failed > 0) {
+      try {
+        const items = await getFailedItems();
+        setFailedErrors(items.map(i => ({ type: i.entity_type, error: i.error || "Erro desconhecido" })));
+      } catch { setFailedErrors([]); }
+    } else {
+      setFailedErrors([]);
+    }
   }, []);
 
   const syncAll = useCallback(async () => {
     if (syncingRef.current || !navigator.onLine) return;
     syncingRef.current = true;
     setSyncing(true);
+
+    // Reset failed items so they can be retried
+    try { await resetFailed(); } catch {}
 
     try {
       const pending = await getPending();
@@ -201,5 +216,6 @@ export function useSync() {
     queueOperation,
     refreshStats,
     pendingCount: stats.pending + stats.failed,
+    failedErrors,
   };
 }
