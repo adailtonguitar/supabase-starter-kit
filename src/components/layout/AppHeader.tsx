@@ -164,16 +164,6 @@ export function AppHeader() {
               ⌘K
             </kbd>
           </button>
-
-          {!waLoading && whatsappNumber && (
-            <button
-              onClick={() => openWhatsApp("Olá! Preciso de ajuda com o sistema.")}
-              className="flex items-center gap-1.5 h-7 px-2 rounded-md text-[#25D366] hover:bg-[#25D366]/10 transition-colors"
-              title="Suporte via WhatsApp"
-            >
-              <WhatsAppIcon />
-            </button>
-          )}
         </div>
       </header>
 
