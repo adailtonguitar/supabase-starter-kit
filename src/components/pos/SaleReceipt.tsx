@@ -215,11 +215,33 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
       : "";
 
     // Subtotal / Desconto / Total section
-    const subtotalHtml = totalDiscount > 0
-      ? `<div class="row"><span>Subtotal</span><span>${formatCurrency(subtotal)}</span></div>
-         <div class="row" style="color:#666"><span>Desconto</span><span>-${formatCurrency(totalDiscount)}</span></div>
-         <div class="row total-row"><span>TOTAL</span><span>${formatCurrency(total)}</span></div>`
-      : `<div class="row total-row"><span>TOTAL</span><span>${formatCurrency(total)}</span></div>`;
+    // Check if all discounted items have a promo name (avoid duplicate discount lines)
+    const discountedItems = (items || []).filter((i: any) => (i.discount || 0) > 0);
+    const allHavePromoName = discountedItems.length > 0 && discountedItems.every((i: any) => !!i.promoName);
+    // Group discounts by promo name for summary
+    const promoGroups: Record<string, number> = {};
+    if (allHavePromoName) {
+      discountedItems.forEach((i: any) => {
+        promoGroups[i.promoName] = (promoGroups[i.promoName] || 0) + (i.discount || 0);
+      });
+    }
+
+    let subtotalHtml = "";
+    if (totalDiscount > 0) {
+      subtotalHtml = `<div class="row"><span>Subtotal</span><span>${formatCurrency(subtotal)}</span></div>`;
+      if (allHavePromoName) {
+        // Show one line per promo name instead of generic "Desconto"
+        Object.entries(promoGroups).forEach(([name, value]) => {
+          subtotalHtml += `<div class="row" style="color:#666"><span>🏷️ ${name}</span><span>-${formatCurrency(value)}</span></div>`;
+        });
+      } else {
+        // Manual discount without promo name
+        subtotalHtml += `<div class="row" style="color:#666"><span>Desconto</span><span>-${formatCurrency(totalDiscount)}</span></div>`;
+      }
+      subtotalHtml += `<div class="row total-row"><span>TOTAL</span><span>${formatCurrency(total)}</span></div>`;
+    } else {
+      subtotalHtml = `<div class="row total-row"><span>TOTAL</span><span>${formatCurrency(total)}</span></div>`;
+    }
 
     // SEFAZ consultation URL based on UF
     const uf = companyUf?.toUpperCase() || "";
