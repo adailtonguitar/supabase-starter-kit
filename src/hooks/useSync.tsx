@@ -96,9 +96,19 @@ export function useSync() {
   const [syncing, setSyncing] = useState(false);
   const syncingRef = useRef(false);
 
+  const [failedErrors, setFailedErrors] = useState<Array<{ type: string; error: string }>>([]);
+
   const refreshStats = useCallback(async () => {
     const s = await getQueueStats();
     setStats(s);
+    if (s.failed > 0) {
+      try {
+        const items = await getFailedItems();
+        setFailedErrors(items.map(i => ({ type: i.entity_type, error: i.error || "Erro desconhecido" })));
+      } catch { setFailedErrors([]); }
+    } else {
+      setFailedErrors([]);
+    }
   }, []);
 
   const syncAll = useCallback(async () => {
