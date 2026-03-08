@@ -85,26 +85,39 @@ export default function Promocoes() {
 
     setSaving(true);
     try {
-      const payload: Record<string, any> = {
+      const basicPayload: Record<string, any> = {
         name: name.trim(),
         promo_type: promoType,
         discount_percent: promoType === "percentual" ? discountPercent : 0,
         starts_at: new Date(startsAt).toISOString(),
         is_active: true,
+      };
+      if (endsAt) basicPayload.ends_at = new Date(endsAt).toISOString();
+
+      // Advanced fields — require DB migration (sql/promotions_advanced_columns.sql)
+      const advancedPayload: Record<string, any> = {
+        ...basicPayload,
         scope,
       };
-      if (endsAt) payload.ends_at = new Date(endsAt).toISOString();
-      if (promoType === "preco_fixo") payload.fixed_price = fixedPrice;
+      if (promoType === "preco_fixo") advancedPayload.fixed_price = fixedPrice;
       if (promoType === "leve_x_pague_y") {
-        payload.buy_quantity = buyQty;
-        payload.pay_quantity = payQty;
+        advancedPayload.buy_quantity = buyQty;
+        advancedPayload.pay_quantity = payQty;
       }
-      if (scope === "product" && selectedProducts.length > 0) payload.product_ids = selectedProducts;
-      if (scope === "category" && categoryName) payload.category_name = categoryName;
-      if (minQty > 1) payload.min_quantity = minQty;
-      if (activeDays.length > 0) payload.active_days = activeDays;
-      if (description.trim()) payload.description = description.trim();
-      await createPromotion(payload);
+      if (scope === "product" && selectedProducts.length > 0) advancedPayload.product_ids = selectedProducts;
+      if (scope === "category" && categoryName) advancedPayload.category_name = categoryName;
+      if (minQty > 1) advancedPayload.min_quantity = minQty;
+      if (activeDays.length > 0) advancedPayload.active_days = activeDays;
+      if (description.trim()) advancedPayload.description = description.trim();
+
+      try {
+        await createPromotion(advancedPayload);
+      } catch {
+        // Fallback: DB may not have advanced columns yet
+        console.warn("Advanced promo columns not available, saving basic fields only. Run sql/promotions_advanced_columns.sql to enable full features.");
+        toast.warning("Promoção salva com campos básicos. Execute a migração SQL para habilitar escopo por produto.");
+        await createPromotion(basicPayload);
+      }
       setOpen(false);
       resetForm();
     } catch {
