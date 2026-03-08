@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/hooks/useCompany";
+import { useDemoGuard } from "@/hooks/useDemoGuard";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Building2, Save, Upload, Loader2 } from "lucide-react";
