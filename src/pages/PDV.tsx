@@ -864,6 +864,7 @@ export default function PDV() {
         accessKey: result.accessKey, serie: result.serie,
         isContingency: result.isContingency,
         saleId: result.saleId,
+        promoMatches: { ...pdv.promoMatches },
       });
       setFiadoReceipt({
         clientName: client.name,
