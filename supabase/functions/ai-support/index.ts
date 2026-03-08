@@ -47,6 +47,7 @@ Produtos (Estoque → Produtos):
 - Importação em massa via CSV (com modelo para download)
 - Importação via XML de NF-e de entrada (cadastra produto + dá entrada no estoque + vincula fornecedor)
 - Histórico de preços automático
+- Cadastro por Foto com IA (exclusivo plano Pro): tire uma foto do produto com a câmera ou envie uma imagem da galeria, e a IA (Google Gemini) preenche automaticamente nome, descrição, categoria sugerida e preço estimado. Acesse em Estoque → Produtos → clique no botão "Cadastrar por Foto (IA)". Funciona com qualquer produto: alimentos, eletrônicos, roupas, materiais, etc. Após a IA preencher, revise e ajuste os dados antes de salvar.
 
 Movimentações (Estoque → Movimentações):
 - Entrada: compras, devoluções, ajustes positivos
