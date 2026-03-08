@@ -61,11 +61,15 @@ function promoAppliesToProduct(promo: ActivePromo, item: CartItemForPromo): bool
   if (promo.scope === "category") {
     return !!item.category && item.category === promo.category_name;
   }
-  // scope === "product" or unset
+  // scope === "product" → must have product_ids matching
+  if (promo.scope === "product") {
+    if (!promo.product_ids || promo.product_ids.length === 0) return false;
+    return promo.product_ids.includes(item.id);
+  }
+  // No scope set and no product_ids = applies to all (legacy basic promos)
   if (promo.product_ids && promo.product_ids.length > 0) {
     return promo.product_ids.includes(item.id);
   }
-  // No scope restriction = applies to all (legacy promos with just basic fields)
   return true;
 }
 
