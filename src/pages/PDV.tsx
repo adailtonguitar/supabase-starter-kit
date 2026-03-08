@@ -1776,6 +1776,8 @@ export default function PDV() {
             id: i.id, name: i.name, price: i.price, category: i.category || "",
             sku: i.sku, ncm: i.ncm || "", unit: i.unit, stock: i.stock_quantity, quantity: i.quantity,
             notes: receipt.itemNotes?.[i.id] || undefined,
+            discount: receipt.promoMatches?.[i.id]?.totalSavings || 0,
+            promoName: receipt.promoMatches?.[i.id]?.promoName,
           }))}
           total={receipt.total} payments={receipt.payments} nfceNumber={receipt.nfceNumber}
           accessKey={receipt.accessKey} serie={receipt.serie}
