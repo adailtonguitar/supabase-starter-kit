@@ -85,7 +85,6 @@ export function AppHeader() {
   const location = useLocation();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
-  const { whatsappNumber, loading: waLoading, openWhatsApp } = useWhatsAppSupport();
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
