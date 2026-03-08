@@ -435,9 +435,27 @@ function normalize(text: string): string {
     .trim();
 }
 
+// Simple stemming: remove common Portuguese suffixes for better matching
+function stem(word: string): string {
+  return word
+    .replace(/(ões|ões|ção|ções|mente|ando|endo|indo|ado|ido|ar|er|ir|ou|ei|am|em|os|as|es)$/, "")
+    .replace(/(s)$/, "");
+}
+
+function wordsMatch(a: string, b: string): boolean {
+  if (a === b) return true;
+  const sa = stem(a), sb = stem(b);
+  if (sa === sb) return true;
+  if (sa.length >= 4 && sb.length >= 4) {
+    // Allow close matches (one contains the other)
+    if (sa.includes(sb) || sb.includes(sa)) return true;
+  }
+  return false;
+}
+
 function findBestMatch(input: string): string | null {
   const normalizedInput = normalize(input);
-  const inputWords = normalizedInput.split(/\s+/).filter(w => w.length >= 3);
+  const inputWords = normalizedInput.split(/\s+/).filter(w => w.length >= 2);
 
   if (inputWords.length === 0) return null;
 
@@ -456,23 +474,25 @@ function findBestMatch(input: string): string | null {
         continue;
       }
 
-      // Word-level matching — only exact word matches (no substring)
-      const kwWords = normalizedKeyword.split(/\s+/).filter(w => w.length >= 3);
+      // Word-level matching with stemming
+      const kwWords = normalizedKeyword.split(/\s+/).filter(w => w.length >= 2);
       if (kwWords.length === 0) continue;
 
       let wordMatches = 0;
       for (const kw of kwWords) {
-        if (inputWords.some((iw) => iw === kw)) {
+        if (inputWords.some((iw) => wordsMatch(iw, kw))) {
           wordMatches++;
         }
       }
 
       if (wordMatches > 0) {
-        // Require at least 50% of keyword words to match for multi-word keywords
         const ratio = wordMatches / kwWords.length;
-        if (kwWords.length >= 2 && ratio < 0.5) continue;
-        const score = ratio * 80;
-        entryScore = Math.max(entryScore, score);
+        // For single-word keywords, require exact match
+        if (kwWords.length === 1 && wordMatches === 1) {
+          entryScore = Math.max(entryScore, 70);
+        } else if (ratio >= 0.5) {
+          entryScore = Math.max(entryScore, ratio * 85);
+        }
       }
     }
 
@@ -482,8 +502,7 @@ function findBestMatch(input: string): string | null {
     }
   }
 
-  // Require score >= 60 for a confident match
-  if (bestEntry && bestScore >= 60) {
+  if (bestEntry && bestScore >= 50) {
     return bestEntry.answer;
   }
 
@@ -494,29 +513,26 @@ const FALLBACK_RESPONSE =
   "Desculpe, não encontrei uma resposta exata para sua pergunta. 🤔\n\nTente reformular ou clique em **Falar com suporte humano** para ajuda personalizada.\n\nVocê pode perguntar sobre:\n• PDV e vendas\n• Estoque e produtos\n• Financeiro\n• Relatórios\n• Cadastros";
 
 /**
- * Main entry point — tries AI first, falls back to keyword matching offline.
+ * Main entry point — uses local keyword matching.
+ * Edge function (AI) is available but disabled until stable deploy is confirmed.
+ * To enable AI: set AI_SUPPORT_ENABLED = true
  */
+const AI_SUPPORT_ENABLED = false;
+
 export async function getResponse(
   userMessage: string,
   conversationHistory?: Array<{ role: string; content: string }>
 ): Promise<string> {
-  // Always prepare local fallback
   const localMatch = findBestMatch(userMessage);
 
-  // Try AI-powered response (online only)
-  if (navigator.onLine) {
+  if (AI_SUPPORT_ENABLED && navigator.onLine) {
     try {
       const supabaseUrl = (import.meta.env.VITE_SUPABASE_URL || "https://fsvxpxziotklbxkivyug.supabase.co").trim();
       const supabaseKey = (import.meta.env.VITE_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZzdnhweHppb3RrbGJ4a2l2eXVnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE3ODU5NTMsImV4cCI6MjA4NzM2MTk1M30.8I3ABsRZBZuE1IpK_g9z3PdRUd9Omt_F5qNx0Pgqvyo").trim();
-
-      // Get current session token
       const { supabase } = await import("@/integrations/supabase/client");
       const { data: sessionData } = await supabase.auth.getSession();
       const accessToken = sessionData?.session?.access_token;
-
-      if (!accessToken) {
-        return localMatch ?? FALLBACK_RESPONSE;
-      }
+      if (!accessToken) return localMatch ?? FALLBACK_RESPONSE;
 
       const messages = conversationHistory && conversationHistory.length > 0
         ? [...conversationHistory, { role: "user", content: userMessage }]
@@ -524,7 +540,6 @@ export async function getResponse(
 
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 15000);
-
       const res = await fetch(`${supabaseUrl}/functions/v1/ai-support`, {
         method: "POST",
         headers: {
@@ -535,15 +550,13 @@ export async function getResponse(
         body: JSON.stringify({ messages }),
         signal: controller.signal,
       });
-
       clearTimeout(timeout);
-
       if (res.ok) {
         const data = await res.json();
         if (data?.answer) return data.answer;
       }
     } catch {
-      // silent — use local fallback
+      // silent
     }
   }
 
