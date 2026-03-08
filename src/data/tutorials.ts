@@ -563,4 +563,38 @@ export const tutorials: TutorialSection[] = [
       ],
     },
   },
+  {
+    icon: Bot,
+    title: "Assistente Inteligente",
+    description: "Chat com IA que responde dúvidas sobre o sistema instantaneamente. Funciona 24h e pode encaminhar para suporte humano quando necessário.",
+    category: "config",
+    difficulty: "basico",
+    steps: [
+      "No menu lateral, clique em **Assistente** (ícone de robô).",
+      "Digite sua dúvida no campo de texto e pressione Enter ou clique no botão enviar.",
+      "O assistente responde na hora com instruções passo a passo.",
+      "Se o assistente não conseguir resolver, ele sugere falar com o **suporte humano via WhatsApp**.",
+      "Você também pode clicar no botão **'Suporte Humano'** no topo da conversa para falar diretamente com a equipe.",
+    ],
+    tips: [
+      "Pergunte de forma direta: 'como abrir caixa', 'como cadastrar produto', etc.",
+      "O assistente entende perguntas sobre PDV, estoque, financeiro, fiscal e cadastros.",
+      "Perguntas complexas são respondidas pela IA Gemini para respostas mais detalhadas.",
+      "O histórico da conversa é mantido durante a sessão para respostas mais contextuais.",
+    ],
+    example: {
+      title: "Tirando dúvida sobre fechamento de caixa",
+      description: "Um operador precisa fechar o caixa pela primeira vez.",
+      steps: [
+        "O operador abre o Assistente no menu lateral.",
+        "Digita: 'como fechar o caixa?'",
+        "O assistente responde com o passo a passo completo, incluindo onde clicar e o que conferir.",
+        "O operador segue as instruções e fecha o caixa com sucesso.",
+      ],
+      conclusion: [
+        "A dúvida foi resolvida em segundos sem precisar ligar para o suporte.",
+        "O operador ganhou autonomia para usar o sistema.",
+      ],
+    },
+  },
 ];
