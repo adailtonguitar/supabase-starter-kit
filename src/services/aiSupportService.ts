@@ -513,9 +513,35 @@ const FALLBACK_RESPONSE =
   "Desculpe, não encontrei uma resposta exata para sua pergunta. 🤔\n\nTente reformular ou clique em **Falar com suporte humano** para ajuda personalizada.\n\nVocê pode perguntar sobre:\n• PDV e vendas\n• Estoque e produtos\n• Financeiro\n• Relatórios\n• Cadastros";
 
 /**
- * Main entry point — swap this implementation for an AI API call in the future.
+ * Main entry point — tries AI first, falls back to keyword matching offline.
  */
-export async function getResponse(userMessage: string): Promise<string> {
+export async function getResponse(
+  userMessage: string,
+  conversationHistory?: Array<{ role: string; content: string }>
+): Promise<string> {
+  // Try AI-powered response first (online)
+  if (navigator.onLine) {
+    try {
+      const { supabase } = await import("@/integrations/supabase/client");
+      
+      const messages = conversationHistory && conversationHistory.length > 0
+        ? [...conversationHistory, { role: "user", content: userMessage }]
+        : [{ role: "user", content: userMessage }];
+
+      const { data, error } = await supabase.functions.invoke("ai-support", {
+        body: { messages },
+      });
+
+      if (!error && data?.answer) {
+        return data.answer;
+      }
+      console.warn("[aiSupport] Edge function failed, using local fallback:", error);
+    } catch (err) {
+      console.warn("[aiSupport] AI call failed, using local fallback:", err);
+    }
+  }
+
+  // Fallback: local keyword matching (works offline)
   const match = findBestMatch(userMessage);
   return match ?? FALLBACK_RESPONSE;
 }
