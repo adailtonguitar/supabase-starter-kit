@@ -264,6 +264,7 @@ export const ProductFormDialog = forwardRef<HTMLDivElement, Props>(function Prod
 
   const uploadImage = async (productId: string): Promise<string | null> => {
     if (!imageFile || !companyId) return imagePreview;
+    if (!guardFileUpload(imageFile)) return imagePreview;
     setUploadingImage(true);
     try {
       const ext = imageFile.name.split(".").pop() || "jpg";
