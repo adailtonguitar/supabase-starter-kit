@@ -471,6 +471,11 @@ export function usePDV() {
     setFinalizingSale(true);
 
     try {
+      // ── If offline, skip RPC entirely and go straight to contingency ──
+      if (!navigator.onLine) {
+        throw new Error("offline");
+      }
+
       // Get user_id
       let userId = "";
       try {
