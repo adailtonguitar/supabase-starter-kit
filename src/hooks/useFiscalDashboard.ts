@@ -99,11 +99,23 @@ export function useFiscalDashboard() {
     if (!companyId) return;
     setIsProcessing(true);
     try {
-      const { error } = await supabase.functions.invoke("process-fiscal-queue", {
+      const { data, error } = await supabase.functions.invoke("process-fiscal-queue", {
         body: { company_id: companyId },
       });
       if (error) throw error;
-      toast.success("Fila fiscal processada");
+
+      if (data?.success === false) {
+        if (data.error?.includes("configuração fiscal")) {
+          toast.error("Configure o módulo fiscal antes de processar a fila. Vá em Fiscal → Configuração.");
+        } else {
+          toast.error(data.error || "Erro ao processar item fiscal");
+        }
+      } else if (data?.message === "Nenhum item pendente") {
+        toast.info("Nenhum item pendente na fila fiscal");
+      } else {
+        toast.success("Item fiscal processado com sucesso");
+      }
+
       queryClient.invalidateQueries({ queryKey: ["fiscal-metrics"] });
       queryClient.invalidateQueries({ queryKey: ["fiscal-queue-map"] });
       queryClient.invalidateQueries({ queryKey: ["sales"] });
