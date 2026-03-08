@@ -178,7 +178,7 @@ export default function Promocoes() {
               {promoType === "preco_fixo" && (
                 <div>
                   <Label>Preço promocional (R$)</Label>
-                  <Input type="number" min={0.01} step={0.01} value={fixedPrice} onChange={(e) => setFixedPrice(Number(e.target.value))} />
+                  <CurrencyInput value={fixedPrice} onChange={setFixedPrice} placeholder="0,00" />
                 </div>
               )}
 
