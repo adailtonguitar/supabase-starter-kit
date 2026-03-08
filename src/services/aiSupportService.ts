@@ -87,7 +87,11 @@ const knowledgeBase: KnowledgeEntry[] = [
   // ═══════════════════ ESTOQUE ═══════════════════
   {
     keywords: ["cadastrar produto", "novo produto", "adicionar produto", "criar produto", "registrar produto"],
-    answer: "Para cadastrar um produto:\n\n**Estoque → Produtos → Novo Produto**\n\nPreencha:\n• Nome e descrição\n• Preço de custo e venda\n• Código de barras (ou gere um)\n• Estoque inicial\n• Categoria\n• Fornecedor\n• NCM e dados fiscais\n\nDica: importe vários produtos via **CSV** ou **NF-e de entrada**.",
+    answer: "Para cadastrar um produto:\n\n**Estoque → Produtos → Novo Produto**\n\nPreencha:\n• Nome e descrição\n• Preço de custo e venda\n• Código de barras (ou gere um)\n• Estoque inicial\n• Categoria\n• Fornecedor\n• NCM e dados fiscais\n\nDica: importe vários produtos via **CSV** ou **NF-e de entrada**.\n\n💡 **Novidade!** Use o **Cadastrar por Foto (IA)** para cadastrar automaticamente com uma foto!",
+  },
+  {
+    keywords: ["cadastrar por foto", "foto ia", "cadastro por foto", "foto produto ia", "ia foto", "cadastro ia", "registrar por foto", "foto inteligente", "cadastro inteligente"],
+    answer: "Para cadastrar um produto por foto com IA:\n\n**Estoque → Produtos → Cadastrar por Foto (IA)** 📸\n\n1. Clique no botão **Cadastrar por Foto (IA)**\n2. Tire uma foto com a câmera ou envie uma imagem da galeria\n3. A IA (Google Gemini) analisa a imagem e preenche automaticamente:\n   • Nome do produto\n   • Descrição\n   • Categoria sugerida\n   • Preço estimado\n4. Revise os dados preenchidos pela IA\n5. Ajuste o que for necessário e clique em **Salvar**\n\n⚠️ Essa funcionalidade é **exclusiva do plano Pro**.\n\n💡 Dica: quanto melhor a foto (boa iluminação, produto centralizado), mais precisa será a identificação pela IA!",
   },
   {
     keywords: ["importar produto", "csv produto", "planilha produto", "importação"],
