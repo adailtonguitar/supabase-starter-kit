@@ -548,8 +548,10 @@ function findBestMatch(input: string): { answer: string; score: number } | null 
   return null;
 }
 
+const WHATSAPP_SUPPORT_URL = "https://wa.me/5599982345366";
+
 const FALLBACK_RESPONSE =
-  "Desculpe, não encontrei uma resposta exata para sua pergunta. 🤔\n\nTente reformular ou clique em **Falar com suporte humano** para ajuda personalizada.\n\nVocê pode perguntar sobre:\n• PDV e vendas\n• Estoque e produtos\n• Financeiro\n• Relatórios\n• Cadastros";
+  `Desculpe, não consegui te ajudar com essa questão. 🤔\n\nMas não se preocupe! Nosso **suporte humano** pode resolver isso para você:\n\n👉 [**Falar com suporte via WhatsApp**](${WHATSAPP_SUPPORT_URL})\n\nOu clique no botão **"Suporte Humano"** no topo desta conversa.`;
 
 /**
  * Hybrid mode: local keywords first for high-confidence matches (score >= 100),
@@ -632,6 +634,9 @@ export async function getResponse(
   // Step 4: Gemini failed or offline → use local match (even low confidence)
   if (localResult) {
     console.log(`[Assistente] Fallback local (score ${localResult.score})`);
+    if (localResult.score < 50) {
+      return localResult.answer + `\n\n---\n\n💡 Se essa resposta não resolveu, fale com nosso [**suporte humano via WhatsApp**](${WHATSAPP_SUPPORT_URL}) ou clique em **"Suporte Humano"** acima.`;
+    }
     return localResult.answer;
   }
 
