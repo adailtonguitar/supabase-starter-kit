@@ -736,7 +736,7 @@ export function usePDV() {
     products, cartItems, loadingProducts, currentSession, loadingSession, sessionEverLoaded,
     isOnline, globalDiscountPercent, globalDiscountValue, itemDiscounts, trainingMode,
     contingencyMode, syncStats, contingencySaleIds, finalizingSale,
-    subtotal, total, promoSavings,
+    subtotal, total, promoSavings, promoMatches,
     addToCart, removeItem, updateQuantity, clearCart, setGlobalDiscountPercent,
     setItemDiscount, handleBarcodeScan, finalizeSale, reloadSession, repeatLastSale,
     refreshProducts, reprocessFiscal,
