@@ -519,24 +519,47 @@ export async function getResponse(
   userMessage: string,
   conversationHistory?: Array<{ role: string; content: string }>
 ): Promise<string> {
-  // Always try local keyword match first (instant)
+  // Always prepare local fallback
   const localMatch = findBestMatch(userMessage);
 
   // Try AI-powered response (online only)
   if (navigator.onLine) {
     try {
+      const supabaseUrl = (import.meta.env.VITE_SUPABASE_URL || "https://fsvxpxziotklbxkivyug.supabase.co").trim();
+      const supabaseKey = (import.meta.env.VITE_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZzdnhweHppb3RrbGJ4a2l2eXVnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE3ODU5NTMsImV4cCI6MjA4NzM2MTk1M30.8I3ABsRZBZuE1IpK_g9z3PdRUd9Omt_F5qNx0Pgqvyo").trim();
+
+      // Get current session token
       const { supabase } = await import("@/integrations/supabase/client");
-      
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData?.session?.access_token;
+
+      if (!accessToken) {
+        return localMatch ?? FALLBACK_RESPONSE;
+      }
+
       const messages = conversationHistory && conversationHistory.length > 0
         ? [...conversationHistory, { role: "user", content: userMessage }]
         : [{ role: "user", content: userMessage }];
 
-      const result = await supabase.functions.invoke("ai-support", {
-        body: { messages },
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 15000);
+
+      const res = await fetch(`${supabaseUrl}/functions/v1/ai-support`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${accessToken}`,
+          "apikey": supabaseKey,
+        },
+        body: JSON.stringify({ messages }),
+        signal: controller.signal,
       });
 
-      if (result?.data?.answer && !result.error) {
-        return result.data.answer;
+      clearTimeout(timeout);
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.answer) return data.answer;
       }
     } catch {
       // silent — use local fallback
