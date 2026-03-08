@@ -85,6 +85,7 @@ export default function Promocoes() {
 
     setSaving(true);
     try {
+      // Build payload with only confirmed columns, adding optional ones via try
       const payload: Record<string, any> = {
         name: name.trim(),
         promo_type: promoType,
@@ -92,15 +93,7 @@ export default function Promocoes() {
         starts_at: new Date(startsAt).toISOString(),
         is_active: true,
       };
-      // Only include fields that may exist in the table, skip nulls
-      if (description.trim()) payload.description = description.trim();
-      if (promoType === "preco_fixo" && fixedPrice > 0) payload.fixed_price = fixedPrice;
-      if (promoType === "leve_x_pague_y") { payload.buy_quantity = buyQty; payload.pay_quantity = payQty; }
-      if (scope) payload.scope = scope;
-      if (scope === "category" && categoryName.trim()) payload.category_name = categoryName.trim();
-      if (promoType !== "leve_x_pague_y" && minQty > 1) payload.min_quantity = minQty;
-      if (scope === "product" && selectedProducts.length > 0) payload.product_ids = selectedProducts;
-      if (activeDays.length > 0) payload.active_days = activeDays;
+      if (endsAt) payload.ends_at = new Date(endsAt).toISOString();
       if (endsAt) payload.ends_at = new Date(endsAt).toISOString();
       await createPromotion(payload);
       setOpen(false);
