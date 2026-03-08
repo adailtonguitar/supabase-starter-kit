@@ -169,12 +169,25 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
       return;
     }
 
+    // Detect simulation/homologação from prefix or prop
+    const isSimulation = nfceNumber.startsWith("SIM-") || nfceNumber.startsWith("TESTE-") || nfceNumber.startsWith("DEMO-");
+    const isHomolog = isHomologacao ?? isSimulation;
+
+    // Clean number: remove prefixes for display
+    const cleanNumber = nfceNumber.replace(/^(SIM-|TESTE-|DEMO-|CONT-)/, "");
+    const paddedNumber = cleanNumber.replace(/\D/g, "").padStart(9, "0");
+
+    // Calculate subtotal and total discount
+    let subtotal = 0;
+    let totalDiscount = 0;
     const itemsHtml = (items || []).map((item: any, idx: number) => {
       const qty = item.quantity || 1;
       const unitPrice = item.price || 0;
       const totalItem = qty * unitPrice;
       const unit = item.unit || "UN";
       const discount = item.discount || 0;
+      subtotal += totalItem;
+      totalDiscount += discount;
       const promoName = item.promoName;
       const discountLine = discount > 0 
         ? `<div class="item-detail" style="color:#666; font-size:9px">  🏷️ ${promoName || 'Desc'}: -${formatCurrency(discount)}</div>` 
@@ -192,7 +205,6 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
     const qtyTotal = (items || []).reduce((s: number, i: any) => s + (i.quantity || 1), 0);
 
     const formattedKey = accessKey ? accessKey.replace(/(\d{4})(?=\d)/g, "$1 ") : "";
-    const isSimulation = nfceNumber.startsWith("SIM-");
 
     const consumerHtml = customerCpf 
       ? `<p class="center sm bold">CPF DO CONSUMIDOR: ${customerCpf}</p>`
@@ -200,6 +212,28 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
 
     const protocolHtml = protocolNumber 
       ? `<p class="center xs" style="margin-top:2px">Protocolo de Autorização: ${protocolNumber}</p>${protocolDate ? `<p class="center xs">${protocolDate}</p>` : ""}`
+      : "";
+
+    // Subtotal / Desconto / Total section
+    const subtotalHtml = totalDiscount > 0
+      ? `<div class="row"><span>Subtotal</span><span>${formatCurrency(subtotal)}</span></div>
+         <div class="row" style="color:#666"><span>Desconto</span><span>-${formatCurrency(totalDiscount)}</span></div>
+         <div class="row total-row"><span>TOTAL</span><span>${formatCurrency(total)}</span></div>`
+      : `<div class="row total-row"><span>TOTAL</span><span>${formatCurrency(total)}</span></div>`;
+
+    // SEFAZ consultation URL based on UF
+    const uf = companyUf?.toUpperCase() || "";
+    const sefazUrl = SEFAZ_NFCE_URLS[uf] || "https://www.nfe.fazenda.gov.br/portal";
+
+    // Tributos aproximados (Lei 12.741/2012)
+    const tributos = tributosAprox ?? (total * 0.32);
+    const tributosHtml = `<div class="tax-info">
+      Tributos aproximados: ${formatCurrency(tributos)} (Lei Federal 12.741/2012)
+    </div>`;
+
+    // Homologação message - only in homologação
+    const homologHtml = isHomolog
+      ? `<p class="center bold sm" style="margin-top:4px">EMITIDA EM AMBIENTE DE HOMOLOGAÇÃO</p><p class="center xs">SEM VALOR FISCAL</p>`
       : "";
 
     const printWindow = window.open("", "_blank", "width=320,height=700");
@@ -258,7 +292,7 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
           <div class="dashed"></div>
           ${itemsHtml}
           <div class="dashed"></div>
-          <div class="row total-row"><span>TOTAL</span><span>${formatCurrency(total)}</span></div>
+          ${subtotalHtml}
           <div class="dashed"></div>
           <p class="center bold sm">FORMA DE PAGAMENTO</p>
           ${paymentsHtml}
@@ -266,15 +300,12 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
           <div class="dashed"></div>
           ${consumerHtml}
           <div class="dashed"></div>
-          <div class="tax-info">
-            Val. aprox. tributos: ${formatCurrency(total * 0.32)} (32.00%) Fonte: IBPT
-            <br/><span style="font-size:7px">Lei Federal 12.741/2012</span>
-          </div>
+          ${tributosHtml}
           <div class="dashed"></div>
           <p class="center sm">Qtd. total de itens: ${qtyTotal}</p>
           <p class="center sm">${now}</p>
           <div class="dashed"></div>
-          <p class="center bold sm">NFC-e Nº ${nfceNumber}${serie ? ` | Série ${serie}` : ""}</p>
+          <p class="center bold sm">NFC-e nº ${paddedNumber}${serie ? ` | Série ${serie}` : ""}</p>
           ${protocolHtml}
           ${accessKey ? `
             <p class="center xs" style="margin-top:2px">CHAVE DE ACESSO</p>
@@ -283,39 +314,18 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
           <div class="qr-container">
             <div id="qrcode"></div>
             <p class="xs" style="margin-top:2px">Consulte pela chave de acesso em</p>
-            <p class="xs">www.nfe.fazenda.gov.br/portal</p>
+            <p class="xs bold">${sefazUrl}</p>
           </div>
           <div class="dashed"></div>
-          ${isSimulation
-            ? `<p class="center bold sm" style="margin-top:4px">EMITIDA EM AMBIENTE DE HOMOLOGAÇÃO</p><p class="center xs">SEM VALOR FISCAL</p>`
-            : ""
-          }
+          ${homologHtml}
           ${saleId ? `<p class="center xs" style="margin-top:2px">Ref. Interna: #${saleId.substring(0, 8).toUpperCase()}</p>` : ""}
-          <p class="center sm" style="margin-top:4px">Obrigado pela preferência!</p>
-          <p class="cut">--------------------------------</p>
-          <div class="dashed"></div>
-          <p class="center bold sm">NFC-e Nº ${nfceNumber}${serie ? ` | Série ${serie}` : ""}</p>
-          ${accessKey ? `
-            <p class="center xs" style="margin-top:2px">CHAVE DE ACESSO</p>
-            <div class="key-box">${formattedKey}</div>
-          ` : ""}
-          <div class="qr-container">
-            <div id="qrcode"></div>
-            <p class="xs" style="margin-top:2px">Consulte pela chave de acesso em</p>
-            <p class="xs">www.nfe.fazenda.gov.br/portal</p>
-          </div>
-          <div class="dashed"></div>
-          ${isSimulation
-            ? `<p class="center bold sm" style="margin-top:4px">EMITIDA EM AMBIENTE DE HOMOLOGAÇÃO</p><p class="center xs">SEM VALOR FISCAL</p>`
-            : ""
-          }
           <p class="center sm" style="margin-top:4px">Obrigado pela preferência!</p>
           <p class="cut">--------------------------------</p>
           <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"><\/script>
           <script>
             window.onload = function() {
               try {
-                var qrUrl = "${accessKey ? `https://www.nfce.fazenda.gov.br/portal/consultarNFCe.aspx?chNFe=${accessKey}` : `https://www.nfe.fazenda.gov.br/portal`}";
+                var qrUrl = "${accessKey ? `https://www.nfce.fazenda.gov.br/portal/consultarNFCe.aspx?chNFe=${accessKey}` : sefazUrl}";
                 var qr = qrcode(0, 'M');
                 qr.addData(qrUrl);
                 qr.make();
@@ -328,7 +338,7 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
       </html>
     `);
     printWindow.document.close();
-  }, [items, total, payments, changeAmount, companyName, companyCnpj, companyIe, companyPhone, companyAddress, nfceNumber, accessKey, serie, logoUrl, saleId, customerCpf, protocolNumber, protocolDate]);
+  }, [items, total, payments, changeAmount, companyName, companyCnpj, companyIe, companyPhone, companyAddress, companyUf, nfceNumber, accessKey, serie, logoUrl, saleId, customerCpf, protocolNumber, protocolDate, isHomologacao, tributosAprox]);
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
       <div className="bg-card rounded-2xl border border-border shadow-2xl p-6 w-full max-w-sm mx-4" onClick={e => e.stopPropagation()}>
