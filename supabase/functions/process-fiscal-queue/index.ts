@@ -11,38 +11,28 @@ Deno.serve(async (req) => {
     return new Response("ok", { headers: corsHeaders });
   }
 
-  // JWT validation
-  const authHeader = req.headers.get("Authorization");
-  if (!authHeader?.startsWith("Bearer ")) {
-    return new Response(JSON.stringify({ error: "Não autorizado" }), {
-      status: 401,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
-
-  const supabaseAuth = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_ANON_KEY")!,
-    { global: { headers: { Authorization: authHeader } } }
-  );
-
-  const token = authHeader.replace("Bearer ", "");
-  const { data: claimsData, error: claimsError } = await supabaseAuth.auth.getClaims(token);
-  if (claimsError || !claimsData?.claims) {
-    return new Response(JSON.stringify({ error: "Token inválido" }), {
-      status: 401,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
-
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
   );
 
   try {
-    // 1️⃣ Buscar registro pendente
-    const { data: queueItem } = await supabase
+    const body = await req.json().catch(() => ({}));
+    const companyFilter = body.company_id;
+
+    // 1️⃣ Resetar itens presos em "processing" há mais de 5 minutos
+    const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+    const stuckQuery = supabase
+      .from("fiscal_queue")
+      .update({ status: "pending" })
+      .eq("status", "processing")
+      .lt("updated_at", fiveMinAgo);
+
+    if (companyFilter) stuckQuery.eq("company_id", companyFilter);
+    await stuckQuery;
+
+    // 2️⃣ Buscar próximo item pendente
+    const pendingQuery = supabase
       .from("fiscal_queue")
       .select("*")
       .eq("status", "pending")
@@ -50,9 +40,12 @@ Deno.serve(async (req) => {
       .limit(1)
       .maybeSingle();
 
+    if (companyFilter) pendingQuery.eq("company_id", companyFilter);
+    const { data: queueItem } = await pendingQuery;
+
     if (!queueItem) {
       return new Response(
-        JSON.stringify({ message: "Nenhum item pendente" }),
+        JSON.stringify({ success: true, message: "Nenhum item pendente" }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -60,25 +53,13 @@ Deno.serve(async (req) => {
     const queueId = queueItem.id;
     const saleId = queueItem.sale_id;
     const companyId = queueItem.company_id;
+    const attempts = (queueItem.attempts || 0) + 1;
 
-    // 2️⃣ Marcar como processing
+    // 3️⃣ Marcar como processing
     await supabase
       .from("fiscal_queue")
-      .update({
-        status: "processing",
-        attempts: (queueItem.attempts || 0) + 1,
-      })
+      .update({ status: "processing", attempts, updated_at: new Date().toISOString() })
       .eq("id", queueId);
-
-    // 3️⃣ Buscar dados da venda e itens
-    const [{ data: sale }, { data: items }] = await Promise.all([
-      supabase.from("sales").select("*").eq("id", saleId).single(),
-      supabase.from("sale_items").select("*").eq("sale_id", saleId),
-    ]);
-
-    if (!sale || !items?.length) {
-      throw new Error("Venda ou itens não encontrados");
-    }
 
     // 4️⃣ Buscar config fiscal
     const { data: fiscalConfig } = await supabase
@@ -91,7 +72,36 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (!fiscalConfig) {
-      throw new Error("Nenhuma configuração fiscal ativa");
+      // Erro de configuração — marcar como erro e NÃO retornar 500
+      await Promise.all([
+        supabase.from("fiscal_queue")
+          .update({ status: "error", last_error: "Nenhuma configuração fiscal ativa" })
+          .eq("id", queueId),
+        supabase.from("sales")
+          .update({ status: "pendente_fiscal" })
+          .eq("id", saleId)
+          .eq("company_id", companyId),
+      ]);
+      return new Response(
+        JSON.stringify({ success: false, error: "Nenhuma configuração fiscal ativa", sale_id: saleId }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // 5️⃣ Buscar dados da venda e itens
+    const [{ data: sale }, { data: items }] = await Promise.all([
+      supabase.from("sales").select("*").eq("id", saleId).single(),
+      supabase.from("sale_items").select("*").eq("sale_id", saleId),
+    ]);
+
+    if (!sale || !items?.length) {
+      await supabase.from("fiscal_queue")
+        .update({ status: "error", last_error: "Venda ou itens não encontrados" })
+        .eq("id", queueId);
+      return new Response(
+        JSON.stringify({ success: false, error: "Venda ou itens não encontrados", sale_id: saleId }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     const crt = fiscalConfig.crt || 1;
@@ -116,7 +126,7 @@ Deno.serve(async (req) => {
       cofins_cst: "49",
     }));
 
-    // 5️⃣ Chamar emissão fiscal
+    // 6️⃣ Chamar emissão fiscal
     const { data: fiscalData, error: fiscalErr } = await supabase.functions.invoke(
       "emit-nfce",
       {
@@ -138,14 +148,26 @@ Deno.serve(async (req) => {
     );
 
     if (fiscalErr || !fiscalData?.success) {
-      throw new Error(fiscalData?.error || fiscalErr?.message || "Falha na emissão");
+      const errMsg = fiscalData?.error || fiscalErr?.message || "Falha na emissão";
+      await Promise.all([
+        supabase.from("fiscal_queue")
+          .update({ status: "error", last_error: errMsg })
+          .eq("id", queueId),
+        supabase.from("sales")
+          .update({ status: "pendente_fiscal" })
+          .eq("id", saleId)
+          .eq("company_id", companyId),
+      ]);
+      return new Response(
+        JSON.stringify({ success: false, error: errMsg, sale_id: saleId }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
-    // 6️⃣ Sucesso
+    // 7️⃣ Sucesso
     await Promise.all([
       supabase.from("sales").update({ status: "emitida" }).eq("id", saleId),
-      supabase
-        .from("fiscal_queue")
+      supabase.from("fiscal_queue")
         .update({ status: "done", processed_at: new Date().toISOString() })
         .eq("id", queueId),
     ]);
@@ -155,35 +177,9 @@ Deno.serve(async (req) => {
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err: any) {
-    // Atualizar fila com erro usando dados já obtidos no try block
-    try {
-      // Re-fetch the pending item to get queueId/saleId for error handling
-      const { data: errorItem } = await supabase
-        .from("fiscal_queue")
-        .select("id, sale_id, company_id")
-        .eq("status", "processing")
-        .order("created_at", { ascending: true })
-        .limit(1)
-        .maybeSingle();
-
-      if (errorItem?.id) {
-        await supabase
-          .from("fiscal_queue")
-          .update({ status: "error", last_error: err.message })
-          .eq("id", errorItem.id);
-      }
-      if (errorItem?.sale_id && errorItem?.company_id) {
-        await supabase
-          .from("sales")
-          .update({ status: "pendente_fiscal" })
-          .eq("id", errorItem.sale_id)
-          .eq("company_id", errorItem.company_id);
-      }
-    } catch { /* best effort */ }
-
     return new Response(
       JSON.stringify({ success: false, error: err.message }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });
