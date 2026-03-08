@@ -82,10 +82,15 @@ export function CashRegister({ onClose, terminalId = "01", preventClose = false,
     if (!companyId) { setLoading(false); return; }
     setLoading(true);
     const online = await canReachServer();
-    if (!online) { const cached = getCachedSession(companyId); if (cached) { setSession(cached); loadFiadoMovements(cached.id); } setLoading(false); return; }
-    try { const data = await CashSessionService.getCurrentSession(companyId, terminalId); setSession(data); if (data) loadFiadoMovements(data.id); }
-    catch { const cached = getCachedSession(companyId); if (cached) { setSession(cached); loadFiadoMovements(cached.id); } }
-    finally { setLoading(false); }
+    let foundSession: any = null;
+    if (!online) { foundSession = getCachedSession(companyId); if (foundSession) { setSession(foundSession); loadFiadoMovements(foundSession.id); } setLoading(false); }
+    else {
+      try { foundSession = await CashSessionService.getCurrentSession(companyId, terminalId); setSession(foundSession); if (foundSession) loadFiadoMovements(foundSession.id); }
+      catch { foundSession = getCachedSession(companyId); if (foundSession) { setSession(foundSession); loadFiadoMovements(foundSession.id); } }
+      finally { setLoading(false); }
+    }
+    // If no session found, go directly to "open" view to avoid double prompt
+    if (!foundSession) { setView("open"); }
   }, [companyId, terminalId, loadFiadoMovements]);
 
   useEffect(() => { if (!skipInitialLoad) loadSession(); }, [loadSession, skipInitialLoad]);
