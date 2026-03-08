@@ -123,16 +123,23 @@ export default function Assistente() {
 
     setIsTyping(true);
 
-    // Build conversation history for AI context
-    const history = messages
-      .filter((m) => m.id !== "welcome")
-      .map((m) => ({ role: m.sender === "user" ? "user" : "assistant", content: m.message }));
+    try {
+      // Build conversation history for AI context
+      const history = messages
+        .filter((m) => m.id !== "welcome")
+        .map((m) => ({ role: m.sender === "user" ? "user" : "assistant", content: m.message }));
 
-    const answer = await getResponse(trimmed, history);
-    const botMsg = createMessage("bot", answer);
-    setIsTyping(false);
-    setMessages((prev) => [...prev, botMsg]);
-    persistMessage(botMsg);
+      const answer = await getResponse(trimmed, history);
+      const botMsg = createMessage("bot", answer);
+      setMessages((prev) => [...prev, botMsg]);
+      persistMessage(botMsg);
+    } catch (err) {
+      console.error("[Assistente] Error getting response:", err);
+      const errorMsg = createMessage("bot", "Desculpe, ocorreu um erro ao processar sua mensagem. Tente novamente em alguns segundos. 🔄");
+      setMessages((prev) => [...prev, errorMsg]);
+    } finally {
+      setIsTyping(false);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
