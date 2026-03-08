@@ -1170,7 +1170,7 @@ export default function PDV() {
                           {isWeighed ? item.quantity.toFixed(3) : item.quantity}
                         </td>
                         <td className="px-1 py-1.5 text-right font-mono text-muted-foreground text-[10px] hidden sm:table-cell">
-                          {itemDiscount > 0 && (
+                          {(itemDiscount > 0 || promoMatch) && (
                             <span className="line-through opacity-50 mr-1">{formatCurrency(item.price)}</span>
                           )}
                           {formatCurrency(unitPrice)}
