@@ -13,6 +13,7 @@ import {
   BadgeDollarSign, Bell, Stethoscope, Scan, FileDown, FilePen, FileSearch, Cog,
   Network, Smartphone, LifeBuoy, Boxes, BarChart, Calculator, Armchair, Wrench, Eye,
   Ruler, Camera, Box, Navigation, Move, Brain as BrainIcon, User as UserIcon, RotateCcw, Calendar,
+  Bot,
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
@@ -176,6 +177,7 @@ const navItems: NavEntry[] = [
 
 
 const footerNavItems: NavItem[] = [
+  { icon: Bot, label: "Assistente Inteligente", path: "/assistente" },
   { icon: LifeBuoy, label: "Ajuda", path: "/ajuda" },
   { icon: Smartphone, label: "Instalar App", path: "/install" },
 ];
