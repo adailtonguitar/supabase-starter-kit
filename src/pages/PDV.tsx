@@ -59,6 +59,7 @@ export default function PDV() {
     accessKey?: string;
     serie?: string;
     isContingency?: boolean;
+    isHomologacao?: boolean;
     saleId?: string;
     customerCpf?: string;
     protocolNumber?: string;
