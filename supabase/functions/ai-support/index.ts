@@ -393,8 +393,7 @@ Quando não souber a resposta ou for algo fora do escopo do sistema, sugira que 
 
 async function callGemini(messages: Array<{role: string; content: string}>): Promise<string> {
   const apiKey = Deno.env.get("GOOGLE_GEMINI_KEY") || Deno.env.get("GEMINI_API_KEY");
-  if (!apiKey) throw new Error("GOOGLE_GEMINI_KEY not configured");
-  if (!apiKey) throw new Error("GEMINI_API_KEY not configured");
+  if (!apiKey) throw new Error("GOOGLE_GEMINI_KEY ou GEMINI_API_KEY não configurada");
 
   const models = ["gemini-2.0-flash", "gemini-1.5-flash"];
 
