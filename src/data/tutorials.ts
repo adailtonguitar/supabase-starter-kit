@@ -2,7 +2,7 @@ import {
   HelpCircle, ShoppingCart, LayoutDashboard, Package, FileText,
   BarChart3, ArrowUpDown, Landmark, ClipboardList, Receipt, Settings,
   Building2, TrendingUp, AlertTriangle, Stethoscope, FileCheck, ShieldCheck,
-  WifiOff,
+  WifiOff, Bot,
 } from "lucide-react";
 
 export type TutorialCategory = "vendas" | "estoque" | "financeiro" | "fiscal" | "cadastros" | "config";
