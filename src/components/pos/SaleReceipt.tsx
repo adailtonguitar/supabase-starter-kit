@@ -69,28 +69,59 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
   const changeAmount = payments?.find(p => p.changeAmount > 0)?.changeAmount || 0;
 
   const handlePrint = useCallback(() => {
-    const itemsHtml = (items || []).map((item: any) => {
+    // Filter out DIAG_TEST products
+    const printableItems = (items || []).filter((item: any) => {
+      const name = (item.name || "").toUpperCase();
+      return !name.startsWith("DIAG_TEST") && !item.isTest;
+    });
+
+    // Calculate subtotal and total discount for summary
+    let subtotal = 0;
+    let totalDiscount = 0;
+    const discountedItems: any[] = [];
+
+    const itemsHtml = printableItems.map((item: any) => {
       const qty = item.quantity || 1;
       const unitPrice = item.price || 0;
       const totalItem = qty * unitPrice;
       const discount = item.discount || 0;
-      const promoName = item.promoName;
-      const discountLine = discount > 0 
-        ? `<div class="obs" style="color:#666">  🏷️ ${promoName || 'Desconto'}: -${formatCurrency(discount)}</div>` 
-        : "";
+      subtotal += totalItem;
+      totalDiscount += discount;
+      if (discount > 0) discountedItems.push(item);
+
       return `<div class="item-name">${item.name}</div>
-              <div class="row item-detail"><span>${qty} x ${formatCurrency(unitPrice)}</span><span>${discount > 0 ? `<s>${formatCurrency(totalItem)}</s> ${formatCurrency(totalItem - discount)}` : formatCurrency(totalItem)}</span></div>${discountLine}${item.notes ? `<div class="obs">  📝 ${item.notes}</div>` : ""}`;
+              <div class="row item-detail"><span>${qty} x ${formatCurrency(unitPrice)}</span><span>${formatCurrency(totalItem)}</span></div>${item.notes ? `<div class="obs">  📝 ${item.notes}</div>` : ""}`;
     }).join("");
+
+    // Build subtotal/discount/total summary block
+    const allHavePromoName = discountedItems.length > 0 && discountedItems.every((i: any) => !!i.promoName);
+    const promoGroups: Record<string, number> = {};
+    if (allHavePromoName) {
+      discountedItems.forEach((i: any) => {
+        promoGroups[i.promoName] = (promoGroups[i.promoName] || 0) + (i.discount || 0);
+      });
+    }
+
+    let summaryHtml = "";
+    if (totalDiscount > 0) {
+      summaryHtml = `<div class="row"><span>Subtotal</span><span>${formatCurrency(subtotal)}</span></div>`;
+      if (allHavePromoName) {
+        Object.entries(promoGroups).forEach(([name, value]) => {
+          summaryHtml += `<div class="row" style="color:#666"><span>🏷️ ${name}</span><span>-${formatCurrency(value)}</span></div>`;
+        });
+      } else {
+        summaryHtml += `<div class="row" style="color:#666"><span>Desconto</span><span>-${formatCurrency(totalDiscount)}</span></div>`;
+      }
+    }
 
     const paymentsHtml = (payments || []).map((p: any) =>
       `<div class="row"><span>${methodLabel(p.method)}</span><span>${formatCurrency(p.amount)}</span></div>`
     ).join("");
 
     const changeHtml = changeAmount > 0 ? `<div class="row bold"><span>Troco</span><span>${formatCurrency(changeAmount)}</span></div>` : "";
-    
 
     const now = new Date().toLocaleString("pt-BR");
-    const qtyTotal = (items || []).reduce((s: number, i: any) => s + (i.quantity || 1), 0);
+    const qtyTotal = printableItems.reduce((s: number, i: any) => s + (i.quantity || 1), 0);
 
     const printWindow = window.open("", "_blank", "width=320,height=600");
     if (!printWindow) return;
@@ -118,6 +149,7 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
             .sm { font-size: 9px; }
             .item-name { font-size: 10px; font-weight: bold; margin-top: 2px; }
             .item-detail { font-size: 10px; }
+            .obs { font-size: 9px; color: #666; }
             h2 { font-size: 13px; margin: 2px 0; }
             .cut { margin-top: 6px; text-align: center; font-size: 9px; letter-spacing: 2px; }
             .logo { max-height: 40px; max-width: 60mm; object-fit: contain; margin: 0 auto 4px; display: block; }
@@ -142,6 +174,7 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
           <div class="dashed"></div>
           ${itemsHtml}
           <div class="dashed"></div>
+          ${summaryHtml}
           <div class="row total-row"><span>TOTAL</span><span>${formatCurrency(total)}</span></div>
           <div class="dashed"></div>
           ${paymentsHtml}
@@ -153,7 +186,6 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
           <p class="cut">--------------------------------</p>
           <script>
             window.onload = function() {
-              // Pequeno delay para renderizar antes de imprimir
               setTimeout(function() { window.print(); window.close(); }, 200);
             }
           <\/script>
@@ -161,7 +193,7 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
       </html>
     `);
     printWindow.document.close();
-  }, [items, total, payments, changeAmount, companyName, companyCnpj, companyIe, companyPhone, companyAddress, nfceNumber, logoUrl, saleId]);
+  }, [items, total, payments, changeAmount, companyName, companyCnpj, companyIe, companyPhone, companyAddress, logoUrl, saleId, slogan]);
 
   const handlePrintFiscal = useCallback(() => {
     if (!nfceNumber) {
