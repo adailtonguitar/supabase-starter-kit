@@ -435,9 +435,27 @@ function normalize(text: string): string {
     .trim();
 }
 
+// Simple stemming: remove common Portuguese suffixes for better matching
+function stem(word: string): string {
+  return word
+    .replace(/(ões|ões|ção|ções|mente|ando|endo|indo|ado|ido|ar|er|ir|ou|ei|am|em|os|as|es)$/, "")
+    .replace(/(s)$/, "");
+}
+
+function wordsMatch(a: string, b: string): boolean {
+  if (a === b) return true;
+  const sa = stem(a), sb = stem(b);
+  if (sa === sb) return true;
+  if (sa.length >= 4 && sb.length >= 4) {
+    // Allow close matches (one contains the other)
+    if (sa.includes(sb) || sb.includes(sa)) return true;
+  }
+  return false;
+}
+
 function findBestMatch(input: string): string | null {
   const normalizedInput = normalize(input);
-  const inputWords = normalizedInput.split(/\s+/).filter(w => w.length >= 3);
+  const inputWords = normalizedInput.split(/\s+/).filter(w => w.length >= 2);
 
   if (inputWords.length === 0) return null;
 
@@ -456,23 +474,25 @@ function findBestMatch(input: string): string | null {
         continue;
       }
 
-      // Word-level matching — only exact word matches (no substring)
-      const kwWords = normalizedKeyword.split(/\s+/).filter(w => w.length >= 3);
+      // Word-level matching with stemming
+      const kwWords = normalizedKeyword.split(/\s+/).filter(w => w.length >= 2);
       if (kwWords.length === 0) continue;
 
       let wordMatches = 0;
       for (const kw of kwWords) {
-        if (inputWords.some((iw) => iw === kw)) {
+        if (inputWords.some((iw) => wordsMatch(iw, kw))) {
           wordMatches++;
         }
       }
 
       if (wordMatches > 0) {
-        // Require at least 50% of keyword words to match for multi-word keywords
         const ratio = wordMatches / kwWords.length;
-        if (kwWords.length >= 2 && ratio < 0.5) continue;
-        const score = ratio * 80;
-        entryScore = Math.max(entryScore, score);
+        // For single-word keywords, require exact match
+        if (kwWords.length === 1 && wordMatches === 1) {
+          entryScore = Math.max(entryScore, 70);
+        } else if (ratio >= 0.5) {
+          entryScore = Math.max(entryScore, ratio * 85);
+        }
       }
     }
 
@@ -482,8 +502,7 @@ function findBestMatch(input: string): string | null {
     }
   }
 
-  // Require score >= 60 for a confident match
-  if (bestEntry && bestScore >= 60) {
+  if (bestEntry && bestScore >= 50) {
     return bestEntry.answer;
   }
 
