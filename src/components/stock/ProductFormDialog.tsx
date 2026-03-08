@@ -83,6 +83,7 @@ export const ProductFormDialog = forwardRef<HTMLDivElement, Props>(function Prod
   const { user } = useAuth();
   const planFeatures = usePlanFeatures();
   const { isSuperAdmin } = useAdminRole();
+  const { guardFileUpload } = useDemoGuard();
   const canUseAiPhoto = isSuperAdmin || planFeatures.plan === "pro";
   const createProduct = useCreateProduct();
   const updateProduct = useUpdateProduct();
