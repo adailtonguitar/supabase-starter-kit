@@ -1002,13 +1002,18 @@ export default function PDV() {
             </span>
           )}
           {pdv.syncStats.pending > 0 && (
-            <span className="text-xs font-mono opacity-80">
+            <span className={`text-xs font-mono px-2 py-0.5 rounded-full ${pdv.isOnline ? "bg-primary/20" : "bg-warning/20 text-warning"}`}>
               📤 {pdv.syncStats.pending} pendente{pdv.syncStats.pending > 1 ? "s" : ""}
+              {pdv.syncingSales && " ⟳"}
             </span>
           )}
-          <span className="flex items-center gap-1">
+          <span className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold ${
+            pdv.isOnline 
+              ? "bg-success/20 text-success" 
+              : "bg-destructive/20 text-destructive animate-pulse"
+          }`}>
             {pdv.isOnline ? <Wifi className="w-3 h-3" /> : <WifiOff className="w-3 h-3" />}
-            <span className="font-bold hidden sm:inline">{pdv.isOnline ? "Online" : "Offline"}</span>
+            <span className="hidden sm:inline">{pdv.isOnline ? "Online" : "Offline"}</span>
           </span>
           <LiveClock />
         </div>
