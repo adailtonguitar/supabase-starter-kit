@@ -3,6 +3,7 @@ import { usePromotions } from "@/hooks/usePromotions";
 import { useProducts } from "@/hooks/useProducts";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -178,7 +179,7 @@ export default function Promocoes() {
               {promoType === "preco_fixo" && (
                 <div>
                   <Label>Preço promocional (R$)</Label>
-                  <Input type="number" min={0.01} step={0.01} value={fixedPrice} onChange={(e) => setFixedPrice(Number(e.target.value))} />
+                  <CurrencyInput value={fixedPrice} onChange={setFixedPrice} placeholder="0,00" />
                 </div>
               )}
 
