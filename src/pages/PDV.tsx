@@ -1782,11 +1782,13 @@ export default function PDV() {
           total={receipt.total} payments={receipt.payments} nfceNumber={receipt.nfceNumber}
           accessKey={receipt.accessKey} serie={receipt.serie}
           isContingency={receipt.isContingency}
+          isHomologacao={receipt.isHomologacao}
           saleId={receipt.saleId}
           slogan={slogan || undefined} logoUrl={logoUrl || undefined} companyName={companyName || undefined}
           companyCnpj={cnpj || undefined}
           companyIe={ie || undefined}
           companyPhone={phone || undefined}
+          companyUf={addressState || undefined}
           customerCpf={receipt.customerCpf}
           companyAddress={[addressStreet, addressNumber, addressNeighborhood, addressCity, addressState].filter(Boolean).join(', ') || undefined}
           onClose={() => setReceipt(null)}

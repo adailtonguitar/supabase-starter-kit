@@ -2,6 +2,37 @@ import { AlertTriangle, Printer, FileText, Receipt } from "lucide-react";
 import { useCallback } from "react";
 import { toast } from "sonner";
 
+// Map UF → SEFAZ NFC-e consultation URL
+const SEFAZ_NFCE_URLS: Record<string, string> = {
+  AC: "https://www.sefaznet.ac.gov.br/nfce",
+  AL: "https://nfce.sefaz.al.gov.br",
+  AM: "https://sistemas.sefaz.am.gov.br/nfceweb",
+  AP: "https://www.sefaz.ap.gov.br/nfce",
+  BA: "https://nfe.sefaz.ba.gov.br/servicos/nfce",
+  CE: "https://nfce.sefaz.ce.gov.br",
+  DF: "https://www.nfce.fazenda.df.gov.br",
+  ES: "https://app.sefaz.es.gov.br/ConsultaNFCe",
+  GO: "https://nfe.sefaz.go.gov.br/nfeweb/jsp/ConsultaDANFENFCe.jsf",
+  MA: "https://www.sefaz.ma.gov.br/nfce",
+  MG: "https://nfce.fazenda.mg.gov.br/portalnfce",
+  MS: "https://www.dfe.ms.gov.br/nfce",
+  MT: "https://www.sefaz.mt.gov.br/nfce/consultanfce",
+  PA: "https://app.sefa.pa.gov.br/emissao-nfce",
+  PB: "https://www.sefaz.pb.gov.br/nfce",
+  PE: "https://nfce.sefaz.pe.gov.br/nfce-web",
+  PI: "https://webas.sefaz.pi.gov.br/nfceweb",
+  PR: "https://www.fazenda.pr.gov.br/nfce",
+  RJ: "https://www.fazenda.rj.gov.br/nfce",
+  RN: "https://nfce.set.rn.gov.br",
+  RO: "https://www.sefin.ro.gov.br/nfce",
+  RR: "https://www.sefaz.rr.gov.br/nfce",
+  RS: "https://www.sefaz.rs.gov.br/NFCE",
+  SC: "https://sat.sef.sc.gov.br/nfce",
+  SE: "https://nfe.sefaz.se.gov.br/nfce",
+  SP: "https://www.nfce.fazenda.sp.gov.br",
+  TO: "https://www.sefaz.to.gov.br/nfce",
+};
+
 interface SaleReceiptProps {
   items: any[];
   total: number;
@@ -17,10 +48,13 @@ interface SaleReceiptProps {
   companyIe?: string;
   companyPhone?: string;
   companyAddress?: string;
+  companyUf?: string;
   isContingency?: boolean;
+  isHomologacao?: boolean;
   customerCpf?: string;
   protocolNumber?: string;
   protocolDate?: string;
+  tributosAprox?: number;
   onClose: () => void;
 }
 
