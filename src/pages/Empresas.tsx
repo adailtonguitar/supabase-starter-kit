@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/hooks/useCompany";
+import { useDemoGuard } from "@/hooks/useDemoGuard";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Building2, Save, Upload, Loader2 } from "lucide-react";
@@ -133,9 +134,12 @@ const Empresas = () => {
     setSaving(false);
   };
 
+  const { guardFileUpload } = useDemoGuard();
+
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !companyId) return;
+    if (!guardFileUpload(file)) return;
     setUploading(true);
     try {
       const ext = file.name.split(".").pop();

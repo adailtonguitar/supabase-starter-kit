@@ -42,6 +42,22 @@ Deno.serve(async (req) => {
     }
 
     const userId = user.id;
+
+    // Block demo accounts from checkout
+    const { data: cuDemo } = await supabase
+      .from("company_users")
+      .select("company_id, companies!inner(is_demo)")
+      .eq("user_id", userId)
+      .eq("is_active", true)
+      .limit(1)
+      .maybeSingle();
+    if ((cuDemo?.companies as any)?.is_demo === true) {
+      return new Response(
+        JSON.stringify({ error: "Checkout não disponível em contas de demonstração. Crie uma conta real para assinar." }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const userEmail = user.email ?? user.user_metadata?.email ?? null;
     if (!userEmail) {
       return new Response(JSON.stringify({ error: "Usuário sem e-mail para checkout" }), {

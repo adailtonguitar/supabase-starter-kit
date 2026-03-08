@@ -12,6 +12,7 @@ import { useCreateProduct, useUpdateProduct, type Product } from "@/hooks/usePro
 import type { LocalProduct } from "@/hooks/useLocalProducts";
 import { useFiscalCategories } from "@/hooks/useFiscalCategories";
 import { useCompany } from "@/hooks/useCompany";
+import { useDemoGuard } from "@/hooks/useDemoGuard";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { recordPriceChange } from "@/lib/price-history";
@@ -82,6 +83,7 @@ export const ProductFormDialog = forwardRef<HTMLDivElement, Props>(function Prod
   const { user } = useAuth();
   const planFeatures = usePlanFeatures();
   const { isSuperAdmin } = useAdminRole();
+  const { guardFileUpload } = useDemoGuard();
   const canUseAiPhoto = isSuperAdmin || planFeatures.plan === "pro";
   const createProduct = useCreateProduct();
   const updateProduct = useUpdateProduct();
@@ -262,6 +264,7 @@ export const ProductFormDialog = forwardRef<HTMLDivElement, Props>(function Prod
 
   const uploadImage = async (productId: string): Promise<string | null> => {
     if (!imageFile || !companyId) return imagePreview;
+    if (!guardFileUpload(imageFile)) return imagePreview;
     setUploadingImage(true);
     try {
       const ext = imageFile.name.split(".").pop() || "jpg";

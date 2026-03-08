@@ -254,7 +254,23 @@ Deno.serve(async (req) => {
       return null;
     }
 
-    // ─── BACKUP ALL EXISTING XMLs ───
+    // ── Demo account guard ──
+    async function isDemoCompany(companyId: string): Promise<boolean> {
+      const { data } = await supabase
+        .from("companies")
+        .select("is_demo")
+        .eq("id", companyId)
+        .maybeSingle();
+      return data?.is_demo === true;
+    }
+
+    // Block demo accounts from fiscal operations
+    const demoCheckCompanyId = body.company_id || (jwtToken ? await getAuthUserId().then(uid => uid ? resolveCompanyFromUser(uid) : null) : null);
+    if (demoCheckCompanyId && await isDemoCompany(demoCheckCompanyId)) {
+      return jsonResponse({ error: "Emissão fiscal não disponível em contas de demonstração. Assine um plano para utilizar este recurso." }, 403);
+    }
+
+
     if (action === "backup_xmls") {
       const { company_id: bkCompanyId } = body;
       if (!bkCompanyId) return jsonResponse({ error: "company_id obrigatório" }, 400);
