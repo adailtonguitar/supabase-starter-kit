@@ -176,6 +176,7 @@ const navItems: NavEntry[] = [
 
 
 const footerNavItems: NavItem[] = [
+  { icon: Bot, label: "Assistente Inteligente", path: "/assistente" },
   { icon: LifeBuoy, label: "Ajuda", path: "/ajuda" },
   { icon: Smartphone, label: "Instalar App", path: "/install" },
 ];
