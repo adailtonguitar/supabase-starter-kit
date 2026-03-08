@@ -2,6 +2,7 @@ import {
   HelpCircle, ShoppingCart, LayoutDashboard, Package, FileText,
   BarChart3, ArrowUpDown, Landmark, ClipboardList, Receipt, Settings,
   Building2, TrendingUp, AlertTriangle, Stethoscope, FileCheck, ShieldCheck,
+  WifiOff,
 } from "lucide-react";
 
 export type TutorialCategory = "vendas" | "estoque" | "financeiro" | "fiscal" | "cadastros" | "config";
@@ -515,5 +516,50 @@ export const tutorials: TutorialSection[] = [
       "Manifeste ciência em até 180 dias após a emissão do documento.",
       "XMLs baixados podem ser usados para importar produtos automaticamente.",
     ],
+  },
+  {
+    icon: WifiOff,
+    title: "Modo Offline — Vender sem Internet",
+    description: "Aprenda a ativar e usar o sistema mesmo sem conexão com a internet. Vendas são salvas localmente e sincronizadas automaticamente quando a conexão retornar.",
+    mode: "both",
+    category: "config",
+    difficulty: "intermediario",
+    steps: [
+      "1. Instale o aplicativo: acesse o sistema pelo navegador Chrome e clique em 'Instalar' na barra de endereço (ou vá em Menu > Ajuda > Instalar App). Isso habilita o modo PWA com cache de arquivos.",
+      "2. Faça login normalmente enquanto estiver online. O sistema salva suas credenciais e dados essenciais (produtos, clientes) no armazenamento local do dispositivo.",
+      "3. Acesse o PDV e abra o caixa. O sistema carrega automaticamente o cache local de produtos e clientes para uso offline.",
+      "4. Observe o indicador de conexão no canto superior: um ícone verde indica online, um badge laranja pulsante indica modo offline.",
+      "5. Quando a internet cair, o sistema detecta automaticamente e entra em modo de contingência. Você verá um aviso 'Modo Offline' no topo da tela.",
+      "6. Continue vendendo normalmente! Adicione produtos, aplique descontos e finalize vendas. Tudo é salvo localmente no dispositivo.",
+      "7. As vendas offline ficam em uma fila de sincronização. Você pode ver a fila no painel 'Sincronização' (ícone de nuvem no cabeçalho).",
+      "8. Quando a internet retornar, o sistema sincroniza automaticamente todas as vendas pendentes com o servidor.",
+      "9. Acompanhe o progresso da sincronização no painel. Vendas sincronizadas com sucesso recebem um check verde.",
+      "10. Se alguma venda falhar na sincronização, clique em 'Tentar novamente' para reenviar manualmente.",
+    ],
+    tips: [
+      "Instale como PWA para garantir que o cache de arquivos funcione corretamente.",
+      "Mantenha o navegador aberto durante o uso offline — fechar a aba pode perder dados não salvos.",
+      "O cache de produtos é atualizado automaticamente a cada acesso online. Produtos adicionados enquanto offline só serão visíveis para outros terminais após a sincronização.",
+      "Formas de pagamento em dinheiro e PIX funcionam normalmente offline. Pagamentos com cartão (TEF) exigem conexão.",
+      "Recomendamos fazer um teste de venda offline antes de depender do recurso em produção.",
+      "O modo offline funciona melhor no Google Chrome e Microsoft Edge.",
+      "Em caso de conflito (mesmo produto vendido em dois terminais offline), o sistema resolve automaticamente na sincronização.",
+    ],
+    example: {
+      title: "Exemplo: Queda de internet durante o expediente",
+      description: "Cenário real de uso do modo offline em uma loja.",
+      steps: [
+        "A internet cai às 14h. O sistema detecta e exibe 'Modo Offline'.",
+        "O operador continua vendendo normalmente pelo PDV.",
+        "São realizadas 12 vendas em dinheiro e PIX durante 2 horas sem internet.",
+        "Às 16h a internet retorna. O painel de sincronização mostra '12 vendas pendentes'.",
+        "Em poucos segundos, todas as vendas são sincronizadas automaticamente.",
+        "O financeiro e estoque são atualizados com todas as vendas do período offline.",
+      ],
+      conclusion: [
+        "Nenhuma venda foi perdida durante a queda de internet.",
+        "O fluxo de caixa e estoque ficaram consistentes após a sincronização.",
+      ],
+    },
   },
 ];
