@@ -216,5 +216,6 @@ export function useSync() {
     queueOperation,
     refreshStats,
     pendingCount: stats.pending + stats.failed,
+    failedErrors,
   };
 }
