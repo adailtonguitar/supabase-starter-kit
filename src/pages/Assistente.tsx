@@ -103,18 +103,18 @@ export default function Assistente() {
 
   // Persist message to DB (fire-and-forget, non-critical)
   const persistMessage = (msg: SupportMessage) => {
-    if (!user?.id || !companyId) return;
     try {
+      if (!user?.id || !companyId) return;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const p = (supabase as any).from("support_messages").insert({
         user_id: user.id,
         company_id: companyId,
-        message: msg.message,
+        message: (msg.message || "").slice(0, 5000),
         sender: msg.sender,
       });
       Promise.resolve(p).catch(() => {});
     } catch {
-      // silent
+      // completely silent - persistence is optional
     }
   };
 
