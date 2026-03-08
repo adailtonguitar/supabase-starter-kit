@@ -111,7 +111,9 @@ export function usePDV() {
       const raw = localStorage.getItem("as_offline_cash_session");
       if (raw) {
         const offlineSession = JSON.parse(raw);
-        if (offlineSession?.company_id === companyId && offlineSession?.terminal_id === terminalId && offlineSession?.status === "aberto") {
+        // Accept if company matches (or companyId not yet loaded) and terminal + status match
+        const companyMatch = !companyId || offlineSession?.company_id === companyId;
+        if (companyMatch && offlineSession?.terminal_id === terminalId && offlineSession?.status === "aberto") {
           setCurrentSession(offlineSession as CashSession);
           return true;
         }
