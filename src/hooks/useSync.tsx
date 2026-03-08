@@ -196,8 +196,12 @@ export function useSync() {
 
     window.addEventListener("online", handleOnline);
     window.addEventListener("offline", handleOffline);
-    refreshStats();
+
+    // Defer initial stats refresh to avoid "Should have a queue" React bug
+    const timer = setTimeout(() => refreshStats(), 0);
+
     return () => {
+      clearTimeout(timer);
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
     };
