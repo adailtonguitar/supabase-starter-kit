@@ -363,6 +363,67 @@ const knowledgeBase: KnowledgeEntry[] = [
     keywords: ["preço", "quanto custa", "plano", "assinatura", "mensalidade", "valor"],
     answer: "Para informações sobre planos e preços:\n\nAcesse a página inicial do AnthoSystem ou entre em contato com nosso comercial.\n\nClique em **Falar com suporte humano** para informações sobre planos, preços e condições especiais.",
   },
+  // ═══════════════════ ERROS E PROBLEMAS COMUNS ═══════════════════
+  {
+    keywords: ["tela branca", "página branca", "não carrega", "tela vazia"],
+    answer: "Se a tela está branca ou não carrega:\n\n1. **Recarregue a página** (F5 ou Ctrl+Shift+R)\n2. **Limpe o cache** do navegador (Ctrl+Shift+Delete)\n3. Tente abrir em **aba anônima** para testar\n4. Se usa o app instalado, **feche e reabra**\n5. Verifique sua **conexão com a internet**\n\nSe persistir, clique em **Falar com suporte humano**.",
+  },
+  {
+    keywords: ["não consigo logar", "login não funciona", "senha errada", "não entra", "acesso negado"],
+    answer: "Problemas com login:\n\n1. Verifique se o **e-mail está correto**\n2. Confira se a **senha está certa** (atenção ao Caps Lock)\n3. Clique em **Esqueci minha senha** para redefinir\n4. Se sua conta foi criada por um admin, peça para ele **reenviar o convite**\n5. Se aparece \"conta desativada\", entre em contato com o administrador da empresa\n\nSe nada funcionar, clique em **Falar com suporte humano**.",
+  },
+  {
+    keywords: ["venda não finaliza", "erro ao vender", "venda travou", "não fecha venda"],
+    answer: "Se a venda não finaliza:\n\n1. Verifique se há **produtos adicionados** à venda\n2. Confira se selecionou uma **forma de pagamento**\n3. Verifique se o **caixa está aberto** (é obrigatório abrir antes)\n4. Se usa NFC-e, verifique se o **certificado digital** está configurado\n5. Tente **recarregar a página** e refazer a venda\n\nAs vendas pendentes ficam salvas — nada é perdido.",
+  },
+  {
+    keywords: ["produto não aparece", "produto sumiu", "não encontro produto", "busca não funciona"],
+    answer: "Se o produto não aparece na busca:\n\n1. Verifique a **ortografia** do nome\n2. Tente buscar pelo **código de barras**\n3. Verifique se o produto está **ativo** (não foi desativado)\n4. Confira se o produto pertence à **filial correta**\n5. Se importou via CSV, verifique se a importação concluiu\n\nVá em **Estoque → Produtos** para confirmar se o produto existe.",
+  },
+  {
+    keywords: ["estoque errado", "estoque negativo", "quantidade errada", "divergência estoque"],
+    answer: "Se o estoque está com valores incorretos:\n\n1. Vá em **Estoque → Movimentações** e verifique o histórico\n2. Confira se houve **vendas ou devoluções** não contabilizadas\n3. Faça um **inventário** para ajustar: **Estoque → Inventário**\n4. Verifique se houve **transferências entre filiais** pendentes\n\nPara corrigir manualmente: **Estoque → Movimentações → Nova Movimentação** (ajuste de estoque).",
+  },
+  {
+    keywords: ["nota rejeitada", "rejeição sefaz", "erro nota fiscal", "nfe rejeitada", "erro sefaz"],
+    answer: "Se a nota fiscal foi rejeitada pela SEFAZ:\n\n1. Veja o **motivo da rejeição** na tela de documentos fiscais\n2. Erros comuns:\n   • **NCM inválido** → corrija o NCM do produto\n   • **CNPJ incorreto** → verifique dados da empresa\n   • **Certificado vencido** → renove o certificado digital\n   • **CST/CSOSN inválido** → ajuste em Config. Fiscal\n3. Corrija o problema e **reenvie** a nota\n\nConsulte seu **contador** para dúvidas tributárias.",
+  },
+  {
+    keywords: ["impressora não funciona", "não imprime", "erro impressão", "impressora térmica"],
+    answer: "Se a impressora não funciona:\n\n1. Verifique se está **ligada e conectada** (USB ou rede)\n2. Confira se o **papel** não acabou\n3. Em **Configurações**, verifique se a impressora está selecionada\n4. Teste imprimir uma **página de teste** pelo sistema operacional\n5. Se é **Bluetooth**, reconecte o dispositivo\n\nImpressoras compatíveis: ESC/POS 58mm e 80mm.",
+  },
+  {
+    keywords: ["sincronização", "não sincroniza", "dados não subiram", "sync", "dados perdidos offline"],
+    answer: "Se os dados não sincronizaram:\n\n1. Verifique se a **internet está funcionando**\n2. Veja o **indicador de sync** no topo da tela (ícone de nuvem)\n3. Tente clicar em **sincronizar manualmente** (se disponível)\n4. **Não limpe o cache** do navegador antes de sincronizar — pode perder dados\n5. Se usa o app instalado, **não desinstale** antes de sincronizar\n\nOs dados ficam salvos localmente até a sincronização concluir.",
+  },
+  {
+    keywords: ["lento", "devagar", "demora", "carregando", "travando", "performance"],
+    answer: "Se o sistema está lento:\n\n1. **Feche outras abas** do navegador para liberar memória\n2. **Recarregue a página** (F5)\n3. Verifique sua **conexão com a internet** (speedtest.net)\n4. **Limpe o cache** do navegador\n5. Se usa o app, **feche e reabra**\n6. Use **Chrome ou Edge** atualizado (melhor performance)\n\nSe o problema é constante, pode ser a conexão de internet.",
+  },
+  {
+    keywords: ["erro 404", "página não encontrada", "link quebrado"],
+    answer: "Erro 404 significa que a página não existe.\n\n1. Verifique se digitou o **endereço correto**\n2. Use o **menu lateral** para navegar\n3. Volte ao **Dashboard** clicando no logo\n\nSe o erro aparece ao clicar em um link do menu, **recarregue a página** (F5).",
+  },
+  {
+    keywords: ["sessão expirou", "deslogou", "saiu sozinho", "logout automático"],
+    answer: "Se sua sessão expirou:\n\n1. Faça **login novamente** — é normal expirar após inatividade prolongada\n2. Se acontece com frequência, verifique se outro dispositivo está usando a mesma conta (o sistema permite **uma sessão ativa por vez**)\n3. **Não use modo anônimo** — a sessão não persiste\n\nSeus dados não são perdidos — basta logar novamente.",
+  },
+  {
+    keywords: ["permissão negada", "sem permissão", "bloqueado", "não tenho acesso"],
+    answer: "Se aparece \"sem permissão\":\n\nSeu nível de acesso pode não incluir essa função.\n\nNíveis:\n• **Caixa** — apenas PDV\n• **Supervisor** — PDV + supervisão\n• **Gerente** — quase tudo\n• **Admin** — acesso total\n\nPeça ao **administrador** da empresa para ajustar suas permissões em **Cadastro → Usuários**.",
+  },
+  {
+    keywords: ["relatório vazio", "dados não aparecem", "gráfico vazio", "sem dados"],
+    answer: "Se o relatório aparece vazio:\n\n1. Verifique o **filtro de datas** — pode estar selecionado um período sem dados\n2. Confira se selecionou a **filial correta**\n3. Se acabou de cadastrar dados, **aguarde alguns segundos** e recarregue\n4. Verifique se tem **permissão** para ver os dados (nível de acesso)\n\nTente ampliar o período do filtro para confirmar que existem dados.",
+  },
+  {
+    keywords: ["pix não gera", "qr code não aparece", "erro pix"],
+    answer: "Se o QR Code PIX não aparece:\n\n1. Verifique se a **chave PIX** está configurada em **Configurações**\n2. Confira se o valor da venda está correto\n3. A geração precisa de **internet** — não funciona offline\n4. Tente **recarregar a página** e refazer\n\nSe o problema persistir, verifique se a chave PIX está no formato correto.",
+  },
+  {
+    keywords: ["email não chegou", "convite não chegou", "não recebi email"],
+    answer: "Se o e-mail não chegou:\n\n1. Verifique a **caixa de spam/lixo eletrônico**\n2. Confira se o **e-mail está correto**\n3. Aguarde até **5 minutos** — pode haver atraso\n4. Peça ao admin para **reenviar o convite**\n5. Verifique se seu provedor não está **bloqueando** e-mails automáticos\n\nDica: use Gmail, Outlook ou Yahoo para melhor entrega.",
+  },
 ];
 
 function normalize(text: string): string {
