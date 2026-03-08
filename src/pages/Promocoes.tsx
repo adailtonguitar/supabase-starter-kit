@@ -191,7 +191,7 @@ export default function Promocoes() {
                   </div>
                   <div>
                     <Label>Pague (quantidade)</Label>
-                    <Input type="number" min={1} value={payQty} onChange={(e) => setPayQty(Number(e.target.value))} />
+                    <Input type="number" min={1} value={payQty || ""} onChange={(e) => setPayQty(Number(e.target.value))} />
                   </div>
                 </div>
               )}
