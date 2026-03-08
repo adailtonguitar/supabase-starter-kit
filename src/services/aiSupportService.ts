@@ -468,13 +468,19 @@ function findBestMatch(input: string): string | null {
 
   for (const entry of knowledgeBase) {
     let entryScore = 0;
+    let bestKeywordLength = 0;
 
     for (const keyword of entry.keywords) {
       const normalizedKeyword = normalize(keyword);
 
-      // Exact phrase match — highest priority
+      // Exact phrase match — highest priority, prefer longer keywords
       if (normalizedInput.includes(normalizedKeyword)) {
-        entryScore = Math.max(entryScore, 100);
+        const lengthBonus = normalizedKeyword.length;
+        const score = 100 + lengthBonus;
+        if (score > entryScore) {
+          entryScore = score;
+          bestKeywordLength = lengthBonus;
+        }
         continue;
       }
 
