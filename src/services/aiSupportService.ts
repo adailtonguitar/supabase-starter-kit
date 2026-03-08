@@ -361,11 +361,41 @@ const knowledgeBase: KnowledgeEntry[] = [
   },
   {
     keywords: ["o que você faz", "quem é você", "o que sabe", "como funciona", "menu"],
-    answer: "Sou o **Assistente Inteligente do AnthoSystem**! 🤖\n\nConheço todas as funcionalidades do sistema:\n\n📍 **PDV** — vendas, caixa, pagamentos\n📦 **Estoque** — produtos, movimentações, inventário\n💰 **Financeiro** — contas, lucro, DRE, fluxo de caixa\n📊 **Relatórios** — vendas, estoque, IA\n👥 **Cadastros** — clientes, fornecedores, funcionários\n🧾 **Fiscal** — NF-e, NFC-e, configurações\n⚙️ **Sistema** — configurações, terminais, filiais\n\nPergunte qualquer coisa!",
+    answer: "Sou o **Assistente Inteligente do AnthoSystem**! 🤖\n\nConheço todas as funcionalidades do sistema:\n\n📍 **PDV** — vendas, caixa, pagamentos, atalhos de teclado\n📦 **Estoque** — produtos, movimentações, inventário, cadastro por foto IA\n💰 **Financeiro** — contas, lucro, DRE, fluxo de caixa, diagnóstico IA\n📊 **Relatórios** — vendas, estoque, IA\n👥 **Cadastros** — clientes, fornecedores, funcionários\n🧾 **Fiscal** — NF-e, NFC-e, configurações\n⚙️ **Sistema** — configurações, terminais, filiais\n📱 **App** — instalação PWA, modo offline\n🎯 **Planos** — funcionalidades exclusivas Pro\n\nPergunte qualquer coisa!",
   },
   {
-    keywords: ["preço", "quanto custa", "plano", "assinatura", "mensalidade", "valor"],
-    answer: "Para informações sobre planos e preços:\n\nAcesse a página inicial do AnthoSystem ou entre em contato com nosso comercial.\n\nClique em **Falar com suporte humano** para informações sobre planos, preços e condições especiais.",
+    keywords: ["preço", "quanto custa", "plano", "assinatura", "mensalidade", "valor", "upgrade", "pro"],
+    answer: "Sobre planos e preços:\n\nO AnthoSystem possui diferentes planos:\n\n**Gratuito:** PDV, estoque básico, cadastros, fiscal\n**Pro:** Tudo do gratuito + Cadastro por Foto IA, Curva ABC, DRE, Fluxo de Caixa, Comissões, Centro de Custo, Conciliação Bancária, Painel de Lucro, Alertas Financeiros, Relatórios IA, Diagnóstico IA\n\nPara ver seu plano: **Configurações → Assinatura**\nPara upgrade: clique em **Renovar** ou fale com suporte humano.",
+  },
+  // ═══════════════════ ATALHOS ═══════════════════
+  {
+    keywords: ["atalho", "tecla", "teclado", "shortcut", "f2", "f4", "f7", "f8", "f9", "f10", "f11", "f12"],
+    answer: "**Atalhos de teclado no PDV:** ⌨️\n\n• **F2** — Buscar produto\n• **F4** — Aplicar desconto\n• **F7** — Selecionar cliente\n• **F8** — Forma de pagamento\n• **F9** — Devolução/Troca\n• **F10** — Finalizar venda\n• **F11** — Segurar/Recuperar venda\n• **F12** — Abrir/Fechar caixa\n• **Esc** — Cancelar operação atual\n\nUse os atalhos para agilizar o atendimento!",
+  },
+  // ═══════════════════ ASSISTENTE E AJUDA ═══════════════════
+  {
+    keywords: ["ajuda", "central ajuda", "tutoriais", "tutorial", "como usar"],
+    answer: "Acesse a **Central de Ajuda** pelo menu:\n\n**Menu → Ajuda**\n\n• Tutoriais organizados por categoria\n• Filtro por nível (Iniciante, Intermediário, Avançado)\n• Busca inteligente\n• Acompanhamento de progresso\n\nSe precisar de mais ajuda, clique em **Falar com suporte humano**.",
+  },
+  {
+    keywords: ["devolução", "troca", "devolver produto", "trocar produto"],
+    answer: "Para fazer devolução ou troca:\n\nNo **PDV**, pressione **F9** ou clique em **Devolução/Troca**:\n\n1. Informe o número da venda original\n2. Selecione os itens a devolver\n3. Escolha: **Devolução** (estorna valor) ou **Troca** (crédito para nova venda)\n4. O estoque é atualizado automaticamente\n\nTodas as devoluções ficam registradas no log de auditoria.",
+  },
+  {
+    keywords: ["carnê", "gerar carnê", "imprimir carnê", "parcela fiado"],
+    answer: "Para gerar carnê de fiado:\n\n**Vendas → Fiado** → selecione o cliente → clique em **Gerar Carnê**\n\nO carnê inclui:\n• Nome do cliente\n• Parcelas com datas de vencimento\n• Valores individuais\n• Código para controle\n\nImprima e entregue ao cliente para controle dos pagamentos.",
+  },
+  {
+    keywords: ["balança", "peso", "pesagem", "balança digital"],
+    answer: "Para configurar balança digital:\n\n**Configurações → Balança**\n\n• Selecione o modelo da balança\n• Configure a porta de comunicação\n• Defina o formato do código de barras com peso\n\nNo PDV, ao escanear um produto com código de peso, o sistema lê automaticamente a gramatura do código de barras.",
+  },
+  {
+    keywords: ["marketing", "arte", "gerar arte", "imagem marketing", "post", "rede social"],
+    answer: "O AnthoSystem pode gerar **artes de marketing** com IA:\n\nNo painel Admin → Marketing → **Gerar Arte**\n\n• Descreva o que deseja (ex: 'promoção de natal para supermercado')\n• A IA gera uma imagem profissional\n• Baixe e use nas redes sociais\n\nFormatos: Instagram Feed (1080x1080), Stories (1080x1920), Facebook (1920x1080).",
+  },
+  {
+    keywords: ["dica", "boas práticas", "melhorar", "otimizar", "produtividade"],
+    answer: "**Dicas para usar melhor o AnthoSystem:** 💡\n\n1. Sempre **abra o caixa** antes de iniciar as vendas\n2. Cadastre produtos com **código de barras** para agilizar o PDV\n3. Defina **estoque mínimo** para alertas de ruptura\n4. Use **categorias** para organizar e facilitar relatórios\n5. **Vincule clientes** às vendas para fidelidade\n6. Faça **inventário** periodicamente\n7. Consulte o **Painel do Dono** diariamente\n8. Configure **alertas financeiros** para vencimentos\n9. Use o **Diagnóstico IA** mensalmente\n10. Instale como **PWA** para melhor performance",
   },
   // ═══════════════════ ERROS E PROBLEMAS COMUNS ═══════════════════
   {

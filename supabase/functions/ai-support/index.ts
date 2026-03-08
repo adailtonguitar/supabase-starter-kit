@@ -270,6 +270,7 @@ Configurações (Sistema → Configurações):
 - Dados da empresa, logo, chave PIX
 - Configurações do PDV, impressora, balança
 - Integração TEF
+- Configuração de balança para pesagem de produtos
 
 Terminais (Sistema → Terminais):
 - Múltiplos caixas/PDVs na mesma loja
@@ -281,12 +282,28 @@ Filiais (Sistema → Filiais):
 - Relatórios por filial ou consolidados
 - Permissões por unidade
 
+═══ ASSISTENTE INTELIGENTE ═══
+Menu: Assistente Inteligente
+- Chatbot com IA (Google Gemini) treinado em todas as funcionalidades do sistema
+- Responde dúvidas 24 horas, sem espera
+- Se não conseguir ajudar, direciona para suporte humano via WhatsApp
+- Acesse pelo menu lateral → Assistente Inteligente
+
+═══ CENTRAL DE AJUDA ═══
+Menu: Ajuda
+- Tutoriais organizados por categoria (Vendas, Estoque, Financeiro, Fiscal, Cadastros, Config)
+- Classificados por nível de dificuldade (Iniciante, Intermediário, Avançado)
+- Busca inteligente em títulos, descrições, passos e dicas
+- Acompanhamento de progresso dos tutoriais
+- Botão direto para suporte via WhatsApp
+
 ═══ PAINEL DO DONO ═══
 Menu: Painel do Dono
 - Resumo executivo: faturamento, lucro, ticket médio
 - Produtos mais vendidos
 - Status do estoque
 - Comparativo com períodos anteriores
+- Visão de alto nível para tomada de decisão
 
 ═══ DASHBOARD ═══
 Menu: Dashboard
@@ -294,30 +311,51 @@ Menu: Dashboard
 - Gráfico de faturamento
 - Alertas importantes
 - Atalhos rápidos
+- Widget de insights com IA
 
 ═══ PIX ═══
 - Configurar chave PIX em Configurações
 - No PDV, ao selecionar PIX, QR Code é gerado automaticamente
 - Funciona com qualquer chave: CPF, CNPJ, e-mail, telefone, aleatória
+- Padrão BRCode EMV oficial
 
 ═══ MODO OFFLINE ═══
 - Instalar como PWA (recomendado para maior confiabilidade)
 - Login online primeiro
-- Dados armazenados localmente
+- Dados armazenados localmente (IndexedDB)
 - Vendas funcionam sem internet
 - Sincronização automática quando internet retornar
-- NÃO funciona offline: emissão NF-e, relatórios IA, fidelidade
+- Indicador de sync visível no topo da tela
+- NÃO funciona offline: emissão NF-e, relatórios IA, fidelidade, diagnóstico financeiro
 
 ═══ INSTALAÇÃO PWA ═══
 - Android: Chrome → Menu → "Adicionar à tela inicial"
 - iPhone: Safari → Compartilhar → "Adicionar à Tela de Início"
 - Desktop: Chrome → ícone de instalação na barra de endereço
+- Vantagens: abre mais rápido, funciona offline, notificações
 
 ═══ EMISSOR NF-e ═══
 Menu: Emissor NF-e
 - Módulo dedicado para emissão fiscal
 - NF-e e NFC-e, cancelamento, carta de correção, inutilização
 - Requer certificado digital A1
+
+═══ PLANOS E FUNCIONALIDADES EXCLUSIVAS ═══
+- Plano Pro: Cadastro por Foto (IA), Curva ABC, DRE, Fluxo de Caixa Projetado, Comissões, Centro de Custo, Conciliação Bancária, Painel de Lucro, Alertas Financeiros, Relatórios com IA, Diagnóstico Financeiro IA
+- Funcionalidades gratuitas: PDV, estoque básico, cadastros, fiscal
+- Para ver seu plano atual: Configurações → Assinatura
+- Para upgrade: acesse a página de renovação ou fale com suporte
+
+═══ ATALHOS DE TECLADO NO PDV ═══
+- F2: Buscar produto
+- F4: Aplicar desconto
+- F7: Selecionar cliente
+- F8: Forma de pagamento
+- F9: Devolução/Troca
+- F10: Finalizar venda
+- F11: Segurar/Recuperar venda
+- F12: Abrir/Fechar caixa
+- Esc: Cancelar operação atual
 
 ═══ ERROS COMUNS E SOLUÇÕES ═══
 
@@ -390,6 +428,16 @@ SEGURANÇA:
 - Controle de acesso por níveis (RBAC)
 - Sessão única por usuário (anti-compartilhamento)
 
+═══ DICAS E BOAS PRÁTICAS ═══
+- Sempre abra o caixa antes de iniciar as vendas
+- Cadastre todos os produtos com código de barras para agilizar o PDV
+- Defina estoque mínimo para receber alertas de ruptura
+- Use categorias para organizar produtos e facilitar relatórios
+- Vincule clientes às vendas para usar o programa de fidelidade
+- Faça inventário periodicamente para manter o estoque correto
+- Consulte o Painel do Dono diariamente para visão geral do negócio
+- Configure alertas financeiros para não perder vencimentos
+- Use o Diagnóstico Financeiro IA mensalmente para insights
 Quando não souber a resposta ou for algo fora do escopo do sistema, sugira que o usuário clique em "Falar com suporte humano" para atendimento personalizado.`;
 
 async function callGemini(messages: Array<{role: string; content: string}>): Promise<string> {
