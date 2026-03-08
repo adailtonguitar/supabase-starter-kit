@@ -11,7 +11,7 @@ import { toast } from "sonner";
 export function DemoBanner() {
   const { companyId } = useCompany();
   const { user } = useAuth();
-  const { isSuperAdmin } = useAdminRole();
+  const { isSuperAdmin, loading: adminLoading } = useAdminRole();
   const navigate = useNavigate();
   const [isDemo, setIsDemo] = useState(false);
   const [daysLeft, setDaysLeft] = useState<number | null>(null);
@@ -93,7 +93,7 @@ export function DemoBanner() {
     setResetting(false);
   }, [companyId]);
 
-  if (!isDemo || isSuperAdmin) return null;
+  if (!isDemo || adminLoading || isSuperAdmin) return null;
 
   const expired = daysLeft !== null && daysLeft <= 0;
 
