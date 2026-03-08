@@ -517,7 +517,7 @@ const FALLBACK_RESPONSE =
  * Edge function (AI) is available but disabled until stable deploy is confirmed.
  * To enable AI: set AI_SUPPORT_ENABLED = true
  */
-const AI_SUPPORT_ENABLED = false;
+const AI_SUPPORT_ENABLED = true;
 
 export async function getResponse(
   userMessage: string,
