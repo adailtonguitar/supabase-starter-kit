@@ -634,6 +634,9 @@ export async function getResponse(
   // Step 4: Gemini failed or offline → use local match (even low confidence)
   if (localResult) {
     console.log(`[Assistente] Fallback local (score ${localResult.score})`);
+    if (localResult.score < 50) {
+      return localResult.answer + `\n\n---\n\n💡 Se essa resposta não resolveu, fale com nosso [**suporte humano via WhatsApp**](${WHATSAPP_SUPPORT_URL}) ou clique em **"Suporte Humano"** acima.`;
+    }
     return localResult.answer;
   }
 
