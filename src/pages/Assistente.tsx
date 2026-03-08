@@ -98,12 +98,14 @@ export default function Assistente() {
   const persistMessage = (msg: SupportMessage) => {
     if (!user?.id || !companyId) return;
     try {
-      supabase.from("support_messages" as any).insert({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const p = (supabase as any).from("support_messages").insert({
         user_id: user.id,
         company_id: companyId,
         message: msg.message,
         sender: msg.sender,
-      } as any).then(() => {}).catch(() => {});
+      });
+      Promise.resolve(p).catch(() => {});
     } catch {
       // silent
     }
