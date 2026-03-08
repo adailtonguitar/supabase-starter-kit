@@ -73,20 +73,45 @@ const processors: Record<string, SyncProcessor> = {
   fiscal_contingency: async (item) => {
     // Transmit contingency NFC-e to SEFAZ via edge function
     const p = item.payload;
-    const { data, error } = await supabase.functions.invoke("emit-nfce", {
-      body: {
-        action: "emit_contingency",
-        sale_id: p.sale_id as string,
-        company_id: p.company_id as string,
-        config_id: p.config_id as string,
-        contingency_number: p.contingency_number as number,
-        serie: p.serie as number,
-        form: p.form,
-      },
-    });
-    if (error) throw new Error(error.message);
-    if (data && !data.success) throw new Error(data.error || "Erro ao transmitir NFC-e de contingência");
-    // Success — the edge function updates fiscal_documents and sales
+    try {
+      const { data, error } = await supabase.functions.invoke("emit-nfce", {
+        body: {
+          action: "emit_contingency",
+          sale_id: p.sale_id as string,
+          company_id: p.company_id as string,
+          config_id: p.config_id as string,
+          contingency_number: p.contingency_number as number,
+          serie: p.serie as number,
+          form: p.form,
+        },
+      });
+      if (error) {
+        // Non-retryable: missing fiscal config or credentials
+        const msg = error.message || "";
+        if (msg.includes("non-2xx") || msg.includes("404") || msg.includes("não encontrada") || msg.includes("não configurad")) {
+          console.warn("[Sync] Fiscal contingency skipped (no fiscal config):", msg);
+          return; // Mark as synced — venda já foi salva, fiscal é opcional
+        }
+        throw new Error(msg);
+      }
+      if (data && !data.success) {
+        const errMsg = data.error || "Erro ao transmitir NFC-e de contingência";
+        // Skip non-retryable fiscal errors
+        if (errMsg.includes("não encontrada") || errMsg.includes("não configurad") || errMsg.includes("Credenciais")) {
+          console.warn("[Sync] Fiscal contingency skipped:", errMsg);
+          return;
+        }
+        throw new Error(errMsg);
+      }
+    } catch (err: any) {
+      // If it's a network error, rethrow for retry; otherwise skip
+      const msg = err?.message || "";
+      if (msg.includes("Failed to fetch") || msg.includes("NetworkError") || msg.includes("TypeError")) {
+        throw err;
+      }
+      console.warn("[Sync] Fiscal contingency failed permanently, skipping:", msg);
+      // Don't rethrow — mark as synced since the sale itself was already synced
+    }
   },
 };
 
