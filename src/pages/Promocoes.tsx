@@ -87,19 +87,20 @@ export default function Promocoes() {
     try {
       const payload: Record<string, any> = {
         name: name.trim(),
-        description: description.trim() || null,
         promo_type: promoType,
         discount_percent: promoType === "percentual" ? discountPercent : 0,
-        fixed_price: promoType === "preco_fixo" ? fixedPrice : 0,
-        buy_quantity: promoType === "leve_x_pague_y" ? buyQty : 1,
-        pay_quantity: promoType === "leve_x_pague_y" ? payQty : 1,
-        scope,
-        ...(scope === "category" && categoryName.trim() ? { category_name: categoryName.trim() } : {}),
-        min_quantity: promoType !== "leve_x_pague_y" ? minQty : 1,
         starts_at: new Date(startsAt).toISOString(),
-        product_ids: scope === "product" ? selectedProducts : [],
-        active_days: activeDays.length > 0 ? activeDays : null,
+        is_active: true,
       };
+      // Only include fields that may exist in the table, skip nulls
+      if (description.trim()) payload.description = description.trim();
+      if (promoType === "preco_fixo" && fixedPrice > 0) payload.fixed_price = fixedPrice;
+      if (promoType === "leve_x_pague_y") { payload.buy_quantity = buyQty; payload.pay_quantity = payQty; }
+      if (scope) payload.scope = scope;
+      if (scope === "category" && categoryName.trim()) payload.category_name = categoryName.trim();
+      if (promoType !== "leve_x_pague_y" && minQty > 1) payload.min_quantity = minQty;
+      if (scope === "product" && selectedProducts.length > 0) payload.product_ids = selectedProducts;
+      if (activeDays.length > 0) payload.active_days = activeDays;
       if (endsAt) payload.ends_at = new Date(endsAt).toISOString();
       await createPromotion(payload);
       setOpen(false);
