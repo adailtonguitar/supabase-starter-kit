@@ -523,9 +523,14 @@ export async function getResponse(
   userMessage: string,
   conversationHistory?: Array<{ role: string; content: string }>
 ): Promise<string> {
-  const localMatch = findBestMatch(userMessage);
+  let localMatch: string | null = null;
+  try {
+    localMatch = findBestMatch(userMessage);
+  } catch {
+    // ignore
+  }
 
-  if (AI_SUPPORT_ENABLED && navigator.onLine) {
+  if (AI_SUPPORT_ENABLED && typeof navigator !== "undefined" && navigator.onLine) {
     try {
       const supabaseUrl = (import.meta.env.VITE_SUPABASE_URL || "https://fsvxpxziotklbxkivyug.supabase.co").trim();
       const supabaseKey = (import.meta.env.VITE_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZzdnhweHppb3RrbGJ4a2l2eXVnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE3ODU5NTMsImV4cCI6MjA4NzM2MTk1M30.8I3ABsRZBZuE1IpK_g9z3PdRUd9Omt_F5qNx0Pgqvyo").trim();
@@ -540,23 +545,40 @@ export async function getResponse(
 
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 15000);
-      const res = await fetch(`${supabaseUrl}/functions/v1/ai-support`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${accessToken}`,
-          "apikey": supabaseKey,
-        },
-        body: JSON.stringify({ messages }),
-        signal: controller.signal,
-      });
+
+      let res: Response;
+      try {
+        res = await fetch(`${supabaseUrl}/functions/v1/ai-support`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${accessToken}`,
+            "apikey": supabaseKey,
+          },
+          body: JSON.stringify({ messages }),
+          signal: controller.signal,
+        });
+      } catch {
+        clearTimeout(timeout);
+        return localMatch ?? FALLBACK_RESPONSE;
+      }
       clearTimeout(timeout);
+
       if (res.ok) {
-        const data = await res.json();
-        if (data?.answer) return data.answer;
+        try {
+          const data = await res.json();
+          if (data?.answer && typeof data.answer === "string") {
+            return data.answer;
+          }
+        } catch {
+          // JSON parse failed, fall through
+        }
+      } else {
+        // Consume body to avoid leaks
+        try { await res.text(); } catch { /* ignore */ }
       }
     } catch {
-      // silent
+      // silent — any unexpected error falls back to local
     }
   }
 
