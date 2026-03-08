@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
@@ -6,6 +6,7 @@ import { useSync } from "@/hooks/useSync";
 import { buildContingencyPayload } from "@/services/ContingencyService";
 import type { PaymentResult } from "@/services/types";
 import { isScaleBarcode, parseScaleBarcode } from "@/lib/scale-barcode";
+import { calculateCartPromos, type PromoMatch } from "@/lib/promo-engine";
 
 export interface PDVProduct {
   id: string;
@@ -200,9 +201,30 @@ export function usePDV() {
     return sum + item.price * (1 - discount / 100) * item.quantity;
   }, 0);
 
+  // --- Promotions engine ---
+  const [activePromos, setActivePromos] = useState<any[]>([]);
+
+  const loadPromotions = useCallback(async () => {
+    if (!companyId) return;
+    try {
+      const { data } = await supabase
+        .from("promotions")
+        .select("*")
+        .eq("company_id", companyId)
+        .eq("is_active", true);
+      setActivePromos(data || []);
+    } catch {}
+  }, [companyId]);
+
+  useEffect(() => { loadPromotions(); }, [loadPromotions]);
+
+  const { matches: promoMatches, totalSavings: promoSavings } = useMemo(
+    () => calculateCartPromos(cartItems, activePromos),
+    [cartItems, activePromos]
+  );
+
   const globalDiscountValue = subtotal * (globalDiscountPercent / 100);
-  const total = subtotal - globalDiscountValue;
-  const promoSavings = 0;
+  const total = subtotal - globalDiscountValue - promoSavings;
 
   const handleBarcodeScan = useCallback((barcode: string) => {
     // Check for scale barcode (EAN-13 prefix 20-29)
@@ -714,7 +736,7 @@ export function usePDV() {
     products, cartItems, loadingProducts, currentSession, loadingSession, sessionEverLoaded,
     isOnline, globalDiscountPercent, globalDiscountValue, itemDiscounts, trainingMode,
     contingencyMode, syncStats, contingencySaleIds, finalizingSale,
-    subtotal, total, promoSavings,
+    subtotal, total, promoSavings, promoMatches,
     addToCart, removeItem, updateQuantity, clearCart, setGlobalDiscountPercent,
     setItemDiscount, handleBarcodeScan, finalizeSale, reloadSession, repeatLastSale,
     refreshProducts, reprocessFiscal,

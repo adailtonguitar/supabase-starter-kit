@@ -1107,7 +1107,9 @@ export default function PDV() {
                   pdv.cartItems.map((item, idx) => {
                     const isLast = idx === pdv.cartItems.length - 1;
                     const itemDiscount = pdv.itemDiscounts[item.id] || 0;
-                    const unitPrice = item.price * (1 - itemDiscount / 100);
+                    const promoMatch = pdv.promoMatches?.[item.id];
+                    const effectivePrice = promoMatch ? promoMatch.finalPrice : item.price;
+                    const unitPrice = effectivePrice * (1 - itemDiscount / 100);
                     const subtotalItem = unitPrice * item.quantity;
                     const isWeighed = !Number.isInteger(item.quantity);
 
@@ -1139,6 +1141,11 @@ export default function PDV() {
                             {itemDiscount > 0 && (
                               <span className="ml-1.5 text-[10px] text-destructive font-bold">-{itemDiscount}%</span>
                             )}
+                            {promoMatch && (
+                              <span className="ml-1 text-[9px] bg-primary/20 text-primary font-bold rounded px-1 py-0.5" title={promoMatch.promoName}>
+                                🏷️ {promoMatch.promoName}
+                              </span>
+                            )}
                             {(() => {
                               const prod = pdv.products.find(p => p.id === item.id);
                               const reorder = prod?.reorder_point || 0;
@@ -1163,7 +1170,7 @@ export default function PDV() {
                           {isWeighed ? item.quantity.toFixed(3) : item.quantity}
                         </td>
                         <td className="px-1 py-1.5 text-right font-mono text-muted-foreground text-[10px] hidden sm:table-cell">
-                          {itemDiscount > 0 && (
+                          {(itemDiscount > 0 || promoMatch) && (
                             <span className="line-through opacity-50 mr-1">{formatCurrency(item.price)}</span>
                           )}
                           {formatCurrency(unitPrice)}
