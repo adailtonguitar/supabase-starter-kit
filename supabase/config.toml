@@ -78,3 +78,6 @@ verify_jwt = false
 
 [functions.admin-query]
 verify_jwt = false
+
+[functions.ai-support]
+verify_jwt = false
