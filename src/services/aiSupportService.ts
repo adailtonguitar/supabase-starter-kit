@@ -519,7 +519,10 @@ export async function getResponse(
   userMessage: string,
   conversationHistory?: Array<{ role: string; content: string }>
 ): Promise<string> {
-  // Try AI-powered response first (online)
+  // Always try local keyword match first (instant)
+  const localMatch = findBestMatch(userMessage);
+
+  // Try AI-powered response (online only)
   if (navigator.onLine) {
     try {
       const { supabase } = await import("@/integrations/supabase/client");
@@ -528,22 +531,19 @@ export async function getResponse(
         ? [...conversationHistory, { role: "user", content: userMessage }]
         : [{ role: "user", content: userMessage }];
 
-      const { data, error } = await supabase.functions.invoke("ai-support", {
+      const result = await supabase.functions.invoke("ai-support", {
         body: { messages },
       });
 
-      if (!error && data?.answer) {
-        return data.answer;
+      if (result?.data?.answer && !result.error) {
+        return result.data.answer;
       }
-      console.warn("[aiSupport] Edge function failed, using local fallback:", error);
-    } catch (err) {
-      console.warn("[aiSupport] AI call failed, using local fallback:", err);
+    } catch {
+      // silent — use local fallback
     }
   }
 
-  // Fallback: local keyword matching (works offline)
-  const match = findBestMatch(userMessage);
-  return match ?? FALLBACK_RESPONSE;
+  return localMatch ?? FALLBACK_RESPONSE;
 }
 
 export function getWelcomeMessage(): SupportMessage {

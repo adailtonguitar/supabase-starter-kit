@@ -94,18 +94,20 @@ export default function Assistente() {
     setShowScrollBtn(scrollHeight - scrollTop - clientHeight > 100);
   };
 
-  // Persist message to DB (fire-and-forget)
-  const persistMessage = async (msg: SupportMessage) => {
+  // Persist message to DB (fire-and-forget, non-critical)
+  const persistMessage = (msg: SupportMessage) => {
     if (!user?.id || !companyId) return;
     try {
-      await supabase.from("support_messages").insert({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const p = (supabase as any).from("support_messages").insert({
         user_id: user.id,
         company_id: companyId,
         message: msg.message,
         sender: msg.sender,
       });
+      Promise.resolve(p).catch(() => {});
     } catch {
-      // silent — non-critical
+      // silent
     }
   };
 
