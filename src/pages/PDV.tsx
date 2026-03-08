@@ -399,9 +399,18 @@ export default function PDV() {
     let query = raw;
     let multiplier = 1;
 
-    // Parse multiplication: "5*789123456789"
-    const multiMatch = raw.match(/^(\d+)\*(.+)$/);
-    if (multiMatch) {
+    // ── Parsing de multiplicação: formato "quantidade*código" ──
+    // Permite ao operador digitar ex: 5*7891234567890 para adicionar 5 unidades.
+    // Regex captura: grupo 1 = quantidade (dígitos), grupo 2 = código do produto.
+    // Formatos inválidos como "*123" ou "5*" exibem erro amigável.
+    if (raw.includes("*")) {
+      const multiMatch = raw.match(/^(\d+)\*(.+)$/);
+      if (!multiMatch || !multiMatch[2].trim()) {
+        playErrorSound();
+        toast.error("Formato inválido. Use quantidade*código.", { duration: 2000 });
+        setBarcodeInput("");
+        return;
+      }
       multiplier = Math.max(1, parseInt(multiMatch[1], 10));
       query = multiMatch[2].trim();
     }

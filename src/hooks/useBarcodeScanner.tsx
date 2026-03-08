@@ -1,5 +1,10 @@
 import { useEffect, useRef } from "react";
 
+/**
+ * Hook para capturar leitura de código de barras via scanner físico.
+ * Suporta formato quantidade*código (ex: 5*7891234567890) — o parsing
+ * é feito no handleBarcodeSubmit do PDV, aqui apenas capturamos o raw input.
+ */
 export function useBarcodeScanner(onScan: (barcode: string) => void) {
   const bufferRef = useRef("");
   const timerRef = useRef<ReturnType<typeof setTimeout>>();
