@@ -392,7 +392,8 @@ SEGURANÇA:
 Quando não souber a resposta ou for algo fora do escopo do sistema, sugira que o usuário clique em "Falar com suporte humano" para atendimento personalizado.`;
 
 async function callGemini(messages: Array<{role: string; content: string}>): Promise<string> {
-  const apiKey = Deno.env.get("GEMINI_API_KEY");
+  const apiKey = Deno.env.get("GOOGLE_GEMINI_KEY") || Deno.env.get("GEMINI_API_KEY");
+  if (!apiKey) throw new Error("GOOGLE_GEMINI_KEY not configured");
   if (!apiKey) throw new Error("GEMINI_API_KEY not configured");
 
   const models = ["gemini-2.0-flash", "gemini-1.5-flash"];
