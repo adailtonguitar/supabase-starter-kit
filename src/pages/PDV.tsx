@@ -1107,7 +1107,9 @@ export default function PDV() {
                   pdv.cartItems.map((item, idx) => {
                     const isLast = idx === pdv.cartItems.length - 1;
                     const itemDiscount = pdv.itemDiscounts[item.id] || 0;
-                    const unitPrice = item.price * (1 - itemDiscount / 100);
+                    const promoMatch = pdv.promoMatches?.[item.id];
+                    const effectivePrice = promoMatch ? promoMatch.finalPrice : item.price;
+                    const unitPrice = effectivePrice * (1 - itemDiscount / 100);
                     const subtotalItem = unitPrice * item.quantity;
                     const isWeighed = !Number.isInteger(item.quantity);
 
