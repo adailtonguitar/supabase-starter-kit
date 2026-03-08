@@ -485,11 +485,12 @@ export function usePDV() {
         throw new Error("offline");
       }
 
-      // Get user_id
+      // Get user_id — cache for offline use
       let userId = "";
       try {
         const { data: { user } } = await supabase.auth.getUser();
         userId = user?.id || "";
+        if (userId) localStorage.setItem("as_cached_user_id", userId);
       } catch { /* offline fallback */ }
 
       const saleItems = cartItems.map(item => ({
