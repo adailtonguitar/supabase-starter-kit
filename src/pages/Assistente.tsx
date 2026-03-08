@@ -123,11 +123,12 @@ export default function Assistente() {
 
     setIsTyping(true);
 
-    // Simulate human-like delay
-    const delay = 800 + Math.random() * 1200;
-    await new Promise((r) => setTimeout(r, delay));
+    // Build conversation history for AI context
+    const history = messages
+      .filter((m) => m.id !== "welcome")
+      .map((m) => ({ role: m.sender === "user" ? "user" : "assistant", content: m.message }));
 
-    const answer = await getResponse(trimmed);
+    const answer = await getResponse(trimmed, history);
     const botMsg = createMessage("bot", answer);
     setIsTyping(false);
     setMessages((prev) => [...prev, botMsg]);
