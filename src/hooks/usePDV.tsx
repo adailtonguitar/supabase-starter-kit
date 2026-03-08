@@ -60,38 +60,38 @@ export function usePDV() {
     return () => { window.removeEventListener("online", on); window.removeEventListener("offline", off); };
   }, []);
 
-  const PRODUCTS_CACHE_KEY = `pdv_products_cache_${companyId}`;
-
   const loadProducts = useCallback(async () => {
     if (!companyId) return;
     setLoadingProducts(true);
     
     try {
-      const { data, error } = await supabase
-        .from("products")
-        .select("id, name, sku, barcode, price, stock_quantity, unit, category, ncm, image_url")
-        .eq("company_id", companyId)
-        .eq("is_active", true)
-        .order("name");
-      
-      if (data && data.length > 0) {
-        setProducts(data as PDVProduct[]);
-        try { localStorage.setItem(PRODUCTS_CACHE_KEY, JSON.stringify(data)); } catch {}
-      } else if (error) {
-        try {
-          const cached = localStorage.getItem(PRODUCTS_CACHE_KEY);
-          if (cached) {
-            setProducts(JSON.parse(cached) as PDVProduct[]);
-          }
-        } catch {}
+      if (navigator.onLine) {
+        const { data, error } = await supabase
+          .from("products")
+          .select("id, name, sku, barcode, price, stock_quantity, unit, category, ncm, image_url")
+          .eq("company_id", companyId)
+          .eq("is_active", true)
+          .order("name");
+        
+        if (data && data.length > 0) {
+          setProducts(data as PDVProduct[]);
+          // Cache to IndexedDB for offline use
+          cacheSet("pdv_products", companyId, data).catch(() => {});
+        } else if (error) {
+          throw error; // fall to catch → offline cache
+        }
+      } else {
+        throw new Error("offline");
       }
     } catch {
-      try {
-        const cached = localStorage.getItem(PRODUCTS_CACHE_KEY);
-        if (cached) {
-          setProducts(JSON.parse(cached) as PDVProduct[]);
+      // Offline or network error: read from IndexedDB
+      const cached = await cacheGet<PDVProduct[]>("pdv_products", companyId);
+      if (cached?.data && cached.data.length > 0) {
+        setProducts(cached.data);
+        if (!navigator.onLine) {
+          toast.info("Produtos carregados do cache offline", { id: "pdv-offline-products" });
         }
-      } catch {}
+      }
     }
     
     setLoadingProducts(false);
