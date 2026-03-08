@@ -1004,7 +1004,7 @@ export default function PDV() {
           {pdv.syncStats.pending > 0 && (
             <span className={`text-xs font-mono px-2 py-0.5 rounded-full ${pdv.isOnline ? "bg-primary/20" : "bg-warning/20 text-warning"}`}>
               📤 {pdv.syncStats.pending} pendente{pdv.syncStats.pending > 1 ? "s" : ""}
-              {pdv.syncingSales && " ⟳"}
+              {pdv.syncStats.syncing > 0 && " ⟳"}
             </span>
           )}
           <span className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold ${
