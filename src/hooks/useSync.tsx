@@ -116,6 +116,9 @@ export function useSync() {
     syncingRef.current = true;
     setSyncing(true);
 
+    // Reset failed items so they can be retried
+    try { await resetFailed(); } catch {}
+
     try {
       const pending = await getPending();
       let synced = 0;
