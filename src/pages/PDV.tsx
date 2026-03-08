@@ -711,6 +711,7 @@ export default function PDV() {
           saleId: result.saleId,
           customerCpf: savedClient?.cpf || undefined,
           itemNotes: { ...itemNotes },
+          promoMatches: { ...pdv.promoMatches },
         });
         setSelectedClient(null);
         const newNum = saleNumber + 1;
