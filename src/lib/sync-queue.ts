@@ -52,11 +52,12 @@ export async function getPending(): Promise<SyncQueueItem[]> {
   const db = await openDB();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_QUEUE, "readonly");
-    const index = tx.objectStore(STORE_QUEUE).index("status");
-    const request = index.getAll(IDBKeyRange.only("pending"));
+    const store = tx.objectStore(STORE_QUEUE);
+    const request = store.getAll();
     request.onsuccess = () => {
-      const items = request.result as SyncQueueItem[];
-      items.sort((a, b) => a.priority - b.priority);
+      const items = (request.result as SyncQueueItem[])
+        .filter(i => i.status === "pending" || i.status === "failed")
+        .sort((a, b) => a.priority - b.priority);
       resolve(items);
     };
     request.onerror = () => reject(request.error);
