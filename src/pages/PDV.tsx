@@ -64,6 +64,7 @@ export default function PDV() {
     protocolNumber?: string;
     protocolDate?: string;
     itemNotes?: Record<string, string>;
+    promoMatches?: Record<string, { promoName: string; originalPrice: number; finalPrice: number; savingsPerUnit: number; totalSavings: number }>;
   } | null>(null);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showProductList, setShowProductList] = useState(false);
