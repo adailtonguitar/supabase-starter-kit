@@ -172,7 +172,7 @@ export default function Promocoes() {
               {promoType === "percentual" && (
                 <div>
                   <Label>Desconto (%)</Label>
-                  <Input type="number" min={1} max={100} value={discountPercent} onChange={(e) => setDiscountPercent(Number(e.target.value))} />
+                  <Input type="number" min={1} max={100} value={discountPercent || ""} onChange={(e) => setDiscountPercent(Number(e.target.value))} />
                 </div>
               )}
 
