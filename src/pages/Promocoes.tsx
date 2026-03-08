@@ -172,7 +172,7 @@ export default function Promocoes() {
               {promoType === "percentual" && (
                 <div>
                   <Label>Desconto (%)</Label>
-                  <Input type="number" min={1} max={100} value={discountPercent} onChange={(e) => setDiscountPercent(Number(e.target.value))} />
+                  <Input type="number" min={1} max={100} value={discountPercent || ""} onChange={(e) => setDiscountPercent(Number(e.target.value))} />
                 </div>
               )}
 
@@ -187,11 +187,11 @@ export default function Promocoes() {
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <Label>Leve (quantidade)</Label>
-                    <Input type="number" min={2} value={buyQty} onChange={(e) => setBuyQty(Number(e.target.value))} />
+                    <Input type="number" min={2} value={buyQty || ""} onChange={(e) => setBuyQty(Number(e.target.value))} />
                   </div>
                   <div>
                     <Label>Pague (quantidade)</Label>
-                    <Input type="number" min={1} value={payQty} onChange={(e) => setPayQty(Number(e.target.value))} />
+                    <Input type="number" min={1} value={payQty || ""} onChange={(e) => setPayQty(Number(e.target.value))} />
                   </div>
                 </div>
               )}
