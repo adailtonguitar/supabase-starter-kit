@@ -1141,6 +1141,11 @@ export default function PDV() {
                             {itemDiscount > 0 && (
                               <span className="ml-1.5 text-[10px] text-destructive font-bold">-{itemDiscount}%</span>
                             )}
+                            {promoMatch && (
+                              <span className="ml-1 text-[9px] bg-primary/20 text-primary font-bold rounded px-1 py-0.5" title={promoMatch.promoName}>
+                                🏷️ {promoMatch.promoName}
+                              </span>
+                            )}
                             {(() => {
                               const prod = pdv.products.find(p => p.id === item.id);
                               const reorder = prod?.reorder_point || 0;
