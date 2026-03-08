@@ -26,7 +26,19 @@ export default function Caixa() {
     queryKey: ["cash-sessions-history", companyId, dateStr],
     queryFn: async () => {
       if (!companyId) return [];
-      if (!navigator.onLine) return [];
+      if (!navigator.onLine) {
+        // Offline: try to load cached open session from localStorage
+        try {
+          const raw = localStorage.getItem("as_offline_cash_session");
+          if (raw) {
+            const cached = JSON.parse(raw);
+            if (cached?.company_id === companyId && cached?.status === "aberto") {
+              return [cached];
+            }
+          }
+        } catch {}
+        return [];
+      }
       const dayStart = startOfDay(selectedDate).toISOString();
       const dayEnd = endOfDay(selectedDate).toISOString();
       const { data, error } = await supabase
