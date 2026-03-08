@@ -33,8 +33,21 @@ function TypingIndicator() {
   );
 }
 
+function SafeMarkdown({ content }: { content: string }) {
+  try {
+    return (
+      <div className="prose prose-sm dark:prose-invert max-w-none [&>p]:m-0 [&>ul]:m-0 [&>ol]:m-0">
+        <ReactMarkdown>{content || ""}</ReactMarkdown>
+      </div>
+    );
+  } catch {
+    return <span>{content || ""}</span>;
+  }
+}
+
 function ChatBubble({ msg }: { msg: SupportMessage }) {
   const isUser = msg.sender === "user";
+  const text = msg.message || "";
 
   return (
     <div className={cn("flex items-end gap-2 max-w-[85%] md:max-w-[70%]", isUser && "ml-auto flex-row-reverse")}>
@@ -51,13 +64,7 @@ function ChatBubble({ msg }: { msg: SupportMessage }) {
             : "bg-muted text-foreground rounded-bl-md"
         )}
       >
-        {isUser ? (
-          msg.message
-        ) : (
-          <div className="prose prose-sm dark:prose-invert max-w-none [&>p]:m-0 [&>ul]:m-0 [&>ol]:m-0">
-            <ReactMarkdown>{msg.message}</ReactMarkdown>
-          </div>
-        )}
+        {isUser ? text : <SafeMarkdown content={text} />}
         <div className={cn("text-[10px] mt-1 opacity-50", isUser ? "text-right" : "text-left")}>
           {new Date(msg.created_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
         </div>
