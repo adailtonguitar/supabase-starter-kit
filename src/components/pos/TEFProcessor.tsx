@@ -171,7 +171,7 @@ export function TEFProcessor({ total, onComplete, onCancel, onPrazoRequested, de
   const renderDinheiro = () => {
     const received = parseCash(cashReceived);
     const change = received - total;
-    const canConfirm = received >= total;
+    const canConfirm = received >= total || Math.abs(received - total) < 0.01;
 
     return (
       <div className="flex flex-col gap-2">
