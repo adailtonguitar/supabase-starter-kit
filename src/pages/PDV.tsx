@@ -145,11 +145,12 @@ export default function PDV() {
   const [forceClosedSnapshot, setForceClosedSnapshot] = useState<any>(null);
   const forceClosedRef = useRef(false);
 
-  // Load session for current terminal on mount and terminal change
+  // Load session for current terminal on mount, terminal change, or companyId change
   useEffect(() => {
+    if (!companyId) return; // wait until companyId is ready
     cashRegisterDismissedRef.current = false;
     pdv.reloadSession(terminalId);
-  }, [terminalId]);
+  }, [terminalId, companyId]);
 
   // Realtime listener: detect force-close from Terminais panel
   useEffect(() => {
