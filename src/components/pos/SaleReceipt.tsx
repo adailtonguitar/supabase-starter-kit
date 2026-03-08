@@ -236,7 +236,7 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
 
     const changeHtml = changeAmount > 0 ? `<div class="row bold"><span>Troco</span><span>${formatCurrency(changeAmount)}</span></div>` : "";
     const now = new Date().toLocaleString("pt-BR");
-    const qtyTotal = (items || []).reduce((s: number, i: any) => s + (i.quantity || 1), 0);
+    const qtyTotal = printableItems.reduce((s: number, i: any) => s + (i.quantity || 1), 0);
 
     const formattedKey = accessKey ? accessKey.replace(/(\d{4})(?=\d)/g, "$1 ") : "";
 
