@@ -70,8 +70,8 @@ export default function Financeiro() {
       (e.counterpart && e.counterpart.toLowerCase().includes(search.toLowerCase()))
   );
 
-  const totalPagar = allEntries.filter(e => e.type === "pagar").reduce((s, e) => s + Number(e.amount), 0);
-  const totalReceber = allEntries.filter(e => e.type === "receber").reduce((s, e) => s + Number(e.amount), 0);
+  const totalPagar = allEntries.filter(e => e.type === "pagar" && e.status !== "pago" && e.status !== "cancelado").reduce((s, e) => s + Number(e.amount), 0);
+  const totalReceber = allEntries.filter(e => e.type === "receber" && e.status !== "pago" && e.status !== "cancelado").reduce((s, e) => s + Number(e.amount), 0);
   const totalPago = allEntries.filter(e => e.status === "pago" && e.type === "pagar").reduce((s, e) => s + Number(e.paid_amount || e.amount), 0);
   const totalRecebido = allEntries.filter(e => e.status === "pago" && e.type === "receber").reduce((s, e) => s + Number(e.paid_amount || e.amount), 0);
   const saldo = totalRecebido - totalPago;
