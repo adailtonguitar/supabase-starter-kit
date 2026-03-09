@@ -141,21 +141,20 @@ export function AdminCompanyHealth() {
           ],
           limit: 1000,
         }),
-        // Errors last 24h
+        // Errors last 24h (system_errors is global, no company_id filter)
         adminQuery<{ id: string; error_message: string; created_at: string }>({
           table: "system_errors",
           select: "id, error_message, created_at",
           filters: [
-            { op: "eq", column: "company_id", value: company.id },
             { op: "gte", column: "created_at", value: new Date(Date.now() - 86400000).toISOString() },
           ],
           limit: 50,
           order: { column: "created_at", ascending: false },
         }),
         // Open cash session
-        adminQuery<{ id: string; opened_at: string; user_id: string }>({
+        adminQuery<{ id: string; opened_at: string }>({
           table: "cash_sessions",
-          select: "id, opened_at, user_id",
+          select: "id, opened_at",
           filters: [
             { op: "eq", column: "company_id", value: company.id },
             { op: "eq", column: "status", value: "aberto" },
@@ -163,9 +162,9 @@ export function AdminCompanyHealth() {
           limit: 1,
         }),
         // Subscription via company_plans
-        adminQuery<{ status: string; plan_key: string; expires_at: string }>({
+        adminQuery<{ status: string; expires_at: string }>({
           table: "company_plans",
-          select: "status, plan_key, expires_at",
+          select: "status, expires_at",
           filters: [{ op: "eq", column: "company_id", value: company.id }],
           limit: 1,
           order: { column: "created_at", ascending: false },
