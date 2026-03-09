@@ -224,7 +224,7 @@ export function AdminCompanyHealth() {
         subscription: subscriptionData[0] ? {
           status: subscriptionData[0].status,
           plan: subscriptionData[0].plan_key || "básico",
-          expires_at: subscriptionData[0].subscription_end,
+          expires_at: subscriptionData[0].expires_at,
         } : null,
         syncStatus: recentActivity.length > 0 ? "online" : "offline",
       };
