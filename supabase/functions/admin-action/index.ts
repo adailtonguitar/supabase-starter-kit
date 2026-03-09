@@ -98,6 +98,31 @@ Deno.serve(async (req) => {
       });
     }
 
+    if (action === "send_notification") {
+      const { title, message, type, company_id } = body;
+      if (!title || !message) {
+        return new Response(JSON.stringify({ error: "title and message required" }), {
+          status: 400, headers: corsHeaders,
+        });
+      }
+
+      const { error: insertErr } = await adminClient
+        .from("admin_notifications")
+        .insert({
+          title,
+          message,
+          type: type || "info",
+          company_id: company_id || null,
+          created_by: userId,
+        });
+
+      if (insertErr) throw insertErr;
+
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     return new Response(JSON.stringify({ error: "Unknown action" }), {
       status: 400,
       headers: corsHeaders,
