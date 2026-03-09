@@ -150,20 +150,31 @@ export function AdminBackup() {
           <p className="text-sm text-muted-foreground">
             Exporte todos os dados de uma empresa em JSON para backup.
           </p>
-          <div className="flex flex-col sm:flex-row gap-3">
-            <Select value={selectedCompany} onValueChange={setSelectedCompany}>
-              <SelectTrigger className="sm:w-[350px]">
-                <SelectValue placeholder={loading ? "Carregando..." : "Selecione a empresa"} />
-              </SelectTrigger>
-              <SelectContent>
-                {companies.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button onClick={handleExport} disabled={exporting || !selectedCompany}>
-              {exporting ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Exportando...</> : <><Download className="h-4 w-4 mr-2" /> Exportar</>}
-            </Button>
+          <div className="flex flex-col gap-2">
+            <Input
+              placeholder="Buscar empresa pelo nome..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="sm:w-[350px]"
+            />
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Select value={selectedCompany} onValueChange={setSelectedCompany}>
+                <SelectTrigger className="sm:w-[350px]">
+                  <SelectValue placeholder={loading ? "Carregando..." : "Selecione a empresa"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {filteredCompanies.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                  ))}
+                  {filteredCompanies.length === 0 && (
+                    <div className="px-3 py-2 text-sm text-muted-foreground">Nenhuma empresa encontrada</div>
+                  )}
+                </SelectContent>
+              </Select>
+              <Button onClick={handleExport} disabled={exporting || !selectedCompany}>
+                {exporting ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Exportando...</> : <><Download className="h-4 w-4 mr-2" /> Exportar</>}
+              </Button>
+            </div>
           </div>
           <div className="rounded-lg border p-3 bg-muted/50">
             <h4 className="text-xs font-medium mb-2">Tabelas incluídas:</h4>
