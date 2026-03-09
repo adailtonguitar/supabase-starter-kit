@@ -16,7 +16,7 @@ const BACKUP_TABLES = ["products", "sales", "sale_items", "clients", "suppliers"
 export function AdminBackup() {
   const [companies, setCompanies] = useState<{ id: string; name: string }[]>([]);
   const [selectedCompany, setSelectedCompany] = useState("");
-  const [searchTerm, setSearchTerm] = useState("");
+  const [comboOpen, setComboOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [loading, setLoading] = useState(true);
 
