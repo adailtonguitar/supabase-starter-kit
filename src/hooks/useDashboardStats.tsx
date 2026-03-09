@@ -45,6 +45,8 @@ interface DashboardStats {
   billsDueTodayCount: number;
   overdueBills: number;
   overdueBillsCount: number;
+  pendingReceivables: number;
+  pendingReceivablesCount: number;
 }
 
 function extractPaymentMethod(payments: any): string {
@@ -85,7 +87,7 @@ export function useDashboardStats() {
         salesResult, monthResult, recentResult, productsResult, alertsResult,
         fiscalResult, financialResult, last7Result, prevPeriodResult,
         totalProductsResult, totalClientsResult, saleItemsResult,
-        yesterdayResult, fiadoResult, billsDueResult, overdueBillsResult,
+        yesterdayResult, fiadoResult, billsDueResult, overdueBillsResult, pendingReceivablesResult,
       ] = await Promise.all([
         supabase.from("sales").select("total").eq("company_id", companyId).gte("created_at", today + "T00:00:00").or("status.is.null,status.neq.cancelled"),
         supabase.from("sales").select("total").eq("company_id", companyId).gte("created_at", monthStart + "T00:00:00").or("status.is.null,status.neq.cancelled"),
@@ -105,8 +107,10 @@ export function useDashboardStats() {
         supabase.from("clients").select("credit_balance").eq("company_id", companyId).gt("credit_balance", 0),
         // Bills due today (contas a pagar)
         supabase.from("financial_entries").select("amount").eq("company_id", companyId).eq("status", "pendente").eq("type", "pagar").eq("due_date", today),
-        // Overdue bills (contas a pagar vencidas — last 180 days only)
-        supabase.from("financial_entries").select("amount").eq("company_id", companyId).eq("status", "pendente").eq("type", "pagar").lt("due_date", today).gte("due_date", (() => { const d = new Date(); d.setDate(d.getDate() - 180); return d.toISOString().split("T")[0]; })()),
+        // Overdue bills (contas a pagar vencidas — last 180 days, status pendente OR vencido)
+        supabase.from("financial_entries").select("amount").eq("company_id", companyId).in("status", ["pendente", "vencido"]).eq("type", "pagar").lt("due_date", today).gte("due_date", (() => { const d = new Date(); d.setDate(d.getDate() - 180); return d.toISOString().split("T")[0]; })()),
+        // Pending receivables (contas a receber pendentes)
+        supabase.from("financial_entries").select("amount").eq("company_id", companyId).in("status", ["pendente", "vencido"]).eq("type", "receber"),
       ]);
 
       const todaySales = salesResult.data || [];
@@ -135,6 +139,10 @@ export function useDashboardStats() {
       const overdueData = overdueBillsResult.data || [];
       const overdueBills = overdueData.reduce((sum, e: any) => sum + Number(e.amount || 0), 0);
       const overdueBillsCount = overdueData.length;
+
+      const receivablesData = pendingReceivablesResult.data || [];
+      const pendingReceivables = receivablesData.reduce((sum, e: any) => sum + Number(e.amount || 0), 0);
+      const pendingReceivablesCount = receivablesData.length;
 
       const products = productsResult.data || [];
       const productsAtRisk = products.filter((p: any) => p.min_stock > 0 && (p.stock_quantity ?? 0) <= p.min_stock).length;
@@ -216,6 +224,8 @@ export function useDashboardStats() {
         billsDueTodayCount,
         overdueBills,
         overdueBillsCount,
+        pendingReceivables,
+        pendingReceivablesCount,
         recentSales: (recentResult.data || []).map((row: any) => ({
           id: row.id,
           number: row.sale_number || row.number,

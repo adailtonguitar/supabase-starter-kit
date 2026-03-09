@@ -184,6 +184,8 @@ export default function Dashboard() {
             fiadoCount={stats.fiadoCount}
             billsDueToday={stats.billsDueToday}
             billsDueTodayCount={stats.billsDueTodayCount}
+            pendingReceivables={stats.pendingReceivables}
+            pendingReceivablesCount={stats.pendingReceivablesCount}
           />
         </motion.div>
       )}
