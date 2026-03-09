@@ -155,6 +155,7 @@ export function AppHeader() {
 
         {/* Right: Search trigger + WhatsApp */}
         <div className="flex items-center gap-1.5">
+          <NotificationBell />
           <button
             onClick={() => setSearchOpen(true)}
             className="flex items-center gap-2 h-7 px-2.5 rounded-md border border-border bg-muted/50 text-muted-foreground text-xs hover:bg-muted transition-colors"

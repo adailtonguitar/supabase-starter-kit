@@ -154,6 +154,9 @@ export default function Admin() {
         <TabsContent value="marketing">
           <AdminMarketing />
         </TabsContent>
+        <TabsContent value="notifications">
+          <AdminNotifications />
+        </TabsContent>
         <TabsContent value="health">
           <AdminCompanyHealth />
         </TabsContent>
