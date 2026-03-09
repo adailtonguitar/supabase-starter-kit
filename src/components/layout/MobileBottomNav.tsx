@@ -8,7 +8,7 @@ const bottomNavItems = [
   { icon: Package, label: "Produtos", path: "/produtos" },
   { icon: ShoppingCart, label: "PDV", path: "/pdv", highlight: true },
   { icon: DollarSign, label: "Financeiro", path: "/financeiro" },
-  { icon: ShoppingCart, label: "Vendas", path: "/vendas" },
+  { icon: FileText, label: "Vendas", path: "/vendas" },
 ];
 
 interface MobileBottomNavProps {
