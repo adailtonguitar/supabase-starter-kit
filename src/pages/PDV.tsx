@@ -1205,16 +1205,33 @@ export default function PDV() {
                             )}
                             {(() => {
                               const prod = pdv.products.find(p => p.id === item.id);
+                              const costPrice = (prod as any)?.cost_price;
                               const reorder = prod?.reorder_point || 0;
                               const remaining = (prod?.stock_quantity || 0) - item.quantity;
-                              if (reorder > 0 && remaining <= reorder && remaining > 0) {
-                                return (
-                                  <span className="ml-1 flex items-center gap-0.5 text-[9px] text-warning font-bold" title={`Estoque: ${remaining} ${prod?.unit || 'un'}`}>
-                                    <AlertTriangle className="w-2.5 h-2.5" />
-                                  </span>
-                                );
-                              }
-                              return null;
+                              const isBelowCost = costPrice && costPrice > 0 && item.price <= costPrice;
+                              const marginPercent = costPrice && costPrice > 0 ? ((item.price - costPrice) / costPrice) * 100 : null;
+                              const isLowMargin = marginPercent !== null && marginPercent > 0 && marginPercent < 10;
+                              return (
+                                <>
+                                  {isBelowCost && (
+                                    <span className="ml-1 flex items-center gap-0.5 text-[9px] text-destructive font-bold bg-destructive/10 rounded px-1 py-0.5" title={`Custo: R$ ${costPrice.toFixed(2)} | Venda: R$ ${item.price.toFixed(2)}`}>
+                                      <AlertTriangle className="w-2.5 h-2.5" />
+                                      PREJUÍZO
+                                    </span>
+                                  )}
+                                  {!isBelowCost && isLowMargin && (
+                                    <span className="ml-1 flex items-center gap-0.5 text-[9px] text-warning font-bold bg-warning/10 rounded px-1 py-0.5" title={`Margem: ${marginPercent!.toFixed(1)}%`}>
+                                      <AlertTriangle className="w-2.5 h-2.5" />
+                                      {marginPercent!.toFixed(0)}%
+                                    </span>
+                                  )}
+                                  {reorder > 0 && remaining <= reorder && remaining > 0 && (
+                                    <span className="ml-1 flex items-center gap-0.5 text-[9px] text-warning font-bold" title={`Estoque: ${remaining} ${prod?.unit || 'un'}`}>
+                                      <AlertTriangle className="w-2.5 h-2.5" />
+                                    </span>
+                                  )}
+                                </>
+                              );
                             })()}
                             {itemNotes[item.id] && (
                               <span className="ml-1 text-[9px] text-accent-foreground bg-accent/50 rounded px-1 truncate max-w-[80px]" title={itemNotes[item.id]}>
