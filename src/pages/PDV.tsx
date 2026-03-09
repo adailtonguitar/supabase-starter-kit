@@ -232,9 +232,9 @@ export default function PDV() {
           const isAdminClose = s.notes?.includes("[ADMIN_FORCE_CLOSED]");
           toast.error(
             isAdminClose
-              ? "Caixa fechado pelo administrador do sistema!"
+              ? "Seu caixa foi fechado automaticamente por estar aberto por tempo excessivo. Por favor, lembre-se de fechar o caixa ao final do expediente."
               : "Caixa fechado remotamente pelo gerente!",
-            { duration: 10000 }
+            { duration: 15000 }
           );
         }
       })
