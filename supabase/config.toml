@@ -81,3 +81,6 @@ verify_jwt = false
 
 [functions.ai-support]
 verify_jwt = false
+
+[functions.admin-action]
+verify_jwt = false

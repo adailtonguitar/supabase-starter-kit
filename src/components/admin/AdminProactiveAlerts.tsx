@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -8,9 +8,10 @@ import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import {
   Bell, AlertTriangle, UserX, CreditCard, Monitor, RefreshCw,
-  Clock, Bug, ChevronDown, ChevronUp, Building2, Loader2,
+  Clock, Bug, ChevronDown, ChevronUp, Building2, Loader2, X, Trash2, Power,
 } from "lucide-react";
 import { adminQuery } from "@/lib/admin-query";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Alert {
   id: string;
@@ -56,15 +57,41 @@ const TYPE_LABELS = {
   stuck_cash: "Caixa Travado",
 };
 
+const DISMISSED_KEY = "admin_dismissed_alerts";
+
+function getDismissed(): string[] {
+  try {
+    return JSON.parse(localStorage.getItem(DISMISSED_KEY) || "[]");
+  } catch {
+    return [];
+  }
+}
+
+function dismissAlert(id: string) {
+  const dismissed = getDismissed();
+  if (!dismissed.includes(id)) {
+    dismissed.push(id);
+    // Keep only last 200 to avoid bloating
+    localStorage.setItem(DISMISSED_KEY, JSON.stringify(dismissed.slice(-200)));
+  }
+}
+
+function clearDismissed() {
+  localStorage.removeItem(DISMISSED_KEY);
+}
+
 export function AdminProactiveAlerts() {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [closingCash, setClosingCash] = useState(false);
+  const [clearingErrors, setClearingErrors] = useState(false);
 
-  const loadAlerts = async () => {
+  const loadAlerts = useCallback(async () => {
     try {
       const generatedAlerts: Alert[] = [];
+      const dismissed = getDismissed();
 
       // 1. Companies with many errors (last 24h)
       const dayAgo = new Date(Date.now() - 86400000).toISOString();
@@ -96,11 +123,9 @@ export function AdminProactiveAlerts() {
         limit: 500,
       });
 
-      // Filter out demo companies from all alerts
       const isDemo = (name: string) => name.toLowerCase().startsWith("loja demo");
       const allCompanies = allCompaniesRaw.filter(c => !isDemo(c.name));
 
-      // Get companies with recent activity
       const recentActivity = await adminQuery<{ company_id: string }>({
         table: "action_logs",
         select: "company_id",
@@ -109,14 +134,12 @@ export function AdminProactiveAlerts() {
       });
       const activeCompanyIds = new Set(recentActivity.map(a => a.company_id).filter(Boolean));
 
-      // Find inactive companies (exclude very new ones < 7 days)
       const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString();
       const inactiveCompanies = allCompanies.filter(
         c => !activeCompanyIds.has(c.id) && c.created_at < sevenDaysAgo
       );
 
       if (inactiveCompanies.length > 0) {
-        // Group: show up to 5 individually
         inactiveCompanies.slice(0, 5).forEach(c => {
           generatedAlerts.push({
             id: `inactive-${c.id}`,
@@ -144,7 +167,7 @@ export function AdminProactiveAlerts() {
         }
       }
 
-      // 3. Expiring subscriptions (next 7 days)
+      // 3. Expiring subscriptions (next 7 days) — exclude demo
       const nextWeek = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
       const today = new Date().toISOString().slice(0, 10);
       const expiringPlans = await adminQuery<{ company_id: string; expires_at: string; status: string }>({
@@ -174,7 +197,7 @@ export function AdminProactiveAlerts() {
         });
       }
 
-      // 4. Stuck cash sessions (open > 12h)
+      // 4. Stuck cash sessions (open > 12h) — exclude demo
       const twelveHoursAgo = new Date(Date.now() - 12 * 3600000).toISOString();
       const openSessions = await adminQuery<{ id: string; company_id: string; opened_at: string }>({
         table: "cash_sessions",
@@ -207,20 +230,22 @@ export function AdminProactiveAlerts() {
       const severityOrder = { critical: 0, warning: 1, info: 2 };
       generatedAlerts.sort((a, b) => severityOrder[a.severity] - severityOrder[b.severity]);
 
-      setAlerts(generatedAlerts);
+      // Filter out dismissed alerts
+      const visibleAlerts = generatedAlerts.filter(a => !dismissed.includes(a.id));
+
+      setAlerts(visibleAlerts);
     } catch (e) {
       console.error("Alerts load error:", e);
     }
     setLoading(false);
     setRefreshing(false);
-  };
+  }, []);
 
   useEffect(() => {
     loadAlerts();
-    // Auto-refresh every 5 minutes
     const interval = setInterval(loadAlerts, 5 * 60000);
     return () => clearInterval(interval);
-  }, []);
+  }, [loadAlerts]);
 
   const handleRefresh = () => {
     setRefreshing(true);
@@ -228,8 +253,58 @@ export function AdminProactiveAlerts() {
     toast.success("Alertas atualizados!");
   };
 
+  const handleDismiss = (alertId: string) => {
+    dismissAlert(alertId);
+    setAlerts(prev => prev.filter(a => a.id !== alertId));
+    toast.success("Alerta dispensado");
+  };
+
+  const handleRestoreDismissed = () => {
+    clearDismissed();
+    setRefreshing(true);
+    loadAlerts();
+    toast.success("Alertas restaurados!");
+  };
+
+  const handleBulkCloseCash = async () => {
+    setClosingCash(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("admin-action", {
+        body: { action: "close_stuck_cash_sessions", hours_threshold: 24 },
+      });
+      if (error) throw error;
+      const closed = data?.closed || 0;
+      toast.success(`${closed} caixa(s) fechado(s) com sucesso!`);
+      // Remove cash alerts from view
+      setAlerts(prev => prev.filter(a => a.type !== "stuck_cash"));
+    } catch (e: any) {
+      toast.error("Erro ao fechar caixas: " + (e.message || "Erro desconhecido"));
+    }
+    setClosingCash(false);
+  };
+
+  const handleClearOldErrors = async () => {
+    setClearingErrors(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("admin-action", {
+        body: { action: "clear_old_errors", days_threshold: 7 },
+      });
+      if (error) throw error;
+      const deleted = data?.deleted || 0;
+      toast.success(`${deleted} erro(s) antigo(s) removido(s)!`);
+      // Refresh alerts
+      setRefreshing(true);
+      loadAlerts();
+    } catch (e: any) {
+      toast.error("Erro ao limpar: " + (e.message || "Erro desconhecido"));
+    }
+    setClearingErrors(false);
+  };
+
   const criticalCount = alerts.filter(a => a.severity === "critical").length;
   const warningCount = alerts.filter(a => a.severity === "warning").length;
+  const cashAlertCount = alerts.filter(a => a.type === "stuck_cash").length;
+  const errorAlertCount = alerts.filter(a => a.type === "errors").length;
 
   return (
     <Card className={criticalCount > 0 ? "border-destructive/30" : ""}>
@@ -283,49 +358,100 @@ export function AdminProactiveAlerts() {
                   </div>
                   <p className="text-sm font-medium text-foreground">Tudo tranquilo! 🎉</p>
                   <p className="text-xs text-muted-foreground mt-1">Nenhum alerta no momento</p>
+                  <Button variant="ghost" size="sm" className="mt-2 text-xs" onClick={handleRestoreDismissed}>
+                    Restaurar dispensados
+                  </Button>
                 </div>
               ) : (
-                <ScrollArea className={alerts.length > 5 ? "h-[400px]" : ""}>
-                  <div className="space-y-2">
-                    {alerts.map((alert, i) => {
-                      const config = SEVERITY_CONFIG[alert.severity];
-                      const TypeIcon = TYPE_ICONS[alert.type];
-                      return (
-                        <motion.div
-                          key={alert.id}
-                          initial={{ opacity: 0, x: -10 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          transition={{ delay: i * 0.03 }}
-                          className={`flex items-start gap-3 p-3 rounded-xl border ${config.bg}`}
-                        >
-                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
-                            alert.severity === "critical" ? "bg-destructive/15" : 
-                            alert.severity === "warning" ? "bg-warning/15" : "bg-primary/15"
-                          }`}>
-                            <TypeIcon className={`w-4 h-4 ${config.icon}`} />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-0.5">
-                              <p className="text-sm font-semibold text-foreground truncate">{alert.title}</p>
-                              <Badge variant={config.badge} className="text-[9px] h-4 shrink-0">
-                                {TYPE_LABELS[alert.type]}
-                              </Badge>
-                            </div>
-                            <p className="text-xs text-muted-foreground line-clamp-2">{alert.description}</p>
-                            <div className="flex items-center gap-2 mt-1">
-                              <Building2 className="w-3 h-3 text-muted-foreground" />
-                              <span className="text-[10px] text-muted-foreground">{alert.company_name}</span>
-                              <Clock className="w-3 h-3 text-muted-foreground ml-1" />
-                              <span className="text-[10px] text-muted-foreground">
-                                {new Date(alert.timestamp).toLocaleDateString("pt-BR")}
-                              </span>
-                            </div>
-                          </div>
-                        </motion.div>
-                      );
-                    })}
+                <>
+                  {/* Bulk action buttons */}
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    {cashAlertCount > 0 && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-xs gap-1.5 border-destructive/30 text-destructive hover:bg-destructive/10"
+                        onClick={handleBulkCloseCash}
+                        disabled={closingCash}
+                      >
+                        {closingCash ? <Loader2 className="w-3 h-3 animate-spin" /> : <Power className="w-3 h-3" />}
+                        Fechar {cashAlertCount} caixa(s) travado(s)
+                      </Button>
+                    )}
+                    {errorAlertCount > 0 && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-xs gap-1.5 border-warning/30 text-warning hover:bg-warning/10"
+                        onClick={handleClearOldErrors}
+                        disabled={clearingErrors}
+                      >
+                        {clearingErrors ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
+                        Limpar erros &gt;7 dias
+                      </Button>
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 text-xs gap-1.5 text-muted-foreground"
+                      onClick={handleRestoreDismissed}
+                    >
+                      Restaurar dispensados
+                    </Button>
                   </div>
-                </ScrollArea>
+
+                  <ScrollArea className={alerts.length > 5 ? "h-[400px]" : ""}>
+                    <div className="space-y-2">
+                      {alerts.map((alert, i) => {
+                        const config = SEVERITY_CONFIG[alert.severity];
+                        const TypeIcon = TYPE_ICONS[alert.type];
+                        return (
+                          <motion.div
+                            key={alert.id}
+                            initial={{ opacity: 0, x: -10 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: 10, height: 0 }}
+                            transition={{ delay: i * 0.03 }}
+                            className={`flex items-start gap-3 p-3 rounded-xl border ${config.bg} group`}
+                          >
+                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                              alert.severity === "critical" ? "bg-destructive/15" : 
+                              alert.severity === "warning" ? "bg-warning/15" : "bg-primary/15"
+                            }`}>
+                              <TypeIcon className={`w-4 h-4 ${config.icon}`} />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-0.5">
+                                <p className="text-sm font-semibold text-foreground truncate">{alert.title}</p>
+                                <Badge variant={config.badge} className="text-[9px] h-4 shrink-0">
+                                  {TYPE_LABELS[alert.type]}
+                                </Badge>
+                              </div>
+                              <p className="text-xs text-muted-foreground line-clamp-2">{alert.description}</p>
+                              <div className="flex items-center gap-2 mt-1">
+                                <Building2 className="w-3 h-3 text-muted-foreground" />
+                                <span className="text-[10px] text-muted-foreground">{alert.company_name}</span>
+                                <Clock className="w-3 h-3 text-muted-foreground ml-1" />
+                                <span className="text-[10px] text-muted-foreground">
+                                  {new Date(alert.timestamp).toLocaleDateString("pt-BR")}
+                                </span>
+                              </div>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                              onClick={() => handleDismiss(alert.id)}
+                              title="Dispensar alerta"
+                            >
+                              <X className="w-3.5 h-3.5 text-muted-foreground" />
+                            </Button>
+                          </motion.div>
+                        );
+                      })}
+                    </div>
+                  </ScrollArea>
+                </>
               )}
 
               {/* Summary footer */}
