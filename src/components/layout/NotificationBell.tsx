@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { Bell, Check, CheckCheck, Info, AlertTriangle, AlertCircle, Wrench } from "lucide-react";
 import { useNotifications, type AppNotification } from "@/hooks/useNotifications";
 import { formatDistanceToNow } from "date-fns";
@@ -16,22 +17,70 @@ export function NotificationBell() {
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
+
+  // Position dropdown relative to button using portal
+  useEffect(() => {
+    if (!open || !buttonRef.current) return;
+    const rect = buttonRef.current.getBoundingClientRect();
+    setDropdownStyle({
+      position: "fixed",
+      top: rect.bottom + 4,
+      right: window.innerWidth - rect.right,
+    });
+  }, [open]);
 
   // Close on click outside
   useEffect(() => {
     if (!open) return;
     const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
+      if (ref.current && ref.current.contains(e.target as Node)) return;
+      const portal = document.getElementById("notification-dropdown");
+      if (portal && portal.contains(e.target as Node)) return;
+      setOpen(false);
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, [open]);
 
+  const dropdown = open ? createPortal(
+    <div
+      id="notification-dropdown"
+      style={dropdownStyle}
+      className="w-80 bg-popover border border-border rounded-xl shadow-2xl z-[9999] overflow-hidden"
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-2.5 border-b border-border">
+        <span className="text-sm font-semibold text-foreground">Notificações</span>
+        {unreadCount > 0 && (
+          <button
+            onClick={markAllAsRead}
+            className="text-xs text-primary hover:underline flex items-center gap-1"
+          >
+            <CheckCheck className="w-3 h-3" /> Marcar todas
+          </button>
+        )}
+      </div>
+
+      {/* List */}
+      <div className="max-h-[320px] overflow-y-auto">
+        {notifications.length === 0 ? (
+          <p className="py-8 text-center text-sm text-muted-foreground">Nenhuma notificação.</p>
+        ) : (
+          notifications.map((n) => (
+            <NotificationItem key={n.id} notification={n} onMarkRead={markAsRead} />
+          ))
+        )}
+      </div>
+    </div>,
+    document.body
+  ) : null;
+
   return (
-    <div className="relative" ref={ref}>
+    <div ref={ref}>
       <button
+        ref={buttonRef}
         onClick={() => setOpen(!open)}
         className="relative flex items-center justify-center w-7 h-7 rounded-md hover:bg-muted transition-colors"
         aria-label="Notificações"
@@ -43,34 +92,7 @@ export function NotificationBell() {
           </span>
         )}
       </button>
-
-      {open && (
-        <div className="absolute right-0 top-full mt-1 w-80 bg-popover border border-border rounded-xl shadow-2xl z-[9999] overflow-hidden">
-          {/* Header */}
-          <div className="flex items-center justify-between px-4 py-2.5 border-b border-border">
-            <span className="text-sm font-semibold text-foreground">Notificações</span>
-            {unreadCount > 0 && (
-              <button
-                onClick={markAllAsRead}
-                className="text-xs text-primary hover:underline flex items-center gap-1"
-              >
-                <CheckCheck className="w-3 h-3" /> Marcar todas
-              </button>
-            )}
-          </div>
-
-          {/* List */}
-          <div className="max-h-[320px] overflow-y-auto">
-            {notifications.length === 0 ? (
-              <p className="py-8 text-center text-sm text-muted-foreground">Nenhuma notificação.</p>
-            ) : (
-              notifications.map((n) => (
-                <NotificationItem key={n.id} notification={n} onMarkRead={markAsRead} />
-              ))
-            )}
-          </div>
-        </div>
-      )}
+      {dropdown}
     </div>
   );
 }
