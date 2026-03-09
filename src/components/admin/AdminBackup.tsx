@@ -9,7 +9,7 @@ import { Download, Upload, Loader2, Database, CheckCircle, AlertTriangle, FileJs
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { adminQuery } from "@/lib/admin-query";
 
-const BACKUP_TABLES = ["products", "sales", "sale_items", "clients", "suppliers", "financial_entries", "stock_movements", "categories", "employees", "cash_sessions"];
+const BACKUP_TABLES = ["products", "sales", "sale_items", "clients", "suppliers", "financial_entries", "stock_movements", "employees", "cash_sessions"];
 
 export function AdminBackup() {
   const [companies, setCompanies] = useState<{ id: string; name: string }[]>([]);

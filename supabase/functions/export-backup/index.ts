@@ -8,12 +8,10 @@ const corsHeaders = {
 const TABLES_TO_EXPORT = [
   "products",
   "sales",
-  "sale_items",
   "clients",
   "suppliers",
   "financial_entries",
   "stock_movements",
-  "categories",
   "employees",
   "cash_sessions",
 ];
@@ -90,6 +88,28 @@ Deno.serve(async (req) => {
         errors.push(`${table}: ${e.message}`);
         backup[table] = [];
       }
+    }
+
+    // sale_items: no company_id — fetch via sales IDs
+    try {
+      const saleIds = (backup.sales || []).map((s: any) => s.id);
+      if (saleIds.length > 0) {
+        const allItems: any[] = [];
+        for (let i = 0; i < saleIds.length; i += 100) {
+          const batch = saleIds.slice(i, i + 100);
+          const { data } = await adminClient
+            .from("sale_items")
+            .select("*")
+            .in("sale_id", batch);
+          if (data) allItems.push(...data);
+        }
+        backup.sale_items = allItems;
+      } else {
+        backup.sale_items = [];
+      }
+    } catch (e) {
+      errors.push(`sale_items: ${e.message}`);
+      backup.sale_items = [];
     }
 
     const result = {
