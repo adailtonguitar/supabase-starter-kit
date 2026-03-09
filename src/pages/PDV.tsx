@@ -204,6 +204,11 @@ export default function PDV() {
     return () => { supabase.removeChannel(channel); };
   }, [companyId, pdv.currentSession?.id, terminalId]);
 
+  // Keep selfClosingRef in sync with showCashRegister
+  useEffect(() => {
+    if (showCashRegister) selfClosingRef.current = true;
+  }, [showCashRegister]);
+
   // Auto-open cash register dialog if no session is open (only after first load completes)
   useEffect(() => {
     // Use ref (synchronous) to prevent race condition with Realtime force-close
