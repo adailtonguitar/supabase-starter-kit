@@ -15,6 +15,7 @@ export interface PDVProduct {
   sku: string;
   barcode: string;
   price: number;
+  cost_price?: number;
   stock_quantity: number;
   unit: string;
   category: string;
