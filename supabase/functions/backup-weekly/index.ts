@@ -131,7 +131,7 @@ Deno.serve(async (req) => {
         Authorization: `Bearer ${resendKey}`,
       },
       body: JSON.stringify({
-        from: "Antho System <noreply@send.anthosystem.com.br>",
+        from: "Antho System <noreply@anthosystem.com.br>",
         to: [ADMIN_EMAIL],
         subject: `📦 Backup Semanal - ${date} (${companies.length} empresas, ${totalRows} registros)`,
         html: summaryHtml,
