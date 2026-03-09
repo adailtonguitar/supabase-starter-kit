@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { LayoutDashboard, ShoppingCart, Package, DollarSign, Menu } from "lucide-react";
+import { LayoutDashboard, ShoppingCart, Package, DollarSign, Menu, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 
