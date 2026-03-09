@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { APP_VERSION } from "@/config/app";
 import anthoLogo from "@/assets/logo-as.png";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Link, useLocation } from "react-router-dom";
