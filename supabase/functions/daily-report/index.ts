@@ -128,7 +128,7 @@ async function processCompany(adminClient: any, companyId: string, resendKey: st
     .eq("id", companyId)
     .single();
 
-  if (!company || company.is_demo) return null;
+  if (!company) return null;
 
   // Get owner email (first admin user)
   const { data: companyUsers } = await adminClient
