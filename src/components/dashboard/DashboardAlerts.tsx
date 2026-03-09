@@ -11,6 +11,8 @@ interface DashboardAlertsProps {
   fiadoCount: number;
   billsDueToday: number;
   billsDueTodayCount: number;
+  pendingReceivables: number;
+  pendingReceivablesCount: number;
 }
 
 export function DashboardAlerts({
