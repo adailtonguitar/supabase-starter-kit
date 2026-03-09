@@ -90,3 +90,6 @@ verify_jwt = false
 
 [functions.import-backup]
 verify_jwt = false
+
+[functions.backup-weekly]
+verify_jwt = false
