@@ -148,10 +148,42 @@ export default function PDV() {
   const selfClosingRef = useRef(false);
 
   // Load session for current terminal on mount, terminal change, or companyId change
+  // Also check if last session was force-closed by admin while operator was offline
   useEffect(() => {
-    if (!companyId) return; // wait until companyId is ready
+    if (!companyId) return;
     cashRegisterDismissedRef.current = false;
     pdv.reloadSession(terminalId);
+
+    // Check for admin force-closed session (operator was offline/away)
+    const checkForceClosedHistory = async () => {
+      try {
+        const { data } = await supabase
+          .from("cash_sessions")
+          .select("id, notes, closed_at, terminal_id")
+          .eq("company_id", companyId)
+          .eq("terminal_id", terminalId)
+          .eq("status", "fechado")
+          .ilike("notes", "%[ADMIN_FORCE_CLOSED]%")
+          .order("closed_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (data) {
+          // Only show if closed in the last 48h and not already dismissed
+          const closedAt = new Date(data.closed_at).getTime();
+          const dismissKey = `admin_force_close_seen_${data.id}`;
+          const alreadySeen = localStorage.getItem(dismissKey);
+          if (!alreadySeen && Date.now() - closedAt < 48 * 3600000) {
+            toast.warning(
+              "Seu caixa anterior foi fechado pelo administrador. Abra um novo caixa para continuar.",
+              { duration: 10000, id: "admin-force-close-notice" }
+            );
+            localStorage.setItem(dismissKey, "1");
+          }
+        }
+      } catch { /* silent */ }
+    };
+    checkForceClosedHistory();
   }, [terminalId, companyId]);
 
   // Realtime listener: detect force-close from Terminais panel
@@ -197,7 +229,13 @@ export default function PDV() {
           // DON'T reload session here — it causes race condition with auto-open
           // Session will be reloaded when user dismisses the alert
           playErrorSound();
-          toast.error("Caixa fechado remotamente pelo gerente!", { duration: 10000 });
+          const isAdminClose = s.notes?.includes("[ADMIN_FORCE_CLOSED]");
+          toast.error(
+            isAdminClose
+              ? "Caixa fechado pelo administrador do sistema!"
+              : "Caixa fechado remotamente pelo gerente!",
+            { duration: 10000 }
+          );
         }
       })
       .subscribe();

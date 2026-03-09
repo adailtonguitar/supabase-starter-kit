@@ -68,7 +68,11 @@ Deno.serve(async (req) => {
       const ids = sessions.map(s => s.id);
       const { error: updateErr } = await adminClient
         .from("cash_sessions")
-        .update({ status: "fechado", closed_at: new Date().toISOString() })
+        .update({
+          status: "fechado",
+          closed_at: new Date().toISOString(),
+          notes: "[ADMIN_FORCE_CLOSED] Fechado em massa pelo administrador",
+        })
         .in("id", ids);
 
       if (updateErr) throw updateErr;
