@@ -1,6 +1,7 @@
 import { memo } from "react";
 import { Link } from "react-router-dom";
 import anthoLogo from "@/assets/logo-as.png";
+import { APP_VERSION } from "@/config/app";
 import { NotificationBell } from "./NotificationBell";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -29,7 +30,10 @@ export const MobileTopBar = memo(function MobileTopBar() {
       {/* Logo */}
       <Link to="/dashboard" className="flex items-center gap-2">
         <img src={anthoLogo} alt="AnthoSystem" className="h-7 w-auto" />
-        <span className="text-sm font-bold text-foreground">AnthoSystem</span>
+        <div className="flex flex-col leading-none">
+          <span className="text-sm font-bold text-foreground">AnthoSystem</span>
+          <span className="text-[9px] text-muted-foreground">v{APP_VERSION}</span>
+        </div>
       </Link>
 
       {/* Right actions */}
