@@ -105,8 +105,10 @@ export function useDashboardStats() {
         supabase.from("clients").select("credit_balance").eq("company_id", companyId).gt("credit_balance", 0),
         // Bills due today (contas a pagar)
         supabase.from("financial_entries").select("amount").eq("company_id", companyId).eq("status", "pendente").eq("type", "pagar").eq("due_date", today),
-        // Overdue bills (contas a pagar vencidas — last 180 days only)
-        supabase.from("financial_entries").select("amount").eq("company_id", companyId).eq("status", "pendente").eq("type", "pagar").lt("due_date", today).gte("due_date", (() => { const d = new Date(); d.setDate(d.getDate() - 180); return d.toISOString().split("T")[0]; })()),
+        // Overdue bills (contas a pagar vencidas — last 180 days, status pendente OR vencido)
+        supabase.from("financial_entries").select("amount").eq("company_id", companyId).in("status", ["pendente", "vencido"]).eq("type", "pagar").lt("due_date", today).gte("due_date", (() => { const d = new Date(); d.setDate(d.getDate() - 180); return d.toISOString().split("T")[0]; })()),
+        // Pending receivables (contas a receber pendentes)
+        supabase.from("financial_entries").select("amount").eq("company_id", companyId).in("status", ["pendente", "vencido"]).eq("type", "receber"),
       ]);
 
       const todaySales = salesResult.data || [];
