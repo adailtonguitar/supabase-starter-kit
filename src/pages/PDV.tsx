@@ -175,8 +175,8 @@ export default function PDV() {
           const alreadySeen = localStorage.getItem(dismissKey);
           if (!alreadySeen && Date.now() - closedAt < 48 * 3600000) {
             toast.warning(
-              "Seu caixa anterior foi fechado pelo administrador. Abra um novo caixa para continuar.",
-              { duration: 10000, id: "admin-force-close-notice" }
+              "Seu caixa anterior foi fechado automaticamente por permanecer aberto por muito tempo. Lembre-se de fechar o caixa ao final do expediente para evitar inconsistências.",
+              { duration: 15000, id: "admin-force-close-notice" }
             );
             localStorage.setItem(dismissKey, "1");
           }
