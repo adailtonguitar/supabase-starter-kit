@@ -191,6 +191,24 @@ export function usePDV() {
     if (!added) {
       toast.warning(`Estoque insuficiente para "${product.name}" (disponível: ${product.stock_quantity})`, { duration: 2000 });
     }
+    // Margin alert: warn if selling below cost
+    if (added && product.cost_price && product.cost_price > 0) {
+      if (product.price <= product.cost_price) {
+        const loss = product.cost_price - product.price;
+        toast.error(
+          `⚠️ PREJUÍZO: "${product.name}" está sendo vendido ${product.price < product.cost_price ? `R$ ${loss.toFixed(2)} abaixo` : 'igual ao'} custo (Custo: R$ ${product.cost_price.toFixed(2)} | Venda: R$ ${product.price.toFixed(2)})`,
+          { duration: 6000, id: `margin-alert-${product.id}` }
+        );
+      } else {
+        const marginPercent = ((product.price - product.cost_price) / product.cost_price) * 100;
+        if (marginPercent < 10) {
+          toast.warning(
+            `⚠️ Margem baixa: "${product.name}" tem apenas ${marginPercent.toFixed(1)}% de margem (Custo: R$ ${product.cost_price.toFixed(2)})`,
+            { duration: 4000, id: `margin-alert-${product.id}` }
+          );
+        }
+      }
+    }
     return added;
   }, []);
 
