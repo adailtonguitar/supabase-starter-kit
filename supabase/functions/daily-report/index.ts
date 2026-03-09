@@ -130,8 +130,8 @@ async function processCompany(adminClient: any, companyId: string, resendKey: st
 
   if (!company) return null;
 
-  // Get owner email (first admin user)
-  const { data: companyUsers } = await adminClient
+  // Get owner email (first active user, preferring owner/admin)
+  let { data: companyUsers } = await adminClient
     .from("company_users")
     .select("user_id, role")
     .eq("company_id", companyId)
@@ -139,7 +139,21 @@ async function processCompany(adminClient: any, companyId: string, resendKey: st
     .in("role", ["owner", "admin"])
     .limit(1);
 
-  if (!companyUsers?.length) return null;
+  // Fallback: any active user
+  if (!companyUsers?.length) {
+    const { data: fallbackUsers } = await adminClient
+      .from("company_users")
+      .select("user_id, role")
+      .eq("company_id", companyId)
+      .eq("is_active", true)
+      .limit(1);
+    companyUsers = fallbackUsers;
+  }
+
+  if (!companyUsers?.length) {
+    console.log(`[daily-report] No active users for company ${companyId}`);
+    return null;
+  }
 
   const ownerId = companyUsers[0].user_id;
   const { data: { user: ownerUser } } = await adminClient.auth.admin.getUserById(ownerId);
