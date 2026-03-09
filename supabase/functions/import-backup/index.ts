@@ -5,16 +5,17 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-// Tables that have company_id and can be exported/imported
+// Insert order: parents first, children last
+// Delete order is reversed automatically
 const EXPORTABLE_TABLES = [
   "suppliers",
   "clients",
   "employees",
-  "products",
+  "products",      // references suppliers
   "cash_sessions",
-  "sales",
+  "sales",         // references clients
   "financial_entries",
-  "stock_movements",
+  "stock_movements", // references products
 ];
 
 // Tables that need to be cleaned before main tables (FK dependencies)
@@ -23,6 +24,7 @@ const DEPENDENT_TABLES_DELETE = [
   // These reference sale_items/sales
   { table: "sale_items", fk_via: "sale_id", parent: "sales" },
   // These reference products
+  { table: "inventory_count_items", fk_via: "product_id", parent: "products" },
   { table: "product_labels", column: "company_id" },
   { table: "product_extras", column: "company_id" },
   { table: "product_kits", column: "company_id" },
@@ -35,6 +37,7 @@ const DEPENDENT_TABLES_DELETE = [
   // These reference other tables
   { table: "returns", column: "company_id" },
   { table: "receipt_counters", column: "company_id" },
+  { table: "inventory_counts", column: "company_id" },
 ];
 
 Deno.serve(async (req) => {
