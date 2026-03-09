@@ -10,7 +10,7 @@ const TABLES_TO_EXPORT = [
   "financial_entries", "stock_movements", "employees", "cash_sessions",
 ];
 
-const ADMIN_EMAIL = "contato@anthosystem.com.br";
+const ADMIN_EMAIL = "adailtonguitar@gmail.com";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
