@@ -90,11 +90,15 @@ export function AdminProactiveAlerts() {
 
       // 2. Inactive companies (no action_logs in 3+ days)
       const threeDaysAgo = new Date(Date.now() - 3 * 86400000).toISOString();
-      const allCompanies = await adminQuery<{ id: string; name: string; created_at: string }>({
+      const allCompaniesRaw = await adminQuery<{ id: string; name: string; created_at: string }>({
         table: "companies",
         select: "id, name, created_at",
         limit: 500,
       });
+
+      // Filter out demo companies from all alerts
+      const isDemo = (name: string) => name.toLowerCase().startsWith("loja demo");
+      const allCompanies = allCompaniesRaw.filter(c => !isDemo(c.name));
 
       // Get companies with recent activity
       const recentActivity = await adminQuery<{ company_id: string }>({
