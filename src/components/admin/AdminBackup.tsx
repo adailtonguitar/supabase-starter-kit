@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { toast } from "sonner";
-import { Download, Upload, Loader2, Database, CheckCircle, AlertTriangle, FileJson, ChevronsUpDown, Check } from "lucide-react";
+import { Download, Upload, Loader2, Database, CheckCircle, AlertTriangle, FileJson, ChevronsUpDown, Check, Mail, PlayCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { adminQuery } from "@/lib/admin-query";
