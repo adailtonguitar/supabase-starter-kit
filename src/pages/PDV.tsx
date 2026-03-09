@@ -166,6 +166,8 @@ export default function PDV() {
         table: "cash_sessions",
         filter: `id=eq.${sessionId}`,
       }, (payload: any) => {
+        // Skip if the operator themselves is closing (CashRegister dialog is open)
+        if (selfClosingRef.current) return;
         if (payload.new?.status === "fechado") {
           const s = payload.new;
           setForceClosedSnapshot({
