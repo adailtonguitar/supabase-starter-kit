@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { Bell, Check, CheckCheck, Info, AlertTriangle, AlertCircle, Wrench } from "lucide-react";
 import { useNotifications, type AppNotification } from "@/hooks/useNotifications";
 import { formatDistanceToNow } from "date-fns";
