@@ -1812,6 +1812,7 @@ export default function PDV() {
           terminalId={terminalId}
           onClose={async () => {
             console.log("[PDV] CashRegister onClose called");
+            selfClosingRef.current = false;
             cashRegisterDismissedRef.current = true;
             setShowCashRegister(false);
             // Reload session in background
