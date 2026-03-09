@@ -5,16 +5,17 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-// Tables that have company_id and can be exported/imported
+// Insert order: parents first, children last
+// Delete order is reversed automatically
 const EXPORTABLE_TABLES = [
   "suppliers",
   "clients",
   "employees",
-  "products",
+  "products",      // references suppliers
   "cash_sessions",
-  "sales",
+  "sales",         // references clients
   "financial_entries",
-  "stock_movements",
+  "stock_movements", // references products
 ];
 
 // Tables that need to be cleaned before main tables (FK dependencies)
