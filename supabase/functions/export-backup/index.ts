@@ -8,12 +8,10 @@ const corsHeaders = {
 const TABLES_TO_EXPORT = [
   "products",
   "sales",
-  "sale_items",
   "clients",
   "suppliers",
   "financial_entries",
   "stock_movements",
-  "categories",
   "employees",
   "cash_sessions",
 ];
