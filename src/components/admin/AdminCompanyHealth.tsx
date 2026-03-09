@@ -86,7 +86,7 @@ export function AdminCompanyHealth() {
       const data = await adminQuery<Company>({
         table: "companies",
         select: "id, name, cnpj, is_blocked, created_at",
-        filters: [{ op: "or", value: `name.ilike.%${search}%,cnpj.ilike.%${search}%` }],
+        filters: [{ op: "ilike", column: "name", value: `%${search}%` }],
         limit: 10,
       });
       setCompanies(data);
