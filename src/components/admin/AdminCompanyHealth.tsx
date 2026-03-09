@@ -162,10 +162,10 @@ export function AdminCompanyHealth() {
           ],
           limit: 1,
         }),
-        // Subscription
-        adminQuery<{ status: string; plan_key: string; subscription_end: string }>({
-          table: "subscriptions",
-          select: "status, plan_key, subscription_end",
+        // Subscription via company_plans
+        adminQuery<{ status: string; plan_key: string; expires_at: string }>({
+          table: "company_plans",
+          select: "status, plan_key, expires_at",
           filters: [{ op: "eq", column: "company_id", value: company.id }],
           limit: 1,
           order: { column: "created_at", ascending: false },
@@ -224,7 +224,7 @@ export function AdminCompanyHealth() {
         subscription: subscriptionData[0] ? {
           status: subscriptionData[0].status,
           plan: subscriptionData[0].plan_key || "básico",
-          expires_at: subscriptionData[0].subscription_end,
+          expires_at: subscriptionData[0].expires_at,
         } : null,
         syncStatus: recentActivity.length > 0 ? "online" : "offline",
       };
