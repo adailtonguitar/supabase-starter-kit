@@ -64,6 +64,8 @@ export function AdminDashboard() {
   return (
     <div className="space-y-6">
       <AdminProactiveAlerts />
+
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
         {cards.map((card, i) => (
           <motion.div
             key={card.label}
