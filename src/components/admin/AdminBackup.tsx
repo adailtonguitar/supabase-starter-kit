@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { toast } from "sonner";
-import { Download, Upload, Loader2, Database, CheckCircle, AlertTriangle, FileJson, ChevronsUpDown, Check } from "lucide-react";
+import { Download, Upload, Loader2, Database, CheckCircle, AlertTriangle, FileJson, ChevronsUpDown, Check, Mail, PlayCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { adminQuery } from "@/lib/admin-query";
@@ -138,8 +138,61 @@ export function AdminBackup() {
   const totalBackupRows = backupMeta?.tables?.reduce((sum, t) => sum + t.rows, 0) || 0;
   const selectedCompanyName = companies.find(c => c.id === selectedCompany)?.name || "";
 
+  const [testingWeekly, setTestingWeekly] = useState(false);
+  const [weeklyResult, setWeeklyResult] = useState<any>(null);
+
+  const handleTestWeeklyBackup = async () => {
+    setTestingWeekly(true);
+    setWeeklyResult(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("backup-weekly");
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      setWeeklyResult(data);
+      toast.success(`Backup semanal enviado para ${data?.email_sent_to || "o email configurado"}!`);
+    } catch (err: any) {
+      toast.error("Erro no backup semanal: " + (err.message || "Erro desconhecido"));
+      setWeeklyResult({ error: err.message });
+    }
+    setTestingWeekly(false);
+  };
+
   return (
     <div className="space-y-4">
+      {/* WEEKLY BACKUP TEST */}
+      <Card className="border-primary/30">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Mail className="h-5 w-5" />
+            Backup Semanal (Email)
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            Dispara manualmente o backup semanal que exporta todas as empresas ativas e envia por email para <strong>adailtonguitar@gmail.com</strong>.
+          </p>
+          <Button onClick={handleTestWeeklyBackup} disabled={testingWeekly} variant="outline">
+            {testingWeekly ? (
+              <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Processando...</>
+            ) : (
+              <><PlayCircle className="h-4 w-4 mr-2" /> Testar Backup Semanal Agora</>
+            )}
+          </Button>
+          {weeklyResult && !weeklyResult.error && (
+            <div className="rounded-lg border p-3 bg-muted/50 text-sm space-y-1">
+              <p className="flex items-center gap-2"><CheckCircle className="h-4 w-4 text-primary" /> Email enviado!</p>
+              <p className="text-muted-foreground">Empresas: <strong>{weeklyResult.companies_backed_up}</strong></p>
+              <p className="text-muted-foreground">Registros: <strong>{weeklyResult.total_rows}</strong></p>
+              <p className="text-muted-foreground">Destino: <strong>{weeklyResult.email_sent_to}</strong></p>
+            </div>
+          )}
+          {weeklyResult?.error && (
+            <div className="rounded-lg border border-destructive/30 p-3 bg-destructive/5 text-sm">
+              <p className="flex items-center gap-2 text-destructive"><AlertTriangle className="h-4 w-4" /> {weeklyResult.error}</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
       {/* EXPORT */}
       <Card>
         <CardHeader>
