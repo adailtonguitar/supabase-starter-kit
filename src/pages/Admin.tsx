@@ -108,6 +108,7 @@ export default function Admin() {
           <TabsTrigger value="marketing" className="text-xs sm:text-sm"><Megaphone className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" /> Marketing</TabsTrigger>
           <TabsTrigger value="notifications" className="text-xs sm:text-sm"><Bell className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" /> Avisos</TabsTrigger>
           <TabsTrigger value="health" className="text-xs sm:text-sm"><Heart className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" /> Saúde</TabsTrigger>
+          <TabsTrigger value="backup" className="text-xs sm:text-sm"><Database className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" /> Backup</TabsTrigger>
         </TabsList>
 
         <TabsContent value="dashboard">
