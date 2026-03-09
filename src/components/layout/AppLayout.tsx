@@ -8,6 +8,7 @@ import { UpdateNoticeModal } from "@/components/UpdateNoticeModal";
 import { OnlineStatusIndicator } from "./OnlineStatusIndicator";
 import { SyncStatusPanel } from "./SyncStatusPanel";
 import { AppHeader } from "./AppHeader";
+import { PWAInstallPrompt } from "./PWAInstallPrompt";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 interface AppLayoutProps {
