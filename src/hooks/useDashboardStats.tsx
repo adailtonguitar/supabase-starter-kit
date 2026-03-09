@@ -224,6 +224,8 @@ export function useDashboardStats() {
         billsDueTodayCount,
         overdueBills,
         overdueBillsCount,
+        pendingReceivables,
+        pendingReceivablesCount,
         recentSales: (recentResult.data || []).map((row: any) => ({
           id: row.id,
           number: row.sale_number || row.number,
