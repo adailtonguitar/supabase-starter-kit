@@ -87,3 +87,6 @@ verify_jwt = false
 
 [functions.export-backup]
 verify_jwt = false
+
+[functions.import-backup]
+verify_jwt = false
