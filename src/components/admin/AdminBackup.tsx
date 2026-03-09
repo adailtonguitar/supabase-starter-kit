@@ -175,7 +175,7 @@ export function AdminBackup() {
             {testingWeekly ? (
               <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Processando...</>
             ) : (
-              <><PlayCircle className="h-4 w-4 mr-2" /> Testar Backup Semanal Agora</>
+              <><PlayCircle className="h-4 w-4 mr-2" /> Disparar Backup Agora</>
             )}
           </Button>
           {weeklyResult && !weeklyResult.error && (
