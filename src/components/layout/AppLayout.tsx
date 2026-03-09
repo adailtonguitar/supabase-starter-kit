@@ -36,6 +36,7 @@ export const AppLayout = memo(function AppLayout({ children }: AppLayoutProps) {
           )}
         </main>
         {isMobile && <MobileBottomNav onMenuOpen={() => setMobileOpen(true)} />}
+        <PWAInstallPrompt />
         <SyncStatusPanel />
       </div>
     </div>
