@@ -1,6 +1,7 @@
 import { memo } from "react";
 import { Link } from "react-router-dom";
 import anthoLogo from "@/assets/logo-as.png";
+import { APP_VERSION } from "@/config/app";
 import { NotificationBell } from "./NotificationBell";
 import { useAuth } from "@/hooks/useAuth";
 
