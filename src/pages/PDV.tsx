@@ -144,6 +144,8 @@ export default function PDV() {
   const [forceClosedAlert, setForceClosedAlert] = useState(false);
   const [forceClosedSnapshot, setForceClosedSnapshot] = useState<any>(null);
   const forceClosedRef = useRef(false);
+  // Track if the operator themselves opened the cash register dialog (to avoid false force-close alerts)
+  const selfClosingRef = useRef(false);
 
   // Load session for current terminal on mount, terminal change, or companyId change
   useEffect(() => {
@@ -164,6 +166,8 @@ export default function PDV() {
         table: "cash_sessions",
         filter: `id=eq.${sessionId}`,
       }, (payload: any) => {
+        // Skip if the operator themselves is closing (CashRegister dialog is open)
+        if (selfClosingRef.current) return;
         if (payload.new?.status === "fechado") {
           const s = payload.new;
           setForceClosedSnapshot({
@@ -199,6 +203,11 @@ export default function PDV() {
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [companyId, pdv.currentSession?.id, terminalId]);
+
+  // Keep selfClosingRef in sync with showCashRegister
+  useEffect(() => {
+    if (showCashRegister) selfClosingRef.current = true;
+  }, [showCashRegister]);
 
   // Auto-open cash register dialog if no session is open (only after first load completes)
   useEffect(() => {
@@ -1808,6 +1817,7 @@ export default function PDV() {
           terminalId={terminalId}
           onClose={async () => {
             console.log("[PDV] CashRegister onClose called");
+            selfClosingRef.current = false;
             cashRegisterDismissedRef.current = true;
             setShowCashRegister(false);
             // Reload session in background
