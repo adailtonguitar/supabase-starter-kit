@@ -134,6 +134,7 @@ export function AdminBackup() {
   };
 
   const totalBackupRows = backupMeta?.tables?.reduce((sum, t) => sum + t.rows, 0) || 0;
+  const filteredCompanies = companies.filter(c => c.name.toLowerCase().includes(searchTerm.toLowerCase()));
 
   return (
     <div className="space-y-4">
