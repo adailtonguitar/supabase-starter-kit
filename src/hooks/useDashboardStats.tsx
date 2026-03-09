@@ -85,7 +85,7 @@ export function useDashboardStats() {
         salesResult, monthResult, recentResult, productsResult, alertsResult,
         fiscalResult, financialResult, last7Result, prevPeriodResult,
         totalProductsResult, totalClientsResult, saleItemsResult,
-        yesterdayResult, fiadoResult, billsDueResult, overdueBillsResult,
+        yesterdayResult, fiadoResult, billsDueResult, overdueBillsResult, pendingReceivablesResult,
       ] = await Promise.all([
         supabase.from("sales").select("total").eq("company_id", companyId).gte("created_at", today + "T00:00:00").or("status.is.null,status.neq.cancelled"),
         supabase.from("sales").select("total").eq("company_id", companyId).gte("created_at", monthStart + "T00:00:00").or("status.is.null,status.neq.cancelled"),
