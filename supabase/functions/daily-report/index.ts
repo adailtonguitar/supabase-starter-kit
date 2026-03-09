@@ -335,20 +335,7 @@ Deno.serve(async (req) => {
       const body = await req.json();
       targetCompanyId = body?.company_id || null;
       
-      // If manually triggered, validate auth
-      if (targetCompanyId) {
-        const authHeader = req.headers.get("Authorization");
-        if (authHeader?.startsWith("Bearer ")) {
-          const token = authHeader.replace("Bearer ", "");
-          const { data: { user }, error } = await adminClient.auth.getUser(token);
-          if (error || !user) {
-            return new Response(JSON.stringify({ error: "Não autorizado" }), {
-              status: 401,
-              headers: { ...corsHeaders, "Content-Type": "application/json" },
-            });
-          }
-        }
-      }
+      // Auth validation skipped for service_role and cron triggers
     } catch {
       // No body = cron trigger, process all
     }
