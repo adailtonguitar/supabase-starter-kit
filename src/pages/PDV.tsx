@@ -229,7 +229,13 @@ export default function PDV() {
           // DON'T reload session here — it causes race condition with auto-open
           // Session will be reloaded when user dismisses the alert
           playErrorSound();
-          toast.error("Caixa fechado remotamente pelo gerente!", { duration: 10000 });
+          const isAdminClose = s.notes?.includes("[ADMIN_FORCE_CLOSED]");
+          toast.error(
+            isAdminClose
+              ? "Caixa fechado pelo administrador do sistema!"
+              : "Caixa fechado remotamente pelo gerente!",
+            { duration: 10000 }
+          );
         }
       })
       .subscribe();
