@@ -142,9 +142,9 @@ export function AdminCompanyHealth() {
           limit: 1000,
         }),
         // Errors last 24h
-        adminQuery<{ id: string; message: string; created_at: string }>({
+        adminQuery<{ id: string; error_message: string; created_at: string }>({
           table: "system_errors",
-          select: "id, message, created_at",
+          select: "id, error_message, created_at",
           filters: [
             { op: "eq", column: "company_id", value: company.id },
             { op: "gte", column: "created_at", value: new Date(Date.now() - 86400000).toISOString() },
