@@ -15,6 +15,9 @@ const ALLOWED_TABLES = [
   "system_errors",
   "plan_subscriptions",
   "telemetry",
+  "products",
+  "sales",
+  "cash_sessions",
 ];
 
 Deno.serve(async (req) => {

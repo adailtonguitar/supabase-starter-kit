@@ -142,9 +142,9 @@ export function AdminCompanyHealth() {
           limit: 1000,
         }),
         // Errors last 24h
-        adminQuery<{ id: string; message: string; created_at: string }>({
+        adminQuery<{ id: string; error_message: string; created_at: string }>({
           table: "system_errors",
-          select: "id, message, created_at",
+          select: "id, error_message, created_at",
           filters: [
             { op: "eq", column: "company_id", value: company.id },
             { op: "gte", column: "created_at", value: new Date(Date.now() - 86400000).toISOString() },
@@ -163,9 +163,9 @@ export function AdminCompanyHealth() {
           limit: 1,
         }),
         // Subscription
-        adminQuery<{ status: string; plan_id: string; current_period_end: string }>({
+        adminQuery<{ status: string; plan_key: string; subscription_end: string }>({
           table: "subscriptions",
-          select: "status, plan_id, current_period_end",
+          select: "status, plan_key, subscription_end",
           filters: [{ op: "eq", column: "company_id", value: company.id }],
           limit: 1,
           order: { column: "created_at", ascending: false },
@@ -215,7 +215,7 @@ export function AdminCompanyHealth() {
         salesToday: salesData.reduce((sum, s) => sum + Number(s.total || 0), 0),
         salesTotal: salesData.length,
         errorsLast24h: errorsData.length,
-        recentErrors: errorsData.slice(0, 5),
+        recentErrors: errorsData.slice(0, 5).map(e => ({ message: e.error_message, created_at: e.created_at })),
         openCashSession: cashSessionData[0] ? {
           id: cashSessionData[0].id,
           user_name: "Operador",
@@ -223,8 +223,8 @@ export function AdminCompanyHealth() {
         } : null,
         subscription: subscriptionData[0] ? {
           status: subscriptionData[0].status,
-          plan: subscriptionData[0].plan_id || "básico",
-          expires_at: subscriptionData[0].current_period_end,
+          plan: subscriptionData[0].plan_key || "básico",
+          expires_at: subscriptionData[0].subscription_end,
         } : null,
         syncStatus: recentActivity.length > 0 ? "online" : "offline",
       };
