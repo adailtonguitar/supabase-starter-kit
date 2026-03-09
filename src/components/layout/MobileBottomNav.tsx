@@ -1,15 +1,14 @@
 import { Link, useLocation } from "react-router-dom";
-import { LayoutDashboard, ShoppingCart, Package, Users, DollarSign, Settings } from "lucide-react";
+import { LayoutDashboard, ShoppingCart, Package, DollarSign, Menu } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 
 const bottomNavItems = [
   { icon: LayoutDashboard, label: "Início", path: "/dashboard" },
-  { icon: ShoppingCart, label: "Vendas", path: "/vendas" },
   { icon: Package, label: "Produtos", path: "/produtos" },
-  { icon: Users, label: "Clientes", path: "/cadastro/clientes" },
+  { icon: ShoppingCart, label: "PDV", path: "/pdv", highlight: true },
   { icon: DollarSign, label: "Financeiro", path: "/financeiro" },
-  { icon: Settings, label: "Config", path: "/configuracoes" },
+  { icon: ShoppingCart, label: "Vendas", path: "/vendas" },
 ];
 
 interface MobileBottomNavProps {
@@ -24,6 +23,31 @@ export function MobileBottomNav({ onMenuOpen }: MobileBottomNavProps) {
       <div className="flex items-center justify-around h-16 px-0.5 max-w-[480px] mx-auto">
         {bottomNavItems.map((item) => {
           const isActive = location.pathname === item.path || location.pathname.startsWith(item.path + "/");
+
+          if (item.highlight) {
+            return (
+              <Link
+                key={item.path}
+                to={item.path}
+                className="flex flex-col items-center justify-center -mt-5"
+              >
+                <motion.div
+                  whileTap={{ scale: 0.9 }}
+                  className={cn(
+                    "w-13 h-13 rounded-full flex items-center justify-center shadow-lg transition-all duration-300",
+                    "bg-primary text-primary-foreground",
+                    "ring-4 ring-card/80",
+                    "shadow-[0_4px_20px_-2px_hsl(var(--primary)/0.4)]"
+                  )}
+                >
+                  <item.icon className="w-5.5 h-5.5" />
+                </motion.div>
+                <span className="text-[10px] font-bold mt-1 text-primary">
+                  {item.label}
+                </span>
+              </Link>
+            );
+          }
 
           return (
             <Link
@@ -61,6 +85,19 @@ export function MobileBottomNav({ onMenuOpen }: MobileBottomNavProps) {
             </Link>
           );
         })}
+
+        {/* Menu button to open sidebar */}
+        <button
+          onClick={onMenuOpen}
+          className="relative flex flex-col items-center justify-center gap-0.5 min-w-0 flex-1 py-1.5"
+        >
+          <motion.div whileTap={{ scale: 0.85 }} className="flex flex-col items-center gap-0.5">
+            <div className="flex items-center justify-center w-8 h-8 rounded-xl">
+              <Menu className="w-[18px] h-[18px] text-muted-foreground" />
+            </div>
+            <span className="text-[10px] font-semibold text-muted-foreground leading-tight">Menu</span>
+          </motion.div>
+        </button>
       </div>
     </nav>
   );
