@@ -23,6 +23,7 @@ const DEPENDENT_TABLES_DELETE = [
   // These reference sale_items/sales
   { table: "sale_items", fk_via: "sale_id", parent: "sales" },
   // These reference products
+  { table: "inventory_count_items", fk_via: "product_id", parent: "products" },
   { table: "product_labels", column: "company_id" },
   { table: "product_extras", column: "company_id" },
   { table: "product_kits", column: "company_id" },
@@ -35,6 +36,7 @@ const DEPENDENT_TABLES_DELETE = [
   // These reference other tables
   { table: "returns", column: "company_id" },
   { table: "receipt_counters", column: "company_id" },
+  { table: "inventory_counts", column: "company_id" },
 ];
 
 Deno.serve(async (req) => {
