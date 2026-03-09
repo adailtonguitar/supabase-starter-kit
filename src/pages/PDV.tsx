@@ -144,6 +144,8 @@ export default function PDV() {
   const [forceClosedAlert, setForceClosedAlert] = useState(false);
   const [forceClosedSnapshot, setForceClosedSnapshot] = useState<any>(null);
   const forceClosedRef = useRef(false);
+  // Track if the operator themselves opened the cash register dialog (to avoid false force-close alerts)
+  const selfClosingRef = useRef(false);
 
   // Load session for current terminal on mount, terminal change, or companyId change
   useEffect(() => {
