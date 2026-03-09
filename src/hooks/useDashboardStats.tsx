@@ -138,6 +138,10 @@ export function useDashboardStats() {
       const overdueBills = overdueData.reduce((sum, e: any) => sum + Number(e.amount || 0), 0);
       const overdueBillsCount = overdueData.length;
 
+      const receivablesData = pendingReceivablesResult.data || [];
+      const pendingReceivables = receivablesData.reduce((sum, e: any) => sum + Number(e.amount || 0), 0);
+      const pendingReceivablesCount = receivablesData.length;
+
       const products = productsResult.data || [];
       const productsAtRisk = products.filter((p: any) => p.min_stock > 0 && (p.stock_quantity ?? 0) <= p.min_stock).length;
       const activeAlerts = (alertsResult.data || []).length;
