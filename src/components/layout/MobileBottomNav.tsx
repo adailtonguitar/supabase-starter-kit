@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { LayoutDashboard, ShoppingCart, Package, DollarSign, Menu } from "lucide-react";
+import { LayoutDashboard, ShoppingCart, Package, DollarSign, Menu, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 
@@ -8,7 +8,7 @@ const bottomNavItems = [
   { icon: Package, label: "Produtos", path: "/produtos" },
   { icon: ShoppingCart, label: "PDV", path: "/pdv", highlight: true },
   { icon: DollarSign, label: "Financeiro", path: "/financeiro" },
-  { icon: ShoppingCart, label: "Vendas", path: "/vendas" },
+  { icon: FileText, label: "Vendas", path: "/vendas" },
 ];
 
 interface MobileBottomNavProps {
