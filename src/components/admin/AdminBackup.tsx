@@ -3,9 +3,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { toast } from "sonner";
-import { Download, Upload, Loader2, Database, CheckCircle, AlertTriangle, FileJson } from "lucide-react";
+import { Download, Upload, Loader2, Database, CheckCircle, AlertTriangle, FileJson, ChevronsUpDown, Check } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { adminQuery } from "@/lib/admin-query";
 
@@ -14,7 +16,7 @@ const BACKUP_TABLES = ["products", "sales", "sale_items", "clients", "suppliers"
 export function AdminBackup() {
   const [companies, setCompanies] = useState<{ id: string; name: string }[]>([]);
   const [selectedCompany, setSelectedCompany] = useState("");
-  const [searchTerm, setSearchTerm] = useState("");
+  const [comboOpen, setComboOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -134,7 +136,7 @@ export function AdminBackup() {
   };
 
   const totalBackupRows = backupMeta?.tables?.reduce((sum, t) => sum + t.rows, 0) || 0;
-  const filteredCompanies = companies.filter(c => c.name.toLowerCase().includes(searchTerm.toLowerCase()));
+  const selectedCompanyName = companies.find(c => c.id === selectedCompany)?.name || "";
 
   return (
     <div className="space-y-4">
@@ -150,31 +152,41 @@ export function AdminBackup() {
           <p className="text-sm text-muted-foreground">
             Exporte todos os dados de uma empresa em JSON para backup.
           </p>
-          <div className="flex flex-col gap-2">
-            <Input
-              placeholder="Buscar empresa pelo nome..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="sm:w-[350px]"
-            />
-            <div className="flex flex-col sm:flex-row gap-3">
-              <Select value={selectedCompany} onValueChange={setSelectedCompany}>
-                <SelectTrigger className="sm:w-[350px]">
-                  <SelectValue placeholder={loading ? "Carregando..." : "Selecione a empresa"} />
-                </SelectTrigger>
-                <SelectContent>
-                  {filteredCompanies.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                  ))}
-                  {filteredCompanies.length === 0 && (
-                    <div className="px-3 py-2 text-sm text-muted-foreground">Nenhuma empresa encontrada</div>
-                  )}
-                </SelectContent>
-              </Select>
-              <Button onClick={handleExport} disabled={exporting || !selectedCompany}>
-                {exporting ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Exportando...</> : <><Download className="h-4 w-4 mr-2" /> Exportar</>}
-              </Button>
-            </div>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <Popover open={comboOpen} onOpenChange={setComboOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" role="combobox" aria-expanded={comboOpen} className="sm:w-[350px] justify-between">
+                  {selectedCompanyName || (loading ? "Carregando..." : "Buscar empresa...")}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="sm:w-[350px] p-0">
+                <Command>
+                  <CommandInput placeholder="Digite o nome da empresa..." />
+                  <CommandList>
+                    <CommandEmpty>Nenhuma empresa encontrada.</CommandEmpty>
+                    <CommandGroup>
+                      {companies.map((c) => (
+                        <CommandItem
+                          key={c.id}
+                          value={c.name}
+                          onSelect={() => {
+                            setSelectedCompany(c.id);
+                            setComboOpen(false);
+                          }}
+                        >
+                          <Check className={cn("mr-2 h-4 w-4", selectedCompany === c.id ? "opacity-100" : "opacity-0")} />
+                          {c.name}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+            <Button onClick={handleExport} disabled={exporting || !selectedCompany}>
+              {exporting ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Exportando...</> : <><Download className="h-4 w-4 mr-2" /> Exportar</>}
+            </Button>
           </div>
           <div className="rounded-lg border p-3 bg-muted/50">
             <h4 className="text-xs font-medium mb-2">Tabelas incluídas:</h4>
