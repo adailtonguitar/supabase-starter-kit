@@ -75,12 +75,24 @@ export function DashboardAlerts({
   if (fiadoCount > 0) {
     alerts.push({
       icon: FileText,
-      label: `${fiadoCount} venda${fiadoCount > 1 ? "s" : ""} no fiado`,
+      label: `${fiadoCount} cliente${fiadoCount > 1 ? "s" : ""} no fiado`,
       detail: formatCurrency(fiadoTotal),
       to: "/fiado",
       color: "text-primary",
       bg: "bg-primary/10",
       border: "border-primary/20",
+    });
+  }
+
+  if (pendingReceivablesCount > 0) {
+    alerts.push({
+      icon: CreditCard,
+      label: `${pendingReceivablesCount} conta${pendingReceivablesCount > 1 ? "s" : ""} a receber`,
+      detail: formatCurrency(pendingReceivables),
+      to: "/financeiro",
+      color: "text-success",
+      bg: "bg-success/10",
+      border: "border-success/20",
     });
   }
 
