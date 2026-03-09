@@ -359,11 +359,10 @@
   main .overflow-x-auto { -webkit-overflow-scrolling: touch; }
   main table { font-size: 0.75rem; }
 
-  /* Touch-friendly targets on mobile — height only, no min-width to avoid overlap */
+  /* Touch-friendly targets on mobile */
   button, a, [role="button"], [role="tab"], [role="menuitem"] {
     min-height: 44px;
   }
-  /* Exceções para ícones inline e badges */
   .inline-icon-btn, [data-no-min-size] {
     min-height: unset;
     min-width: unset;
@@ -374,6 +373,19 @@
   .grid.grid-cols-3:not(.mobile-keep-grid),
   .grid.grid-cols-4:not(.mobile-keep-grid) {
     grid-template-columns: 1fr !important;
+  }
+
+  /* Inputs - prevent zoom on iOS (font-size >= 16px) */
+  input, select, textarea, [role="combobox"] {
+    font-size: 16px !important;
+    min-height: 48px;
+    box-sizing: border-box;
+  }
+
+  /* Buttons - larger touch targets */
+  button:not(.inline-icon-btn):not([data-no-min-size]) {
+    min-height: 48px;
+    border-radius: 0.75rem;
   }
 
   /* Date/time input icon fix */
@@ -393,6 +405,14 @@
     right: 0.75rem;
     width: 1.25rem;
     height: 1.25rem;
+  }
+
+  /* Mobile card animations */
+  .card, [class*="Card"] {
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+  .card:active, [class*="Card"]:active {
+    transform: scale(0.98);
   }
 }
 
