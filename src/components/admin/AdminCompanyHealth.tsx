@@ -163,9 +163,9 @@ export function AdminCompanyHealth() {
           limit: 1,
         }),
         // Subscription
-        adminQuery<{ status: string; plan_id: string; current_period_end: string }>({
+        adminQuery<{ status: string; plan_key: string; subscription_end: string }>({
           table: "subscriptions",
-          select: "status, plan_id, current_period_end",
+          select: "status, plan_key, subscription_end",
           filters: [{ op: "eq", column: "company_id", value: company.id }],
           limit: 1,
           order: { column: "created_at", ascending: false },
