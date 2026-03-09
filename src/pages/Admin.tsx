@@ -162,6 +162,9 @@ export default function Admin() {
         <TabsContent value="health">
           <AdminCompanyHealth />
         </TabsContent>
+        <TabsContent value="backup">
+          <AdminBackup />
+        </TabsContent>
       </Tabs>
     </div>
   );
