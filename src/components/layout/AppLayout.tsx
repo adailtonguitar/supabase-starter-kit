@@ -8,6 +8,7 @@ import { UpdateNoticeModal } from "@/components/UpdateNoticeModal";
 import { OnlineStatusIndicator } from "./OnlineStatusIndicator";
 import { SyncStatusPanel } from "./SyncStatusPanel";
 import { AppHeader } from "./AppHeader";
+import { PWAInstallPrompt } from "./PWAInstallPrompt";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 interface AppLayoutProps {
@@ -35,6 +36,7 @@ export const AppLayout = memo(function AppLayout({ children }: AppLayoutProps) {
           )}
         </main>
         {isMobile && <MobileBottomNav onMenuOpen={() => setMobileOpen(true)} />}
+        <PWAInstallPrompt />
         <SyncStatusPanel />
       </div>
     </div>
