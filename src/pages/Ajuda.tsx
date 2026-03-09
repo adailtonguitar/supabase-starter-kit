@@ -80,6 +80,7 @@ export default function Ajuda() {
   const [openSection, setOpenSection] = useState<string | null>(null);
   const [activeCategory, setActiveCategory] = useState<TutorialCategory | "todos">("todos");
   const [readTutorials, setReadTutorials] = useState<Set<string>>(getReadTutorials);
+  const { openWhatsApp, whatsappNumber } = useWhatsAppSupport();
 
   const markRead = useCallback((title: string) => {
     setReadTutorials(prev => {
