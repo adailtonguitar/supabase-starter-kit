@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { APP_VERSION } from "@/config/app";
 import anthoLogo from "@/assets/logo-as.png";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Link, useLocation } from "react-router-dom";
@@ -518,7 +519,7 @@ export function AppSidebar({ mobileOpen, onMobileClose }: AppSidebarProps) {
         </div>
         {/* Action row */}
         {!collapsed && (
-          <p className="text-[10px] text-muted-foreground text-center mt-0.5">v1.0.0</p>
+          <p className="text-[10px] text-muted-foreground text-center mt-0.5">v{APP_VERSION}</p>
         )}
         <div className={cn("flex items-center mt-1", collapsed ? "flex-col gap-1" : "gap-1 justify-between px-1")}>
           <ThemeToggle />
