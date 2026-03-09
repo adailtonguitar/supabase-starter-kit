@@ -27,6 +27,7 @@ import { AdminStoreSimulation } from "@/components/admin/AdminStoreSimulation";
 import { AdminLeads } from "@/components/admin/AdminLeads";
 import { AdminMarketing } from "@/components/admin/AdminMarketing";
 import { AdminCompanyHealth } from "@/components/admin/AdminCompanyHealth";
+import { AdminNotifications } from "@/components/admin/AdminNotifications";
 import { lazy, Suspense } from "react";
 
 const lazyRetry = (fn: () => Promise<any>) =>
