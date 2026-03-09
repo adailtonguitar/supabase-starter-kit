@@ -5,6 +5,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { motion } from "framer-motion";
 import { Building2, Users, CreditCard, ShoppingCart, TrendingUp, AlertTriangle, CheckCircle, Clock } from "lucide-react";
 import { AdminSystemAnalytics } from "./AdminSystemAnalytics";
+import { AdminProactiveAlerts } from "./AdminProactiveAlerts";
 
 import { AdminSystemStatus } from "./AdminSystemStatus";
 import { AdminRecentActivity } from "./AdminRecentActivity";
