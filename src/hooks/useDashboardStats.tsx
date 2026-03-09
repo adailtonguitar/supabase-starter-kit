@@ -45,6 +45,8 @@ interface DashboardStats {
   billsDueTodayCount: number;
   overdueBills: number;
   overdueBillsCount: number;
+  pendingReceivables: number;
+  pendingReceivablesCount: number;
 }
 
 function extractPaymentMethod(payments: any): string {
