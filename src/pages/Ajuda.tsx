@@ -3,6 +3,7 @@ import { HelpCircle, Search, MessageCircle } from "lucide-react";
 import { tutorials, type TutorialCategory, type TutorialSection } from "@/data/tutorials";
 import { TutorialCard } from "@/components/ajuda/TutorialCard";
 import { FAQSection } from "@/components/ajuda/FAQSection";
+import { useWhatsAppSupport } from "@/hooks/useWhatsAppSupport";
 
 const STORAGE_KEY = "ajuda-read-tutorials";
 
