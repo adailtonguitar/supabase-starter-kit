@@ -101,12 +101,12 @@ export function useDashboardStats() {
         supabase.from("sale_items").select("product_name, quantity, unit_price, sale_id, sales!inner(company_id, created_at)").eq("sales.company_id", companyId).gte("sales.created_at", monthStart + "T00:00:00").limit(500),
         // Yesterday sales
         supabase.from("sales").select("total").eq("company_id", companyId).gte("created_at", yesterday + "T00:00:00").lt("created_at", today + "T00:00:00").or("status.is.null,status.neq.cancelled"),
-        // Fiado (credit sales pending)
-        supabase.from("sales").select("total").eq("company_id", companyId).eq("status", "fiado"),
-        // Bills due today
+        // Fiado — use clients with actual outstanding credit_balance
+        supabase.from("clients").select("credit_balance").eq("company_id", companyId).gt("credit_balance", 0),
+        // Bills due today (contas a pagar)
         supabase.from("financial_entries").select("amount").eq("company_id", companyId).eq("status", "pendente").eq("type", "pagar").eq("due_date", today),
-        // Overdue bills
-        supabase.from("financial_entries").select("amount").eq("company_id", companyId).eq("status", "pendente").eq("type", "pagar").lt("due_date", today),
+        // Overdue bills (contas a pagar vencidas — last 180 days only)
+        supabase.from("financial_entries").select("amount").eq("company_id", companyId).eq("status", "pendente").eq("type", "pagar").lt("due_date", today).gte("due_date", (() => { const d = new Date(); d.setDate(d.getDate() - 180); return d.toISOString().split("T")[0]; })()),
       ]);
 
       const todaySales = salesResult.data || [];
@@ -122,9 +122,9 @@ export function useDashboardStats() {
       const salesYesterday = yesterdaySales.reduce((sum, s: any) => sum + Number(s.total || 0), 0);
       const salesCountYesterday = yesterdaySales.length;
 
-      // Fiado
+      // Fiado — from clients with outstanding balance
       const fiadoData = fiadoResult.data || [];
-      const fiadoTotal = fiadoData.reduce((sum, s: any) => sum + Number(s.total || 0), 0);
+      const fiadoTotal = fiadoData.reduce((sum, c: any) => sum + Number(c.credit_balance || 0), 0);
       const fiadoCount = fiadoData.length;
 
       // Bills

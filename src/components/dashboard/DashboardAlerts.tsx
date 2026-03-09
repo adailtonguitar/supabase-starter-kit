@@ -35,7 +35,7 @@ export function DashboardAlerts({
   if (overdueBillsCount > 0) {
     alerts.push({
       icon: AlertTriangle,
-      label: `${overdueBillsCount} conta${overdueBillsCount > 1 ? "s" : ""} vencida${overdueBillsCount > 1 ? "s" : ""}`,
+      label: `${overdueBillsCount} conta${overdueBillsCount > 1 ? "s" : ""} a pagar vencida${overdueBillsCount > 1 ? "s" : ""}`,
       detail: formatCurrency(overdueBills),
       to: "/financeiro",
       color: "text-destructive",
