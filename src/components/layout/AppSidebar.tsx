@@ -517,6 +517,9 @@ export function AppSidebar({ mobileOpen, onMobileClose }: AppSidebarProps) {
           )}
         </div>
         {/* Action row */}
+        {!collapsed && (
+          <p className="text-[10px] text-muted-foreground text-center mt-0.5">v1.0.0</p>
+        )}
         <div className={cn("flex items-center mt-1", collapsed ? "flex-col gap-1" : "gap-1 justify-between px-1")}>
           <ThemeToggle />
           {pendingCount > 0 && (
