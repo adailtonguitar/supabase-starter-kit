@@ -122,9 +122,9 @@ export function useDashboardStats() {
       const salesYesterday = yesterdaySales.reduce((sum, s: any) => sum + Number(s.total || 0), 0);
       const salesCountYesterday = yesterdaySales.length;
 
-      // Fiado
+      // Fiado — from clients with outstanding balance
       const fiadoData = fiadoResult.data || [];
-      const fiadoTotal = fiadoData.reduce((sum, s: any) => sum + Number(s.total || 0), 0);
+      const fiadoTotal = fiadoData.reduce((sum, c: any) => sum + Number(c.credit_balance || 0), 0);
       const fiadoCount = fiadoData.length;
 
       // Bills
