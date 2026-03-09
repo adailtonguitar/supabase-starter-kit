@@ -115,15 +115,15 @@ export default function Ajuda() {
             <p className="text-sm text-muted-foreground">Tutoriais e guias de todas as funções do sistema</p>
           </div>
         </div>
-        <a
-          href="https://wa.me/5500000000000?text=Preciso%20de%20ajuda%20com%20o%20AnthOS"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-green-600 text-white text-sm font-semibold hover:bg-green-700 transition-colors"
-        >
-          <MessageCircle className="w-4 h-4" />
-          Suporte via WhatsApp
-        </a>
+        {whatsappNumber && (
+          <button
+            onClick={() => openWhatsApp("Preciso de ajuda com o AnthOS")}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-green-600 text-white text-sm font-semibold hover:bg-green-700 transition-colors"
+          >
+            <MessageCircle className="w-4 h-4" />
+            Suporte via WhatsApp
+          </button>
+        )}
       </div>
 
       {/* Progress bar */}
