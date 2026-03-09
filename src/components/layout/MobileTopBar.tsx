@@ -30,7 +30,10 @@ export const MobileTopBar = memo(function MobileTopBar() {
       {/* Logo */}
       <Link to="/dashboard" className="flex items-center gap-2">
         <img src={anthoLogo} alt="AnthoSystem" className="h-7 w-auto" />
-        <span className="text-sm font-bold text-foreground">AnthoSystem</span>
+        <div className="flex flex-col leading-none">
+          <span className="text-sm font-bold text-foreground">AnthoSystem</span>
+          <span className="text-[9px] text-muted-foreground">v{APP_VERSION}</span>
+        </div>
       </Link>
 
       {/* Right actions */}
