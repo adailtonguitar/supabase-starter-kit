@@ -23,6 +23,8 @@ export function DashboardAlerts({
   fiadoCount,
   billsDueToday,
   billsDueTodayCount,
+  pendingReceivables,
+  pendingReceivablesCount,
 }: DashboardAlertsProps) {
   const alerts: Array<{
     icon: typeof AlertTriangle;
