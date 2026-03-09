@@ -76,8 +76,14 @@ export function NotificationBell() {
 }
 
 function NotificationItem({ notification: n, onMarkRead }: { notification: AppNotification; onMarkRead: (id: string) => void }) {
+  const [expanded, setExpanded] = useState(false);
   const config = typeConfig[n.type] || typeConfig.info;
   const Icon = config.icon;
+
+  const handleClick = () => {
+    if (!n.is_read) onMarkRead(n.id);
+    setExpanded((prev) => !prev);
+  };
 
   return (
     <div
@@ -85,7 +91,7 @@ function NotificationItem({ notification: n, onMarkRead }: { notification: AppNo
         "flex gap-3 px-4 py-3 border-b border-border/50 last:border-0 transition-colors cursor-pointer hover:bg-accent/50",
         !n.is_read && "bg-primary/5"
       )}
-      onClick={() => !n.is_read && onMarkRead(n.id)}
+      onClick={handleClick}
     >
       <div className={cn("mt-0.5 shrink-0", config.color)}>
         <Icon className="w-4 h-4" />
@@ -99,7 +105,9 @@ function NotificationItem({ notification: n, onMarkRead }: { notification: AppNo
             <span className="w-2 h-2 rounded-full bg-primary shrink-0 mt-1.5" />
           )}
         </div>
-        <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{n.message}</p>
+        <p className={cn("text-xs text-muted-foreground mt-0.5", !expanded && "line-clamp-2")}>
+          {n.message}
+        </p>
         <p className="text-[10px] text-muted-foreground/70 mt-1">
           {formatDistanceToNow(new Date(n.created_at), { addSuffix: true, locale: ptBR })}
         </p>
