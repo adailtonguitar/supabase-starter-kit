@@ -46,8 +46,14 @@ export function useNotifications() {
         is_read: readIds.has(n.id),
       }));
 
-      setNotifications(mapped);
-      setUnreadCount(mapped.filter((n) => !n.is_read).length);
+      // Hide read notifications older than 7 days
+      const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+      const filtered = mapped.filter(
+        (n) => !n.is_read || new Date(n.created_at).getTime() > sevenDaysAgo
+      );
+
+      setNotifications(filtered);
+      setUnreadCount(filtered.filter((n) => !n.is_read).length);
     } catch (err) {
       console.error("[useNotifications]", err);
     }
