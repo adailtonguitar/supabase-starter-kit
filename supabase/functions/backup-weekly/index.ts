@@ -144,14 +144,17 @@ Deno.serve(async (req) => {
       }),
     });
 
-    const resendData = await resendRes.json();
+    const resendText = await resendRes.text();
+    console.log("[backup-weekly] Resend status:", resendRes.status, "| Response:", resendText);
+    console.log("[backup-weekly] Attachment size (base64 chars):", base64Content.length);
 
     if (!resendRes.ok) {
-      console.error("Resend error:", resendData);
-      return new Response(JSON.stringify({ error: "Failed to send email", details: resendData }), {
+      return new Response(JSON.stringify({ error: "Failed to send email", status: resendRes.status, details: resendText }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    const resendData = JSON.parse(resendText);
 
     return new Response(JSON.stringify({
       success: true,
