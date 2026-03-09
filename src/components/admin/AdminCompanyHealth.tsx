@@ -215,7 +215,7 @@ export function AdminCompanyHealth() {
         salesToday: salesData.reduce((sum, s) => sum + Number(s.total || 0), 0),
         salesTotal: salesData.length,
         errorsLast24h: errorsData.length,
-        recentErrors: errorsData.slice(0, 5),
+        recentErrors: errorsData.slice(0, 5).map(e => ({ message: e.error_message, created_at: e.created_at })),
         openCashSession: cashSessionData[0] ? {
           id: cashSessionData[0].id,
           user_name: "Operador",
@@ -223,8 +223,8 @@ export function AdminCompanyHealth() {
         } : null,
         subscription: subscriptionData[0] ? {
           status: subscriptionData[0].status,
-          plan: subscriptionData[0].plan_id || "básico",
-          expires_at: subscriptionData[0].current_period_end,
+          plan: subscriptionData[0].plan_key || "básico",
+          expires_at: subscriptionData[0].subscription_end,
         } : null,
         syncStatus: recentActivity.length > 0 ? "online" : "offline",
       };
