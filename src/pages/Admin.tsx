@@ -13,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Shield, Activity, Search, Ban, CheckCircle, LayoutDashboard, Users, CreditCard, FileText, DollarSign, Trash2, FlaskConical, MessageCircle, Save, Loader2, Pencil, Mail, ShoppingCart, Bug, Stethoscope, TrendingUp, Megaphone, Heart, Bell } from "lucide-react";
+import { Shield, Activity, Search, Ban, CheckCircle, LayoutDashboard, Users, CreditCard, FileText, DollarSign, Trash2, FlaskConical, MessageCircle, Save, Loader2, Pencil, Mail, ShoppingCart, Bug, Stethoscope, TrendingUp, Megaphone, Heart, Bell, Database } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { AdminDashboard } from "@/components/admin/AdminDashboard";
 import { AdminSubscriptions } from "@/components/admin/AdminSubscriptions";
@@ -28,6 +28,7 @@ import { AdminLeads } from "@/components/admin/AdminLeads";
 import { AdminMarketing } from "@/components/admin/AdminMarketing";
 import { AdminCompanyHealth } from "@/components/admin/AdminCompanyHealth";
 import { AdminNotifications } from "@/components/admin/AdminNotifications";
+import { AdminBackup } from "@/components/admin/AdminBackup";
 import { lazy, Suspense } from "react";
 
 const lazyRetry = (fn: () => Promise<any>) =>
@@ -107,6 +108,7 @@ export default function Admin() {
           <TabsTrigger value="marketing" className="text-xs sm:text-sm"><Megaphone className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" /> Marketing</TabsTrigger>
           <TabsTrigger value="notifications" className="text-xs sm:text-sm"><Bell className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" /> Avisos</TabsTrigger>
           <TabsTrigger value="health" className="text-xs sm:text-sm"><Heart className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" /> Saúde</TabsTrigger>
+          <TabsTrigger value="backup" className="text-xs sm:text-sm"><Database className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" /> Backup</TabsTrigger>
         </TabsList>
 
         <TabsContent value="dashboard">
@@ -159,6 +161,9 @@ export default function Admin() {
         </TabsContent>
         <TabsContent value="health">
           <AdminCompanyHealth />
+        </TabsContent>
+        <TabsContent value="backup">
+          <AdminBackup />
         </TabsContent>
       </Tabs>
     </div>

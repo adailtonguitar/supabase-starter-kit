@@ -84,3 +84,6 @@ verify_jwt = false
 
 [functions.admin-action]
 verify_jwt = false
+
+[functions.export-backup]
+verify_jwt = false
