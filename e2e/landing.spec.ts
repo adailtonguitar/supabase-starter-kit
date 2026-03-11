@@ -59,8 +59,7 @@ test.describe('Landing Page - Public Tests', () => {
   test('404 page for invalid route', async ({ page }) => {
     await page.goto('/pagina-que-nao-existe');
     await page.waitForLoadState('networkidle');
-    const has404 = await page.locator('text=404, text=não encontrada, text=Not Found').first().isVisible({ timeout: 10000 }).catch(() => false);
-    // SPA may redirect to landing or show 404
-    console.log('404 page shown:', has404);
+    await expect(page.getByText('404')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText('Página não encontrada')).toBeVisible();
   });
 });
