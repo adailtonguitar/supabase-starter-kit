@@ -56,12 +56,16 @@ test.describe('Landing Page - Public Tests', () => {
   });
 
   test('404 page for invalid route', async ({ page }) => {
-    // Clear any cached auth to ensure we land on the public NotFound branch
+    // Navigate first to set origin, then clear ALL client-side storage
+    await page.goto('/');
+    await page.evaluate(() => {
+      localStorage.clear();
+      sessionStorage.clear();
+    });
     await page.context().clearCookies();
+    // Now navigate to invalid route — no cached user, so public NotFound renders
     await page.goto('/pagina-que-nao-existe');
     await page.waitForLoadState('networkidle');
-    // Auth may take time to resolve; wait generously for 404 content
-    // The text "Página não encontrada" is plain (not gradient-clipped)
     await expect(page.getByText('Página não encontrada')).toBeVisible({ timeout: 30000 });
   });
 });
