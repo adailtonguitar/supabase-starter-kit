@@ -27,10 +27,12 @@ test.describe('Landing Page - Public Tests', () => {
 
   test('pricing section exists', async ({ page }) => {
     await page.goto('/');
-    const pricing = page.locator('text=Starter, text=Business, text=Pro, text=plano, text=Plano');
-    const hasPricing = await pricing.first().isVisible({ timeout: 5000 }).catch(() => false);
-    // Informational — pricing may be on separate page
-    console.log('Pricing visible on landing:', hasPricing);
+    await page.waitForLoadState('networkidle');
+    // Scroll to pricing section to trigger lazy loading
+    await page.locator('#planos').scrollIntoViewIfNeeded().catch(() => {});
+    await page.waitForTimeout(1000);
+    const hasPricing = await page.getByText('Starter').first().isVisible({ timeout: 10000 }).catch(() => false);
+    expect(hasPricing).toBeTruthy();
   });
 
   test('auth page loads', async ({ page }) => {
@@ -57,8 +59,7 @@ test.describe('Landing Page - Public Tests', () => {
   test('404 page for invalid route', async ({ page }) => {
     await page.goto('/pagina-que-nao-existe');
     await page.waitForLoadState('networkidle');
-    const has404 = await page.locator('text=404, text=não encontrada, text=Not Found').first().isVisible({ timeout: 10000 }).catch(() => false);
-    // SPA may redirect to landing or show 404
-    console.log('404 page shown:', has404);
+    await expect(page.getByText('404')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText('Página não encontrada')).toBeVisible();
   });
 });
