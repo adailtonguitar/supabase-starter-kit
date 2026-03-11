@@ -58,8 +58,7 @@ test.describe('Landing Page - Public Tests', () => {
   test('404 page for invalid route', async ({ page }) => {
     await page.goto('/pagina-que-nao-existe');
     await page.waitForLoadState('networkidle');
-    // Wait for auth to resolve and 404 page to render
-    await expect(page.getByText('404')).toBeVisible({ timeout: 20000 });
-    await expect(page.getByText('Página não encontrada')).toBeVisible();
+    // "Página não encontrada" is plain text (not gradient-clipped), so it's reliably visible
+    await expect(page.getByText('Página não encontrada')).toBeVisible({ timeout: 20000 });
   });
 });
