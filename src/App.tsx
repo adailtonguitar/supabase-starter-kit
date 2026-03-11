@@ -275,6 +275,8 @@ function AppRoutes() {
         <Route path="/trial-expirado" element={user ? <TrialExpirado /> : <Navigate to="/" replace />} />
         <Route path="/pdv-display" element={<PDVCustomerDisplayPage />} />
         <Route path="/renovar" element={user ? <Renovar /> : <Navigate to="/auth" replace />} />
+        {/* Public 404 catch — routes that don't match any public path go to ProtectedRoute,
+            which redirects unauthenticated users. We add a dedicated not-found for known-invalid paths. */}
         {/* PDV: full-screen, outside AppLayout */}
         <Route
           path="/pdv"
