@@ -6,9 +6,8 @@ test.describe('Landing Page - Public Tests', () => {
     await expect(page).toHaveTitle(/.+/);
     await page.waitForLoadState('networkidle');
 
-    // Should have hero section
-    const hasHero = await page.locator('h1').first().isVisible({ timeout: 10000 });
-    expect(hasHero).toBeTruthy();
+    // Should have hero section (framer-motion may delay visibility)
+    await expect(page.locator('h1').first()).toBeVisible({ timeout: 20000 });
   });
 
   test('has navigation', async ({ page }) => {
