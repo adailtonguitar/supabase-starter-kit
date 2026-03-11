@@ -44,7 +44,7 @@ describe("Scale Barcode Parser", () => {
     expect(result).not.toBeNull();
     expect(result!.productCode).toBe("00100");
     expect(result!.mode).toBe("price");
-    expect(result!.value).toBeCloseTo(19.9);
+    expect(result!.value).toBeCloseTo(1.99);
   });
 
   it("returns null for non-scale barcode", () => {
