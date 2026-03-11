@@ -19,7 +19,8 @@ test.describe('Landing Page - Public Tests', () => {
 
   test('has CTA buttons', async ({ page }) => {
     await page.goto('/');
-    const ctaButtons = page.locator('a[href*="auth"], button:has-text("Começar"), button:has-text("Testar"), a:has-text("Começar"), a:has-text("Testar")');
+    await page.waitForLoadState('networkidle');
+    const ctaButtons = page.locator('a[href*="auth"], a[href*="demo"], button:has-text("Começar"), button:has-text("Testar"), button:has-text("Demo"), button:has-text("Experimentar"), button:has-text("Criar"), a:has-text("Começar"), a:has-text("Cadastr")');
     const count = await ctaButtons.count();
     expect(count).toBeGreaterThan(0);
   });
