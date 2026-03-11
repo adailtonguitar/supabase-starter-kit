@@ -43,14 +43,14 @@ test.describe('Landing Page - Public Tests', () => {
   test('terms page loads', async ({ page }) => {
     await page.goto('/termos');
     await page.waitForLoadState('networkidle');
-    const hasContent = await page.getByRole('heading').first().or(page.getByText('Termos')).isVisible({ timeout: 10000 });
+    const hasContent = await page.getByRole('heading', { name: 'Termos de Uso' }).isVisible({ timeout: 10000 });
     expect(hasContent).toBeTruthy();
   });
 
   test('privacy page loads', async ({ page }) => {
     await page.goto('/privacidade');
     await page.waitForLoadState('networkidle');
-    const hasContent = await page.getByRole('heading').first().or(page.getByText('Privacidade')).isVisible({ timeout: 10000 });
+    const hasContent = await page.getByRole('heading', { name: 'Política de Privacidade' }).isVisible({ timeout: 10000 });
     expect(hasContent).toBeTruthy();
   });
 
