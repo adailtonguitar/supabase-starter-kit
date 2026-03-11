@@ -296,8 +296,10 @@ function AppRoutes() {
             </ProtectedRoute>
           }
         />
+        {/* Authenticated routes inside AppLayout; unauthenticated users see 404 */}
         <Route
           path="/*"
+          element={user ? (
           element={
             <ProtectedRoute>
               <EmissorGuard>
