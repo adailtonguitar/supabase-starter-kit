@@ -56,9 +56,12 @@ test.describe('Landing Page - Public Tests', () => {
   });
 
   test('404 page for invalid route', async ({ page }) => {
+    // Clear any cached auth to ensure we land on the public NotFound branch
+    await page.context().clearCookies();
     await page.goto('/pagina-que-nao-existe');
     await page.waitForLoadState('networkidle');
-    // "Página não encontrada" is plain text (not gradient-clipped), so it's reliably visible
-    await expect(page.getByText('Página não encontrada')).toBeVisible({ timeout: 20000 });
+    // Auth may take time to resolve; wait generously for 404 content
+    // The text "Página não encontrada" is plain (not gradient-clipped)
+    await expect(page.getByText('Página não encontrada')).toBeVisible({ timeout: 30000 });
   });
 });
