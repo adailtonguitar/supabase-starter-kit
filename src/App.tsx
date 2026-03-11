@@ -300,7 +300,6 @@ function AppRoutes() {
         <Route
           path="/*"
           element={user ? (
-          element={
             <ProtectedRoute>
               <EmissorGuard>
               <AppLayout>
@@ -464,7 +463,9 @@ function AppRoutes() {
               </AppLayout>
               </EmissorGuard>
             </ProtectedRoute>
-          }
+          ) : (
+            <NotFound />
+          )}
         />
       </Routes>
     </Suspense>
