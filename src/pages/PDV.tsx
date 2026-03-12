@@ -10,7 +10,7 @@ import { PDVProductGrid } from "@/components/pdv/PDVProductGrid";
 import { PDVLoyaltyClientList } from "@/components/pdv/PDVLoyaltyClientList";
 import { PDVQuickProductDialog } from "@/components/pdv/PDVQuickProductDialog";
 import { PDVClientSelector, type CreditClient } from "@/components/pdv/PDVClientSelector";
-import { PDVFiadoReceipt, type FiadoReceiptData } from "@/components/pdv/PDVFiadoReceipt";
+import { PDVCreditReceipt, type CreditReceiptData } from "@/components/pdv/PDVCreditReceipt";
 import { PDVHoldRecallDialog, saveHeldSale, getHeldSales, type HeldSale } from "@/components/pdv/PDVHoldRecall";
 import { PDVReturnExchangeDialog } from "@/components/pdv/PDVReturnExchange";
 import { PDVItemNotesDialog } from "@/components/pdv/PDVItemNotes";
@@ -77,7 +77,7 @@ export default function PDV() {
   const [showClientSelector, setShowClientSelector] = useState(false);
   const [showReceiveCredit, setShowReceiveCredit] = useState(false);
   const [selectedClient, setSelectedClient] = useState<CreditClient | null>(null);
-  const [fiadoReceipt, setFiadoReceipt] = useState<FiadoReceiptData | null>(null);
+  const [fiadoReceipt, setFiadoReceipt] = useState<CreditReceiptData | null>(null);
   const [showLoyaltyClientSelector, setShowLoyaltyClientSelector] = useState(false);
   const [showPriceLookup, setShowPriceLookup] = useState(false);
   const [priceLookupQuery, setPriceLookupQuery] = useState("");
@@ -917,18 +917,17 @@ export default function PDV() {
       });
       setFiadoReceipt({
         clientName: client.name,
+        cpf: client.cpf,
         clientDoc: client.cpf,
-        total: savedTotal,
-        items: savedItems.map(i => ({ name: i.name, quantity: i.quantity, price: i.price, note: itemNotes[i.id] || undefined })),
-        mode: isSignal ? "sinal" : mode,
-        installments,
-        saleNumber,
+        companyName: companyName || undefined,
         storeName: companyName || undefined,
         storeSlogan: slogan || undefined,
-        storeCnpj: cnpj || undefined,
-        storePhone: phone || undefined,
-        storeAddress: [addressStreet, addressNumber, addressNeighborhood, addressCity, addressState].filter(Boolean).join(", ") || undefined,
-        downPayment: isSignal ? downPaymentAmount : undefined,
+        companyCnpj: cnpj || undefined,
+        companyPhone: phone || undefined,
+        amount: savedTotal,
+        previousBalance: (client as any).credit_balance || 0,
+        newBalance: ((client as any).credit_balance || 0) + savedTotal,
+        saleItems: savedItems.map(i => ({ name: i.name, qty: i.quantity, price: i.price })),
       });
       const modeLabel = isSignal ? `com sinal de ${formatCurrency(downPaymentAmount)}` : mode === "fiado" ? "fiado" : `parcelado ${installments}x`;
       toast.success(`Venda ${modeLabel} registrada para ${client.name}`, { duration: 1500 });
@@ -1809,9 +1808,9 @@ export default function PDV() {
         <PDVClientSelector open={showClientSelector} onClose={() => setShowClientSelector(false)} onSelect={handleCreditSaleConfirmed} saleTotal={pdv.total} />
       )}
 
-      {/* Fiado receipt with signature/CPF fields */}
+      {/* Fiado receipt with signature/CPF fields - two copies */}
       {fiadoReceipt && (
-        <PDVFiadoReceipt data={fiadoReceipt} onClose={() => setFiadoReceipt(null)} />
+        <PDVCreditReceipt data={fiadoReceipt} onClose={() => setFiadoReceipt(null)} />
       )}
 
       {/* Loyalty client selector */}
