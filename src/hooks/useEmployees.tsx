@@ -25,6 +25,7 @@ export function useEmployees() {
 export function useCreateEmployee() {
   const qc = useQueryClient();
   const { companyId } = useCompany();
+  const { user } = useAuth();
   return useMutation({
     mutationFn: async (e: Omit<EmployeeInsert, "company_id">) => {
       if (!companyId) throw new Error("Empresa não encontrada");
