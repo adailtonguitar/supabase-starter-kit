@@ -241,5 +241,6 @@ export default function Renovar() {
         </button>
       </div>
     </div>
+    </div>
   );
 }
