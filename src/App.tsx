@@ -464,7 +464,7 @@ function AppRoutes() {
               </EmissorGuard>
             </ProtectedRoute>
           ) : (
-            <NotFound />
+            <Navigate to="/" replace />
           )}
         />
       </Routes>
