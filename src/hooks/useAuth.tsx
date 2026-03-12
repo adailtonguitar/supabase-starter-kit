@@ -59,6 +59,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (event === "PASSWORD_RECOVERY") {
         sessionStorage.setItem("needs-password-setup", "true");
       }
+      if (event === "SIGNED_IN" && session?.user) {
+        // Log login - get company_id asynchronously
+        supabase.from("company_users").select("company_id").eq("user_id", session.user.id).limit(1).single()
+          .then(({ data }) => {
+            if (data?.company_id) logAction({ companyId: data.company_id, userId: session.user.id, action: "Login realizado", module: "auth" });
+          });
+      }
+      if (event === "SIGNED_OUT") {
+        // Logged at signOut method below
+      }
       setSession(session);
       setUser(session?.user ?? null);
       cacheUser(session?.user ?? null);
