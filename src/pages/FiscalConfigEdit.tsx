@@ -23,6 +23,8 @@ import { localSignerService, type CertificateInfo } from "@/services/WebPKIServi
 import { storeCertificateA1 } from "@/services/LocalXmlSigner";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
+import { useAuth } from "@/hooks/useAuth";
+import { logAction } from "@/services/ActionLogger";
 import forge from "node-forge";
 
 interface FiscalConfigSection {
