@@ -49,6 +49,7 @@ export function useCompanyUsers() {
   const toggleActive = async (id: string, currentActive: boolean) => {
     if (!companyId) return;
     await supabase.from("company_users").update({ is_active: !currentActive }).eq("id", id).eq("company_id", companyId);
+    logAction({ companyId, userId: user?.id, action: !currentActive ? "Usuário ativado" : "Usuário inativado", module: "usuarios", details: id });
     toast.success(!currentActive ? "Usuário ativado" : "Usuário inativado");
     load();
   };
