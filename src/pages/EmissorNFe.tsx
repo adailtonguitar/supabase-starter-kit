@@ -391,6 +391,7 @@ function EmissorProductsTab({ companyId }: { companyId: string }) {
 
 // ─── Mini Recipients CRUD ────────────────────────────────────────────
 function EmissorRecipientsTab({ companyId }: { companyId: string }) {
+  const { user } = useAuth();
   const [recipients, setRecipients] = useState<SimpleRecipient[]>([]);
   const [loading, setLoading] = useState(true);
   const emptyRecipientForm = { name: "", doc: "", ie: "", email: "", phone: "", address_street: "", address_number: "", address_complement: "", address_neighborhood: "", address_city: "", address_state: "", address_zip: "" };
