@@ -107,6 +107,7 @@ export function useCreateInventory() {
         if (iErr) throw iErr;
       }
 
+      logAction({ companyId, userId: user?.id, action: "Inventário criado", module: "estoque", details: params.name });
       return inventory;
     },
     onSuccess: () => {
