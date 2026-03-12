@@ -106,10 +106,11 @@ export function useUpdateFinancialEntry() {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: ["financial_entries"] });
       qc.invalidateQueries({ queryKey: ["financial-entries"] });
       toast.success("Lançamento atualizado");
+      if (companyId) logAction({ companyId, action: "Lançamento financeiro atualizado", module: "financeiro", details: variables.id });
     },
     onError: (e: Error) => toast.error(`Erro: ${e.message}`),
   });
