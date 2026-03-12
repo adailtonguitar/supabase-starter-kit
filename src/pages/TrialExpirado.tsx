@@ -228,6 +228,8 @@ export default function TrialExpirado() {
         ))}
       </div>
 
+      <VerifyPaymentButton />
+
       <p className="mt-6 text-sm text-muted-foreground text-center">
         Pagamento seguro via Mercado Pago • PIX, cartão de crédito, boleto ou saldo MP
       </p>

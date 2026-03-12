@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { CreditCard, Clock, Shield, CheckCircle, ArrowRight, Loader2, Zap, ArrowLeft, Star } from "lucide-react";
+import { CreditCard, Clock, Shield, CheckCircle, ArrowRight, Loader2, Zap, ArrowLeft, Star, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PLANS, useSubscription } from "@/hooks/useSubscription";
 import { useAuth } from "@/hooks/useAuth";
@@ -9,6 +9,35 @@ import { toast } from "sonner";
 import { Navigate, Link } from "react-router-dom";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+
+function VerifyPaymentButton() {
+  const { checkSubscription } = useSubscription();
+  const [checking, setChecking] = useState(false);
+
+  const handleVerify = async () => {
+    setChecking(true);
+    try {
+      await checkSubscription();
+      toast.info("Verificação concluída. Se o pagamento foi confirmado, o acesso será liberado automaticamente.");
+    } catch {
+      toast.error("Erro ao verificar. Tente novamente em instantes.");
+    } finally {
+      setChecking(false);
+    }
+  };
+
+  return (
+    <div className="flex flex-col items-center gap-2 mt-6">
+      <Button variant="outline" size="sm" onClick={handleVerify} disabled={checking} className="gap-2">
+        {checking ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+        {checking ? "Verificando..." : "Já paguei — verificar pagamento"}
+      </Button>
+      <p className="text-xs text-muted-foreground">
+        Clique após efetuar o pagamento para liberar o acesso imediatamente.
+      </p>
+    </div>
+  );
+}
 
 export default function Renovar() {
   const { user, signOut } = useAuth();
