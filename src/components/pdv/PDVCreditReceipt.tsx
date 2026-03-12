@@ -104,10 +104,18 @@ function ReceiptVia({ data, via }: { data: CreditReceiptData; via: "cliente" | "
           <div className="line" />
           <div className="bold" style={{ marginBottom: "4px" }}>ITENS DA VENDA VINCULADA</div>
           <table>
+            <thead>
+              <tr>
+                <th style={{ textAlign: "left", fontSize: "10px" }}>Item</th>
+                <th style={{ textAlign: "right", fontSize: "10px" }}>Unit.</th>
+                <th style={{ textAlign: "right", fontSize: "10px" }}>Total</th>
+              </tr>
+            </thead>
             <tbody>
               {data.saleItems.map((item, i) => (
                 <tr key={i}>
                   <td>{item.qty}x {item.name}</td>
+                  <td style={{ textAlign: "right" }}>{fmt(item.price)}</td>
                   <td style={{ textAlign: "right" }}>{fmt(item.price * item.qty)}</td>
                 </tr>
               ))}
