@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { logAction } from "@/services/ActionLogger";
 
 const LOCAL_SESSION_KEY = "as_offline_cash_session";
 const LOCAL_MOVEMENTS_KEY = "as_offline_cash_movements";
@@ -51,6 +52,7 @@ export class CashSessionService {
       if (error) { if (isNetworkError(error)) return openOffline(); throw new Error(`Erro ao abrir caixa: ${error.message}`); }
       try { await supabase.from("cash_movements").insert({ company_id: params.companyId, session_id: data.id, type: "abertura", amount: params.openingBalance, performed_by: params.userId, description: "Abertura de caixa" }); } catch {}
       saveOfflineSession(data);
+      logAction({ companyId: params.companyId, userId: params.userId, action: "Caixa aberto", module: "caixa", details: `Terminal ${terminalId} - R$ ${params.openingBalance}` });
       return data;
     } catch (err: any) { return openOffline(); }
   }
@@ -80,6 +82,7 @@ export class CashSessionService {
       const { data, error } = await supabase.from("cash_sessions").update({ status: "fechado", closed_by: params.userId, closed_at: new Date().toISOString(), closing_balance: totalCounted, counted_dinheiro: params.countedDinheiro, counted_debito: params.countedDebito, counted_credito: params.countedCredito, counted_pix: params.countedPix, difference: totalCounted - totalExpected, notes: params.notes }).eq("id", params.sessionId).eq("company_id", params.companyId).select().single();
       if (error) { if (isNetworkError(error)) return closeOffline(); throw new Error(`Erro ao fechar caixa: ${error.message}`); }
       await supabase.from("cash_movements").insert({ company_id: params.companyId, session_id: params.sessionId, type: "fechamento", amount: totalCounted, performed_by: params.userId, description: `Fechamento - Diferença: ${(totalCounted - totalExpected).toFixed(2)}` });
+      logAction({ companyId: params.companyId, userId: params.userId, action: "Caixa fechado", module: "caixa", details: `Contagem: R$ ${totalCounted.toFixed(2)} | Diferença: R$ ${(totalCounted - totalExpected).toFixed(2)}` });
       saveOfflineSession(null);
       return data;
     } catch (err: any) { if (isNetworkError(err)) return closeOffline(); throw err; }
@@ -94,6 +97,7 @@ export class CashSessionService {
     try {
       const { data, error } = await supabase.from("cash_movements").insert({ company_id: params.companyId, session_id: params.sessionId, type: params.type, amount: params.amount, performed_by: params.userId, description: params.description }).select().single();
       if (error) { if (isNetworkError(error)) return moveOffline(); throw new Error(`Erro na movimentação: ${error.message}`); }
+      logAction({ companyId: params.companyId, userId: params.userId, action: params.type === "sangria" ? "Sangria registrada" : "Suprimento registrado", module: "caixa", details: `R$ ${params.amount} - ${params.description || ""}` });
       const field = params.type === "sangria" ? "total_sangria" : "total_suprimento";
       const { data: session } = await supabase.from("cash_sessions").select(field).eq("id", params.sessionId).eq("company_id", params.companyId).single();
       if (session) await supabase.from("cash_sessions").update({ [field]: Number(session[field] || 0) + params.amount }).eq("id", params.sessionId).eq("company_id", params.companyId);

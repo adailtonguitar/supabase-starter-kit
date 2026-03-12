@@ -2,6 +2,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
 import { toast } from "sonner";
+import { logAction } from "@/services/ActionLogger";
+import { useAuth } from "@/hooks/useAuth";
 
 export interface Promotion {
   id: string;
@@ -24,6 +26,7 @@ export interface Promotion {
 
 export function usePromotions() {
   const { companyId } = useCompany();
+  const { user } = useAuth();
   const qc = useQueryClient();
 
   const { data: promotions = [], isLoading: loading } = useQuery({
@@ -44,6 +47,7 @@ export function usePromotions() {
     if (!companyId) return;
     const { error } = await supabase.from("promotions").insert({ ...input, company_id: companyId });
     if (error) { toast.error(error.message); throw error; }
+    logAction({ companyId, userId: user?.id, action: "Promoção criada", module: "promocoes", details: input.name });
     toast.success("Promoção criada!");
     qc.invalidateQueries({ queryKey: ["promotions"] });
   };
@@ -52,12 +56,14 @@ export function usePromotions() {
     if (!companyId) return;
     const { error } = await supabase.from("promotions").update({ is_active: isActive }).eq("id", id).eq("company_id", companyId);
     if (error) { toast.error("Erro ao atualizar promoção"); return; }
+    logAction({ companyId, userId: user?.id, action: isActive ? "Promoção ativada" : "Promoção desativada", module: "promocoes", details: id });
     qc.invalidateQueries({ queryKey: ["promotions"] });
   };
 
   const deletePromotion = async (id: string) => {
     if (!companyId) return;
     await supabase.from("promotions").delete().eq("id", id).eq("company_id", companyId);
+    logAction({ companyId, userId: user?.id, action: "Promoção excluída", module: "promocoes", details: id });
     toast.success("Promoção excluída");
     qc.invalidateQueries({ queryKey: ["promotions"] });
   };

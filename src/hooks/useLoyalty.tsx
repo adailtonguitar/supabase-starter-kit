@@ -2,6 +2,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
 import { toast } from "sonner";
+import { logAction } from "@/services/ActionLogger";
+import { useAuth } from "@/hooks/useAuth";
 
 export interface LoyaltyTransaction {
   id: string;
@@ -15,6 +17,7 @@ export interface LoyaltyTransaction {
 
 export function useLoyalty() {
   const { companyId } = useCompany();
+  const { user } = useAuth();
   const qc = useQueryClient();
 
   const { data: config, isLoading: configLoading } = useQuery({
@@ -73,6 +76,7 @@ export function useLoyalty() {
       await supabase.from("loyalty_config").insert(payload);
     }
     toast.success("Configuração salva!");
+    logAction({ companyId, userId: user?.id, action: config?.id ? "Fidelidade configuração editada" : "Fidelidade configuração criada", module: "configuracoes", details: `Ativo: ${form.is_active}` });
     qc.invalidateQueries({ queryKey: ["loyalty-config"] });
   };
 

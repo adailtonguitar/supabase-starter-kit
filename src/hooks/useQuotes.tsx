@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import { logAction } from "@/services/ActionLogger";
 
 export interface Quote {
   id: string;
@@ -57,6 +58,7 @@ export function useQuotes({ skipInitialFetch }: { skipInitialFetch?: boolean } =
     });
 
     if (error) throw error;
+    logAction({ companyId, userId: user?.id, action: "Orçamento criado", module: "orcamentos", details: `${data.clientName || "Sem cliente"} - R$ ${data.total}` });
     toast.success("Orçamento salvo!");
     qc.invalidateQueries({ queryKey: ["quotes"] });
   };
@@ -64,12 +66,14 @@ export function useQuotes({ skipInitialFetch }: { skipInitialFetch?: boolean } =
   const updateQuoteStatus = async (id: string, status: string) => {
     if (!companyId) return;
     await supabase.from("quotes").update({ status }).eq("id", id).eq("company_id", companyId);
+    logAction({ companyId, userId: user?.id, action: `Orçamento ${status}`, module: "orcamentos", details: id });
     qc.invalidateQueries({ queryKey: ["quotes"] });
   };
 
   const deleteQuote = async (id: string) => {
     if (!companyId) return;
     await supabase.from("quotes").delete().eq("id", id).eq("company_id", companyId);
+    logAction({ companyId, userId: user?.id, action: "Orçamento excluído", module: "orcamentos", details: id });
     toast.success("Orçamento excluído");
     qc.invalidateQueries({ queryKey: ["quotes"] });
   };
