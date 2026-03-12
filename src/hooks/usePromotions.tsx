@@ -26,6 +26,7 @@ export interface Promotion {
 
 export function usePromotions() {
   const { companyId } = useCompany();
+  const { user } = useAuth();
   const qc = useQueryClient();
 
   const { data: promotions = [], isLoading: loading } = useQuery({
