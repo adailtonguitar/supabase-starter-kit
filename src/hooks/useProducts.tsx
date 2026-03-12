@@ -137,6 +137,7 @@ export function useUpdateProduct() {
 export function useDeleteProduct() {
   const queryClient = useQueryClient();
   const { companyId } = useCompany();
+  const { user } = useAuth();
   return useMutation({
     mutationFn: async (id: string) => {
       if (!companyId) throw new Error("Empresa não encontrada");
