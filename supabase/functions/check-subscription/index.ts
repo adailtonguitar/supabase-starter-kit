@@ -54,7 +54,7 @@ Deno.serve(async (req) => {
     }
 
     if (!userId) {
-      console.error("[check-subscription] Auth failed, getUser error:", userError?.message);
+      console.error("[check-subscription] Auth failed: both getClaims and getUser returned null");
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },

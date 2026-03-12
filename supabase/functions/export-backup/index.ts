@@ -72,18 +72,30 @@ Deno.serve(async (req) => {
 
     for (const table of TABLES_TO_EXPORT) {
       try {
-        const { data, error } = await adminClient
-          .from(table)
-          .select("*")
-          .eq("company_id", company_id)
-          .limit(10000);
+        // Paginated fetch to handle large datasets (up to 50,000 rows per table)
+        const allRows: any[] = [];
+        const PAGE_SIZE = 1000;
+        let from = 0;
+        let hasMore = true;
 
-        if (error) {
-          errors.push(`${table}: ${error.message}`);
-          backup[table] = [];
-        } else {
-          backup[table] = data || [];
+        while (hasMore) {
+          const { data, error } = await adminClient
+            .from(table)
+            .select("*")
+            .eq("company_id", company_id)
+            .range(from, from + PAGE_SIZE - 1);
+
+          if (error) {
+            errors.push(`${table}: ${error.message}`);
+            hasMore = false;
+          } else {
+            allRows.push(...(data || []));
+            hasMore = (data?.length || 0) === PAGE_SIZE && allRows.length < 50000;
+            from += PAGE_SIZE;
+          }
         }
+
+        backup[table] = allRows;
       } catch (e) {
         errors.push(`${table}: ${e.message}`);
         backup[table] = [];
