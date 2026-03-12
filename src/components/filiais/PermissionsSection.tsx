@@ -6,6 +6,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { logAction } from "@/services/ActionLogger";
 import { motion } from "framer-motion";
 
 interface BranchUser {
@@ -56,6 +57,7 @@ export default function PermissionsSection() {
   const handleUpdateRole = async (id: string, role: string) => {
     const { error } = await supabase.from("company_users").update({ role } as any).eq("id", id);
     if (error) { toast.error(error.message); return; }
+    logAction({ companyId: activeBranchId!, userId: user?.id, action: "Perfil de filial alterado", module: "filiais", details: `Usuário ${id} → ${role}` });
     toast.success("Perfil atualizado");
     qc.invalidateQueries({ queryKey: ["branch-users", activeBranchId] });
   };
@@ -63,6 +65,7 @@ export default function PermissionsSection() {
   const handleToggleActive = async (id: string, currentActive: boolean) => {
     const { error } = await supabase.from("company_users").update({ is_active: !currentActive } as any).eq("id", id);
     if (error) { toast.error(error.message); return; }
+    logAction({ companyId: activeBranchId!, userId: user?.id, action: !currentActive ? "Usuário de filial ativado" : "Usuário de filial inativado", module: "filiais", details: id });
     toast.success(!currentActive ? "Usuário ativado" : "Usuário inativado");
     qc.invalidateQueries({ queryKey: ["branch-users", activeBranchId] });
   };

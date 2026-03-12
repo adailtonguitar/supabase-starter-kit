@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { logAction } from "@/services/ActionLogger";
 
 interface CSVClientImportDialogProps {
   open: boolean;
@@ -162,7 +163,10 @@ export function CSVClientImportDialog({ open, onOpenChange }: CSVClientImportDia
     setStep("done");
     setImporting(false);
     queryClient.invalidateQueries({ queryKey: ["clients"] });
-    if (imported > 0) toast.success(`${imported} cliente(s) importado(s)!`);
+    if (imported > 0) {
+      logAction({ companyId: companyId!, action: "Importação CSV de clientes", module: "clientes", details: `${imported} importado(s), ${errors} erro(s)` });
+      toast.success(`${imported} cliente(s) importado(s)!`);
+    }
     if (errors > 0) toast.error(`${errors} cliente(s) com erro`);
   };
 

@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { logAction } from "@/services/ActionLogger";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -267,6 +268,7 @@ export default function EmissorSettingsTab({ companyId }: { companyId: string })
         address_state: form.address_state, address_zip: form.address_zip.replace(/\D/g, ""),
       } as any).eq("id", companyId);
       if (error) throw error;
+      logAction({ companyId, action: "Dados empresa emissor atualizados", module: "fiscal", details: form.name.trim() });
       toast.success("Dados da empresa atualizados!");
     } catch (err: any) {
       toast.error(err.message || "Erro ao salvar");
@@ -305,6 +307,7 @@ export default function EmissorSettingsTab({ companyId }: { companyId: string })
 
       const hasCert = certType === "A1" ? !!certFile : !!a3SelectedThumbprint;
       setFiscalConfig(prev => ({ ...prev, environment, hasCert, certType, certPath: certFile }));
+      logAction({ companyId, action: "Configuração fiscal emissor salva", module: "fiscal", details: `Ambiente: ${environment}, Cert: ${certType}` });
       toast.success("Configuração fiscal salva!");
     } catch (err: any) {
       toast.error(err.message || "Erro ao salvar configuração fiscal");

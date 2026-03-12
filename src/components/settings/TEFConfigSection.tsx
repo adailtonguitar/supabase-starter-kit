@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
 import { toast } from "sonner";
+import { logAction } from "@/services/ActionLogger";
 
 const PROVIDERS = [
   { id: "cielo", name: "Cielo", fields: [{ key: "merchant_id", label: "Merchant ID" }, { key: "api_key", label: "Merchant Key", secret: true }] },
@@ -122,6 +123,7 @@ export function TEFConfigSection() {
       }
       setSaved({ ...form });
       setEditing(false);
+      logAction({ companyId: companyId!, action: "Configuração TEF salva", module: "configuracoes", details: `Provedor: ${form.provider}, Ambiente: ${form.environment}` });
       toast.success("Configuração TEF salva!");
     } catch (err: any) {
       toast.error(err?.message || "Erro ao salvar");
