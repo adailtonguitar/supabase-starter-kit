@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { logAction } from "@/services/ActionLogger";
 
 const LOCAL_SESSION_KEY = "as_offline_cash_session";
 const LOCAL_MOVEMENTS_KEY = "as_offline_cash_movements";
