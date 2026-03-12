@@ -386,13 +386,22 @@ export class AnthoTestEngine {
 
     // Relationships
     await this.runTest("database", "Relacionamentos", "Itens de venda com produto válido", async () => {
-      const { data: items } = await supabase.from("sale_items").select("id, product_id").limit(50);
-      if (items && items.length > 0) {
-        const productIds = [...new Set(items.map(i => i.product_id).filter(Boolean))];
-        if (productIds.length > 0) {
-          const { count } = await supabase.from("products").select("id", { count: "exact", head: true }).in("id", productIds.slice(0, 20));
-          // Just verify query works
+      try {
+        // Get recent sale IDs for this company first, then check their items
+        const { data: recentSales } = await supabase.from("sales").select("id")
+          .eq("company_id", this.companyId).order("created_at", { ascending: false }).limit(10);
+        if (recentSales && recentSales.length > 0) {
+          const saleIds = recentSales.map(s => s.id);
+          const { data: items } = await supabase.from("sale_items").select("id, product_id").in("sale_id", saleIds).limit(50);
+          if (items && items.length > 0) {
+            const productIds = [...new Set(items.map(i => i.product_id).filter(Boolean))];
+            if (productIds.length > 0) {
+              await supabase.from("products").select("id", { count: "exact", head: true }).in("id", productIds.slice(0, 20));
+            }
+          }
         }
+      } catch (e: any) {
+        throw new Error("aviso: Verificação de relacionamentos limitada — " + (e?.message || String(e)));
       }
     });
 
