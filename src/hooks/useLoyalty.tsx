@@ -17,6 +17,7 @@ export interface LoyaltyTransaction {
 
 export function useLoyalty() {
   const { companyId } = useCompany();
+  const { user } = useAuth();
   const qc = useQueryClient();
 
   const { data: config, isLoading: configLoading } = useQuery({
