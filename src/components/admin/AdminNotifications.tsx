@@ -90,6 +90,7 @@ export function AdminNotifications() {
       });
       if (error) throw error;
       toast.success(companyId === "all" ? "Notificação enviada para todas as empresas!" : "Notificação enviada!");
+      logAction({ companyId: companyId === "all" ? "system" : companyId, userId: user?.id, action: "Notificação admin enviada", module: "admin", details: `Título: ${title.trim()}, Tipo: ${type}, Destino: ${companyId === "all" ? "Todas" : companyId}` });
       setTitle("");
       setMessage("");
       setType("info");

@@ -70,6 +70,7 @@ export function AdminBackup() {
 
       const totalRows = data?.metadata?.tables?.reduce((sum: number, t: any) => sum + t.rows, 0) || 0;
       toast.success(`Backup exportado! ${totalRows} registros.`);
+      logAction({ companyId: selectedCompany, userId: user?.id, action: "Backup exportado via admin", module: "admin", details: `Empresa: ${companyName}, Registros: ${totalRows}` });
     } catch (err: any) {
       toast.error("Erro ao exportar: " + (err.message || "Erro desconhecido"));
     }

@@ -58,6 +58,7 @@ export function AdminBulkEmail() {
       }
 
       toast.success(`E-mail enviado para ${data.sent} usuário(s)!${data.failed ? ` (${data.failed} falharam)` : ""}`);
+      logAction({ companyId: "system", userId: user?.id, action: "E-mail em massa enviado", module: "admin", details: `Assunto: ${subject.trim()}, Enviados: ${data.sent}, Falhas: ${data.failed || 0}` });
       setSubject("");
       setBody("");
     } catch (err: any) {

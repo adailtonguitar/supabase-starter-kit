@@ -53,6 +53,7 @@ export function AdminCreateEmissorClient() {
 
       setResult({ email: form.email, password: form.password, companyName: form.company_name });
       toast.success("Cliente emissor criado com sucesso!");
+      logAction({ companyId: "system", userId: user?.id, action: "Cliente emissor criado via admin", module: "admin", details: `Empresa: ${form.company_name}, Email: ${form.email}` });
     } catch (err: any) {
       toast.error(err.message || "Erro ao criar cliente emissor");
     } finally {

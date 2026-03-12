@@ -294,6 +294,7 @@ export function AdminCompanyHealth() {
         .eq("id", selectedCompany.id);
       if (error) throw error;
       toast.success(newBlocked ? "Empresa bloqueada" : "Empresa desbloqueada");
+      logAction({ companyId: selectedCompany.id, userId: user?.id, action: newBlocked ? "Empresa bloqueada via admin" : "Empresa desbloqueada via admin", module: "admin", details: selectedCompany.name });
       const updated = { ...selectedCompany, is_blocked: newBlocked };
       setSelectedCompany(updated);
       if (health) setHealth({ ...health, company: updated });

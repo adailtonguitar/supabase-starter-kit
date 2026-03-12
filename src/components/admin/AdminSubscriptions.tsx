@@ -164,7 +164,10 @@ export function AdminSubscriptions() {
       }
     }
 
-    if (successCount > 0) toast.success(`${successCount} empresa(s) excluída(s) com sucesso!`);
+    if (successCount > 0) {
+      toast.success(`${successCount} empresa(s) excluída(s) com sucesso!`);
+      companyIds.forEach(cId => logAction({ companyId: cId, userId: user?.id, action: "Empresa excluída via admin", module: "admin", details: `company_id: ${cId}` }));
+    }
     if (errorCount > 0) toast.error(`${errorCount} empresa(s) falharam na exclusão.`);
 
     setSelected(new Set());
