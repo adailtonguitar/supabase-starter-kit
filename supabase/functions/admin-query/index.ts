@@ -19,6 +19,8 @@ const ALLOWED_TABLES = [
   "sales",
   "cash_sessions",
   "admin_notifications",
+  "payment_webhook_logs",
+  "payments",
 ];
 
 Deno.serve(async (req) => {
