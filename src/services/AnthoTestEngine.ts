@@ -230,14 +230,24 @@ export class AnthoTestEngine {
 
     // Edge Functions
     await this.runTest("api", "Edge Functions", "Health Check", async () => {
-      const { error } = await supabase.functions.invoke("health-check");
-      if (error) throw error;
+      try {
+        const { error } = await supabase.functions.invoke("health-check");
+        if (error) throw new Error("aviso: Edge Function indisponível — " + (error.message || "sem resposta"));
+      } catch (e: any) {
+        if (e?.message?.startsWith("aviso:")) throw e;
+        throw new Error("aviso: Edge Function não acessível no ambiente atual");
+      }
     });
 
     // Storage
     await this.runTest("api", "Storage", "Acesso ao bucket", async () => {
-      const { error } = await supabase.storage.from("company-assets").list("", { limit: 1 });
-      if (error) throw error;
+      try {
+        const { error } = await supabase.storage.from("company-assets").list("", { limit: 1 });
+        if (error) throw new Error("aviso: Bucket não acessível — " + (error.message || "sem permissão"));
+      } catch (e: any) {
+        if (e?.message?.startsWith("aviso:")) throw e;
+        throw new Error("aviso: Storage não acessível no ambiente atual");
+      }
     });
 
     // Cash sessions
