@@ -16,6 +16,8 @@ export function useClients() {
       return data || [];
     },
     enabled: !!companyId,
+    refetchOnMount: "always",
+    staleTime: 0,
   });
 }
 
