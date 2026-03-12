@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
+import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import { logAction } from "@/services/ActionLogger";
 
 export interface CompanyUser {
   id: string;
