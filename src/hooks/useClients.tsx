@@ -40,12 +40,14 @@ export function useCreateClient() {
 export function useUpdateClient() {
   const qc = useQueryClient();
   const { companyId } = useCompany();
+  const { user } = useAuth();
   return useMutation({
     mutationFn: async (data: any) => {
       if (!companyId) throw new Error("Empresa não encontrada");
       const { id, ...rest } = data;
       const { error } = await supabase.from("clients").update(rest).eq("id", id).eq("company_id", companyId);
       if (error) throw error;
+      logAction({ companyId, userId: user?.id, action: "Cliente atualizado", module: "clientes", details: rest.name || id });
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["clients"] });
