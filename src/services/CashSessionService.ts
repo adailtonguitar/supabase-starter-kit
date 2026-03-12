@@ -52,6 +52,7 @@ export class CashSessionService {
       if (error) { if (isNetworkError(error)) return openOffline(); throw new Error(`Erro ao abrir caixa: ${error.message}`); }
       try { await supabase.from("cash_movements").insert({ company_id: params.companyId, session_id: data.id, type: "abertura", amount: params.openingBalance, performed_by: params.userId, description: "Abertura de caixa" }); } catch {}
       saveOfflineSession(data);
+      logAction({ companyId: params.companyId, userId: params.userId, action: "Caixa aberto", module: "caixa", details: `Terminal ${terminalId} - R$ ${params.openingBalance}` });
       return data;
     } catch (err: any) { return openOffline(); }
   }
