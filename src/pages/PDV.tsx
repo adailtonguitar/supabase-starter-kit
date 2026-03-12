@@ -10,7 +10,7 @@ import { PDVProductGrid } from "@/components/pdv/PDVProductGrid";
 import { PDVLoyaltyClientList } from "@/components/pdv/PDVLoyaltyClientList";
 import { PDVQuickProductDialog } from "@/components/pdv/PDVQuickProductDialog";
 import { PDVClientSelector, type CreditClient } from "@/components/pdv/PDVClientSelector";
-import { PDVFiadoReceipt, type FiadoReceiptData } from "@/components/pdv/PDVFiadoReceipt";
+import { PDVCreditReceipt, type CreditReceiptData } from "@/components/pdv/PDVCreditReceipt";
 import { PDVHoldRecallDialog, saveHeldSale, getHeldSales, type HeldSale } from "@/components/pdv/PDVHoldRecall";
 import { PDVReturnExchangeDialog } from "@/components/pdv/PDVReturnExchange";
 import { PDVItemNotesDialog } from "@/components/pdv/PDVItemNotes";
