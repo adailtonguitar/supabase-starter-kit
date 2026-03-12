@@ -1,9 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "./useCompany";
+import { useAuth } from "./useAuth";
 import { toast } from "sonner";
 import { autoSyncProductToBranches } from "./useBranches";
 import { recordPriceChange } from "@/lib/price-history";
+import { logAction } from "@/services/ActionLogger";
 
 export interface Product {
   id: string;
