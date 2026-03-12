@@ -5,6 +5,9 @@ const DEMO_PASSWORD = process.env.DEMO_PASSWORD || '';
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || '';
 const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY || '';
 
+// Skip entire suite if no Supabase credentials available
+const canRunDemo = !!(SUPABASE_URL && SUPABASE_ANON_KEY) || !!(DEMO_EMAIL && DEMO_PASSWORD);
+
 /**
  * Helper: Create a demo account via Edge Function and return credentials.
  * If DEMO_EMAIL/DEMO_PASSWORD env vars are set, use those instead.
@@ -44,6 +47,8 @@ async function login(page: Page, email: string, password: string) {
 }
 
 test.describe('Demo Account - Full System Test', () => {
+  test.skip(!canRunDemo, 'Skipping: no Supabase credentials or demo account configured');
+
   let credentials: { email: string; password: string };
 
   test.beforeAll(async ({ browser }) => {
