@@ -10,6 +10,7 @@ import { logAction } from "@/services/ActionLogger";
 import { useAuth } from "@/hooks/useAuth";
 
 export function AdminCreateEmissorClient() {
+  const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ email: string; password: string; companyName: string } | null>(null);
