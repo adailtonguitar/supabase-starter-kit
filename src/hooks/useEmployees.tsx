@@ -72,7 +72,11 @@ export function useDeleteEmployee() {
       const { error } = await supabase.from("employees").delete().eq("id", id).eq("company_id", companyId);
       if (error) throw error;
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["employees"] }); toast.success("Funcionário excluído"); },
+    onSuccess: (_data, id) => {
+      qc.invalidateQueries({ queryKey: ["employees"] });
+      toast.success("Funcionário excluído");
+      if (companyId) logAction({ companyId, userId: user?.id, action: "Funcionário excluído", module: "funcionarios", details: id });
+    },
     onError: (e: Error) => toast.error(`Erro: ${e.message}`),
   });
 }

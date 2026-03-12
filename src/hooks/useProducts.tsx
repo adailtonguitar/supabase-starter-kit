@@ -150,9 +150,10 @@ export function useDeleteProduct() {
       const { error } = await supabase.from("products").update({ is_active: false } as any).eq("id", id).eq("company_id", companyId);
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (_data, id) => {
       queryClient.invalidateQueries({ queryKey: ["products"] });
       toast.success("Produto excluído com sucesso");
+      if (companyId) logAction({ companyId, userId: user?.id, action: "Produto excluído", module: "produtos", details: id });
     },
     onError: (e: Error) => toast.error(`Erro ao excluir: ${e.message}`),
   });

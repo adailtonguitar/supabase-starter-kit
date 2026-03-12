@@ -60,11 +60,13 @@ export function useUpdateClient() {
 export function useDeleteClient() {
   const qc = useQueryClient();
   const { companyId } = useCompany();
+  const { user } = useAuth();
   return useMutation({
     mutationFn: async (id: string) => {
       if (!companyId) throw new Error("Empresa não encontrada");
       const { error } = await supabase.from("clients").delete().eq("id", id).eq("company_id", companyId);
       if (error) throw error;
+      logAction({ companyId, userId: user?.id, action: "Cliente excluído", module: "clientes", details: id });
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["clients"] });

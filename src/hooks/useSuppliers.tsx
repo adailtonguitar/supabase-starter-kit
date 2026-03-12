@@ -71,6 +71,9 @@ export function useDeleteSupplier() {
       const { error } = await supabase.from("suppliers").delete().eq("id", id).eq("company_id", companyId);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["suppliers"] }),
+    onSuccess: (_data, id) => {
+      qc.invalidateQueries({ queryKey: ["suppliers"] });
+      if (companyId) logAction({ companyId, action: "Fornecedor excluído", module: "fornecedores", details: id });
+    },
   });
 }

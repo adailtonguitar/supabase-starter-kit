@@ -211,12 +211,13 @@ export function useMarkAsPaid() {
 
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: ["financial_entries"] });
       qc.invalidateQueries({ queryKey: ["financial-entries"] });
       qc.invalidateQueries({ queryKey: ["cash_sessions"] });
       qc.invalidateQueries({ queryKey: ["cash_movements"] });
       toast.success("Marcado como pago e registrado no caixa");
+      if (companyId) logAction({ companyId, userId: user?.id, action: "Lançamento marcado como pago", module: "financeiro", details: `R$ ${variables.paid_amount} - ${variables.payment_method || ""}` });
     },
     onError: (e: Error) => toast.error(`Erro: ${e.message}`),
   });
