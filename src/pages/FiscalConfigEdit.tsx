@@ -163,6 +163,7 @@ export default function FiscalConfigEdit() {
       // Save CRT on companies table
       await supabase.from("companies").update({ crt } as any).eq("id", companyId);
       setConfigs([...configs]);
+      logAction({ companyId: companyId!, userId: user?.id, action: "Configuração fiscal salva", module: "fiscal", details: `CRT: ${crt}, Cert: ${certType}` });
       toast.success("Configurações fiscais salvas com sucesso!");
       navigate("/fiscal/config");
     } catch (err: any) {
