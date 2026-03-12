@@ -53,7 +53,11 @@ export function useUpdateEmployee() {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["employees"] }); toast.success("Funcionário atualizado"); },
+    onSuccess: (_data, variables) => {
+      qc.invalidateQueries({ queryKey: ["employees"] });
+      toast.success("Funcionário atualizado");
+      if (companyId) logAction({ companyId, userId: user?.id, action: "Funcionário atualizado", module: "funcionarios", details: (variables as any).name || (variables as any).id });
+    },
     onError: (e: Error) => toast.error(`Erro: ${e.message}`),
   });
 }
@@ -61,6 +65,7 @@ export function useUpdateEmployee() {
 export function useDeleteEmployee() {
   const qc = useQueryClient();
   const { companyId } = useCompany();
+  const { user } = useAuth();
   return useMutation({
     mutationFn: async (id: string) => {
       if (!companyId) throw new Error("Empresa não encontrada");
