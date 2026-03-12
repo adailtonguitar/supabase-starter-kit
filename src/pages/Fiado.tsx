@@ -10,6 +10,7 @@ import { CurrencyInput } from "@/components/ui/currency-input";
 import { formatCurrency } from "@/lib/utils";
 import { format, parseISO, addMonths } from "date-fns";
 import { toast } from "sonner";
+import { logAction } from "@/services/ActionLogger";
 import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
