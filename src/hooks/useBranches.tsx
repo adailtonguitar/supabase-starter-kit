@@ -109,6 +109,7 @@ export function useCreateBranch() {
         console.warn("[createBranch] link_user_to_company warning:", linkErr.message);
       }
 
+      logAction({ companyId: parentId, userId, action: "Filial criada", module: "filiais", details: name });
       return { id: company.id };
     },
     onSuccess: () => {
