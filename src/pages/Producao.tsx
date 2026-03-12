@@ -80,7 +80,7 @@ export default function Producao() {
       if (selectedRecipe.output_product_id) { const outProd = products.find((p) => p.id === selectedRecipe.output_product_id); if (outProd) { await supabase.from("products").update({ stock_quantity: outProd.stock_quantity + selectedRecipe.output_quantity * multiplier }).eq("id", outProd.id); } }
       return order;
     },
-    onSuccess: () => { toast.success("Produção realizada! Estoque atualizado."); qc.invalidateQueries({ queryKey: ["production-orders"] }); qc.invalidateQueries({ queryKey: ["products-production"] }); setShowProduceDialog(false); setSelectedRecipe(null); setMultiplier(1); setProduceNotes(""); },
+    onSuccess: () => { logAction({ companyId: companyId!, userId: user?.id, action: "Ordem de produção concluída", module: "estoque", details: `${selectedRecipe?.name} x${multiplier}` }); toast.success("Produção realizada! Estoque atualizado."); qc.invalidateQueries({ queryKey: ["production-orders"] }); qc.invalidateQueries({ queryKey: ["products-production"] }); setShowProduceDialog(false); setSelectedRecipe(null); setMultiplier(1); setProduceNotes(""); },
     onError: (e: any) => toast.error(e.message),
   });
 
