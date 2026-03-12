@@ -208,6 +208,7 @@ function EmissorProductsTab({ companyId }: { companyId: string }) {
   const handleDelete = async (id: string) => {
     if (!confirm("Excluir produto?")) return;
     await supabase.from("products").delete().eq("id", id);
+    logAction({ companyId: companyId!, userId: user?.id, action: "Produto emissor excluído", module: "fiscal", details: id });
     toast.success("Produto excluído");
     fetch();
   };
