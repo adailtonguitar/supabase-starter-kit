@@ -30,11 +30,13 @@ export function useProductCategories() {
 export function useCreateProductCategory() {
   const qc = useQueryClient();
   const { companyId } = useCompany();
+  const { user } = useAuth();
   return useMutation({
     mutationFn: async (c: any) => {
       if (!companyId) throw new Error("Empresa não encontrada");
       const { data, error } = await supabase.from("product_categories" as any).insert({ ...c, company_id: companyId }).select().single();
       if (error) throw error;
+      logAction({ companyId, userId: user?.id, action: "Categoria criada", module: "produtos", details: c.name });
       return data;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["product_categories"] }); toast.success("Categoria criada"); },
