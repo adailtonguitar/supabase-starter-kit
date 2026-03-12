@@ -58,14 +58,36 @@ export default function AuditLogs() {
     queryKey: ["fiscal-audit-logs", companyId],
     queryFn: async () => {
       if (!companyId) return [];
-      const { data, error } = await supabase
+      // Try fiscal_audit_logs first, fallback to action_logs for unified view
+      const { data: fiscalData, error: fiscalErr } = await supabase
         .from("fiscal_audit_logs")
         .select("*")
         .eq("company_id", companyId)
         .order("created_at", { ascending: false })
         .limit(200);
+      
+      if (!fiscalErr && fiscalData && fiscalData.length > 0) {
+        return fiscalData as AuditEntry[];
+      }
+
+      // Fallback: read from action_logs (unified table)
+      const { data, error } = await supabase
+        .from("action_logs")
+        .select("*")
+        .eq("company_id", companyId)
+        .order("created_at", { ascending: false })
+        .limit(200);
       if (error) throw error;
-      return data as AuditEntry[];
+      return (data || []).map((d: any) => ({
+        id: d.id,
+        action: d.action,
+        details: typeof d.details === "string" ? { description: d.details } : d.details,
+        doc_type: d.module || null,
+        document_id: null,
+        user_id: d.user_id,
+        created_at: d.created_at,
+        company_id: d.company_id,
+      })) as AuditEntry[];
     },
     enabled: !!companyId,
   });

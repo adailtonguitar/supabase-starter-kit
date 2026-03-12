@@ -108,6 +108,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signOut = async () => {
+    // Log logout before clearing session
+    if (user) {
+      const cached = localStorage.getItem("as_cached_company") || localStorage.getItem("as_selected_company");
+      if (cached) {
+        try {
+          const companyId = JSON.parse(cached)?.id || cached;
+          logAction({ companyId, userId: user.id, action: "Logout realizado", module: "auth" });
+        } catch { /* best effort */ }
+      }
+    }
     // Invalidate session token before signing out
     try {
       const token = sessionStorage.getItem("as_session_token");
