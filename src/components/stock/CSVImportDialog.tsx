@@ -2,8 +2,10 @@ import { useState, useRef } from "react";
 import { Upload, FileText, AlertCircle, CheckCircle2, Loader2, Download } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
+import { useAuth } from "@/hooks/useAuth";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { logAction } from "@/services/ActionLogger";
 
 interface CSVImportDialogProps {
   open: boolean;
