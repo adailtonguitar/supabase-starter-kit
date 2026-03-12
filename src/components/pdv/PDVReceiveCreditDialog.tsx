@@ -10,6 +10,7 @@ import { CurrencyInput } from "@/components/ui/currency-input";
 import { formatCurrency } from "@/lib/utils";
 import { format, parseISO } from "date-fns";
 import { toast } from "sonner";
+import { logAction } from "@/services/ActionLogger";
 import { useQueryClient } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { PDVCreditReceipt, type CreditReceiptData } from "@/components/pdv/PDVCreditReceipt";
