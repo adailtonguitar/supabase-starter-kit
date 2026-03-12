@@ -92,7 +92,37 @@ export default function Fiado() {
       const pendingList = clientEntries
         .filter((e: any) => e.status === "pendente")
         .map((e: any, i: number) => ({ number: i + 1, dueDate: format(parseISO(e.due_date), "dd/MM/yyyy"), amount: Number(e.amount) }));
-      setReceiptData({ clientName: selectedClient.name, clientDoc: selectedClient.cpf_cnpj || undefined, amount: payAmount, previousBalance: prevBalance, newBalance, paymentMethod: selectedMethod, storeName: companyName || undefined, storeSlogan: slogan || undefined, pendingInstallments: pendingList.length > 0 ? pendingList : undefined, paidDate: format(new Date(), "dd/MM/yyyy") });
+
+      // Fetch sale items linked to this client's credit sales
+      let receiptItems: { name: string; qty: number; price: number }[] = [];
+      try {
+        const { data: creditSales } = await supabase
+          .from("sales")
+          .select("id, items")
+          .eq("company_id", companyId)
+          .eq("client_name", selectedClient.name)
+          .eq("payment_method", "prazo");
+        if (creditSales && creditSales.length > 0) {
+          const saleIds = creditSales.map((s: any) => s.id);
+          const { data: saleItemsData } = await supabase
+            .from("sale_items")
+            .select("product_name, quantity, unit_price")
+            .in("sale_id", saleIds);
+          if (saleItemsData && saleItemsData.length > 0) {
+            receiptItems = saleItemsData.map((si: any) => ({ name: si.product_name, qty: Number(si.quantity), price: Number(si.unit_price) }));
+          } else {
+            // Fallback: parse JSONB items from sales
+            for (const sale of creditSales) {
+              const items = Array.isArray(sale.items) ? sale.items : typeof sale.items === "string" ? JSON.parse(sale.items) : [];
+              for (const it of items) {
+                receiptItems.push({ name: it.name || it.product_name || "Item", qty: Number(it.quantity || it.qty || 1), price: Number(it.unit_price || it.price || 0) });
+              }
+            }
+          }
+        }
+      } catch { /* ignore fetch errors */ }
+
+      setReceiptData({ clientName: selectedClient.name, clientDoc: selectedClient.cpf_cnpj || undefined, amount: payAmount, previousBalance: prevBalance, newBalance, paymentMethod: selectedMethod, storeName: companyName || undefined, storeSlogan: slogan || undefined, pendingInstallments: pendingList.length > 0 ? pendingList : undefined, paidDate: format(new Date(), "dd/MM/yyyy"), saleItems: receiptItems.length > 0 ? receiptItems : undefined });
     } catch (err: any) { toast.error(`Erro: ${err.message}`); } finally { setIsProcessing(false); }
   }, [companyId, user, selectedClient, clientBalance, selectedMethod, clientEntries, qc, companyName, slogan]);
 
