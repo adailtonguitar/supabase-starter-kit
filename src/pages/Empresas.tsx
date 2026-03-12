@@ -150,6 +150,7 @@ const Empresas = () => {
       const { data: urlData } = supabase.storage.from("company-assets").getPublicUrl(path);
       const url = urlData.publicUrl + "?t=" + Date.now();
       await supabase.from("companies").update({ logo_url: url } as any).eq("id", companyId);
+      logAction({ companyId: companyId!, userId: user?.id, action: "Logo da empresa atualizado", module: "configuracoes" });
       setLogoUrl(url);
       toast.success("Logo atualizado!");
     } catch (err: any) {

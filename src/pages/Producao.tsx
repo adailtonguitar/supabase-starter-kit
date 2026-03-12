@@ -84,7 +84,7 @@ export default function Producao() {
     onError: (e: any) => toast.error(e.message),
   });
 
-  const deleteRecipeMut = useMutation({ mutationFn: async (id: string) => { await supabase.from("recipes").update({ is_active: false }).eq("id", id); }, onSuccess: () => { toast.success("Receita removida"); qc.invalidateQueries({ queryKey: ["recipes"] }); } });
+  const deleteRecipeMut = useMutation({ mutationFn: async (id: string) => { await supabase.from("recipes").update({ is_active: false }).eq("id", id); }, onSuccess: () => { logAction({ companyId: companyId!, userId: user?.id, action: "Receita desativada", module: "estoque" }); toast.success("Receita removida"); qc.invalidateQueries({ queryKey: ["recipes"] }); } });
 
   function resetRecipeForm() { setRecipeName(""); setRecipeDesc(""); setOutputProductId(""); setOutputQty(1); setOutputUnit("kg"); setIngredients([]); setIngProductId(""); setIngQty(1); }
 

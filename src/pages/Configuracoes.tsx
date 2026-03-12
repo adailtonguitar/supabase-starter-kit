@@ -164,6 +164,7 @@ function DiscountLimitsSection() {
       }
       setLimits((prev) => prev.map((l) => edited[l.id] !== undefined ? { ...l, max_discount_percent: edited[l.id] } : l));
       setEdited({});
+      logAction({ companyId: companyId!, action: "Limites de desconto atualizados", module: "configuracoes" });
       toast.success("Limites de desconto salvos!");
     } catch {
       toast.error("Erro ao salvar limites");

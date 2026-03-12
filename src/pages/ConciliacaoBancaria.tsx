@@ -121,6 +121,7 @@ export default function ConciliacaoBancaria() {
       }
     }
     qc.invalidateQueries({ queryKey: ["bank_transactions"] });
+    logAction({ companyId: companyId!, userId: user?.id, action: "Conciliação automática executada", module: "financeiro", details: `${matched} transações` });
     toast.success(`${matched} transações conciliadas automaticamente`);
   };
 
