@@ -192,10 +192,12 @@ function EmissorProductsTab({ companyId }: { companyId: string }) {
     if (editingId) {
       const { error } = await supabase.from("products").update(payload).eq("id", editingId);
       if (error) { toast.error("Erro ao atualizar"); return; }
+      logAction({ companyId: companyId!, userId: user?.id, action: "Produto emissor atualizado", module: "fiscal", details: `${form.name.trim()} (${editingId})` });
       toast.success("Produto atualizado");
     } else {
       const { error } = await supabase.from("products").insert(payload);
       if (error) { toast.error("Erro ao cadastrar"); return; }
+      logAction({ companyId: companyId!, userId: user?.id, action: "Produto emissor cadastrado", module: "fiscal", details: form.name.trim() });
       toast.success("Produto cadastrado");
     }
     setForm(emptyForm);
