@@ -29,6 +29,7 @@ import { AdminMarketing } from "@/components/admin/AdminMarketing";
 import { AdminCompanyHealth } from "@/components/admin/AdminCompanyHealth";
 import { AdminNotifications } from "@/components/admin/AdminNotifications";
 import { AdminBackup } from "@/components/admin/AdminBackup";
+import { AdminPaymentLogs } from "@/components/admin/AdminPaymentLogs";
 import { lazy, Suspense } from "react";
 
 const lazyRetry = (fn: () => Promise<any>) =>
