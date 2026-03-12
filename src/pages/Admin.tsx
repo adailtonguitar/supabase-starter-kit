@@ -167,6 +167,9 @@ export default function Admin() {
         <TabsContent value="backup">
           <AdminBackup />
         </TabsContent>
+        <TabsContent value="payment-logs">
+          <AdminPaymentLogs />
+        </TabsContent>
       </Tabs>
     </div>
   );
