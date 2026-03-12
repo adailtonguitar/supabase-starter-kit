@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
-  Clock, AlertTriangle, CheckCircle, FileText, User, Shield,
+  Clock, AlertTriangle, CheckCircle, FileText, Shield,
   XCircle, Send, Settings, Eye, RefreshCw, Search, Filter,
 } from "lucide-react";
 import { motion } from "framer-motion";
@@ -58,36 +58,50 @@ export default function AuditLogs() {
     queryKey: ["fiscal-audit-logs", companyId],
     queryFn: async () => {
       if (!companyId) return [];
-      // Try fiscal_audit_logs first, fallback to action_logs for unified view
-      const { data: fiscalData, error: fiscalErr } = await supabase
+
+      // Fiscal audit logs only
+      const { data: fiscalData } = await supabase
         .from("fiscal_audit_logs")
         .select("*")
         .eq("company_id", companyId)
         .order("created_at", { ascending: false })
         .limit(200);
-      
-      if (!fiscalErr && fiscalData && fiscalData.length > 0) {
-        return fiscalData as AuditEntry[];
-      }
 
-      // Fallback: read from action_logs (unified table)
-      const { data, error } = await supabase
+      const fiscalEntries: AuditEntry[] = (fiscalData || []).map((d: any) => ({
+        id: d.id,
+        action: d.action,
+        details: d.details,
+        doc_type: d.doc_type || null,
+        document_id: d.document_id || null,
+        user_id: d.user_id,
+        created_at: d.created_at,
+        company_id: d.company_id,
+      }));
+
+      // Also include fiscal-module action_logs
+      const { data: actionData } = await supabase
         .from("action_logs")
         .select("*")
         .eq("company_id", companyId)
+        .eq("module", "fiscal")
         .order("created_at", { ascending: false })
         .limit(200);
-      if (error) throw error;
-      return (data || []).map((d: any) => ({
+
+      const actionEntries: AuditEntry[] = (actionData || []).map((d: any) => ({
         id: d.id,
         action: d.action,
         details: typeof d.details === "string" ? { description: d.details } : d.details,
-        doc_type: d.module || null,
+        doc_type: "fiscal",
         document_id: null,
         user_id: d.user_id,
         created_at: d.created_at,
         company_id: d.company_id,
-      })) as AuditEntry[];
+      }));
+
+      // Merge and sort by date
+      return [...fiscalEntries, ...actionEntries]
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        .slice(0, 200);
     },
     enabled: !!companyId,
   });
@@ -106,9 +120,9 @@ export default function AuditLogs() {
     <div className="p-4 sm:p-6 space-y-4 sm:space-y-6 max-w-4xl mx-auto">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-foreground">Logs de Auditoria Fiscal</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-foreground">Auditoria Fiscal</h1>
           <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-            Histórico completo de operações fiscais ({filtered.length} registros)
+            Histórico de emissões, cancelamentos e operações fiscais ({filtered.length} registros)
           </p>
         </div>
         <Button variant="outline" size="sm" onClick={() => refetch()} className="self-start sm:self-auto">
@@ -149,8 +163,8 @@ export default function AuditLogs() {
       {!isLoading && filtered.length === 0 && (
         <div className="text-center py-16 text-muted-foreground">
           <FileText className="w-12 h-12 mx-auto mb-3 opacity-40" />
-          <p className="font-medium">Nenhum log de auditoria encontrado</p>
-          <p className="text-sm mt-1">Os registros aparecerão conforme operações fiscais forem realizadas.</p>
+          <p className="font-medium">Nenhum log fiscal encontrado</p>
+          <p className="text-sm mt-1">Os registros aparecerão conforme operações fiscais (NF-e, NFC-e) forem realizadas.</p>
         </div>
       )}
 
@@ -164,10 +178,11 @@ export default function AuditLogs() {
             const details = entry.details || {};
             const detailText = details.entity_name
               ? `${details.entity_type || ""} ${details.entity_name || ""}`.trim()
-              : details.user_email
-                ? `Usuário: ${details.user_email}`
-                : entry.action;
-            const changedFields = details.changed_fields as string[] | undefined;
+              : details.description
+                ? details.description
+                : details.user_email
+                  ? `Usuário: ${details.user_email}`
+                  : "";
 
             return (
               <motion.div
@@ -197,20 +212,7 @@ export default function AuditLogs() {
                       {new Date(entry.created_at).toLocaleString("pt-BR")}
                     </div>
                   </div>
-                  <p className="text-sm text-muted-foreground">{detailText}</p>
-                  {changedFields && changedFields.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-2">
-                      {changedFields.map((f) => (
-                        <span key={f} className="text-xs px-1.5 py-0.5 rounded bg-accent text-accent-foreground">{f}</span>
-                      ))}
-                    </div>
-                  )}
-                  {details.user_email && (
-                    <div className="flex items-center gap-1 mt-2 text-xs text-muted-foreground">
-                      <User className="w-3 h-3" />
-                      {details.user_email}
-                    </div>
-                  )}
+                  {detailText && <p className="text-sm text-muted-foreground">{detailText}</p>}
                 </div>
               </motion.div>
             );
