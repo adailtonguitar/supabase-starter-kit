@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { logAction } from "@/services/ActionLogger";
 
 interface CSVClientImportDialogProps {
   open: boolean;
