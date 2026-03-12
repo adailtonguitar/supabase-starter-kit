@@ -64,10 +64,10 @@ export function useCreateProduct() {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["products"] });
-      // Auto-sync: push new product to all branches if this is a matrix company
       if (companyId && data?.id) {
         autoSyncProductToBranches(data.id, companyId);
       }
+      if (companyId) logAction({ companyId, userId: user?.id, action: "Produto criado", module: "produtos", details: data?.name || null });
     },
   });
 }
