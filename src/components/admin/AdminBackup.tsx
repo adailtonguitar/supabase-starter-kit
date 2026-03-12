@@ -133,6 +133,7 @@ export function AdminBackup() {
 
       setImportResult(data);
       toast.success("Backup restaurado com sucesso!");
+      logAction({ companyId: selectedCompany, userId: user?.id, action: "Backup restaurado via admin", module: "admin", details: `Empresa: ${selectedCompanyName}, Tabelas: ${backupMeta?.tables?.length || 0}` });
     } catch (err: any) {
       toast.error("Erro na restauração: " + (err.message || "Erro desconhecido"));
     }
