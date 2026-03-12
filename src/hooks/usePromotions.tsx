@@ -56,6 +56,7 @@ export function usePromotions() {
     if (!companyId) return;
     const { error } = await supabase.from("promotions").update({ is_active: isActive }).eq("id", id).eq("company_id", companyId);
     if (error) { toast.error("Erro ao atualizar promoção"); return; }
+    logAction({ companyId, userId: user?.id, action: isActive ? "Promoção ativada" : "Promoção desativada", module: "promocoes", details: id });
     qc.invalidateQueries({ queryKey: ["promotions"] });
   };
 
