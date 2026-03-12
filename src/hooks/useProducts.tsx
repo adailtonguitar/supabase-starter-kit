@@ -127,7 +127,10 @@ export function useUpdateProduct() {
 
       return data as Product;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["products"] }),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      if (companyId) logAction({ companyId, userId: user?.id, action: "Produto atualizado", module: "produtos", details: variables.name || variables.id });
+    },
   });
 }
 
