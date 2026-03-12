@@ -34,6 +34,7 @@ import { Button } from "@/components/ui/button";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { playAddSound, playErrorSound, playSaleCompleteSound } from "@/lib/pdv-sounds";
 import { formatCurrency } from "@/lib/utils";
+import { logAction } from "@/services/ActionLogger";
 
 export default function PDV() {
   const pdv = usePDV();
@@ -930,6 +931,10 @@ export default function PDV() {
         downPayment: isSignal ? downPaymentAmount : undefined,
       });
       const modeLabel = isSignal ? `com sinal de ${formatCurrency(downPaymentAmount)}` : mode === "fiado" ? "fiado" : `parcelado ${installments}x`;
+      if (companyId) {
+        const logUserId = (await supabase.auth.getUser()).data?.user?.id;
+        logAction({ companyId, userId: logUserId, action: "Venda a prazo registrada", module: "vendas", details: `Cliente: ${client.name} | ${modeLabel} | ${formatCurrency(savedTotal)}${result.saleId ? ` | Venda #${result.saleId.substring(0, 8)}` : ""}` });
+      }
       toast.success(`Venda ${modeLabel} registrada para ${client.name}`, { duration: 1500 });
       setSelectedClient(null);
       const newNum = saleNumber + 1;
