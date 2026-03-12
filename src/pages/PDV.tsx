@@ -931,6 +931,9 @@ export default function PDV() {
         downPayment: isSignal ? downPaymentAmount : undefined,
       });
       const modeLabel = isSignal ? `com sinal de ${formatCurrency(downPaymentAmount)}` : mode === "fiado" ? "fiado" : `parcelado ${installments}x`;
+      if (companyId) {
+        logAction({ companyId, userId: userId, action: "Venda a prazo registrada", module: "vendas", details: `Cliente: ${client.name} | ${modeLabel} | ${formatCurrency(savedTotal)}${result.saleId ? ` | Venda #${result.saleId.substring(0, 8)}` : ""}` });
+      }
       toast.success(`Venda ${modeLabel} registrada para ${client.name}`, { duration: 1500 });
       setSelectedClient(null);
       const newNum = saleNumber + 1;
