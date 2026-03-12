@@ -23,6 +23,8 @@ import { localSignerService, type CertificateInfo } from "@/services/WebPKIServi
 import { storeCertificateA1 } from "@/services/LocalXmlSigner";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
+import { useAuth } from "@/hooks/useAuth";
+import { logAction } from "@/services/ActionLogger";
 import forge from "node-forge";
 
 interface FiscalConfigSection {
@@ -50,6 +52,7 @@ const defaultConfigs: FiscalConfigSection[] = [
 
 export default function FiscalConfigEdit() {
   const { companyId } = useCompany();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [configs, setConfigs] = useState<FiscalConfigSection[]>(defaultConfigs);
   const [certType, setCertType] = useState<"A1" | "A3">("A1");
@@ -161,6 +164,7 @@ export default function FiscalConfigEdit() {
       // Save CRT on companies table
       await supabase.from("companies").update({ crt } as any).eq("id", companyId);
       setConfigs([...configs]);
+      logAction({ companyId: companyId!, userId: user?.id, action: "Configuração fiscal salva", module: "fiscal", details: `CRT: ${crt}, Cert: ${certType}` });
       toast.success("Configurações fiscais salvas com sucesso!");
       navigate("/fiscal/config");
     } catch (err: any) {

@@ -1,6 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
+import { useAuth } from "@/hooks/useAuth";
+import { logAction } from "@/services/ActionLogger";
 
 export interface ProductLabel {
   id: string;
@@ -30,9 +32,12 @@ export function useProductLabels(tab: "pendente" | "impressa" | "todas") {
 
 export function useMarkLabelsPrinted() {
   const qc = useQueryClient();
+  const { companyId } = useCompany();
+  const { user } = useAuth();
   return useMutation({
     mutationFn: async (ids: string[]) => {
       await supabase.from("product_labels").update({ status: "impressa" }).in("id", ids);
+      if (companyId) logAction({ companyId, userId: user?.id, action: "Etiquetas marcadas como impressas", module: "produtos", details: `${ids.length} etiqueta(s)` });
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["product-labels"] }),
   });
@@ -40,9 +45,12 @@ export function useMarkLabelsPrinted() {
 
 export function useResetLabels() {
   const qc = useQueryClient();
+  const { companyId } = useCompany();
+  const { user } = useAuth();
   return useMutation({
     mutationFn: async (ids: string[]) => {
       await supabase.from("product_labels").update({ status: "pendente" }).in("id", ids);
+      if (companyId) logAction({ companyId, userId: user?.id, action: "Etiquetas resetadas para pendente", module: "produtos", details: `${ids.length} etiqueta(s)` });
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["product-labels"] }),
   });
