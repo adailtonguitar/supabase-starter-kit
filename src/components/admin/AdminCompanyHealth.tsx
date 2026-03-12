@@ -275,6 +275,7 @@ export function AdminCompanyHealth() {
         .eq("company_id", selectedCompany.id);
       if (error) throw error;
       toast.success("Erros limpos!");
+      logAction({ companyId: selectedCompany.id, userId: user?.id, action: "Erros do sistema limpos via admin", module: "admin", details: selectedCompany.name });
       loadHealth(selectedCompany);
     } catch (e: any) {
       toast.error("Erro: " + e.message);
