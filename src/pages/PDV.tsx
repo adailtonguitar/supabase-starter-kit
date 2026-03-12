@@ -77,7 +77,7 @@ export default function PDV() {
   const [showClientSelector, setShowClientSelector] = useState(false);
   const [showReceiveCredit, setShowReceiveCredit] = useState(false);
   const [selectedClient, setSelectedClient] = useState<CreditClient | null>(null);
-  const [fiadoReceipt, setFiadoReceipt] = useState<CreditReceiptData | null>(null);
+  const [fiadoReceipt, setFiadoReceipt] = useState<FiadoReceiptData | null>(null);
   const [showLoyaltyClientSelector, setShowLoyaltyClientSelector] = useState(false);
   const [showPriceLookup, setShowPriceLookup] = useState(false);
   const [priceLookupQuery, setPriceLookupQuery] = useState("");
