@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "./useCompany";
 import { useAuth } from "./useAuth";
+import { logAction } from "@/services/ActionLogger";
 import { toast } from "sonner";
 
 export interface StockTransfer {
@@ -162,6 +163,7 @@ export function useCreateStockTransfer() {
         }
       }
 
+      logAction({ companyId: input.from_company_id, userId: user.id, action: "Transferência de estoque criada", module: "estoque", details: `Para ${destName} - ${input.items.length} item(ns)` });
       return transfer;
     },
     onSuccess: () => {
@@ -304,6 +306,7 @@ export function useReceiveStockTransfer() {
           }
         }
       }
+      logAction({ companyId: companyId!, userId: user.id, action: "Transferência de estoque recebida", module: "estoque", details: `ID ${transferId.slice(0, 8)} - ${items.length} item(ns)` });
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["stock_transfers"] });
