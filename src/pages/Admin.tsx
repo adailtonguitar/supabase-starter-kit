@@ -112,6 +112,7 @@ export default function Admin() {
           <TabsTrigger value="health" className="text-xs sm:text-sm"><Heart className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" /> Saúde</TabsTrigger>
           <TabsTrigger value="backup" className="text-xs sm:text-sm"><Database className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" /> Backup</TabsTrigger>
           <TabsTrigger value="payment-logs" className="text-xs sm:text-sm"><Receipt className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" /> Pagamentos</TabsTrigger>
+          <TabsTrigger value="auditoria" className="text-xs sm:text-sm"><Bot className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" /> Auditoria</TabsTrigger>
         </TabsList>
 
         <TabsContent value="dashboard">
