@@ -44,9 +44,14 @@ Deno.serve(async (req) => {
       throw new Error("Apenas administradores podem convidar usuários");
     }
 
-    // Check if user already exists
-    const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers();
-    const existingUser = existingUsers?.users?.find((u: any) => u.email === email);
+    // Check if user already exists (by email, without loading all users)
+    let existingUser: any = null;
+    try {
+      const { data: userByEmail } = await supabaseAdmin.auth.admin.listUsers({ filter: `email.eq.${email}`, perPage: 1 });
+      existingUser = userByEmail?.users?.[0] || null;
+    } catch {
+      existingUser = null;
+    }
 
     let userId: string;
 
