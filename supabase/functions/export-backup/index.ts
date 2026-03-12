@@ -96,13 +96,6 @@ Deno.serve(async (req) => {
         }
 
         backup[table] = allRows;
-
-        if (error) {
-          errors.push(`${table}: ${error.message}`);
-          backup[table] = [];
-        } else {
-          backup[table] = data || [];
-        }
       } catch (e) {
         errors.push(`${table}: ${e.message}`);
         backup[table] = [];
