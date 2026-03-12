@@ -50,6 +50,7 @@ export function useProducts() {
 export function useCreateProduct() {
   const queryClient = useQueryClient();
   const { companyId } = useCompany();
+  const { user } = useAuth();
   return useMutation({
     mutationFn: async (product: Partial<Product>) => {
       if (!companyId) throw new Error("Empresa não encontrada");
