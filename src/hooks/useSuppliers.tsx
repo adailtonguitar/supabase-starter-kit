@@ -33,7 +33,10 @@ export function useCreateSupplier() {
       const { error } = await supabase.from("suppliers").insert(payload);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["suppliers"] }),
+    onSuccess: (_data, variables) => {
+      qc.invalidateQueries({ queryKey: ["suppliers"] });
+      if (companyId) logAction({ companyId, action: "Fornecedor cadastrado", module: "fornecedores", details: (variables as any).name || null });
+    },
   });
 }
 
