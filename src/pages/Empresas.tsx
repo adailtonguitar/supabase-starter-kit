@@ -127,8 +127,8 @@ const Empresas = () => {
         whatsapp_support: form.whatsapp_support,
       } as any).eq("id", companyId);
       if (error) throw error;
+      logAction({ companyId: companyId!, userId: user?.id, action: "Dados da empresa atualizados", module: "configuracoes", details: form.name });
       toast.success("Empresa atualizada com sucesso!");
-      setTimeout(() => navigate("/dashboard"), 300);
     } catch (err: any) {
       toast.error("Erro ao salvar: " + (err.message || "Erro desconhecido"));
     }
