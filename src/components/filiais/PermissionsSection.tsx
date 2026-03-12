@@ -57,6 +57,7 @@ export default function PermissionsSection() {
   const handleUpdateRole = async (id: string, role: string) => {
     const { error } = await supabase.from("company_users").update({ role } as any).eq("id", id);
     if (error) { toast.error(error.message); return; }
+    logAction({ companyId: activeBranchId!, userId: user?.id, action: "Perfil de filial alterado", module: "filiais", details: `Usuário ${id} → ${role}` });
     toast.success("Perfil atualizado");
     qc.invalidateQueries({ queryKey: ["branch-users", activeBranchId] });
   };
