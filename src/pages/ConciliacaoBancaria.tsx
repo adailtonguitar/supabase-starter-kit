@@ -106,7 +106,7 @@ export default function ConciliacaoBancaria() {
       const { error } = await supabase.from("bank_transactions").update({ reconciled: false, financial_entry_id: null }).eq("id", txId);
       if (error) throw error;
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["bank_transactions"] }); toast.success("Conciliação desfeita"); },
+    onSuccess: () => { logAction({ companyId: companyId!, userId: user?.id, action: "Conciliação bancária desfeita", module: "financeiro" }); qc.invalidateQueries({ queryKey: ["bank_transactions"] }); toast.success("Conciliação desfeita"); },
     onError: (e: Error) => toast.error(e.message),
   });
 
