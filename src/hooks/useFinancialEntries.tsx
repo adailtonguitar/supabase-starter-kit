@@ -79,10 +79,11 @@ export function useCreateFinancialEntry() {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: ["financial_entries"] });
       qc.invalidateQueries({ queryKey: ["financial-entries"] });
       toast.success("Lançamento criado");
+      if (companyId) logAction({ companyId, userId: user?.id, action: `Lançamento ${variables.type} criado`, module: "financeiro", details: variables.description || null });
     },
     onError: (e: Error) => toast.error(`Erro: ${e.message}`),
   });
