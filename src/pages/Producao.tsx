@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useCompany } from "@/hooks/useCompany";
 import { toast } from "sonner";
+import { logAction } from "@/services/ActionLogger";
 import { ChefHat, Plus, Play, Trash2, Package, Scale, DollarSign, ClipboardList, CheckCircle, Clock, AlertTriangle, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
