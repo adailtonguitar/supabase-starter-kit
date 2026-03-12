@@ -73,6 +73,7 @@ export function useQuotes({ skipInitialFetch }: { skipInitialFetch?: boolean } =
   const deleteQuote = async (id: string) => {
     if (!companyId) return;
     await supabase.from("quotes").delete().eq("id", id).eq("company_id", companyId);
+    logAction({ companyId, userId: user?.id, action: "Orçamento excluído", module: "orcamentos", details: id });
     toast.success("Orçamento excluído");
     qc.invalidateQueries({ queryKey: ["quotes"] });
   };

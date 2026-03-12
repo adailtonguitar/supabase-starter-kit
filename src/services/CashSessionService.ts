@@ -97,6 +97,7 @@ export class CashSessionService {
     try {
       const { data, error } = await supabase.from("cash_movements").insert({ company_id: params.companyId, session_id: params.sessionId, type: params.type, amount: params.amount, performed_by: params.userId, description: params.description }).select().single();
       if (error) { if (isNetworkError(error)) return moveOffline(); throw new Error(`Erro na movimentação: ${error.message}`); }
+      logAction({ companyId: params.companyId, userId: params.userId, action: params.type === "sangria" ? "Sangria registrada" : "Suprimento registrado", module: "caixa", details: `R$ ${params.amount} - ${params.description || ""}` });
       const field = params.type === "sangria" ? "total_sangria" : "total_suprimento";
       const { data: session } = await supabase.from("cash_sessions").select(field).eq("id", params.sessionId).eq("company_id", params.companyId).single();
       if (session) await supabase.from("cash_sessions").update({ [field]: Number(session[field] || 0) + params.amount }).eq("id", params.sessionId).eq("company_id", params.companyId);

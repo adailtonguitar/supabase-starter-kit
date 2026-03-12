@@ -63,6 +63,7 @@ export function usePromotions() {
   const deletePromotion = async (id: string) => {
     if (!companyId) return;
     await supabase.from("promotions").delete().eq("id", id).eq("company_id", companyId);
+    logAction({ companyId, userId: user?.id, action: "Promoção excluída", module: "promocoes", details: id });
     toast.success("Promoção excluída");
     qc.invalidateQueries({ queryKey: ["promotions"] });
   };

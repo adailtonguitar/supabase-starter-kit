@@ -56,11 +56,13 @@ export function useUpdateCarrier() {
 export function useDeleteCarrier() {
   const qc = useQueryClient();
   const { companyId } = useCompany();
+  const { user } = useAuth();
   return useMutation({
     mutationFn: async (id: string) => {
       if (!companyId) throw new Error("Empresa não encontrada");
       const { error } = await supabase.from("carriers").delete().eq("id", id).eq("company_id", companyId);
       if (error) throw error;
+      logAction({ companyId, userId: user?.id, action: "Transportadora excluída", module: "configuracoes", details: id });
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["carriers"] }); toast.success("Transportadora excluída"); },
     onError: (e: Error) => toast.error(`Erro: ${e.message}`),
