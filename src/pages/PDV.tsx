@@ -34,6 +34,7 @@ import { Button } from "@/components/ui/button";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { playAddSound, playErrorSound, playSaleCompleteSound } from "@/lib/pdv-sounds";
 import { formatCurrency } from "@/lib/utils";
+import { logAction } from "@/services/ActionLogger";
 
 export default function PDV() {
   const pdv = usePDV();
