@@ -432,10 +432,12 @@ function EmissorRecipientsTab({ companyId }: { companyId: string }) {
     if (editingId) {
       const { error } = await supabase.from("clients").update(payload).eq("id", editingId);
       if (error) { toast.error("Erro ao atualizar"); return; }
+      logAction({ companyId: companyId!, userId: user?.id, action: "Destinatário emissor atualizado", module: "fiscal", details: `${form.name.trim()} (${editingId})` });
       toast.success("Destinatário atualizado");
     } else {
       const { error } = await supabase.from("clients").insert(payload);
       if (error) { toast.error("Erro ao cadastrar"); return; }
+      logAction({ companyId: companyId!, userId: user?.id, action: "Destinatário emissor cadastrado", module: "fiscal", details: form.name.trim() });
       toast.success("Destinatário cadastrado");
     }
     setForm(emptyRecipientForm);
