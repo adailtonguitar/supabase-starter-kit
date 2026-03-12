@@ -1,11 +1,40 @@
 import { motion } from "framer-motion";
-import { Clock, ArrowRight, Check, AlertTriangle } from "lucide-react";
+import { Clock, ArrowRight, Check, AlertTriangle, RefreshCw, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PLANS, useSubscription } from "@/hooks/useSubscription";
 import { useAuth } from "@/hooks/useAuth";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Navigate } from "react-router-dom";
+
+function VerifyPaymentButton() {
+  const { checkSubscription } = useSubscription();
+  const [checking, setChecking] = useState(false);
+
+  const handleVerify = async () => {
+    setChecking(true);
+    try {
+      await checkSubscription();
+      toast.info("Verificação concluída. Se o pagamento foi confirmado, o acesso será liberado automaticamente.");
+    } catch {
+      toast.error("Erro ao verificar. Tente novamente em instantes.");
+    } finally {
+      setChecking(false);
+    }
+  };
+
+  return (
+    <div className="flex flex-col items-center gap-2 mt-4">
+      <Button variant="outline" size="sm" onClick={handleVerify} disabled={checking} className="gap-2">
+        {checking ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+        {checking ? "Verificando..." : "Já paguei — verificar pagamento"}
+      </Button>
+      <p className="text-xs text-muted-foreground">
+        Clique após efetuar o pagamento para liberar o acesso imediatamente.
+      </p>
+    </div>
+  );
+}
 
 const plans = [
   {
