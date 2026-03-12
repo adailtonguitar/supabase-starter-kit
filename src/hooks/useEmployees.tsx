@@ -33,7 +33,11 @@ export function useCreateEmployee() {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["employees"] }); toast.success("Funcionário criado"); },
+    onSuccess: (_data, variables) => {
+      qc.invalidateQueries({ queryKey: ["employees"] });
+      toast.success("Funcionário criado");
+      if (companyId) logAction({ companyId, userId: user?.id, action: "Funcionário criado", module: "funcionarios", details: (variables as any).name || null });
+    },
     onError: (e: Error) => toast.error(`Erro: ${e.message}`),
   });
 }
@@ -41,6 +45,7 @@ export function useCreateEmployee() {
 export function useUpdateEmployee() {
   const qc = useQueryClient();
   const { companyId } = useCompany();
+  const { user } = useAuth();
   return useMutation({
     mutationFn: async ({ id, ...updates }: Partial<Employee> & { id: string }) => {
       if (!companyId) throw new Error("Empresa não encontrada");
