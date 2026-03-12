@@ -268,6 +268,7 @@ export default function EmissorSettingsTab({ companyId }: { companyId: string })
         address_state: form.address_state, address_zip: form.address_zip.replace(/\D/g, ""),
       } as any).eq("id", companyId);
       if (error) throw error;
+      logAction({ companyId, action: "Dados empresa emissor atualizados", module: "fiscal", details: form.name.trim() });
       toast.success("Dados da empresa atualizados!");
     } catch (err: any) {
       toast.error(err.message || "Erro ao salvar");
