@@ -178,8 +178,11 @@ export default function Renovar() {
         ))}
       </div>
 
+      {/* Verify payment button */}
+      <VerifyPaymentButton />
+
       {/* Security badges */}
-      <div className="flex items-center gap-4 text-xs text-muted-foreground">
+      <div className="flex items-center gap-4 text-xs text-muted-foreground mt-4">
         <div className="flex items-center gap-1">
           <Shield className="w-3.5 h-3.5" />
           Pagamento seguro
