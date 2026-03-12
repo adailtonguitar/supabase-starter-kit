@@ -47,6 +47,8 @@ async function login(page: Page, email: string, password: string) {
 }
 
 test.describe('Demo Account - Full System Test', () => {
+  test.skip(!canRunDemo, 'Skipping: no Supabase credentials or demo account configured');
+
   let credentials: { email: string; password: string };
 
   test.beforeAll(async ({ browser }) => {
