@@ -47,11 +47,13 @@ export function useCreateProductCategory() {
 export function useUpdateProductCategory() {
   const qc = useQueryClient();
   const { companyId } = useCompany();
+  const { user } = useAuth();
   return useMutation({
     mutationFn: async ({ id, ...updates }: any) => {
       if (!companyId) throw new Error("Empresa não encontrada");
       const { data, error } = await supabase.from("product_categories" as any).update(updates).eq("id", id).eq("company_id", companyId).select().single();
       if (error) throw error;
+      logAction({ companyId, userId: user?.id, action: "Categoria editada", module: "produtos", details: updates.name || id });
       return data;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["product_categories"] }); toast.success("Categoria atualizada"); },
