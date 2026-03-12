@@ -29,25 +29,27 @@ Deno.serve(async (req) => {
 
     const token = authHeader.replace("Bearer ", "");
 
-    // Try getUser first, fallback to getClaims for signing-keys compatibility
+    // Use getClaims for signing-keys compatibility
     let userId: string | null = null;
 
-    const { data: userData, error: userError } = await adminClient.auth.getUser(token);
-    if (!userError && userData?.user) {
-      userId = userData.user.id;
-    } else {
-      // Fallback: use anon client with the user's token to getClaims
+    try {
       const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-      const anonClient = createClient(supabaseUrl, anonKey, {
+      const userClient = createClient(supabaseUrl, anonKey, {
         global: { headers: { Authorization: authHeader } },
       });
-      try {
-        const { data: claims, error: claimsErr } = await (anonClient.auth as any).getClaims(token);
-        if (!claimsErr && claims?.claims?.sub) {
-          userId = claims.claims.sub;
-        }
-      } catch {
-        // getClaims not available in this version
+      const { data: claimsData, error: claimsErr } = await (userClient.auth as any).getClaims(token);
+      if (!claimsErr && claimsData?.claims?.sub) {
+        userId = claimsData.claims.sub;
+      }
+    } catch {
+      // getClaims failed
+    }
+
+    // Fallback to getUser
+    if (!userId) {
+      const { data: userData, error: userError } = await adminClient.auth.getUser(token);
+      if (!userError && userData?.user) {
+        userId = userData.user.id;
       }
     }
 
