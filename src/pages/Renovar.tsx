@@ -103,7 +103,7 @@ export default function Renovar() {
   ];
 
   return (
-    <div className="min-h-screen bg-background flex flex-col items-center px-4 py-8 sm:py-12 overflow-x-hidden">
+    <div className="min-h-screen bg-background flex flex-col items-center px-4 py-8 sm:py-12 overflow-y-auto overflow-x-hidden">
       {/* Botão Voltar */}
       <div className="w-full max-w-4xl mb-4">
         <Button asChild variant="ghost" size="sm" className="gap-1.5">
