@@ -89,10 +89,10 @@ export default function Fiado() {
       logAction({ companyId: companyId!, userId: user?.id, action: "Recebimento de fiado", module: "financeiro", details: `Cliente: ${selectedClient.name} - ${formatCurrency(payAmount)}` });
       toast.success(`Recebimento de ${formatCurrency(payAmount)} registrado!`);
       setCustomAmount(0);
-      const remaining = clientEntries
+      const pendingList = clientEntries
         .filter((e: any) => e.status === "pendente")
         .map((e: any, i: number) => ({ number: i + 1, dueDate: format(parseISO(e.due_date), "dd/MM/yyyy"), amount: Number(e.amount) }));
-      setReceiptData({ clientName: selectedClient.name, clientDoc: selectedClient.cpf_cnpj || undefined, amount: payAmount, previousBalance: prevBalance, newBalance, paymentMethod: selectedMethod, storeName: companyName || undefined, storeSlogan: slogan || undefined, pendingInstallments: remaining.length > 0 ? remaining : undefined, paidDate: format(new Date(), "dd/MM/yyyy") });
+      setReceiptData({ clientName: selectedClient.name, clientDoc: selectedClient.cpf_cnpj || undefined, amount: payAmount, previousBalance: prevBalance, newBalance, paymentMethod: selectedMethod, storeName: companyName || undefined, storeSlogan: slogan || undefined, pendingInstallments: pendingList.length > 0 ? pendingList : undefined, paidDate: format(new Date(), "dd/MM/yyyy") });
     } catch (err: any) { toast.error(`Erro: ${err.message}`); } finally { setIsProcessing(false); }
   }, [companyId, user, selectedClient, clientBalance, selectedMethod, clientEntries, qc, companyName, slogan]);
 
