@@ -172,6 +172,9 @@ export default function Admin() {
         <TabsContent value="payment-logs">
           <AdminPaymentLogs />
         </TabsContent>
+        <TabsContent value="auditoria">
+          <AdminAuditoria />
+        </TabsContent>
       </Tabs>
     </div>
   );
