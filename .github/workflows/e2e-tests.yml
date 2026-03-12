@@ -9,8 +9,6 @@ jobs:
   e2e:
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    # Only run when secrets are configured
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'pull_request' }}
 
     steps:
       - uses: actions/checkout@v4
@@ -26,14 +24,12 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Run E2E tests
-        continue-on-error: true
-        run: npx playwright test
+        run: npx playwright test --reporter=list,html
         env:
           BASE_URL: ${{ vars.BASE_URL || 'https://anthosystemcombr.lovable.app' }}
-          DEMO_EMAIL: ${{ secrets.DEMO_EMAIL }}
-          DEMO_PASSWORD: ${{ secrets.DEMO_PASSWORD }}
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+        continue-on-error: true
 
       - name: Upload test report
         uses: actions/upload-artifact@v4
@@ -42,11 +38,13 @@ jobs:
           name: playwright-report
           path: playwright-report/
           retention-days: 14
+          if-no-files-found: ignore
 
       - name: Upload screenshots
         uses: actions/upload-artifact@v4
-        if: failure()
+        if: always()
         with:
           name: test-screenshots
           path: test-results/
           retention-days: 7
+          if-no-files-found: ignore
