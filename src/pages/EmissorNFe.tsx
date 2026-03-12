@@ -448,6 +448,7 @@ function EmissorRecipientsTab({ companyId }: { companyId: string }) {
   const handleDelete = async (id: string) => {
     if (!confirm("Excluir destinatário?")) return;
     await supabase.from("clients").delete().eq("id", id);
+    logAction({ companyId: companyId!, userId: user?.id, action: "Destinatário emissor excluído", module: "fiscal", details: id });
     toast.success("Destinatário excluído");
     fetchRecipients();
   };

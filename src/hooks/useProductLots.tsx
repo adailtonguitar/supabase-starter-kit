@@ -106,12 +106,14 @@ export function useCreateProductLot() {
 export function useDeleteProductLot() {
   const qc = useQueryClient();
   const { companyId } = useCompany();
+  const { user } = useAuth();
 
   return useMutation({
     mutationFn: async (id: string) => {
       if (!companyId) throw new Error("Empresa não encontrada");
       const { error } = await supabase.from("product_lots" as any).delete().eq("id", id).eq("company_id", companyId);
       if (error) throw error;
+      logAction({ companyId, userId: user?.id, action: "Lote excluído", module: "estoque", details: id });
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["product_lots"] });
