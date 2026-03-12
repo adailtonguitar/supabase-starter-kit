@@ -20,7 +20,7 @@ async function getDemoCredentials(page: Page): Promise<{ email: string; password
       'Content-Type': 'application/json',
       'apikey': SUPABASE_ANON_KEY,
     },
-    data: {},
+    data: { company_name: `Loja Demo E2E ${Date.now()}` },
   });
 
   expect(response.ok()).toBeTruthy();
