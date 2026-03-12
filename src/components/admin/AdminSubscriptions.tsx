@@ -128,6 +128,7 @@ export function AdminSubscriptions() {
     if (error) { toast.error("Erro: " + error.message); return; }
     setPlans(prev => prev.map(r => r.id === row.id ? { ...r, is_demo: newVal } : r));
     toast.success(newVal ? "Empresa marcada como Demo" : "Modo demo desativado");
+    logAction({ companyId: row.company_id, userId: user?.id, action: newVal ? "Empresa marcada como demo" : "Demo desativado", module: "admin", details: row.company_name });
   };
 
   const toggleSelect = (companyId: string) => {
