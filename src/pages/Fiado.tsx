@@ -73,14 +73,19 @@ export default function Fiado() {
       const newBalance = Math.max(0, clientBalance - payAmount);
       await supabase.from("clients").update({ credit_balance: newBalance }).eq("id", selectedClient.id);
       let remaining = payAmount;
+      const settledSaleRefs = new Set<string>();
       for (const entry of clientEntries) {
         if (remaining <= 0) break;
         const entryAmount = Number(entry.amount);
+        const entryRef = typeof entry.reference === "string" ? entry.reference : null;
+
         if (remaining >= entryAmount) {
           await supabase.from("financial_entries").update({ status: "pago" as any, paid_amount: entryAmount, paid_date: new Date().toISOString().split("T")[0], payment_method: selectedMethod }).eq("id", entry.id);
+          if (entryRef) settledSaleRefs.add(entryRef);
           remaining -= entryAmount;
         } else {
           await supabase.from("financial_entries").update({ paid_amount: remaining, payment_method: selectedMethod }).eq("id", entry.id);
+          if (entryRef) settledSaleRefs.add(entryRef);
           remaining = 0;
         }
       }
@@ -93,29 +98,50 @@ export default function Fiado() {
         .filter((e: any) => e.status === "pendente")
         .map((e: any, i: number) => ({ number: i + 1, dueDate: format(parseISO(e.due_date), "dd/MM/yyyy"), amount: Number(e.amount) }));
 
-      // Fetch sale items linked to this client's credit sales
+      // Fetch sale items linked to the installments settled in this payment
       let receiptItems: { name: string; qty: number; price: number }[] = [];
       try {
-        const { data: creditSales } = await supabase
-          .from("sales")
-          .select("id, items")
-          .eq("company_id", companyId)
-          .eq("client_name", selectedClient.name)
-          .eq("payment_method", "prazo");
-        if (creditSales && creditSales.length > 0) {
-          const saleIds = creditSales.map((s: any) => s.id);
+        const settledSaleIds = Array.from(settledSaleRefs).filter(Boolean);
+
+        if (settledSaleIds.length > 0) {
           const { data: saleItemsData } = await supabase
             .from("sale_items")
-            .select("product_name, quantity, unit_price")
-            .in("sale_id", saleIds);
+            .select("sale_id, product_name, quantity, unit_price")
+            .in("sale_id", settledSaleIds);
+
           if (saleItemsData && saleItemsData.length > 0) {
-            receiptItems = saleItemsData.map((si: any) => ({ name: si.product_name, qty: Number(si.quantity), price: Number(si.unit_price) }));
+            receiptItems = saleItemsData.map((si: any) => ({
+              name: si.product_name,
+              qty: Number(si.quantity),
+              price: Number(si.unit_price),
+            }));
           } else {
             // Fallback: parse JSONB items from sales
-            for (const sale of creditSales) {
-              const items = Array.isArray(sale.items) ? sale.items : typeof sale.items === "string" ? JSON.parse(sale.items) : [];
-              for (const it of items) {
-                receiptItems.push({ name: it.name || it.product_name || "Item", qty: Number(it.quantity || it.qty || 1), price: Number(it.unit_price || it.price || 0) });
+            const { data: salesData } = await supabase
+              .from("sales")
+              .select("id, items")
+              .in("id", settledSaleIds);
+
+            if (salesData && salesData.length > 0) {
+              for (const sale of salesData) {
+                let items: any[] = [];
+                try {
+                  items = Array.isArray(sale.items)
+                    ? sale.items
+                    : typeof sale.items === "string"
+                      ? JSON.parse(sale.items)
+                      : [];
+                } catch {
+                  items = [];
+                }
+
+                for (const it of items) {
+                  receiptItems.push({
+                    name: it.name || it.product_name || "Item",
+                    qty: Number(it.quantity || it.qty || 1),
+                    price: Number(it.unit_price || it.price || 0),
+                  });
+                }
               }
             }
           }
