@@ -19,7 +19,8 @@ export type ActionModule =
   | "usuarios"
   | "filiais"
   | "promocoes"
-  | "orcamentos";
+  | "orcamentos"
+  | "admin";
 
 interface LogActionParams {
   companyId: string;

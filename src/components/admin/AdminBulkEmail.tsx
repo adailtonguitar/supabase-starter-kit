@@ -7,8 +7,11 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Mail, Send, Loader2, Eye } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { logAction } from "@/services/ActionLogger";
+import { useAuth } from "@/hooks/useAuth";
 
 export function AdminBulkEmail() {
+  const { user } = useAuth();
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
   const [sending, setSending] = useState(false);
@@ -55,6 +58,7 @@ export function AdminBulkEmail() {
       }
 
       toast.success(`E-mail enviado para ${data.sent} usuário(s)!${data.failed ? ` (${data.failed} falharam)` : ""}`);
+      logAction({ companyId: "system", userId: user?.id, action: "E-mail em massa enviado", module: "admin", details: `Assunto: ${subject.trim()}, Enviados: ${data.sent}, Falhas: ${data.failed || 0}` });
       setSubject("");
       setBody("");
     } catch (err: any) {

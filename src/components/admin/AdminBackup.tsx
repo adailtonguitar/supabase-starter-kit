@@ -10,10 +10,13 @@ import { Download, Upload, Loader2, Database, CheckCircle, AlertTriangle, FileJs
 import { cn } from "@/lib/utils";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { adminQuery } from "@/lib/admin-query";
+import { logAction } from "@/services/ActionLogger";
+import { useAuth } from "@/hooks/useAuth";
 
 const BACKUP_TABLES = ["products", "sales", "sale_items", "clients", "suppliers", "financial_entries", "stock_movements", "employees", "cash_sessions"];
 
 export function AdminBackup() {
+  const { user } = useAuth();
   const [companies, setCompanies] = useState<{ id: string; name: string }[]>([]);
   const [selectedCompany, setSelectedCompany] = useState("");
   const [comboOpen, setComboOpen] = useState(false);
@@ -67,6 +70,7 @@ export function AdminBackup() {
 
       const totalRows = data?.metadata?.tables?.reduce((sum: number, t: any) => sum + t.rows, 0) || 0;
       toast.success(`Backup exportado! ${totalRows} registros.`);
+      logAction({ companyId: selectedCompany, userId: user?.id, action: "Backup exportado via admin", module: "admin", details: `Empresa: ${companyName}, Registros: ${totalRows}` });
     } catch (err: any) {
       toast.error("Erro ao exportar: " + (err.message || "Erro desconhecido"));
     }
@@ -129,6 +133,7 @@ export function AdminBackup() {
 
       setImportResult(data);
       toast.success("Backup restaurado com sucesso!");
+      logAction({ companyId: selectedCompany, userId: user?.id, action: "Backup restaurado via admin", module: "admin", details: `Empresa: ${selectedCompanyName}, Tabelas: ${backupMeta?.tables?.length || 0}` });
     } catch (err: any) {
       toast.error("Erro na restauração: " + (err.message || "Erro desconhecido"));
     }

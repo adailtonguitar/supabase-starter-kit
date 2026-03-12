@@ -6,8 +6,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { FilePlus2, Loader2, CheckCircle2, Copy, Eye, EyeOff } from "lucide-react";
+import { logAction } from "@/services/ActionLogger";
+import { useAuth } from "@/hooks/useAuth";
 
 export function AdminCreateEmissorClient() {
+  const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ email: string; password: string; companyName: string } | null>(null);
@@ -50,6 +53,7 @@ export function AdminCreateEmissorClient() {
 
       setResult({ email: form.email, password: form.password, companyName: form.company_name });
       toast.success("Cliente emissor criado com sucesso!");
+      logAction({ companyId: "system", userId: user?.id, action: "Cliente emissor criado via admin", module: "admin", details: `Empresa: ${form.company_name}, Email: ${form.email}` });
     } catch (err: any) {
       toast.error(err.message || "Erro ao criar cliente emissor");
     } finally {

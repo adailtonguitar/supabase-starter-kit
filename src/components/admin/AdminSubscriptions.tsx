@@ -10,6 +10,8 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { Save, RefreshCw, Trash2, Loader2 } from "lucide-react";
+import { logAction } from "@/services/ActionLogger";
+import { useAuth } from "@/hooks/useAuth";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -43,6 +45,7 @@ const PLAN_PRESETS: Record<string, Partial<PlanRow>> = {
 };
 
 export function AdminSubscriptions() {
+  const { user } = useAuth();
   const [plans, setPlans] = useState<PlanRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -114,6 +117,7 @@ export function AdminSubscriptions() {
       toast.error("Erro ao salvar: " + error.message);
     } else {
       toast.success(`Plano de ${row.company_name} atualizado.`);
+      logAction({ companyId: row.company_id, userId: user?.id, action: "Plano alterado via admin", module: "admin", details: `Plano: ${row.plan}, Status: ${row.status}, Empresa: ${row.company_name}` });
     }
     setSaving(null);
   };
@@ -124,6 +128,7 @@ export function AdminSubscriptions() {
     if (error) { toast.error("Erro: " + error.message); return; }
     setPlans(prev => prev.map(r => r.id === row.id ? { ...r, is_demo: newVal } : r));
     toast.success(newVal ? "Empresa marcada como Demo" : "Modo demo desativado");
+    logAction({ companyId: row.company_id, userId: user?.id, action: newVal ? "Empresa marcada como demo" : "Demo desativado", module: "admin", details: row.company_name });
   };
 
   const toggleSelect = (companyId: string) => {
@@ -159,7 +164,10 @@ export function AdminSubscriptions() {
       }
     }
 
-    if (successCount > 0) toast.success(`${successCount} empresa(s) excluída(s) com sucesso!`);
+    if (successCount > 0) {
+      toast.success(`${successCount} empresa(s) excluída(s) com sucesso!`);
+      companyIds.forEach(cId => logAction({ companyId: cId, userId: user?.id, action: "Empresa excluída via admin", module: "admin", details: `company_id: ${cId}` }));
+    }
     if (errorCount > 0) toast.error(`${errorCount} empresa(s) falharam na exclusão.`);
 
     setSelected(new Set());

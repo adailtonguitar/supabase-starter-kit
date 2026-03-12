@@ -15,6 +15,8 @@ import {
 } from "lucide-react";
 import { adminQuery } from "@/lib/admin-query";
 import { supabase } from "@/integrations/supabase/client";
+import { logAction } from "@/services/ActionLogger";
+import { useAuth } from "@/hooks/useAuth";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -243,7 +245,8 @@ export function AdminCompanyHealth() {
     loadHealth(company);
   };
 
-  // Remote actions
+  const { user } = useAuth();
+
   const forceCloseCash = async () => {
     if (!health?.openCashSession) return;
     setActionLoading("closeCash");
@@ -254,6 +257,7 @@ export function AdminCompanyHealth() {
         .eq("id", health.openCashSession.id);
       if (error) throw error;
       toast.success("Caixa fechado remotamente!");
+      logAction({ companyId: selectedCompany!.id, userId: user?.id, action: "Caixa fechado remotamente via admin", module: "admin", details: `session_id: ${health.openCashSession.id}` });
       loadHealth(selectedCompany!);
     } catch (e: any) {
       toast.error("Erro: " + e.message);
@@ -271,6 +275,7 @@ export function AdminCompanyHealth() {
         .eq("company_id", selectedCompany.id);
       if (error) throw error;
       toast.success("Erros limpos!");
+      logAction({ companyId: selectedCompany.id, userId: user?.id, action: "Erros do sistema limpos via admin", module: "admin", details: selectedCompany.name });
       loadHealth(selectedCompany);
     } catch (e: any) {
       toast.error("Erro: " + e.message);
@@ -289,6 +294,7 @@ export function AdminCompanyHealth() {
         .eq("id", selectedCompany.id);
       if (error) throw error;
       toast.success(newBlocked ? "Empresa bloqueada" : "Empresa desbloqueada");
+      logAction({ companyId: selectedCompany.id, userId: user?.id, action: newBlocked ? "Empresa bloqueada via admin" : "Empresa desbloqueada via admin", module: "admin", details: selectedCompany.name });
       const updated = { ...selectedCompany, is_blocked: newBlocked };
       setSelectedCompany(updated);
       if (health) setHealth({ ...health, company: updated });

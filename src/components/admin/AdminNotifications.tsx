@@ -10,6 +10,8 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Bell, Send, Loader2, Trash2, Info, AlertTriangle, AlertCircle, Wrench } from "lucide-react";
 import { adminQuery } from "@/lib/admin-query";
+import { logAction } from "@/services/ActionLogger";
+import { useAuth } from "@/hooks/useAuth";
 
 const typeOptions = [
   { value: "info", label: "Informação", icon: Info, color: "text-primary" },
@@ -33,6 +35,7 @@ interface SentNotification {
 }
 
 export function AdminNotifications() {
+  const { user } = useAuth();
   const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
   const [type, setType] = useState("info");
@@ -87,6 +90,7 @@ export function AdminNotifications() {
       });
       if (error) throw error;
       toast.success(companyId === "all" ? "Notificação enviada para todas as empresas!" : "Notificação enviada!");
+      logAction({ companyId: companyId === "all" ? "system" : companyId, userId: user?.id, action: "Notificação admin enviada", module: "admin", details: `Título: ${title.trim()}, Tipo: ${type}, Destino: ${companyId === "all" ? "Todas" : companyId}` });
       setTitle("");
       setMessage("");
       setType("info");
