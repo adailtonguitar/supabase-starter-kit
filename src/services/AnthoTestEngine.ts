@@ -633,16 +633,48 @@ export class AnthoTestEngine {
       }
     }
 
-    // Sales without items
-    const { data: recentSales } = await supabase.from("sales").select("id, total")
-      .eq("company_id", this.companyId).neq("status", "cancelada").order("created_at", { ascending: false }).limit(100);
-    if (recentSales) {
-      for (const sale of recentSales.slice(0, 20)) {
-        const { count } = await supabase.from("sale_items").select("id", { count: "exact", head: true }).eq("sale_id", sale.id);
-        if (!count || count === 0) {
+    // Sales without items (considerando fallback legado no campo JSON items)
+    const formatBRL = (value: unknown) =>
+      Number(value || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+    const { data: recentSales } = await supabase
+      .from("sales")
+      .select("id, total, items")
+      .eq("company_id", this.companyId)
+      .neq("status", "cancelada")
+      .order("created_at", { ascending: false })
+      .limit(100);
+
+    if (recentSales && recentSales.length > 0) {
+      const salesToCheck = recentSales.slice(0, 20);
+      const saleIds = salesToCheck.map((s) => s.id);
+
+      const { data: saleItems } = await supabase
+        .from("sale_items")
+        .select("sale_id")
+        .in("sale_id", saleIds);
+
+      const saleIdsWithItems = new Set((saleItems || []).map((item: any) => item.sale_id));
+
+      for (const sale of salesToCheck as any[]) {
+        if (saleIdsWithItems.has(sale.id)) continue;
+
+        let hasLegacyJsonItems = false;
+        if (sale.items) {
+          try {
+            const parsed = Array.isArray(sale.items) ? sale.items : JSON.parse(sale.items);
+            hasLegacyJsonItems = Array.isArray(parsed) && parsed.length > 0;
+          } catch {
+            hasLegacyJsonItems = false;
+          }
+        }
+
+        if (!hasLegacyJsonItems) {
           issues.push({
-            type: "orphan_record", severity: "warning", module: "Vendas",
-            description: `Venda ${sale.id.slice(0, 8)} sem itens (total: R$${sale.total})`,
+            type: "orphan_record",
+            severity: "warning",
+            module: "Vendas",
+            description: `Venda ${sale.id.slice(0, 8)} sem itens (total: ${formatBRL(sale.total)})`,
           });
         }
       }
