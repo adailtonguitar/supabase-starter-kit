@@ -22,10 +22,12 @@ export function useClients() {
 export function useCreateClient() {
   const qc = useQueryClient();
   const { companyId } = useCompany();
+  const { user } = useAuth();
   return useMutation({
     mutationFn: async (data: any) => {
       const { error } = await supabase.from("clients").insert({ ...data, company_id: companyId });
       if (error) throw error;
+      if (companyId) logAction({ companyId, userId: user?.id, action: "Cliente cadastrado", module: "clientes", details: data.name || null });
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["clients"] });
