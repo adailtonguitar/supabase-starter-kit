@@ -39,12 +39,14 @@ export function useCreateCarrier() {
 export function useUpdateCarrier() {
   const qc = useQueryClient();
   const { companyId } = useCompany();
+  const { user } = useAuth();
   return useMutation({
     mutationFn: async (d: any) => {
       if (!companyId) throw new Error("Empresa não encontrada");
       const { id, created_at, updated_at, company_id, ...rest } = d;
       const { error } = await supabase.from("carriers").update(rest).eq("id", id).eq("company_id", companyId);
       if (error) throw error;
+      logAction({ companyId, userId: user?.id, action: "Transportadora editada", module: "configuracoes", details: rest.name || id });
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["carriers"] }); toast.success("Transportadora atualizada"); },
     onError: (e: Error) => toast.error(`Erro: ${e.message}`),
