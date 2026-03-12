@@ -76,6 +76,7 @@ export function useLoyalty() {
       await supabase.from("loyalty_config").insert(payload);
     }
     toast.success("Configuração salva!");
+    logAction({ companyId, userId: user?.id, action: config?.id ? "Fidelidade configuração editada" : "Fidelidade configuração criada", module: "configuracoes", details: `Ativo: ${form.is_active}` });
     qc.invalidateQueries({ queryKey: ["loyalty-config"] });
   };
 
