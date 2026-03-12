@@ -58,6 +58,7 @@ export function useQuotes({ skipInitialFetch }: { skipInitialFetch?: boolean } =
     });
 
     if (error) throw error;
+    logAction({ companyId, userId: user?.id, action: "Orçamento criado", module: "orcamentos", details: `${data.clientName || "Sem cliente"} - R$ ${data.total}` });
     toast.success("Orçamento salvo!");
     qc.invalidateQueries({ queryKey: ["quotes"] });
   };
