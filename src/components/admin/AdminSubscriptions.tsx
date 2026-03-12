@@ -117,6 +117,7 @@ export function AdminSubscriptions() {
       toast.error("Erro ao salvar: " + error.message);
     } else {
       toast.success(`Plano de ${row.company_name} atualizado.`);
+      logAction({ companyId: row.company_id, userId: user?.id, action: "Plano alterado via admin", module: "admin", details: `Plano: ${row.plan}, Status: ${row.status}, Empresa: ${row.company_name}` });
     }
     setSaving(null);
   };
