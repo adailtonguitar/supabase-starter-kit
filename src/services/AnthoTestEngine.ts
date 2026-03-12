@@ -481,6 +481,7 @@ export class AnthoTestEngine {
       if (error) throw new Error("aviso: Permissões não acessíveis — " + error.message);
       // It's ok if data is null (owner may not be in company_users)
     });
+  }
 
   // ─── LAYER 4: FULL FLOW TESTS ───
   private async runFlowTests() {
