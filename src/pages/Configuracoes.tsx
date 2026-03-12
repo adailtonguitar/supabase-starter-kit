@@ -44,6 +44,7 @@ function WhatsAppSupportSection() {
       if (error) throw error;
       setSavedNumber(number);
       setEditing(false);
+      logAction({ companyId: companyId!, action: "WhatsApp de suporte atualizado", module: "configuracoes", details: number || "removido" });
       toast.success("WhatsApp de suporte salvo!");
     } catch {
       toast.error("Erro ao salvar");
