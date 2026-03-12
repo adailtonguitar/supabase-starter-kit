@@ -131,6 +131,7 @@ export function useUpdateBranch() {
         .update({ name, cnpj: cnpj || null } as any)
         .eq("id", companyId);
       if (error) throw error;
+      logAction({ companyId, action: "Filial editada", module: "filiais", details: name });
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["branches"] });

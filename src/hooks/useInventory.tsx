@@ -196,6 +196,7 @@ export function useFinishInventory() {
         .eq("id", inventoryId)
         .eq("company_id", companyId);
       if (error) throw error;
+      logAction({ companyId, action: "Inventário finalizado", module: "estoque", details: `${(items || []).length} itens ajustados` });
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["inventory_counts"] });

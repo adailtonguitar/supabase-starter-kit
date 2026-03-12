@@ -556,6 +556,9 @@ export function usePDV() {
       clearCart();
       setContingencyMode(false);
 
+      // Log de auditoria da venda
+      logAction({ companyId, userId: userId || undefined, action: "Venda finalizada", module: "vendas", details: `Venda #${saleId.substring(0, 8)} - R$ ${total.toFixed(2)}` });
+
       // ── Fiscal: enfileira na fiscal_queue e tenta processar ──
       let nfceNumber = "";
       let fiscalDocId: string | undefined;

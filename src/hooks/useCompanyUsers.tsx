@@ -57,6 +57,7 @@ export function useCompanyUsers() {
   const removeUser = async (id: string) => {
     if (!companyId) return;
     await supabase.from("company_users").delete().eq("id", id).eq("company_id", companyId);
+    logAction({ companyId, userId: user?.id, action: "Usuário removido", module: "usuarios", details: id });
     toast.success("Usuário removido");
     load();
   };
