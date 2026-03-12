@@ -245,7 +245,8 @@ export function AdminCompanyHealth() {
     loadHealth(company);
   };
 
-  // Remote actions
+  const { user } = useAuth();
+
   const forceCloseCash = async () => {
     if (!health?.openCashSession) return;
     setActionLoading("closeCash");
@@ -256,6 +257,7 @@ export function AdminCompanyHealth() {
         .eq("id", health.openCashSession.id);
       if (error) throw error;
       toast.success("Caixa fechado remotamente!");
+      logAction({ companyId: selectedCompany!.id, userId: user?.id, action: "Caixa fechado remotamente via admin", module: "admin", details: `session_id: ${health.openCashSession.id}` });
       loadHealth(selectedCompany!);
     } catch (e: any) {
       toast.error("Erro: " + e.message);
