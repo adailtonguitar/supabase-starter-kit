@@ -173,7 +173,10 @@ export function CSVImportDialog({ open, onOpenChange }: CSVImportDialogProps) {
     setStep("done");
     setImporting(false);
     queryClient.invalidateQueries({ queryKey: ["products"] });
-    if (imported > 0) toast.success(`${imported} produto(s) importado(s)!`);
+    if (imported > 0) {
+      logAction({ companyId: companyId!, action: "Importação CSV concluída", module: "estoque", details: `${imported} importado(s), ${errors} erro(s)` });
+      toast.success(`${imported} produto(s) importado(s)!`);
+    }
     if (errors > 0) toast.error(`${errors} produto(s) com erro`);
   };
 

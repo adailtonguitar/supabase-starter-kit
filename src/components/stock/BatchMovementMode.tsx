@@ -209,8 +209,10 @@ export function BatchMovementMode({ products, onClose }: Props) {
     setPriceEntries({});
 
     if (errors === 0) {
+      logAction({ companyId: companyId!, userId: user?.id, action: "Atualização de preços em lote", module: "estoque", details: `${success} produto(s)` });
       toast.success(`${success} preço(s) atualizado(s)`);
     } else {
+      logAction({ companyId: companyId!, userId: user?.id, action: "Atualização de preços em lote (parcial)", module: "estoque", details: `${success} ok, ${errors} erro(s)` });
       toast.warning(`${success} atualizados, ${errors} com erro`);
     }
   };

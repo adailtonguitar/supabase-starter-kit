@@ -158,6 +158,7 @@ export function PDVReceiveCreditDialog({ open, onClose }: PDVReceiveCreditDialog
 
       qc.invalidateQueries({ queryKey: ["clients"] });
       qc.invalidateQueries({ queryKey: ["financial_entries"] });
+      logAction({ companyId: companyId!, userId: user?.id, action: "Recebimento de crédito fiado", module: "financeiro", details: `Cliente: ${selectedClient?.name} - ${formatCurrency(payAmount)}` });
       toast.success(`Recebimento de ${formatCurrency(payAmount)} registrado!`);
       setCustomAmount(0);
       setReceiptData({
