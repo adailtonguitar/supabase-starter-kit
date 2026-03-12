@@ -41,6 +41,7 @@ export function useCompanyUsers() {
   const updateRole = async (id: string, role: string) => {
     if (!companyId) return;
     await supabase.from("company_users").update({ role }).eq("id", id).eq("company_id", companyId);
+    logAction({ companyId, userId: user?.id, action: "Perfil de usuário alterado", module: "usuarios", details: `Novo perfil: ${role}` });
     toast.success("Perfil atualizado");
     load();
   };
