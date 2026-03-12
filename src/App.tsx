@@ -43,6 +43,7 @@ const FiscalConfig = lazyRetry(() => import("./pages/FiscalConfig"));
 const FiscalConfigEdit = lazyRetry(() => import("./pages/FiscalConfigEdit"));
 const AssinadorDownload = lazyRetry(() => import("./pages/AssinadorDownload"));
 const AuditLogs = lazyRetry(() => import("./pages/AuditLogs"));
+const AuditoriaGeral = lazyRetry(() => import("./pages/AuditoriaGeral"));
 const CompararXML = lazyRetry(() => import("./pages/CompararXML"));
 const Financeiro = lazyRetry(() => import("./pages/Financeiro"));
 const Producao = lazyRetry(() => import("./pages/Producao"));
