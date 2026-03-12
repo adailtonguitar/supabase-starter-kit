@@ -160,7 +160,7 @@ const navItems: NavEntry[] = [
       { icon: FilePen, label: "Emitir NF-e", path: "/fiscal/nfe" },
       { icon: FileSearch, label: "Consulta DFe", path: "/consulta-dfe" },
       { icon: Shield, label: "Config. Fiscal", path: "/fiscal/config" },
-      { icon: Scan, label: "Auditoria", path: "/fiscal/auditoria" },
+      { icon: Scan, label: "Auditoria Fiscal", path: "/fiscal/auditoria" },
       { icon: ArrowRightLeft, label: "Comparar XML", path: "/fiscal/comparar-xml" },
       { icon: FileDown, label: "Assinador Digital", path: "/fiscal/assinador" },
     ],
@@ -172,6 +172,7 @@ const navItems: NavEntry[] = [
       { icon: Settings, label: "Configurações", path: "/configuracoes" },
       { icon: Monitor, label: "Terminais", path: "/terminais" },
       { icon: Network, label: "Filiais", path: "/filiais" },
+      { icon: Scan, label: "Logs do Sistema", path: "/auditoria" },
     ],
   },
 ];
