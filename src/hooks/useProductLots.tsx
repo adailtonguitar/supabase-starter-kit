@@ -71,6 +71,7 @@ export function useExpiringLots(daysAhead = 30) {
 export function useCreateProductLot() {
   const qc = useQueryClient();
   const { companyId } = useCompany();
+  const { user } = useAuth();
 
   return useMutation({
     mutationFn: async (lot: {
@@ -90,6 +91,7 @@ export function useCreateProductLot() {
         .select()
         .single();
       if (error) throw error;
+      logAction({ companyId, userId: user?.id, action: "Lote cadastrado", module: "estoque", details: `Lote ${lot.lot_number} (produto ${lot.product_id})` });
       return data;
     },
     onSuccess: () => {
