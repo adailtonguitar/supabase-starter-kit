@@ -87,6 +87,7 @@ const TABS: { id: TabId; label: string; icon: typeof FileText }[] = [
 
 // ─── Mini Product CRUD ───────────────────────────────────────────────
 function EmissorProductsTab({ companyId }: { companyId: string }) {
+  const { user } = useAuth();
   const [products, setProducts] = useState<SimpleProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState({
