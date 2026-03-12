@@ -7,6 +7,7 @@ import { recordPriceChanges } from "@/lib/price-history";
 import { useSuppliers } from "@/hooks/useSuppliers";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { logAction } from "@/services/ActionLogger";
 import { Badge } from "@/components/ui/badge";
 
 interface NFeImportDialogProps {
