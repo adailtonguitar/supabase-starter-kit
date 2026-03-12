@@ -45,6 +45,7 @@ const PLAN_PRESETS: Record<string, Partial<PlanRow>> = {
 };
 
 export function AdminSubscriptions() {
+  const { user } = useAuth();
   const [plans, setPlans] = useState<PlanRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
