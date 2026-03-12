@@ -22,12 +22,14 @@ export function useCarriers() {
 export function useCreateCarrier() {
   const qc = useQueryClient();
   const { companyId } = useCompany();
+  const { user } = useAuth();
   return useMutation({
     mutationFn: async (d: any) => {
       if (!companyId) throw new Error("Empresa não encontrada");
       const { id, created_at, updated_at, ...rest } = d;
       const { error } = await supabase.from("carriers").insert({ ...rest, company_id: companyId });
       if (error) throw error;
+      logAction({ companyId, userId: user?.id, action: "Transportadora criada", module: "configuracoes", details: rest.name });
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["carriers"] }); toast.success("Transportadora criada"); },
     onError: (e: Error) => toast.error(`Erro: ${e.message}`),
