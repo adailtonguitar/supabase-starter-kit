@@ -15,6 +15,7 @@ export interface CompanyUser {
 
 export function useCompanyUsers() {
   const { companyId } = useCompany();
+  const { user } = useAuth();
   const [users, setUsers] = useState<CompanyUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
