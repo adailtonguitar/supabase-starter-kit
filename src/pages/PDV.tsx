@@ -918,16 +918,16 @@ export default function PDV() {
       setFiadoReceipt({
         clientName: client.name,
         cpf: client.cpf,
-        clientDoc: client.cpf,
+        total: savedTotal,
+        items: savedItems.map(i => ({ name: i.name, qty: i.quantity, price: i.price })),
         companyName: companyName || undefined,
-        storeName: companyName || undefined,
-        storeSlogan: slogan || undefined,
         companyCnpj: cnpj || undefined,
         companyPhone: phone || undefined,
-        amount: savedTotal,
-        previousBalance: (client as any).credit_balance || 0,
-        newBalance: ((client as any).credit_balance || 0) + savedTotal,
-        saleItems: savedItems.map(i => ({ name: i.name, qty: i.quantity, price: i.price })),
+        storeSlogan: slogan || undefined,
+        mode: isSignal ? "sinal" : mode,
+        installments,
+        saleNumber,
+        downPayment: isSignal ? downPaymentAmount : undefined,
       });
       const modeLabel = isSignal ? `com sinal de ${formatCurrency(downPaymentAmount)}` : mode === "fiado" ? "fiado" : `parcelado ${installments}x`;
       toast.success(`Venda ${modeLabel} registrada para ${client.name}`, { duration: 1500 });
