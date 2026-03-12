@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useCompany } from "@/hooks/useCompany";
 import { toast } from "sonner";
+import { logAction } from "@/services/ActionLogger";
 import { ChefHat, Plus, Play, Trash2, Package, Scale, DollarSign, ClipboardList, CheckCircle, Clock, AlertTriangle, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -62,7 +63,7 @@ export default function Producao() {
       if (ingErr) throw ingErr;
       return recipe;
     },
-    onSuccess: () => { toast.success("Receita criada com sucesso!"); qc.invalidateQueries({ queryKey: ["recipes"] }); resetRecipeForm(); setShowRecipeDialog(false); },
+    onSuccess: (data: any) => { logAction({ companyId: companyId!, userId: user?.id, action: "Receita criada", module: "estoque", details: recipeName.trim() }); toast.success("Receita criada com sucesso!"); qc.invalidateQueries({ queryKey: ["recipes"] }); resetRecipeForm(); setShowRecipeDialog(false); },
     onError: (e: any) => toast.error(e.message),
   });
 
@@ -79,11 +80,11 @@ export default function Producao() {
       if (selectedRecipe.output_product_id) { const outProd = products.find((p) => p.id === selectedRecipe.output_product_id); if (outProd) { await supabase.from("products").update({ stock_quantity: outProd.stock_quantity + selectedRecipe.output_quantity * multiplier }).eq("id", outProd.id); } }
       return order;
     },
-    onSuccess: () => { toast.success("Produção realizada! Estoque atualizado."); qc.invalidateQueries({ queryKey: ["production-orders"] }); qc.invalidateQueries({ queryKey: ["products-production"] }); setShowProduceDialog(false); setSelectedRecipe(null); setMultiplier(1); setProduceNotes(""); },
+    onSuccess: () => { logAction({ companyId: companyId!, userId: user?.id, action: "Ordem de produção concluída", module: "estoque", details: `${selectedRecipe?.name} x${multiplier}` }); toast.success("Produção realizada! Estoque atualizado."); qc.invalidateQueries({ queryKey: ["production-orders"] }); qc.invalidateQueries({ queryKey: ["products-production"] }); setShowProduceDialog(false); setSelectedRecipe(null); setMultiplier(1); setProduceNotes(""); },
     onError: (e: any) => toast.error(e.message),
   });
 
-  const deleteRecipeMut = useMutation({ mutationFn: async (id: string) => { await supabase.from("recipes").update({ is_active: false }).eq("id", id); }, onSuccess: () => { toast.success("Receita removida"); qc.invalidateQueries({ queryKey: ["recipes"] }); } });
+  const deleteRecipeMut = useMutation({ mutationFn: async (id: string) => { await supabase.from("recipes").update({ is_active: false }).eq("id", id); }, onSuccess: () => { logAction({ companyId: companyId!, userId: user?.id, action: "Receita desativada", module: "estoque" }); toast.success("Receita removida"); qc.invalidateQueries({ queryKey: ["recipes"] }); } });
 
   function resetRecipeForm() { setRecipeName(""); setRecipeDesc(""); setOutputProductId(""); setOutputQty(1); setOutputUnit("kg"); setIngredients([]); setIngProductId(""); setIngQty(1); }
 

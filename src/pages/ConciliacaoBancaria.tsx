@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format, subMonths } from "date-fns";
 import { toast } from "sonner";
+import { logAction } from "@/services/ActionLogger";
 import { Upload, CheckCircle2, XCircle, Link2, Unlink, Search, FileUp, ArrowRightLeft, DollarSign, AlertCircle } from "lucide-react";
 
 export default function ConciliacaoBancaria() {
@@ -96,7 +97,7 @@ export default function ConciliacaoBancaria() {
       const { error } = await supabase.from("bank_transactions").update({ reconciled: true, financial_entry_id: entryId }).eq("id", txId);
       if (error) throw error;
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["bank_transactions"] }); toast.success("Transação conciliada!"); setMatchOpen(false); setSelectedTx(null); },
+    onSuccess: () => { logAction({ companyId: companyId!, userId: user?.id, action: "Transação bancária conciliada", module: "financeiro" }); qc.invalidateQueries({ queryKey: ["bank_transactions"] }); toast.success("Transação conciliada!"); setMatchOpen(false); setSelectedTx(null); },
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -105,7 +106,7 @@ export default function ConciliacaoBancaria() {
       const { error } = await supabase.from("bank_transactions").update({ reconciled: false, financial_entry_id: null }).eq("id", txId);
       if (error) throw error;
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["bank_transactions"] }); toast.success("Conciliação desfeita"); },
+    onSuccess: () => { logAction({ companyId: companyId!, userId: user?.id, action: "Conciliação bancária desfeita", module: "financeiro" }); qc.invalidateQueries({ queryKey: ["bank_transactions"] }); toast.success("Conciliação desfeita"); },
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -120,6 +121,7 @@ export default function ConciliacaoBancaria() {
       }
     }
     qc.invalidateQueries({ queryKey: ["bank_transactions"] });
+    logAction({ companyId: companyId!, userId: user?.id, action: "Conciliação automática executada", module: "financeiro", details: `${matched} transações` });
     toast.success(`${matched} transações conciliadas automaticamente`);
   };
 

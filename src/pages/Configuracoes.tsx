@@ -6,6 +6,7 @@ import { ScaleConfigSection } from "@/components/settings/ScaleConfigSection";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { logAction } from "@/services/ActionLogger";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useSubscription, PLANS } from "@/hooks/useSubscription";
 import { useAdminRole } from "@/hooks/useAdminRole";
@@ -43,6 +44,7 @@ function WhatsAppSupportSection() {
       if (error) throw error;
       setSavedNumber(number);
       setEditing(false);
+      logAction({ companyId: companyId!, action: "WhatsApp de suporte atualizado", module: "configuracoes", details: number || "removido" });
       toast.success("WhatsApp de suporte salvo!");
     } catch {
       toast.error("Erro ao salvar");
@@ -162,6 +164,7 @@ function DiscountLimitsSection() {
       }
       setLimits((prev) => prev.map((l) => edited[l.id] !== undefined ? { ...l, max_discount_percent: edited[l.id] } : l));
       setEdited({});
+      logAction({ companyId: companyId!, action: "Limites de desconto atualizados", module: "configuracoes" });
       toast.success("Limites de desconto salvos!");
     } catch {
       toast.error("Erro ao salvar limites");

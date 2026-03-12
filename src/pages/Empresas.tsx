@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { logAction } from "@/services/ActionLogger";
 
 interface CompanyForm {
   name: string;
@@ -126,6 +127,7 @@ const Empresas = () => {
         whatsapp_support: form.whatsapp_support,
       } as any).eq("id", companyId);
       if (error) throw error;
+      logAction({ companyId: companyId!, userId: user?.id, action: "Dados da empresa atualizados", module: "configuracoes", details: form.name });
       toast.success("Empresa atualizada com sucesso!");
       setTimeout(() => navigate("/dashboard"), 300);
     } catch (err: any) {
@@ -149,6 +151,7 @@ const Empresas = () => {
       const { data: urlData } = supabase.storage.from("company-assets").getPublicUrl(path);
       const url = urlData.publicUrl + "?t=" + Date.now();
       await supabase.from("companies").update({ logo_url: url } as any).eq("id", companyId);
+      logAction({ companyId: companyId!, userId: user?.id, action: "Logo da empresa atualizado", module: "configuracoes" });
       setLogoUrl(url);
       toast.success("Logo atualizado!");
     } catch (err: any) {
