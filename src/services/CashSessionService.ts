@@ -82,6 +82,7 @@ export class CashSessionService {
       const { data, error } = await supabase.from("cash_sessions").update({ status: "fechado", closed_by: params.userId, closed_at: new Date().toISOString(), closing_balance: totalCounted, counted_dinheiro: params.countedDinheiro, counted_debito: params.countedDebito, counted_credito: params.countedCredito, counted_pix: params.countedPix, difference: totalCounted - totalExpected, notes: params.notes }).eq("id", params.sessionId).eq("company_id", params.companyId).select().single();
       if (error) { if (isNetworkError(error)) return closeOffline(); throw new Error(`Erro ao fechar caixa: ${error.message}`); }
       await supabase.from("cash_movements").insert({ company_id: params.companyId, session_id: params.sessionId, type: "fechamento", amount: totalCounted, performed_by: params.userId, description: `Fechamento - Diferença: ${(totalCounted - totalExpected).toFixed(2)}` });
+      logAction({ companyId: params.companyId, userId: params.userId, action: "Caixa fechado", module: "caixa", details: `Contagem: R$ ${totalCounted.toFixed(2)} | Diferença: R$ ${(totalCounted - totalExpected).toFixed(2)}` });
       saveOfflineSession(null);
       return data;
     } catch (err: any) { if (isNetworkError(err)) return closeOffline(); throw err; }
