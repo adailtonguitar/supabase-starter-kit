@@ -163,6 +163,7 @@ export function useCreateStockTransfer() {
         }
       }
 
+      logAction({ companyId: input.from_company_id, userId: user.id, action: "Transferência de estoque criada", module: "estoque", details: `Para ${destName} - ${input.items.length} item(ns)` });
       return transfer;
     },
     onSuccess: () => {
