@@ -73,14 +73,19 @@ export default function Fiado() {
       const newBalance = Math.max(0, clientBalance - payAmount);
       await supabase.from("clients").update({ credit_balance: newBalance }).eq("id", selectedClient.id);
       let remaining = payAmount;
+      const settledSaleRefs = new Set<string>();
       for (const entry of clientEntries) {
         if (remaining <= 0) break;
         const entryAmount = Number(entry.amount);
+        const entryRef = typeof entry.reference === "string" ? entry.reference : null;
+
         if (remaining >= entryAmount) {
           await supabase.from("financial_entries").update({ status: "pago" as any, paid_amount: entryAmount, paid_date: new Date().toISOString().split("T")[0], payment_method: selectedMethod }).eq("id", entry.id);
+          if (entryRef) settledSaleRefs.add(entryRef);
           remaining -= entryAmount;
         } else {
           await supabase.from("financial_entries").update({ paid_amount: remaining, payment_method: selectedMethod }).eq("id", entry.id);
+          if (entryRef) settledSaleRefs.add(entryRef);
           remaining = 0;
         }
       }
