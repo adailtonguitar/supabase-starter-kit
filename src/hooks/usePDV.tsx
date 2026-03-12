@@ -8,6 +8,7 @@ import type { PaymentResult } from "@/services/types";
 import { isScaleBarcode, parseScaleBarcode } from "@/lib/scale-barcode";
 import { calculateCartPromos, type PromoMatch } from "@/lib/promo-engine";
 import { cacheSet, cacheGet } from "@/lib/offline-cache";
+import { logAction } from "@/services/ActionLogger";
 
 export interface PDVProduct {
   id: string;
@@ -554,6 +555,9 @@ export function usePDV() {
       // Limpar carrinho APÓS sucesso da RPC
       clearCart();
       setContingencyMode(false);
+
+      // Log de auditoria da venda
+      logAction({ companyId, userId: userId || undefined, action: "Venda finalizada", module: "vendas", details: `Venda #${saleId.substring(0, 8)} - R$ ${total.toFixed(2)}` });
 
       // ── Fiscal: enfileira na fiscal_queue e tenta processar ──
       let nfceNumber = "";

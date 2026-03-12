@@ -2,6 +2,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
 import { toast } from "sonner";
+import { logAction } from "@/services/ActionLogger";
+import { useAuth } from "@/hooks/useAuth";
 
 export function useReorderSuggestions() {
   const { companyId } = useCompany();
@@ -40,6 +42,7 @@ export function usePurchaseOrders() {
 
 export function useCreatePurchaseOrder() {
   const { companyId } = useCompany();
+  const { user } = useAuth();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (input: { supplier_id?: string; created_by: string; items: { product_id: string; quantity: number; unit_cost: number }[] }) => {
@@ -52,6 +55,7 @@ export function useCreatePurchaseOrder() {
       if (error) throw error;
       const items = input.items.map((i) => ({ order_id: order.id, product_id: i.product_id, quantity: i.quantity, unit_cost: i.unit_cost, total: i.quantity * i.unit_cost, company_id: companyId }));
       await supabase.from("purchase_order_items").insert(items);
+      logAction({ companyId, userId: user?.id, action: "Pedido de compra criado", module: "estoque", details: `${input.items.length} itens` });
       return order;
     },
     onSuccess: () => {
@@ -65,12 +69,14 @@ export function useCreatePurchaseOrder() {
 export function useUpdatePurchaseOrderStatus() {
   const qc = useQueryClient();
   const { companyId } = useCompany();
+  const { user } = useAuth();
   return useMutation({
     mutationFn: async (input: { id: string; status: string; [key: string]: any }) => {
       if (!companyId) throw new Error("Empresa não encontrada");
       const { id, status, ...rest } = input;
       const { error } = await supabase.from("purchase_orders").update({ status, ...rest }).eq("id", id).eq("company_id", companyId);
       if (error) throw error;
+      logAction({ companyId, userId: user?.id, action: `Pedido de compra ${status}`, module: "estoque", details: id.substring(0, 8) });
     },
     onSuccess: () => {
       toast.success("Status atualizado!");

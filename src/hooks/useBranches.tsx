@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
 import { toast } from "sonner";
+import { logAction } from "@/services/ActionLogger";
 
 export interface Branch {
   id: string;
@@ -108,6 +109,7 @@ export function useCreateBranch() {
         console.warn("[createBranch] link_user_to_company warning:", linkErr.message);
       }
 
+      logAction({ companyId: parentId, userId, action: "Filial criada", module: "filiais", details: name });
       return { id: company.id };
     },
     onSuccess: () => {
@@ -129,6 +131,7 @@ export function useUpdateBranch() {
         .update({ name, cnpj: cnpj || null } as any)
         .eq("id", companyId);
       if (error) throw error;
+      logAction({ companyId, action: "Filial editada", module: "filiais", details: name });
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["branches"] });

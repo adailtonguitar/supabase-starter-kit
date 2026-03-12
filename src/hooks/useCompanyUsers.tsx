@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
+import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import { logAction } from "@/services/ActionLogger";
 
 export interface CompanyUser {
   id: string;
@@ -13,6 +15,7 @@ export interface CompanyUser {
 
 export function useCompanyUsers() {
   const { companyId } = useCompany();
+  const { user } = useAuth();
   const [users, setUsers] = useState<CompanyUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -38,6 +41,7 @@ export function useCompanyUsers() {
   const updateRole = async (id: string, role: string) => {
     if (!companyId) return;
     await supabase.from("company_users").update({ role }).eq("id", id).eq("company_id", companyId);
+    logAction({ companyId, userId: user?.id, action: "Perfil de usuário alterado", module: "usuarios", details: `Novo perfil: ${role}` });
     toast.success("Perfil atualizado");
     load();
   };
@@ -45,6 +49,7 @@ export function useCompanyUsers() {
   const toggleActive = async (id: string, currentActive: boolean) => {
     if (!companyId) return;
     await supabase.from("company_users").update({ is_active: !currentActive }).eq("id", id).eq("company_id", companyId);
+    logAction({ companyId, userId: user?.id, action: !currentActive ? "Usuário ativado" : "Usuário inativado", module: "usuarios", details: id });
     toast.success(!currentActive ? "Usuário ativado" : "Usuário inativado");
     load();
   };
@@ -52,6 +57,7 @@ export function useCompanyUsers() {
   const removeUser = async (id: string) => {
     if (!companyId) return;
     await supabase.from("company_users").delete().eq("id", id).eq("company_id", companyId);
+    logAction({ companyId, userId: user?.id, action: "Usuário removido", module: "usuarios", details: id });
     toast.success("Usuário removido");
     load();
   };
