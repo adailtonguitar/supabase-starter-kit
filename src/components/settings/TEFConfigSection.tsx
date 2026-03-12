@@ -123,6 +123,7 @@ export function TEFConfigSection() {
       }
       setSaved({ ...form });
       setEditing(false);
+      logAction({ companyId: companyId!, action: "Configuração TEF salva", module: "configuracoes", details: `Provedor: ${form.provider}, Ambiente: ${form.environment}` });
       toast.success("Configuração TEF salva!");
     } catch (err: any) {
       toast.error(err?.message || "Erro ao salvar");

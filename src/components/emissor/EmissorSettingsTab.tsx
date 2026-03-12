@@ -307,6 +307,7 @@ export default function EmissorSettingsTab({ companyId }: { companyId: string })
 
       const hasCert = certType === "A1" ? !!certFile : !!a3SelectedThumbprint;
       setFiscalConfig(prev => ({ ...prev, environment, hasCert, certType, certPath: certFile }));
+      logAction({ companyId, action: "Configuração fiscal emissor salva", module: "fiscal", details: `Ambiente: ${environment}, Cert: ${certType}` });
       toast.success("Configuração fiscal salva!");
     } catch (err: any) {
       toast.error(err.message || "Erro ao salvar configuração fiscal");
