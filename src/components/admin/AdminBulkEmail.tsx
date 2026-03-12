@@ -11,6 +11,7 @@ import { logAction } from "@/services/ActionLogger";
 import { useAuth } from "@/hooks/useAuth";
 
 export function AdminBulkEmail() {
+  const { user } = useAuth();
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
   const [sending, setSending] = useState(false);
