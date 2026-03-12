@@ -16,6 +16,7 @@ import { useAuth } from "@/hooks/useAuth";
 const BACKUP_TABLES = ["products", "sales", "sale_items", "clients", "suppliers", "financial_entries", "stock_movements", "employees", "cash_sessions"];
 
 export function AdminBackup() {
+  const { user } = useAuth();
   const [companies, setCompanies] = useState<{ id: string; name: string }[]>([]);
   const [selectedCompany, setSelectedCompany] = useState("");
   const [comboOpen, setComboOpen] = useState(false);
