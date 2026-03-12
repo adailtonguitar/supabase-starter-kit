@@ -66,6 +66,7 @@ export function useQuotes({ skipInitialFetch }: { skipInitialFetch?: boolean } =
   const updateQuoteStatus = async (id: string, status: string) => {
     if (!companyId) return;
     await supabase.from("quotes").update({ status }).eq("id", id).eq("company_id", companyId);
+    logAction({ companyId, userId: user?.id, action: `Orçamento ${status}`, module: "orcamentos", details: id });
     qc.invalidateQueries({ queryKey: ["quotes"] });
   };
 
