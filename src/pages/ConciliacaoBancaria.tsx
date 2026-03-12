@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format, subMonths } from "date-fns";
 import { toast } from "sonner";
+import { logAction } from "@/services/ActionLogger";
 import { Upload, CheckCircle2, XCircle, Link2, Unlink, Search, FileUp, ArrowRightLeft, DollarSign, AlertCircle } from "lucide-react";
 
 export default function ConciliacaoBancaria() {
