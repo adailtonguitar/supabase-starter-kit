@@ -55,7 +55,10 @@ export function useUpdateSupplier() {
       const { error } = await supabase.from("suppliers").update(payload).eq("id", id).eq("company_id", companyId);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["suppliers"] }),
+    onSuccess: (_data, variables) => {
+      qc.invalidateQueries({ queryKey: ["suppliers"] });
+      if (companyId) logAction({ companyId, action: "Fornecedor atualizado", module: "fornecedores", details: (variables as any).name || (variables as any).id });
+    },
   });
 }
 
