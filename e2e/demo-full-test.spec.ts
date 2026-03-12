@@ -5,6 +5,9 @@ const DEMO_PASSWORD = process.env.DEMO_PASSWORD || '';
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || '';
 const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY || '';
 
+// Skip entire suite if no Supabase credentials available
+const canRunDemo = !!(SUPABASE_URL && SUPABASE_ANON_KEY) || !!(DEMO_EMAIL && DEMO_PASSWORD);
+
 /**
  * Helper: Create a demo account via Edge Function and return credentials.
  * If DEMO_EMAIL/DEMO_PASSWORD env vars are set, use those instead.
