@@ -47,6 +47,7 @@ export function usePromotions() {
     if (!companyId) return;
     const { error } = await supabase.from("promotions").insert({ ...input, company_id: companyId });
     if (error) { toast.error(error.message); throw error; }
+    logAction({ companyId, userId: user?.id, action: "Promoção criada", module: "promocoes", details: input.name });
     toast.success("Promoção criada!");
     qc.invalidateQueries({ queryKey: ["promotions"] });
   };
