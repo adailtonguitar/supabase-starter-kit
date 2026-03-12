@@ -1,6 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "./useCompany";
+import { useAuth } from "./useAuth";
+import { logAction } from "@/services/ActionLogger";
 import { toast } from "sonner";
 
 export interface ProductLot {
@@ -69,6 +71,7 @@ export function useExpiringLots(daysAhead = 30) {
 export function useCreateProductLot() {
   const qc = useQueryClient();
   const { companyId } = useCompany();
+  const { user } = useAuth();
 
   return useMutation({
     mutationFn: async (lot: {
@@ -88,6 +91,7 @@ export function useCreateProductLot() {
         .select()
         .single();
       if (error) throw error;
+      logAction({ companyId, userId: user?.id, action: "Lote cadastrado", module: "estoque", details: `Lote ${lot.lot_number} (produto ${lot.product_id})` });
       return data;
     },
     onSuccess: () => {
@@ -102,12 +106,14 @@ export function useCreateProductLot() {
 export function useDeleteProductLot() {
   const qc = useQueryClient();
   const { companyId } = useCompany();
+  const { user } = useAuth();
 
   return useMutation({
     mutationFn: async (id: string) => {
       if (!companyId) throw new Error("Empresa não encontrada");
       const { error } = await supabase.from("product_lots" as any).delete().eq("id", id).eq("company_id", companyId);
       if (error) throw error;
+      logAction({ companyId, userId: user?.id, action: "Lote excluído", module: "estoque", details: id });
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["product_lots"] });

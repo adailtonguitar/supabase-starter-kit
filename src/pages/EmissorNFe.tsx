@@ -12,6 +12,7 @@ import { useCompany } from "@/hooks/useCompany";
 import { formatCurrency } from "@/lib/utils";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
+import { logAction } from "@/services/ActionLogger";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -86,6 +87,7 @@ const TABS: { id: TabId; label: string; icon: typeof FileText }[] = [
 
 // ─── Mini Product CRUD ───────────────────────────────────────────────
 function EmissorProductsTab({ companyId }: { companyId: string }) {
+  const { user } = useAuth();
   const [products, setProducts] = useState<SimpleProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState({
@@ -191,10 +193,12 @@ function EmissorProductsTab({ companyId }: { companyId: string }) {
     if (editingId) {
       const { error } = await supabase.from("products").update(payload).eq("id", editingId);
       if (error) { toast.error("Erro ao atualizar"); return; }
+      logAction({ companyId: companyId!, userId: user?.id, action: "Produto emissor atualizado", module: "fiscal", details: `${form.name.trim()} (${editingId})` });
       toast.success("Produto atualizado");
     } else {
       const { error } = await supabase.from("products").insert(payload);
       if (error) { toast.error("Erro ao cadastrar"); return; }
+      logAction({ companyId: companyId!, userId: user?.id, action: "Produto emissor cadastrado", module: "fiscal", details: form.name.trim() });
       toast.success("Produto cadastrado");
     }
     setForm(emptyForm);
@@ -205,6 +209,7 @@ function EmissorProductsTab({ companyId }: { companyId: string }) {
   const handleDelete = async (id: string) => {
     if (!confirm("Excluir produto?")) return;
     await supabase.from("products").delete().eq("id", id);
+    logAction({ companyId: companyId!, userId: user?.id, action: "Produto emissor excluído", module: "fiscal", details: id });
     toast.success("Produto excluído");
     fetch();
   };
@@ -386,6 +391,7 @@ function EmissorProductsTab({ companyId }: { companyId: string }) {
 
 // ─── Mini Recipients CRUD ────────────────────────────────────────────
 function EmissorRecipientsTab({ companyId }: { companyId: string }) {
+  const { user } = useAuth();
   const [recipients, setRecipients] = useState<SimpleRecipient[]>([]);
   const [loading, setLoading] = useState(true);
   const emptyRecipientForm = { name: "", doc: "", ie: "", email: "", phone: "", address_street: "", address_number: "", address_complement: "", address_neighborhood: "", address_city: "", address_state: "", address_zip: "" };
@@ -428,10 +434,12 @@ function EmissorRecipientsTab({ companyId }: { companyId: string }) {
     if (editingId) {
       const { error } = await supabase.from("clients").update(payload).eq("id", editingId);
       if (error) { toast.error("Erro ao atualizar"); return; }
+      logAction({ companyId: companyId!, userId: user?.id, action: "Destinatário emissor atualizado", module: "fiscal", details: `${form.name.trim()} (${editingId})` });
       toast.success("Destinatário atualizado");
     } else {
       const { error } = await supabase.from("clients").insert(payload);
       if (error) { toast.error("Erro ao cadastrar"); return; }
+      logAction({ companyId: companyId!, userId: user?.id, action: "Destinatário emissor cadastrado", module: "fiscal", details: form.name.trim() });
       toast.success("Destinatário cadastrado");
     }
     setForm(emptyRecipientForm);
@@ -442,6 +450,7 @@ function EmissorRecipientsTab({ companyId }: { companyId: string }) {
   const handleDelete = async (id: string) => {
     if (!confirm("Excluir destinatário?")) return;
     await supabase.from("clients").delete().eq("id", id);
+    logAction({ companyId: companyId!, userId: user?.id, action: "Destinatário emissor excluído", module: "fiscal", details: id });
     toast.success("Destinatário excluído");
     fetchRecipients();
   };
