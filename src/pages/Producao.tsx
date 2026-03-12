@@ -63,7 +63,7 @@ export default function Producao() {
       if (ingErr) throw ingErr;
       return recipe;
     },
-    onSuccess: () => { toast.success("Receita criada com sucesso!"); qc.invalidateQueries({ queryKey: ["recipes"] }); resetRecipeForm(); setShowRecipeDialog(false); },
+    onSuccess: (data: any) => { logAction({ companyId: companyId!, userId: user?.id, action: "Receita criada", module: "estoque", details: recipeName.trim() }); toast.success("Receita criada com sucesso!"); qc.invalidateQueries({ queryKey: ["recipes"] }); resetRecipeForm(); setShowRecipeDialog(false); },
     onError: (e: any) => toast.error(e.message),
   });
 
