@@ -7,6 +7,7 @@ import { recordPriceChanges } from "@/lib/price-history";
 import { useSuppliers } from "@/hooks/useSuppliers";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { logAction } from "@/services/ActionLogger";
 import { Badge } from "@/components/ui/badge";
 
 interface NFeImportDialogProps {
@@ -460,7 +461,10 @@ export function NFeImportDialog({ open, onOpenChange, xmlContent }: NFeImportDia
     setImporting(false);
     queryClient.invalidateQueries({ queryKey: ["products"] });
     const total = imported + updated;
-    if (total > 0) toast.success(`${imported} novo(s), ${updated} atualizado(s)!`);
+    if (total > 0) {
+      logAction({ companyId: companyId!, userId: user?.id, action: "Importação NF-e concluída", module: "estoque", details: `${imported} novo(s), ${updated} atualizado(s), ${errors} erro(s) - NF ${nfeInfo?.number || ""}` });
+      toast.success(`${imported} novo(s), ${updated} atualizado(s)!`);
+    }
     if (errors > 0) toast.error(`${errors} produto(s) com erro`);
   };
 

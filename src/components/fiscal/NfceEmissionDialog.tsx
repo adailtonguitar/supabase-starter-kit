@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
 import { formatCurrency } from "@/lib/utils";
 import { toast } from "sonner";
+import { logAction } from "@/services/ActionLogger";
 import { validateCstCsosn, getSuggestedCodes, type TaxRegime, type CstCsosnCode } from "@/lib/cst-csosn-validator";
 import { parseSefazRejection, type SefazRejection } from "@/lib/sefaz-rejection-parser";
 import { runPreflightValidation, type PreflightIssue } from "@/lib/fiscal-preflight-validator";
@@ -390,6 +391,7 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
         } as any).eq("id", nfceConfig.id);
 
         setStep("success");
+        logAction({ companyId: companyId!, action: "NFC-e emitida (simulação)", module: "fiscal", details: `Venda ${sale?.id?.slice(0, 8)} - ${formatCurrency(sale?.total || 0)}` });
         toast.success("✅ Simulação concluída! (modo teste — sem envio à SEFAZ)", {
           description: `Chave fictícia: ${fakeChave.substring(0, 20)}...`,
           duration: 6000,

@@ -2,8 +2,10 @@ import { useState, useRef } from "react";
 import { Upload, FileText, AlertCircle, CheckCircle2, Loader2, Download } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
+import { useAuth } from "@/hooks/useAuth";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { logAction } from "@/services/ActionLogger";
 
 interface CSVImportDialogProps {
   open: boolean;
@@ -171,7 +173,10 @@ export function CSVImportDialog({ open, onOpenChange }: CSVImportDialogProps) {
     setStep("done");
     setImporting(false);
     queryClient.invalidateQueries({ queryKey: ["products"] });
-    if (imported > 0) toast.success(`${imported} produto(s) importado(s)!`);
+    if (imported > 0) {
+      logAction({ companyId: companyId!, action: "Importação CSV concluída", module: "estoque", details: `${imported} importado(s), ${errors} erro(s)` });
+      toast.success(`${imported} produto(s) importado(s)!`);
+    }
     if (errors > 0) toast.error(`${errors} produto(s) com erro`);
   };
 

@@ -10,6 +10,7 @@ import { CurrencyInput } from "@/components/ui/currency-input";
 import { formatCurrency } from "@/lib/utils";
 import { format, parseISO } from "date-fns";
 import { toast } from "sonner";
+import { logAction } from "@/services/ActionLogger";
 import { useQueryClient } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { PDVCreditReceipt, type CreditReceiptData } from "@/components/pdv/PDVCreditReceipt";
@@ -157,6 +158,7 @@ export function PDVReceiveCreditDialog({ open, onClose }: PDVReceiveCreditDialog
 
       qc.invalidateQueries({ queryKey: ["clients"] });
       qc.invalidateQueries({ queryKey: ["financial_entries"] });
+      logAction({ companyId: companyId!, userId: user?.id, action: "Recebimento de crédito fiado", module: "financeiro", details: `Cliente: ${selectedClient?.name} - ${formatCurrency(payAmount)}` });
       toast.success(`Recebimento de ${formatCurrency(payAmount)} registrado!`);
       setCustomAmount(0);
       setReceiptData({
