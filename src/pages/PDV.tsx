@@ -1808,9 +1808,9 @@ export default function PDV() {
         <PDVClientSelector open={showClientSelector} onClose={() => setShowClientSelector(false)} onSelect={handleCreditSaleConfirmed} saleTotal={pdv.total} />
       )}
 
-      {/* Fiado receipt with signature/CPF fields - two copies */}
+      {/* Comprovante de VENDA a prazo (não quitação) */}
       {fiadoReceipt && (
-        <PDVCreditReceipt data={fiadoReceipt} onClose={() => setFiadoReceipt(null)} />
+        <PDVFiadoReceipt data={fiadoReceipt} onClose={() => setFiadoReceipt(null)} />
       )}
 
       {/* Loyalty client selector */}
