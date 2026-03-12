@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
 import { formatCurrency } from "@/lib/utils";
 import { toast } from "sonner";
+import { logAction } from "@/services/ActionLogger";
 import { validateCstCsosn, getSuggestedCodes, type TaxRegime, type CstCsosnCode } from "@/lib/cst-csosn-validator";
 import { parseSefazRejection, type SefazRejection } from "@/lib/sefaz-rejection-parser";
 import { runPreflightValidation, type PreflightIssue } from "@/lib/fiscal-preflight-validator";
