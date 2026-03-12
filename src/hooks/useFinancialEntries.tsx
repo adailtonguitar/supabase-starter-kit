@@ -126,10 +126,11 @@ export function useDeleteFinancialEntry() {
       const { error } = await supabase.from("financial_entries").delete().eq("id", id).eq("company_id", companyId);
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (_data, id) => {
       qc.invalidateQueries({ queryKey: ["financial_entries"] });
       qc.invalidateQueries({ queryKey: ["financial-entries"] });
       toast.success("Lançamento excluído");
+      if (companyId) logAction({ companyId, action: "Lançamento financeiro excluído", module: "financeiro", details: id });
     },
     onError: (e: Error) => toast.error(`Erro: ${e.message}`),
   });
