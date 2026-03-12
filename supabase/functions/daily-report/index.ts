@@ -343,13 +343,41 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Optional: process single company (manual trigger from admin)
+    // Optional: process single company (manual trigger from admin — requires auth)
     let targetCompanyId: string | null = null;
     try {
       const body = await req.json();
       targetCompanyId = body?.company_id || null;
-      
-      // Auth validation skipped for service_role and cron triggers
+
+      // If manual trigger with company_id, require super_admin auth
+      if (targetCompanyId) {
+        const authHeader = req.headers.get("Authorization");
+        if (!authHeader?.startsWith("Bearer ")) {
+          return new Response(JSON.stringify({ error: "Unauthorized" }), {
+            status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+        const userClient = createClient(supabaseUrl, anonKey, {
+          global: { headers: { Authorization: authHeader } },
+        });
+        const token = authHeader.replace("Bearer ", "");
+        const { data: claimsData, error: claimsErr } = await (userClient.auth as any).getClaims(token);
+        if (claimsErr || !claimsData?.claims?.sub) {
+          return new Response(JSON.stringify({ error: "Unauthorized" }), {
+            status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        const userId = claimsData.claims.sub as string;
+        const { data: roleData } = await adminClient
+          .from("admin_roles").select("role")
+          .eq("user_id", userId).eq("role", "super_admin").maybeSingle();
+        if (!roleData) {
+          return new Response(JSON.stringify({ error: "Forbidden" }), {
+            status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+      }
     } catch {
       // No body = cron trigger, process all
     }
