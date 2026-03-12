@@ -10,6 +10,8 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { Save, RefreshCw, Trash2, Loader2 } from "lucide-react";
+import { logAction } from "@/services/ActionLogger";
+import { useAuth } from "@/hooks/useAuth";
 import {
   AlertDialog,
   AlertDialogAction,

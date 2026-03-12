@@ -6,6 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { FilePlus2, Loader2, CheckCircle2, Copy, Eye, EyeOff } from "lucide-react";
+import { logAction } from "@/services/ActionLogger";
+import { useAuth } from "@/hooks/useAuth";
 
 export function AdminCreateEmissorClient() {
   const [open, setOpen] = useState(false);

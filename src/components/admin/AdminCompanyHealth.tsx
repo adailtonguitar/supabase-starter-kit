@@ -15,6 +15,8 @@ import {
 } from "lucide-react";
 import { adminQuery } from "@/lib/admin-query";
 import { supabase } from "@/integrations/supabase/client";
+import { logAction } from "@/services/ActionLogger";
+import { useAuth } from "@/hooks/useAuth";
 import {
   AlertDialog,
   AlertDialogAction,

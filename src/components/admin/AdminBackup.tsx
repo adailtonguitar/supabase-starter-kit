@@ -10,6 +10,8 @@ import { Download, Upload, Loader2, Database, CheckCircle, AlertTriangle, FileJs
 import { cn } from "@/lib/utils";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { adminQuery } from "@/lib/admin-query";
+import { logAction } from "@/services/ActionLogger";
+import { useAuth } from "@/hooks/useAuth";
 
 const BACKUP_TABLES = ["products", "sales", "sale_items", "clients", "suppliers", "financial_entries", "stock_movements", "employees", "cash_sessions"];
 

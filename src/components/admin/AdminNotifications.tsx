@@ -10,6 +10,8 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Bell, Send, Loader2, Trash2, Info, AlertTriangle, AlertCircle, Wrench } from "lucide-react";
 import { adminQuery } from "@/lib/admin-query";
+import { logAction } from "@/services/ActionLogger";
+import { useAuth } from "@/hooks/useAuth";
 
 const typeOptions = [
   { value: "info", label: "Informação", icon: Info, color: "text-primary" },

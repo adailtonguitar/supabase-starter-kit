@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Mail, Send, Loader2, Eye } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { logAction } from "@/services/ActionLogger";
+import { useAuth } from "@/hooks/useAuth";
 
 export function AdminBulkEmail() {
   const [subject, setSubject] = useState("");
