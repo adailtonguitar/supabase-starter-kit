@@ -335,6 +335,7 @@ function AppRoutes() {
                     <Route path="/fiscal/auditoria" element={<AuditLogs />} />
                     <Route path="/fiscal/comparar-xml" element={<CompararXML />} />
                     <Route path="/fiscal/nfe" element={<NFeEmissao />} />
+                    <Route path="/auditoria" element={<AuditoriaGeral />} />
                     <Route path="/financeiro" element={<Financeiro />} />
                     <Route
                       path="/dre"

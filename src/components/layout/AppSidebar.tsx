@@ -172,6 +172,7 @@ const navItems: NavEntry[] = [
       { icon: Settings, label: "Configurações", path: "/configuracoes" },
       { icon: Monitor, label: "Terminais", path: "/terminais" },
       { icon: Network, label: "Filiais", path: "/filiais" },
+      { icon: Scan, label: "Logs do Sistema", path: "/auditoria" },
     ],
   },
 ];
