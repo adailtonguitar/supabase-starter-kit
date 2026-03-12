@@ -12,6 +12,7 @@ import { useCompany } from "@/hooks/useCompany";
 import { formatCurrency } from "@/lib/utils";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
+import { logAction } from "@/services/ActionLogger";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
