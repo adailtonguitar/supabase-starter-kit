@@ -1,7 +1,8 @@
 /**
  * FiscalAuditLogger — Logs fiscal operations for audit trail.
+ * Now uses the unified action_logs table.
  */
-import { supabase } from "@/integrations/supabase/client";
+import { logAction } from "@/services/ActionLogger";
 
 interface FiscalAuditParams {
   companyId: string;
@@ -10,16 +11,10 @@ interface FiscalAuditParams {
 }
 
 export function logFiscalAudit(params: FiscalAuditParams) {
-  // Fire-and-forget audit log
-  supabase
-    .from("audit_logs" as any)
-    .insert({
-      company_id: params.companyId,
-      action: params.action,
-      details: params.details,
-      created_at: new Date().toISOString(),
-    })
-    .then(({ error }) => {
-      if (error) console.warn("Audit log failed:", error.message);
-    });
+  logAction({
+    companyId: params.companyId,
+    action: params.action,
+    module: "fiscal",
+    details: JSON.stringify(params.details),
+  });
 }

@@ -1,6 +1,7 @@
 import { useEffect, useState, createContext, useContext } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { setErrorTrackerUser } from "@/services/ErrorTracker";
+import { logAction } from "@/services/ActionLogger";
 import type { User, Session } from "@supabase/supabase-js";
 
 const AUTH_CACHE_KEY = "as_cached_user";
@@ -58,6 +59,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (event === "PASSWORD_RECOVERY") {
         sessionStorage.setItem("needs-password-setup", "true");
       }
+      if (event === "SIGNED_IN" && session?.user) {
+        // Log login - get company_id asynchronously
+        supabase.from("company_users").select("company_id").eq("user_id", session.user.id).limit(1).single()
+          .then(({ data }) => {
+            if (data?.company_id) logAction({ companyId: data.company_id, userId: session.user.id, action: "Login realizado", module: "auth" });
+          });
+      }
+      if (event === "SIGNED_OUT") {
+        // Logged at signOut method below
+      }
       setSession(session);
       setUser(session?.user ?? null);
       cacheUser(session?.user ?? null);
@@ -97,6 +108,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signOut = async () => {
+    // Log logout before clearing session
+    if (user) {
+      const cached = localStorage.getItem("as_cached_company") || localStorage.getItem("as_selected_company");
+      if (cached) {
+        try {
+          const companyId = JSON.parse(cached)?.id || cached;
+          logAction({ companyId, userId: user.id, action: "Logout realizado", module: "auth" });
+        } catch { /* best effort */ }
+      }
+    }
     // Invalidate session token before signing out
     try {
       const token = sessionStorage.getItem("as_session_token");

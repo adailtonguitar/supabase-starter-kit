@@ -4,6 +4,7 @@ import { useCompany } from "./useCompany";
 import { useAuth } from "./useAuth";
 import { toast } from "sonner";
 import { CashSessionService } from "@/services/CashSessionService";
+import { logAction } from "@/services/ActionLogger";
 
 export interface FinancialEntry {
   id: string;
@@ -78,10 +79,11 @@ export function useCreateFinancialEntry() {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: ["financial_entries"] });
       qc.invalidateQueries({ queryKey: ["financial-entries"] });
       toast.success("Lançamento criado");
+      if (companyId) logAction({ companyId, userId: user?.id, action: `Lançamento ${variables.type} criado`, module: "financeiro", details: variables.description || null });
     },
     onError: (e: Error) => toast.error(`Erro: ${e.message}`),
   });
@@ -104,10 +106,11 @@ export function useUpdateFinancialEntry() {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: ["financial_entries"] });
       qc.invalidateQueries({ queryKey: ["financial-entries"] });
       toast.success("Lançamento atualizado");
+      if (companyId) logAction({ companyId, action: "Lançamento financeiro atualizado", module: "financeiro", details: variables.id });
     },
     onError: (e: Error) => toast.error(`Erro: ${e.message}`),
   });
@@ -123,10 +126,11 @@ export function useDeleteFinancialEntry() {
       const { error } = await supabase.from("financial_entries").delete().eq("id", id).eq("company_id", companyId);
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (_data, id) => {
       qc.invalidateQueries({ queryKey: ["financial_entries"] });
       qc.invalidateQueries({ queryKey: ["financial-entries"] });
       toast.success("Lançamento excluído");
+      if (companyId) logAction({ companyId, action: "Lançamento financeiro excluído", module: "financeiro", details: id });
     },
     onError: (e: Error) => toast.error(`Erro: ${e.message}`),
   });
@@ -207,12 +211,13 @@ export function useMarkAsPaid() {
 
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: ["financial_entries"] });
       qc.invalidateQueries({ queryKey: ["financial-entries"] });
       qc.invalidateQueries({ queryKey: ["cash_sessions"] });
       qc.invalidateQueries({ queryKey: ["cash_movements"] });
       toast.success("Marcado como pago e registrado no caixa");
+      if (companyId) logAction({ companyId, userId: user?.id, action: "Lançamento marcado como pago", module: "financeiro", details: `R$ ${variables.paid_amount} - ${variables.payment_method || ""}` });
     },
     onError: (e: Error) => toast.error(`Erro: ${e.message}`),
   });

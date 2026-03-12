@@ -1,9 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "./useCompany";
+import { useAuth } from "./useAuth";
 import { toast } from "sonner";
 import { autoSyncProductToBranches } from "./useBranches";
 import { recordPriceChange } from "@/lib/price-history";
+import { logAction } from "@/services/ActionLogger";
 
 export interface Product {
   id: string;
@@ -48,6 +50,7 @@ export function useProducts() {
 export function useCreateProduct() {
   const queryClient = useQueryClient();
   const { companyId } = useCompany();
+  const { user } = useAuth();
   return useMutation({
     mutationFn: async (product: Partial<Product>) => {
       if (!companyId) throw new Error("Empresa não encontrada");
@@ -61,10 +64,10 @@ export function useCreateProduct() {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["products"] });
-      // Auto-sync: push new product to all branches if this is a matrix company
       if (companyId && data?.id) {
         autoSyncProductToBranches(data.id, companyId);
       }
+      if (companyId) logAction({ companyId, userId: user?.id, action: "Produto criado", module: "produtos", details: data?.name || null });
     },
   });
 }
@@ -72,6 +75,7 @@ export function useCreateProduct() {
 export function useUpdateProduct() {
   const queryClient = useQueryClient();
   const { companyId } = useCompany();
+  const { user } = useAuth();
   return useMutation({
     mutationFn: async ({ id, ...updates }: Partial<Product> & { id: string }) => {
       if (!companyId) throw new Error("Empresa não encontrada");
@@ -123,13 +127,17 @@ export function useUpdateProduct() {
 
       return data as Product;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["products"] }),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      if (companyId) logAction({ companyId, userId: user?.id, action: "Produto atualizado", module: "produtos", details: variables.name || variables.id });
+    },
   });
 }
 
 export function useDeleteProduct() {
   const queryClient = useQueryClient();
   const { companyId } = useCompany();
+  const { user } = useAuth();
   return useMutation({
     mutationFn: async (id: string) => {
       if (!companyId) throw new Error("Empresa não encontrada");
@@ -142,9 +150,10 @@ export function useDeleteProduct() {
       const { error } = await supabase.from("products").update({ is_active: false } as any).eq("id", id).eq("company_id", companyId);
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (_data, id) => {
       queryClient.invalidateQueries({ queryKey: ["products"] });
       toast.success("Produto excluído com sucesso");
+      if (companyId) logAction({ companyId, userId: user?.id, action: "Produto excluído", module: "produtos", details: id });
     },
     onError: (e: Error) => toast.error(`Erro ao excluir: ${e.message}`),
   });

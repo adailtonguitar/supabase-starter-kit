@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "./useCompany";
 import { useAuth } from "./useAuth";
 import { toast } from "sonner";
+import { logAction } from "@/services/ActionLogger";
 
 export function useStockMovements(productId?: string) {
   const { companyId } = useCompany();
@@ -128,10 +129,11 @@ export function useCreateStockMovement() {
 
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: ["products"] });
       qc.invalidateQueries({ queryKey: ["stock_movements"] });
       toast.success("Movimentação registrada");
+      if (companyId) logAction({ companyId, userId: user?.id, action: `Mov. estoque: ${variables.type}`, module: "estoque", details: `Qtd: ${variables.quantity} - ${variables.reason || ""}` });
     },
     onError: (e: Error) => toast.error(`Erro: ${e.message}`),
   });

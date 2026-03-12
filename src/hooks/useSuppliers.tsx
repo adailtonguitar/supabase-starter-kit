@@ -1,6 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "./useCompany";
+import { useAuth } from "./useAuth";
+import { logAction } from "@/services/ActionLogger";
 
 export function useSuppliers() {
   const { companyId } = useCompany();
@@ -31,7 +33,10 @@ export function useCreateSupplier() {
       const { error } = await supabase.from("suppliers").insert(payload);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["suppliers"] }),
+    onSuccess: (_data, variables) => {
+      qc.invalidateQueries({ queryKey: ["suppliers"] });
+      if (companyId) logAction({ companyId, action: "Fornecedor cadastrado", module: "fornecedores", details: (variables as any).name || null });
+    },
   });
 }
 
@@ -50,7 +55,10 @@ export function useUpdateSupplier() {
       const { error } = await supabase.from("suppliers").update(payload).eq("id", id).eq("company_id", companyId);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["suppliers"] }),
+    onSuccess: (_data, variables) => {
+      qc.invalidateQueries({ queryKey: ["suppliers"] });
+      if (companyId) logAction({ companyId, action: "Fornecedor atualizado", module: "fornecedores", details: (variables as any).name || (variables as any).id });
+    },
   });
 }
 
@@ -63,6 +71,9 @@ export function useDeleteSupplier() {
       const { error } = await supabase.from("suppliers").delete().eq("id", id).eq("company_id", companyId);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["suppliers"] }),
+    onSuccess: (_data, id) => {
+      qc.invalidateQueries({ queryKey: ["suppliers"] });
+      if (companyId) logAction({ companyId, action: "Fornecedor excluído", module: "fornecedores", details: id });
+    },
   });
 }

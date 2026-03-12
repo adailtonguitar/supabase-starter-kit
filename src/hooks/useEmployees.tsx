@@ -1,7 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "./useCompany";
+import { useAuth } from "./useAuth";
 import { toast } from "sonner";
+import { logAction } from "@/services/ActionLogger";
 
 export type Employee = any;
 export type EmployeeInsert = any;
@@ -23,6 +25,7 @@ export function useEmployees() {
 export function useCreateEmployee() {
   const qc = useQueryClient();
   const { companyId } = useCompany();
+  const { user } = useAuth();
   return useMutation({
     mutationFn: async (e: Omit<EmployeeInsert, "company_id">) => {
       if (!companyId) throw new Error("Empresa não encontrada");
@@ -30,7 +33,11 @@ export function useCreateEmployee() {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["employees"] }); toast.success("Funcionário criado"); },
+    onSuccess: (_data, variables) => {
+      qc.invalidateQueries({ queryKey: ["employees"] });
+      toast.success("Funcionário criado");
+      if (companyId) logAction({ companyId, userId: user?.id, action: "Funcionário criado", module: "funcionarios", details: (variables as any).name || null });
+    },
     onError: (e: Error) => toast.error(`Erro: ${e.message}`),
   });
 }
@@ -38,6 +45,7 @@ export function useCreateEmployee() {
 export function useUpdateEmployee() {
   const qc = useQueryClient();
   const { companyId } = useCompany();
+  const { user } = useAuth();
   return useMutation({
     mutationFn: async ({ id, ...updates }: Partial<Employee> & { id: string }) => {
       if (!companyId) throw new Error("Empresa não encontrada");
@@ -45,7 +53,11 @@ export function useUpdateEmployee() {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["employees"] }); toast.success("Funcionário atualizado"); },
+    onSuccess: (_data, variables) => {
+      qc.invalidateQueries({ queryKey: ["employees"] });
+      toast.success("Funcionário atualizado");
+      if (companyId) logAction({ companyId, userId: user?.id, action: "Funcionário atualizado", module: "funcionarios", details: (variables as any).name || (variables as any).id });
+    },
     onError: (e: Error) => toast.error(`Erro: ${e.message}`),
   });
 }
@@ -53,13 +65,18 @@ export function useUpdateEmployee() {
 export function useDeleteEmployee() {
   const qc = useQueryClient();
   const { companyId } = useCompany();
+  const { user } = useAuth();
   return useMutation({
     mutationFn: async (id: string) => {
       if (!companyId) throw new Error("Empresa não encontrada");
       const { error } = await supabase.from("employees").delete().eq("id", id).eq("company_id", companyId);
       if (error) throw error;
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["employees"] }); toast.success("Funcionário excluído"); },
+    onSuccess: (_data, id) => {
+      qc.invalidateQueries({ queryKey: ["employees"] });
+      toast.success("Funcionário excluído");
+      if (companyId) logAction({ companyId, userId: user?.id, action: "Funcionário excluído", module: "funcionarios", details: id });
+    },
     onError: (e: Error) => toast.error(`Erro: ${e.message}`),
   });
 }
