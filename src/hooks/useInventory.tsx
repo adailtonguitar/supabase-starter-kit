@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "./useCompany";
 import { useAuth } from "./useAuth";
 import { toast } from "sonner";
+import { logAction } from "@/services/ActionLogger";
 
 export interface InventoryCount {
   id: string;
