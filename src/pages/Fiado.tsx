@@ -86,6 +86,7 @@ export default function Fiado() {
       }
       qc.invalidateQueries({ queryKey: ["clients"] });
       qc.invalidateQueries({ queryKey: ["financial_entries"] });
+      logAction({ companyId: companyId!, userId: user?.id, action: "Recebimento de fiado", module: "financeiro", details: `Cliente: ${selectedClient.name} - ${formatCurrency(payAmount)}` });
       toast.success(`Recebimento de ${formatCurrency(payAmount)} registrado!`);
       setCustomAmount(0);
       setReceiptData({ clientName: selectedClient.name, clientDoc: selectedClient.cpf_cnpj || undefined, amount: payAmount, previousBalance: prevBalance, newBalance, paymentMethod: selectedMethod, storeName: companyName || undefined, storeSlogan: slogan || undefined });
