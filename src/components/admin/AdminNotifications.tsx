@@ -35,6 +35,7 @@ interface SentNotification {
 }
 
 export function AdminNotifications() {
+  const { user } = useAuth();
   const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
   const [type, setType] = useState("info");
