@@ -8,6 +8,7 @@ import type { PaymentResult } from "@/services/types";
 import { isScaleBarcode, parseScaleBarcode } from "@/lib/scale-barcode";
 import { calculateCartPromos, type PromoMatch } from "@/lib/promo-engine";
 import { cacheSet, cacheGet } from "@/lib/offline-cache";
+import { logAction } from "@/services/ActionLogger";
 
 export interface PDVProduct {
   id: string;
