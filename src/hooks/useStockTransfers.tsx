@@ -306,6 +306,7 @@ export function useReceiveStockTransfer() {
           }
         }
       }
+      logAction({ companyId: companyId!, userId: user.id, action: "Transferência de estoque recebida", module: "estoque", details: `ID ${transferId.slice(0, 8)} - ${items.length} item(ns)` });
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["stock_transfers"] });
