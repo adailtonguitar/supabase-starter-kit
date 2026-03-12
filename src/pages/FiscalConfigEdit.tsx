@@ -52,6 +52,7 @@ const defaultConfigs: FiscalConfigSection[] = [
 
 export default function FiscalConfigEdit() {
   const { companyId } = useCompany();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [configs, setConfigs] = useState<FiscalConfigSection[]>(defaultConfigs);
   const [certType, setCertType] = useState<"A1" | "A3">("A1");
