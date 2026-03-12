@@ -1,8 +1,6 @@
 name: E2E Tests (Playwright)
 
 on:
-  push:
-    branches: [main]
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -11,6 +9,8 @@ jobs:
   e2e:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # Only run when secrets are configured
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'pull_request' }}
 
     steps:
       - uses: actions/checkout@v4
