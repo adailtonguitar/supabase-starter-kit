@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { adminQuery } from "@/lib/admin-query";
+import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { motion } from "framer-motion";
@@ -36,7 +36,7 @@ interface PlanMetrics {
 }
 
 function formatBRL(v: number) {
-  return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  return (v ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
 export function AdminRevenue() {
@@ -46,34 +46,9 @@ export function AdminRevenue() {
   useEffect(() => {
     const load = async () => {
       try {
-        const [planData, demoCompanies] = await Promise.all([
-          adminQuery({ table: "company_plans", select: "plan, status, company_id" }),
-          adminQuery({ table: "companies", select: "id", filters: [{ op: "eq", column: "is_demo", value: true }] }),
-        ]);
-
-        const demoIds = new Set(demoCompanies.map((c: any) => c.id));
-
-        const grouped: Record<string, { active: number; trial: number; total: number }> = {};
-        for (const tier of ["starter", "business", "pro", "emissor"]) {
-          grouped[tier] = { active: 0, trial: 0, total: 0 };
-        }
-
-        (planData ?? []).forEach((row: any) => {
-          if (demoIds.has(row.company_id)) return;
-          const plan = (row.plan || "starter").toLowerCase();
-          if (!grouped[plan]) grouped[plan] = { active: 0, trial: 0, total: 0 };
-          grouped[plan].total++;
-          if (row.status === "active") grouped[plan].active++;
-          if (row.status === "trial" || row.status === "trialing") grouped[plan].trial++;
-        });
-
-        const result: PlanMetrics[] = Object.entries(grouped).map(([plan, counts]) => ({
-          plan,
-          ...counts,
-          mrr: counts.active * (PLAN_PRICES[plan] || 0),
-        }));
-
-        setMetrics(result);
+        const { data, error } = await supabase.functions.invoke("admin-revenue");
+        if (error) throw error;
+        setMetrics(data?.metrics ?? []);
       } catch (err) {
         console.error("[AdminRevenue] Error:", err);
         setMetrics([]);
@@ -83,14 +58,14 @@ export function AdminRevenue() {
     load();
   }, []);
 
-  const totalMRR = metrics.reduce((sum, m) => sum + m.mrr, 0);
-  const totalActive = metrics.reduce((sum, m) => sum + m.active, 0);
-  const totalTrial = metrics.reduce((sum, m) => sum + m.trial, 0);
-  const totalEmpresas = metrics.reduce((sum, m) => sum + m.total, 0);
+  const totalMRR = metrics.reduce((sum, m) => sum + (m.mrr ?? 0), 0);
+  const totalActive = metrics.reduce((sum, m) => sum + (m.active ?? 0), 0);
+  const totalTrial = metrics.reduce((sum, m) => sum + (m.trial ?? 0), 0);
+  const totalEmpresas = metrics.reduce((sum, m) => sum + (m.total ?? 0), 0);
 
   const chartData = metrics.map((m) => ({
     name: PLAN_LABELS[m.plan] || m.plan,
-    value: m.mrr,
+    value: m.mrr ?? 0,
     color: PLAN_COLORS[m.plan] || "hsl(var(--primary))",
   }));
 
