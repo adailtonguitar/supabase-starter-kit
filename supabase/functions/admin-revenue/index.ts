@@ -30,12 +30,16 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: corsHeaders });
     }
 
+    const userId = claimsData.claims.sub as string;
+
     // Check super_admin
     const adminClient = createClient(supabaseUrl, serviceKey);
     const { data: roleData } = await adminClient
       .from("admin_roles")
       .select("role")
-      .eq("user_id", user.id)
+      .eq("user_id", userId)
+      .eq("role", "super_admin")
+      .maybeSingle();
       .eq("role", "super_admin")
       .maybeSingle();
 
