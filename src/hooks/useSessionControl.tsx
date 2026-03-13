@@ -6,7 +6,7 @@ import { useAdminRole } from "@/hooks/useAdminRole";
 import { toast } from "sonner";
 
 const SESSION_TOKEN_KEY = "as_session_token";
-const HEARTBEAT_INTERVAL = 5 * 60 * 1000; // 5 min
+const HEARTBEAT_INTERVAL = 10 * 60 * 1000; // 10 min (was 5)
 const VALIDATION_INTERVAL = 5 * 60 * 1000; // 5 min
 
 function generateSessionToken(): string {

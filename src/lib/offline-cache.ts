@@ -9,8 +9,8 @@ const STORE_CACHE = "entity_cache";
 
 // Cache TTL: 30 minutes for products/clients
 const CACHE_TTL_MS = 30 * 60 * 1000;
-// Background refresh interval: 2 minutes
-export const REFRESH_INTERVAL_MS = 2 * 60 * 1000;
+// Background refresh interval: 5 minutes (was 2)
+export const REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 
 function openDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
