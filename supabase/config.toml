@@ -99,3 +99,6 @@ verify_jwt = false
 
 [functions.health-check]
 verify_jwt = false
+
+[functions.admin-revenue]
+verify_jwt = false
