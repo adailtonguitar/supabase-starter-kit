@@ -120,45 +120,37 @@ export function useDashboardStats() {
       const overdueData = allFinancial.filter((e: any) => (e.status === "pendente" || e.status === "vencido") && e.type === "pagar" && e.due_date < today);
       const receivablesData = allFinancial.filter((e: any) => (e.status === "pendente" || e.status === "vencido") && e.type === "receber");
 
-      const todaySales = salesResult.data || [];
-      const monthSales = monthResult.data || [];
-
-      const salesToday = todaySales.reduce((sum, s: any) => sum + Number(s.total || 0), 0);
+      const salesToday = todaySales.reduce((sum: number, s: any) => sum + Number(s.total || 0), 0);
       const salesCountToday = todaySales.length;
       const ticketMedio = salesCountToday > 0 ? salesToday / salesCountToday : 0;
-      const monthRevenue = monthSales.reduce((sum, s: any) => sum + Number(s.total || 0), 0);
+      const monthRevenue = monthSales.reduce((sum: number, s: any) => sum + Number(s.total || 0), 0);
 
       // Yesterday
-      const yesterdaySales = yesterdayResult.data || [];
-      const salesYesterday = yesterdaySales.reduce((sum, s: any) => sum + Number(s.total || 0), 0);
+      const salesYesterday = yesterdaySales.reduce((sum: number, s: any) => sum + Number(s.total || 0), 0);
       const salesCountYesterday = yesterdaySales.length;
 
       // Fiado — from clients with outstanding balance
       const fiadoData = fiadoResult.data || [];
-      const fiadoTotal = fiadoData.reduce((sum, c: any) => sum + Number(c.credit_balance || 0), 0);
+      const fiadoTotal = fiadoData.reduce((sum: number, c: any) => sum + Number(c.credit_balance || 0), 0);
       const fiadoCount = fiadoData.length;
 
       // Bills
-      const billsDueData = billsDueResult.data || [];
-      const billsDueToday = billsDueData.reduce((sum, e: any) => sum + Number(e.amount || 0), 0);
+      const billsDueToday = billsDueData.reduce((sum: number, e: any) => sum + Number(e.amount || 0), 0);
       const billsDueTodayCount = billsDueData.length;
 
-      const overdueData = overdueBillsResult.data || [];
-      const overdueBills = overdueData.reduce((sum, e: any) => sum + Number(e.amount || 0), 0);
+      const overdueBills = overdueData.reduce((sum: number, e: any) => sum + Number(e.amount || 0), 0);
       const overdueBillsCount = overdueData.length;
 
-      const receivablesData = pendingReceivablesResult.data || [];
-      const pendingReceivables = receivablesData.reduce((sum, e: any) => sum + Number(e.amount || 0), 0);
+      const pendingReceivables = receivablesData.reduce((sum: number, e: any) => sum + Number(e.amount || 0), 0);
       const pendingReceivablesCount = receivablesData.length;
 
       const products = productsResult.data || [];
       const productsAtRisk = products.filter((p: any) => p.min_stock > 0 && (p.stock_quantity ?? 0) <= p.min_stock).length;
-      const activeAlerts = (alertsResult.data || []).length;
+      const activeAlerts = alertsData.length;
       const fiscalProtected = (fiscalResult.data || []).length > 0;
 
-      const financialEntries = financialResult.data || [];
-      const receitas = financialEntries.filter((e: any) => e.type === "receber").reduce((s: number, e: any) => s + Number(e.amount || 0), 0);
-      const despesas = financialEntries.filter((e: any) => e.type === "pagar").reduce((s: number, e: any) => s + Number(e.amount || 0), 0);
+      const receitas = financialPaidMonth.filter((e: any) => e.type === "receber").reduce((s: number, e: any) => s + Number(e.amount || 0), 0);
+      const despesas = financialPaidMonth.filter((e: any) => e.type === "pagar").reduce((s: number, e: any) => s + Number(e.amount || 0), 0);
       const monthProfit = receitas > 0 || despesas > 0 ? receitas - despesas : monthRevenue * 0.3;
 
       let healthScore = 50;
@@ -169,7 +161,6 @@ export function useDashboardStats() {
       healthScore = Math.min(100, healthScore);
 
       // Last 7 days aggregation
-      const last7Data = last7Result.data || [];
       const dayMap: Record<string, { total: number; count: number }> = {};
       for (let i = 0; i < 7; i++) {
         const d = new Date();
@@ -192,7 +183,7 @@ export function useDashboardStats() {
 
       // Sales growth
       const currentPeriodTotal = last7Data.reduce((s: number, r: any) => s + Number(r.total || 0), 0);
-      const prevPeriodTotal = (prevPeriodResult.data || []).reduce((s: number, r: any) => s + Number(r.total || 0), 0);
+      const prevPeriodTotal = prevPeriodData.reduce((s: number, r: any) => s + Number(r.total || 0), 0);
       const salesGrowth = prevPeriodTotal > 0 ? ((currentPeriodTotal - prevPeriodTotal) / prevPeriodTotal) * 100 : 0;
 
       // Top products
