@@ -83,75 +83,74 @@ export function useDashboardStats() {
       d14.setDate(d14.getDate() - 13);
       const fourteenDaysAgo = d14.toISOString().split("T")[0];
 
+      // Merge sales queries: fetch all month sales once (covers today, yesterday, last7, prevPeriod)
       const [
-        salesResult, monthResult, recentResult, productsResult, alertsResult,
-        fiscalResult, financialResult, last7Result, prevPeriodResult,
-        totalProductsResult, totalClientsResult, saleItemsResult,
-        yesterdayResult, fiadoResult, billsDueResult, overdueBillsResult, pendingReceivablesResult,
+        monthAllSalesResult, recentResult, productsResult, 
+        fiscalResult, financialAllResult, saleItemsResult,
+        totalProductsResult, totalClientsResult, fiadoResult,
       ] = await Promise.all([
-        supabase.from("sales").select("total").eq("company_id", companyId).gte("created_at", today + "T00:00:00").or("status.is.null,status.neq.cancelled"),
-        supabase.from("sales").select("total").eq("company_id", companyId).gte("created_at", monthStart + "T00:00:00").or("status.is.null,status.neq.cancelled"),
+        // Single query: all sales from 14 days ago (covers today, yesterday, 7d, prev period, month)
+        supabase.from("sales").select("total, created_at").eq("company_id", companyId).gte("created_at", fourteenDaysAgo + "T00:00:00").or("status.is.null,status.neq.cancelled").order("created_at", { ascending: true }),
         supabase.from("sales").select("id, sale_number, payments, total, status").eq("company_id", companyId).order("created_at", { ascending: false }).limit(5),
-        supabase.from("products").select("id, stock_quantity, min_stock").eq("company_id", companyId),
-        supabase.from("financial_entries").select("id").eq("company_id", companyId).eq("status", "pendente").lte("due_date", today),
+        supabase.from("products").select("id, stock_quantity, min_stock").eq("company_id", companyId).eq("is_active", true),
         supabase.from("fiscal_configs").select("id").eq("company_id", companyId).eq("is_active", true).limit(1),
-        supabase.from("financial_entries").select("type, amount").eq("company_id", companyId).eq("status", "pago").gte("due_date", monthStart),
-        supabase.from("sales").select("total, created_at").eq("company_id", companyId).gte("created_at", sevenDaysAgo + "T00:00:00").or("status.is.null,status.neq.cancelled").order("created_at", { ascending: true }),
-        supabase.from("sales").select("total").eq("company_id", companyId).gte("created_at", fourteenDaysAgo + "T00:00:00").lt("created_at", sevenDaysAgo + "T00:00:00").or("status.is.null,status.neq.cancelled"),
-        supabase.from("products").select("id", { count: "exact", head: true }).eq("company_id", companyId),
-        supabase.from("clients").select("id", { count: "exact", head: true }).eq("company_id", companyId),
+        // Single query: all financial entries (covers alerts, bills, overdue, receivables)
+        supabase.from("financial_entries").select("type, amount, status, due_date").eq("company_id", companyId).gte("due_date", (() => { const d = new Date(); d.setDate(d.getDate() - 180); return d.toISOString().split("T")[0]; })()),
         supabase.from("sale_items").select("product_name, quantity, unit_price, sale_id, sales!inner(company_id, created_at)").eq("sales.company_id", companyId).gte("sales.created_at", monthStart + "T00:00:00").limit(500),
-        // Yesterday sales
-        supabase.from("sales").select("total").eq("company_id", companyId).gte("created_at", yesterday + "T00:00:00").lt("created_at", today + "T00:00:00").or("status.is.null,status.neq.cancelled"),
-        // Fiado — use clients with actual outstanding credit_balance
+        supabase.from("products").select("id", { count: "exact", head: true }).eq("company_id", companyId).eq("is_active", true),
+        supabase.from("clients").select("id", { count: "exact", head: true }).eq("company_id", companyId),
         supabase.from("clients").select("credit_balance").eq("company_id", companyId).gt("credit_balance", 0),
-        // Bills due today (contas a pagar)
-        supabase.from("financial_entries").select("amount").eq("company_id", companyId).eq("status", "pendente").eq("type", "pagar").eq("due_date", today),
-        // Overdue bills (contas a pagar vencidas — last 180 days, status pendente OR vencido)
-        supabase.from("financial_entries").select("amount").eq("company_id", companyId).in("status", ["pendente", "vencido"]).eq("type", "pagar").lt("due_date", today).gte("due_date", (() => { const d = new Date(); d.setDate(d.getDate() - 180); return d.toISOString().split("T")[0]; })()),
-        // Pending receivables (contas a receber pendentes)
-        supabase.from("financial_entries").select("amount").eq("company_id", companyId).in("status", ["pendente", "vencido"]).eq("type", "receber"),
       ]);
 
-      const todaySales = salesResult.data || [];
-      const monthSales = monthResult.data || [];
+      // Partition sales by date ranges client-side
+      const allSales = monthAllSalesResult.data || [];
+      const todayPrefix = today;
+      const yesterdayPrefix = yesterday;
+      const todaySales = allSales.filter((s: any) => (s.created_at || "").startsWith(todayPrefix));
+      const yesterdaySales = allSales.filter((s: any) => { const d = (s.created_at || "").split("T")[0]; return d === yesterdayPrefix; });
+      const monthSales = allSales.filter((s: any) => (s.created_at || "") >= monthStart + "T00:00:00");
+      const last7Data = allSales.filter((s: any) => (s.created_at || "") >= sevenDaysAgo + "T00:00:00");
+      const prevPeriodData = allSales.filter((s: any) => { const ca = s.created_at || ""; return ca >= fourteenDaysAgo + "T00:00:00" && ca < sevenDaysAgo + "T00:00:00"; });
 
-      const salesToday = todaySales.reduce((sum, s: any) => sum + Number(s.total || 0), 0);
+      // Partition financial entries client-side
+      const allFinancial = financialAllResult.data || [];
+      const alertsData = allFinancial.filter((e: any) => e.status === "pendente" && e.due_date <= today);
+      const financialPaidMonth = allFinancial.filter((e: any) => e.status === "pago" && e.due_date >= monthStart);
+      const billsDueData = allFinancial.filter((e: any) => e.status === "pendente" && e.type === "pagar" && e.due_date === today);
+      const overdueData = allFinancial.filter((e: any) => (e.status === "pendente" || e.status === "vencido") && e.type === "pagar" && e.due_date < today);
+      const receivablesData = allFinancial.filter((e: any) => (e.status === "pendente" || e.status === "vencido") && e.type === "receber");
+
+      const salesToday = todaySales.reduce((sum: number, s: any) => sum + Number(s.total || 0), 0);
       const salesCountToday = todaySales.length;
       const ticketMedio = salesCountToday > 0 ? salesToday / salesCountToday : 0;
-      const monthRevenue = monthSales.reduce((sum, s: any) => sum + Number(s.total || 0), 0);
+      const monthRevenue = monthSales.reduce((sum: number, s: any) => sum + Number(s.total || 0), 0);
 
       // Yesterday
-      const yesterdaySales = yesterdayResult.data || [];
-      const salesYesterday = yesterdaySales.reduce((sum, s: any) => sum + Number(s.total || 0), 0);
+      const salesYesterday = yesterdaySales.reduce((sum: number, s: any) => sum + Number(s.total || 0), 0);
       const salesCountYesterday = yesterdaySales.length;
 
       // Fiado — from clients with outstanding balance
       const fiadoData = fiadoResult.data || [];
-      const fiadoTotal = fiadoData.reduce((sum, c: any) => sum + Number(c.credit_balance || 0), 0);
+      const fiadoTotal = fiadoData.reduce((sum: number, c: any) => sum + Number(c.credit_balance || 0), 0);
       const fiadoCount = fiadoData.length;
 
       // Bills
-      const billsDueData = billsDueResult.data || [];
-      const billsDueToday = billsDueData.reduce((sum, e: any) => sum + Number(e.amount || 0), 0);
+      const billsDueToday = billsDueData.reduce((sum: number, e: any) => sum + Number(e.amount || 0), 0);
       const billsDueTodayCount = billsDueData.length;
 
-      const overdueData = overdueBillsResult.data || [];
-      const overdueBills = overdueData.reduce((sum, e: any) => sum + Number(e.amount || 0), 0);
+      const overdueBills = overdueData.reduce((sum: number, e: any) => sum + Number(e.amount || 0), 0);
       const overdueBillsCount = overdueData.length;
 
-      const receivablesData = pendingReceivablesResult.data || [];
-      const pendingReceivables = receivablesData.reduce((sum, e: any) => sum + Number(e.amount || 0), 0);
+      const pendingReceivables = receivablesData.reduce((sum: number, e: any) => sum + Number(e.amount || 0), 0);
       const pendingReceivablesCount = receivablesData.length;
 
       const products = productsResult.data || [];
       const productsAtRisk = products.filter((p: any) => p.min_stock > 0 && (p.stock_quantity ?? 0) <= p.min_stock).length;
-      const activeAlerts = (alertsResult.data || []).length;
+      const activeAlerts = alertsData.length;
       const fiscalProtected = (fiscalResult.data || []).length > 0;
 
-      const financialEntries = financialResult.data || [];
-      const receitas = financialEntries.filter((e: any) => e.type === "receber").reduce((s: number, e: any) => s + Number(e.amount || 0), 0);
-      const despesas = financialEntries.filter((e: any) => e.type === "pagar").reduce((s: number, e: any) => s + Number(e.amount || 0), 0);
+      const receitas = financialPaidMonth.filter((e: any) => e.type === "receber").reduce((s: number, e: any) => s + Number(e.amount || 0), 0);
+      const despesas = financialPaidMonth.filter((e: any) => e.type === "pagar").reduce((s: number, e: any) => s + Number(e.amount || 0), 0);
       const monthProfit = receitas > 0 || despesas > 0 ? receitas - despesas : monthRevenue * 0.3;
 
       let healthScore = 50;
@@ -162,7 +161,6 @@ export function useDashboardStats() {
       healthScore = Math.min(100, healthScore);
 
       // Last 7 days aggregation
-      const last7Data = last7Result.data || [];
       const dayMap: Record<string, { total: number; count: number }> = {};
       for (let i = 0; i < 7; i++) {
         const d = new Date();
@@ -185,7 +183,7 @@ export function useDashboardStats() {
 
       // Sales growth
       const currentPeriodTotal = last7Data.reduce((s: number, r: any) => s + Number(r.total || 0), 0);
-      const prevPeriodTotal = (prevPeriodResult.data || []).reduce((s: number, r: any) => s + Number(r.total || 0), 0);
+      const prevPeriodTotal = prevPeriodData.reduce((s: number, r: any) => s + Number(r.total || 0), 0);
       const salesGrowth = prevPeriodTotal > 0 ? ((currentPeriodTotal - prevPeriodTotal) / prevPeriodTotal) * 100 : 0;
 
       // Top products
