@@ -175,7 +175,7 @@ export function PDVReceiveCreditDialog({ open, onClose }: PDVReceiveCreditDialog
         storeAddress: [addressStreet, addressNumber, addressNeighborhood, addressCity, addressState].filter(Boolean).join(", ") || undefined,
         storeCity: addressCity || undefined,
         storeState: addressState || undefined,
-        items: receiptItems,
+        saleItems: receiptItems.map(i => ({ name: i.name, qty: i.quantity, price: i.unitPrice })),
         receiptNumber,
       });
     } catch (err: any) {
