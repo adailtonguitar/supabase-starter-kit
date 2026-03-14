@@ -733,7 +733,8 @@ export function usePDV() {
         contingencyNumber = String(contingencyPayload.contingency_number || contingencyNumber);
         await queueOperation("fiscal_contingency", contingencyPayload as unknown as Record<string, unknown>, 1, 5);
       } catch (contErr: any) {
-        // contingency payload failed silently
+        console.error("[PDV Contingency] Falha ao criar payload de contingência:", contErr?.message);
+        toast.error("Erro ao preparar NFC-e de contingência. A venda será registrada sem fiscal.", { duration: 8000 });
       }
 
       try {
