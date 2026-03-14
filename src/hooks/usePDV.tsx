@@ -327,14 +327,19 @@ export function usePDV() {
   const enqueueFiscal = useCallback(async (saleId: string) => {
     if (!companyId) return;
     try {
-      await supabase.from("fiscal_queue").insert({
+      const { error } = await supabase.from("fiscal_queue").insert({
         sale_id: saleId,
         company_id: companyId,
         status: "pending",
         attempts: 0,
       } as any);
-    } catch {
-      // fiscal enqueue failed silently
+      if (error) {
+        console.error("[PDV] Falha ao enfileirar fiscal:", error.message);
+        toast.warning("Venda registrada, mas NFC-e não foi enfileirada. Reprocesse manualmente.", { duration: 8000 });
+      }
+    } catch (err: any) {
+      console.error("[PDV] Erro ao enfileirar fiscal:", err?.message);
+      toast.warning("Venda registrada, mas NFC-e não foi enfileirada. Reprocesse manualmente.", { duration: 8000 });
     }
   }, [companyId]);
 
