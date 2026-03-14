@@ -157,14 +157,14 @@ export default function Dashboard() {
             <RefreshCw className="w-4 h-4" />
           </Button>
           {stats && (
-            <div className="hidden sm:flex items-center gap-2">
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-muted/60 border border-border">
-                <Package className="w-3.5 h-3.5 text-muted-foreground" />
+            <div className="hidden sm:flex items-center gap-2 shrink-0">
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-muted/60 border border-border whitespace-nowrap">
+                <Package className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                 <span className="font-mono font-bold text-sm text-foreground">{stats.totalProducts}</span>
                 <span className="text-[10px] text-muted-foreground">produtos</span>
               </div>
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-muted/60 border border-border">
-                <Users className="w-3.5 h-3.5 text-muted-foreground" />
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-muted/60 border border-border whitespace-nowrap">
+                <Users className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                 <span className="font-mono font-bold text-sm text-foreground">{stats.totalClients}</span>
                 <span className="text-[10px] text-muted-foreground">clientes</span>
               </div>
