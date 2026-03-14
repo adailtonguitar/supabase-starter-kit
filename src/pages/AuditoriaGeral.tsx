@@ -46,22 +46,27 @@ export default function AuditoriaGeral() {
   const { companyId } = useCompany();
   const [search, setSearch] = useState("");
   const [moduleFilter, setModuleFilter] = useState("all");
+  const [page, setPage] = useState(0);
 
   const { data: logs = [], isLoading, refetch } = useQuery({
-    queryKey: ["general-audit-logs", companyId],
+    queryKey: ["general-audit-logs", companyId, page],
     queryFn: async () => {
       if (!companyId) return [];
+      const from = page * 100;
+      const to = from + 99;
       const { data, error } = await supabase
         .from("action_logs")
         .select("id, action, module, details, user_id, user_name, created_at")
         .eq("company_id", companyId)
         .order("created_at", { ascending: false })
-        .limit(300);
+        .range(from, to);
       if (error) throw error;
       return (data || []) as ActionLog[];
     },
     enabled: !!companyId,
   });
+
+  const hasMore = logs.length === 100;
 
   const filtered = logs.filter((entry) => {
     const matchesSearch = !search ||
@@ -190,6 +195,29 @@ export default function AuditoriaGeral() {
               </motion.div>
             );
           })}
+        </div>
+      )}
+
+      {/* Pagination */}
+      {!isLoading && filtered.length > 0 && (
+        <div className="flex items-center justify-between pt-2">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={page === 0}
+            onClick={() => setPage((p) => Math.max(0, p - 1))}
+          >
+            ← Anterior
+          </Button>
+          <span className="text-xs text-muted-foreground">Página {page + 1}</span>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={!hasMore}
+            onClick={() => setPage((p) => p + 1)}
+          >
+            Próxima →
+          </Button>
         </div>
       )}
     </div>
