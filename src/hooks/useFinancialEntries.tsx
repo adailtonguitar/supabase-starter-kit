@@ -4,7 +4,7 @@ import { useCompany } from "./useCompany";
 import { useAuth } from "./useAuth";
 import { toast } from "sonner";
 import { CashSessionService } from "@/services/CashSessionService";
-import { logAction } from "@/services/ActionLogger";
+import { logAction, buildDiff } from "@/services/ActionLogger";
 
 export interface FinancialEntry {
   id: string;
