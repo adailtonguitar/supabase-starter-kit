@@ -43,21 +43,28 @@ export function useCreateSupplier() {
 export function useUpdateSupplier() {
   const qc = useQueryClient();
   const { companyId } = useCompany();
+  const { user } = useAuth();
   return useMutation({
     mutationFn: async (data: any) => {
       if (!companyId) throw new Error("Empresa não encontrada");
       const { id, created_at, updated_at, company_id, ...rest } = data;
-      const payload: Record<string, any> = {};
       const knownCols = ["name","trade_name","cnpj","ie","contact_name","email","phone","notes"];
+      const payload: Record<string, any> = {};
       for (const k of knownCols) {
         if (rest[k] !== undefined) payload[k] = rest[k];
       }
+
+      // Fetch old data for diff
+      const { data: oldData } = await supabase.from("suppliers").select("*").eq("id", id).eq("company_id", companyId).single();
+
       const { error } = await supabase.from("suppliers").update(payload).eq("id", id).eq("company_id", companyId);
       if (error) throw error;
+      return { oldData };
     },
-    onSuccess: (_data, variables) => {
+    onSuccess: (result, variables) => {
       qc.invalidateQueries({ queryKey: ["suppliers"] });
-      if (companyId) logAction({ companyId, action: "Fornecedor atualizado", module: "fornecedores", details: (variables as any).name || (variables as any).id });
+      const diff = result?.oldData ? buildDiff(result.oldData, { ...result.oldData, ...variables }, Object.keys(variables).filter(k => !["id","created_at","updated_at","company_id"].includes(k))) : undefined;
+      if (companyId) logAction({ companyId, userId: user?.id, action: "Fornecedor atualizado", module: "fornecedores", details: (variables as any).name || (variables as any).id, diff });
     },
   });
 }

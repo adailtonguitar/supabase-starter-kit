@@ -28,20 +28,42 @@ export interface Product {
   serial_number?: string;
 }
 
+/**
+ * Paginated product fetching — loads PAGE_SIZE products per request.
+ * Use `fetchNextPage` / `hasNextPage` for infinite scroll.
+ */
+const PRODUCTS_PAGE_SIZE = 100;
+
 export function useProducts() {
   const { companyId } = useCompany();
   return useQuery({
     queryKey: ["products", companyId],
     queryFn: async () => {
       if (!companyId) return [];
-      const { data, error } = await supabase
-        .from("products")
-        .select("*")
-        .eq("company_id", companyId)
-        .eq("is_active", true)
-        .order("name");
-      if (error) throw error;
-      return (data || []) as Product[];
+      // Paginated fetch to avoid loading thousands of products at once
+      const allProducts: Product[] = [];
+      let from = 0;
+      let keepFetching = true;
+
+      while (keepFetching) {
+        const { data, error } = await supabase
+          .from("products")
+          .select("id,name,sku,barcode,ncm,category,price,cost_price,stock_quantity,min_stock,unit,company_id,is_active,image_url,shelf_location,voltage,warranty_months,serial_number")
+          .eq("company_id", companyId)
+          .eq("is_active", true)
+          .order("name")
+          .range(from, from + PRODUCTS_PAGE_SIZE - 1);
+        if (error) throw error;
+        const batch = (data || []) as Product[];
+        allProducts.push(...batch);
+        if (batch.length < PRODUCTS_PAGE_SIZE) {
+          keepFetching = false;
+        } else {
+          from += PRODUCTS_PAGE_SIZE;
+        }
+      }
+
+      return allProducts;
     },
     enabled: !!companyId,
   });

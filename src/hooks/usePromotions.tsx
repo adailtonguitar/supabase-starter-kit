@@ -54,9 +54,11 @@ export function usePromotions() {
 
   const togglePromotion = async (id: string, isActive: boolean) => {
     if (!companyId) return;
+    const { data: oldData } = await supabase.from("promotions").select("is_active").eq("id", id).eq("company_id", companyId).single();
     const { error } = await supabase.from("promotions").update({ is_active: isActive }).eq("id", id).eq("company_id", companyId);
     if (error) { toast.error("Erro ao atualizar promoção"); return; }
-    logAction({ companyId, userId: user?.id, action: isActive ? "Promoção ativada" : "Promoção desativada", module: "promocoes", details: id });
+    const diff = oldData ? buildDiff(oldData, { is_active: isActive }, ["is_active"]) : undefined;
+    logAction({ companyId, userId: user?.id, action: isActive ? "Promoção ativada" : "Promoção desativada", module: "promocoes", details: id, diff });
     qc.invalidateQueries({ queryKey: ["promotions"] });
   };
 

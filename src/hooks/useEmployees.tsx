@@ -49,14 +49,17 @@ export function useUpdateEmployee() {
   return useMutation({
     mutationFn: async ({ id, ...updates }: Partial<Employee> & { id: string }) => {
       if (!companyId) throw new Error("Empresa não encontrada");
+      // Fetch old data for diff
+      const { data: oldData } = await supabase.from("employees").select("*").eq("id", id).eq("company_id", companyId).single();
       const { data, error } = await supabase.from("employees").update(updates).eq("id", id).eq("company_id", companyId).select().single();
       if (error) throw error;
-      return data;
+      return { employee: data, oldData };
     },
-    onSuccess: (_data, variables) => {
+    onSuccess: (result, variables) => {
       qc.invalidateQueries({ queryKey: ["employees"] });
       toast.success("Funcionário atualizado");
-      if (companyId) logAction({ companyId, userId: user?.id, action: "Funcionário atualizado", module: "funcionarios", details: (variables as any).name || (variables as any).id });
+      const diff = result?.oldData ? buildDiff(result.oldData, { ...result.oldData, ...variables }, Object.keys(variables).filter(k => k !== "id")) : undefined;
+      if (companyId) logAction({ companyId, userId: user?.id, action: "Funcionário atualizado", module: "funcionarios", details: (variables as any).name || (variables as any).id, diff });
     },
     onError: (e: Error) => toast.error(`Erro: ${e.message}`),
   });
