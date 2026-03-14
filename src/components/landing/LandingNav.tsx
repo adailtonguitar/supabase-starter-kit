@@ -82,7 +82,7 @@ export function LandingNav() {
                     key={l.href}
                     to={l.href}
                     onClick={() => setOpen(false)}
-                    className="block px-4 py-2.5 text-sm font-medium text-cyan-600 hover:text-cyan-500 rounded-lg hover:bg-accent/50"
+                    className="block px-4 py-2.5 text-sm font-medium text-accent-foreground hover:text-primary rounded-lg hover:bg-accent/50"
                   >
                     {l.label}
                   </Link>
