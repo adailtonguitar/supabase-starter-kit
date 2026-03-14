@@ -16,6 +16,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import type { SyncQueueItem } from "@/services/types";
 import { toast } from "sonner";
+import { fiscalCircuitBreaker, CircuitBreakerOpenError } from "@/lib/circuit-breaker";
 
 const SYNC_INTERVAL_MS = 15_000;
 const CLEANUP_INTERVAL_MS = 60 * 60 * 1000;
