@@ -75,17 +75,19 @@ const processors: Record<string, SyncProcessor> = {
     // Transmit contingency NFC-e to SEFAZ via edge function
     const p = item.payload;
     try {
-      const { data, error } = await supabase.functions.invoke("emit-nfce", {
-        body: {
-          action: "emit_contingency",
-          sale_id: p.sale_id as string,
-          company_id: p.company_id as string,
-          config_id: p.config_id as string,
-          contingency_number: p.contingency_number as number,
-          serie: p.serie as number,
-          form: p.form,
-        },
-      });
+      const { data, error } = await fiscalCircuitBreaker.call(() =>
+        supabase.functions.invoke("emit-nfce", {
+          body: {
+            action: "emit_contingency",
+            sale_id: p.sale_id as string,
+            company_id: p.company_id as string,
+            config_id: p.config_id as string,
+            contingency_number: p.contingency_number as number,
+            serie: p.serie as number,
+            form: p.form,
+          },
+        })
+      );
       if (error) {
         // Non-retryable: missing fiscal config or credentials
         const msg = error.message || "";
