@@ -24,7 +24,6 @@ export function LandingCalculator() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
           >
-            {/* Impact question before calculator */}
             <p className="text-xl sm:text-2xl font-bold text-foreground mb-6">
               Você sabe exatamente quanto está perdendo por mês?
             </p>
@@ -52,13 +51,14 @@ export function LandingCalculator() {
             {/* Inputs */}
             <div className="rounded-2xl border border-border bg-card p-7 space-y-6">
               <div>
-                <label className="text-sm font-semibold text-foreground mb-2 block">
+                <label htmlFor="faturamento-slider" className="text-sm font-semibold text-foreground mb-2 block">
                   Faturamento mensal estimado
                 </label>
                 <div className="text-2xl font-black text-primary mb-2">
                   {formatCurrency(faturamento)}
                 </div>
                 <input
+                  id="faturamento-slider"
                   type="range"
                   min={10000}
                   max={500000}
@@ -66,6 +66,7 @@ export function LandingCalculator() {
                   value={faturamento}
                   onChange={(e) => setFaturamento(Number(e.target.value))}
                   className="w-full accent-primary h-2 rounded-full cursor-pointer"
+                  aria-label="Faturamento mensal estimado"
                 />
                 <div className="flex justify-between text-xs text-muted-foreground mt-1">
                   <span>R$ 10 mil</span>
@@ -74,13 +75,14 @@ export function LandingCalculator() {
               </div>
 
               <div>
-                <label className="text-sm font-semibold text-foreground mb-2 block">
+                <label htmlFor="perdas-slider" className="text-sm font-semibold text-foreground mb-2 block">
                   Percentual estimado de perdas
                 </label>
                 <div className="text-2xl font-black text-primary mb-2">
                   {perdas}%
                 </div>
                 <input
+                  id="perdas-slider"
                   type="range"
                   min={1}
                   max={10}
@@ -88,6 +90,7 @@ export function LandingCalculator() {
                   value={perdas}
                   onChange={(e) => setPerdas(Number(e.target.value))}
                   className="w-full accent-primary h-2 rounded-full cursor-pointer"
+                  aria-label="Percentual estimado de perdas"
                 />
                 <div className="flex justify-between text-xs text-muted-foreground mt-1">
                   <span>1% (baixo)</span>
@@ -120,11 +123,11 @@ export function LandingCalculator() {
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-5 flex items-start gap-4">
-                <TrendingDown className="w-8 h-8 text-emerald-500 flex-shrink-0 mt-1" />
+              <div className="rounded-2xl border border-success/20 bg-success/5 p-5 flex items-start gap-4">
+                <TrendingDown className="w-8 h-8 text-success flex-shrink-0 mt-1" />
                 <div>
                   <p className="text-sm text-muted-foreground">ROI do sistema</p>
-                  <p className="text-2xl font-black text-emerald-600">
+                  <p className="text-2xl font-black text-success">
                     {Math.round(economiaComSistema / (149.9 * 12))}x
                   </p>
                   <p className="text-xs text-muted-foreground mt-1">
@@ -133,7 +136,6 @@ export function LandingCalculator() {
                 </div>
               </div>
 
-              {/* Impact text after results */}
               <p className="text-center text-sm font-semibold text-destructive/80 italic pt-2">
                 Cada mês sem controle é dinheiro indo embora.
               </p>

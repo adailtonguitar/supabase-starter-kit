@@ -4,9 +4,9 @@ import mobileMockup from "@/assets/mobile-mockup.png";
 
 const mobileFeatures = [
   { icon: BarChart3, label: "Painel financeiro", value: "R$ 45.200", color: "bg-primary/10 text-primary" },
-  { icon: TrendingUp, label: "Vendas em tempo real", value: "+12% hoje", color: "bg-emerald-500/10 text-emerald-600" },
-  { icon: DollarSign, label: "Lucro diário", value: "R$ 3.890", color: "bg-blue-500/10 text-blue-600" },
-  { icon: AlertTriangle, label: "Alertas de estoque", value: "3 produtos", color: "bg-amber-500/10 text-amber-600" },
+  { icon: TrendingUp, label: "Vendas em tempo real", value: "+12% hoje", color: "bg-success/10 text-success" },
+  { icon: DollarSign, label: "Lucro diário", value: "R$ 3.890", color: "bg-info/10 text-info" },
+  { icon: AlertTriangle, label: "Alertas de estoque", value: "3 produtos", color: "bg-warning/10 text-warning" },
 ];
 
 export function LandingMobileShowcase() {

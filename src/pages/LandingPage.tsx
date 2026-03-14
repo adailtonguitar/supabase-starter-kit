@@ -60,6 +60,7 @@ export default function LandingPage() {
         <LandingFooter />
         <WhatsAppFloatingButton />
       </Suspense>
+      </main>
     </div>
   );
 }

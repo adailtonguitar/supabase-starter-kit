@@ -74,12 +74,12 @@ export function LandingAI() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: i * 0.1 }}
-              className="relative rounded-2xl border border-border bg-card p-7 hover:border-purple-500/30 hover:shadow-xl hover:shadow-purple-500/5 transition-all group"
+              className="relative rounded-2xl border border-border bg-card p-7 hover:border-purple/30 hover:shadow-xl hover:shadow-purple/5 transition-all group"
             >
-              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-purple-600 to-pink-500 opacity-40 group-hover:opacity-100 transition-opacity rounded-t-2xl" />
+              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-purple to-pink opacity-40 group-hover:opacity-100 transition-opacity rounded-t-2xl" />
 
-              <div className="w-14 h-14 rounded-2xl bg-purple-500/10 flex items-center justify-center mb-5">
-                <f.icon className="w-7 h-7 text-purple-500" />
+              <div className="w-14 h-14 rounded-2xl bg-purple/10 flex items-center justify-center mb-5">
+                <f.icon className="w-7 h-7 text-purple" />
               </div>
 
               <span className={`inline-flex px-3 py-1 rounded-full text-xs font-semibold mb-3 ${f.badgeClass}`}>

@@ -27,9 +27,9 @@ const features: Feature[] = [
 ];
 
 const StatusIcon = ({ status }: { status: Status }) => {
-  if (status === "yes") return <Check className="w-5 h-5 text-emerald-500" />;
+  if (status === "yes") return <Check className="w-5 h-5 text-success" />;
   if (status === "no") return <X className="w-5 h-5 text-destructive/60" />;
-  return <Minus className="w-5 h-5 text-amber-500" />;
+  return <Minus className="w-5 h-5 text-warning" />;
 };
 
 const prices: Record<string, string> = {
@@ -68,20 +68,20 @@ export function LandingComparison() {
           className="max-w-5xl mx-auto overflow-x-auto relative z-10"
           style={{ touchAction: "auto", WebkitOverflowScrolling: "touch" }}
         >
-          <table className="w-full text-sm">
+          <table className="w-full text-sm" role="table" aria-label="Comparativo de funcionalidades entre AnthoSystem e concorrentes">
             <thead>
               <tr className="border-b border-border">
-                <th className="text-left py-4 px-3 font-semibold text-muted-foreground">Recurso</th>
-                <th className="text-center py-4 px-3">
+                <th className="text-left py-4 px-3 font-semibold text-muted-foreground" scope="col">Recurso</th>
+                <th className="text-center py-4 px-3" scope="col">
                   <div className="font-bold text-primary text-base">AnthoSystem</div>
                 </th>
-                <th className="text-center py-4 px-3">
+                <th className="text-center py-4 px-3" scope="col">
                   <div className="font-semibold text-foreground/70">Bling</div>
                 </th>
-                <th className="text-center py-4 px-3">
+                <th className="text-center py-4 px-3" scope="col">
                   <div className="font-semibold text-foreground/70">Tiny</div>
                 </th>
-                <th className="text-center py-4 px-3">
+                <th className="text-center py-4 px-3" scope="col">
                   <div className="font-semibold text-foreground/70">MarketUP</div>
                 </th>
               </tr>
@@ -127,8 +127,8 @@ export function LandingComparison() {
           </table>
 
           <div className="flex items-center gap-6 mt-4 text-xs text-muted-foreground justify-center">
-            <span className="flex items-center gap-1"><Check className="w-4 h-4 text-emerald-500" /> Incluso</span>
-            <span className="flex items-center gap-1"><Minus className="w-4 h-4 text-amber-500" /> Parcial</span>
+            <span className="flex items-center gap-1"><Check className="w-4 h-4 text-success" /> Incluso</span>
+            <span className="flex items-center gap-1"><Minus className="w-4 h-4 text-warning" /> Parcial</span>
             <span className="flex items-center gap-1"><X className="w-4 h-4 text-destructive/60" /> Não disponível</span>
           </div>
 

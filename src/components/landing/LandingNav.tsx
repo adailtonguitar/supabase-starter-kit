@@ -60,7 +60,7 @@ export function LandingNav() {
         </div>
 
         {/* Mobile toggle */}
-        <button onClick={() => setOpen(!open)} className="md:hidden p-2 text-muted-foreground">
+        <button onClick={() => setOpen(!open)} className="md:hidden p-2 text-muted-foreground" aria-label={open ? "Fechar menu" : "Abrir menu"} aria-expanded={open}>
           {open ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
         </button>
       </div>

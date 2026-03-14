@@ -28,7 +28,7 @@ export function LandingMultiStore() {
   return (
     <section className="py-24 relative overflow-hidden">
       <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute bottom-0 right-0 w-[500px] h-[500px] rounded-full bg-cyan-500/5 blur-[120px]" />
+        <div className="absolute bottom-0 right-0 w-[500px] h-[500px] rounded-full bg-cyan/5 blur-[120px]" />
       </div>
 
       <div className="relative max-w-7xl mx-auto px-6">
@@ -38,8 +38,8 @@ export function LandingMultiStore() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
           >
-            <Network className="w-8 h-8 text-cyan-500 mx-auto mb-3" />
-            <span className="text-cyan-500 text-sm font-semibold uppercase tracking-wider">
+            <Network className="w-8 h-8 text-cyan mx-auto mb-3" />
+            <span className="text-cyan text-sm font-semibold uppercase tracking-wider">
               Multi-loja
             </span>
             <h2 className="mt-3 font-display text-3xl sm:text-4xl font-extrabold tracking-tight">
@@ -59,10 +59,10 @@ export function LandingMultiStore() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: i * 0.08 }}
-              className="rounded-2xl border border-border bg-card p-6 text-center hover:border-cyan-500/30 hover:shadow-lg transition-all group"
+              className="rounded-2xl border border-border bg-card p-6 text-center hover:border-cyan/30 hover:shadow-lg transition-all group"
             >
-              <div className="w-14 h-14 rounded-2xl bg-cyan-500/10 flex items-center justify-center mx-auto mb-4">
-                <f.icon className="w-7 h-7 text-cyan-500" />
+              <div className="w-14 h-14 rounded-2xl bg-cyan/10 flex items-center justify-center mx-auto mb-4">
+                <f.icon className="w-7 h-7 text-cyan" />
               </div>
               <h3 className="font-bold text-base mb-2">{f.title}</h3>
               <p className="text-sm text-muted-foreground leading-relaxed">{f.desc}</p>
@@ -76,7 +76,7 @@ export function LandingMultiStore() {
           viewport={{ once: true }}
           className="mt-10 text-center"
         >
-          <span className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-cyan-500/10 text-cyan-600 text-sm font-semibold">
+          <span className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-cyan/10 text-cyan text-sm font-semibold">
             <Building2 className="w-4 h-4" />
             Exclusivo do Plano Pro
           </span>
