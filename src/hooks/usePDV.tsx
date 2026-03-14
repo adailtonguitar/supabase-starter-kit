@@ -202,7 +202,8 @@ export function usePDV() {
           { duration: 6000, id: `margin-alert-${product.id}` }
         );
       } else {
-        const marginPercent = ((product.price - product.cost_price) / product.cost_price) * 100;
+        // Margem sobre receita (consistente com relatórios): (preço - custo) / preço
+        const marginPercent = ((product.price - product.cost_price) / product.price) * 100;
         if (marginPercent < 10) {
           toast.warning(
             `⚠️ Margem baixa: "${product.name}" tem apenas ${marginPercent.toFixed(1)}% de margem (Custo: R$ ${product.cost_price.toFixed(2)})`,
@@ -241,10 +242,10 @@ export function usePDV() {
     setItemDiscounts(prev => ({ ...prev, [id]: percent }));
   }, []);
 
-  const subtotal = cartItems.reduce((sum, item) => {
+  const subtotal = Math.round(cartItems.reduce((sum, item) => {
     const discount = itemDiscounts[item.id] || 0;
     return sum + item.price * (1 - discount / 100) * item.quantity;
-  }, 0);
+  }, 0) * 100) / 100;
 
   // --- Promotions engine ---
   const [activePromos, setActivePromos] = useState<any[]>([]);
@@ -268,8 +269,8 @@ export function usePDV() {
     [cartItems, activePromos]
   );
 
-  const globalDiscountValue = subtotal * (globalDiscountPercent / 100);
-  const total = subtotal - globalDiscountValue - promoSavings;
+  const globalDiscountValue = Math.round(subtotal * (globalDiscountPercent / 100) * 100) / 100;
+  const total = Math.round((subtotal - globalDiscountValue - promoSavings) * 100) / 100;
 
   const handleBarcodeScan = useCallback((barcode: string) => {
     // Check for scale barcode (EAN-13 prefix 20-29)

@@ -67,7 +67,7 @@ export function useProfitAnalytics(dateFrom?: Date, dateTo?: Date) {
         const batch = saleIds.slice(i, i + BATCH);
         const { data: itemsData } = await supabase
           .from("sale_items")
-          .select("sale_id, product_id, product_name, quantity, unit_price")
+          .select("sale_id, product_id, product_name, quantity, unit_price, subtotal, discount_percent")
           .in("sale_id", batch);
         if (itemsData) allItems.push(...itemsData);
       }
@@ -118,20 +118,21 @@ export function useProfitAnalytics(dateFrom?: Date, dateTo?: Date) {
         totalRevenue = sales.reduce((s: number, sale: any) => s + Number(sale.total || 0), 0);
       }
 
-      const estimatedTaxes = totalRevenue * 0.10;
-      const operationalExpenses = totalRevenue * 0.05;
-      const netProfit = totalRevenue - totalCosts - estimatedTaxes - operationalExpenses;
-      const netMargin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
+      const estimatedTaxes = Math.round(totalRevenue * 0.10 * 100) / 100;
+      const operationalExpenses = Math.round(totalRevenue * 0.05 * 100) / 100;
+      const netProfit = Math.round((totalRevenue - totalCosts - estimatedTaxes - operationalExpenses) * 100) / 100;
+      const netMargin = totalRevenue > 0 ? Math.round((netProfit / totalRevenue) * 1000) / 10 : 0;
 
       const products: ProductProfit[] = Array.from(productStats.entries()).map(([id, stats]) => {
-        const margin = stats.revenue > 0 ? ((stats.revenue - stats.cost) / stats.revenue) * 100 : 0;
-        const estimatedTax = stats.revenue * 0.10;
+        const margin = stats.revenue > 0 ? Math.round(((stats.revenue - stats.cost) / stats.revenue) * 1000) / 10 : 0;
+        const estimatedTax = Math.round(stats.revenue * 0.10 * 100) / 100;
+        const totalProfit = Math.round((stats.revenue - stats.cost - estimatedTax) * 100) / 100;
         return {
           id, name: stats.name, sku: stats.sku, price: stats.price,
           cost_price: stats.cost_price, margin,
-          totalRevenue: stats.revenue, totalCost: stats.cost,
-          totalProfit: stats.revenue - stats.cost - estimatedTax,
-          unitsSold: stats.units, estimatedTax,
+          totalRevenue: Math.round(stats.revenue * 100) / 100,
+          totalCost: Math.round(stats.cost * 100) / 100,
+          totalProfit, unitsSold: stats.units, estimatedTax,
         };
       }).sort((a, b) => b.totalProfit - a.totalProfit);
 

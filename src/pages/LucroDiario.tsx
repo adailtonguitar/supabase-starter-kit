@@ -48,7 +48,7 @@ export default function LucroDiario() {
         const batch = saleIds.slice(i, i + BATCH);
         const { data } = await supabase
           .from("sale_items")
-          .select("product_id, quantity, unit_price")
+          .select("product_id, quantity, unit_price, subtotal")
           .in("sale_id", batch);
         if (data) itemsData.push(...data);
       }
@@ -65,17 +65,15 @@ export default function LucroDiario() {
         (productsData || []).forEach((p: any) => { costMap[p.id] = Number(p.cost_price || 0); });
       }
 
-      // Calculate totals
+      // Calculate totals — revenue from sales.total (authoritative), cost from items
       const totalRevenue = salesData.reduce((s: number, sale: any) => s + Number(sale.total || 0), 0);
       let totalCost = 0;
-      let itemsRevenue = 0;
       (itemsData || []).forEach((item: any) => {
-        itemsRevenue += Number(item.quantity) * Number(item.unit_price);
         totalCost += Number(item.quantity) * (costMap[item.product_id] || 0);
       });
 
-      const profit = totalRevenue - totalCost;
-      const margin = totalRevenue > 0 ? (profit / totalRevenue) * 100 : 0;
+      const profit = Math.round((totalRevenue - totalCost) * 100) / 100;
+      const margin = totalRevenue > 0 ? Math.round(((profit / totalRevenue) * 100) * 10) / 10 : 0;
 
       // Payment breakdown
       const byPayment: Record<string, number> = {};
