@@ -443,22 +443,24 @@ export function usePDV() {
       cofins_cst: "49",
     }));
 
-    const { data: fiscalData, error: fiscalErr } = await supabase.functions.invoke("emit-nfce", {
-      body: {
-        action: "emit",
-        sale_id: saleId,
-        company_id: companyId,
-        config_id: fiscalConfig.id,
-        form: {
-          nat_op: "VENDA DE MERCADORIA",
-          crt,
-          payment_method: paymentMethodMap[payments[0]?.method] || "99",
-          payment_value: sale.total,
-          change: payments[0]?.change_amount || 0,
-          items: fiscalItems,
+    const { data: fiscalData, error: fiscalErr } = await fiscalCircuitBreaker.call(() =>
+      supabase.functions.invoke("emit-nfce", {
+        body: {
+          action: "emit",
+          sale_id: saleId,
+          company_id: companyId,
+          config_id: fiscalConfig.id,
+          form: {
+            nat_op: "VENDA DE MERCADORIA",
+            crt,
+            payment_method: paymentMethodMap[payments[0]?.method] || "99",
+            payment_value: sale.total,
+            change: payments[0]?.change_amount || 0,
+            items: fiscalItems,
+          },
         },
-      },
-    });
+      })
+    );
 
     if (fiscalErr || !fiscalData?.success) {
       const errorMsg = fiscalData?.error || fiscalErr?.message || "Falha na emissão";
