@@ -96,7 +96,7 @@ export function useDashboardStats() {
         supabase.from("fiscal_configs").select("id").eq("company_id", companyId).eq("is_active", true).limit(1),
         // Single query: all financial entries (covers alerts, bills, overdue, receivables)
         supabase.from("financial_entries").select("type, amount, status, due_date").eq("company_id", companyId).gte("due_date", (() => { const d = new Date(); d.setDate(d.getDate() - 180); return d.toISOString().split("T")[0]; })()),
-        supabase.from("sale_items").select("product_name, quantity, unit_price, sale_id, sales!inner(company_id, created_at)").eq("sales.company_id", companyId).gte("sales.created_at", monthStart + "T00:00:00").limit(500),
+        supabase.from("sale_items").select("product_name, quantity, unit_price, sale_id, created_at:sales(created_at)").eq("company_id", companyId).gte("sales.created_at", monthStart + "T00:00:00").limit(500),
         supabase.from("products").select("id", { count: "exact", head: true }).eq("company_id", companyId).eq("is_active", true),
         supabase.from("clients").select("id", { count: "exact", head: true }).eq("company_id", companyId),
         supabase.from("clients").select("credit_balance").eq("company_id", companyId).gt("credit_balance", 0),

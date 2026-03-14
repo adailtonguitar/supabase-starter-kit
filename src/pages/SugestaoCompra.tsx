@@ -52,9 +52,9 @@ export default function SugestaoCompra() {
         const batch = productIds.slice(i, i + BATCH);
         const { data } = await supabase
           .from("sale_items")
-          .select("product_id, quantity, sale_id, sales!inner(created_at, company_id)")
+          .select("product_id, quantity, sale_id, created_at:sales(created_at)")
           .in("product_id", batch)
-          .eq("sales.company_id", companyId)
+          .eq("company_id", companyId)
           .gte("sales.created_at", thirtyDaysAgo.toISOString());
         if (data) saleItems.push(...data);
       }
