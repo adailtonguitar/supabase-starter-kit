@@ -197,6 +197,29 @@ export default function AuditoriaGeral() {
           })}
         </div>
       )}
+
+      {/* Pagination */}
+      {!isLoading && filtered.length > 0 && (
+        <div className="flex items-center justify-between pt-2">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={page === 0}
+            onClick={() => setPage((p) => Math.max(0, p - 1))}
+          >
+            ← Anterior
+          </Button>
+          <span className="text-xs text-muted-foreground">Página {page + 1}</span>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={!hasMore}
+            onClick={() => setPage((p) => p + 1)}
+          >
+            Próxima →
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
