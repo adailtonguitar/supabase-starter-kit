@@ -92,10 +92,19 @@ export function useCreateFinancialEntry() {
 export function useUpdateFinancialEntry() {
   const qc = useQueryClient();
   const { companyId } = useCompany();
+  const { user } = useAuth();
 
   return useMutation({
     mutationFn: async ({ id, ...updates }: Partial<FinancialEntry> & { id: string }) => {
       if (!companyId) throw new Error("Sem permissão");
+      // Fetch old data for diff
+      const { data: oldData } = await supabase
+        .from("financial_entries")
+        .select("*")
+        .eq("id", id)
+        .eq("company_id", companyId)
+        .single();
+
       const { data, error } = await supabase
         .from("financial_entries")
         .update(updates)
@@ -104,13 +113,14 @@ export function useUpdateFinancialEntry() {
         .select()
         .single();
       if (error) throw error;
-      return data;
+      return { entry: data, oldData };
     },
-    onSuccess: (_data, variables) => {
+    onSuccess: (result, variables) => {
       qc.invalidateQueries({ queryKey: ["financial_entries"] });
       qc.invalidateQueries({ queryKey: ["financial-entries"] });
       toast.success("Lançamento atualizado");
-      if (companyId) logAction({ companyId, action: "Lançamento financeiro atualizado", module: "financeiro", details: variables.id });
+      const diff = result.oldData ? buildDiff(result.oldData, { ...result.oldData, ...variables }, Object.keys(variables).filter(k => k !== "id")) : undefined;
+      if (companyId) logAction({ companyId, userId: user?.id, action: "Lançamento financeiro atualizado", module: "financeiro", details: variables.id, diff });
     },
     onError: (e: Error) => toast.error(`Erro: ${e.message}`),
   });
