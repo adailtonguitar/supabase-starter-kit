@@ -107,9 +107,9 @@ const processors: Record<string, SyncProcessor> = {
         throw new Error(errMsg);
       }
     } catch (err: any) {
-      // If it's a network error, rethrow for retry; otherwise skip
+      // Circuit breaker open or network error → rethrow for retry later
       const msg = err?.message || "";
-      if (msg.includes("Failed to fetch") || msg.includes("NetworkError") || msg.includes("TypeError")) {
+      if (err instanceof CircuitBreakerOpenError || msg.includes("Failed to fetch") || msg.includes("NetworkError") || msg.includes("TypeError") || msg.includes("Timeout")) {
         throw err;
       }
       console.warn("[Sync] Fiscal contingency failed permanently, skipping:", msg);
