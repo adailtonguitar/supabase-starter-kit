@@ -16,6 +16,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import type { SyncQueueItem } from "@/services/types";
 import { toast } from "sonner";
+import { fiscalCircuitBreaker, CircuitBreakerOpenError } from "@/lib/circuit-breaker";
 
 const SYNC_INTERVAL_MS = 15_000;
 const CLEANUP_INTERVAL_MS = 60 * 60 * 1000;
@@ -74,17 +75,19 @@ const processors: Record<string, SyncProcessor> = {
     // Transmit contingency NFC-e to SEFAZ via edge function
     const p = item.payload;
     try {
-      const { data, error } = await supabase.functions.invoke("emit-nfce", {
-        body: {
-          action: "emit_contingency",
-          sale_id: p.sale_id as string,
-          company_id: p.company_id as string,
-          config_id: p.config_id as string,
-          contingency_number: p.contingency_number as number,
-          serie: p.serie as number,
-          form: p.form,
-        },
-      });
+      const { data, error } = await fiscalCircuitBreaker.call(() =>
+        supabase.functions.invoke("emit-nfce", {
+          body: {
+            action: "emit_contingency",
+            sale_id: p.sale_id as string,
+            company_id: p.company_id as string,
+            config_id: p.config_id as string,
+            contingency_number: p.contingency_number as number,
+            serie: p.serie as number,
+            form: p.form,
+          },
+        })
+      );
       if (error) {
         // Non-retryable: missing fiscal config or credentials
         const msg = error.message || "";
@@ -104,9 +107,9 @@ const processors: Record<string, SyncProcessor> = {
         throw new Error(errMsg);
       }
     } catch (err: any) {
-      // If it's a network error, rethrow for retry; otherwise skip
+      // Circuit breaker open or network error → rethrow for retry later
       const msg = err?.message || "";
-      if (msg.includes("Failed to fetch") || msg.includes("NetworkError") || msg.includes("TypeError")) {
+      if (err instanceof CircuitBreakerOpenError || msg.includes("Failed to fetch") || msg.includes("NetworkError") || msg.includes("TypeError") || msg.includes("Timeout")) {
         throw err;
       }
       console.warn("[Sync] Fiscal contingency failed permanently, skipping:", msg);

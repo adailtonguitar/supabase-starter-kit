@@ -9,6 +9,7 @@ import { isScaleBarcode, parseScaleBarcode } from "@/lib/scale-barcode";
 import { calculateCartPromos, type PromoMatch } from "@/lib/promo-engine";
 import { cacheSet, cacheGet } from "@/lib/offline-cache";
 import { logAction } from "@/services/ActionLogger";
+import { fiscalCircuitBreaker, CircuitBreakerOpenError } from "@/lib/circuit-breaker";
 
 export interface PDVProduct {
   id: string;
@@ -326,14 +327,19 @@ export function usePDV() {
   const enqueueFiscal = useCallback(async (saleId: string) => {
     if (!companyId) return;
     try {
-      await supabase.from("fiscal_queue").insert({
+      const { error } = await supabase.from("fiscal_queue").insert({
         sale_id: saleId,
         company_id: companyId,
         status: "pending",
         attempts: 0,
       } as any);
-    } catch {
-      // fiscal enqueue failed silently
+      if (error) {
+        console.error("[PDV] Falha ao enfileirar fiscal:", error.message);
+        toast.warning("Venda registrada, mas NFC-e não foi enfileirada. Reprocesse manualmente.", { duration: 8000 });
+      }
+    } catch (err: any) {
+      console.error("[PDV] Erro ao enfileirar fiscal:", err?.message);
+      toast.warning("Venda registrada, mas NFC-e não foi enfileirada. Reprocesse manualmente.", { duration: 8000 });
     }
   }, [companyId]);
 
@@ -437,22 +443,24 @@ export function usePDV() {
       cofins_cst: "49",
     }));
 
-    const { data: fiscalData, error: fiscalErr } = await supabase.functions.invoke("emit-nfce", {
-      body: {
-        action: "emit",
-        sale_id: saleId,
-        company_id: companyId,
-        config_id: fiscalConfig.id,
-        form: {
-          nat_op: "VENDA DE MERCADORIA",
-          crt,
-          payment_method: paymentMethodMap[payments[0]?.method] || "99",
-          payment_value: sale.total,
-          change: payments[0]?.change_amount || 0,
-          items: fiscalItems,
+    const { data: fiscalData, error: fiscalErr } = await fiscalCircuitBreaker.call(() =>
+      supabase.functions.invoke("emit-nfce", {
+        body: {
+          action: "emit",
+          sale_id: saleId,
+          company_id: companyId,
+          config_id: fiscalConfig.id,
+          form: {
+            nat_op: "VENDA DE MERCADORIA",
+            crt,
+            payment_method: paymentMethodMap[payments[0]?.method] || "99",
+            payment_value: sale.total,
+            change: payments[0]?.change_amount || 0,
+            items: fiscalItems,
+          },
         },
-      },
-    });
+      })
+    );
 
     if (fiscalErr || !fiscalData?.success) {
       const errorMsg = fiscalData?.error || fiscalErr?.message || "Falha na emissão";
@@ -725,7 +733,8 @@ export function usePDV() {
         contingencyNumber = String(contingencyPayload.contingency_number || contingencyNumber);
         await queueOperation("fiscal_contingency", contingencyPayload as unknown as Record<string, unknown>, 1, 5);
       } catch (contErr: any) {
-        // contingency payload failed silently
+        console.error("[PDV Contingency] Falha ao criar payload de contingência:", contErr?.message);
+        toast.error("Erro ao preparar NFC-e de contingência. A venda será registrada sem fiscal.", { duration: 8000 });
       }
 
       try {
@@ -743,7 +752,8 @@ export function usePDV() {
           created_at: new Date().toISOString(),
         }, 2, 3);
       } catch (queueErr: any) {
-        // queue sale failed silently
+        console.error("[PDV Contingency] CRITICAL — Falha ao enfileirar venda offline:", queueErr?.message);
+        toast.error("ATENÇÃO: Venda NÃO foi salva! Tente novamente quando a conexão retornar.", { duration: 15000 });
       }
 
       setContingencySaleIds(prev => new Set(prev).add(offlineSaleId));
