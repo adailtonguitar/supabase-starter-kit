@@ -48,7 +48,7 @@ export default function LucroDiario() {
         const batch = saleIds.slice(i, i + BATCH);
         const { data } = await supabase
           .from("sale_items")
-          .select("product_id, quantity, unit_price")
+          .select("product_id, quantity, unit_price, subtotal")
           .in("sale_id", batch);
         if (data) itemsData.push(...data);
       }
