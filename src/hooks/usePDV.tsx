@@ -752,7 +752,8 @@ export function usePDV() {
           created_at: new Date().toISOString(),
         }, 2, 3);
       } catch (queueErr: any) {
-        // queue sale failed silently
+        console.error("[PDV Contingency] CRITICAL — Falha ao enfileirar venda offline:", queueErr?.message);
+        toast.error("ATENÇÃO: Venda NÃO foi salva! Tente novamente quando a conexão retornar.", { duration: 15000 });
       }
 
       setContingencySaleIds(prev => new Set(prev).add(offlineSaleId));
