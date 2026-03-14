@@ -51,12 +51,14 @@ export default function AuditoriaGeral() {
     queryKey: ["general-audit-logs", companyId],
     queryFn: async () => {
       if (!companyId) return [];
+      const from = page * 100;
+      const to = from + 99;
       const { data, error } = await supabase
         .from("action_logs")
         .select("id, action, module, details, user_id, user_name, created_at")
         .eq("company_id", companyId)
         .order("created_at", { ascending: false })
-        .limit(300);
+        .range(from, to);
       if (error) throw error;
       return (data || []) as ActionLog[];
     },
