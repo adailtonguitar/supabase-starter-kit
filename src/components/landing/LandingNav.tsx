@@ -17,7 +17,7 @@ export function LandingNav() {
   const [open, setOpen] = useState(false);
 
   return (
-    <nav className="sticky top-0 z-50 backdrop-blur-2xl bg-background/70 border-b border-border/50">
+    <nav className="sticky top-0 z-50 backdrop-blur-2xl bg-background/70 border-b border-border/50" role="navigation" aria-label="Menu principal">
       <div className="max-w-7xl mx-auto flex items-center justify-between px-6 h-16">
         <Link to="/" className="flex items-center gap-2">
           <img src={logoAs} alt="AnthoSystem" className="w-8 h-8 rounded-lg object-contain" />
