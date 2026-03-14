@@ -5,7 +5,7 @@ import { useAuth } from "./useAuth";
 import { toast } from "sonner";
 import { autoSyncProductToBranches } from "./useBranches";
 import { recordPriceChange } from "@/lib/price-history";
-import { logAction } from "@/services/ActionLogger";
+import { logAction, buildDiff } from "@/services/ActionLogger";
 
 export interface Product {
   id: string;
@@ -80,17 +80,13 @@ export function useUpdateProduct() {
     mutationFn: async ({ id, ...updates }: Partial<Product> & { id: string }) => {
       if (!companyId) throw new Error("Empresa não encontrada");
 
-      // Fetch current product for price history tracking
-      let oldProduct: any = null;
-      if (updates.price !== undefined || updates.cost_price !== undefined) {
-        const { data } = await supabase
-          .from("products")
-          .select("price, cost_price")
-          .eq("id", id)
-          .eq("company_id", companyId)
-          .single();
-        oldProduct = data;
-      }
+      // Fetch current product for diff and price history tracking
+      const { data: oldData } = await supabase
+        .from("products")
+        .select("*")
+        .eq("id", id)
+        .eq("company_id", companyId)
+        .single();
 
       const { data, error } = await supabase
         .from("products")
@@ -102,34 +98,35 @@ export function useUpdateProduct() {
       if (error) throw error;
 
       // Record price changes automatically
-      if (oldProduct) {
-        if (updates.price !== undefined && oldProduct.price !== updates.price) {
+      if (oldData) {
+        if (updates.price !== undefined && oldData.price !== updates.price) {
           recordPriceChange({
             company_id: companyId,
             product_id: id,
             field_changed: "price",
-            old_value: oldProduct.price || 0,
+            old_value: oldData.price || 0,
             new_value: updates.price,
             source: "manual",
           });
         }
-        if (updates.cost_price !== undefined && oldProduct.cost_price !== updates.cost_price) {
+        if (updates.cost_price !== undefined && oldData.cost_price !== updates.cost_price) {
           recordPriceChange({
             company_id: companyId,
             product_id: id,
             field_changed: "cost_price",
-            old_value: oldProduct.cost_price || 0,
+            old_value: oldData.cost_price || 0,
             new_value: updates.cost_price,
             source: "manual",
           });
         }
       }
 
-      return data as Product;
+      return { product: data as Product, oldData };
     },
-    onSuccess: (_data, variables) => {
+    onSuccess: (result, variables) => {
       queryClient.invalidateQueries({ queryKey: ["products"] });
-      if (companyId) logAction({ companyId, userId: user?.id, action: "Produto atualizado", module: "produtos", details: variables.name || variables.id });
+      const diff = result.oldData ? buildDiff(result.oldData, { ...result.oldData, ...variables }, Object.keys(variables).filter(k => k !== "id")) : undefined;
+      if (companyId) logAction({ companyId, userId: user?.id, action: "Produto atualizado", module: "produtos", details: variables.name || variables.id, diff });
     },
   });
 }

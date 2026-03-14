@@ -4,6 +4,7 @@ import {
   Clock, FileText, User, RefreshCw, Search, Filter,
   Package, Users, DollarSign, ShoppingCart, Settings,
   Truck, Tag, Landmark, LogIn, Percent, ClipboardList,
+  ArrowRight, Monitor,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
@@ -182,9 +183,43 @@ export default function AuditoriaGeral() {
                       {new Date(entry.created_at).toLocaleString("pt-BR")}
                     </span>
                   </div>
-                  {entry.details && (
-                    <p className="text-sm text-muted-foreground mt-0.5 truncate">{entry.details}</p>
-                  )}
+                  {entry.details && (() => {
+                    let parsed: any = null;
+                    try { parsed = JSON.parse(entry.details); } catch {}
+                    
+                    const hasDiff = parsed?.diff && Array.isArray(parsed.diff) && parsed.diff.length > 0;
+                    const hasMeta = parsed?.meta;
+                    const textDetail = parsed?.text || (!parsed ? entry.details : null);
+
+                    return (
+                      <div className="mt-1 space-y-1">
+                        {textDetail && (
+                          <p className="text-sm text-muted-foreground truncate">{textDetail}</p>
+                        )}
+                        {hasDiff && (
+                          <div className="flex flex-wrap gap-1.5 mt-1">
+                            {parsed.diff.slice(0, 5).map((d: any, idx: number) => (
+                              <span key={idx} className="inline-flex items-center gap-1 text-[11px] bg-muted/60 rounded px-1.5 py-0.5 font-mono">
+                                <span className="text-muted-foreground">{d.field}:</span>
+                                <span className="text-destructive line-through">{String(d.from ?? "—").slice(0, 20)}</span>
+                                <ArrowRight className="w-3 h-3 text-muted-foreground" />
+                                <span className="text-success">{String(d.to ?? "—").slice(0, 20)}</span>
+                              </span>
+                            ))}
+                            {parsed.diff.length > 5 && (
+                              <span className="text-[11px] text-muted-foreground">+{parsed.diff.length - 5} campos</span>
+                            )}
+                          </div>
+                        )}
+                        {hasMeta && (
+                          <div className="flex items-center gap-1 text-[10px] text-muted-foreground/60">
+                            <Monitor className="w-3 h-3" />
+                            {parsed.meta.platform} • {parsed.meta.screen}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
                   {entry.user_name && (
                     <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
                       <User className="w-3 h-3" />

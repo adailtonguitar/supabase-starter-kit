@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "./useCompany";
 import { useAuth } from "./useAuth";
 import { toast } from "sonner";
-import { logAction } from "@/services/ActionLogger";
+import { logAction, buildDiff } from "@/services/ActionLogger";
 
 export function useClients() {
   const { companyId } = useCompany();
@@ -47,9 +47,12 @@ export function useUpdateClient() {
     mutationFn: async (data: any) => {
       if (!companyId) throw new Error("Empresa não encontrada");
       const { id, ...rest } = data;
+      // Fetch old data for diff
+      const { data: oldData } = await supabase.from("clients").select("*").eq("id", id).eq("company_id", companyId).single();
       const { error } = await supabase.from("clients").update(rest).eq("id", id).eq("company_id", companyId);
       if (error) throw error;
-      logAction({ companyId, userId: user?.id, action: "Cliente atualizado", module: "clientes", details: rest.name || id });
+      const diff = oldData ? buildDiff(oldData, { ...oldData, ...rest }, Object.keys(rest)) : undefined;
+      logAction({ companyId, userId: user?.id, action: "Cliente atualizado", module: "clientes", details: rest.name || id, diff });
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["clients"] });
