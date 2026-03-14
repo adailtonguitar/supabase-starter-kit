@@ -2,7 +2,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
 import { toast } from "sonner";
-import { logAction } from "@/services/ActionLogger";
+import { logAction, buildDiff } from "@/services/ActionLogger";
 import { useAuth } from "@/hooks/useAuth";
 
 export interface Promotion {
