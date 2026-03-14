@@ -9,32 +9,32 @@ const analyticsFeatures = [
     title: "Curva ABC de Produtos",
     desc: "Descubra quais produtos são responsáveis por 80% do seu faturamento. Identifique itens A, B e C para decisões estratégicas de compra, precificação e posicionamento em gôndola.",
     highlights: ["Classificação automática A/B/C", "Análise por faturamento e quantidade", "Relatório visual interativo"],
-    color: "from-blue-600 to-cyan-500",
-    iconBg: "bg-blue-500/15 text-blue-500",
+    color: "from-info to-cyan",
+    iconBg: "bg-info/15 text-info",
   },
   {
     icon: TrendingUp,
     title: "Painel de Lucro Diário",
     desc: "Acompanhe em tempo real o lucro bruto de cada venda, margem por produto e rentabilidade por categoria. Tome decisões baseadas em dados, não em achismo.",
     highlights: ["Lucro bruto por venda", "Margem por produto e categoria", "Comparativo diário/semanal"],
-    color: "from-emerald-600 to-teal-500",
-    iconBg: "bg-emerald-500/15 text-emerald-500",
+    color: "from-success to-teal",
+    iconBg: "bg-success/15 text-success",
   },
   {
     icon: BarChart3,
     title: "DRE Simplificado",
     desc: "Demonstrativo de Resultado do Exercício automático. Visualize receitas, custos, despesas e o resultado final do seu negócio mês a mês.",
     highlights: ["Gerado automaticamente", "Receitas vs despesas", "Resultado líquido mensal"],
-    color: "from-violet-600 to-purple-500",
-    iconBg: "bg-violet-500/15 text-violet-500",
+    color: "from-violet to-purple",
+    iconBg: "bg-violet/15 text-violet",
   },
   {
     icon: DollarSign,
     title: "Fluxo de Caixa Projetado",
     desc: "Saiba quanto vai entrar e sair nos próximos dias. Antecipe problemas de caixa e planeje compras com segurança.",
     highlights: ["Projeção a 30/60/90 dias", "Contas a pagar e receber", "Alertas de saldo negativo"],
-    color: "from-amber-600 to-orange-500",
-    iconBg: "bg-amber-500/15 text-amber-500",
+    color: "from-amber to-orange",
+    iconBg: "bg-amber/15 text-amber",
   },
 ];
 
@@ -43,7 +43,7 @@ export function LandingAnalytics() {
     <section id="analytics" className="py-24 relative overflow-hidden">
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-1/4 right-0 w-[500px] h-[500px] rounded-full bg-primary/5 blur-[120px]" />
-        <div className="absolute bottom-0 left-1/4 w-[400px] h-[400px] rounded-full bg-blue-500/5 blur-[100px]" />
+        <div className="absolute bottom-0 left-1/4 w-[400px] h-[400px] rounded-full bg-info/5 blur-[100px]" />
       </div>
 
       <div className="relative max-w-7xl mx-auto px-6">

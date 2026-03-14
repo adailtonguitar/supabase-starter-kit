@@ -17,7 +17,7 @@ export function LandingNav() {
   const [open, setOpen] = useState(false);
 
   return (
-    <nav className="sticky top-0 z-50 backdrop-blur-2xl bg-background/70 border-b border-border/50">
+    <nav className="sticky top-0 z-50 backdrop-blur-2xl bg-background/70 border-b border-border/50" role="navigation" aria-label="Menu principal">
       <div className="max-w-7xl mx-auto flex items-center justify-between px-6 h-16">
         <Link to="/" className="flex items-center gap-2">
           <img src={logoAs} alt="AnthoSystem" className="w-8 h-8 rounded-lg object-contain" />
@@ -34,7 +34,7 @@ export function LandingNav() {
               <Link
                 key={l.href}
                 to={l.href}
-                className="px-4 py-2 text-sm font-medium text-cyan-600 hover:text-cyan-500 rounded-lg hover:bg-accent/50 transition-colors"
+                className="px-4 py-2 text-sm font-medium text-accent-foreground hover:text-primary rounded-lg hover:bg-accent/50 transition-colors"
               >
                 {l.label}
               </Link>
@@ -60,7 +60,7 @@ export function LandingNav() {
         </div>
 
         {/* Mobile toggle */}
-        <button onClick={() => setOpen(!open)} className="md:hidden p-2 text-muted-foreground">
+        <button onClick={() => setOpen(!open)} className="md:hidden p-2 text-muted-foreground" aria-label={open ? "Fechar menu" : "Abrir menu"} aria-expanded={open}>
           {open ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
         </button>
       </div>
@@ -82,7 +82,7 @@ export function LandingNav() {
                     key={l.href}
                     to={l.href}
                     onClick={() => setOpen(false)}
-                    className="block px-4 py-2.5 text-sm font-medium text-cyan-600 hover:text-cyan-500 rounded-lg hover:bg-accent/50"
+                    className="block px-4 py-2.5 text-sm font-medium text-accent-foreground hover:text-primary rounded-lg hover:bg-accent/50"
                   >
                     {l.label}
                   </Link>

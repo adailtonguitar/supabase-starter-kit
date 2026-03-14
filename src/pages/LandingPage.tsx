@@ -26,7 +26,15 @@ const SectionFallback = () => <div className="h-32" />;
 export default function LandingPage() {
   return (
     <div className="landing-animated h-screen overflow-y-auto overflow-x-hidden bg-background text-foreground scroll-smooth">
+      {/* Skip to content - accessibility */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-[100] focus:px-4 focus:py-2 focus:bg-primary focus:text-primary-foreground focus:rounded-lg focus:outline-none"
+      >
+        Pular para o conteúdo principal
+      </a>
       <LandingNav />
+      <main id="main-content" role="main">
       <LandingHero />
       <Suspense fallback={<SectionFallback />}>
         <LandingFeatures />
@@ -52,6 +60,7 @@ export default function LandingPage() {
         <LandingFooter />
         <WhatsAppFloatingButton />
       </Suspense>
+      </main>
     </div>
   );
 }
