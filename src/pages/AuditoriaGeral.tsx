@@ -4,6 +4,7 @@ import {
   Clock, FileText, User, RefreshCw, Search, Filter,
   Package, Users, DollarSign, ShoppingCart, Settings,
   Truck, Tag, Landmark, LogIn, Percent, ClipboardList,
+  ArrowRight, Monitor,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
