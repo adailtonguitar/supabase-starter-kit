@@ -34,7 +34,7 @@ export function LandingNav() {
               <Link
                 key={l.href}
                 to={l.href}
-                className="px-4 py-2 text-sm font-medium text-cyan-600 hover:text-cyan-500 rounded-lg hover:bg-accent/50 transition-colors"
+                className="px-4 py-2 text-sm font-medium text-accent-foreground hover:text-primary rounded-lg hover:bg-accent/50 transition-colors"
               >
                 {l.label}
               </Link>
