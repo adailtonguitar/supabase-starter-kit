@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "./useCompany";
 import { useAuth } from "./useAuth";
 import { toast } from "sonner";
-import { logAction } from "@/services/ActionLogger";
+import { logAction, buildDiff } from "@/services/ActionLogger";
 
 export type Employee = any;
 export type EmployeeInsert = any;
