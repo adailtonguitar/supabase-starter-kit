@@ -177,45 +177,43 @@ export function useMarkAsPaid() {
       if (error) throw error;
 
       if (entry.type === "receber" && companyId && user) {
-        try {
-          const session = await CashSessionService.getCurrentSession(companyId);
-          if (session) {
-            const method = payment_method || "dinheiro";
-            await supabase.from("cash_movements").insert({
-              company_id: companyId,
-              session_id: session.id,
-              type: "suprimento" as any,
-              amount: paid_amount,
-              performed_by: user.id,
-              payment_method: method as any,
-              description: `Recebimento: ${entry.description}`,
-              sale_id: entry.reference || null,
-            });
+        const session = await CashSessionService.getCurrentSession(companyId);
+        if (session) {
+          const method = payment_method || "dinheiro";
+          const { error: movErr } = await supabase.from("cash_movements").insert({
+            company_id: companyId,
+            session_id: session.id,
+            type: "suprimento" as any,
+            amount: paid_amount,
+            performed_by: user.id,
+            payment_method: method as any,
+            description: `Recebimento: ${entry.description}`,
+            sale_id: entry.reference || null,
+          });
+          if (movErr) throw new Error(`Pagamento registrado, mas falha ao lançar no caixa: ${movErr.message}`);
 
-            const paymentField = method === "dinheiro" ? "total_dinheiro"
-              : method === "pix" ? "total_pix"
-              : method === "debito" ? "total_debito"
-              : method === "credito" ? "total_credito"
-              : "total_outros";
+          const paymentField = method === "dinheiro" ? "total_dinheiro"
+            : method === "pix" ? "total_pix"
+            : method === "debito" ? "total_debito"
+            : method === "credito" ? "total_credito"
+            : "total_outros";
 
-            const { data: sessionData } = await supabase
+          const { data: sessionData } = await supabase
+            .from("cash_sessions")
+            .select(`${paymentField}, total_suprimento`)
+            .eq("id", session.id)
+            .single();
+
+          if (sessionData) {
+            const { error: sessErr } = await supabase
               .from("cash_sessions")
-              .select(`${paymentField}, total_suprimento`)
-              .eq("id", session.id)
-              .single();
-
-            if (sessionData) {
-              await supabase
-                .from("cash_sessions")
-                .update({
-                  [paymentField]: Number((sessionData as any)[paymentField] || 0) + paid_amount,
-                  total_suprimento: Number(sessionData.total_suprimento || 0) + paid_amount,
-                })
-                .eq("id", session.id);
-            }
+              .update({
+                [paymentField]: Number((sessionData as any)[paymentField] || 0) + paid_amount,
+                total_suprimento: Number(sessionData.total_suprimento || 0) + paid_amount,
+              })
+              .eq("id", session.id);
+            if (sessErr) throw new Error(`Pagamento registrado, mas falha ao atualizar sessão do caixa: ${sessErr.message}`);
           }
-        } catch {
-          // cash registration failed silently
         }
       }
 
