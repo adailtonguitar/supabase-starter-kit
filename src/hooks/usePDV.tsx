@@ -9,6 +9,7 @@ import { isScaleBarcode, parseScaleBarcode } from "@/lib/scale-barcode";
 import { calculateCartPromos, type PromoMatch } from "@/lib/promo-engine";
 import { cacheSet, cacheGet } from "@/lib/offline-cache";
 import { logAction } from "@/services/ActionLogger";
+import { fiscalCircuitBreaker, CircuitBreakerOpenError } from "@/lib/circuit-breaker";
 
 export interface PDVProduct {
   id: string;
