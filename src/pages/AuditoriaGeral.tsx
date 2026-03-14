@@ -46,9 +46,10 @@ export default function AuditoriaGeral() {
   const { companyId } = useCompany();
   const [search, setSearch] = useState("");
   const [moduleFilter, setModuleFilter] = useState("all");
+  const [page, setPage] = useState(0);
 
   const { data: logs = [], isLoading, refetch } = useQuery({
-    queryKey: ["general-audit-logs", companyId],
+    queryKey: ["general-audit-logs", companyId, page],
     queryFn: async () => {
       if (!companyId) return [];
       const from = page * 100;
@@ -64,6 +65,8 @@ export default function AuditoriaGeral() {
     },
     enabled: !!companyId,
   });
+
+  const hasMore = logs.length === 100;
 
   const filtered = logs.filter((entry) => {
     const matchesSearch = !search ||
