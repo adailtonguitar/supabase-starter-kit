@@ -202,7 +202,8 @@ export function usePDV() {
           { duration: 6000, id: `margin-alert-${product.id}` }
         );
       } else {
-        const marginPercent = ((product.price - product.cost_price) / product.cost_price) * 100;
+        // Margem sobre receita (consistente com relatórios): (preço - custo) / preço
+        const marginPercent = ((product.price - product.cost_price) / product.price) * 100;
         if (marginPercent < 10) {
           toast.warning(
             `⚠️ Margem baixa: "${product.name}" tem apenas ${marginPercent.toFixed(1)}% de margem (Custo: R$ ${product.cost_price.toFixed(2)})`,
