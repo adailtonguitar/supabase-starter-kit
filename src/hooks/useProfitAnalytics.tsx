@@ -91,7 +91,11 @@ export function useProfitAnalytics(dateFrom?: Date, dateTo?: Date) {
           const productId = item.product_id;
           const prod = productsMap.get(productId);
           const qty = Number(item.quantity || 1);
-          const revenue = Number(item.unit_price || 0) * qty;
+          // Use subtotal (already includes discounts/promos) when available,
+          // otherwise fall back to unit_price * qty
+          const revenue = item.subtotal != null
+            ? Number(item.subtotal)
+            : Number(item.unit_price || 0) * qty;
           const cost = (prod?.cost_price || 0) * qty;
 
           const existing = productStats.get(productId) || {

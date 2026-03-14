@@ -151,7 +151,8 @@ export function useDashboardStats() {
 
       const receitas = financialPaidMonth.filter((e: any) => e.type === "receber").reduce((s: number, e: any) => s + Number(e.amount || 0), 0);
       const despesas = financialPaidMonth.filter((e: any) => e.type === "pagar").reduce((s: number, e: any) => s + Number(e.amount || 0), 0);
-      const monthProfit = receitas > 0 || despesas > 0 ? receitas - despesas : monthRevenue * 0.3;
+      // Use real financial data when available; otherwise show 0 instead of fabricated estimate
+      const monthProfit = receitas > 0 || despesas > 0 ? receitas - despesas : 0;
 
       let healthScore = 50;
       if (monthRevenue > 0) healthScore += 15;
