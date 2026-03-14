@@ -241,10 +241,10 @@ export function usePDV() {
     setItemDiscounts(prev => ({ ...prev, [id]: percent }));
   }, []);
 
-  const subtotal = cartItems.reduce((sum, item) => {
+  const subtotal = Math.round(cartItems.reduce((sum, item) => {
     const discount = itemDiscounts[item.id] || 0;
     return sum + item.price * (1 - discount / 100) * item.quantity;
-  }, 0);
+  }, 0) * 100) / 100;
 
   // --- Promotions engine ---
   const [activePromos, setActivePromos] = useState<any[]>([]);
