@@ -521,14 +521,21 @@ export function usePDV() {
         if (userId) localStorage.setItem("as_cached_user_id", userId);
       } catch { /* offline fallback */ }
 
-      const saleItems = cartItems.map(item => ({
-        product_id: item.id,
-        product_name: item.name,
-        quantity: item.quantity,
-        unit_price: item.price,
-        discount_percent: itemDiscounts[item.id] || 0,
-        subtotal: item.price * (1 - (itemDiscounts[item.id] || 0) / 100) * item.quantity,
-      }));
+      const saleItems = cartItems.map(item => {
+        const manualDiscount = itemDiscounts[item.id] || 0;
+        const promoMatch = promoMatches[item.id];
+        const effectivePrice = promoMatch ? promoMatch.finalPrice : item.price;
+        const priceAfterManual = effectivePrice * (1 - manualDiscount / 100);
+        const itemSubtotal = priceAfterManual * item.quantity;
+        return {
+          product_id: item.id,
+          product_name: item.name,
+          quantity: item.quantity,
+          unit_price: item.price,
+          discount_percent: manualDiscount + (promoMatch ? (promoMatch.savingsPerUnit / item.price) * 100 : 0),
+          subtotal: Math.round(itemSubtotal * 100) / 100,
+        };
+      });
 
       const paymentsSummary = payments.map(p => ({ method: p.method, amount: p.amount, approved: p.approved }));
 
