@@ -80,7 +80,7 @@ export function LandingFooter() {
             © {new Date().getFullYear()} AnthoSystem. Todos os direitos reservados.
           </span>
           <span className="text-xs text-muted-foreground">
-            Desenvolvido por <span className="font-semibold text-foreground">Adailton Paulo</span>
+            Desenvolvido por <span className="font-semibold text-foreground">AnthoTec</span>
           </span>
         </div>
       </div>
