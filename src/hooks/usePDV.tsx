@@ -268,8 +268,8 @@ export function usePDV() {
     [cartItems, activePromos]
   );
 
-  const globalDiscountValue = subtotal * (globalDiscountPercent / 100);
-  const total = subtotal - globalDiscountValue - promoSavings;
+  const globalDiscountValue = Math.round(subtotal * (globalDiscountPercent / 100) * 100) / 100;
+  const total = Math.round((subtotal - globalDiscountValue - promoSavings) * 100) / 100;
 
   const handleBarcodeScan = useCallback((barcode: string) => {
     // Check for scale barcode (EAN-13 prefix 20-29)

@@ -67,7 +67,7 @@ export function useProfitAnalytics(dateFrom?: Date, dateTo?: Date) {
         const batch = saleIds.slice(i, i + BATCH);
         const { data: itemsData } = await supabase
           .from("sale_items")
-          .select("sale_id, product_id, product_name, quantity, unit_price")
+          .select("sale_id, product_id, product_name, quantity, unit_price, subtotal, discount_percent")
           .in("sale_id", batch);
         if (itemsData) allItems.push(...itemsData);
       }
