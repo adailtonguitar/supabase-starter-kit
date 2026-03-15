@@ -162,20 +162,7 @@ export default function Vendas() {
       ) : (
         <div className="space-y-3">
           {sales.map((sale, i) => {
-            let items: any[] = [];
-            try {
-              const raw = sale.items_json;
-              if (Array.isArray(raw)) {
-                items = raw;
-              } else if (raw && typeof raw === "object" && !Array.isArray(raw) && (raw as any).items) {
-                items = (raw as any).items;
-              } else if (typeof raw === "string") {
-                const parsed = JSON.parse(raw);
-                items = Array.isArray(parsed) ? parsed : parsed?.items || [];
-              }
-            } catch {
-              items = [];
-            }
+            const items = sale.items || [];
             const isNfceEmitida = sale.status === "autorizada" && !!sale.access_key;
             const tefPayments = getTefPayments(sale);
             const isMPProvider = config?.provider === "mercadopago" && !!config?.api_key;
