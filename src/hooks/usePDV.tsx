@@ -651,6 +651,11 @@ export function usePDV() {
 
       return { saleId, nfceNumber, fiscalDocId, isContingency: false, accessKey, serie };
     } catch (onlineErr: any) {
+      // ── Discount blocked: don't enter contingency, just re-throw ──
+      if (onlineErr?.message === "DISCOUNT_BLOCKED") {
+        throw onlineErr;
+      }
+
       // ── CONTINGENCY FALLBACK ──
       // Online sale failed, entering contingency mode
       setContingencyMode(true);
