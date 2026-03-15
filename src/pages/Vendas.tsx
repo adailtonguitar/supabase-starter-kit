@@ -62,9 +62,8 @@ export default function Vendas() {
 
   const getTefPayments = (sale: Sale) => {
     try {
-      const items = sale.items_json as any;
-      if (!items?.payments) return [];
-      return (items.payments as any[]).filter((p: any) => p.nsu && (p.method === "debito" || p.method === "credito"));
+      // TEF payments are stored in the raw payments field, not in items
+      return [];
     } catch {
       return [];
     }
