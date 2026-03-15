@@ -4,6 +4,10 @@
 -- em uma única transação (tudo ou nada).
 -- ============================================================
 
+-- PRÉ-REQUISITO: execute estes ALTERs apenas uma vez
+-- ALTER TABLE sales ADD COLUMN IF NOT EXISTS canceled_at timestamptz;
+-- ALTER TABLE sales ADD COLUMN IF NOT EXISTS canceled_by uuid REFERENCES auth.users(id);
+
 CREATE OR REPLACE FUNCTION cancel_sale_atomic(
   p_sale_id        uuid,
   p_company_id     uuid,
@@ -15,6 +19,7 @@ CREATE OR REPLACE FUNCTION cancel_sale_atomic(
 RETURNS jsonb
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public
 AS $$
 DECLARE
   v_item           jsonb;
@@ -64,9 +69,11 @@ BEGIN
     END IF;
   END LOOP;
 
-  -- STEP 3: Update sale status
+  -- STEP 3: Update sale status with cancellation metadata
   UPDATE sales
-  SET status = 'cancelada'
+  SET status = 'cancelada',
+      canceled_at = now(),
+      canceled_by = p_user_id
   WHERE id = p_sale_id;
 
   -- STEP 4: Create financial entry for the refund
