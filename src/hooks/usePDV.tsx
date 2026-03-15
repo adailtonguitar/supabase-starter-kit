@@ -557,7 +557,17 @@ export function usePDV() {
       if (rpcError) throw new Error(rpcError.message);
 
       const result = rpcResult as { success: boolean; sale_id?: string; error?: string };
-      if (!result.success) throw new Error(result.error || "Erro desconhecido na transação");
+      if (!result.success) {
+        const err = result.error || "Erro desconhecido na transação";
+        // Detect discount limit errors — these should NOT trigger contingency
+        if (err.includes("excede o limite de") || err.includes("DISCOUNT_ABOVE_ROLE_LIMIT")) {
+          toast.error(`🚫 ${err}`, { duration: 6000 });
+          finalizingRef.current = false;
+          setFinalizingSale(false);
+          throw new Error("DISCOUNT_BLOCKED");
+        }
+        throw new Error(err);
+      }
 
       const saleId = result.sale_id!;
 
@@ -641,6 +651,11 @@ export function usePDV() {
 
       return { saleId, nfceNumber, fiscalDocId, isContingency: false, accessKey, serie };
     } catch (onlineErr: any) {
+      // ── Discount blocked: don't enter contingency, just re-throw ──
+      if (onlineErr?.message === "DISCOUNT_BLOCKED") {
+        throw onlineErr;
+      }
+
       // ── CONTINGENCY FALLBACK ──
       // Online sale failed, entering contingency mode
       setContingencyMode(true);
