@@ -50,18 +50,11 @@ export default function Vendas() {
     const totalRevenue = activeSales.reduce((sum, s) => sum + (s.total_value || 0), 0);
     let totalCost = 0;
     activeSales.forEach(sale => {
-      try {
-        const raw = sale.items_json;
-        let items: any[] = [];
-        if (Array.isArray(raw)) items = raw;
-        else if (raw && typeof raw === "object" && (raw as any).items) items = (raw as any).items;
-        else if (typeof raw === "string") { const p = JSON.parse(raw); items = Array.isArray(p) ? p : p?.items || []; }
-        items.forEach(item => {
-          const cost = item.cost_price || item.costPrice || 0;
-          const qty = item.quantity || 1;
-          totalCost += cost * qty;
-        });
-      } catch { /* skip */ }
+      for (const item of sale.items) {
+        const cost = (item as any).cost_price || 0;
+        const qty = item.quantity || 1;
+        totalCost += cost * qty;
+      }
     });
     const totalProfit = totalRevenue - totalCost;
     return { totalSales, totalRevenue, totalCost, totalProfit };
