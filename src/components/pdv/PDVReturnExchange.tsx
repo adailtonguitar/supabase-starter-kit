@@ -127,77 +127,31 @@ export function PDVReturnExchangeDialog({ open, onClose }: PDVReturnExchangeProp
     if (!foundSale || !companyId || Object.keys(selectedItems).length === 0) return;
     setProcessing(true);
     try {
-      const updates: Array<PromiseLike<any>> = [];
-
-      // Return stock for each selected item
-      for (const item of foundSale.items) {
-        const returnQty = selectedItems[item.id];
-        if (!returnQty) continue;
-
-        updates.push(
-          supabase.rpc("increment_stock" as any, {
-            p_product_id: item.product_id,
-            p_quantity: returnQty,
-          }).then(({ error }) => {
-            // If RPC doesn't exist, do raw update
-            if (error) {
-              return supabase
-                .from("products")
-                .select("stock_quantity")
-                .eq("id", item.product_id)
-                .single()
-                .then(({ data }) => {
-                  if (data) {
-                    return supabase
-                      .from("products")
-                      .update({ stock_quantity: (data.stock_quantity || 0) + returnQty })
-                      .eq("id", item.product_id);
-                  }
-                });
-            }
-          })
-        );
-      }
-
-      // Create financial entry for the refund
       const { data: { user } } = await supabase.auth.getUser();
-      updates.push(
-        supabase.from("financial_entries").insert({
-          company_id: companyId,
-          type: "pagar",
-          description: `Devolução - Venda #${foundSale.id.substring(0, 8)}`,
-          reference: foundSale.id,
-          amount: totalRefund,
-          due_date: new Date().toISOString().split("T")[0],
-          paid_date: new Date().toISOString().split("T")[0],
-          paid_amount: totalRefund,
-          status: "pago",
-          created_by: user?.id || null,
-        } as any)
-      );
 
-      // Audit log: register the cancellation/return
-      updates.push(
-        supabase.from("action_logs" as any).insert({
-          company_id: companyId,
-          user_id: user?.id || null,
-          action: "sale_return",
-          module: "pdv",
-          details: {
-            sale_id: foundSale.id,
-            refund_amount: totalRefund,
-            original_total: foundSale.total,
-            returned_items: Object.entries(selectedItems)
-              .filter(([, qty]) => qty > 0)
-              .map(([itemId, qty]) => {
-                const item = foundSale.items.find(i => i.id === itemId);
-                return { product: item?.product_name, quantity: qty };
-              }),
-          },
-        })
-      );
+      // Build items payload for atomic RPC
+      const returnItems = foundSale.items
+        .filter(item => selectedItems[item.id] && selectedItems[item.id] > 0)
+        .map(item => ({
+          product_id: item.product_id,
+          product_name: item.product_name,
+          quantity: selectedItems[item.id],
+        }));
 
-      await Promise.allSettled(updates);
+      // Single atomic RPC call: status + stock + financial + audit
+      const { data: result, error: rpcError } = await supabase.rpc("cancel_sale_atomic" as any, {
+        p_sale_id: foundSale.id,
+        p_company_id: companyId,
+        p_user_id: user?.id || null,
+        p_items: returnItems,
+        p_refund_amount: totalRefund,
+        p_reason: "Devolução via PDV",
+      });
+
+      if (rpcError) throw new Error(rpcError.message);
+      const rpcResult = result as { success: boolean; error?: string };
+      if (!rpcResult.success) throw new Error(rpcResult.error || "Erro desconhecido");
+
       toast.success(`Devolução processada: ${formatCurrency(totalRefund)} devolvido`, { duration: 3000 });
       onClose();
     } catch (err: any) {
