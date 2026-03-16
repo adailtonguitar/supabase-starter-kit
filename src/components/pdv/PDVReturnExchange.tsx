@@ -161,8 +161,34 @@ export function PDVReturnExchangeDialog({ open, onClose }: PDVReturnExchangeProp
       const rpcResult = result as { success: boolean; error?: string };
       if (!rpcResult.success) throw new Error(rpcResult.error || "Erro desconhecido");
 
+      // Complementary frontend log with session metadata (browser, screen, platform)
+      logAction({
+        companyId,
+        userId: user?.id || null,
+        action: "sale_return_session_meta",
+        module: "vendas",
+        details: `Devolução PDV - Venda #${foundSale.id.substring(0, 8)} - Estorno ${formatCurrency(totalRefund)}`,
+      });
+
+      // Save completed return data for receipt
+      const receiptItems = returnItems.map(ri => {
+        const orig = foundSale.items.find(i => i.product_id === ri.product_id);
+        return {
+          product_name: ri.product_name,
+          quantity: ri.quantity,
+          unit_price: orig?.unit_price || 0,
+        };
+      });
+
+      setCompletedReturn({
+        saleId: foundSale.id,
+        saleDate: foundSale.created_at,
+        originalTotal: foundSale.total,
+        refundAmount: totalRefund,
+        items: receiptItems,
+      });
+
       toast.success(`Devolução processada: ${formatCurrency(totalRefund)} devolvido`, { duration: 3000 });
-      onClose();
     } catch (err: any) {
       toast.error(`Erro ao processar devolução: ${err.message}`);
     }
