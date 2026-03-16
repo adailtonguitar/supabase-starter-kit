@@ -59,7 +59,11 @@ interface SaleReceiptProps {
   onClose: () => void;
 }
 
-export function SaleReceipt({ items, total, payments, onClose, saleId, companyName, companyCnpj, companyIe, companyPhone, companyAddress, companyUf, nfceNumber, accessKey, serie, isContingency, logoUrl, slogan, customerCpf, protocolNumber, protocolDate, isHomologacao, tributosAprox }: SaleReceiptProps) {
+export function SaleReceipt({ items, total, payments, onClose, saleId, companyName, companyCnpj, companyIe, companyPhone, companyAddress, companyUf, nfceNumber: initialNfceNumber, accessKey: initialAccessKey, serie: initialSerie, isContingency, logoUrl, slogan, customerCpf, protocolNumber, protocolDate, isHomologacao, tributosAprox }: SaleReceiptProps) {
+  const [nfceNumber, setNfceNumber] = useState(initialNfceNumber);
+  const [accessKey, setAccessKey] = useState(initialAccessKey);
+  const [serie, setSerie] = useState(initialSerie);
+  const [fetchingFiscal, setFetchingFiscal] = useState(false);
   const formatCurrency = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 
   const methodLabel = (m: string) => {
