@@ -545,7 +545,11 @@ export function usePDV() {
   const reprocessFiscal = useCallback(async (saleId: string) => {
     try {
       const result = await processFiscalEmission(saleId);
-      toast.success("NFC-e emitida com sucesso!");
+      if (result.status === "autorizada") {
+        toast.success("NFC-e emitida com sucesso!");
+      } else {
+        toast.info("NFC-e enviada, mas ainda não autorizada.");
+      }
       return result;
     } catch (err: any) {
       toast.error(`Erro ao reprocessar fiscal: ${err.message}`);
