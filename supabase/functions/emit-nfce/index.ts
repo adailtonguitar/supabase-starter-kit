@@ -729,7 +729,6 @@ Deno.serve(async (req) => {
             status: normalized.status,
             number: resolvedNumber,
             access_key: normalized.accessKey || access_key,
-            nuvem_fiscal_id: docId,
           } as any)
           .eq("company_id", consultCompanyId)
           .eq("access_key", access_key);
