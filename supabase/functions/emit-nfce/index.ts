@@ -1062,17 +1062,36 @@ Deno.serve(async (req) => {
     if (cnpjClean.length >= 11) {
       try {
         const regToken = await getNuvemFiscalToken();
-        // Check if already registered
-        const checkResp = await fetch(`${NUVEM_FISCAL_API}/empresas/${cnpjClean}`, {
+        let alreadyRegistered = false;
+
+        const checkResp = await fetch(`${NUVEM_FISCAL_API}/empresas?cpf_cnpj=${cnpjClean}`, {
           headers: { Authorization: `Bearer ${regToken}` },
         });
-        if (checkResp.status === 404) {
+
+        if (checkResp.ok) {
+          const checkData = await checkResp.json();
+          const foundCompanies = Array.isArray(checkData?.data)
+            ? checkData.data
+            : Array.isArray(checkData)
+              ? checkData
+              : checkData
+                ? [checkData]
+                : [];
+
+          alreadyRegistered = foundCompanies.some((item: any) => String(item?.cpf_cnpj || "") === cnpjClean);
+          console.log(`[emit-nfce] Company lookup for ${cnpjClean}: found=${alreadyRegistered}`);
+        } else {
+          const checkErrorText = await checkResp.text();
+          console.warn(`[emit-nfce] Failed to check company in Nuvem Fiscal [${checkResp.status}]: ${checkErrorText}`);
+        }
+
+        if (!alreadyRegistered) {
           console.log(`[emit-nfce] CNPJ ${cnpjClean} not registered in Nuvem Fiscal. Auto-registering...`);
           const regBody: Record<string, any> = {
             cpf_cnpj: cnpjClean,
-            nome_razao_social: company.name || company.razao_social || "Empresa",
+            nome_razao_social: company.razao_social || company.name || "Empresa",
             nome_fantasia: company.trade_name || company.nome_fantasia || company.name || "",
-            inscricao_estadual: (company.ie || "").replace(/\D/g, "") || "",
+            inscricao_estadual: (company.ie || "").replace(/\D/g, "") || "ISENTO",
             email: company.email || "",
             fone: (company.phone || "").replace(/\D/g, "") || "",
             endereco: {
@@ -1087,9 +1106,11 @@ Deno.serve(async (req) => {
               cep: (company.address_zip || "").replace(/\D/g, "") || "",
             },
           };
+
           if (company.address_complement) {
             regBody.endereco.complemento = company.address_complement;
           }
+
           const regResp = await fetch(`${NUVEM_FISCAL_API}/empresas`, {
             method: "POST",
             headers: {
@@ -1098,25 +1119,20 @@ Deno.serve(async (req) => {
             },
             body: JSON.stringify(regBody),
           });
-          if (regResp.ok) {
-            console.log(`[emit-nfce] Company ${cnpjClean} registered successfully in Nuvem Fiscal.`);
-          } else {
-            const regErr = await regResp.text();
-            console.error(`[emit-nfce] Failed to register company in Nuvem Fiscal [${regResp.status}]: ${regErr}`);
-            // If it's a 409 (already exists), continue anyway
-            if (regResp.status !== 409) {
-              return jsonResponse({
-                success: false,
-                error: `Falha ao cadastrar empresa na Nuvem Fiscal: ${regErr}`,
-              }, 400);
-            }
+
+          const regText = await regResp.text();
+          if (!regResp.ok && regResp.status !== 409) {
+            console.error(`[emit-nfce] Failed to register company in Nuvem Fiscal [${regResp.status}]: ${regText}`);
+            return jsonResponse({
+              success: false,
+              error: `Falha ao cadastrar empresa na Nuvem Fiscal [${regResp.status}]: ${regText}`,
+            }, 400);
           }
-        } else if (checkResp.ok) {
-          console.log(`[emit-nfce] Company ${cnpjClean} already registered in Nuvem Fiscal.`);
+
+          console.log(`[emit-nfce] Company ${cnpjClean} registration response [${regResp.status}]: ${regText}`);
         }
       } catch (regError) {
-        console.warn("[emit-nfce] Auto-registration check failed:", regError);
-        // Continue anyway — the emission call will give a clearer error if needed
+        console.warn("[emit-nfce] Auto-registration failed:", regError);
       }
     }
 
