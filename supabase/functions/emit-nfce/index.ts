@@ -135,7 +135,6 @@ async function persistFiscalEmissionResult(params: {
     environment: config.environment,
     is_contingency: false,
     xml_content: xmlContent || null,
-    nuvem_fiscal_id: nuvemFiscalId || null,
   } as any);
 
   if (fiscalDocError) {
