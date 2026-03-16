@@ -57,6 +57,7 @@ export default function FiscalConfigEdit() {
   const [configs, setConfigs] = useState<FiscalConfigSection[]>(defaultConfigs);
   const [certType, setCertType] = useState<"A1" | "A3">("A1");
   const [certFile, setCertFile] = useState<string | null>(null);
+  const [certBase64, setCertBase64] = useState<string | null>(null);
   const [certPassword, setCertPassword] = useState("");
   const [certExpiry, setCertExpiry] = useState("");
   const [satSerial, setSatSerial] = useState("");
