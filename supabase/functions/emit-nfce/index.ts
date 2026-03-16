@@ -1055,7 +1055,6 @@ Deno.serve(async (req) => {
           payment_method: contForm.payment_method,
           environment: configData?.environment || "homologacao",
           is_contingency: true,
-          xml_content: signed_xml,
         });
 
         // Backup the signed XML
