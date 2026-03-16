@@ -247,7 +247,7 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
     const isHomolog = isHomologacao ?? isSimulation;
 
     // Clean number: remove prefixes for display
-    const cleanNumber = nfceNumber.replace(/^(SIM-|TESTE-|DEMO-|CONT-)/, "");
+    const cleanNumber = currentNfceNumber.replace(/^(SIM-|TESTE-|DEMO-|CONT-)/, "");
     const paddedNumber = cleanNumber.replace(/\D/g, "").padStart(9, "0");
 
     // Calculate subtotal and total discount
