@@ -239,6 +239,7 @@ const App = () => (
                 <LocalDBProvider>
                   <WalkthroughProvider>
                     <WalkthroughRunner />
+                    <UpdateNoticeModal />
                     <AppRoutes />
                   </WalkthroughProvider>
                 </LocalDBProvider>
