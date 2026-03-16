@@ -1606,7 +1606,6 @@ Deno.serve(async (req) => {
           const certUpResult = await uploadCertToNuvemFiscal(retryToken, retryCnpj, effectiveCertBase64, effectiveCertPassword);
           if (certUpResult.ok) {
             console.log("[emit-nfce] Certificate uploaded. Retrying emission...");
-            await supabase.from("fiscal_configs").update({ certificate_uploaded: true } as any).eq("id", config.id);
             const retryResp = await fetch(`${NUVEM_FISCAL_API}/nfce`, {
               method: "POST",
               headers: { Authorization: `Bearer ${retryToken}`, "Content-Type": "application/json" },
