@@ -1123,40 +1123,12 @@ Deno.serve(async (req) => {
     // crt already declared above
     const uf = (company.address_state || "SP").toUpperCase();
 
-    const items = formItems.map((item: any, idx: number) => {
-      const icmsCalc = calculateIcmsForItem(item, uf, crt);
-
-      return {
-        numero_item: idx + 1,
-        codigo_produto: item.product_code || String(idx + 1).padStart(5, "0"),
-        descricao: item.name,
-        ncm: item.ncm.replace(/\D/g, ""),
-        cfop: item.cfop,
-        unidade_comercial: item.unit || "UN",
-        quantidade_comercial: item.qty || 1,
-        valor_unitario_comercial: item.unit_price || 0,
-        valor_bruto: (item.qty || 1) * (item.unit_price || 0),
-        unidade_tributavel: item.unit || "UN",
-        quantidade_tributavel: item.qty || 1,
-        valor_unitario_tributavel: item.unit_price || 0,
-        valor_desconto: item.discount || 0,
-        imposto: {
-          icms: icmsCalc,
-          pis: { cst: item.pis_cst || "49" },
-          cofins: { cst: item.cofins_cst || "49" },
-        },
-      };
-    });
-
-    const totalValue = items.reduce(
-      (sum: number, it: any) => sum + it.valor_bruto - (it.valor_desconto || 0),
-      0
-    );
-
-    const paymentMethodMap: Record<string, string> = {
-      "01": "01", "02": "02", "03": "03", "04": "04", "05": "05",
-      "10": "10", "11": "11", "13": "13", "15": "15", "16": "16", "17": "17", "99": "99",
+    // UF code for IBGE
+    const UF_CODES: Record<string, number> = {
+      AC:12,AL:27,AM:13,AP:16,BA:29,CE:23,DF:53,ES:32,GO:52,MA:21,MG:31,MS:50,MT:51,
+      PA:15,PB:25,PE:26,PI:22,PR:41,RJ:33,RN:24,RO:11,RR:14,RS:43,SC:42,SE:28,SP:35,TO:17,
     };
+    const cUF = UF_CODES[uf] || 35;
 
     // Resolve codigo_municipio (IBGE) if missing — use ViaCEP as fallback
     let codigoMunicipio = company.address_city_code || company.city_ibge_code || "";
@@ -1169,7 +1141,6 @@ Deno.serve(async (req) => {
           if (viaCepData.ibge) {
             codigoMunicipio = viaCepData.ibge;
             console.log(`[emit-nfce] Resolved IBGE code from CEP ${cepClean}: ${codigoMunicipio}`);
-            // Save it back so we don't need to look it up again
             await supabase.from("companies").update({ address_city_code: codigoMunicipio } as any).eq("id", company_id);
           }
         }
@@ -1182,55 +1153,117 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "Código IBGE do município não encontrado. Verifique o CEP da empresa em Configurações." }, 400);
     }
 
-    const nfcePayload = {
-      ambiente: config.environment === "producao" ? "producao" : "homologacao",
-      natureza_operacao: form.nat_op || "VENDA DE MERCADORIA",
-      tipo_documento: 1,
-      finalidade_emissao: 1,
-      consumidor_final: 1,
-      presenca_comprador: 1,
-      notas_referenciadas: [],
-      emitente: {
-        cnpj: company.cnpj?.replace(/\D/g, ""),
-        nome: company.name,
-        nome_fantasia: company.trade_name || company.name,
-        inscricao_estadual: company.ie?.replace(/\D/g, "") || "",
-        endereco: {
-          logradouro: company.address_street || "",
-          numero: company.address_number || "S/N",
-          complemento: company.address_complement || "",
-          bairro: company.address_neighborhood || "",
-          codigo_municipio: codigoMunicipio,
-          nome_municipio: company.address_city || "",
-          uf: uf,
-          cep: cepClean,
-          codigo_pais: "1058",
-          pais: "BRASIL",
+    // Build items in NF-e XML-like format expected by Nuvem Fiscal API
+    const nfceItems = formItems.map((item: any, idx: number) => {
+      const vProd = Math.round((item.qty || 1) * (item.unit_price || 0) * 100) / 100;
+      const vDesc = item.discount || 0;
+      const cstCsosn = item.cst || defaultCst;
+      const origem = Number(item.origem || 0);
+
+      const icmsObj: Record<string, any> = {};
+      if (isSimples) {
+        icmsObj[`ICMSSN${cstCsosn}`] = { orig: origem, CSOSN: cstCsosn };
+      } else {
+        if (["40", "41", "50", "60"].includes(cstCsosn)) {
+          icmsObj[`ICMS${cstCsosn}`] = { orig: origem, CST: cstCsosn };
+        } else {
+          const icmsRate = ICMS_RATES_BY_STATE[uf] || 18;
+          icmsObj[`ICMS${cstCsosn}`] = {
+            orig: origem, CST: cstCsosn, modBC: 3,
+            vBC: vProd - vDesc, pICMS: icmsRate,
+            vICMS: Math.round((vProd - vDesc) * (icmsRate / 100) * 100) / 100,
+          };
+        }
+      }
+
+      return {
+        nItem: idx + 1,
+        prod: {
+          cProd: item.product_code || item.product_id || String(idx + 1).padStart(5, "0"),
+          cEAN: "SEM GTIN",
+          xProd: item.name || "PRODUTO",
+          NCM: (item.ncm || "00000000").replace(/\D/g, ""),
+          CFOP: Number(item.cfop) || 5102,
+          uCom: item.unit || "UN",
+          qCom: item.qty || 1,
+          vUnCom: item.unit_price || 0,
+          vProd: vProd,
+          cEANTrib: "SEM GTIN",
+          uTrib: item.unit || "UN",
+          qTrib: item.qty || 1,
+          vUnTrib: item.unit_price || 0,
+          vDesc: vDesc > 0 ? vDesc : undefined,
+          indTot: 1,
         },
-        crt: crt,
-      },
-      destinatario: form.customer_doc
-        ? {
-            ...(form.customer_doc.replace(/\D/g, "").length <= 11
-              ? { cpf: form.customer_doc.replace(/\D/g, "") }
-              : { cnpj: form.customer_doc.replace(/\D/g, "") }),
-            nome: form.customer_name || undefined,
-          }
-        : undefined,
-      itens: items,
-      pagamento: {
-        formas_pagamento: [
-          {
-            tipo: paymentMethodMap[form.payment_method] || "99",
-            valor: form.payment_value || totalValue,
+        imposto: { ICMS: icmsObj },
+      };
+    });
+
+    const totalProd = nfceItems.reduce((s: number, it: any) => s + (it.prod.vProd || 0), 0);
+    const totalDesc = nfceItems.reduce((s: number, it: any) => s + (it.prod.vDesc || 0), 0);
+    const totalNF = Math.round((totalProd - totalDesc) * 100) / 100;
+
+    const paymentMethodMap: Record<string, string> = {
+      "01": "01", "02": "02", "03": "03", "04": "04", "05": "05",
+      "10": "10", "11": "11", "13": "13", "15": "15", "16": "16", "17": "17", "99": "99",
+    };
+    const tPag = paymentMethodMap[form.payment_method] || "99";
+    const nextNumber = config.next_number || 1;
+    const serie = config.serie || 1;
+    const dhEmi = new Date().toISOString().replace("Z", "-03:00");
+
+    const nfcePayload: Record<string, any> = {
+      ambiente: config.environment === "producao" ? "producao" : "homologacao",
+      infNFe: {
+        versao: "4.00",
+        ide: {
+          cUF: cUF, natOp: form.nat_op || "VENDA DE MERCADORIA",
+          serie: Number(serie), nNF: nextNumber, dhEmi: dhEmi,
+          tpNF: 1, idDest: 1, cMunFG: codigoMunicipio,
+          tpImp: 4, tpEmis: 1, finNFe: 1, indFinal: 1, indPres: 1,
+          procEmi: 0, verProc: "AnthosSystem 1.0",
+        },
+        emit: {
+          CNPJ: company.cnpj?.replace(/\D/g, "") || "",
+          xNome: company.name || "",
+          xFant: company.trade_name || company.name || "",
+          IE: company.ie?.replace(/\D/g, "") || "",
+          CRT: crt,
+          enderEmit: {
+            xLgr: company.address_street || "", nro: company.address_number || "S/N",
+            xCpl: company.address_complement || undefined,
+            xBairro: company.address_neighborhood || "",
+            cMun: codigoMunicipio, xMun: company.address_city || "",
+            UF: uf, CEP: cepClean, cPais: "1058", xPais: "BRASIL",
           },
-        ],
-        troco: form.change || 0,
-      },
-      informacoes_adicionais: {
-        informacoes_contribuinte: form.inf_adic || undefined,
+        },
+        det: nfceItems,
+        total: {
+          ICMSTot: {
+            vBC: 0, vICMS: 0, vICMSDeson: 0, vFCP: 0,
+            vBCST: 0, vST: 0, vFCPST: 0, vFCPSTRet: 0,
+            vProd: totalProd, vFrete: 0, vSeg: 0, vDesc: totalDesc,
+            vII: 0, vIPI: 0, vIPIDevol: 0, vPIS: 0, vCOFINS: 0, vOutro: 0,
+            vNF: totalNF,
+          },
+        },
+        transp: { modFrete: 9 },
+        pag: {
+          detPag: [{ tPag: tPag, vPag: form.payment_value || totalNF }],
+          vTroco: form.change || 0,
+        },
+        infAdic: form.inf_adic ? { infCpl: form.inf_adic } : undefined,
       },
     };
+
+    // Add destinatário if customer doc provided
+    if (form.customer_doc) {
+      const docClean = form.customer_doc.replace(/\D/g, "");
+      nfcePayload.infNFe.dest = {
+        ...(docClean.length <= 11 ? { CPF: docClean } : { CNPJ: docClean }),
+        xNome: form.customer_name || undefined, indIEDest: 9,
+      };
+    }
 
     const token = await getNuvemFiscalToken();
 
@@ -1277,7 +1310,7 @@ Deno.serve(async (req) => {
       serie: config.serie,
       access_key: accessKey,
       status,
-      total_value: totalValue,
+      total_value: totalNF,
       customer_name: form.customer_name || null,
       customer_cpf_cnpj: form.customer_doc?.replace(/\D/g, "") || null,
       payment_method: form.payment_method,
