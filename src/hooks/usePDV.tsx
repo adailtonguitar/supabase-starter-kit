@@ -795,7 +795,7 @@ export function usePDV() {
 
             const { data: company } = await supabase
               .from("companies")
-              .select("cnpj, name, state_registration, address_state")
+              .select("cnpj, name, state_registration, address_state, crt")
               .eq("id", companyId)
               .single();
 
@@ -805,7 +805,7 @@ export function usePDV() {
                 name: company.name || "",
                 ie: company.state_registration || "",
                 uf: company.address_state || "SP",
-                crt: configs?.[0]?.crt || 1,
+                crt: (company as any).crt || 1,
               };
             }
           } catch { /* use defaults */ }
