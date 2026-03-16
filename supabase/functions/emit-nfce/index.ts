@@ -285,6 +285,59 @@ Deno.serve(async (req) => {
     }
 
 
+    // ─── UPLOAD CERTIFICATE TO NUVEM FISCAL ───
+    if (action === "upload_certificate") {
+      const { company_id: certCompanyId, certificate_base64: certB64, certificate_password: certPwd } = body;
+      if (!certCompanyId || !certB64 || !certPwd) {
+        return jsonResponse({ error: "company_id, certificate_base64 e certificate_password são obrigatórios" }, 400);
+      }
+
+      const { data: certCompany } = await supabase
+        .from("companies")
+        .select("cnpj")
+        .eq("id", certCompanyId)
+        .single();
+
+      if (!certCompany?.cnpj) {
+        return jsonResponse({ error: "CNPJ da empresa não encontrado" }, 404);
+      }
+
+      const certCnpjClean = certCompany.cnpj.replace(/\D/g, "");
+      const certToken = await getNuvemFiscalToken();
+
+      // Upload via PUT /empresas/{cpf_cnpj}/certificado
+      const certUploadResp = await fetch(`${NUVEM_FISCAL_API}/empresas/${certCnpjClean}/certificado`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${certToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          certificado: certB64,
+          password: certPwd,
+        }),
+      });
+
+      if (!certUploadResp.ok) {
+        const certErrText = await certUploadResp.text();
+        console.error(`[emit-nfce] Certificate upload failed [${certUploadResp.status}]: ${certErrText}`);
+        return jsonResponse({
+          success: false,
+          error: `Falha ao enviar certificado para Nuvem Fiscal [${certUploadResp.status}]: ${certErrText}`,
+        });
+      }
+
+      // Mark as uploaded in fiscal_configs
+      await supabase
+        .from("fiscal_configs")
+        .update({ certificate_uploaded: true } as any)
+        .eq("company_id", certCompanyId)
+        .eq("certificate_type", "A1");
+
+      console.log(`[emit-nfce] Certificate uploaded successfully for CNPJ ${certCnpjClean}`);
+      return jsonResponse({ success: true, message: "Certificado digital enviado para a Nuvem Fiscal com sucesso." });
+    }
+
     if (action === "backup_xmls") {
       const { company_id: bkCompanyId } = body;
       if (!bkCompanyId) return jsonResponse({ error: "company_id obrigatório" }, 400);

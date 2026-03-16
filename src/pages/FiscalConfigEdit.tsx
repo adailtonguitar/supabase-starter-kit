@@ -57,6 +57,7 @@ export default function FiscalConfigEdit() {
   const [configs, setConfigs] = useState<FiscalConfigSection[]>(defaultConfigs);
   const [certType, setCertType] = useState<"A1" | "A3">("A1");
   const [certFile, setCertFile] = useState<string | null>(null);
+  const [certBase64, setCertBase64] = useState<string | null>(null);
   const [certPassword, setCertPassword] = useState("");
   const [certExpiry, setCertExpiry] = useState("");
   const [satSerial, setSatSerial] = useState("");
@@ -144,12 +145,13 @@ export default function FiscalConfigEdit() {
           certificate_type: certType,
           certificate_path: certFile || null,
           certificate_expires_at: certExpiry ? new Date(certExpiry).toISOString() : null,
-          certificate_password_hash: certPassword || null,
+          certificate_password_hash: certType === "A1" ? (certPassword || null) : null,
+          certificate_base64: certType === "A1" ? (certBase64 || null) : null,
+          certificate_uploaded: certType === "A1" && certBase64 ? true : undefined,
           a3_thumbprint: certType === "A3" ? a3SelectedThumbprint || null : null,
           a3_subject_name: certType === "A3" ? (a3Certificates.find(c => c.thumbprint === a3SelectedThumbprint)?.subjectName || null) : null,
           sat_serial_number: config.docType === "sat" ? satSerial || null : null,
           sat_activation_code: config.docType === "sat" ? satActivation || null : null,
-          
           updated_at: new Date().toISOString(),
         };
         if (config.id) {
@@ -163,6 +165,32 @@ export default function FiscalConfigEdit() {
       }
       // Save CRT on companies table
       await supabase.from("companies").update({ crt } as any).eq("id", companyId);
+
+      // Upload certificate to Nuvem Fiscal automatically
+      if (certType === "A1" && certBase64 && certPassword) {
+        try {
+          const { data: uploadResult, error: uploadErr } = await supabase.functions.invoke("emit-nfce", {
+            body: {
+              action: "upload_certificate",
+              company_id: companyId,
+              certificate_base64: certBase64,
+              certificate_password: certPassword,
+            },
+          });
+          if (uploadErr) {
+            console.warn("[FiscalConfig] Certificate upload to Nuvem Fiscal failed:", uploadErr);
+            toast.warning("Certificado salvo localmente, mas o envio para a Nuvem Fiscal falhou.");
+          } else if (uploadResult?.success) {
+            toast.success("✅ Certificado digital enviado para a Nuvem Fiscal!");
+          } else {
+            toast.warning(`Certificado salvo. Nuvem Fiscal: ${uploadResult?.error || "erro desconhecido"}`);
+          }
+        } catch (certUploadErr: any) {
+          console.warn("[FiscalConfig] Certificate upload error:", certUploadErr);
+          toast.warning("Certificado salvo localmente. Envio à Nuvem Fiscal falhou.");
+        }
+      }
+
       setConfigs([...configs]);
       logAction({ companyId: companyId!, userId: user?.id, action: "Configuração fiscal salva", module: "fiscal", details: `CRT: ${crt}, Cert: ${certType}` });
       toast.success("Configurações fiscais salvas com sucesso!");
@@ -300,11 +328,19 @@ export default function FiscalConfigEdit() {
                           }
                           setCertFile(file.name);
 
+                          // Store base64 for server-side upload to Nuvem Fiscal
+                          const uint8 = new Uint8Array(arrayBuffer);
+                          let binaryStr = "";
+                          for (let i = 0; i < uint8.length; i++) {
+                            binaryStr += String.fromCharCode(uint8[i]);
+                          }
+                          setCertBase64(btoa(binaryStr));
+
                           // Store in IndexedDB for offline contingency signing
                           if (companyId) {
                             const storeResult = await storeCertificateA1(arrayBuffer, certPassword, companyId);
                             if (storeResult.success) {
-                              toast.success(`Certificado A1 validado e armazenado para contingência offline! (${storeResult.subject})`);
+                              toast.success(`Certificado A1 validado e armazenado! (${storeResult.subject})`);
                             } else {
                               toast.success("Certificado A1 validado!");
                               toast.warning(`Aviso: não foi possível armazenar para contingência: ${storeResult.error}`);
