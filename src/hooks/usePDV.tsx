@@ -552,7 +552,9 @@ export function usePDV() {
 
     // Sucesso: a Edge Function já persiste o status correto da venda/documento.
     if (queueId) {
-      await supabase.from("fiscal_queue").update({ status: "done", processed_at: new Date().toISOString() } as any).eq("id", queueId);
+      await supabase.from("fiscal_queue")
+        .update({ status: "done", processed_at: new Date().toISOString(), last_error: null } as any)
+        .eq("id", queueId);
     }
 
     return {
