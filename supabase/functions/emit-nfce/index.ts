@@ -1232,54 +1232,33 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "Código IBGE do município não encontrado. Verifique o CEP da empresa em Configurações." }, 400);
     }
 
-    // Build items in NF-e XML-like format expected by Nuvem Fiscal API
+    // Build items in flat format expected by Nuvem Fiscal API (same as NF-e)
     const nfceItems = formItems.map((item: any, idx: number) => {
-      const vProd = Math.round((item.qty || 1) * (item.unit_price || 0) * 100) / 100;
-      const vDesc = item.discount || 0;
-      const cstCsosn = item.cst || defaultCst;
-      const origem = Number(item.origem || 0);
-
-      const icmsObj: Record<string, any> = {};
-      if (isSimples) {
-        icmsObj[`ICMSSN${cstCsosn}`] = { orig: origem, CSOSN: cstCsosn };
-      } else {
-        if (["40", "41", "50", "60"].includes(cstCsosn)) {
-          icmsObj[`ICMS${cstCsosn}`] = { orig: origem, CST: cstCsosn };
-        } else {
-          const icmsRate = ICMS_RATES_BY_STATE[uf] || 18;
-          icmsObj[`ICMS${cstCsosn}`] = {
-            orig: origem, CST: cstCsosn, modBC: 3,
-            vBC: vProd - vDesc, pICMS: icmsRate,
-            vICMS: Math.round((vProd - vDesc) * (icmsRate / 100) * 100) / 100,
-          };
-        }
-      }
-
+      const icmsCalc = calculateIcmsForItem(item, uf, crt);
       return {
-        nItem: idx + 1,
-        prod: {
-          cProd: item.product_code || item.product_id || String(idx + 1).padStart(5, "0"),
-          cEAN: "SEM GTIN",
-          xProd: item.name || "PRODUTO",
-          NCM: (item.ncm || "00000000").replace(/\D/g, ""),
-          CFOP: Number(item.cfop) || 5102,
-          uCom: item.unit || "UN",
-          qCom: item.qty || 1,
-          vUnCom: item.unit_price || 0,
-          vProd: vProd,
-          cEANTrib: "SEM GTIN",
-          uTrib: item.unit || "UN",
-          qTrib: item.qty || 1,
-          vUnTrib: item.unit_price || 0,
-          vDesc: vDesc > 0 ? vDesc : undefined,
-          indTot: 1,
+        numero_item: idx + 1,
+        codigo_produto: item.product_code || item.product_id || String(idx + 1).padStart(5, "0"),
+        descricao: item.name || "PRODUTO",
+        ncm: (item.ncm || "00000000").replace(/\D/g, ""),
+        cfop: item.cfop || "5102",
+        unidade_comercial: item.unit || "UN",
+        quantidade_comercial: item.qty || 1,
+        valor_unitario_comercial: item.unit_price || 0,
+        valor_bruto: Math.round((item.qty || 1) * (item.unit_price || 0) * 100) / 100,
+        unidade_tributavel: item.unit || "UN",
+        quantidade_tributavel: item.qty || 1,
+        valor_unitario_tributavel: item.unit_price || 0,
+        valor_desconto: item.discount || 0,
+        imposto: {
+          icms: icmsCalc,
+          pis: { cst: item.pis_cst || "49" },
+          cofins: { cst: item.cofins_cst || "49" },
         },
-        imposto: { ICMS: icmsObj },
       };
     });
 
-    const totalProd = nfceItems.reduce((s: number, it: any) => s + (it.prod.vProd || 0), 0);
-    const totalDesc = nfceItems.reduce((s: number, it: any) => s + (it.prod.vDesc || 0), 0);
+    const totalProd = nfceItems.reduce((s: number, it: any) => s + (it.valor_bruto || 0), 0);
+    const totalDesc = nfceItems.reduce((s: number, it: any) => s + (it.valor_desconto || 0), 0);
     const totalNF = Math.round((totalProd - totalDesc) * 100) / 100;
 
     const paymentMethodMap: Record<string, string> = {
@@ -1289,60 +1268,57 @@ Deno.serve(async (req) => {
     const tPag = paymentMethodMap[form.payment_method] || "99";
     const nextNumber = config.next_number || 1;
     const serie = config.serie || 1;
-    const dhEmi = new Date().toISOString().replace("Z", "-03:00");
+
+    // Consumer doc
+    const consumerDocClean = form.customer_doc ? form.customer_doc.replace(/\D/g, "") : "";
 
     const nfcePayload: Record<string, any> = {
       ambiente: config.environment === "producao" ? "producao" : "homologacao",
-      infNFe: {
-        versao: "4.00",
-        ide: {
-          cUF: cUF, natOp: form.nat_op || "VENDA DE MERCADORIA",
-          serie: Number(serie), nNF: nextNumber, dhEmi: dhEmi,
-          tpNF: 1, idDest: 1, cMunFG: codigoMunicipio,
-          tpImp: 4, tpEmis: 1, finNFe: 1, indFinal: 1, indPres: 1,
-          procEmi: 0, verProc: "AnthosSystem 1.0",
+      natureza_operacao: form.nat_op || "VENDA DE MERCADORIA",
+      tipo_documento: 1,
+      consumidor_final: 1,
+      presenca_comprador: 1,
+      emitente: {
+        cnpj: company.cnpj?.replace(/\D/g, "") || "",
+        nome: company.name || "",
+        nome_fantasia: company.trade_name || company.name || "",
+        inscricao_estadual: company.ie?.replace(/\D/g, "") || "",
+        crt: crt,
+        endereco: {
+          logradouro: company.address_street || "",
+          numero: company.address_number || "S/N",
+          complemento: company.address_complement || "",
+          bairro: company.address_neighborhood || "",
+          codigo_municipio: codigoMunicipio,
+          nome_municipio: company.address_city || "",
+          uf: uf,
+          cep: cepClean,
+          codigo_pais: "1058",
+          pais: "BRASIL",
         },
-        emit: {
-          CNPJ: company.cnpj?.replace(/\D/g, "") || "",
-          xNome: company.name || "",
-          xFant: company.trade_name || company.name || "",
-          IE: company.ie?.replace(/\D/g, "") || "",
-          CRT: crt,
-          enderEmit: {
-            xLgr: company.address_street || "", nro: company.address_number || "S/N",
-            xCpl: company.address_complement || undefined,
-            xBairro: company.address_neighborhood || "",
-            cMun: codigoMunicipio, xMun: company.address_city || "",
-            UF: uf, CEP: cepClean, cPais: "1058", xPais: "BRASIL",
-          },
-        },
-        det: nfceItems,
-        total: {
-          ICMSTot: {
-            vBC: 0, vICMS: 0, vICMSDeson: 0, vFCP: 0,
-            vBCST: 0, vST: 0, vFCPST: 0, vFCPSTRet: 0,
-            vProd: totalProd, vFrete: 0, vSeg: 0, vDesc: totalDesc,
-            vII: 0, vIPI: 0, vIPIDevol: 0, vPIS: 0, vCOFINS: 0, vOutro: 0,
-            vNF: totalNF,
-          },
-        },
-        transp: { modFrete: 9 },
-        pag: {
-          detPag: [{ tPag: tPag, vPag: form.payment_value || totalNF }],
-          vTroco: form.change || 0,
-        },
-        infAdic: form.inf_adic ? { infCpl: form.inf_adic } : undefined,
       },
+      ...(consumerDocClean ? {
+        destinatario: {
+          ...(consumerDocClean.length <= 11 ? { cpf: consumerDocClean } : { cnpj: consumerDocClean }),
+          nome: form.customer_name || undefined,
+          indicador_inscricao_estadual: 9,
+        },
+      } : {}),
+      itens: nfceItems,
+      pagamento: {
+        formas_pagamento: [{
+          tipo: tPag,
+          valor: form.payment_value || totalNF,
+        }],
+        troco: form.change || 0,
+      },
+      transporte: {
+        modalidade_frete: 9,
+      },
+      informacoes_adicionais: form.inf_adic ? {
+        informacoes_contribuinte: form.inf_adic,
+      } : undefined,
     };
-
-    // Add destinatário if customer doc provided
-    if (form.customer_doc) {
-      const docClean = form.customer_doc.replace(/\D/g, "");
-      nfcePayload.infNFe.dest = {
-        ...(docClean.length <= 11 ? { CPF: docClean } : { CNPJ: docClean }),
-        xNome: form.customer_name || undefined, indIEDest: 9,
-      };
-    }
 
     const token = await getNuvemFiscalToken();
 
