@@ -29,6 +29,10 @@ export const NCM_TABLE = [
   // Alimentos - Laticínios
   { ncm: "04011000", description: "Leite não concentrado até 1% gordura" },
   { ncm: "04012000", description: "Leite não concentrado 1-6% gordura" },
+  { ncm: "04021000", description: "Leite em pó até 1,5% gordura" },
+  { ncm: "04022110", description: "Leite em pó integral" },
+  { ncm: "04022120", description: "Leite em pó parcialmente desnatado" },
+  { ncm: "04022900", description: "Outros leites em pó" },
   { ncm: "04031000", description: "Iogurte" },
   { ncm: "04051000", description: "Manteiga" },
   { ncm: "04061000", description: "Queijo fresco (não curado)" },
