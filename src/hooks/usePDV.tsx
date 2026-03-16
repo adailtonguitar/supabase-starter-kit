@@ -11,6 +11,7 @@ import { cacheSet, cacheGet } from "@/lib/offline-cache";
 import { logAction } from "@/services/ActionLogger";
 import { fiscalCircuitBreaker, CircuitBreakerOpenError } from "@/lib/circuit-breaker";
 import { getFunctionErrorMessage } from "@/lib/get-function-error-message";
+import { getStoredCertificateA1 } from "@/services/LocalXmlSigner";
 
 export interface PDVProduct {
   id: string;
@@ -354,7 +355,7 @@ export function usePDV() {
     // Best-effort config lookup in client; if RLS blocks it, server will resolve config.
     const { data: allConfigs, error: fcError } = await supabase
       .from("fiscal_configs")
-      .select("id, doc_type, is_active, crt, environment, certificate_path, certificate_base64, certificate_password_hash, certificate_uploaded, a3_thumbprint, serie, next_number")
+      .select("id, doc_type, is_active, crt, environment, certificate_path, certificate_uploaded, a3_thumbprint, serie, next_number")
       .eq("company_id", companyId);
 
     const { data: companyFiscal } = await supabase
@@ -410,9 +411,10 @@ export function usePDV() {
       };
     }
 
-    // ── Pre-upload certificate to Nuvem Fiscal if needed ──
-    const certB64 = (fiscalConfig as any)?.certificate_base64;
-    const certPwd = (fiscalConfig as any)?.certificate_password_hash;
+    // ── Pre-upload certificate to Nuvem Fiscal using IndexedDB-stored A1 ──
+    const storedCert = await getStoredCertificateA1(companyId);
+    const certB64 = storedCert?.pfxBase64;
+    const certPwd = storedCert?.password;
     const certUploaded = (fiscalConfig as any)?.certificate_uploaded;
     
     if (certB64 && certPwd && !certUploaded) {
