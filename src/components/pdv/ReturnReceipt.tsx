@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import { Printer } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
+import { toast } from "sonner";
 
 interface ReturnReceiptProps {
   saleId: string;
