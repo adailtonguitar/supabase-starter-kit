@@ -348,6 +348,8 @@ export function usePDV() {
   const processFiscalEmission = useCallback(async (saleId: string, queueId?: string) => {
     if (!companyId) throw new Error("Empresa não identificada");
 
+    console.log("[PDV Fiscal] processFiscalEmission called for saleId:", saleId, "companyId:", companyId);
+
     const { data: fiscalConfig, error: fcError } = await supabase
       .from("fiscal_configs")
       .select("id, crt, environment, certificate_path, a3_thumbprint, serie, next_number")
@@ -357,9 +359,18 @@ export function usePDV() {
       .limit(1)
       .maybeSingle();
 
-    console.log("[PDV Fiscal] Config query result:", { fiscalConfig, fcError });
+    console.log("[PDV Fiscal] Config query result:", JSON.stringify({ fiscalConfig, fcError }));
 
-    if (!fiscalConfig) throw new Error("Nenhuma configuração fiscal ativa");
+    if (!fiscalConfig) {
+      // Try without is_active filter to diagnose
+      const { data: allConfigs } = await supabase
+        .from("fiscal_configs")
+        .select("id, doc_type, is_active, environment")
+        .eq("company_id", companyId)
+        .eq("doc_type", "nfce");
+      console.error("[PDV Fiscal] No active config found. All nfce configs:", JSON.stringify(allConfigs));
+      throw new Error("Nenhuma configuração fiscal ativa");
+    }
 
     const isHomologacao = (fiscalConfig as any).environment === "homologacao";
     const hasCert = !!((fiscalConfig as any).certificate_path || (fiscalConfig as any).a3_thumbprint);
