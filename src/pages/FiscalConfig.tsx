@@ -15,7 +15,7 @@ interface ConfigSummary {
   hasNfce: boolean;
   hasNfe: boolean;
   hasSat: boolean;
-  certType: string;
+  certType: string | null;
   environment: string;
   hasCert: boolean;
 }
@@ -45,13 +45,17 @@ export default function FiscalConfig() {
         const nfe = configs.find((c) => c.doc_type === "nfe" && c.is_active);
         const sat = configs.find((c) => c.doc_type === "sat" && c.is_active);
         const first = configs[0];
+        const firstWithA1 = configs.find((c) => c.certificate_path);
+        const firstWithA3 = configs.find((c) => (c as any).a3_thumbprint);
+        const hasCert = !!(firstWithA1 || firstWithA3);
+        const certType = firstWithA1 ? ((firstWithA1 as any).certificate_type || "A1") : firstWithA3 ? "A3" : null;
         setConfigSummary({
           hasNfce: !!nfce,
           hasNfe: !!nfe,
           hasSat: !!sat,
-          certType: (first as any).certificate_type || "A1",
+          certType,
           environment: first.environment || "homologacao",
-          hasCert: !!(first.certificate_path || (first as any).a3_thumbprint),
+          hasCert,
         });
       }
 
@@ -118,7 +122,7 @@ export default function FiscalConfig() {
                       <AlertTriangle className="w-3.5 h-3.5 text-warning" />
                     )}
                     <span className="text-sm font-medium text-foreground">
-                      {configSummary.certType}
+                      {configSummary.hasCert ? configSummary.certType : "Nenhum"}
                     </span>
                   </div>
                 </div>
@@ -150,8 +154,17 @@ export default function FiscalConfig() {
                 <div className="space-y-1">
                   <p className="text-xs text-muted-foreground">Status</p>
                   <div className="flex items-center gap-1.5">
-                    <CheckCircle className="w-3.5 h-3.5 text-success" />
-                    <span className="text-sm font-medium text-success">Configurado</span>
+                    {configSummary.hasCert ? (
+                      <>
+                        <CheckCircle className="w-3.5 h-3.5 text-success" />
+                        <span className="text-sm font-medium text-success">Configurado</span>
+                      </>
+                    ) : (
+                      <>
+                        <AlertTriangle className="w-3.5 h-3.5 text-warning" />
+                        <span className="text-sm font-medium text-warning">Sem certificado</span>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
