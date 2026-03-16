@@ -354,7 +354,7 @@ export function usePDV() {
     // Best-effort config lookup in client; if RLS blocks it, server will resolve config.
     const { data: allConfigs, error: fcError } = await supabase
       .from("fiscal_configs")
-      .select("id, doc_type, is_active, crt, environment, certificate_path, a3_thumbprint, serie, next_number")
+      .select("id, doc_type, is_active, crt, environment, certificate_path, certificate_base64, certificate_password_hash, certificate_uploaded, a3_thumbprint, serie, next_number")
       .eq("company_id", companyId);
 
     const { data: companyFiscal } = await supabase
@@ -408,6 +408,34 @@ export function usePDV() {
         nfceNumber: `SIM-${simNumber}`,
         fiscalDocId: null,
       };
+    }
+
+    // ── Pre-upload certificate to Nuvem Fiscal if needed ──
+    const certB64 = (fiscalConfig as any)?.certificate_base64;
+    const certPwd = (fiscalConfig as any)?.certificate_password_hash;
+    const certUploaded = (fiscalConfig as any)?.certificate_uploaded;
+    
+    if (certB64 && certPwd && !certUploaded) {
+      console.log("[PDV Fiscal] Pre-uploading certificate to Nuvem Fiscal...");
+      try {
+        const { data: uploadResult, error: uploadErr } = await supabase.functions.invoke("emit-nfce", {
+          body: {
+            action: "upload_certificate",
+            company_id: companyId,
+            certificate_base64: certB64,
+            certificate_password: certPwd,
+          },
+        });
+        if (uploadResult?.success) {
+          console.log("[PDV Fiscal] Certificate uploaded to Nuvem Fiscal successfully");
+        } else {
+          console.warn("[PDV Fiscal] Certificate upload failed:", uploadResult?.error || uploadErr?.message);
+        }
+      } catch (certErr: any) {
+        console.warn("[PDV Fiscal] Certificate pre-upload error:", certErr.message);
+      }
+    } else {
+      console.log(`[PDV Fiscal] Certificate status: has_base64=${!!certB64}, has_password=${!!certPwd}, uploaded=${certUploaded}`);
     }
 
     // Marcar sale como pendente_fiscal
