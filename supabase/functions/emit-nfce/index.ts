@@ -1531,16 +1531,15 @@ Deno.serve(async (req) => {
       // ── Auto-retry: if certificate not found, try uploading it and retry once ──
       const errText = JSON.stringify(emitData).toLowerCase();
       const isCertError = errText.includes("certificado") && (errText.includes("não encontrado") || errText.includes("not found") || errText.includes("nao encontrado"));
-      if (isCertError && config.certificate_base64 && config.certificate_password_hash) {
+      if (isCertError && effectiveCertBase64 && effectiveCertPassword) {
         console.log("[emit-nfce] Certificate not found on Nuvem Fiscal. Attempting auto-upload and retry...");
         try {
           const retryToken = await getNuvemFiscalToken();
           const retryCnpj = (company.cnpj || "").replace(/\D/g, "");
-          const certUpResult = await uploadCertToNuvemFiscal(retryToken, retryCnpj, config.certificate_base64, config.certificate_password_hash);
+          const certUpResult = await uploadCertToNuvemFiscal(retryToken, retryCnpj, effectiveCertBase64, effectiveCertPassword);
           if (certUpResult.ok) {
             console.log("[emit-nfce] Certificate uploaded. Retrying emission...");
             await supabase.from("fiscal_configs").update({ certificate_uploaded: true } as any).eq("id", config.id);
-            // Retry the emission
             const retryResp = await fetch(`${NUVEM_FISCAL_API}/nfce`, {
               method: "POST",
               headers: { Authorization: `Bearer ${retryToken}`, "Content-Type": "application/json" },
@@ -1548,7 +1547,6 @@ Deno.serve(async (req) => {
             });
             const retryData = await retryResp.json();
             if (retryResp.ok) {
-              // Success on retry - continue with retryData
               const retryAccessKey = retryData.chave || retryData.chave_acesso || null;
               const retryDocNumber = retryData.numero || config.next_number || null;
               const retryStatus = retryData.status === "autorizada" ? "autorizada" : retryData.status || "pendente";
@@ -1571,10 +1569,8 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Extract rejection code from Nuvem Fiscal response
       const rejCode = emitData?.codigo_status || emitData?.cStat || emitData?.status_sefaz?.cStat || null;
       const rejMsg = emitData?.motivo_status || emitData?.xMotivo || emitData?.status_sefaz?.xMotivo || null;
-      // Build detailed error message
       const apiMsg = emitData?.mensagem || emitData?.message || emitData?.error?.message || "";
       const validationErrors = emitData?.error?.errors || emitData?.errors || [];
       const validationDetail = Array.isArray(validationErrors) ? validationErrors.map((e: any) => e?.mensagem || e?.message || JSON.stringify(e)).join("; ") : "";
@@ -1587,11 +1583,12 @@ Deno.serve(async (req) => {
         rejection_reason: rejMsg || null,
         details: emitData,
         _cert_diag: {
-          has_base64: !!config.certificate_base64,
-          base64_length: config.certificate_base64?.length || 0,
-          has_password: !!config.certificate_password_hash,
+          has_base64: !!effectiveCertBase64,
+          base64_length: effectiveCertBase64?.length || 0,
+          has_password: !!effectiveCertPassword,
           uploaded_flag: config.certificate_uploaded,
           config_id: config.id,
+          cert_source: requestCertBase64 ? "request" : configCertBase64 ? "config" : "none",
         },
       });
     }

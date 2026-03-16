@@ -607,6 +607,8 @@ export default function NFeEmissao() {
             action: "emit_nfe",
             company_id: companyId,
             config_id: nfeConfig.id,
+            certificate_base64: storedCert?.pfxBase64 || null,
+            certificate_password: storedCert?.password || null,
             form: {
               nat_op: form.natOp,
               finalidade: form.finalidade,
