@@ -527,8 +527,7 @@ export function usePDV() {
       throw new Error(errorMsg);
     }
 
-    // Sucesso
-    await supabase.from("sales").update({ status: "emitida" } as any).eq("id", saleId);
+    // Sucesso: a Edge Function já persiste o status correto da venda/documento.
     if (queueId) {
       await supabase.from("fiscal_queue").update({ status: "done", processed_at: new Date().toISOString() } as any).eq("id", queueId);
     }
@@ -538,6 +537,7 @@ export function usePDV() {
       fiscalDocId: fiscalData.fiscal_doc_id || fiscalData.nuvem_fiscal_id || fiscalData.id,
       accessKey: fiscalData.access_key || "",
       serie: fiscalData.serie || "",
+      status: fiscalData.status || "pendente",
     };
   }, [companyId]);
 
@@ -545,7 +545,11 @@ export function usePDV() {
   const reprocessFiscal = useCallback(async (saleId: string) => {
     try {
       const result = await processFiscalEmission(saleId);
-      toast.success("NFC-e emitida com sucesso!");
+      if (result.status === "autorizada") {
+        toast.success("NFC-e emitida com sucesso!");
+      } else {
+        toast.info("NFC-e enviada, mas ainda não autorizada.");
+      }
       return result;
     } catch (err: any) {
       toast.error(`Erro ao reprocessar fiscal: ${err.message}`);
@@ -700,14 +704,21 @@ export function usePDV() {
             enqueueFiscal(saleId);
             try {
               const fiscalResult = await processFiscalEmission(saleId);
-              nfceNumber = fiscalResult.nfceNumber || "";
               fiscalDocId = fiscalResult.fiscalDocId || undefined;
               accessKey = fiscalResult.accessKey || accessKey;
               serie = fiscalResult.serie || serie;
-              if (nfceNumber) {
+
+              if (fiscalResult.status === "autorizada") {
+                nfceNumber = fiscalResult.nfceNumber || "";
                 toast.success("✅ NFC-e emitida com sucesso!", {
                   description: `Número: ${nfceNumber}`,
                   duration: 5000,
+                });
+              } else {
+                nfceNumber = "";
+                toast.info("🕒 NFC-e enviada, mas ainda não autorizada.", {
+                  description: "A venda foi salva e o status real aparecerá no histórico fiscal.",
+                  duration: 6000,
                 });
               }
             } catch (fiscalErr: any) {
