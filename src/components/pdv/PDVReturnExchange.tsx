@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { formatCurrency } from "@/lib/utils";
 import { logAction } from "@/services/ActionLogger";
 import { ReturnReceipt } from "./ReturnReceipt";
+import { FiscalReturnHandler } from "./FiscalReturnHandler";
 
 interface SaleResult {
   id: string;
