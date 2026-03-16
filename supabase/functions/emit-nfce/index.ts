@@ -1964,36 +1964,31 @@ Deno.serve(async (req) => {
       finalStatus: status,
     }));
 
-    await supabase.from("fiscal_documents").insert({
-      company_id,
-      sale_id,
-      doc_type: "nfce",
-      number: docNumber,
-      serie: config.serie,
-      access_key: accessKey,
-      status,
-      total_value: totalNF,
-      customer_name: form.customer_name || null,
-      customer_cpf_cnpj: form.customer_doc?.replace(/\D/g, "") || null,
-      payment_method: form.payment_method,
-      environment: config.environment,
-      is_contingency: false,
-      xml_content: emitData.xml || null,
-      nuvem_fiscal_id: emitData.id || null,
-    });
+    try {
+      await persistFiscalEmissionResult({
+        supabase,
+        company_id,
+        sale_id,
+        config,
+        status,
+        accessKey,
+        docNumber,
+        totalNF,
+        form,
+        xmlContent: emitData.xml || null,
+        nuvemFiscalId: emitData.id || null,
+      });
+    } catch (persistErr: any) {
+      console.error("[emit-nfce] Emission persisted remotely but failed locally:", persistErr);
+      return jsonResponse({
+        success: false,
+        error: persistErr?.message || "Falha ao persistir documento fiscal no banco",
+        details: { stage: "persist_local_state", provider_status: status },
+      }, 500);
+    }
 
     // ── Auto-backup XML to Storage ──
     await backupXml(supabase, company_id, "nfce", accessKey, docNumber, emitData.xml || null, "emissao");
-
-    await supabase
-      .from("sales")
-      .update({ status, access_key: accessKey, number: docNumber })
-      .eq("id", sale_id);
-
-    await supabase
-      .from("fiscal_configs")
-      .update({ next_number: (config.next_number || 1) + 1 })
-      .eq("id", config_id);
 
     return jsonResponse({
       success: true,
