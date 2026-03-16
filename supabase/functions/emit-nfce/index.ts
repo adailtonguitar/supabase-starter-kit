@@ -121,7 +121,6 @@ async function persistFiscalEmissionResult(params: {
 
   const { error: fiscalDocError } = await supabase.from("fiscal_documents").insert({
     company_id,
-    sale_id,
     doc_type: "nfce",
     number: docNumber,
     serie: config.serie,
