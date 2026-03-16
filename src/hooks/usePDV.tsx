@@ -411,9 +411,10 @@ export function usePDV() {
       };
     }
 
-    // ── Pre-upload certificate to Nuvem Fiscal if needed ──
-    const certB64 = (fiscalConfig as any)?.certificate_base64;
-    const certPwd = (fiscalConfig as any)?.certificate_password_hash;
+    // ── Pre-upload certificate to Nuvem Fiscal using IndexedDB-stored A1 ──
+    const storedCert = await getStoredCertificateA1(companyId);
+    const certB64 = storedCert?.pfxBase64;
+    const certPwd = storedCert?.password;
     const certUploaded = (fiscalConfig as any)?.certificate_uploaded;
     
     if (certB64 && certPwd && !certUploaded) {

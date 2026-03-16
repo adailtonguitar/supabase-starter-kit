@@ -591,9 +591,10 @@ export default function NFeEmissao() {
       }
 
       // Verificar se certificado digital está configurado ANTES de chamar a Edge Function
-      if (!nfeConfig.certificate_base64 && !nfeConfig.certificate_uploaded) {
+      const storedCert = await getStoredCertificateA1(companyId);
+      if (!storedCert && !nfeConfig.certificate_uploaded) {
         setStep("error");
-        setErrorMsg("Certificado digital não configurado. Para transmitir notas fiscais à SEFAZ, é necessário cadastrar o certificado digital A1 (.pfx) da sua empresa. Acesse: Fiscal > Configuração > Certificado Digital.");
+        setErrorMsg("Certificado digital não configurado neste dispositivo. Refaça o upload do certificado A1 (.pfx) em Fiscal > Configuração > Certificado Digital.");
         setEmitting(false);
         return;
       }
