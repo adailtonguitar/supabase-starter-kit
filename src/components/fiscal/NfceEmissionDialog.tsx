@@ -444,10 +444,14 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
         if (rej?.field === "items") setActiveTab("items");
         else if (rej?.field === "customer") setActiveTab("customer");
         else if (rej?.field === "payment") setActiveTab("payment");
-      } else if (data?.success) {
+      } else if (data?.success && data?.status === "autorizada") {
         setStep("success");
         toast.success("NFC-e emitida com sucesso!");
         onSuccess?.();
+      } else if (data?.success) {
+        setStep("error");
+        const pendingMsg = data?.error || "A NFC-e foi enviada, mas ainda não retornou como autorizada.";
+        setErrorMsg(pendingMsg);
       } else {
         setStep("error");
         const errText = data?.error || "Erro ao emitir NFC-e.";
