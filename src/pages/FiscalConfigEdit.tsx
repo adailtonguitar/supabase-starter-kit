@@ -81,6 +81,9 @@ export default function FiscalConfigEdit() {
   const [a3Loading, setA3Loading] = useState(false);
   const [a3Initialized, setA3Initialized] = useState(false);
   const [certValidating, setCertValidating] = useState(false);
+  const [removeCertDialogOpen, setRemoveCertDialogOpen] = useState(false);
+  const [removeCertPassword, setRemoveCertPassword] = useState("");
+  const [certMarkedForRemoval, setCertMarkedForRemoval] = useState(false);
 
   useEffect(() => {
     if (!companyId) return;
