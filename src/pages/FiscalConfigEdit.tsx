@@ -151,12 +151,8 @@ export default function FiscalConfigEdit() {
         if (certType === "A1") {
           record.certificate_path = certFile || null;
           record.certificate_expires_at = certFile && certExpiry ? new Date(certExpiry).toISOString() : null;
-          if (!certFile) {
-            // User explicitly removed cert — clear uploaded flag too
-            record.certificate_uploaded = false;
-          } else {
-            record.certificate_uploaded = false; // will be set true after upload
-          }
+          record.certificate_password_hash = certFile ? (certPassword || null) : null;
+          record.certificate_uploaded = false;
         }
         if (certType === "A3") {
           record.a3_thumbprint = a3SelectedThumbprint || null;
@@ -309,7 +305,7 @@ export default function FiscalConfigEdit() {
                 </div>
                 <div className="flex items-center gap-2">
                   {certFile && (
-                    <button onClick={() => { setCertFile(null); setCertPassword(""); setCertExpiry(""); toast.info("Certificado removido. Salve para confirmar."); }}
+                    <button onClick={() => { setCertFile(null); setCertBase64(null); setCertPassword(""); setCertExpiry(""); toast.info("Certificado removido. Salve para confirmar."); }}
                       className="flex items-center gap-2 px-4 py-2 rounded-xl bg-destructive/10 text-destructive text-sm font-medium hover:bg-destructive/20 transition-all">
                       <Trash2 className="w-4 h-4" /> Remover
                     </button>
