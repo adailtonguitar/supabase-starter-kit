@@ -1892,14 +1892,31 @@ Deno.serve(async (req) => {
               const retryAccessKey = retryAuth.accessKey;
               const retryDocNumber = retryData.numero || config.next_number || null;
               const retryStatus = retryAuth.status;
-              await supabase.from("fiscal_documents").insert({
-                company_id, sale_id, doc_type: "nfce", number: retryDocNumber, serie: config.serie,
-                access_key: retryAccessKey, status: retryStatus, total_value: totalNF,
-                customer_name: form.customer_name || null, customer_cpf_cnpj: form.customer_doc?.replace(/\D/g, "") || null,
-                payment_method: form.payment_method, xml_content: retryData.xml || null, config_id: config.id,
-              } as any);
-              await supabase.from("fiscal_configs").update({ next_number: (config.next_number || 1) + 1 }).eq("id", config.id);
-              if (sale_id) await supabase.from("sales").update({ status: retryStatus, access_key: retryAccessKey, number: retryDocNumber } as any).eq("id", sale_id);
+
+              try {
+                await persistFiscalEmissionResult({
+                  supabase,
+                  company_id,
+                  sale_id,
+                  config,
+                  status: retryStatus,
+                  accessKey: retryAccessKey,
+                  docNumber: retryDocNumber,
+                  totalNF,
+                  form,
+                  xmlContent: retryData.xml || null,
+                  nuvemFiscalId: retryData.id || null,
+                });
+              } catch (persistErr: any) {
+                console.error("[emit-nfce] Retry emission persisted remotely but failed locally:", persistErr);
+                return jsonResponse({
+                  success: false,
+                  error: persistErr?.message || "Falha ao persistir documento fiscal após retry",
+                  details: { stage: "persist_local_state_retry", provider_status: retryStatus },
+                }, 500);
+              }
+
+              await backupXml(supabase, company_id, "nfce", retryAccessKey, retryDocNumber, retryData.xml || null, "emissao");
               return jsonResponse({ success: true, status: retryStatus, access_key: retryAccessKey, number: retryDocNumber, sefaz_code: retryAuth.sefazCode, protocol_number: retryAuth.protocolNumber, data: retryData });
             }
             console.warn("[emit-nfce] Retry after cert upload also failed:", JSON.stringify(retryData));
