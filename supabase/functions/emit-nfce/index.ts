@@ -1045,7 +1045,6 @@ Deno.serve(async (req) => {
         // Store the signed XML as fiscal document
         await supabase.from("fiscal_documents").insert({
           company_id,
-          sale_id: sale_id || null,
           doc_type: "nfce",
           number: contingency_number,
           serie: serie || configData?.serie || 1,
