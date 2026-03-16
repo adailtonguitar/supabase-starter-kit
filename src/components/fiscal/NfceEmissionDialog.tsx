@@ -141,20 +141,16 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
     change: 0,
   });
 
-  // Load CRT from fiscal config
+  // Load CRT from companies table
   useEffect(() => {
     if (!open || !companyId) return;
     supabase
-      .from("fiscal_configs")
+      .from("companies")
       .select("crt")
-      .eq("company_id", companyId)
-      .eq("doc_type", "nfce")
-      .eq("is_active", true)
-      .limit(1)
+      .eq("id", companyId)
+      .maybeSingle()
       .then(({ data }) => {
-        if (data && data.length > 0) {
-          setCompanyCrt((data[0] as any).crt || 1);
-        }
+        if (data) setCompanyCrt((data as any).crt || 1);
       });
   }, [open, companyId]);
 

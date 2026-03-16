@@ -64,7 +64,7 @@ Deno.serve(async (req) => {
     // 4️⃣ Buscar config fiscal com fallback (NFC-e -> NF-e)
     const { data: configs, error: cfgErr } = await supabase
       .from("fiscal_configs")
-      .select("id, crt, doc_type, is_active")
+      .select("id, doc_type, is_active")
       .eq("company_id", companyId);
 
     const fiscalConfig = configs?.find((c: any) => c.doc_type === "nfce" && c.is_active)

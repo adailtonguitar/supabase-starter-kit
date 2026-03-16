@@ -228,28 +228,12 @@ export default function NFeEmissao() {
   useEffect(() => {
     if (!companyId) return;
     supabase
-      .from("fiscal_configs")
+      .from("companies")
       .select("crt")
-      .eq("company_id", companyId)
-      .eq("doc_type", "nfe")
-      .eq("is_active", true)
-      .limit(1)
+      .eq("id", companyId)
+      .maybeSingle()
       .then(({ data }) => {
-        if (data && data.length > 0) {
-          setCompanyCrt((data[0] as any).crt || 1);
-        } else {
-          // Fallback: try nfce config
-          supabase
-            .from("fiscal_configs")
-            .select("crt")
-            .eq("company_id", companyId)
-            .eq("doc_type", "nfce")
-            .eq("is_active", true)
-            .limit(1)
-            .then(({ data: d2 }) => {
-              if (d2 && d2.length > 0) setCompanyCrt((d2[0] as any).crt || 1);
-            });
-        }
+        if (data) setCompanyCrt((data as any).crt || 1);
       });
   }, [companyId]);
 

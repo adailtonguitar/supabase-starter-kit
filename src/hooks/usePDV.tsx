@@ -355,7 +355,7 @@ export function usePDV() {
     // Best-effort config lookup in client; if RLS blocks it, server will resolve config.
     const { data: allConfigs, error: fcError } = await supabase
       .from("fiscal_configs")
-      .select("id, doc_type, is_active, crt, environment, certificate_path, a3_thumbprint, serie, next_number")
+      .select("id, doc_type, is_active, environment, certificate_path, a3_thumbprint, serie, next_number")
       .eq("company_id", companyId);
 
     const { data: companyFiscal } = await supabase
@@ -782,7 +782,7 @@ export function usePDV() {
           try {
             const { data: configs } = await supabase
               .from("fiscal_configs")
-              .select("id, serie, environment, crt")
+              .select("id, serie, environment")
               .eq("company_id", companyId)
               .eq("doc_type", "nfce")
               .eq("is_active", true)
@@ -795,7 +795,7 @@ export function usePDV() {
 
             const { data: company } = await supabase
               .from("companies")
-              .select("cnpj, name, state_registration, address_state")
+              .select("cnpj, name, state_registration, address_state, crt")
               .eq("id", companyId)
               .single();
 
@@ -805,7 +805,7 @@ export function usePDV() {
                 name: company.name || "",
                 ie: company.state_registration || "",
                 uf: company.address_state || "SP",
-                crt: configs?.[0]?.crt || 1,
+                crt: (company as any).crt || 1,
               };
             }
           } catch { /* use defaults */ }
