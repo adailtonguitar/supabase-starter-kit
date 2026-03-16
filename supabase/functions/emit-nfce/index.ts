@@ -41,24 +41,19 @@ function jsonResponse(body: object, status = 200) {
   });
 }
 
-// ── Helper: upload certificate to Nuvem Fiscal via multipart form ──
+// ── Helper: upload certificate to Nuvem Fiscal via JSON (CadastrarCertificado) ──
 async function uploadCertToNuvemFiscal(token: string, cnpjClean: string, certBase64: string, password: string): Promise<{ ok: boolean; error?: string }> {
-  const binaryStr = atob(certBase64);
-  const bytes = new Uint8Array(binaryStr.length);
-  for (let i = 0; i < binaryStr.length; i++) {
-    bytes[i] = binaryStr.charCodeAt(i);
-  }
-
-  const formData = new FormData();
-  formData.append("file", new Blob([bytes], { type: "application/x-pkcs12" }), "certificado.pfx");
-  formData.append("password", password);
-
-  const resp = await fetch(`${NUVEM_FISCAL_API}/empresas/${cnpjClean}/certificado/upload`, {
+  // Use the JSON endpoint PUT /empresas/{cpf_cnpj}/certificado which accepts base64 directly
+  const resp = await fetch(`${NUVEM_FISCAL_API}/empresas/${cnpjClean}/certificado`, {
     method: "PUT",
     headers: {
       Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
     },
-    body: formData,
+    body: JSON.stringify({
+      certificado: certBase64,
+      password: password,
+    }),
   });
 
   if (!resp.ok) {
@@ -67,6 +62,7 @@ async function uploadCertToNuvemFiscal(token: string, cnpjClean: string, certBas
     return { ok: false, error: `Falha ao enviar certificado [${resp.status}]: ${errText}` };
   }
 
+  await resp.text(); // consume body
   return { ok: true };
 }
 
