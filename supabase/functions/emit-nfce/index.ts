@@ -1748,9 +1748,10 @@ Deno.serve(async (req) => {
             });
             const retryData = await retryResp.json();
             if (retryResp.ok) {
-              const retryAccessKey = retryData.chave || retryData.chave_acesso || null;
+              const retryAuth = normalizeFiscalAuthorization(retryData);
+              const retryAccessKey = retryAuth.accessKey;
               const retryDocNumber = retryData.numero || config.next_number || null;
-              const retryStatus = retryData.status === "autorizada" ? "autorizada" : retryData.status || "pendente";
+              const retryStatus = retryAuth.status;
               await supabase.from("fiscal_documents").insert({
                 company_id, sale_id, doc_type: "nfce", number: retryDocNumber, serie: config.serie,
                 access_key: retryAccessKey, status: retryStatus, total_value: totalNF,
@@ -1758,8 +1759,8 @@ Deno.serve(async (req) => {
                 payment_method: form.payment_method, xml_content: retryData.xml || null, config_id: config.id,
               } as any);
               await supabase.from("fiscal_configs").update({ next_number: (config.next_number || 1) + 1 }).eq("id", config.id);
-              if (sale_id) await supabase.from("sales").update({ status: "emitida" } as any).eq("id", sale_id);
-              return jsonResponse({ success: true, status: retryStatus, access_key: retryAccessKey, number: retryDocNumber, data: retryData });
+              if (sale_id) await supabase.from("sales").update({ status: retryStatus, access_key: retryAccessKey, number: retryDocNumber } as any).eq("id", sale_id);
+              return jsonResponse({ success: true, status: retryStatus, access_key: retryAccessKey, number: retryDocNumber, sefaz_code: retryAuth.sefazCode, protocol_number: retryAuth.protocolNumber, data: retryData });
             }
             console.warn("[emit-nfce] Retry after cert upload also failed:", JSON.stringify(retryData));
           } else {
