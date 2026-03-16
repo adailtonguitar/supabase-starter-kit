@@ -402,9 +402,9 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
           <p class="center sm">Qtd. total de itens: ${qtyTotal}</p>
           <p class="center sm">${now}</p>
           <div class="dashed"></div>
-          <p class="center bold sm">NFC-e nº ${paddedNumber}${serie ? ` | Série ${serie}` : ""}</p>
+          <p class="center bold sm">NFC-e nº ${paddedNumber}${currentSerie ? ` | Série ${currentSerie}` : ""}</p>
           ${protocolHtml}
-          ${accessKey ? `
+          ${currentAccessKey ? `
             <p class="center xs" style="margin-top:2px">CHAVE DE ACESSO</p>
             <div class="key-box">${formattedKey}</div>
           ` : ""}
