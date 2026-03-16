@@ -41,6 +41,60 @@ function jsonResponse(body: object, status = 200) {
   });
 }
 
+function normalizeFiscalAuthorization(payload: any) {
+  const rawStatus = (
+    payload?.status ||
+    payload?.situacao ||
+    payload?.status_sefaz?.status ||
+    payload?.status_sefaz?.xMotivo ||
+    payload?.motivo_status ||
+    ""
+  )
+    .toString()
+    .toLowerCase()
+    .trim();
+
+  const sefazCode =
+    payload?.codigo_status ||
+    payload?.status_sefaz?.cStat ||
+    payload?.cStat ||
+    payload?.protNFe?.infProt?.cStat ||
+    payload?.infProt?.cStat ||
+    null;
+
+  const accessKey =
+    payload?.chave ||
+    payload?.chave_acesso ||
+    payload?.access_key ||
+    payload?.protNFe?.infProt?.chNFe ||
+    payload?.infProt?.chNFe ||
+    null;
+
+  const protocolNumber =
+    payload?.protocolo ||
+    payload?.numero_protocolo ||
+    payload?.status_sefaz?.nProt ||
+    payload?.protNFe?.infProt?.nProt ||
+    payload?.infProt?.nProt ||
+    null;
+
+  const isAuthorized =
+    rawStatus.includes("autoriz") ||
+    rawStatus.includes("aprov") ||
+    String(sefazCode) === "100" ||
+    !!accessKey ||
+    !!protocolNumber;
+
+  return {
+    rawStatus,
+    sefazCode: sefazCode ? String(sefazCode) : null,
+    accessKey,
+    protocolNumber,
+    isAuthorized,
+    status: isAuthorized ? "autorizada" : rawStatus || "pendente",
+  };
+}
+
 // ── Helper: upload certificate to Nuvem Fiscal via JSON (CadastrarCertificado) ──
 async function uploadCertToNuvemFiscal(token: string, cnpjClean: string, certBase64: string, password: string): Promise<{ ok: boolean; error?: string }> {
   const resp = await fetch(`${NUVEM_FISCAL_API}/empresas/${cnpjClean}/certificado`, {
