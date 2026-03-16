@@ -35,42 +35,53 @@ export function useFiscalDashboard() {
     queryFn: async (): Promise<FiscalMetrics> => {
       if (!companyId) return { emittedToday: 0, pending: 0, processing: 0, errors: 0, criticalErrors: false };
 
-      const [emittedRes, pendingRes, processingRes, errorsRes, criticalRes] = await Promise.all([
+      const [emittedDocsRes, queueEntriesRes] = await Promise.all([
         supabase
-          .from("sales")
-          .select("id", { count: "exact", head: true })
+          .from("fiscal_documents")
+          .select("id, sale_id, access_key")
           .eq("company_id", companyId)
-          .in("status", ["emitida", "autorizada"])
+          .eq("doc_type", "nfce")
+          .eq("status", "autorizada")
           .gte("created_at", todayISO),
         supabase
           .from("fiscal_queue")
-          .select("id", { count: "exact", head: true })
+          .select("sale_id, status, attempts, created_at")
           .eq("company_id", companyId)
-          .eq("status", "pending"),
-        supabase
-          .from("fiscal_queue")
-          .select("id", { count: "exact", head: true })
-          .eq("company_id", companyId)
-          .eq("status", "processing"),
-        supabase
-          .from("fiscal_queue")
-          .select("id", { count: "exact", head: true })
-          .eq("company_id", companyId)
-          .eq("status", "error"),
-        supabase
-          .from("fiscal_queue")
-          .select("id", { count: "exact", head: true })
-          .eq("company_id", companyId)
-          .eq("status", "error")
-          .gte("attempts", 3),
+          .in("status", ["pending", "processing", "error"])
+          .order("created_at", { ascending: false }),
       ]);
 
+      const emittedToday = new Set(
+        (emittedDocsRes.data || []).map((row: any) => row.sale_id || row.access_key || row.id)
+      ).size;
+
+      const latestQueueBySale = new Map<string, { status: string; attempts: number }>();
+      (queueEntriesRes.data || []).forEach((row: any) => {
+        if (row.sale_id && !latestQueueBySale.has(row.sale_id)) {
+          latestQueueBySale.set(row.sale_id, row);
+        }
+      });
+
+      let pending = 0;
+      let processing = 0;
+      let errors = 0;
+      let criticalErrors = false;
+
+      latestQueueBySale.forEach((row) => {
+        if (row.status === "pending") pending += 1;
+        if (row.status === "processing") processing += 1;
+        if (row.status === "error") {
+          errors += 1;
+          if ((row.attempts || 0) >= 3) criticalErrors = true;
+        }
+      });
+
       return {
-        emittedToday: emittedRes.count ?? 0,
-        pending: pendingRes.count ?? 0,
-        processing: processingRes.count ?? 0,
-        errors: errorsRes.count ?? 0,
-        criticalErrors: (criticalRes.count ?? 0) > 0,
+        emittedToday,
+        pending,
+        processing,
+        errors,
+        criticalErrors,
       };
     },
     enabled: !!companyId,
@@ -83,12 +94,17 @@ export function useFiscalDashboard() {
       if (!companyId) return new Map();
       const { data } = await supabase
         .from("fiscal_queue")
-        .select("sale_id, status, last_error, attempts")
+        .select("sale_id, status, last_error, attempts, created_at")
         .eq("company_id", companyId)
-        .in("status", ["pending", "processing", "error"]);
+        .in("status", ["pending", "processing", "error"])
+        .order("created_at", { ascending: false });
 
       const map = new Map<string, FiscalQueueEntry>();
-      (data || []).forEach((row: any) => map.set(row.sale_id, row));
+      (data || []).forEach((row: any) => {
+        if (row.sale_id && !map.has(row.sale_id)) {
+          map.set(row.sale_id, row);
+        }
+      });
       return map;
     },
     enabled: !!companyId,

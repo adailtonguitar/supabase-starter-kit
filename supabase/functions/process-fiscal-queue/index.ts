@@ -92,9 +92,10 @@ Deno.serve(async (req) => {
     }
 
     // 5️⃣ Buscar dados da venda e itens
-    const [{ data: sale }, { data: items }] = await Promise.all([
+    const [{ data: sale }, { data: items }, { data: company }] = await Promise.all([
       supabase.from("sales").select("*").eq("id", saleId).single(),
       supabase.from("sale_items").select("*").eq("sale_id", saleId),
+      supabase.from("companies").select("crt").eq("id", companyId).maybeSingle(),
     ]);
 
     if (!sale || !items?.length) {
@@ -107,7 +108,35 @@ Deno.serve(async (req) => {
       );
     }
 
-    const crt = fiscalConfig.crt || 1;
+    const { data: authorizedDoc } = await supabase
+      .from("fiscal_documents")
+      .select("id, access_key, number")
+      .eq("company_id", companyId)
+      .eq("sale_id", saleId)
+      .eq("doc_type", "nfce")
+      .eq("status", "autorizada")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (authorizedDoc) {
+      await Promise.all([
+        supabase.from("sales")
+          .update({ status: "autorizada", access_key: (authorizedDoc as any).access_key || null, number: (authorizedDoc as any).number || null })
+          .eq("id", saleId)
+          .eq("company_id", companyId),
+        supabase.from("fiscal_queue")
+          .update({ status: "done", processed_at: new Date().toISOString(), last_error: null })
+          .eq("id", queueId),
+      ]);
+
+      return new Response(
+        JSON.stringify({ success: true, skipped: true, sale_id: saleId, reason: "Documento já autorizado" }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const crt = (company as any)?.crt || 1;
     const defaultCst = crt === 1 || crt === 2 ? "102" : "00";
     const payments = (sale.payments as any[]) || [];
     const paymentMethodMap: Record<string, string> = {
@@ -167,11 +196,32 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 7️⃣ Sucesso
+    const fiscalStatus = fiscalData?.status || "pendente";
+    if (fiscalStatus !== "autorizada") {
+      const pendingMsg = fiscalData?.error || "NFC-e enviada, mas ainda não autorizada";
+      await Promise.all([
+        supabase.from("fiscal_queue")
+          .update({ status: "error", last_error: pendingMsg })
+          .eq("id", queueId),
+        supabase.from("sales")
+          .update({ status: "pendente_fiscal" })
+          .eq("id", saleId)
+          .eq("company_id", companyId),
+      ]);
+      return new Response(
+        JSON.stringify({ success: false, error: pendingMsg, sale_id: saleId }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // 7️⃣ Sucesso real
     await Promise.all([
-      supabase.from("sales").update({ status: "emitida" }).eq("id", saleId),
+      supabase.from("sales")
+        .update({ status: "autorizada", access_key: fiscalData?.access_key || null, number: fiscalData?.number || null })
+        .eq("id", saleId)
+        .eq("company_id", companyId),
       supabase.from("fiscal_queue")
-        .update({ status: "done", processed_at: new Date().toISOString() })
+        .update({ status: "done", processed_at: new Date().toISOString(), last_error: null })
         .eq("id", queueId),
     ]);
 

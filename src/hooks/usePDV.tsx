@@ -327,22 +327,45 @@ export function usePDV() {
   }, [products, addToCart]);
 
   // ── Enfileirar emissão fiscal na fiscal_queue ──
-  const enqueueFiscal = useCallback(async (saleId: string) => {
-    if (!companyId) return;
+  const enqueueFiscal = useCallback(async (saleId: string): Promise<string | null> => {
+    if (!companyId) return null;
     try {
-      const { error } = await supabase.from("fiscal_queue").insert({
-        sale_id: saleId,
-        company_id: companyId,
-        status: "pending",
-        attempts: 0,
-      } as any);
+      const { data: existingQueue } = await supabase
+        .from("fiscal_queue")
+        .select("id")
+        .eq("company_id", companyId)
+        .eq("sale_id", saleId)
+        .in("status", ["pending", "processing"])
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if ((existingQueue as any)?.id) {
+        return (existingQueue as any).id;
+      }
+
+      const { data, error } = await supabase
+        .from("fiscal_queue")
+        .insert({
+          sale_id: saleId,
+          company_id: companyId,
+          status: "pending",
+          attempts: 0,
+        } as any)
+        .select("id")
+        .single();
+
       if (error) {
         console.error("[PDV] Falha ao enfileirar fiscal:", error.message);
         toast.warning("Venda registrada, mas NFC-e não foi enfileirada. Reprocesse manualmente.", { duration: 8000 });
+        return null;
       }
+
+      return (data as any)?.id || null;
     } catch (err: any) {
       console.error("[PDV] Erro ao enfileirar fiscal:", err?.message);
       toast.warning("Venda registrada, mas NFC-e não foi enfileirada. Reprocesse manualmente.", { duration: 8000 });
+      return null;
     }
   }, [companyId]);
 
@@ -529,7 +552,9 @@ export function usePDV() {
 
     // Sucesso: a Edge Function já persiste o status correto da venda/documento.
     if (queueId) {
-      await supabase.from("fiscal_queue").update({ status: "done", processed_at: new Date().toISOString() } as any).eq("id", queueId);
+      await supabase.from("fiscal_queue")
+        .update({ status: "done", processed_at: new Date().toISOString(), last_error: null } as any)
+        .eq("id", queueId);
     }
 
     return {
@@ -701,9 +726,9 @@ export function usePDV() {
             });
           } else {
             // Real emission
-            enqueueFiscal(saleId);
+            const queueId = await enqueueFiscal(saleId);
             try {
-              const fiscalResult = await processFiscalEmission(saleId);
+              const fiscalResult = await processFiscalEmission(saleId, queueId || undefined);
               fiscalDocId = fiscalResult.fiscalDocId || undefined;
               accessKey = fiscalResult.accessKey || accessKey;
               serie = fiscalResult.serie || serie;
