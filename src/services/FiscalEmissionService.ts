@@ -97,6 +97,27 @@ export class FiscalEmissionService {
     }
   }
 
+  static async consultStatus(params: {
+    accessKey: string;
+    docType: "nfce" | "nfe";
+    companyId?: string;
+  }) {
+    try {
+      const { data, error } = await supabase.functions.invoke("emit-nfce", {
+        body: {
+          action: "consult_status",
+          access_key: params.accessKey,
+          doc_type: params.docType,
+          company_id: params.companyId,
+        },
+      });
+      if (error) return { success: false, error: error.message };
+      return data;
+    } catch (err: any) {
+      return { success: false, error: err?.message || "Erro ao consultar status na Nuvem Fiscal" };
+    }
+  }
+
   /**
    * Save XML to Supabase Storage bucket for the company.
    */

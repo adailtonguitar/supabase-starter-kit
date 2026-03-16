@@ -621,6 +621,77 @@ Deno.serve(async (req) => {
       return jsonResponse({ success: true, pdf_base64: pdfBase64 });
     }
 
+    // ─── CONSULT STATUS ───
+    if (action === "consult_status") {
+      const { access_key, doc_type, company_id: consultCompanyId } = body;
+      if (!access_key) return jsonResponse({ error: "Chave de acesso obrigatória" }, 400);
+
+      const token = await getNuvemFiscalToken();
+      const endpoint = doc_type === "nfe" ? "nfe" : "nfce";
+
+      const searchResp = await fetch(
+        `${NUVEM_FISCAL_API}/${endpoint}?chave=${access_key}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      const searchText = await searchResp.text();
+      let searchData: any = null;
+      try {
+        searchData = searchText ? JSON.parse(searchText) : null;
+      } catch {
+        searchData = { raw: searchText };
+      }
+
+      if (!searchResp.ok) {
+        return jsonResponse({
+          success: false,
+          error: searchData?.mensagem || searchData?.message || `Documento não encontrado [${searchResp.status}]`,
+          details: searchData,
+        });
+      }
+
+      const docData = searchData?.data?.[0] || searchData?.items?.[0] || searchData?.value?.[0] || searchData;
+      const docId = docData?.id || null;
+      const normalized = normalizeFiscalAuthorization(docData || searchData);
+      const resolvedNumber = docData?.numero || docData?.number || null;
+
+      if (consultCompanyId) {
+        await supabase
+          .from("fiscal_documents")
+          .update({
+            status: normalized.status,
+            number: resolvedNumber,
+            access_key: normalized.accessKey || access_key,
+            nuvem_fiscal_id: docId,
+          } as any)
+          .eq("company_id", consultCompanyId)
+          .eq("access_key", access_key);
+
+        if (normalized.status === "autorizada") {
+          await supabase
+            .from("sales")
+            .update({
+              status: "autorizada",
+              access_key: normalized.accessKey || access_key,
+              number: resolvedNumber,
+            } as any)
+            .eq("company_id", consultCompanyId)
+            .eq("access_key", access_key);
+        }
+      }
+
+      return jsonResponse({
+        success: true,
+        status: normalized.status,
+        sefaz_code: normalized.sefazCode,
+        protocol_number: normalized.protocolNumber,
+        access_key: normalized.accessKey || access_key,
+        number: resolvedNumber,
+        nuvem_fiscal_id: docId,
+        details: docData || searchData,
+      });
+    }
+
     // ─── DOWNLOAD XML ───
     if (action === "download_xml") {
       const { access_key, doc_type } = body;
