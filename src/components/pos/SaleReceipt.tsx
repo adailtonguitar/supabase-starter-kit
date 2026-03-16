@@ -417,14 +417,15 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
     // Open window NOW (synchronous) to avoid popup blocker, write content after fetch
     const printWindow = window.open("", "_blank", "width=320,height=700");
 
-    supabase
-      .from("fiscal_documents")
-      .select("number, access_key, serie, status")
-      .eq("sale_id", saleId)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle()
-      .then(({ data: fiscalDoc }) => {
+    Promise.resolve(
+      supabase
+        .from("fiscal_documents")
+        .select("number, access_key, serie, status")
+        .eq("sale_id", saleId)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle()
+    ).then(({ data: fiscalDoc }) => {
         setFetchingFiscal(false);
         if (fiscalDoc && (fiscalDoc as any).number) {
           const doc = fiscalDoc as any;
@@ -436,15 +437,13 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
           setNfceNumber(foundNumber);
           setAccessKey(foundKey);
           setSerie(foundSerie);
-          // Close the pre-opened window and use printFiscalCupom which opens its own
           if (printWindow) printWindow.close();
           printFiscalCupom(foundNumber, foundKey, foundSerie);
         } else {
           if (printWindow) printWindow.close();
           toast.info("NFC-e ainda não disponível para esta venda. Aguarde o processamento ou emita manualmente em Vendas.", { duration: 5000 });
         }
-      })
-      .catch(() => {
+      }).catch(() => {
         setFetchingFiscal(false);
         if (printWindow) printWindow.close();
         toast.error("Erro ao buscar dados fiscais.", { duration: 3000 });
