@@ -78,21 +78,90 @@ function normalizeFiscalAuthorization(payload: any) {
     payload?.infProt?.nProt ||
     null;
 
+  const normalizedCode = sefazCode ? String(sefazCode) : null;
   const isAuthorized =
     rawStatus.includes("autoriz") ||
     rawStatus.includes("aprov") ||
-    String(sefazCode) === "100" ||
-    !!accessKey ||
-    !!protocolNumber;
+    normalizedCode === "100";
+
+  const isRejected = rawStatus.includes("rejeit") || (!!normalizedCode && normalizedCode.startsWith("2") && normalizedCode !== "204");
+  const isCanceled = rawStatus.includes("cancel") || normalizedCode === "101";
+  const isContingency = rawStatus.includes("conting") || normalizedCode === "150";
+
+  let status = rawStatus || "pendente";
+  if (isAuthorized) status = "autorizada";
+  else if (isCanceled) status = "cancelada";
+  else if (isRejected) status = "rejeitada";
+  else if (isContingency) status = "contingencia";
+  else status = "pendente";
 
   return {
     rawStatus,
-    sefazCode: sefazCode ? String(sefazCode) : null,
+    sefazCode: normalizedCode,
     accessKey,
     protocolNumber,
     isAuthorized,
-    status: isAuthorized ? "autorizada" : rawStatus || "pendente",
+    status,
   };
+}
+
+async function persistFiscalEmissionResult(params: {
+  supabase: any;
+  company_id: string;
+  sale_id?: string | null;
+  config: any;
+  status: string;
+  accessKey: string | null;
+  docNumber: number | null;
+  totalNF: number;
+  form: any;
+  xmlContent?: string | null;
+  nuvemFiscalId?: string | null;
+}) {
+  const { supabase, company_id, sale_id, config, status, accessKey, docNumber, totalNF, form, xmlContent, nuvemFiscalId } = params;
+
+  const { error: fiscalDocError } = await supabase.from("fiscal_documents").insert({
+    company_id,
+    sale_id,
+    doc_type: "nfce",
+    number: docNumber,
+    serie: config.serie,
+    access_key: accessKey,
+    status,
+    total_value: totalNF,
+    customer_name: form.customer_name || null,
+    customer_cpf_cnpj: form.customer_doc?.replace(/\D/g, "") || null,
+    payment_method: form.payment_method,
+    environment: config.environment,
+    is_contingency: false,
+    xml_content: xmlContent || null,
+    nuvem_fiscal_id: nuvemFiscalId || null,
+    config_id: config.id,
+  } as any);
+
+  if (fiscalDocError) {
+    throw new Error(`Falha ao salvar documento fiscal no banco: ${fiscalDocError.message}`);
+  }
+
+  if (sale_id) {
+    const { error: saleError } = await supabase
+      .from("sales")
+      .update({ status, access_key: accessKey, number: docNumber } as any)
+      .eq("id", sale_id);
+
+    if (saleError) {
+      throw new Error(`Falha ao atualizar status da venda: ${saleError.message}`);
+    }
+  }
+
+  const { error: configError } = await supabase
+    .from("fiscal_configs")
+    .update({ next_number: (config.next_number || 1) + 1 })
+    .eq("id", config.id);
+
+  if (configError) {
+    throw new Error(`Falha ao avançar numeração fiscal: ${configError.message}`);
+  }
 }
 
 // ── Helper: upload certificate to Nuvem Fiscal via JSON (CadastrarCertificado) ──
