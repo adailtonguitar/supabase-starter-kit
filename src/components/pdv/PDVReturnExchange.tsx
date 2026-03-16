@@ -1,9 +1,11 @@
-import { useState, useCallback } from "react";
-import { Search, X, RotateCcw, Check, Package } from "lucide-react";
+import { useState, useCallback, useRef } from "react";
+import { Search, X, RotateCcw, Check, Package, Printer } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/utils";
+import { logAction } from "@/services/ActionLogger";
+import { ReturnReceipt } from "./ReturnReceipt";
 
 interface SaleResult {
   id: string;
