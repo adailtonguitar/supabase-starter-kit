@@ -1176,7 +1176,7 @@ Deno.serve(async (req) => {
           numero: company.address_number || "S/N",
           complemento: company.address_complement || "",
           bairro: company.address_neighborhood || "",
-          codigo_municipio: company.address_city_code || "",
+          codigo_municipio: company.address_city_code || company.city_ibge_code || "",
           nome_municipio: company.address_city || "",
           uf: uf,
           cep: company.address_zip?.replace(/\D/g, "") || "",
