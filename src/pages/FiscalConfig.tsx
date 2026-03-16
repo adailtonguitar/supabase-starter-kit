@@ -45,13 +45,17 @@ export default function FiscalConfig() {
         const nfe = configs.find((c) => c.doc_type === "nfe" && c.is_active);
         const sat = configs.find((c) => c.doc_type === "sat" && c.is_active);
         const first = configs[0];
+        const firstWithA1 = configs.find((c) => c.certificate_path);
+        const firstWithA3 = configs.find((c) => (c as any).a3_thumbprint);
+        const hasCert = !!(firstWithA1 || firstWithA3);
+        const certType = firstWithA1 ? ((firstWithA1 as any).certificate_type || "A1") : firstWithA3 ? "A3" : null;
         setConfigSummary({
           hasNfce: !!nfce,
           hasNfe: !!nfe,
           hasSat: !!sat,
-          certType: (first as any).certificate_type || "A1",
+          certType,
           environment: first.environment || "homologacao",
-          hasCert: !!(first.certificate_path || (first as any).a3_thumbprint),
+          hasCert,
         });
       }
 
