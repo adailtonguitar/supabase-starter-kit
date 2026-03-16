@@ -294,6 +294,31 @@ export function PDVReturnExchangeDialog({ open, onClose }: PDVReturnExchangeProp
                   </button>
                 </div>
               )}
+
+              {completedReturn && (
+                <div className="flex items-center justify-between pt-3 border-t border-border">
+                  <div>
+                    <p className="text-xs text-green-600 uppercase font-bold">✓ Devolução Concluída</p>
+                    <p className="text-lg font-bold text-foreground font-mono">{formatCurrency(completedReturn.refundAmount)}</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <ReturnReceipt
+                      saleId={completedReturn.saleId}
+                      saleDate={completedReturn.saleDate}
+                      originalTotal={completedReturn.originalTotal}
+                      refundAmount={completedReturn.refundAmount}
+                      items={completedReturn.items}
+                      onClose={onClose}
+                    />
+                    <button
+                      onClick={onClose}
+                      className="px-4 py-2 rounded-xl bg-primary text-primary-foreground font-semibold text-sm"
+                    >
+                      Fechar
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
