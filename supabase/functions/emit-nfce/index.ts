@@ -141,7 +141,7 @@ async function persistFiscalEmissionResult(params: {
   if (sale_id) {
     const { error: saleError } = await supabase
       .from("sales")
-      .update({ status, access_key: accessKey, number: docNumber } as any)
+      .update({ status } as any)
       .eq("id", sale_id);
 
     if (saleError) {
