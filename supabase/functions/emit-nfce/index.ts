@@ -21,7 +21,7 @@ async function getNuvemFiscalToken(): Promise<string> {
       grant_type: "client_credentials",
       client_id: clientId,
       client_secret: clientSecret,
-      scope: "cep cnpj nfce nfe",
+      scope: "cep cnpj nfce nfe empresa",
     }),
   });
 
