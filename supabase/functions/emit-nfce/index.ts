@@ -987,8 +987,32 @@ Deno.serve(async (req) => {
     const { sale_id, config_id, form } = body;
     let company_id = body.company_id;
 
-    if (!sale_id || !config_id || !form) {
-      return jsonResponse({ error: "Dados incompletos" }, 400);
+    if (!sale_id || !form) {
+      return jsonResponse({ error: "Dados incompletos (sale_id e form são obrigatórios)" }, 400);
+    }
+
+    // If config_id not provided, resolve it server-side
+    let config_id = body.config_id;
+    if (!config_id) {
+      console.log("[emit-nfce] config_id not provided, resolving server-side...");
+      const resolvedCompanyId = company_id || body.company_id;
+      if (resolvedCompanyId) {
+        const { data: allConfigs } = await supabase
+          .from("fiscal_configs")
+          .select("*")
+          .eq("company_id", resolvedCompanyId);
+        const picked = allConfigs?.find((c: any) => c.doc_type === "nfce" && c.is_active)
+          || allConfigs?.find((c: any) => c.doc_type === "nfe" && c.is_active)
+          || allConfigs?.find((c: any) => c.doc_type === "nfce")
+          || allConfigs?.[0];
+        if (picked) {
+          config_id = picked.id;
+          console.log(`[emit-nfce] Resolved config_id server-side: ${config_id}`);
+        }
+      }
+      if (!config_id) {
+        return jsonResponse({ error: "Nenhuma configuração fiscal encontrada para esta empresa. Configure em Fiscal > Configurações." }, 400);
+      }
     }
 
     // ── Resolve company + debug logging ──
