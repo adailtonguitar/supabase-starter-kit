@@ -116,9 +116,8 @@ async function persistFiscalEmissionResult(params: {
   totalNF: number;
   form: any;
   xmlContent?: string | null;
-  nuvemFiscalId?: string | null;
 }) {
-  const { supabase, company_id, sale_id, config, status, accessKey, docNumber, totalNF, form, xmlContent, nuvemFiscalId } = params;
+  const { supabase, company_id, sale_id, config, status, accessKey, docNumber, totalNF, form, xmlContent } = params;
 
   const { error: fiscalDocError } = await supabase.from("fiscal_documents").insert({
     company_id,
