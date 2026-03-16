@@ -147,7 +147,7 @@ export default function FiscalConfigEdit() {
           certificate_expires_at: certExpiry ? new Date(certExpiry).toISOString() : null,
           certificate_password_hash: certType === "A1" ? (certPassword || null) : null,
           certificate_base64: certType === "A1" ? (certBase64 || null) : null,
-          certificate_uploaded: certType === "A1" && certBase64 ? true : undefined,
+          certificate_uploaded: false,
           a3_thumbprint: certType === "A3" ? a3SelectedThumbprint || null : null,
           a3_subject_name: certType === "A3" ? (a3Certificates.find(c => c.thumbprint === a3SelectedThumbprint)?.subjectName || null) : null,
           sat_serial_number: config.docType === "sat" ? satSerial || null : null,
