@@ -735,11 +735,8 @@ Deno.serve(async (req) => {
             .from("sales")
             .update({
               status: "autorizada",
-              access_key: normalized.accessKey || access_key,
-              number: resolvedNumber,
             } as any)
-            .eq("company_id", consultCompanyId)
-            .eq("access_key", access_key);
+            .eq("company_id", consultCompanyId);
         }
       }
 
