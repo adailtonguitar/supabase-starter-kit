@@ -1971,7 +1971,6 @@ Deno.serve(async (req) => {
         totalNF,
         form,
         xmlContent: emitData.xml || null,
-        nuvemFiscalId: emitData.id || null,
       });
     } catch (persistErr: any) {
       console.error("[emit-nfce] Emission persisted remotely but failed locally:", persistErr);
