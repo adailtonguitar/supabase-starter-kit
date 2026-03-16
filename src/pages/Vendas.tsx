@@ -36,7 +36,7 @@ const paymentLabels: Record<string, string> = {
 };
 
 export default function Vendas() {
-  const { data: sales = [], isLoading, refetch } = useSales(100);
+  const { data: sales = [], isLoading, error, refetch } = useSales(100);
   const { config } = useTEFConfig();
   
   const [refundingSaleId, setRefundingSaleId] = useState<string | null>(null);
