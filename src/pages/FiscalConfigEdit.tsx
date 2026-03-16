@@ -147,15 +147,16 @@ export default function FiscalConfigEdit() {
           sat_activation_code: config.docType === "sat" ? satActivation || null : null,
           updated_at: new Date().toISOString(),
         };
-        // Only update certificate fields when there's actual cert data — avoids clearing valid cert on re-save
-        if (certType === "A1" && certFile) {
-          record.certificate_path = certFile;
-          record.certificate_expires_at = certExpiry ? new Date(certExpiry).toISOString() : null;
-          record.certificate_uploaded = false; // will be set true after upload
-        } else if (certType === "A1" && !certFile && !config.id) {
-          // New config without cert — set nulls
-          record.certificate_path = null;
-          record.certificate_expires_at = null;
+        // Always sync certificate fields for A1
+        if (certType === "A1") {
+          record.certificate_path = certFile || null;
+          record.certificate_expires_at = certFile && certExpiry ? new Date(certExpiry).toISOString() : null;
+          if (!certFile) {
+            // User explicitly removed cert — clear uploaded flag too
+            record.certificate_uploaded = false;
+          } else {
+            record.certificate_uploaded = false; // will be set true after upload
+          }
         }
         if (certType === "A3") {
           record.a3_thumbprint = a3SelectedThumbprint || null;
