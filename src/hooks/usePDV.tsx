@@ -606,30 +606,18 @@ export function usePDV() {
       if (!options?.skipFiscal) {
         // Check simulation mode directly here
         try {
-          // Try nfce first, then nfe as fallback
-          let simConfig: any = null;
-          const { data: nfceSimConfig } = await supabase
+          // Fetch ALL configs, pick best match
+          const { data: allSimConfigs } = await supabase
             .from("fiscal_configs")
-            .select("id, environment, certificate_path, a3_thumbprint, next_number, serie")
-            .eq("company_id", companyId)
-            .eq("doc_type", "nfce")
-            .eq("is_active", true)
-            .limit(1)
-            .maybeSingle();
-          
-          if (nfceSimConfig) {
-            simConfig = nfceSimConfig;
-          } else {
-            const { data: nfeSimConfig } = await supabase
-              .from("fiscal_configs")
-              .select("id, environment, certificate_path, a3_thumbprint, next_number, serie")
-              .eq("company_id", companyId)
-              .eq("doc_type", "nfe")
-              .eq("is_active", true)
-              .limit(1)
-              .maybeSingle();
-            simConfig = nfeSimConfig;
-          }
+            .select("id, doc_type, is_active, environment, certificate_path, a3_thumbprint, next_number, serie")
+            .eq("company_id", companyId);
+
+          const simConfig = allSimConfigs?.find((c: any) => c.doc_type === "nfce" && c.is_active)
+            || allSimConfigs?.find((c: any) => c.doc_type === "nfe" && c.is_active)
+            || allSimConfigs?.find((c: any) => c.doc_type === "nfce")
+            || allSimConfigs?.find((c: any) => c.doc_type === "nfe")
+            || allSimConfigs?.[0]
+            || null;
 
           console.log("[PDV finalizeSale] simConfig:", simConfig);
 
