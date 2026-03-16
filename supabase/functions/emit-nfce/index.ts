@@ -1087,6 +1087,34 @@ Deno.serve(async (req) => {
 
         if (!alreadyRegistered) {
           console.log(`[emit-nfce] CNPJ ${cnpjClean} not registered in Nuvem Fiscal. Auto-registering...`);
+
+          // Resolve codigo_municipio via ViaCEP if missing
+          let regCodigoMunicipio = company.address_city_code || company.city_ibge_code || "";
+          const regCep = (company.address_zip || "").replace(/\D/g, "");
+          if (!regCodigoMunicipio && regCep.length === 8) {
+            try {
+              const viaCepResp = await fetch(`https://viacep.com.br/ws/${regCep}/json/`);
+              if (viaCepResp.ok) {
+                const viaCepData = await viaCepResp.json();
+                if (viaCepData.ibge) {
+                  regCodigoMunicipio = viaCepData.ibge;
+                  console.log(`[emit-nfce] Resolved IBGE code from CEP ${regCep}: ${regCodigoMunicipio}`);
+                  // Persist for future use
+                  await supabase.from("companies").update({ address_city_code: regCodigoMunicipio } as any).eq("id", company_id || body.company_id);
+                }
+              }
+            } catch (e) {
+              console.warn("[emit-nfce] ViaCEP lookup for registration failed:", e);
+            }
+          }
+
+          if (!regCodigoMunicipio) {
+            return jsonResponse({
+              success: false,
+              error: "Código IBGE do município não encontrado. Cadastre o CEP da empresa em Configurações > Empresa antes de emitir.",
+            }, 400);
+          }
+
           const regBody: Record<string, any> = {
             cpf_cnpj: cnpjClean,
             nome_razao_social: company.razao_social || company.name || "Empresa",
@@ -1098,12 +1126,12 @@ Deno.serve(async (req) => {
               logradouro: company.address_street || "",
               numero: company.address_number || "S/N",
               bairro: company.address_neighborhood || "",
-              codigo_municipio: company.address_city_code || company.city_ibge_code || "",
+              codigo_municipio: regCodigoMunicipio,
               cidade: company.address_city || "",
               uf: (company.address_state || "SP").toUpperCase(),
               codigo_pais: "1058",
               pais: "Brasil",
-              cep: (company.address_zip || "").replace(/\D/g, "") || "",
+              cep: regCep,
             },
           };
 
