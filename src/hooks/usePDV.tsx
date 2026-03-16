@@ -11,6 +11,7 @@ import { cacheSet, cacheGet } from "@/lib/offline-cache";
 import { logAction } from "@/services/ActionLogger";
 import { fiscalCircuitBreaker, CircuitBreakerOpenError } from "@/lib/circuit-breaker";
 import { getFunctionErrorMessage } from "@/lib/get-function-error-message";
+import { getStoredCertificateA1 } from "@/services/LocalXmlSigner";
 
 export interface PDVProduct {
   id: string;

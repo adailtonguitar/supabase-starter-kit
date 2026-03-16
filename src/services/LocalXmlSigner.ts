@@ -82,8 +82,13 @@ export async function storeCertificateA1(
   }
 }
 
-/** Check if A1 certificate is stored and valid */
-export async function hasCertificateA1(companyId: string): Promise<boolean> {
+/** Load stored A1 certificate metadata/data from IndexedDB */
+export async function getStoredCertificateA1(companyId: string): Promise<{
+  pfxBase64: string;
+  password: string;
+  subject?: string;
+  expiresAt?: string;
+} | null> {
   try {
     const db = await openDB();
     const record = await new Promise<any>((resolve) => {
@@ -92,11 +97,17 @@ export async function hasCertificateA1(companyId: string): Promise<boolean> {
       req.onsuccess = () => resolve(req.result);
       req.onerror = () => resolve(null);
     });
-    if (!record?.data?.expiresAt) return false;
-    return new Date(record.data.expiresAt) > new Date();
+    return record?.data ?? null;
   } catch {
-    return false;
+    return null;
   }
+}
+
+/** Check if A1 certificate is stored and valid */
+export async function hasCertificateA1(companyId: string): Promise<boolean> {
+  const stored = await getStoredCertificateA1(companyId);
+  if (!stored?.expiresAt) return false;
+  return new Date(stored.expiresAt) > new Date();
 }
 
 /** Load certificate from IndexedDB and return parsed key + cert */

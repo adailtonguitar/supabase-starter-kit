@@ -15,6 +15,7 @@ import { usePlanFeatures } from "@/hooks/usePlanFeatures";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { NCM_TABLE } from "@/lib/ncm-table";
+import { getStoredCertificateA1 } from "@/services/LocalXmlSigner";
 
 const PAYMENT_OPTIONS = [
   { value: "01", label: "Dinheiro" },
