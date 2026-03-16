@@ -41,6 +41,60 @@ function jsonResponse(body: object, status = 200) {
   });
 }
 
+function normalizeFiscalAuthorization(payload: any) {
+  const rawStatus = (
+    payload?.status ||
+    payload?.situacao ||
+    payload?.status_sefaz?.status ||
+    payload?.status_sefaz?.xMotivo ||
+    payload?.motivo_status ||
+    ""
+  )
+    .toString()
+    .toLowerCase()
+    .trim();
+
+  const sefazCode =
+    payload?.codigo_status ||
+    payload?.status_sefaz?.cStat ||
+    payload?.cStat ||
+    payload?.protNFe?.infProt?.cStat ||
+    payload?.infProt?.cStat ||
+    null;
+
+  const accessKey =
+    payload?.chave ||
+    payload?.chave_acesso ||
+    payload?.access_key ||
+    payload?.protNFe?.infProt?.chNFe ||
+    payload?.infProt?.chNFe ||
+    null;
+
+  const protocolNumber =
+    payload?.protocolo ||
+    payload?.numero_protocolo ||
+    payload?.status_sefaz?.nProt ||
+    payload?.protNFe?.infProt?.nProt ||
+    payload?.infProt?.nProt ||
+    null;
+
+  const isAuthorized =
+    rawStatus.includes("autoriz") ||
+    rawStatus.includes("aprov") ||
+    String(sefazCode) === "100" ||
+    !!accessKey ||
+    !!protocolNumber;
+
+  return {
+    rawStatus,
+    sefazCode: sefazCode ? String(sefazCode) : null,
+    accessKey,
+    protocolNumber,
+    isAuthorized,
+    status: isAuthorized ? "autorizada" : rawStatus || "pendente",
+  };
+}
+
 // ── Helper: upload certificate to Nuvem Fiscal via JSON (CadastrarCertificado) ──
 async function uploadCertToNuvemFiscal(token: string, cnpjClean: string, certBase64: string, password: string): Promise<{ ok: boolean; error?: string }> {
   const resp = await fetch(`${NUVEM_FISCAL_API}/empresas/${cnpjClean}/certificado`, {
@@ -1126,9 +1180,10 @@ Deno.serve(async (req) => {
         });
       }
 
-      const nfeAccessKey = nfeEmitData.chave || nfeEmitData.chave_acesso || null;
+      const nfeAuth = normalizeFiscalAuthorization(nfeEmitData);
+      const nfeAccessKey = nfeAuth.accessKey;
       const nfeDocNumber = nfeEmitData.numero || nfeConfig.next_number || null;
-      const nfeStatus = nfeEmitData.status === "autorizada" ? "autorizada" : nfeEmitData.status || "pendente";
+      const nfeStatus = nfeAuth.status;
 
       await supabase.from("fiscal_documents").insert({
         company_id: nfeCompanyId,
@@ -1159,6 +1214,8 @@ Deno.serve(async (req) => {
         access_key: nfeAccessKey,
         number: nfeDocNumber,
         status: nfeStatus,
+        sefaz_code: nfeAuth.sefazCode,
+        protocol_number: nfeAuth.protocolNumber,
         nuvem_fiscal_id: nfeEmitData.id,
       });
     }
@@ -1691,9 +1748,10 @@ Deno.serve(async (req) => {
             });
             const retryData = await retryResp.json();
             if (retryResp.ok) {
-              const retryAccessKey = retryData.chave || retryData.chave_acesso || null;
+              const retryAuth = normalizeFiscalAuthorization(retryData);
+              const retryAccessKey = retryAuth.accessKey;
               const retryDocNumber = retryData.numero || config.next_number || null;
-              const retryStatus = retryData.status === "autorizada" ? "autorizada" : retryData.status || "pendente";
+              const retryStatus = retryAuth.status;
               await supabase.from("fiscal_documents").insert({
                 company_id, sale_id, doc_type: "nfce", number: retryDocNumber, serie: config.serie,
                 access_key: retryAccessKey, status: retryStatus, total_value: totalNF,
@@ -1701,8 +1759,8 @@ Deno.serve(async (req) => {
                 payment_method: form.payment_method, xml_content: retryData.xml || null, config_id: config.id,
               } as any);
               await supabase.from("fiscal_configs").update({ next_number: (config.next_number || 1) + 1 }).eq("id", config.id);
-              if (sale_id) await supabase.from("sales").update({ status: "emitida" } as any).eq("id", sale_id);
-              return jsonResponse({ success: true, status: retryStatus, access_key: retryAccessKey, number: retryDocNumber, data: retryData });
+              if (sale_id) await supabase.from("sales").update({ status: retryStatus, access_key: retryAccessKey, number: retryDocNumber } as any).eq("id", sale_id);
+              return jsonResponse({ success: true, status: retryStatus, access_key: retryAccessKey, number: retryDocNumber, sefaz_code: retryAuth.sefazCode, protocol_number: retryAuth.protocolNumber, data: retryData });
             }
             console.warn("[emit-nfce] Retry after cert upload also failed:", JSON.stringify(retryData));
           } else {
@@ -1736,15 +1794,18 @@ Deno.serve(async (req) => {
       });
     }
 
-    const accessKey = emitData.chave || emitData.chave_acesso || emitData.access_key || null;
+    const normalizedAuth = normalizeFiscalAuthorization(emitData);
+    const accessKey = normalizedAuth.accessKey;
     const docNumber = emitData.numero || emitData.number || config.next_number || null;
-
-    // Nuvem Fiscal pode retornar status como "autorizada", "aprovada", "autorizado", número 100, etc.
-    const rawStatus = (emitData.status || emitData.situacao || "").toString().toLowerCase().trim();
-    const sefazCode = emitData.codigo_status || emitData.status_sefaz?.cStat || emitData.cStat;
-    const isAuthorized = rawStatus.includes("autoriz") || rawStatus.includes("aprov") || String(sefazCode) === "100" || !!accessKey;
-    const status = isAuthorized ? "autorizada" : rawStatus || "pendente";
-    console.log("[emit-nfce] Raw status:", JSON.stringify({ rawStatus, sefazCode, accessKey: !!accessKey, isAuthorized, finalStatus: status }));
+    const status = normalizedAuth.status;
+    console.log("[emit-nfce] Raw status:", JSON.stringify({
+      rawStatus: normalizedAuth.rawStatus,
+      sefazCode: normalizedAuth.sefazCode,
+      accessKey: !!accessKey,
+      protocolNumber: !!normalizedAuth.protocolNumber,
+      isAuthorized: normalizedAuth.isAuthorized,
+      finalStatus: status,
+    }));
 
     await supabase.from("fiscal_documents").insert({
       company_id,
@@ -1769,7 +1830,7 @@ Deno.serve(async (req) => {
 
     await supabase
       .from("sales")
-      .update({ status: "autorizada", access_key: accessKey, number: docNumber })
+      .update({ status, access_key: accessKey, number: docNumber })
       .eq("id", sale_id);
 
     await supabase
@@ -1782,6 +1843,8 @@ Deno.serve(async (req) => {
       access_key: accessKey,
       number: docNumber,
       status,
+      sefaz_code: normalizedAuth.sefazCode,
+      protocol_number: normalizedAuth.protocolNumber,
       nuvem_fiscal_id: emitData.id,
     });
   } catch (err: unknown) {
