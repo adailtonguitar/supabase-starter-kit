@@ -132,7 +132,6 @@ async function persistFiscalEmissionResult(params: {
     payment_method: form.payment_method,
     environment: config.environment,
     is_contingency: false,
-    xml_content: xmlContent || null,
   } as any);
 
   if (fiscalDocError) {
@@ -1056,7 +1055,6 @@ Deno.serve(async (req) => {
           payment_method: contForm.payment_method,
           environment: configData?.environment || "homologacao",
           is_contingency: true,
-          xml_content: signed_xml,
         });
 
         // Backup the signed XML
@@ -1332,7 +1330,6 @@ Deno.serve(async (req) => {
         payment_method: nfeForm.payment_method,
         environment: nfeConfig.environment,
         is_contingency: false,
-        xml_content: nfeEmitData.xml || null,
       });
 
       await backupXml(supabase, nfeCompanyId, "nfe", nfeAccessKey, nfeDocNumber, nfeEmitData.xml || null, "emissao");
