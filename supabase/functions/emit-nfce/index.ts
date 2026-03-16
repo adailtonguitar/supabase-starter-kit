@@ -116,9 +116,8 @@ async function persistFiscalEmissionResult(params: {
   totalNF: number;
   form: any;
   xmlContent?: string | null;
-  nuvemFiscalId?: string | null;
 }) {
-  const { supabase, company_id, sale_id, config, status, accessKey, docNumber, totalNF, form, xmlContent, nuvemFiscalId } = params;
+  const { supabase, company_id, sale_id, config, status, accessKey, docNumber, totalNF, form, xmlContent } = params;
 
   const { error: fiscalDocError } = await supabase.from("fiscal_documents").insert({
     company_id,
@@ -135,7 +134,6 @@ async function persistFiscalEmissionResult(params: {
     environment: config.environment,
     is_contingency: false,
     xml_content: xmlContent || null,
-    nuvem_fiscal_id: nuvemFiscalId || null,
   } as any);
 
   if (fiscalDocError) {
@@ -730,7 +728,6 @@ Deno.serve(async (req) => {
             status: normalized.status,
             number: resolvedNumber,
             access_key: normalized.accessKey || access_key,
-            nuvem_fiscal_id: docId,
           } as any)
           .eq("company_id", consultCompanyId)
           .eq("access_key", access_key);
@@ -1338,7 +1335,6 @@ Deno.serve(async (req) => {
         environment: nfeConfig.environment,
         is_contingency: false,
         xml_content: nfeEmitData.xml || null,
-        nuvem_fiscal_id: nfeEmitData.id || null,
       });
 
       await backupXml(supabase, nfeCompanyId, "nfe", nfeAccessKey, nfeDocNumber, nfeEmitData.xml || null, "emissao");
@@ -1975,7 +1971,6 @@ Deno.serve(async (req) => {
         totalNF,
         form,
         xmlContent: emitData.xml || null,
-        nuvemFiscalId: emitData.id || null,
       });
     } catch (persistErr: any) {
       console.error("[emit-nfce] Emission persisted remotely but failed locally:", persistErr);
