@@ -350,7 +350,11 @@ export function usePDV() {
 
     console.log("[PDV Fiscal] processFiscalEmission called for saleId:", saleId, "companyId:", companyId);
 
-    const { data: fiscalConfig, error: fcError } = await supabase
+    // Try nfce first, then nfe as fallback (EmissorSettingsTab saves as "nfe")
+    let fiscalConfig: any = null;
+    let fcError: any = null;
+
+    const { data: nfceConfig, error: nfceErr } = await supabase
       .from("fiscal_configs")
       .select("id, crt, environment, certificate_path, a3_thumbprint, serie, next_number")
       .eq("company_id", companyId)
@@ -359,17 +363,31 @@ export function usePDV() {
       .limit(1)
       .maybeSingle();
 
+    if (nfceConfig) {
+      fiscalConfig = nfceConfig;
+      fcError = nfceErr;
+    } else {
+      // Fallback: use nfe config (from EmissorSettingsTab)
+      const { data: nfeConfig, error: nfeErr } = await supabase
+        .from("fiscal_configs")
+        .select("id, crt, environment, certificate_path, a3_thumbprint, serie, next_number")
+        .eq("company_id", companyId)
+        .eq("doc_type", "nfe")
+        .eq("is_active", true)
+        .limit(1)
+        .maybeSingle();
+      fiscalConfig = nfeConfig;
+      fcError = nfeErr;
+      if (nfeConfig) {
+        console.log("[PDV Fiscal] Using NF-e config as fallback for NFC-e");
+      }
+    }
+
     console.log("[PDV Fiscal] Config query result:", JSON.stringify({ fiscalConfig, fcError }));
 
     if (!fiscalConfig) {
-      // Try without is_active filter to diagnose
-      const { data: allConfigs } = await supabase
-        .from("fiscal_configs")
-        .select("id, doc_type, is_active, environment")
-        .eq("company_id", companyId)
-        .eq("doc_type", "nfce");
-      console.error("[PDV Fiscal] No active config found. All nfce configs:", JSON.stringify(allConfigs));
-      throw new Error("Nenhuma configuração fiscal ativa");
+      console.error("[PDV Fiscal] No active fiscal config found for company:", companyId);
+      throw new Error("Nenhuma configuração fiscal ativa. Vá em Fiscal > Config. Fiscal e ative a NFC-e.");
     }
 
     const isHomologacao = (fiscalConfig as any).environment === "homologacao";
