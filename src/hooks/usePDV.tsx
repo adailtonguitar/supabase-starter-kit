@@ -702,6 +702,8 @@ export function usePDV() {
               const fiscalResult = await processFiscalEmission(saleId);
               nfceNumber = fiscalResult.nfceNumber || "";
               fiscalDocId = fiscalResult.fiscalDocId || undefined;
+              accessKey = fiscalResult.accessKey || accessKey;
+              serie = fiscalResult.serie || serie;
               if (nfceNumber) {
                 toast.success("✅ NFC-e emitida com sucesso!", {
                   description: `Número: ${nfceNumber}`,
