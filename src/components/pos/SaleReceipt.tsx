@@ -401,20 +401,20 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
   }, [items, total, payments, changeAmount, companyName, companyCnpj, companyIe, companyPhone, companyAddress, companyUf, logoUrl, saleId, customerCpf, protocolNumber, protocolDate, isHomologacao, tributosAprox]);
 
   const handlePrintFiscal = useCallback(() => {
-    // If nfceNumber already available, print synchronously (preserves user gesture for window.open)
-    if (nfceNumber) {
+    const isSimulatedCurrent = !!nfceNumber && /^(SIM-|TESTE-|DEMO-|CONT-)/.test(nfceNumber);
+
+    // Só imprime direto se já houver uma NFC-e realmente imprimível
+    if (nfceNumber && (accessKey || isSimulatedCurrent)) {
       printFiscalCupom(nfceNumber, accessKey, serie);
       return;
     }
 
-    // Otherwise fetch from DB first, then print
     if (!saleId) {
       toast.info("NFC-e ainda não disponível para esta venda.", { duration: 5000 });
       return;
     }
 
     setFetchingFiscal(true);
-    // Open window NOW (synchronous) to avoid popup blocker, write content after fetch
     const printWindow = window.open("", "_blank", "width=320,height=700");
 
     Promise.resolve(
@@ -427,11 +427,12 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
         .maybeSingle()
     ).then(({ data: fiscalDoc }) => {
         setFetchingFiscal(false);
-        if (fiscalDoc && (fiscalDoc as any).number) {
-          const doc = fiscalDoc as any;
-          const num = String(doc.number);
-          const isSimulated = doc.status === "simulado";
-          const foundNumber = isSimulated ? `SIM-${num}` : num;
+        const doc = fiscalDoc as any;
+        const isSimulated = doc?.status === "simulado";
+        const isAuthorized = doc?.status === "autorizada";
+
+        if (doc?.number && (isAuthorized || isSimulated)) {
+          const foundNumber = isSimulated ? `SIM-${String(doc.number)}` : String(doc.number);
           const foundKey = doc.access_key || undefined;
           const foundSerie = doc.serie || undefined;
           setNfceNumber(foundNumber);
@@ -441,7 +442,7 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
           printFiscalCupom(foundNumber, foundKey, foundSerie);
         } else {
           if (printWindow) printWindow.close();
-          toast.info("NFC-e ainda não disponível para esta venda. Aguarde o processamento ou emita manualmente em Vendas.", { duration: 5000 });
+          toast.info("A NFC-e desta venda ainda não foi autorizada. O cupom fiscal só libera após autorização real.", { duration: 6000 });
         }
       }).catch(() => {
         setFetchingFiscal(false);

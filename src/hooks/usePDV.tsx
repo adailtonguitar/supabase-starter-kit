@@ -704,14 +704,21 @@ export function usePDV() {
             enqueueFiscal(saleId);
             try {
               const fiscalResult = await processFiscalEmission(saleId);
-              nfceNumber = fiscalResult.nfceNumber || "";
               fiscalDocId = fiscalResult.fiscalDocId || undefined;
               accessKey = fiscalResult.accessKey || accessKey;
               serie = fiscalResult.serie || serie;
-              if (nfceNumber) {
+
+              if (fiscalResult.status === "autorizada") {
+                nfceNumber = fiscalResult.nfceNumber || "";
                 toast.success("✅ NFC-e emitida com sucesso!", {
                   description: `Número: ${nfceNumber}`,
                   duration: 5000,
+                });
+              } else {
+                nfceNumber = "";
+                toast.info("🕒 NFC-e enviada, mas ainda não autorizada.", {
+                  description: "A venda foi salva e o status real aparecerá no histórico fiscal.",
+                  duration: 6000,
                 });
               }
             } catch (fiscalErr: any) {
