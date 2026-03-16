@@ -61,21 +61,24 @@ Deno.serve(async (req) => {
       .update({ status: "processing", attempts, updated_at: new Date().toISOString() })
       .eq("id", queueId);
 
-    // 4️⃣ Buscar config fiscal
-    const { data: fiscalConfig } = await supabase
+    // 4️⃣ Buscar config fiscal com fallback (NFC-e -> NF-e)
+    const { data: configs, error: cfgErr } = await supabase
       .from("fiscal_configs")
-      .select("id, crt")
-      .eq("company_id", companyId)
-      .eq("doc_type", "nfce")
-      .eq("is_active", true)
-      .limit(1)
-      .maybeSingle();
+      .select("id, crt, doc_type, is_active")
+      .eq("company_id", companyId);
 
-    if (!fiscalConfig) {
-      // Erro de configuração — marcar como erro e NÃO retornar 500
+    const fiscalConfig = configs?.find((c: any) => c.doc_type === "nfce" && c.is_active)
+      || configs?.find((c: any) => c.doc_type === "nfe" && c.is_active)
+      || configs?.find((c: any) => c.doc_type === "nfce")
+      || configs?.find((c: any) => c.doc_type === "nfe")
+      || configs?.[0]
+      || null;
+
+    if (cfgErr || !fiscalConfig) {
+      const reason = cfgErr?.message || "Nenhuma configuração fiscal encontrada";
       await Promise.all([
         supabase.from("fiscal_queue")
-          .update({ status: "error", last_error: "Nenhuma configuração fiscal ativa" })
+          .update({ status: "error", last_error: reason })
           .eq("id", queueId),
         supabase.from("sales")
           .update({ status: "pendente_fiscal" })
@@ -83,7 +86,7 @@ Deno.serve(async (req) => {
           .eq("company_id", companyId),
       ]);
       return new Response(
-        JSON.stringify({ success: false, error: "Nenhuma configuração fiscal ativa", sale_id: saleId }),
+        JSON.stringify({ success: false, error: reason, sale_id: saleId }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }

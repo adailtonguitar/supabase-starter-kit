@@ -1019,14 +1019,41 @@ Deno.serve(async (req) => {
 
     console.log(`[emit-nfce] Using company: ${company_id} (${company.name})`);
 
-    const { data: config, error: cfgErr } = await supabase
-      .from("fiscal_configs")
-      .select("*")
-      .eq("id", config_id)
-      .single();
+    let config: any = null;
 
-    if (cfgErr || !config) {
-      return jsonResponse({ error: "Configuração fiscal não encontrada" }, 404);
+    if (config_id) {
+      const { data } = await supabase
+        .from("fiscal_configs")
+        .select("*")
+        .eq("id", config_id)
+        .maybeSingle();
+      config = data;
+    }
+
+    if (!config) {
+      const { data: configs, error: cfgErr } = await supabase
+        .from("fiscal_configs")
+        .select("*")
+        .eq("company_id", company_id);
+
+      if (cfgErr) {
+        return jsonResponse({ error: `Erro ao buscar configuração fiscal: ${cfgErr.message}` }, 500);
+      }
+
+      config = configs?.find((c: any) => c.doc_type === "nfce" && c.is_active)
+        || configs?.find((c: any) => c.doc_type === "nfe" && c.is_active)
+        || configs?.find((c: any) => c.doc_type === "nfce")
+        || configs?.find((c: any) => c.doc_type === "nfe")
+        || configs?.[0]
+        || null;
+    }
+
+    if (!config) {
+      return jsonResponse({
+        error: "Configuração fiscal não encontrada",
+        debug_company_id: company_id,
+        debug_requested_config_id: config_id || null,
+      }, 404);
     }
 
     // ── Validate items before building payload ──

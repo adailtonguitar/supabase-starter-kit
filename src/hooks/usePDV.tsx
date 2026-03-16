@@ -350,15 +350,18 @@ export function usePDV() {
 
     console.log("[PDV Fiscal] processFiscalEmission called for saleId:", saleId, "companyId:", companyId);
 
-    // Fetch ALL fiscal configs for the company (no doc_type or is_active filter)
+    // Best-effort config lookup in client; if RLS blocks it, server will resolve config.
     const { data: allConfigs, error: fcError } = await supabase
       .from("fiscal_configs")
       .select("id, doc_type, is_active, crt, environment, certificate_path, a3_thumbprint, serie, next_number")
       .eq("company_id", companyId);
 
-    console.log("[PDV Fiscal] All configs for company:", JSON.stringify(allConfigs), "error:", fcError?.message);
+    const { data: companyFiscal } = await supabase
+      .from("companies")
+      .select("crt")
+      .eq("id", companyId)
+      .maybeSingle();
 
-    // Pick best config: active nfce > active nfe > any nfce > any nfe > any config
     const fiscalConfig = allConfigs?.find((c: any) => c.doc_type === "nfce" && c.is_active)
       || allConfigs?.find((c: any) => c.doc_type === "nfe" && c.is_active)
       || allConfigs?.find((c: any) => c.doc_type === "nfce")
@@ -366,16 +369,12 @@ export function usePDV() {
       || allConfigs?.[0]
       || null;
 
-    if (!fiscalConfig) {
-      console.error("[PDV Fiscal] No fiscal config found at all for company:", companyId);
-      throw new Error("Nenhuma configuração fiscal encontrada. Vá em Fiscal > Config. Fiscal e configure a NFC-e.");
-    }
-    
-    console.log("[PDV Fiscal] Selected config:", JSON.stringify(fiscalConfig));
+    const resolvedCrt = (fiscalConfig as any)?.crt || (companyFiscal as any)?.crt || 1;
+    const isHomologacao = (fiscalConfig as any)?.environment === "homologacao";
+    const hasCert = !!((fiscalConfig as any)?.certificate_path || (fiscalConfig as any)?.a3_thumbprint);
 
-    const isHomologacao = (fiscalConfig as any).environment === "homologacao";
-    const hasCert = !!((fiscalConfig as any).certificate_path || (fiscalConfig as any).a3_thumbprint);
-    console.log("[PDV Fiscal] isHomologacao:", isHomologacao, "hasCert:", hasCert, "env:", (fiscalConfig as any).environment, "cert_path:", (fiscalConfig as any).certificate_path);
+    console.log("[PDV Fiscal] Config lookup:", JSON.stringify({ fiscalConfig, fcError, companyFiscal }));
+    console.log("[PDV Fiscal] isHomologacao:", isHomologacao, "hasCert:", hasCert, "resolvedCrt:", resolvedCrt);
 
     // ── MODO SIMULAÇÃO: homologação sem certificado ──
     if (isHomologacao && !hasCert) {
@@ -434,7 +433,7 @@ export function usePDV() {
 
     if (!sale) throw new Error("Venda não encontrada");
 
-    const crt = fiscalConfig.crt || 1;
+    const crt = resolvedCrt;
     const defaultCst = (crt === 1 || crt === 2) ? "102" : "00";
     const payments = (sale.payments as any[]) || [];
     const paymentMethodMap: Record<string, string> = {
@@ -462,7 +461,7 @@ export function usePDV() {
           action: "emit",
           sale_id: saleId,
           company_id: companyId,
-          config_id: fiscalConfig.id,
+          config_id: fiscalConfig?.id,
           form: {
             nat_op: "VENDA DE MERCADORIA",
             crt,
