@@ -1102,10 +1102,13 @@ Deno.serve(async (req) => {
 
     for (let i = 0; i < formItems.length; i++) {
       const it = formItems[i];
-      const ncmClean = (it.ncm || "").replace(/\D/g, "");
-      if (!ncmClean || ncmClean === "00000000" || ncmClean.length < 4) {
-        return jsonResponse({ error: `Item ${i + 1} ("${it.name || ""}"): NCM inválido ou não informado. NCM é obrigatório para evitar multa na SEFAZ.` }, 400);
+      let ncmClean = (it.ncm || "").replace(/\D/g, "");
+      if (!ncmClean || ncmClean.length < 4) {
+        // Fallback: use generic NCM instead of blocking the sale
+        console.warn(`[emit-nfce] Item ${i + 1} ("${it.name}") sem NCM válido. Usando NCM genérico 00000000.`);
+        ncmClean = "00000000";
       }
+      it.ncm = ncmClean;
       if (!it.cfop || it.cfop.length !== 4) {
         return jsonResponse({ error: `Item ${i + 1} ("${it.name || ""}"): CFOP inválido ou não informado.` }, 400);
       }
