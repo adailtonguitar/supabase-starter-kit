@@ -132,7 +132,6 @@ async function persistFiscalEmissionResult(params: {
     payment_method: form.payment_method,
     environment: config.environment,
     is_contingency: false,
-    xml_content: xmlContent || null,
   } as any);
 
   if (fiscalDocError) {
