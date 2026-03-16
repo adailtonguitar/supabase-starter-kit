@@ -527,8 +527,7 @@ export function usePDV() {
       throw new Error(errorMsg);
     }
 
-    // Sucesso
-    await supabase.from("sales").update({ status: "emitida" } as any).eq("id", saleId);
+    // Sucesso: a Edge Function já persiste o status correto da venda/documento.
     if (queueId) {
       await supabase.from("fiscal_queue").update({ status: "done", processed_at: new Date().toISOString() } as any).eq("id", queueId);
     }
@@ -538,6 +537,7 @@ export function usePDV() {
       fiscalDocId: fiscalData.fiscal_doc_id || fiscalData.nuvem_fiscal_id || fiscalData.id,
       accessKey: fiscalData.access_key || "",
       serie: fiscalData.serie || "",
+      status: fiscalData.status || "pendente",
     };
   }, [companyId]);
 
