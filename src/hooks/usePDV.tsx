@@ -671,7 +671,7 @@ export function usePDV() {
                 });
               }
             } catch (fiscalErr: any) {
-              const errMsg = fiscalErr?.message || "Erro desconhecido na emissão fiscal";
+              const errMsg = await getFunctionErrorMessage(fiscalErr, "Erro desconhecido na emissão fiscal");
               console.error("[PDV Fiscal] Emission failed:", errMsg);
               toast.error(`⚠️ Emissão fiscal falhou: ${errMsg}`, {
                 description: "A venda foi registrada. Você pode reprocessar a NFC-e depois em Fiscal > Documentos.",
