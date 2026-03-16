@@ -41,6 +41,36 @@ function jsonResponse(body: object, status = 200) {
   });
 }
 
+// ── Helper: upload certificate to Nuvem Fiscal via multipart form ──
+async function uploadCertToNuvemFiscal(token: string, cnpjClean: string, certBase64: string, password: string): Promise<{ ok: boolean; error?: string }> {
+  // Decode base64 to binary
+  const binaryStr = atob(certBase64);
+  const bytes = new Uint8Array(binaryStr.length);
+  for (let i = 0; i < binaryStr.length; i++) {
+    bytes[i] = binaryStr.charCodeAt(i);
+  }
+
+  const formData = new FormData();
+  formData.append("file", new Blob([bytes], { type: "application/x-pkcs12" }), "certificado.pfx");
+  formData.append("password", password);
+
+  const resp = await fetch(`${NUVEM_FISCAL_API}/empresas/${cnpjClean}/certificado/upload`, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    body: formData,
+  });
+
+  if (!resp.ok) {
+    const errText = await resp.text();
+    console.error(`[emit-nfce] Certificate upload failed [${resp.status}]: ${errText}`);
+    return { ok: false, error: `Falha ao enviar certificado [${resp.status}]: ${errText}` };
+  }
+
+  return { ok: true };
+}
+
 // ── Upload XML to Storage bucket for 5-year retention ──
 async function backupXml(
   supabase: any,
