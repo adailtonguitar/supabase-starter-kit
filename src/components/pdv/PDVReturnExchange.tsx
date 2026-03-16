@@ -34,6 +34,13 @@ export function PDVReturnExchangeDialog({ open, onClose }: PDVReturnExchangeProp
   const [searching, setSearching] = useState(false);
   const [selectedItems, setSelectedItems] = useState<Record<string, number>>({});
   const [processing, setProcessing] = useState(false);
+  const [completedReturn, setCompletedReturn] = useState<{
+    saleId: string;
+    saleDate: string;
+    originalTotal: number;
+    refundAmount: number;
+    items: Array<{ product_name: string; quantity: number; unit_price: number }>;
+  } | null>(null);
 
   const handleSearch = useCallback(async () => {
     if (!searchQuery.trim() || !companyId) return;
