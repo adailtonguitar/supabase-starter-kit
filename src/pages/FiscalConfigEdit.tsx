@@ -145,12 +145,13 @@ export default function FiscalConfigEdit() {
           certificate_type: certType,
           certificate_path: certFile || null,
           certificate_expires_at: certExpiry ? new Date(certExpiry).toISOString() : null,
-          certificate_password_hash: certPassword || null,
+          certificate_password_hash: certType === "A1" ? (certPassword || null) : null,
+          certificate_base64: certType === "A1" ? (certBase64 || null) : null,
+          certificate_uploaded: certType === "A1" && certBase64 ? true : undefined,
           a3_thumbprint: certType === "A3" ? a3SelectedThumbprint || null : null,
           a3_subject_name: certType === "A3" ? (a3Certificates.find(c => c.thumbprint === a3SelectedThumbprint)?.subjectName || null) : null,
           sat_serial_number: config.docType === "sat" ? satSerial || null : null,
           sat_activation_code: config.docType === "sat" ? satActivation || null : null,
-          
           updated_at: new Date().toISOString(),
         };
         if (config.id) {
@@ -164,6 +165,32 @@ export default function FiscalConfigEdit() {
       }
       // Save CRT on companies table
       await supabase.from("companies").update({ crt } as any).eq("id", companyId);
+
+      // Upload certificate to Nuvem Fiscal automatically
+      if (certType === "A1" && certBase64 && certPassword) {
+        try {
+          const { data: uploadResult, error: uploadErr } = await supabase.functions.invoke("emit-nfce", {
+            body: {
+              action: "upload_certificate",
+              company_id: companyId,
+              certificate_base64: certBase64,
+              certificate_password: certPassword,
+            },
+          });
+          if (uploadErr) {
+            console.warn("[FiscalConfig] Certificate upload to Nuvem Fiscal failed:", uploadErr);
+            toast.warning("Certificado salvo localmente, mas o envio para a Nuvem Fiscal falhou.");
+          } else if (uploadResult?.success) {
+            toast.success("✅ Certificado digital enviado para a Nuvem Fiscal!");
+          } else {
+            toast.warning(`Certificado salvo. Nuvem Fiscal: ${uploadResult?.error || "erro desconhecido"}`);
+          }
+        } catch (certUploadErr: any) {
+          console.warn("[FiscalConfig] Certificate upload error:", certUploadErr);
+          toast.warning("Certificado salvo localmente. Envio à Nuvem Fiscal falhou.");
+        }
+      }
+
       setConfigs([...configs]);
       logAction({ companyId: companyId!, userId: user?.id, action: "Configuração fiscal salva", module: "fiscal", details: `CRT: ${crt}, Cert: ${certType}` });
       toast.success("Configurações fiscais salvas com sucesso!");
