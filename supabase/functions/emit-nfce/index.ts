@@ -1336,7 +1336,6 @@ Deno.serve(async (req) => {
         environment: nfeConfig.environment,
         is_contingency: false,
         xml_content: nfeEmitData.xml || null,
-        nuvem_fiscal_id: nfeEmitData.id || null,
       });
 
       await backupXml(supabase, nfeCompanyId, "nfe", nfeAccessKey, nfeDocNumber, nfeEmitData.xml || null, "emissao");
