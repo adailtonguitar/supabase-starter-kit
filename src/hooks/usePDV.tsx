@@ -433,7 +433,7 @@ export function usePDV() {
 
     if (!sale) throw new Error("Venda não encontrada");
 
-    const crt = fiscalConfig.crt || 1;
+    const crt = resolvedCrt;
     const defaultCst = (crt === 1 || crt === 2) ? "102" : "00";
     const payments = (sale.payments as any[]) || [];
     const paymentMethodMap: Record<string, string> = {
@@ -461,11 +461,18 @@ export function usePDV() {
           action: "emit",
           sale_id: saleId,
           company_id: companyId,
-          config_id: fiscalConfig.id,
+          config_id: fiscalConfig?.id,
           form: {
             nat_op: "VENDA DE MERCADORIA",
             crt,
             payment_method: paymentMethodMap[payments[0]?.method] || "99",
+            payment_value: sale.total,
+            change: payments[0]?.change_amount || 0,
+            items: fiscalItems,
+          },
+        },
+      })
+    );
             payment_value: sale.total,
             change: payments[0]?.change_amount || 0,
             items: fiscalItems,
