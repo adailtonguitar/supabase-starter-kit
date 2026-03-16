@@ -1527,12 +1527,8 @@ Deno.serve(async (req) => {
         try {
           const retryToken = await getNuvemFiscalToken();
           const retryCnpj = (company.cnpj || "").replace(/\D/g, "");
-          const certUpResp = await fetch(`${NUVEM_FISCAL_API}/empresas/${retryCnpj}/certificado`, {
-            method: "PUT",
-            headers: { Authorization: `Bearer ${retryToken}`, "Content-Type": "application/json" },
-            body: JSON.stringify({ certificado: config.certificate_base64, password: config.certificate_password_hash }),
-          });
-          if (certUpResp.ok) {
+          const certUpResult = await uploadCertToNuvemFiscal(retryToken, retryCnpj, config.certificate_base64, config.certificate_password_hash);
+          if (certUpResult.ok) {
             console.log("[emit-nfce] Certificate uploaded. Retrying emission...");
             await supabase.from("fiscal_configs").update({ certificate_uploaded: true } as any).eq("id", config.id);
             // Retry the emission
@@ -1559,8 +1555,7 @@ Deno.serve(async (req) => {
             }
             console.warn("[emit-nfce] Retry after cert upload also failed:", JSON.stringify(retryData));
           } else {
-            const certErrText = await certUpResp.text();
-            console.warn(`[emit-nfce] Auto cert upload failed [${certUpResp.status}]: ${certErrText}`);
+            console.warn(`[emit-nfce] Auto cert upload failed: ${certUpResult.error}`);
           }
         } catch (retryErr: any) {
           console.warn("[emit-nfce] Cert auto-upload retry error:", retryErr.message);
