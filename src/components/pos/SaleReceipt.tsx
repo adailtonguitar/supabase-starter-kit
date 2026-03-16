@@ -1,5 +1,6 @@
-import { AlertTriangle, Printer, FileText, Receipt } from "lucide-react";
-import { useCallback } from "react";
+import { AlertTriangle, Printer, FileText, Receipt, Loader2 } from "lucide-react";
+import { useCallback, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 // Map UF → SEFAZ NFC-e consultation URL
@@ -58,7 +59,11 @@ interface SaleReceiptProps {
   onClose: () => void;
 }
 
-export function SaleReceipt({ items, total, payments, onClose, saleId, companyName, companyCnpj, companyIe, companyPhone, companyAddress, companyUf, nfceNumber, accessKey, serie, isContingency, logoUrl, slogan, customerCpf, protocolNumber, protocolDate, isHomologacao, tributosAprox }: SaleReceiptProps) {
+export function SaleReceipt({ items, total, payments, onClose, saleId, companyName, companyCnpj, companyIe, companyPhone, companyAddress, companyUf, nfceNumber: initialNfceNumber, accessKey: initialAccessKey, serie: initialSerie, isContingency, logoUrl, slogan, customerCpf, protocolNumber, protocolDate, isHomologacao, tributosAprox }: SaleReceiptProps) {
+  const [nfceNumber, setNfceNumber] = useState(initialNfceNumber);
+  const [accessKey, setAccessKey] = useState(initialAccessKey);
+  const [serie, setSerie] = useState(initialSerie);
+  const [fetchingFiscal, setFetchingFiscal] = useState(false);
   const formatCurrency = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 
   const methodLabel = (m: string) => {
@@ -195,18 +200,54 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
     printWindow.document.close();
   }, [items, total, payments, changeAmount, companyName, companyCnpj, companyIe, companyPhone, companyAddress, logoUrl, saleId, slogan]);
 
-  const handlePrintFiscal = useCallback(() => {
-    if (!nfceNumber) {
-      toast.info("NFC-e não disponível para esta venda.", { duration: 3000 });
+  const handlePrintFiscal = useCallback(async () => {
+    let currentNfceNumber = nfceNumber;
+    let currentAccessKey = accessKey;
+    let currentSerie = serie;
+
+    // If no NFC-e number yet, try to fetch from DB (may have been processed async)
+    if (!currentNfceNumber && saleId) {
+      setFetchingFiscal(true);
+      try {
+        const { data: fiscalDoc } = await supabase
+          .from("fiscal_documents")
+          .select("number, access_key, serie, status")
+          .eq("sale_id", saleId)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (fiscalDoc && (fiscalDoc as any).number) {
+          const doc = fiscalDoc as any;
+          const num = String(doc.number);
+          const isSimulated = doc.status === "simulado";
+          currentNfceNumber = isSimulated ? `SIM-${num}` : num;
+          currentAccessKey = doc.access_key || undefined;
+          currentSerie = doc.serie || undefined;
+          // Update local state so next click works immediately
+          setNfceNumber(currentNfceNumber);
+          setAccessKey(currentAccessKey);
+          setSerie(currentSerie);
+          toast.success("NFC-e encontrada!", { duration: 2000 });
+        }
+      } catch (err) {
+        console.warn("[SaleReceipt] Failed to fetch fiscal doc:", err);
+      } finally {
+        setFetchingFiscal(false);
+      }
+    }
+
+    if (!currentNfceNumber) {
+      toast.info("NFC-e ainda não disponível para esta venda. Aguarde o processamento ou emita manualmente em Vendas.", { duration: 5000 });
       return;
     }
 
     // Detect simulation/homologação from prefix or prop
-    const isSimulation = nfceNumber.startsWith("SIM-") || nfceNumber.startsWith("TESTE-") || nfceNumber.startsWith("DEMO-");
+    const isSimulation = currentNfceNumber.startsWith("SIM-") || currentNfceNumber.startsWith("TESTE-") || currentNfceNumber.startsWith("DEMO-");
     const isHomolog = isHomologacao ?? isSimulation;
 
     // Clean number: remove prefixes for display
-    const cleanNumber = nfceNumber.replace(/^(SIM-|TESTE-|DEMO-|CONT-)/, "");
+    const cleanNumber = currentNfceNumber.replace(/^(SIM-|TESTE-|DEMO-|CONT-)/, "");
     const paddedNumber = cleanNumber.replace(/\D/g, "").padStart(9, "0");
 
     // Calculate subtotal and total discount
@@ -238,7 +279,7 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
     const now = new Date().toLocaleString("pt-BR");
     const qtyTotal = printableItems.reduce((s: number, i: any) => s + (i.quantity || 1), 0);
 
-    const formattedKey = accessKey ? accessKey.replace(/(\d{4})(?=\d)/g, "$1 ") : "";
+    const formattedKey = currentAccessKey ? currentAccessKey.replace(/(\d{4})(?=\d)/g, "$1 ") : "";
 
     const consumerHtml = customerCpf 
       ? `<p class="center sm bold">CPF DO CONSUMIDOR: ${customerCpf}</p>`
@@ -361,9 +402,9 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
           <p class="center sm">Qtd. total de itens: ${qtyTotal}</p>
           <p class="center sm">${now}</p>
           <div class="dashed"></div>
-          <p class="center bold sm">NFC-e nº ${paddedNumber}${serie ? ` | Série ${serie}` : ""}</p>
+          <p class="center bold sm">NFC-e nº ${paddedNumber}${currentSerie ? ` | Série ${currentSerie}` : ""}</p>
           ${protocolHtml}
-          ${accessKey ? `
+          ${currentAccessKey ? `
             <p class="center xs" style="margin-top:2px">CHAVE DE ACESSO</p>
             <div class="key-box">${formattedKey}</div>
           ` : ""}
@@ -381,7 +422,7 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
           <script>
             window.onload = function() {
               try {
-                var qrUrl = "${accessKey ? `https://www.nfce.fazenda.gov.br/portal/consultarNFCe.aspx?chNFe=${accessKey}` : sefazUrl}";
+                var qrUrl = "${currentAccessKey ? `https://www.nfce.fazenda.gov.br/portal/consultarNFCe.aspx?chNFe=${currentAccessKey}` : sefazUrl}";
                 var qr = qrcode(0, 'M');
                 qr.addData(qrUrl);
                 qr.make();
@@ -394,7 +435,7 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
       </html>
     `);
     printWindow.document.close();
-  }, [items, total, payments, changeAmount, companyName, companyCnpj, companyIe, companyPhone, companyAddress, companyUf, nfceNumber, accessKey, serie, logoUrl, saleId, customerCpf, protocolNumber, protocolDate, isHomologacao, tributosAprox]);
+  }, [items, total, payments, changeAmount, companyName, companyCnpj, companyIe, companyPhone, companyAddress, companyUf, nfceNumber, accessKey, serie, logoUrl, saleId, customerCpf, protocolNumber, protocolDate, isHomologacao, tributosAprox, fetchingFiscal]);
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
       <div className="bg-card rounded-2xl border border-border shadow-2xl p-6 w-full max-w-sm mx-4" onClick={e => e.stopPropagation()}>
@@ -465,10 +506,11 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
           <div className="flex gap-2">
             <button
               onClick={handlePrintFiscal}
-              className="flex-1 py-2.5 rounded-xl border-2 border-primary/30 text-primary text-xs font-bold hover:bg-primary/10 transition-all active:scale-95 flex items-center justify-center gap-1.5"
+              disabled={fetchingFiscal}
+              className="flex-1 py-2.5 rounded-xl border-2 border-primary/30 text-primary text-xs font-bold hover:bg-primary/10 transition-all active:scale-95 flex items-center justify-center gap-1.5 disabled:opacity-50"
             >
-              <FileText className="w-4 h-4" />
-              Cupom Fiscal
+              {fetchingFiscal ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
+              {fetchingFiscal ? "Buscando..." : "Cupom Fiscal"}
             </button>
             <button
               onClick={handlePrint}
