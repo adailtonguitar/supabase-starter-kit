@@ -43,7 +43,6 @@ function jsonResponse(body: object, status = 200) {
 
 // ── Helper: upload certificate to Nuvem Fiscal via multipart form ──
 async function uploadCertToNuvemFiscal(token: string, cnpjClean: string, certBase64: string, password: string): Promise<{ ok: boolean; error?: string }> {
-  // Decode base64 to binary
   const binaryStr = atob(certBase64);
   const bytes = new Uint8Array(binaryStr.length);
   for (let i = 0; i < binaryStr.length; i++) {
@@ -66,6 +65,23 @@ async function uploadCertToNuvemFiscal(token: string, cnpjClean: string, certBas
     const errText = await resp.text();
     console.error(`[emit-nfce] Certificate upload failed [${resp.status}]: ${errText}`);
     return { ok: false, error: `Falha ao enviar certificado [${resp.status}]: ${errText}` };
+  }
+
+  return { ok: true };
+}
+
+async function deleteCertFromNuvemFiscal(token: string, cnpjClean: string): Promise<{ ok: boolean; error?: string }> {
+  const resp = await fetch(`${NUVEM_FISCAL_API}/empresas/${cnpjClean}/certificado`, {
+    method: "DELETE",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!resp.ok && resp.status !== 404) {
+    const errText = await resp.text();
+    console.error(`[emit-nfce] Certificate delete failed [${resp.status}]: ${errText}`);
+    return { ok: false, error: `Falha ao excluir certificado [${resp.status}]: ${errText}` };
   }
 
   return { ok: true };
@@ -334,8 +350,6 @@ Deno.serve(async (req) => {
 
       const certCnpjClean = certCompany.cnpj.replace(/\D/g, "");
       const certToken = await getNuvemFiscalToken();
-
-      // Upload via PUT /empresas/{cpf_cnpj}/certificado/upload (multipart form)
       const certResult = await uploadCertToNuvemFiscal(certToken, certCnpjClean, certB64, certPwd);
 
       if (!certResult.ok) {
@@ -345,15 +359,51 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Mark as uploaded in fiscal_configs
-      await supabase
-        .from("fiscal_configs")
-        .update({ certificate_uploaded: true } as any)
-        .eq("company_id", certCompanyId)
-        .eq("certificate_type", "A1");
-
       console.log(`[emit-nfce] Certificate uploaded successfully for CNPJ ${certCnpjClean}`);
       return jsonResponse({ success: true, message: "Certificado digital enviado para a Nuvem Fiscal com sucesso." });
+    }
+
+    if (action === "delete_certificate") {
+      const { company_id: certCompanyId, certificate_password: certPwd } = body;
+      if (!certCompanyId || !certPwd) {
+        return jsonResponse({ error: "company_id e certificate_password são obrigatórios" }, 400);
+      }
+
+      const { data: certConfig } = await supabase
+        .from("fiscal_configs")
+        .select("certificate_password_hash")
+        .eq("company_id", certCompanyId)
+        .eq("certificate_type", "A1")
+        .not("certificate_path", "is", null)
+        .maybeSingle();
+
+      if (certConfig?.certificate_password_hash && certConfig.certificate_password_hash !== certPwd) {
+        return jsonResponse({ error: "Senha do certificado inválida" }, 400);
+      }
+
+      const { data: certCompany } = await supabase
+        .from("companies")
+        .select("cnpj")
+        .eq("id", certCompanyId)
+        .single();
+
+      if (!certCompany?.cnpj) {
+        return jsonResponse({ error: "CNPJ da empresa não encontrado" }, 404);
+      }
+
+      const certCnpjClean = certCompany.cnpj.replace(/\D/g, "");
+      const certToken = await getNuvemFiscalToken();
+      const certResult = await deleteCertFromNuvemFiscal(certToken, certCnpjClean);
+
+      if (!certResult.ok) {
+        return jsonResponse({
+          success: false,
+          error: certResult.error || "Falha ao excluir certificado da Nuvem Fiscal",
+        });
+      }
+
+      console.log(`[emit-nfce] Certificate deleted successfully for CNPJ ${certCnpjClean}`);
+      return jsonResponse({ success: true, message: "Certificado digital excluído com sucesso." });
     }
 
     if (action === "backup_xmls") {

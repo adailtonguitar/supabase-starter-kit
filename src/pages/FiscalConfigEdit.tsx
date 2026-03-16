@@ -19,6 +19,17 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Input } from "@/components/ui/input";
 import { localSignerService, type CertificateInfo } from "@/services/WebPKIService";
 import { storeCertificateA1 } from "@/services/LocalXmlSigner";
 import { supabase } from "@/integrations/supabase/client";
@@ -70,6 +81,9 @@ export default function FiscalConfigEdit() {
   const [a3Loading, setA3Loading] = useState(false);
   const [a3Initialized, setA3Initialized] = useState(false);
   const [certValidating, setCertValidating] = useState(false);
+  const [removeCertDialogOpen, setRemoveCertDialogOpen] = useState(false);
+  const [removeCertPassword, setRemoveCertPassword] = useState("");
+  const [certMarkedForRemoval, setCertMarkedForRemoval] = useState(false);
 
   useEffect(() => {
     if (!companyId) return;
@@ -132,6 +146,23 @@ export default function FiscalConfigEdit() {
     if (!companyId) return;
     setSaving(true);
     try {
+      if (certMarkedForRemoval) {
+        if (!removeCertPassword.trim()) {
+          throw new Error("Informe a senha do certificado para concluir a exclusão.");
+        }
+
+        const { data: deleteResult, error: deleteError } = await supabase.functions.invoke("emit-nfce", {
+          body: {
+            action: "delete_certificate",
+            company_id: companyId,
+            certificate_password: removeCertPassword,
+          },
+        });
+
+        if (deleteError) throw deleteError;
+        if (deleteResult?.error) throw new Error(deleteResult.error);
+      }
+
       for (const config of configs) {
         const record: Record<string, unknown> = {
           company_id: companyId,
@@ -146,17 +177,24 @@ export default function FiscalConfigEdit() {
           sat_serial_number: config.docType === "sat" ? satSerial || null : null,
           sat_activation_code: config.docType === "sat" ? satActivation || null : null,
           updated_at: new Date().toISOString(),
+          certificate_path: null,
+          certificate_expires_at: null,
+          certificate_password_hash: null,
+          a3_thumbprint: null,
+          a3_subject_name: null,
         };
-        // Always sync certificate fields for A1
-        if (certType === "A1") {
+
+        if (certType === "A1" && !certMarkedForRemoval) {
           record.certificate_path = certFile || null;
           record.certificate_expires_at = certFile && certExpiry ? new Date(certExpiry).toISOString() : null;
           record.certificate_password_hash = certFile ? (certPassword || null) : null;
         }
+
         if (certType === "A3") {
           record.a3_thumbprint = a3SelectedThumbprint || null;
           record.a3_subject_name = a3Certificates.find(c => c.thumbprint === a3SelectedThumbprint)?.subjectName || null;
         }
+
         if (config.id) {
           const { error } = await supabase.from("fiscal_configs").update(record as any).eq("id", config.id);
           if (error) throw error;
@@ -166,11 +204,10 @@ export default function FiscalConfigEdit() {
           if (data) config.id = data.id;
         }
       }
-      // Save CRT on companies table
+
       await supabase.from("companies").update({ crt } as any).eq("id", companyId);
 
-      // Upload certificate to Nuvem Fiscal automatically
-      if (certType === "A1" && certBase64 && certPassword) {
+      if (certType === "A1" && !certMarkedForRemoval && certBase64 && certPassword) {
         try {
           const { data: uploadResult, error: uploadErr } = await supabase.functions.invoke("emit-nfce", {
             body: {
@@ -195,6 +232,8 @@ export default function FiscalConfigEdit() {
       }
 
       setConfigs([...configs]);
+      setCertMarkedForRemoval(false);
+      setRemoveCertPassword("");
       logAction({ companyId: companyId!, userId: user?.id, action: "Configuração fiscal salva", module: "fiscal", details: `CRT: ${crt}, Cert: ${certType}` });
       toast.success("Configurações fiscais salvas com sucesso!");
       navigate("/fiscal/config");
@@ -300,11 +339,12 @@ export default function FiscalConfigEdit() {
                   <div>
                     <p className="text-sm font-medium text-foreground">{certFile ? "Certificado A1 configurado" : "Nenhum certificado A1 configurado"}</p>
                     {certFile && certExpiry && <p className="text-xs text-muted-foreground">Validade: {new Date(certExpiry).toLocaleDateString("pt-BR")}</p>}
+                    {certMarkedForRemoval && <p className="text-xs text-destructive">Certificado marcado para exclusão ao salvar.</p>}
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
                   {certFile && (
-                    <button onClick={() => { setCertFile(null); setCertBase64(null); setCertPassword(""); setCertExpiry(""); toast.info("Certificado removido. Salve para confirmar."); }}
+                    <button onClick={() => setRemoveCertDialogOpen(true)}
                       className="flex items-center gap-2 px-4 py-2 rounded-xl bg-destructive/10 text-destructive text-sm font-medium hover:bg-destructive/20 transition-all">
                       <Trash2 className="w-4 h-4" /> Remover
                     </button>
@@ -316,6 +356,8 @@ export default function FiscalConfigEdit() {
                       onChange={async (e) => {
                         const file = e.target.files?.[0];
                         if (!file) return;
+                        setCertMarkedForRemoval(false);
+                        setRemoveCertPassword("");
                         setCertValidating(true);
                         try {
                           const arrayBuffer = await file.arrayBuffer();
@@ -331,7 +373,6 @@ export default function FiscalConfigEdit() {
                           }
                           setCertFile(file.name);
 
-                          // Store base64 for server-side upload to Nuvem Fiscal
                           const uint8 = new Uint8Array(arrayBuffer);
                           let binaryStr = "";
                           for (let i = 0; i < uint8.length; i++) {
@@ -553,6 +594,49 @@ export default function FiscalConfigEdit() {
         {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
         {saving ? "Salvando..." : "Salvar Configurações Fiscais"}
       </button>
+
+      <AlertDialog open={removeCertDialogOpen} onOpenChange={setRemoveCertDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir certificado A1</AlertDialogTitle>
+            <AlertDialogDescription>
+              Para marcar a exclusão do certificado, confirme a senha atual. A remoção só será concluída quando você salvar as configurações.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-foreground">Senha do certificado</label>
+            <Input
+              type="password"
+              value={removeCertPassword}
+              onChange={(e) => setRemoveCertPassword(e.target.value)}
+              placeholder="Digite a senha atual do certificado"
+            />
+          </div>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setRemoveCertPassword("")}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={(e) => {
+                if (!removeCertPassword.trim()) {
+                  e.preventDefault();
+                  toast.error("Informe a senha do certificado para remover.");
+                  return;
+                }
+                setCertMarkedForRemoval(true);
+                setCertFile(null);
+                setCertBase64(null);
+                setCertPassword("");
+                setCertExpiry("");
+                toast.info("Certificado marcado para exclusão. Clique em salvar para concluir.");
+              }}
+            >
+              Confirmar remoção
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
