@@ -1057,6 +1057,69 @@ Deno.serve(async (req) => {
 
     console.log(`[emit-nfce] Using company: ${company_id} (${company.name})`);
 
+    // ── Auto-register company in Nuvem Fiscal if not yet registered ──
+    const cnpjClean = (company.cnpj || "").replace(/\D/g, "");
+    if (cnpjClean.length >= 11) {
+      try {
+        const regToken = await getNuvemFiscalToken();
+        // Check if already registered
+        const checkResp = await fetch(`${NUVEM_FISCAL_API}/empresas/${cnpjClean}`, {
+          headers: { Authorization: `Bearer ${regToken}` },
+        });
+        if (checkResp.status === 404) {
+          console.log(`[emit-nfce] CNPJ ${cnpjClean} not registered in Nuvem Fiscal. Auto-registering...`);
+          const regBody: Record<string, any> = {
+            cpf_cnpj: cnpjClean,
+            nome_razao_social: company.name || company.razao_social || "Empresa",
+            nome_fantasia: company.trade_name || company.nome_fantasia || company.name || "",
+            inscricao_estadual: (company.ie || "").replace(/\D/g, "") || "",
+            email: company.email || "",
+            fone: (company.phone || "").replace(/\D/g, "") || "",
+            endereco: {
+              logradouro: company.address_street || "",
+              numero: company.address_number || "S/N",
+              bairro: company.address_neighborhood || "",
+              codigo_municipio: company.address_city_code || company.city_ibge_code || "",
+              cidade: company.address_city || "",
+              uf: (company.address_state || "SP").toUpperCase(),
+              codigo_pais: "1058",
+              pais: "Brasil",
+              cep: (company.address_zip || "").replace(/\D/g, "") || "",
+            },
+          };
+          if (company.address_complement) {
+            regBody.endereco.complemento = company.address_complement;
+          }
+          const regResp = await fetch(`${NUVEM_FISCAL_API}/empresas`, {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${regToken}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(regBody),
+          });
+          if (regResp.ok) {
+            console.log(`[emit-nfce] Company ${cnpjClean} registered successfully in Nuvem Fiscal.`);
+          } else {
+            const regErr = await regResp.text();
+            console.error(`[emit-nfce] Failed to register company in Nuvem Fiscal [${regResp.status}]: ${regErr}`);
+            // If it's a 409 (already exists), continue anyway
+            if (regResp.status !== 409) {
+              return jsonResponse({
+                success: false,
+                error: `Falha ao cadastrar empresa na Nuvem Fiscal: ${regErr}`,
+              }, 400);
+            }
+          }
+        } else if (checkResp.ok) {
+          console.log(`[emit-nfce] Company ${cnpjClean} already registered in Nuvem Fiscal.`);
+        }
+      } catch (regError) {
+        console.warn("[emit-nfce] Auto-registration check failed:", regError);
+        // Continue anyway — the emission call will give a clearer error if needed
+      }
+    }
+
     let config: any = null;
 
     if (config_id) {
