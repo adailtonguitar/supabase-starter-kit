@@ -1,5 +1,6 @@
-import { AlertTriangle, Printer, FileText, Receipt } from "lucide-react";
-import { useCallback } from "react";
+import { AlertTriangle, Printer, FileText, Receipt, Loader2 } from "lucide-react";
+import { useCallback, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 // Map UF → SEFAZ NFC-e consultation URL
