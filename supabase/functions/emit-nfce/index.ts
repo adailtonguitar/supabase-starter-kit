@@ -43,7 +43,6 @@ function jsonResponse(body: object, status = 200) {
 
 // ── Helper: upload certificate to Nuvem Fiscal via JSON (CadastrarCertificado) ──
 async function uploadCertToNuvemFiscal(token: string, cnpjClean: string, certBase64: string, password: string): Promise<{ ok: boolean; error?: string }> {
-  // Use the JSON endpoint PUT /empresas/{cpf_cnpj}/certificado which accepts base64 directly
   const resp = await fetch(`${NUVEM_FISCAL_API}/empresas/${cnpjClean}/certificado`, {
     method: "PUT",
     headers: {
@@ -64,6 +63,70 @@ async function uploadCertToNuvemFiscal(token: string, cnpjClean: string, certBas
 
   await resp.text(); // consume body
   return { ok: true };
+}
+
+// ── Helper: auto-configure NFC-e settings on Nuvem Fiscal (PUT /empresas/{cpf_cnpj}/nfce) ──
+async function ensureNfceConfigOnNuvemFiscal(
+  token: string,
+  cnpjClean: string,
+  config: { environment: string; crt: number; csc_id?: string; csc_token?: string }
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    // First check if NFC-e config already exists
+    const checkResp = await fetch(`${NUVEM_FISCAL_API}/empresas/${cnpjClean}/nfce`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    if (checkResp.ok) {
+      const existing = await checkResp.json();
+      // If config exists and has the same environment, skip
+      if (existing?.ambiente) {
+        console.log(`[emit-nfce] NFC-e config already exists on Nuvem Fiscal for ${cnpjClean}`);
+        return { ok: true };
+      }
+    } else {
+      // 404 or error means config doesn't exist, proceed to create
+      await checkResp.text(); // consume body
+    }
+
+    const nfceConfigPayload: Record<string, any> = {
+      CRT: config.crt || 1,
+      ambiente: config.environment === "producao" ? "producao" : "homologacao",
+      sefaz: {},
+    };
+
+    // Add CSC if available (required for production, optional for homologação)
+    if (config.csc_id && config.csc_token) {
+      nfceConfigPayload.sefaz = {
+        id_csc: parseInt(config.csc_id) || 0,
+        csc: config.csc_token,
+      };
+    }
+
+    console.log(`[emit-nfce] Configuring NFC-e on Nuvem Fiscal for ${cnpjClean}: ${JSON.stringify(nfceConfigPayload)}`);
+
+    const resp = await fetch(`${NUVEM_FISCAL_API}/empresas/${cnpjClean}/nfce`, {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(nfceConfigPayload),
+    });
+
+    if (!resp.ok) {
+      const errText = await resp.text();
+      console.error(`[emit-nfce] NFC-e config failed [${resp.status}]: ${errText}`);
+      return { ok: false, error: `Falha ao configurar NFC-e na Nuvem Fiscal [${resp.status}]: ${errText}` };
+    }
+
+    await resp.text(); // consume body
+    console.log(`[emit-nfce] NFC-e config set successfully on Nuvem Fiscal for ${cnpjClean}`);
+    return { ok: true };
+  } catch (err: any) {
+    console.error("[emit-nfce] ensureNfceConfigOnNuvemFiscal error:", err);
+    return { ok: false, error: `Erro ao configurar NFC-e: ${err.message}` };
+  }
 }
 
 async function deleteCertFromNuvemFiscal(token: string, cnpjClean: string): Promise<{ ok: boolean; error?: string }> {
