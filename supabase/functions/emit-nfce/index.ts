@@ -1158,6 +1158,30 @@ Deno.serve(async (req) => {
       "10": "10", "11": "11", "13": "13", "15": "15", "16": "16", "17": "17", "99": "99",
     };
 
+    // Resolve codigo_municipio (IBGE) if missing — use ViaCEP as fallback
+    let codigoMunicipio = company.address_city_code || company.city_ibge_code || "";
+    const cepClean = company.address_zip?.replace(/\D/g, "") || "";
+    if (!codigoMunicipio && cepClean.length === 8) {
+      try {
+        const viaCepResp = await fetch(`https://viacep.com.br/ws/${cepClean}/json/`);
+        if (viaCepResp.ok) {
+          const viaCepData = await viaCepResp.json();
+          if (viaCepData.ibge) {
+            codigoMunicipio = viaCepData.ibge;
+            console.log(`[emit-nfce] Resolved IBGE code from CEP ${cepClean}: ${codigoMunicipio}`);
+            // Save it back so we don't need to look it up again
+            await supabase.from("companies").update({ address_city_code: codigoMunicipio } as any).eq("id", company_id);
+          }
+        }
+      } catch (e) {
+        console.warn("[emit-nfce] ViaCEP lookup failed:", e);
+      }
+    }
+
+    if (!codigoMunicipio) {
+      return jsonResponse({ error: "Código IBGE do município não encontrado. Verifique o CEP da empresa em Configurações." }, 400);
+    }
+
     const nfcePayload = {
       ambiente: config.environment === "producao" ? "producao" : "homologacao",
       natureza_operacao: form.nat_op || "VENDA DE MERCADORIA",
@@ -1176,10 +1200,10 @@ Deno.serve(async (req) => {
           numero: company.address_number || "S/N",
           complemento: company.address_complement || "",
           bairro: company.address_neighborhood || "",
-          codigo_municipio: company.address_city_code || company.city_ibge_code || "",
+          codigo_municipio: codigoMunicipio,
           nome_municipio: company.address_city || "",
           uf: uf,
-          cep: company.address_zip?.replace(/\D/g, "") || "",
+          cep: cepClean,
           codigo_pais: "1058",
           pais: "BRASIL",
         },
