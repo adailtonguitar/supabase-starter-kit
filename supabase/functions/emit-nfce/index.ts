@@ -78,21 +78,90 @@ function normalizeFiscalAuthorization(payload: any) {
     payload?.infProt?.nProt ||
     null;
 
+  const normalizedCode = sefazCode ? String(sefazCode) : null;
   const isAuthorized =
     rawStatus.includes("autoriz") ||
     rawStatus.includes("aprov") ||
-    String(sefazCode) === "100" ||
-    !!accessKey ||
-    !!protocolNumber;
+    normalizedCode === "100";
+
+  const isRejected = rawStatus.includes("rejeit") || (!!normalizedCode && normalizedCode.startsWith("2") && normalizedCode !== "204");
+  const isCanceled = rawStatus.includes("cancel") || normalizedCode === "101";
+  const isContingency = rawStatus.includes("conting") || normalizedCode === "150";
+
+  let status = rawStatus || "pendente";
+  if (isAuthorized) status = "autorizada";
+  else if (isCanceled) status = "cancelada";
+  else if (isRejected) status = "rejeitada";
+  else if (isContingency) status = "contingencia";
+  else status = "pendente";
 
   return {
     rawStatus,
-    sefazCode: sefazCode ? String(sefazCode) : null,
+    sefazCode: normalizedCode,
     accessKey,
     protocolNumber,
     isAuthorized,
-    status: isAuthorized ? "autorizada" : rawStatus || "pendente",
+    status,
   };
+}
+
+async function persistFiscalEmissionResult(params: {
+  supabase: any;
+  company_id: string;
+  sale_id?: string | null;
+  config: any;
+  status: string;
+  accessKey: string | null;
+  docNumber: number | null;
+  totalNF: number;
+  form: any;
+  xmlContent?: string | null;
+  nuvemFiscalId?: string | null;
+}) {
+  const { supabase, company_id, sale_id, config, status, accessKey, docNumber, totalNF, form, xmlContent, nuvemFiscalId } = params;
+
+  const { error: fiscalDocError } = await supabase.from("fiscal_documents").insert({
+    company_id,
+    sale_id,
+    doc_type: "nfce",
+    number: docNumber,
+    serie: config.serie,
+    access_key: accessKey,
+    status,
+    total_value: totalNF,
+    customer_name: form.customer_name || null,
+    customer_cpf_cnpj: form.customer_doc?.replace(/\D/g, "") || null,
+    payment_method: form.payment_method,
+    environment: config.environment,
+    is_contingency: false,
+    xml_content: xmlContent || null,
+    nuvem_fiscal_id: nuvemFiscalId || null,
+    config_id: config.id,
+  } as any);
+
+  if (fiscalDocError) {
+    throw new Error(`Falha ao salvar documento fiscal no banco: ${fiscalDocError.message}`);
+  }
+
+  if (sale_id) {
+    const { error: saleError } = await supabase
+      .from("sales")
+      .update({ status, access_key: accessKey, number: docNumber } as any)
+      .eq("id", sale_id);
+
+    if (saleError) {
+      throw new Error(`Falha ao atualizar status da venda: ${saleError.message}`);
+    }
+  }
+
+  const { error: configError } = await supabase
+    .from("fiscal_configs")
+    .update({ next_number: (config.next_number || 1) + 1 })
+    .eq("id", config.id);
+
+  if (configError) {
+    throw new Error(`Falha ao avançar numeração fiscal: ${configError.message}`);
+  }
 }
 
 // ── Helper: upload certificate to Nuvem Fiscal via JSON (CadastrarCertificado) ──
@@ -1823,14 +1892,31 @@ Deno.serve(async (req) => {
               const retryAccessKey = retryAuth.accessKey;
               const retryDocNumber = retryData.numero || config.next_number || null;
               const retryStatus = retryAuth.status;
-              await supabase.from("fiscal_documents").insert({
-                company_id, sale_id, doc_type: "nfce", number: retryDocNumber, serie: config.serie,
-                access_key: retryAccessKey, status: retryStatus, total_value: totalNF,
-                customer_name: form.customer_name || null, customer_cpf_cnpj: form.customer_doc?.replace(/\D/g, "") || null,
-                payment_method: form.payment_method, xml_content: retryData.xml || null, config_id: config.id,
-              } as any);
-              await supabase.from("fiscal_configs").update({ next_number: (config.next_number || 1) + 1 }).eq("id", config.id);
-              if (sale_id) await supabase.from("sales").update({ status: retryStatus, access_key: retryAccessKey, number: retryDocNumber } as any).eq("id", sale_id);
+
+              try {
+                await persistFiscalEmissionResult({
+                  supabase,
+                  company_id,
+                  sale_id,
+                  config,
+                  status: retryStatus,
+                  accessKey: retryAccessKey,
+                  docNumber: retryDocNumber,
+                  totalNF,
+                  form,
+                  xmlContent: retryData.xml || null,
+                  nuvemFiscalId: retryData.id || null,
+                });
+              } catch (persistErr: any) {
+                console.error("[emit-nfce] Retry emission persisted remotely but failed locally:", persistErr);
+                return jsonResponse({
+                  success: false,
+                  error: persistErr?.message || "Falha ao persistir documento fiscal após retry",
+                  details: { stage: "persist_local_state_retry", provider_status: retryStatus },
+                }, 500);
+              }
+
+              await backupXml(supabase, company_id, "nfce", retryAccessKey, retryDocNumber, retryData.xml || null, "emissao");
               return jsonResponse({ success: true, status: retryStatus, access_key: retryAccessKey, number: retryDocNumber, sefaz_code: retryAuth.sefazCode, protocol_number: retryAuth.protocolNumber, data: retryData });
             }
             console.warn("[emit-nfce] Retry after cert upload also failed:", JSON.stringify(retryData));
@@ -1878,36 +1964,31 @@ Deno.serve(async (req) => {
       finalStatus: status,
     }));
 
-    await supabase.from("fiscal_documents").insert({
-      company_id,
-      sale_id,
-      doc_type: "nfce",
-      number: docNumber,
-      serie: config.serie,
-      access_key: accessKey,
-      status,
-      total_value: totalNF,
-      customer_name: form.customer_name || null,
-      customer_cpf_cnpj: form.customer_doc?.replace(/\D/g, "") || null,
-      payment_method: form.payment_method,
-      environment: config.environment,
-      is_contingency: false,
-      xml_content: emitData.xml || null,
-      nuvem_fiscal_id: emitData.id || null,
-    });
+    try {
+      await persistFiscalEmissionResult({
+        supabase,
+        company_id,
+        sale_id,
+        config,
+        status,
+        accessKey,
+        docNumber,
+        totalNF,
+        form,
+        xmlContent: emitData.xml || null,
+        nuvemFiscalId: emitData.id || null,
+      });
+    } catch (persistErr: any) {
+      console.error("[emit-nfce] Emission persisted remotely but failed locally:", persistErr);
+      return jsonResponse({
+        success: false,
+        error: persistErr?.message || "Falha ao persistir documento fiscal no banco",
+        details: { stage: "persist_local_state", provider_status: status },
+      }, 500);
+    }
 
     // ── Auto-backup XML to Storage ──
     await backupXml(supabase, company_id, "nfce", accessKey, docNumber, emitData.xml || null, "emissao");
-
-    await supabase
-      .from("sales")
-      .update({ status, access_key: accessKey, number: docNumber })
-      .eq("id", sale_id);
-
-    await supabase
-      .from("fiscal_configs")
-      .update({ next_number: (config.next_number || 1) + 1 })
-      .eq("id", config_id);
 
     return jsonResponse({
       success: true,

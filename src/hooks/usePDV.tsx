@@ -550,10 +550,16 @@ export function usePDV() {
       throw new Error(errorMsg);
     }
 
-    // Sucesso: a Edge Function já persiste o status correto da venda/documento.
+    const fiscalStatus = fiscalData.status || "pendente";
+
+    // Só conclui a fila quando houver autorização real.
     if (queueId) {
       await supabase.from("fiscal_queue")
-        .update({ status: "done", processed_at: new Date().toISOString(), last_error: null } as any)
+        .update(
+          fiscalStatus === "autorizada"
+            ? { status: "done", processed_at: new Date().toISOString(), last_error: null }
+            : { status: "error", last_error: "Documento enviado ao provedor, mas ainda sem autorização real da SEFAZ." } as any
+        )
         .eq("id", queueId);
     }
 
@@ -562,7 +568,7 @@ export function usePDV() {
       fiscalDocId: fiscalData.fiscal_doc_id || fiscalData.nuvem_fiscal_id || fiscalData.id,
       accessKey: fiscalData.access_key || "",
       serie: fiscalData.serie || "",
-      status: fiscalData.status || "pendente",
+      status: fiscalStatus,
     };
   }, [companyId]);
 
