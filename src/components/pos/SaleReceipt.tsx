@@ -200,47 +200,10 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
     printWindow.document.close();
   }, [items, total, payments, changeAmount, companyName, companyCnpj, companyIe, companyPhone, companyAddress, logoUrl, saleId, slogan]);
 
-  const handlePrintFiscal = useCallback(async () => {
-    let currentNfceNumber = nfceNumber;
-    let currentAccessKey = accessKey;
-    let currentSerie = serie;
-
-    // If no NFC-e number yet, try to fetch from DB (may have been processed async)
-    if (!currentNfceNumber && saleId) {
-      setFetchingFiscal(true);
-      try {
-        const { data: fiscalDoc } = await supabase
-          .from("fiscal_documents")
-          .select("number, access_key, serie, status")
-          .eq("sale_id", saleId)
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-        if (fiscalDoc && (fiscalDoc as any).number) {
-          const doc = fiscalDoc as any;
-          const num = String(doc.number);
-          const isSimulated = doc.status === "simulado";
-          currentNfceNumber = isSimulated ? `SIM-${num}` : num;
-          currentAccessKey = doc.access_key || undefined;
-          currentSerie = doc.serie || undefined;
-          // Update local state so next click works immediately
-          setNfceNumber(currentNfceNumber);
-          setAccessKey(currentAccessKey);
-          setSerie(currentSerie);
-          toast.success("NFC-e encontrada!", { duration: 2000 });
-        }
-      } catch (err) {
-        console.warn("[SaleReceipt] Failed to fetch fiscal doc:", err);
-      } finally {
-        setFetchingFiscal(false);
-      }
-    }
-
-    if (!currentNfceNumber) {
-      toast.info("NFC-e ainda não disponível para esta venda. Aguarde o processamento ou emita manualmente em Vendas.", { duration: 5000 });
-      return;
-    }
+  const printFiscalCupom = useCallback((fiscalNumber: string, fiscalAccessKey?: string, fiscalSerie?: string) => {
+    const currentNfceNumber = fiscalNumber;
+    const currentAccessKey = fiscalAccessKey;
+    const currentSerie = fiscalSerie;
 
     // Detect simulation/homologação from prefix or prop
     const isSimulation = currentNfceNumber.startsWith("SIM-") || currentNfceNumber.startsWith("TESTE-") || currentNfceNumber.startsWith("DEMO-");
@@ -435,7 +398,57 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
       </html>
     `);
     printWindow.document.close();
-  }, [items, total, payments, changeAmount, companyName, companyCnpj, companyIe, companyPhone, companyAddress, companyUf, nfceNumber, accessKey, serie, logoUrl, saleId, customerCpf, protocolNumber, protocolDate, isHomologacao, tributosAprox, fetchingFiscal]);
+  }, [items, total, payments, changeAmount, companyName, companyCnpj, companyIe, companyPhone, companyAddress, companyUf, logoUrl, saleId, customerCpf, protocolNumber, protocolDate, isHomologacao, tributosAprox]);
+
+  const handlePrintFiscal = useCallback(() => {
+    // If nfceNumber already available, print synchronously (preserves user gesture for window.open)
+    if (nfceNumber) {
+      printFiscalCupom(nfceNumber, accessKey, serie);
+      return;
+    }
+
+    // Otherwise fetch from DB first, then print
+    if (!saleId) {
+      toast.info("NFC-e ainda não disponível para esta venda.", { duration: 5000 });
+      return;
+    }
+
+    setFetchingFiscal(true);
+    // Open window NOW (synchronous) to avoid popup blocker, write content after fetch
+    const printWindow = window.open("", "_blank", "width=320,height=700");
+
+    Promise.resolve(
+      supabase
+        .from("fiscal_documents")
+        .select("number, access_key, serie, status")
+        .eq("sale_id", saleId)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle()
+    ).then(({ data: fiscalDoc }) => {
+        setFetchingFiscal(false);
+        if (fiscalDoc && (fiscalDoc as any).number) {
+          const doc = fiscalDoc as any;
+          const num = String(doc.number);
+          const isSimulated = doc.status === "simulado";
+          const foundNumber = isSimulated ? `SIM-${num}` : num;
+          const foundKey = doc.access_key || undefined;
+          const foundSerie = doc.serie || undefined;
+          setNfceNumber(foundNumber);
+          setAccessKey(foundKey);
+          setSerie(foundSerie);
+          if (printWindow) printWindow.close();
+          printFiscalCupom(foundNumber, foundKey, foundSerie);
+        } else {
+          if (printWindow) printWindow.close();
+          toast.info("NFC-e ainda não disponível para esta venda. Aguarde o processamento ou emita manualmente em Vendas.", { duration: 5000 });
+        }
+      }).catch(() => {
+        setFetchingFiscal(false);
+        if (printWindow) printWindow.close();
+        toast.error("Erro ao buscar dados fiscais.", { duration: 3000 });
+      });
+  }, [nfceNumber, accessKey, serie, saleId, printFiscalCupom]);
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
       <div className="bg-card rounded-2xl border border-border shadow-2xl p-6 w-full max-w-sm mx-4" onClick={e => e.stopPropagation()}>
