@@ -146,6 +146,23 @@ export default function FiscalConfigEdit() {
     if (!companyId) return;
     setSaving(true);
     try {
+      if (certMarkedForRemoval) {
+        if (!removeCertPassword.trim()) {
+          throw new Error("Informe a senha do certificado para concluir a exclusão.");
+        }
+
+        const { data: deleteResult, error: deleteError } = await supabase.functions.invoke("emit-nfce", {
+          body: {
+            action: "delete_certificate",
+            company_id: companyId,
+            certificate_password: removeCertPassword,
+          },
+        });
+
+        if (deleteError) throw deleteError;
+        if (deleteResult?.error) throw new Error(deleteResult.error);
+      }
+
       for (const config of configs) {
         const record: Record<string, unknown> = {
           company_id: companyId,
@@ -160,17 +177,24 @@ export default function FiscalConfigEdit() {
           sat_serial_number: config.docType === "sat" ? satSerial || null : null,
           sat_activation_code: config.docType === "sat" ? satActivation || null : null,
           updated_at: new Date().toISOString(),
+          certificate_path: null,
+          certificate_expires_at: null,
+          certificate_password_hash: null,
+          a3_thumbprint: null,
+          a3_subject_name: null,
         };
-        // Always sync certificate fields for A1
-        if (certType === "A1") {
+
+        if (certType === "A1" && !certMarkedForRemoval) {
           record.certificate_path = certFile || null;
           record.certificate_expires_at = certFile && certExpiry ? new Date(certExpiry).toISOString() : null;
           record.certificate_password_hash = certFile ? (certPassword || null) : null;
         }
+
         if (certType === "A3") {
           record.a3_thumbprint = a3SelectedThumbprint || null;
           record.a3_subject_name = a3Certificates.find(c => c.thumbprint === a3SelectedThumbprint)?.subjectName || null;
         }
+
         if (config.id) {
           const { error } = await supabase.from("fiscal_configs").update(record as any).eq("id", config.id);
           if (error) throw error;
@@ -180,11 +204,10 @@ export default function FiscalConfigEdit() {
           if (data) config.id = data.id;
         }
       }
-      // Save CRT on companies table
+
       await supabase.from("companies").update({ crt } as any).eq("id", companyId);
 
-      // Upload certificate to Nuvem Fiscal automatically
-      if (certType === "A1" && certBase64 && certPassword) {
+      if (certType === "A1" && !certMarkedForRemoval && certBase64 && certPassword) {
         try {
           const { data: uploadResult, error: uploadErr } = await supabase.functions.invoke("emit-nfce", {
             body: {
@@ -209,6 +232,8 @@ export default function FiscalConfigEdit() {
       }
 
       setConfigs([...configs]);
+      setCertMarkedForRemoval(false);
+      setRemoveCertPassword("");
       logAction({ companyId: companyId!, userId: user?.id, action: "Configuração fiscal salva", module: "fiscal", details: `CRT: ${crt}, Cert: ${certType}` });
       toast.success("Configurações fiscais salvas com sucesso!");
       navigate("/fiscal/config");
