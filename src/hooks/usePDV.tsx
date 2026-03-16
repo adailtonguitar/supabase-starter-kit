@@ -410,6 +410,34 @@ export function usePDV() {
       };
     }
 
+    // ── Pre-upload certificate to Nuvem Fiscal if needed ──
+    const certB64 = (fiscalConfig as any)?.certificate_base64;
+    const certPwd = (fiscalConfig as any)?.certificate_password_hash;
+    const certUploaded = (fiscalConfig as any)?.certificate_uploaded;
+    
+    if (certB64 && certPwd && !certUploaded) {
+      console.log("[PDV Fiscal] Pre-uploading certificate to Nuvem Fiscal...");
+      try {
+        const { data: uploadResult, error: uploadErr } = await supabase.functions.invoke("emit-nfce", {
+          body: {
+            action: "upload_certificate",
+            company_id: companyId,
+            certificate_base64: certB64,
+            certificate_password: certPwd,
+          },
+        });
+        if (uploadResult?.success) {
+          console.log("[PDV Fiscal] Certificate uploaded to Nuvem Fiscal successfully");
+        } else {
+          console.warn("[PDV Fiscal] Certificate upload failed:", uploadResult?.error || uploadErr?.message);
+        }
+      } catch (certErr: any) {
+        console.warn("[PDV Fiscal] Certificate pre-upload error:", certErr.message);
+      }
+    } else {
+      console.log(`[PDV Fiscal] Certificate status: has_base64=${!!certB64}, has_password=${!!certPwd}, uploaded=${certUploaded}`);
+    }
+
     // Marcar sale como pendente_fiscal
     await supabase.from("sales").update({ status: "pendente_fiscal" } as any).eq("id", saleId);
 
