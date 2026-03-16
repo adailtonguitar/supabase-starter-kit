@@ -19,6 +19,17 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Input } from "@/components/ui/input";
 import { localSignerService, type CertificateInfo } from "@/services/WebPKIService";
 import { storeCertificateA1 } from "@/services/LocalXmlSigner";
 import { supabase } from "@/integrations/supabase/client";
