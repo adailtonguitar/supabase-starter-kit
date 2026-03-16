@@ -17,12 +17,16 @@ export function useTEFConfig() {
     queryKey: ["tef-config", companyId],
     queryFn: async () => {
       if (!companyId) return null;
-      const { data } = await supabase
-        .from("tef_config")
-        .select("*")
-        .eq("company_id", companyId)
-        .maybeSingle();
-      return data as TEFConfig | null;
+      try {
+        const { data } = await supabase
+          .from("tef_config")
+          .select("*")
+          .eq("company_id", companyId)
+          .maybeSingle();
+        return data as TEFConfig | null;
+      } catch {
+        return null;
+      }
     },
     enabled: !!companyId,
   });
