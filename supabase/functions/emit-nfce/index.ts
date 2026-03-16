@@ -1428,6 +1428,25 @@ Deno.serve(async (req) => {
       console.warn(`[emit-nfce] No certificate data available for upload.`);
     }
 
+    // ── Auto-configure NFC-e settings on Nuvem Fiscal (CSC, ambiente, CRT) ──
+    {
+      try {
+        const nfceConfigToken = await getNuvemFiscalToken();
+        const nfceCnpj = (company.cnpj || "").replace(/\D/g, "");
+        const nfceConfigResult = await ensureNfceConfigOnNuvemFiscal(nfceConfigToken, nfceCnpj, {
+          environment: config.environment || "homologacao",
+          crt: form.crt || config.crt || 1,
+          csc_id: config.csc_id || undefined,
+          csc_token: config.csc_token || undefined,
+        });
+        if (!nfceConfigResult.ok) {
+          console.warn(`[emit-nfce] NFC-e config warning: ${nfceConfigResult.error}`);
+        }
+      } catch (nfceConfigErr: any) {
+        console.warn("[emit-nfce] NFC-e auto-config error (non-blocking):", nfceConfigErr.message);
+      }
+    }
+
     // ── Validate items before building payload ──
     const formItems = form.items || [];
     const crt = form.crt || config.crt || 1;
