@@ -476,8 +476,15 @@ export function usePDV() {
     );
 
     if (fiscalErr || !fiscalData?.success) {
+      const fallbackMessage = fiscalData?.error || "Falha na emissão";
+      const parsedErrorMessage = fiscalErr
+        ? await getFunctionErrorMessage(fiscalErr, fallbackMessage)
+        : fallbackMessage;
       const rejDetail = fiscalData?.rejection_reason || fiscalData?.details?.error?.message || "";
-      const errorMsg = (fiscalData?.error || fiscalErr?.message || "Falha na emissão") + (rejDetail ? ` — ${rejDetail}` : "");
+      const errorMsg = rejDetail && !parsedErrorMessage.includes(rejDetail)
+        ? `${parsedErrorMessage} — ${rejDetail}`
+        : parsedErrorMessage;
+
       if (queueId) {
         await supabase.from("fiscal_queue").update({ status: "error", last_error: errorMsg } as any).eq("id", queueId);
       }
