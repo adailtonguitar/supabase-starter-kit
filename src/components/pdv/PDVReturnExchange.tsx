@@ -298,7 +298,7 @@ export function PDVReturnExchangeDialog({ open, onClose }: PDVReturnExchangeProp
               {completedReturn && (
                 <div className="flex items-center justify-between pt-3 border-t border-border">
                   <div>
-                    <p className="text-xs text-green-600 uppercase font-bold">✓ Devolução Concluída</p>
+                    <p className="text-xs text-primary uppercase font-bold">✓ Devolução Concluída</p>
                     <p className="text-lg font-bold text-foreground font-mono">{formatCurrency(completedReturn.refundAmount)}</p>
                   </div>
                   <div className="flex gap-2">
