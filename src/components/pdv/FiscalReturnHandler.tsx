@@ -136,7 +136,7 @@ export function FiscalReturnHandler({ saleId, companyId, onFiscalComplete }: Fis
     const hoursLeft = deadline.maxHours - deadline.hoursElapsed;
     return (
       <div className="space-y-2 py-2">
-        <div className="flex items-start gap-2 text-xs text-amber-600 dark:text-amber-400">
+        <div className="flex items-start gap-2 text-xs text-warning dark:text-warning">
           <AlertTriangle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
           <div>
             <p className="font-semibold">
