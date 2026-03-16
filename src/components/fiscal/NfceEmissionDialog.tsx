@@ -439,9 +439,16 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
         },
       });
 
-      if (error) throw error;
-
-      if (data?.success) {
+      if (error) {
+        const errText = await getFunctionErrorMessage(error, "Erro ao emitir NFC-e.");
+        setStep("error");
+        setErrorMsg(errText);
+        const rej = parseSefazRejection(errText);
+        setRejection(rej);
+        if (rej?.field === "items") setActiveTab("items");
+        else if (rej?.field === "customer") setActiveTab("customer");
+        else if (rej?.field === "payment") setActiveTab("payment");
+      } else if (data?.success) {
         setStep("success");
         toast.success("NFC-e emitida com sucesso!");
         onSuccess?.();
@@ -457,7 +464,7 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
       }
     } catch (err: any) {
       setStep("error");
-      setErrorMsg(err?.message || "Erro de comunicação com o servidor fiscal.");
+      setErrorMsg(await getFunctionErrorMessage(err, "Erro de comunicação com o servidor fiscal."));
     } finally {
       setEmitting(false);
     }
