@@ -1272,22 +1272,25 @@ Deno.serve(async (req) => {
       }, 404);
     }
 
-    // ── Auto-upload certificate to Nuvem Fiscal (always attempt if cert exists) ──
-    const hasCertData = !!config.certificate_base64;
-    const hasCertPwd = !!config.certificate_password_hash;
-    console.log(`[emit-nfce] Certificate check: has_base64=${hasCertData}, has_password=${hasCertPwd}, uploaded_flag=${config.certificate_uploaded}, config_id=${config.id}`);
+    // ── Auto-upload certificate to Nuvem Fiscal using request payload fallback first ──
+    const requestCertBase64 = body.certificate_base64 || null;
+    const requestCertPassword = body.certificate_password || null;
+    const configCertBase64 = config.certificate_base64 || null;
+    const configCertPassword = config.certificate_password_hash || null;
+    const effectiveCertBase64 = requestCertBase64 || configCertBase64;
+    const effectiveCertPassword = requestCertPassword || configCertPassword;
+    const hasCertData = !!effectiveCertBase64;
+    const hasCertPwd = !!effectiveCertPassword;
+    console.log(`[emit-nfce] Certificate check: has_base64=${hasCertData}, has_password=${hasCertPwd}, uploaded_flag=${config.certificate_uploaded}, config_id=${config.id}, source=${requestCertBase64 ? "request" : configCertBase64 ? "config" : "none"}`);
     
     if (hasCertData && hasCertPwd) {
       try {
         console.log("[emit-nfce] Uploading certificate to Nuvem Fiscal...");
         const autoToken = await getNuvemFiscalToken();
         const autoCnpj = company.cnpj.replace(/\D/g, "");
-        const autoResult = await uploadCertToNuvemFiscal(autoToken, autoCnpj, config.certificate_base64, config.certificate_password_hash);
+        const autoResult = await uploadCertToNuvemFiscal(autoToken, autoCnpj, effectiveCertBase64, effectiveCertPassword);
         if (autoResult.ok) {
-          await supabase
-            .from("fiscal_configs")
-            .update({ certificate_uploaded: true } as any)
-            .eq("id", config.id);
+          await supabase.from("fiscal_configs").update({ certificate_uploaded: true } as any).eq("id", config.id);
           console.log("[emit-nfce] Certificate uploaded successfully to Nuvem Fiscal");
         } else {
           console.warn(`[emit-nfce] Certificate upload failed: ${autoResult.error}`);
@@ -1296,7 +1299,7 @@ Deno.serve(async (req) => {
         console.warn("[emit-nfce] Certificate upload error:", autoErr.message);
       }
     } else {
-      console.warn(`[emit-nfce] No certificate data in fiscal_configs! Cannot auto-upload.`);
+      console.warn(`[emit-nfce] No certificate data available for upload.`);
     }
 
     // ── Validate items before building payload ──
