@@ -1330,7 +1330,6 @@ Deno.serve(async (req) => {
         payment_method: nfeForm.payment_method,
         environment: nfeConfig.environment,
         is_contingency: false,
-        xml_content: nfeEmitData.xml || null,
       });
 
       await backupXml(supabase, nfeCompanyId, "nfe", nfeAccessKey, nfeDocNumber, nfeEmitData.xml || null, "emissao");
