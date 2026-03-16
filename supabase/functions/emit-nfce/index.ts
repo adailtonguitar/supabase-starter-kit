@@ -1180,9 +1180,10 @@ Deno.serve(async (req) => {
         });
       }
 
-      const nfeAccessKey = nfeEmitData.chave || nfeEmitData.chave_acesso || null;
+      const nfeAuth = normalizeFiscalAuthorization(nfeEmitData);
+      const nfeAccessKey = nfeAuth.accessKey;
       const nfeDocNumber = nfeEmitData.numero || nfeConfig.next_number || null;
-      const nfeStatus = nfeEmitData.status === "autorizada" ? "autorizada" : nfeEmitData.status || "pendente";
+      const nfeStatus = nfeAuth.status;
 
       await supabase.from("fiscal_documents").insert({
         company_id: nfeCompanyId,
@@ -1213,6 +1214,8 @@ Deno.serve(async (req) => {
         access_key: nfeAccessKey,
         number: nfeDocNumber,
         status: nfeStatus,
+        sefaz_code: nfeAuth.sefazCode,
+        protocol_number: nfeAuth.protocolNumber,
         nuvem_fiscal_id: nfeEmitData.id,
       });
     }
