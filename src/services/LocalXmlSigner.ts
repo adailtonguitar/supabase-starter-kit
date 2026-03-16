@@ -62,10 +62,13 @@ export async function storeCertificateA1(
       return { success: false, error: `Certificado expirado em ${new Date(expiresAt).toLocaleDateString("pt-BR")}.` };
     }
 
-    // Store in IndexedDB as base64
-    const pfxBase64 = forge.util.encode64(
-      String.fromCharCode(...new Uint8Array(pfxArrayBuffer))
-    );
+    // Store in IndexedDB as base64 (using btoa with chunked conversion to avoid stack overflow)
+    const uint8 = new Uint8Array(pfxArrayBuffer);
+    let binaryStr = "";
+    for (let i = 0; i < uint8.length; i++) {
+      binaryStr += String.fromCharCode(uint8[i]);
+    }
+    const pfxBase64 = btoa(binaryStr);
 
     const db = await openDB();
     await new Promise<void>((resolve, reject) => {
