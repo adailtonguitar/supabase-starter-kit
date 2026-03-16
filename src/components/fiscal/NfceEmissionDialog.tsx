@@ -15,6 +15,7 @@ import { usePlanFeatures } from "@/hooks/usePlanFeatures";
 import { NCM_TABLE } from "@/lib/ncm-table";
 import { useProducts } from "@/hooks/useProducts";
 import { QRCodeSVG } from "qrcode.react";
+import { getFunctionErrorMessage } from "@/lib/get-function-error-message";
 
 interface NfceEmissionDialogProps {
   sale: any;
