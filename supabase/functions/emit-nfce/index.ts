@@ -1652,7 +1652,6 @@ Deno.serve(async (req) => {
           has_base64: !!effectiveCertBase64,
           base64_length: effectiveCertBase64?.length || 0,
           has_password: !!effectiveCertPassword,
-          uploaded_flag: config.certificate_uploaded,
           config_id: config.id,
           cert_source: requestCertBase64 ? "request" : configCertBase64 ? "config" : "none",
         },

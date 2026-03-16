@@ -355,7 +355,7 @@ export function usePDV() {
     // Best-effort config lookup in client; if RLS blocks it, server will resolve config.
     const { data: allConfigs, error: fcError } = await supabase
       .from("fiscal_configs")
-      .select("id, doc_type, is_active, crt, environment, certificate_path, certificate_uploaded, a3_thumbprint, serie, next_number")
+      .select("id, doc_type, is_active, crt, environment, certificate_path, a3_thumbprint, serie, next_number")
       .eq("company_id", companyId);
 
     const { data: companyFiscal } = await supabase
@@ -415,9 +415,8 @@ export function usePDV() {
     const storedCert = await getStoredCertificateA1(companyId);
     const certB64 = storedCert?.pfxBase64;
     const certPwd = storedCert?.password;
-    const certUploaded = (fiscalConfig as any)?.certificate_uploaded;
-    
-    if (certB64 && certPwd && !certUploaded) {
+
+    if (certB64 && certPwd) {
       console.log("[PDV Fiscal] Pre-uploading certificate to Nuvem Fiscal...");
       try {
         const { data: uploadResult, error: uploadErr } = await supabase.functions.invoke("emit-nfce", {
@@ -437,7 +436,7 @@ export function usePDV() {
         console.warn("[PDV Fiscal] Certificate pre-upload error:", certErr.message);
       }
     } else {
-      console.log(`[PDV Fiscal] Certificate status: has_base64=${!!certB64}, has_password=${!!certPwd}, uploaded=${certUploaded}`);
+      console.log(`[PDV Fiscal] Certificate status: has_base64=${!!certB64}, has_password=${!!certPwd}`);
     }
 
     // Marcar sale como pendente_fiscal
