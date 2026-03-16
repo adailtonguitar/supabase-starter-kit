@@ -1511,6 +1511,55 @@ Deno.serve(async (req) => {
 
     if (!emitResp.ok) {
       console.error("Nuvem Fiscal error:", JSON.stringify(emitData));
+
+      // ── Auto-retry: if certificate not found, try uploading it and retry once ──
+      const errText = JSON.stringify(emitData).toLowerCase();
+      const isCertError = errText.includes("certificado") && (errText.includes("não encontrado") || errText.includes("not found") || errText.includes("nao encontrado"));
+      if (isCertError && config.certificate_base64 && config.certificate_password_hash) {
+        console.log("[emit-nfce] Certificate not found on Nuvem Fiscal. Attempting auto-upload and retry...");
+        try {
+          const retryToken = await getNuvemFiscalToken();
+          const retryCnpj = (company.cnpj || "").replace(/\D/g, "");
+          const certUpResp = await fetch(`${NUVEM_FISCAL_API}/empresas/${retryCnpj}/certificado`, {
+            method: "PUT",
+            headers: { Authorization: `Bearer ${retryToken}`, "Content-Type": "application/json" },
+            body: JSON.stringify({ certificado: config.certificate_base64, password: config.certificate_password_hash }),
+          });
+          if (certUpResp.ok) {
+            console.log("[emit-nfce] Certificate uploaded. Retrying emission...");
+            await supabase.from("fiscal_configs").update({ certificate_uploaded: true } as any).eq("id", config.id);
+            // Retry the emission
+            const retryResp = await fetch(`${NUVEM_FISCAL_API}/nfce`, {
+              method: "POST",
+              headers: { Authorization: `Bearer ${retryToken}`, "Content-Type": "application/json" },
+              body: JSON.stringify(nfcePayload),
+            });
+            const retryData = await retryResp.json();
+            if (retryResp.ok) {
+              // Success on retry - continue with retryData
+              const retryAccessKey = retryData.chave || retryData.chave_acesso || null;
+              const retryDocNumber = retryData.numero || config.next_number || null;
+              const retryStatus = retryData.status === "autorizada" ? "autorizada" : retryData.status || "pendente";
+              await supabase.from("fiscal_documents").insert({
+                company_id, sale_id, doc_type: "nfce", number: retryDocNumber, serie: config.serie,
+                access_key: retryAccessKey, status: retryStatus, total_value: totalNF,
+                customer_name: form.customer_name || null, customer_cpf_cnpj: form.customer_doc?.replace(/\D/g, "") || null,
+                payment_method: form.payment_method, xml_content: retryData.xml || null, config_id: config.id,
+              } as any);
+              await supabase.from("fiscal_configs").update({ next_number: (config.next_number || 1) + 1 }).eq("id", config.id);
+              if (sale_id) await supabase.from("sales").update({ status: "emitida" } as any).eq("id", sale_id);
+              return jsonResponse({ success: true, status: retryStatus, access_key: retryAccessKey, number: retryDocNumber, data: retryData });
+            }
+            console.warn("[emit-nfce] Retry after cert upload also failed:", JSON.stringify(retryData));
+          } else {
+            const certErrText = await certUpResp.text();
+            console.warn(`[emit-nfce] Auto cert upload failed [${certUpResp.status}]: ${certErrText}`);
+          }
+        } catch (retryErr: any) {
+          console.warn("[emit-nfce] Cert auto-upload retry error:", retryErr.message);
+        }
+      }
+
       // Extract rejection code from Nuvem Fiscal response
       const rejCode = emitData?.codigo_status || emitData?.cStat || emitData?.status_sefaz?.cStat || null;
       const rejMsg = emitData?.motivo_status || emitData?.xMotivo || emitData?.status_sefaz?.xMotivo || null;
