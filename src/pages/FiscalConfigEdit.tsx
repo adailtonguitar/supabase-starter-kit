@@ -339,11 +339,12 @@ export default function FiscalConfigEdit() {
                   <div>
                     <p className="text-sm font-medium text-foreground">{certFile ? "Certificado A1 configurado" : "Nenhum certificado A1 configurado"}</p>
                     {certFile && certExpiry && <p className="text-xs text-muted-foreground">Validade: {new Date(certExpiry).toLocaleDateString("pt-BR")}</p>}
+                    {certMarkedForRemoval && <p className="text-xs text-destructive">Certificado marcado para exclusão ao salvar.</p>}
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
                   {certFile && (
-                    <button onClick={() => { setCertFile(null); setCertBase64(null); setCertPassword(""); setCertExpiry(""); toast.info("Certificado removido. Salve para confirmar."); }}
+                    <button onClick={() => setRemoveCertDialogOpen(true)}
                       className="flex items-center gap-2 px-4 py-2 rounded-xl bg-destructive/10 text-destructive text-sm font-medium hover:bg-destructive/20 transition-all">
                       <Trash2 className="w-4 h-4" /> Remover
                     </button>
@@ -355,6 +356,8 @@ export default function FiscalConfigEdit() {
                       onChange={async (e) => {
                         const file = e.target.files?.[0];
                         if (!file) return;
+                        setCertMarkedForRemoval(false);
+                        setRemoveCertPassword("");
                         setCertValidating(true);
                         try {
                           const arrayBuffer = await file.arrayBuffer();
@@ -370,7 +373,6 @@ export default function FiscalConfigEdit() {
                           }
                           setCertFile(file.name);
 
-                          // Store base64 for server-side upload to Nuvem Fiscal
                           const uint8 = new Uint8Array(arrayBuffer);
                           let binaryStr = "";
                           for (let i = 0; i < uint8.length; i++) {
