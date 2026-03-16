@@ -1331,8 +1331,8 @@ Deno.serve(async (req) => {
     const effectiveCertPassword = requestCertPassword || configCertPassword;
     const hasCertData = !!effectiveCertBase64;
     const hasCertPwd = !!effectiveCertPassword;
-    console.log(`[emit-nfce] Certificate check: has_base64=${hasCertData}, has_password=${hasCertPwd}, uploaded_flag=${config.certificate_uploaded}, config_id=${config.id}, source=${requestCertBase64 ? "request" : configCertBase64 ? "config" : "none"}`);
-    
+    console.log(`[emit-nfce] Certificate check: has_base64=${hasCertData}, has_password=${hasCertPwd}, config_id=${config.id}, source=${requestCertBase64 ? "request" : configCertBase64 ? "config" : "none"}`);
+
     if (hasCertData && hasCertPwd) {
       try {
         console.log("[emit-nfce] Uploading certificate to Nuvem Fiscal...");
@@ -1340,13 +1340,30 @@ Deno.serve(async (req) => {
         const autoCnpj = company.cnpj.replace(/\D/g, "");
         const autoResult = await uploadCertToNuvemFiscal(autoToken, autoCnpj, effectiveCertBase64, effectiveCertPassword);
         if (autoResult.ok) {
-          await supabase.from("fiscal_configs").update({ certificate_uploaded: true } as any).eq("id", config.id);
           console.log("[emit-nfce] Certificate uploaded successfully to Nuvem Fiscal");
         } else {
-          console.warn(`[emit-nfce] Certificate upload failed: ${autoResult.error}`);
+          return jsonResponse({
+            success: false,
+            error: autoResult.error || "Falha ao sincronizar certificado digital antes da emissão",
+            _cert_diag: {
+              has_base64: true,
+              has_password: true,
+              config_id: config.id,
+              cert_source: requestCertBase64 ? "request" : "config",
+            },
+          }, 400);
         }
       } catch (autoErr: any) {
-        console.warn("[emit-nfce] Certificate upload error:", autoErr.message);
+        return jsonResponse({
+          success: false,
+          error: autoErr?.message || "Erro ao sincronizar certificado digital antes da emissão",
+          _cert_diag: {
+            has_base64: true,
+            has_password: true,
+            config_id: config.id,
+            cert_source: requestCertBase64 ? "request" : "config",
+          },
+        }, 400);
       }
     } else {
       console.warn(`[emit-nfce] No certificate data available for upload.`);
@@ -1589,7 +1606,6 @@ Deno.serve(async (req) => {
           const certUpResult = await uploadCertToNuvemFiscal(retryToken, retryCnpj, effectiveCertBase64, effectiveCertPassword);
           if (certUpResult.ok) {
             console.log("[emit-nfce] Certificate uploaded. Retrying emission...");
-            await supabase.from("fiscal_configs").update({ certificate_uploaded: true } as any).eq("id", config.id);
             const retryResp = await fetch(`${NUVEM_FISCAL_API}/nfce`, {
               method: "POST",
               headers: { Authorization: `Bearer ${retryToken}`, "Content-Type": "application/json" },
@@ -1636,7 +1652,6 @@ Deno.serve(async (req) => {
           has_base64: !!effectiveCertBase64,
           base64_length: effectiveCertBase64?.length || 0,
           has_password: !!effectiveCertPassword,
-          uploaded_flag: config.certificate_uploaded,
           config_id: config.id,
           cert_source: requestCertBase64 ? "request" : configCertBase64 ? "config" : "none",
         },

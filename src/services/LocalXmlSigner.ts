@@ -9,6 +9,7 @@
 import forge from "node-forge";
 
 const DB_NAME = "pdv_sync_v2";
+const DB_VERSION = 2;
 const CERT_STORE = "entity_cache";
 const CERT_KEY = "certificate:a1_pfx";
 
@@ -16,7 +17,14 @@ const CERT_KEY = "certificate:a1_pfx";
 
 function openDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, 1);
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains(CERT_STORE)) {
+        const store = db.createObjectStore(CERT_STORE, { keyPath: "key" });
+        store.createIndex("entity_type", "entity_type", { unique: false });
+      }
+    };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
   });

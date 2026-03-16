@@ -590,11 +590,12 @@ export default function NFeEmissao() {
         return;
       }
 
-      // Verificar se certificado digital está configurado ANTES de chamar a Edge Function
+      // Verificar se há certificado local ou um A1/A3 configurado para deixar o servidor tentar emitir
       const storedCert = await getStoredCertificateA1(companyId);
-      if (!storedCert && !nfeConfig.certificate_uploaded) {
+      const hasConfiguredCert = !!(nfeConfig.certificate_path || (nfeConfig as any).a3_thumbprint);
+      if (!storedCert && !hasConfiguredCert) {
         setStep("error");
-        setErrorMsg("Certificado digital não configurado neste dispositivo. Refaça o upload do certificado A1 (.pfx) em Fiscal > Configuração > Certificado Digital.");
+        setErrorMsg("Certificado digital não configurado. Faça o upload do certificado A1 (.pfx) em Fiscal > Configuração ou selecione um certificado A3 válido.");
         setEmitting(false);
         return;
       }
