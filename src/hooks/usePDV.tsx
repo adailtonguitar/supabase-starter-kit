@@ -640,8 +640,19 @@ export function usePDV() {
               const fiscalResult = await processFiscalEmission(saleId);
               nfceNumber = fiscalResult.nfceNumber || "";
               fiscalDocId = fiscalResult.fiscalDocId || undefined;
+              if (nfceNumber) {
+                toast.success("✅ NFC-e emitida com sucesso!", {
+                  description: `Número: ${nfceNumber}`,
+                  duration: 5000,
+                });
+              }
             } catch (fiscalErr: any) {
-              console.error("[PDV Fiscal] Emission failed:", fiscalErr?.message || fiscalErr);
+              const errMsg = fiscalErr?.message || "Erro desconhecido na emissão fiscal";
+              console.error("[PDV Fiscal] Emission failed:", errMsg);
+              toast.error(`⚠️ Emissão fiscal falhou: ${errMsg}`, {
+                description: "A venda foi registrada. Você pode reprocessar a NFC-e depois em Fiscal > Documentos.",
+                duration: 10000,
+              });
             }
           }
         } catch (checkErr: any) {
