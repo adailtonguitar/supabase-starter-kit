@@ -151,12 +151,8 @@ export default function FiscalConfigEdit() {
         if (certType === "A1") {
           record.certificate_path = certFile || null;
           record.certificate_expires_at = certFile && certExpiry ? new Date(certExpiry).toISOString() : null;
-          if (!certFile) {
-            // User explicitly removed cert — clear uploaded flag too
-            record.certificate_uploaded = false;
-          } else {
-            record.certificate_uploaded = false; // will be set true after upload
-          }
+          record.certificate_password_hash = certFile ? (certPassword || null) : null;
+          record.certificate_uploaded = false;
         }
         if (certType === "A3") {
           record.a3_thumbprint = a3SelectedThumbprint || null;
