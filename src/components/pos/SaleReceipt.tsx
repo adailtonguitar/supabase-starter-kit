@@ -422,7 +422,7 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
           <script>
             window.onload = function() {
               try {
-                var qrUrl = "${accessKey ? `https://www.nfce.fazenda.gov.br/portal/consultarNFCe.aspx?chNFe=${accessKey}` : sefazUrl}";
+                var qrUrl = "${currentAccessKey ? `https://www.nfce.fazenda.gov.br/portal/consultarNFCe.aspx?chNFe=${currentAccessKey}` : sefazUrl}";
                 var qr = qrcode(0, 'M');
                 qr.addData(qrUrl);
                 qr.make();
