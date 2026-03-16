@@ -724,9 +724,9 @@ export function usePDV() {
             });
           } else {
             // Real emission
-            enqueueFiscal(saleId);
+            const queueId = await enqueueFiscal(saleId);
             try {
-              const fiscalResult = await processFiscalEmission(saleId);
+              const fiscalResult = await processFiscalEmission(saleId, queueId || undefined);
               fiscalDocId = fiscalResult.fiscalDocId || undefined;
               accessKey = fiscalResult.accessKey || accessKey;
               serie = fiscalResult.serie || serie;
