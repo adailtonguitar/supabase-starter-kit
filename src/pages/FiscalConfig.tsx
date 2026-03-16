@@ -15,7 +15,7 @@ interface ConfigSummary {
   hasNfce: boolean;
   hasNfe: boolean;
   hasSat: boolean;
-  certType: string;
+  certType: string | null;
   environment: string;
   hasCert: boolean;
 }
