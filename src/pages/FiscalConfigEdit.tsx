@@ -594,6 +594,49 @@ export default function FiscalConfigEdit() {
         {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
         {saving ? "Salvando..." : "Salvar Configurações Fiscais"}
       </button>
+
+      <AlertDialog open={removeCertDialogOpen} onOpenChange={setRemoveCertDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir certificado A1</AlertDialogTitle>
+            <AlertDialogDescription>
+              Para marcar a exclusão do certificado, confirme a senha atual. A remoção só será concluída quando você salvar as configurações.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-foreground">Senha do certificado</label>
+            <Input
+              type="password"
+              value={removeCertPassword}
+              onChange={(e) => setRemoveCertPassword(e.target.value)}
+              placeholder="Digite a senha atual do certificado"
+            />
+          </div>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setRemoveCertPassword("")}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={(e) => {
+                if (!removeCertPassword.trim()) {
+                  e.preventDefault();
+                  toast.error("Informe a senha do certificado para remover.");
+                  return;
+                }
+                setCertMarkedForRemoval(true);
+                setCertFile(null);
+                setCertBase64(null);
+                setCertPassword("");
+                setCertExpiry("");
+                toast.info("Certificado marcado para exclusão. Clique em salvar para concluir.");
+              }}
+            >
+              Confirmar remoção
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
