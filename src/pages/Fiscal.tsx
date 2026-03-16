@@ -667,6 +667,24 @@ export default function Fiscal() {
               )}
             </div>
 
+            <div className="flex gap-2 mt-6">
+              <button
+                onClick={() => handleConsultStatus(selectedDoc)}
+                disabled={consultingStatus || !selectedDoc.access_key}
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-all disabled:opacity-50"
+              >
+                {consultingStatus ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+                Consultar na Nuvem Fiscal
+              </button>
+            </div>
+
+            {lastConsultDetails && (
+              <div className="mt-3 rounded-xl border border-border bg-muted/40 p-3">
+                <p className="text-xs font-semibold text-foreground mb-2">Último retorno bruto da Nuvem Fiscal</p>
+                <pre className="max-h-48 overflow-auto text-[11px] leading-relaxed text-muted-foreground whitespace-pre-wrap break-all">{JSON.stringify(lastConsultDetails, null, 2)}</pre>
+              </div>
+            )}
+
             {/* XML Download/Save Buttons */}
             {selectedDoc.status === "autorizada" && selectedDoc.access_key && (
               <div className="flex gap-2 mt-6">
