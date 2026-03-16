@@ -1176,7 +1176,7 @@ Deno.serve(async (req) => {
           numero: company.address_number || "S/N",
           complemento: company.address_complement || "",
           bairro: company.address_neighborhood || "",
-          codigo_municipio: company.address_city_code || "",
+          codigo_municipio: company.address_city_code || company.city_ibge_code || "",
           nome_municipio: company.address_city || "",
           uf: uf,
           cep: company.address_zip?.replace(/\D/g, "") || "",
@@ -1226,9 +1226,15 @@ Deno.serve(async (req) => {
       // Extract rejection code from Nuvem Fiscal response
       const rejCode = emitData?.codigo_status || emitData?.cStat || emitData?.status_sefaz?.cStat || null;
       const rejMsg = emitData?.motivo_status || emitData?.xMotivo || emitData?.status_sefaz?.xMotivo || null;
+      // Build detailed error message
+      const apiMsg = emitData?.mensagem || emitData?.message || emitData?.error?.message || "";
+      const validationErrors = emitData?.error?.errors || emitData?.errors || [];
+      const validationDetail = Array.isArray(validationErrors) ? validationErrors.map((e: any) => e?.mensagem || e?.message || JSON.stringify(e)).join("; ") : "";
+      const fullError = [apiMsg, rejMsg, validationDetail].filter(Boolean).join(" | ") || `Erro Nuvem Fiscal [${emitResp.status}]`;
+      
       return jsonResponse({
         success: false,
-        error: emitData?.mensagem || emitData?.message || `Erro Nuvem Fiscal [${emitResp.status}]`,
+        error: fullError,
         rejection_code: rejCode ? String(rejCode) : null,
         rejection_reason: rejMsg || null,
         details: emitData,

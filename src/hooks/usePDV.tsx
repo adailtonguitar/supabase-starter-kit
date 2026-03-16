@@ -475,7 +475,8 @@ export function usePDV() {
     );
 
     if (fiscalErr || !fiscalData?.success) {
-      const errorMsg = fiscalData?.error || fiscalErr?.message || "Falha na emissão";
+      const rejDetail = fiscalData?.rejection_reason || fiscalData?.details?.error?.message || "";
+      const errorMsg = (fiscalData?.error || fiscalErr?.message || "Falha na emissão") + (rejDetail ? ` — ${rejDetail}` : "");
       if (queueId) {
         await supabase.from("fiscal_queue").update({ status: "error", last_error: errorMsg } as any).eq("id", queueId);
       }
