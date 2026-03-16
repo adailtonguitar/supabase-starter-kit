@@ -148,7 +148,7 @@ export function FiscalReturnHandler({ saleId, companyId, onFiscalComplete }: Fis
         <button
           onClick={handleCancelNfce}
           disabled={canceling}
-          className="w-full px-4 py-2 rounded-xl bg-amber-600 text-white font-semibold text-xs disabled:opacity-50 flex items-center justify-center gap-2"
+          className="w-full px-4 py-2 rounded-xl bg-destructive text-destructive-foreground font-semibold text-xs disabled:opacity-50 flex items-center justify-center gap-2"
         >
           {canceling ? (
             <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Cancelando na SEFAZ...</>
