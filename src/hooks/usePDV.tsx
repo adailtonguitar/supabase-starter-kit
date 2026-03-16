@@ -355,7 +355,7 @@ export function usePDV() {
     // Best-effort config lookup in client; if RLS blocks it, server will resolve config.
     const { data: allConfigs, error: fcError } = await supabase
       .from("fiscal_configs")
-      .select("id, doc_type, is_active, crt, environment, certificate_path, a3_thumbprint, serie, next_number")
+      .select("id, doc_type, is_active, environment, certificate_path, a3_thumbprint, serie, next_number")
       .eq("company_id", companyId);
 
     const { data: companyFiscal } = await supabase
