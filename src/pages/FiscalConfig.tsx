@@ -122,7 +122,7 @@ export default function FiscalConfig() {
                       <AlertTriangle className="w-3.5 h-3.5 text-warning" />
                     )}
                     <span className="text-sm font-medium text-foreground">
-                      {configSummary.certType}
+                      {configSummary.hasCert ? configSummary.certType : "Nenhum"}
                     </span>
                   </div>
                 </div>
