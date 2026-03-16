@@ -473,13 +473,6 @@ export function usePDV() {
         },
       })
     );
-            payment_value: sale.total,
-            change: payments[0]?.change_amount || 0,
-            items: fiscalItems,
-          },
-        },
-      })
-    );
 
     if (fiscalErr || !fiscalData?.success) {
       const errorMsg = fiscalData?.error || fiscalErr?.message || "Falha na emissão";
