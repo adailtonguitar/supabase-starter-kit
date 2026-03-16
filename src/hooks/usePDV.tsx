@@ -493,6 +493,8 @@ export function usePDV() {
           sale_id: saleId,
           company_id: companyId,
           config_id: fiscalConfig?.id,
+          certificate_base64: certB64 || null,
+          certificate_password: certPwd || null,
           form: {
             nat_op: "VENDA DE MERCADORIA",
             crt,

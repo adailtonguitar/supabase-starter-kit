@@ -1272,22 +1272,25 @@ Deno.serve(async (req) => {
       }, 404);
     }
 
-    // ── Auto-upload certificate to Nuvem Fiscal (always attempt if cert exists) ──
-    const hasCertData = !!config.certificate_base64;
-    const hasCertPwd = !!config.certificate_password_hash;
-    console.log(`[emit-nfce] Certificate check: has_base64=${hasCertData}, has_password=${hasCertPwd}, uploaded_flag=${config.certificate_uploaded}, config_id=${config.id}`);
+    // ── Auto-upload certificate to Nuvem Fiscal using request payload fallback first ──
+    const requestCertBase64 = body.certificate_base64 || null;
+    const requestCertPassword = body.certificate_password || null;
+    const configCertBase64 = config.certificate_base64 || null;
+    const configCertPassword = config.certificate_password_hash || null;
+    const effectiveCertBase64 = requestCertBase64 || configCertBase64;
+    const effectiveCertPassword = requestCertPassword || configCertPassword;
+    const hasCertData = !!effectiveCertBase64;
+    const hasCertPwd = !!effectiveCertPassword;
+    console.log(`[emit-nfce] Certificate check: has_base64=${hasCertData}, has_password=${hasCertPwd}, uploaded_flag=${config.certificate_uploaded}, config_id=${config.id}, source=${requestCertBase64 ? "request" : configCertBase64 ? "config" : "none"}`);
     
     if (hasCertData && hasCertPwd) {
       try {
         console.log("[emit-nfce] Uploading certificate to Nuvem Fiscal...");
         const autoToken = await getNuvemFiscalToken();
         const autoCnpj = company.cnpj.replace(/\D/g, "");
-        const autoResult = await uploadCertToNuvemFiscal(autoToken, autoCnpj, config.certificate_base64, config.certificate_password_hash);
+        const autoResult = await uploadCertToNuvemFiscal(autoToken, autoCnpj, effectiveCertBase64, effectiveCertPassword);
         if (autoResult.ok) {
-          await supabase
-            .from("fiscal_configs")
-            .update({ certificate_uploaded: true } as any)
-            .eq("id", config.id);
+          await supabase.from("fiscal_configs").update({ certificate_uploaded: true } as any).eq("id", config.id);
           console.log("[emit-nfce] Certificate uploaded successfully to Nuvem Fiscal");
         } else {
           console.warn(`[emit-nfce] Certificate upload failed: ${autoResult.error}`);
@@ -1296,7 +1299,7 @@ Deno.serve(async (req) => {
         console.warn("[emit-nfce] Certificate upload error:", autoErr.message);
       }
     } else {
-      console.warn(`[emit-nfce] No certificate data in fiscal_configs! Cannot auto-upload.`);
+      console.warn(`[emit-nfce] No certificate data available for upload.`);
     }
 
     // ── Validate items before building payload ──
@@ -1528,16 +1531,15 @@ Deno.serve(async (req) => {
       // ── Auto-retry: if certificate not found, try uploading it and retry once ──
       const errText = JSON.stringify(emitData).toLowerCase();
       const isCertError = errText.includes("certificado") && (errText.includes("não encontrado") || errText.includes("not found") || errText.includes("nao encontrado"));
-      if (isCertError && config.certificate_base64 && config.certificate_password_hash) {
+      if (isCertError && effectiveCertBase64 && effectiveCertPassword) {
         console.log("[emit-nfce] Certificate not found on Nuvem Fiscal. Attempting auto-upload and retry...");
         try {
           const retryToken = await getNuvemFiscalToken();
           const retryCnpj = (company.cnpj || "").replace(/\D/g, "");
-          const certUpResult = await uploadCertToNuvemFiscal(retryToken, retryCnpj, config.certificate_base64, config.certificate_password_hash);
+          const certUpResult = await uploadCertToNuvemFiscal(retryToken, retryCnpj, effectiveCertBase64, effectiveCertPassword);
           if (certUpResult.ok) {
             console.log("[emit-nfce] Certificate uploaded. Retrying emission...");
             await supabase.from("fiscal_configs").update({ certificate_uploaded: true } as any).eq("id", config.id);
-            // Retry the emission
             const retryResp = await fetch(`${NUVEM_FISCAL_API}/nfce`, {
               method: "POST",
               headers: { Authorization: `Bearer ${retryToken}`, "Content-Type": "application/json" },
@@ -1545,7 +1547,6 @@ Deno.serve(async (req) => {
             });
             const retryData = await retryResp.json();
             if (retryResp.ok) {
-              // Success on retry - continue with retryData
               const retryAccessKey = retryData.chave || retryData.chave_acesso || null;
               const retryDocNumber = retryData.numero || config.next_number || null;
               const retryStatus = retryData.status === "autorizada" ? "autorizada" : retryData.status || "pendente";
@@ -1568,10 +1569,8 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Extract rejection code from Nuvem Fiscal response
       const rejCode = emitData?.codigo_status || emitData?.cStat || emitData?.status_sefaz?.cStat || null;
       const rejMsg = emitData?.motivo_status || emitData?.xMotivo || emitData?.status_sefaz?.xMotivo || null;
-      // Build detailed error message
       const apiMsg = emitData?.mensagem || emitData?.message || emitData?.error?.message || "";
       const validationErrors = emitData?.error?.errors || emitData?.errors || [];
       const validationDetail = Array.isArray(validationErrors) ? validationErrors.map((e: any) => e?.mensagem || e?.message || JSON.stringify(e)).join("; ") : "";
@@ -1584,11 +1583,12 @@ Deno.serve(async (req) => {
         rejection_reason: rejMsg || null,
         details: emitData,
         _cert_diag: {
-          has_base64: !!config.certificate_base64,
-          base64_length: config.certificate_base64?.length || 0,
-          has_password: !!config.certificate_password_hash,
+          has_base64: !!effectiveCertBase64,
+          base64_length: effectiveCertBase64?.length || 0,
+          has_password: !!effectiveCertPassword,
           uploaded_flag: config.certificate_uploaded,
           config_id: config.id,
+          cert_source: requestCertBase64 ? "request" : configCertBase64 ? "config" : "none",
         },
       });
     }
