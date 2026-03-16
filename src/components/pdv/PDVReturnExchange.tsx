@@ -1,9 +1,11 @@
-import { useState, useCallback } from "react";
-import { Search, X, RotateCcw, Check, Package } from "lucide-react";
+import { useState, useCallback, useRef } from "react";
+import { Search, X, RotateCcw, Check, Package, Printer } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/utils";
+import { logAction } from "@/services/ActionLogger";
+import { ReturnReceipt } from "./ReturnReceipt";
 
 interface SaleResult {
   id: string;
@@ -32,6 +34,13 @@ export function PDVReturnExchangeDialog({ open, onClose }: PDVReturnExchangeProp
   const [searching, setSearching] = useState(false);
   const [selectedItems, setSelectedItems] = useState<Record<string, number>>({});
   const [processing, setProcessing] = useState(false);
+  const [completedReturn, setCompletedReturn] = useState<{
+    saleId: string;
+    saleDate: string;
+    originalTotal: number;
+    refundAmount: number;
+    items: Array<{ product_name: string; quantity: number; unit_price: number }>;
+  } | null>(null);
 
   const handleSearch = useCallback(async () => {
     if (!searchQuery.trim() || !companyId) return;
@@ -152,8 +161,34 @@ export function PDVReturnExchangeDialog({ open, onClose }: PDVReturnExchangeProp
       const rpcResult = result as { success: boolean; error?: string };
       if (!rpcResult.success) throw new Error(rpcResult.error || "Erro desconhecido");
 
+      // Complementary frontend log with session metadata (browser, screen, platform)
+      logAction({
+        companyId,
+        userId: user?.id || null,
+        action: "sale_return_session_meta",
+        module: "vendas",
+        details: `Devolução PDV - Venda #${foundSale.id.substring(0, 8)} - Estorno ${formatCurrency(totalRefund)}`,
+      });
+
+      // Save completed return data for receipt
+      const receiptItems = returnItems.map(ri => {
+        const orig = foundSale.items.find(i => i.product_id === ri.product_id);
+        return {
+          product_name: ri.product_name,
+          quantity: ri.quantity,
+          unit_price: orig?.unit_price || 0,
+        };
+      });
+
+      setCompletedReturn({
+        saleId: foundSale.id,
+        saleDate: foundSale.created_at,
+        originalTotal: foundSale.total,
+        refundAmount: totalRefund,
+        items: receiptItems,
+      });
+
       toast.success(`Devolução processada: ${formatCurrency(totalRefund)} devolvido`, { duration: 3000 });
-      onClose();
     } catch (err: any) {
       toast.error(`Erro ao processar devolução: ${err.message}`);
     }
@@ -257,6 +292,31 @@ export function PDVReturnExchangeDialog({ open, onClose }: PDVReturnExchangeProp
                     <RotateCcw className="w-4 h-4" />
                     {processing ? "Processando..." : "Processar Devolução"}
                   </button>
+                </div>
+              )}
+
+              {completedReturn && (
+                <div className="flex items-center justify-between pt-3 border-t border-border">
+                  <div>
+                    <p className="text-xs text-primary uppercase font-bold">✓ Devolução Concluída</p>
+                    <p className="text-lg font-bold text-foreground font-mono">{formatCurrency(completedReturn.refundAmount)}</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <ReturnReceipt
+                      saleId={completedReturn.saleId}
+                      saleDate={completedReturn.saleDate}
+                      originalTotal={completedReturn.originalTotal}
+                      refundAmount={completedReturn.refundAmount}
+                      items={completedReturn.items}
+                      onClose={onClose}
+                    />
+                    <button
+                      onClick={onClose}
+                      className="px-4 py-2 rounded-xl bg-primary text-primary-foreground font-semibold text-sm"
+                    >
+                      Fechar
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
