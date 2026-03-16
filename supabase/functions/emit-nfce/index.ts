@@ -984,15 +984,15 @@ Deno.serve(async (req) => {
     }
 
     // ─── EMIT NFC-e (default) ───
-    const { sale_id, config_id, form } = body;
+    const { sale_id, form } = body;
     let company_id = body.company_id;
+    let config_id = body.config_id;
 
     if (!sale_id || !form) {
       return jsonResponse({ error: "Dados incompletos (sale_id e form são obrigatórios)" }, 400);
     }
 
     // If config_id not provided, resolve it server-side
-    let config_id = body.config_id;
     if (!config_id) {
       console.log("[emit-nfce] config_id not provided, resolving server-side...");
       const resolvedCompanyId = company_id || body.company_id;
