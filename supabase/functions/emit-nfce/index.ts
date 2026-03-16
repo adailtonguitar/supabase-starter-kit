@@ -264,10 +264,24 @@ Deno.serve(async (req) => {
       return data?.is_demo === true;
     }
 
-    // Block demo accounts from fiscal operations
+    // Block demo accounts from fiscal operations (super_admin bypass)
     const demoCheckCompanyId = body.company_id || (jwtToken ? await getAuthUserId().then(uid => uid ? resolveCompanyFromUser(uid) : null) : null);
     if (demoCheckCompanyId && await isDemoCompany(demoCheckCompanyId)) {
-      return jsonResponse({ error: "Emissão fiscal não disponível em contas de demonstração. Assine um plano para utilizar este recurso." }, 403);
+      // Check if user is super_admin — bypass demo restriction
+      let isSuperAdmin = false;
+      const authUserId = await getAuthUserId();
+      if (authUserId) {
+        const { data: adminData } = await supabase
+          .from("admin_roles")
+          .select("role")
+          .eq("user_id", authUserId)
+          .eq("role", "super_admin")
+          .maybeSingle();
+        isSuperAdmin = !!adminData;
+      }
+      if (!isSuperAdmin) {
+        return jsonResponse({ error: "Emissão fiscal não disponível em contas de demonstração. Assine um plano para utilizar este recurso." }, 403);
+      }
     }
 
 
