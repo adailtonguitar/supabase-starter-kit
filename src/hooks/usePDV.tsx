@@ -534,8 +534,10 @@ export function usePDV() {
     }
 
     return {
-      nfceNumber: fiscalData.nfce_number || fiscalData.numero || "",
-      fiscalDocId: fiscalData.fiscal_doc_id || fiscalData.id,
+      nfceNumber: fiscalData.nfce_number || fiscalData.numero || fiscalData.number || "",
+      fiscalDocId: fiscalData.fiscal_doc_id || fiscalData.nuvem_fiscal_id || fiscalData.id,
+      accessKey: fiscalData.access_key || "",
+      serie: fiscalData.serie || "",
     };
   }, [companyId]);
 
