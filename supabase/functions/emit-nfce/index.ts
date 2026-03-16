@@ -335,25 +335,13 @@ Deno.serve(async (req) => {
       const certCnpjClean = certCompany.cnpj.replace(/\D/g, "");
       const certToken = await getNuvemFiscalToken();
 
-      // Upload via PUT /empresas/{cpf_cnpj}/certificado
-      const certUploadResp = await fetch(`${NUVEM_FISCAL_API}/empresas/${certCnpjClean}/certificado`, {
-        method: "PUT",
-        headers: {
-          Authorization: `Bearer ${certToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          certificado: certB64,
-          password: certPwd,
-        }),
-      });
+      // Upload via PUT /empresas/{cpf_cnpj}/certificado/upload (multipart form)
+      const certResult = await uploadCertToNuvemFiscal(certToken, certCnpjClean, certB64, certPwd);
 
-      if (!certUploadResp.ok) {
-        const certErrText = await certUploadResp.text();
-        console.error(`[emit-nfce] Certificate upload failed [${certUploadResp.status}]: ${certErrText}`);
+      if (!certResult.ok) {
         return jsonResponse({
           success: false,
-          error: `Falha ao enviar certificado para Nuvem Fiscal [${certUploadResp.status}]: ${certErrText}`,
+          error: certResult.error || "Falha ao enviar certificado para Nuvem Fiscal",
         });
       }
 
