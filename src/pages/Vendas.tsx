@@ -36,7 +36,7 @@ const paymentLabels: Record<string, string> = {
 };
 
 export default function Vendas() {
-  const { data: sales = [], isLoading, refetch } = useSales(100);
+  const { data: sales = [], isLoading, error, refetch } = useSales(100);
   const { config } = useTEFConfig();
   
   const [refundingSaleId, setRefundingSaleId] = useState<string | null>(null);
@@ -150,6 +150,16 @@ export default function Vendas() {
           {[...Array(4)].map((_, i) => (
             <Skeleton key={i} className="h-24 w-full rounded-xl" />
           ))}
+        </div>
+      ) : error ? (
+        <div className="flex flex-col items-center justify-center py-20 text-center">
+          <div className="w-14 h-14 rounded-2xl bg-destructive/10 flex items-center justify-center mb-4">
+            <FileText className="w-7 h-7 text-destructive" />
+          </div>
+          <p className="text-sm font-medium text-foreground">Erro ao carregar vendas</p>
+          <p className="text-xs text-muted-foreground mt-1 max-w-md">
+            {(error as Error).message || "A consulta de vendas falhou. Verifique as permissões e o schema da tabela sales."}
+          </p>
         </div>
       ) : sales.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center">

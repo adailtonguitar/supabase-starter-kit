@@ -31,30 +31,33 @@ export function useSales(limit = 50) {
     queryFn: async () => {
       if (!companyId) return [];
 
-      // Fetch sales
+      // Use * here because the sales schema has evolved and older explicit selects
+      // can fail when optional fields differ between environments.
       const { data: salesData, error } = await supabase
         .from("sales")
-        .select("id, sale_number, total, status, created_at, payments, client_name, access_key, company_id")
+        .select("*")
         .eq("company_id", companyId)
         .order("created_at", { ascending: false })
         .limit(limit);
+
       if (error) throw error;
       if (!salesData?.length) return [];
 
-      // Fetch sale_items for all sales in batches
-      const saleIds = salesData.map((s: any) => s.id);
+      const saleIds = salesData.map((s: any) => s.id).filter(Boolean);
       const BATCH = 20;
       let allItems: any[] = [];
+
       for (let i = 0; i < saleIds.length; i += BATCH) {
         const batch = saleIds.slice(i, i + BATCH);
-        const { data: items } = await supabase
+        const { data: items, error: itemsError } = await supabase
           .from("sale_items")
           .select("sale_id, product_id, product_name, quantity, unit_price, subtotal, discount_percent")
           .in("sale_id", batch);
+
+        if (itemsError) throw itemsError;
         if (items) allItems.push(...items);
       }
 
-      // Group items by sale_id
       const itemsBySale: Record<string, SaleItem[]> = {};
       allItems.forEach((item: any) => {
         if (!itemsBySale[item.sale_id]) itemsBySale[item.sale_id] = [];
@@ -70,13 +73,13 @@ export function useSales(limit = 50) {
 
       return salesData.map((row: any) => ({
         id: row.id,
-        number: row.sale_number,
-        payment_method: extractPaymentMethod(row.payments),
-        total_value: row.total ?? 0,
+        number: row.sale_number ?? row.number,
+        payment_method: row.payment_method || extractPaymentMethod(row.payments),
+        total_value: Number(row.total ?? row.total_value ?? 0),
         status: row.status || "completed",
         created_at: row.created_at,
         items: itemsBySale[row.id] || [],
-        customer_name: row.client_name,
+        customer_name: row.client_name ?? row.customer_name ?? row.counterpart,
         access_key: row.access_key,
         company_id: row.company_id,
       })) as Sale[];
