@@ -1736,9 +1736,15 @@ Deno.serve(async (req) => {
       });
     }
 
-    const accessKey = emitData.chave || emitData.chave_acesso || null;
-    const docNumber = emitData.numero || config.next_number || null;
-    const status = emitData.status === "autorizada" ? "autorizada" : emitData.status || "pendente";
+    const accessKey = emitData.chave || emitData.chave_acesso || emitData.access_key || null;
+    const docNumber = emitData.numero || emitData.number || config.next_number || null;
+
+    // Nuvem Fiscal pode retornar status como "autorizada", "aprovada", "autorizado", número 100, etc.
+    const rawStatus = (emitData.status || emitData.situacao || "").toString().toLowerCase().trim();
+    const sefazCode = emitData.codigo_status || emitData.status_sefaz?.cStat || emitData.cStat;
+    const isAuthorized = rawStatus.includes("autoriz") || rawStatus.includes("aprov") || String(sefazCode) === "100" || !!accessKey;
+    const status = isAuthorized ? "autorizada" : rawStatus || "pendente";
+    console.log("[emit-nfce] Raw status:", JSON.stringify({ rawStatus, sefazCode, accessKey: !!accessKey, isAuthorized, finalStatus: status }));
 
     await supabase.from("fiscal_documents").insert({
       company_id,
