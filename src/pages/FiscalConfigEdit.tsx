@@ -143,15 +143,24 @@ export default function FiscalConfigEdit() {
           csc_token: config.cscToken || null,
           is_active: config.isActive,
           certificate_type: certType,
-          certificate_path: certFile || null,
-          certificate_expires_at: certExpiry ? new Date(certExpiry).toISOString() : null,
-          certificate_uploaded: false,
-          a3_thumbprint: certType === "A3" ? a3SelectedThumbprint || null : null,
-          a3_subject_name: certType === "A3" ? (a3Certificates.find(c => c.thumbprint === a3SelectedThumbprint)?.subjectName || null) : null,
           sat_serial_number: config.docType === "sat" ? satSerial || null : null,
           sat_activation_code: config.docType === "sat" ? satActivation || null : null,
           updated_at: new Date().toISOString(),
         };
+        // Only update certificate fields when there's actual cert data — avoids clearing valid cert on re-save
+        if (certType === "A1" && certFile) {
+          record.certificate_path = certFile;
+          record.certificate_expires_at = certExpiry ? new Date(certExpiry).toISOString() : null;
+          record.certificate_uploaded = false; // will be set true after upload
+        } else if (certType === "A1" && !certFile && !config.id) {
+          // New config without cert — set nulls
+          record.certificate_path = null;
+          record.certificate_expires_at = null;
+        }
+        if (certType === "A3") {
+          record.a3_thumbprint = a3SelectedThumbprint || null;
+          record.a3_subject_name = a3Certificates.find(c => c.thumbprint === a3SelectedThumbprint)?.subjectName || null;
+        }
         if (config.id) {
           const { error } = await supabase.from("fiscal_configs").update(record as any).eq("id", config.id);
           if (error) throw error;
