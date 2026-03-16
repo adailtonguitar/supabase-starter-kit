@@ -1794,15 +1794,18 @@ Deno.serve(async (req) => {
       });
     }
 
-    const accessKey = emitData.chave || emitData.chave_acesso || emitData.access_key || null;
+    const normalizedAuth = normalizeFiscalAuthorization(emitData);
+    const accessKey = normalizedAuth.accessKey;
     const docNumber = emitData.numero || emitData.number || config.next_number || null;
-
-    // Nuvem Fiscal pode retornar status como "autorizada", "aprovada", "autorizado", número 100, etc.
-    const rawStatus = (emitData.status || emitData.situacao || "").toString().toLowerCase().trim();
-    const sefazCode = emitData.codigo_status || emitData.status_sefaz?.cStat || emitData.cStat;
-    const isAuthorized = rawStatus.includes("autoriz") || rawStatus.includes("aprov") || String(sefazCode) === "100" || !!accessKey;
-    const status = isAuthorized ? "autorizada" : rawStatus || "pendente";
-    console.log("[emit-nfce] Raw status:", JSON.stringify({ rawStatus, sefazCode, accessKey: !!accessKey, isAuthorized, finalStatus: status }));
+    const status = normalizedAuth.status;
+    console.log("[emit-nfce] Raw status:", JSON.stringify({
+      rawStatus: normalizedAuth.rawStatus,
+      sefazCode: normalizedAuth.sefazCode,
+      accessKey: !!accessKey,
+      protocolNumber: !!normalizedAuth.protocolNumber,
+      isAuthorized: normalizedAuth.isAuthorized,
+      finalStatus: status,
+    }));
 
     await supabase.from("fiscal_documents").insert({
       company_id,
@@ -1827,7 +1830,7 @@ Deno.serve(async (req) => {
 
     await supabase
       .from("sales")
-      .update({ status: "autorizada", access_key: accessKey, number: docNumber })
+      .update({ status, access_key: accessKey, number: docNumber })
       .eq("id", sale_id);
 
     await supabase
@@ -1840,6 +1843,8 @@ Deno.serve(async (req) => {
       access_key: accessKey,
       number: docNumber,
       status,
+      sefaz_code: normalizedAuth.sefazCode,
+      protocol_number: normalizedAuth.protocolNumber,
       nuvem_fiscal_id: emitData.id,
     });
   } catch (err: unknown) {
