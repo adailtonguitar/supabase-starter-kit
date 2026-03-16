@@ -350,45 +350,28 @@ export function usePDV() {
 
     console.log("[PDV Fiscal] processFiscalEmission called for saleId:", saleId, "companyId:", companyId);
 
-    // Try nfce first, then nfe as fallback (EmissorSettingsTab saves as "nfe")
-    let fiscalConfig: any = null;
-    let fcError: any = null;
-
-    const { data: nfceConfig, error: nfceErr } = await supabase
+    // Fetch ALL fiscal configs for the company (no doc_type or is_active filter)
+    const { data: allConfigs, error: fcError } = await supabase
       .from("fiscal_configs")
-      .select("id, crt, environment, certificate_path, a3_thumbprint, serie, next_number")
-      .eq("company_id", companyId)
-      .eq("doc_type", "nfce")
-      .eq("is_active", true)
-      .limit(1)
-      .maybeSingle();
+      .select("id, doc_type, is_active, crt, environment, certificate_path, a3_thumbprint, serie, next_number")
+      .eq("company_id", companyId);
 
-    if (nfceConfig) {
-      fiscalConfig = nfceConfig;
-      fcError = nfceErr;
-    } else {
-      // Fallback: use nfe config (from EmissorSettingsTab)
-      const { data: nfeConfig, error: nfeErr } = await supabase
-        .from("fiscal_configs")
-        .select("id, crt, environment, certificate_path, a3_thumbprint, serie, next_number")
-        .eq("company_id", companyId)
-        .eq("doc_type", "nfe")
-        .eq("is_active", true)
-        .limit(1)
-        .maybeSingle();
-      fiscalConfig = nfeConfig;
-      fcError = nfeErr;
-      if (nfeConfig) {
-        console.log("[PDV Fiscal] Using NF-e config as fallback for NFC-e");
-      }
-    }
+    console.log("[PDV Fiscal] All configs for company:", JSON.stringify(allConfigs), "error:", fcError?.message);
 
-    console.log("[PDV Fiscal] Config query result:", JSON.stringify({ fiscalConfig, fcError }));
+    // Pick best config: active nfce > active nfe > any nfce > any nfe > any config
+    const fiscalConfig = allConfigs?.find((c: any) => c.doc_type === "nfce" && c.is_active)
+      || allConfigs?.find((c: any) => c.doc_type === "nfe" && c.is_active)
+      || allConfigs?.find((c: any) => c.doc_type === "nfce")
+      || allConfigs?.find((c: any) => c.doc_type === "nfe")
+      || allConfigs?.[0]
+      || null;
 
     if (!fiscalConfig) {
-      console.error("[PDV Fiscal] No active fiscal config found for company:", companyId);
-      throw new Error("Nenhuma configuração fiscal ativa. Vá em Fiscal > Config. Fiscal e ative a NFC-e.");
+      console.error("[PDV Fiscal] No fiscal config found at all for company:", companyId);
+      throw new Error("Nenhuma configuração fiscal encontrada. Vá em Fiscal > Config. Fiscal e configure a NFC-e.");
     }
+    
+    console.log("[PDV Fiscal] Selected config:", JSON.stringify(fiscalConfig));
 
     const isHomologacao = (fiscalConfig as any).environment === "homologacao";
     const hasCert = !!((fiscalConfig as any).certificate_path || (fiscalConfig as any).a3_thumbprint);
