@@ -154,8 +154,17 @@ export default function FiscalConfig() {
                 <div className="space-y-1">
                   <p className="text-xs text-muted-foreground">Status</p>
                   <div className="flex items-center gap-1.5">
-                    <CheckCircle className="w-3.5 h-3.5 text-success" />
-                    <span className="text-sm font-medium text-success">Configurado</span>
+                    {configSummary.hasCert ? (
+                      <>
+                        <CheckCircle className="w-3.5 h-3.5 text-success" />
+                        <span className="text-sm font-medium text-success">Configurado</span>
+                      </>
+                    ) : (
+                      <>
+                        <AlertTriangle className="w-3.5 h-3.5 text-warning" />
+                        <span className="text-sm font-medium text-warning">Sem certificado</span>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
