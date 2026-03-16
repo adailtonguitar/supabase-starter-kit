@@ -623,7 +623,9 @@ export function usePDV() {
       if (!options?.skipFiscal) {
         // Check simulation mode directly here
         try {
-          const { data: simConfig } = await supabase
+          // Try nfce first, then nfe as fallback
+          let simConfig: any = null;
+          const { data: nfceSimConfig } = await supabase
             .from("fiscal_configs")
             .select("id, environment, certificate_path, a3_thumbprint, next_number, serie")
             .eq("company_id", companyId)
@@ -631,6 +633,20 @@ export function usePDV() {
             .eq("is_active", true)
             .limit(1)
             .maybeSingle();
+          
+          if (nfceSimConfig) {
+            simConfig = nfceSimConfig;
+          } else {
+            const { data: nfeSimConfig } = await supabase
+              .from("fiscal_configs")
+              .select("id, environment, certificate_path, a3_thumbprint, next_number, serie")
+              .eq("company_id", companyId)
+              .eq("doc_type", "nfe")
+              .eq("is_active", true)
+              .limit(1)
+              .maybeSingle();
+            simConfig = nfeSimConfig;
+          }
 
           console.log("[PDV finalizeSale] simConfig:", simConfig);
 
