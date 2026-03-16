@@ -301,11 +301,19 @@ export default function FiscalConfigEdit() {
                           }
                           setCertFile(file.name);
 
+                          // Store base64 for server-side upload to Nuvem Fiscal
+                          const uint8 = new Uint8Array(arrayBuffer);
+                          let binaryStr = "";
+                          for (let i = 0; i < uint8.length; i++) {
+                            binaryStr += String.fromCharCode(uint8[i]);
+                          }
+                          setCertBase64(btoa(binaryStr));
+
                           // Store in IndexedDB for offline contingency signing
                           if (companyId) {
                             const storeResult = await storeCertificateA1(arrayBuffer, certPassword, companyId);
                             if (storeResult.success) {
-                              toast.success(`Certificado A1 validado e armazenado para contingência offline! (${storeResult.subject})`);
+                              toast.success(`Certificado A1 validado e armazenado! (${storeResult.subject})`);
                             } else {
                               toast.success("Certificado A1 validado!");
                               toast.warning(`Aviso: não foi possível armazenar para contingência: ${storeResult.error}`);
