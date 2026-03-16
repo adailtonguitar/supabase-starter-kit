@@ -200,14 +200,50 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
     printWindow.document.close();
   }, [items, total, payments, changeAmount, companyName, companyCnpj, companyIe, companyPhone, companyAddress, logoUrl, saleId, slogan]);
 
-  const handlePrintFiscal = useCallback(() => {
-    if (!nfceNumber) {
-      toast.info("NFC-e não disponível para esta venda.", { duration: 3000 });
+  const handlePrintFiscal = useCallback(async () => {
+    let currentNfceNumber = nfceNumber;
+    let currentAccessKey = accessKey;
+    let currentSerie = serie;
+
+    // If no NFC-e number yet, try to fetch from DB (may have been processed async)
+    if (!currentNfceNumber && saleId) {
+      setFetchingFiscal(true);
+      try {
+        const { data: fiscalDoc } = await supabase
+          .from("fiscal_documents")
+          .select("number, access_key, serie, status")
+          .eq("sale_id", saleId)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (fiscalDoc && (fiscalDoc as any).number) {
+          const doc = fiscalDoc as any;
+          const num = String(doc.number);
+          const isSimulated = doc.status === "simulado";
+          currentNfceNumber = isSimulated ? `SIM-${num}` : num;
+          currentAccessKey = doc.access_key || undefined;
+          currentSerie = doc.serie || undefined;
+          // Update local state so next click works immediately
+          setNfceNumber(currentNfceNumber);
+          setAccessKey(currentAccessKey);
+          setSerie(currentSerie);
+          toast.success("NFC-e encontrada!", { duration: 2000 });
+        }
+      } catch (err) {
+        console.warn("[SaleReceipt] Failed to fetch fiscal doc:", err);
+      } finally {
+        setFetchingFiscal(false);
+      }
+    }
+
+    if (!currentNfceNumber) {
+      toast.info("NFC-e ainda não disponível para esta venda. Aguarde o processamento ou emita manualmente em Vendas.", { duration: 5000 });
       return;
     }
 
     // Detect simulation/homologação from prefix or prop
-    const isSimulation = nfceNumber.startsWith("SIM-") || nfceNumber.startsWith("TESTE-") || nfceNumber.startsWith("DEMO-");
+    const isSimulation = currentNfceNumber.startsWith("SIM-") || currentNfceNumber.startsWith("TESTE-") || currentNfceNumber.startsWith("DEMO-");
     const isHomolog = isHomologacao ?? isSimulation;
 
     // Clean number: remove prefixes for display
