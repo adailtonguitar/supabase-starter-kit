@@ -1254,6 +1254,38 @@ Deno.serve(async (req) => {
       }, 404);
     }
 
+    // ── Auto-upload certificate to Nuvem Fiscal if not yet uploaded ──
+    if (config.certificate_base64 && config.certificate_password_hash && !config.certificate_uploaded) {
+      try {
+        console.log("[emit-nfce] Auto-uploading certificate to Nuvem Fiscal...");
+        const autoToken = await getNuvemFiscalToken();
+        const autoCnpj = company.cnpj.replace(/\D/g, "");
+        const autoUploadResp = await fetch(`${NUVEM_FISCAL_API}/empresas/${autoCnpj}/certificado`, {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${autoToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            certificado: config.certificate_base64,
+            password: config.certificate_password_hash,
+          }),
+        });
+        if (autoUploadResp.ok) {
+          await supabase
+            .from("fiscal_configs")
+            .update({ certificate_uploaded: true } as any)
+            .eq("id", config.id);
+          console.log("[emit-nfce] Certificate auto-uploaded successfully");
+        } else {
+          const autoErrText = await autoUploadResp.text();
+          console.warn(`[emit-nfce] Auto-upload certificate failed [${autoUploadResp.status}]: ${autoErrText}`);
+        }
+      } catch (autoErr: any) {
+        console.warn("[emit-nfce] Auto-upload certificate error:", autoErr.message);
+      }
+    }
+
     // ── Validate items before building payload ──
     const formItems = form.items || [];
     const crt = form.crt || config.crt || 1;
