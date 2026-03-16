@@ -1583,6 +1583,13 @@ Deno.serve(async (req) => {
         rejection_code: rejCode ? String(rejCode) : null,
         rejection_reason: rejMsg || null,
         details: emitData,
+        _cert_diag: {
+          has_base64: !!config.certificate_base64,
+          base64_length: config.certificate_base64?.length || 0,
+          has_password: !!config.certificate_password_hash,
+          uploaded_flag: config.certificate_uploaded,
+          config_id: config.id,
+        },
       });
     }
 
