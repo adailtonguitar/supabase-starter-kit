@@ -782,7 +782,7 @@ export function usePDV() {
           try {
             const { data: configs } = await supabase
               .from("fiscal_configs")
-              .select("id, serie, environment, crt")
+              .select("id, serie, environment")
               .eq("company_id", companyId)
               .eq("doc_type", "nfce")
               .eq("is_active", true)
