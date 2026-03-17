@@ -723,7 +723,6 @@ Deno.serve(async (req) => {
         let passwordValid = false;
 
         if (isBcrypt) {
-          // 🔒 Bcrypt verification (secure)
           passwordValid = await bcrypt.compare(certPwd, storedHash);
         } else {
           // Legacy plain-text: constant-time comparison
@@ -736,6 +735,21 @@ Deno.serve(async (req) => {
               diff |= a[i] ^ b[i];
             }
             passwordValid = diff === 0;
+          }
+
+          // 🔄 Auto-migrate: rehash legacy plain-text to bcrypt on successful verification
+          if (passwordValid) {
+            try {
+              const migratedHash = await bcrypt.hash(certPwd);
+              await supabase
+                .from("fiscal_configs")
+                .update({ certificate_password_hash: migratedHash } as any)
+                .eq("company_id", certCompanyId)
+                .eq("certificate_type", "A1");
+              console.log(`[emit-nfce] ✅ Legacy password auto-migrated to bcrypt for company ${certCompanyId}`);
+            } catch (migErr) {
+              console.warn("[emit-nfce] Auto-migration to bcrypt failed (non-blocking):", migErr);
+            }
           }
         }
 
