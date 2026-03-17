@@ -475,9 +475,19 @@ function calculateIcmsForItem(item: any, uf: string, crt: number) {
     if (["101", "102", "103", "300", "400", "500"].includes(cstCode)) {
       return { csosn: cstCode, origem: item.origem || "0" };
     }
-    // CSOSN 201/202/203 = with ST
+    // 🟠 CORREÇÃO #7: CSOSN 201/202/203 = with ST — include FCP-ST calculation
     if (["201", "202", "203"].includes(cstCode)) {
-      return { csosn: cstCode, origem: item.origem || "0" };
+      const baseCalc = (item.qty || 1) * (item.unit_price || 0) - (item.discount || 0);
+      const fcpSt = computeFcp(baseCalc, uf, item.fcp_aliquota);
+      return {
+        csosn: cstCode,
+        origem: item.origem || "0",
+        ...(fcpSt ? {
+          percentual_fcp_st: fcpSt.percentual_fcp,
+          valor_fcp_st: fcpSt.valor_fcp,
+          valor_base_calculo_fcp_st: fcpSt.valor_base_calculo_fcp,
+        } : {}),
+      };
     }
     // CSOSN 900 = Outros - may need aliquota + FCP
     if (cstCode === "900") {
