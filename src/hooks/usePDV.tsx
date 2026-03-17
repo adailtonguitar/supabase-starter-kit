@@ -552,13 +552,17 @@ export function usePDV() {
 
     const fiscalStatus = fiscalData.status || "pendente";
 
-    // Só conclui a fila quando houver autorização real.
+    // Se ainda não autorizou, mantém na fila para reprocessamento automático.
     if (queueId) {
       await supabase.from("fiscal_queue")
         .update(
           fiscalStatus === "autorizada"
             ? { status: "done", processed_at: new Date().toISOString(), last_error: null }
-            : { status: "error", last_error: "Documento enviado ao provedor, mas ainda sem autorização real da SEFAZ." } as any
+            : {
+                status: "pending",
+                processed_at: null,
+                last_error: "Documento enviado ao provedor e aguardando autorização da SEFAZ.",
+              } as any
         )
         .eq("id", queueId);
     }

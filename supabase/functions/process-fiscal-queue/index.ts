@@ -198,10 +198,10 @@ Deno.serve(async (req) => {
 
     const fiscalStatus = fiscalData?.status || "pendente";
     if (fiscalStatus !== "autorizada") {
-      const pendingMsg = fiscalData?.error || "NFC-e enviada, mas ainda não autorizada";
+      const pendingMsg = fiscalData?.error || "NFC-e enviada e aguardando autorização";
       await Promise.all([
         supabase.from("fiscal_queue")
-          .update({ status: "error", last_error: pendingMsg })
+          .update({ status: "pending", last_error: pendingMsg, processed_at: null })
           .eq("id", queueId),
         supabase.from("sales")
           .update({ status: "pendente_fiscal" })
@@ -209,7 +209,7 @@ Deno.serve(async (req) => {
           .eq("company_id", companyId),
       ]);
       return new Response(
-        JSON.stringify({ success: false, error: pendingMsg, sale_id: saleId }),
+        JSON.stringify({ success: true, pending: true, message: pendingMsg, sale_id: saleId }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
