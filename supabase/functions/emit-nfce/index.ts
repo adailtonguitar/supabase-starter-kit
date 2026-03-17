@@ -13,9 +13,14 @@ const NUVEM_FISCAL_API = NUVEM_FISCAL_SANDBOX_MODE
 const NUVEM_FISCAL_AUTH = "https://auth.nuvemfiscal.com.br";
 
 async function getNuvemFiscalToken(): Promise<string> {
-  const clientId = Deno.env.get("NUVEM_FISCAL_CLIENT_ID");
-  const clientSecret = Deno.env.get("NUVEM_FISCAL_CLIENT_SECRET");
+  const clientId = NUVEM_FISCAL_SANDBOX_MODE
+    ? (Deno.env.get("NUVEM_FISCAL_SANDBOX_CLIENT_ID") || Deno.env.get("NUVEM_FISCAL_CLIENT_ID"))
+    : Deno.env.get("NUVEM_FISCAL_CLIENT_ID");
+  const clientSecret = NUVEM_FISCAL_SANDBOX_MODE
+    ? (Deno.env.get("NUVEM_FISCAL_SANDBOX_CLIENT_SECRET") || Deno.env.get("NUVEM_FISCAL_CLIENT_SECRET"))
+    : Deno.env.get("NUVEM_FISCAL_CLIENT_SECRET");
   if (!clientId || !clientSecret) throw new Error("Credenciais Nuvem Fiscal não configuradas");
+  console.log(`[NuvemFiscal] Modo: ${NUVEM_FISCAL_SANDBOX_MODE ? "SANDBOX" : "PRODUÇÃO"}, API: ${NUVEM_FISCAL_API}`);
 
   const resp = await fetch(`${NUVEM_FISCAL_AUTH}/oauth/token`, {
     method: "POST",
