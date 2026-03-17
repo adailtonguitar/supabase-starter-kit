@@ -166,7 +166,7 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
 
     let parsedItems: any[] = [];
     try {
-      const raw = sale.items_json;
+      const raw = (sale as any).items_json || (sale as any).items;
       if (Array.isArray(raw)) parsedItems = raw;
       else if (raw?.items) parsedItems = raw.items;
       else if (typeof raw === "string") {
