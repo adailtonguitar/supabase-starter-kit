@@ -685,6 +685,20 @@ Deno.serve(async (req) => {
         });
       }
 
+      // 🔒 Hash the password with bcrypt and store in DB (never plain-text)
+      try {
+        const hashedPassword = await bcrypt.hash(certPwd);
+        await supabase
+          .from("fiscal_configs")
+          .update({ certificate_password_hash: hashedPassword } as any)
+          .eq("company_id", certCompanyId)
+          .eq("certificate_type", "A1");
+        console.log(`[emit-nfce] Certificate password hashed and stored for company ${certCompanyId}`);
+      } catch (hashErr) {
+        console.error("[emit-nfce] Failed to hash certificate password:", hashErr);
+        // Non-blocking: cert was uploaded successfully, hash storage is best-effort
+      }
+
       console.log(`[emit-nfce] Certificate uploaded successfully for CNPJ ${certCnpjClean}`);
       return jsonResponse({ success: true, message: "Certificado digital enviado para a Nuvem Fiscal com sucesso." });
     }
