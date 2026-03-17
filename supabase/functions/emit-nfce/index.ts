@@ -1531,8 +1531,12 @@ Deno.serve(async (req) => {
 
           console.log(`[emit-nfce] Company ${cnpjClean} registration response [${regResp.status}]: ${regText}`);
         }
-      } catch (regError) {
-        console.warn("[emit-nfce] Auto-registration failed:", regError);
+      } catch (regError: any) {
+        console.error("[emit-nfce] Auto-registration FAILED:", regError?.message || regError);
+        return jsonResponse({
+          success: false,
+          error: `Falha ao registrar empresa na Nuvem Fiscal: ${regError?.message || "Erro desconhecido"}. Verifique se as credenciais do Sandbox estão corretas.`,
+        }, 400);
       }
     }
 
