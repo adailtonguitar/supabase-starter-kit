@@ -1782,13 +1782,14 @@ Deno.serve(async (req) => {
       }, 404);
     }
 
-    // ── Auto-upload certificate to Nuvem Fiscal using request payload fallback first ──
+    // ── Auto-upload certificate to Nuvem Fiscal using request payload ──
+    // 🔒 SEGURANÇA: Nunca usar certificate_password_hash do DB como senha da API
+    // O hash bcrypt não é reversível. A senha real vem sempre do frontend (IndexedDB).
     const requestCertBase64 = body.certificate_base64 || null;
     const requestCertPassword = body.certificate_password || null;
     const configCertBase64 = config.certificate_base64 || null;
-    const configCertPassword = config.certificate_password_hash || null;
     const effectiveCertBase64 = requestCertBase64 || configCertBase64;
-    const effectiveCertPassword = requestCertPassword || configCertPassword;
+    const effectiveCertPassword = requestCertPassword; // Somente do request, nunca do DB
     const hasCertData = !!effectiveCertBase64;
     const hasCertPwd = !!effectiveCertPassword;
     console.log(`[emit-nfce] Certificate check: has_base64=${hasCertData}, has_password=${hasCertPwd}, config_id=${config.id}, source=${requestCertBase64 ? "request" : configCertBase64 ? "config" : "none"}`);
