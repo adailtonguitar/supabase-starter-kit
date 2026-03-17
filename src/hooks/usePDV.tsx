@@ -551,7 +551,26 @@ export function usePDV() {
       throw new Error(errorMsg);
     }
 
-    const fiscalStatus = fiscalData.status || "pendente";
+    let fiscalStatus = fiscalData.status || "pendente";
+    let resolvedNumber = fiscalData.nfce_number || fiscalData.numero || fiscalData.number || "";
+
+    if (fiscalStatus !== "autorizada" && fiscalData.access_key) {
+      try {
+        await new Promise((resolve) => setTimeout(resolve, 3000));
+        const consulted = await FiscalEmissionService.consultStatus({
+          accessKey: fiscalData.access_key,
+          docType: "nfce",
+          companyId,
+        });
+
+        if ((consulted as any)?.success && (consulted as any)?.status === "autorizada") {
+          fiscalStatus = "autorizada";
+          resolvedNumber = (consulted as any)?.number || resolvedNumber;
+        }
+      } catch (consultErr) {
+        console.warn("[PDV Fiscal] Immediate consult after pending status failed:", consultErr);
+      }
+    }
 
     // Se ainda não autorizou, mantém na fila para reprocessamento automático.
     if (queueId) {
@@ -569,7 +588,7 @@ export function usePDV() {
     }
 
     return {
-      nfceNumber: fiscalData.nfce_number || fiscalData.numero || fiscalData.number || "",
+      nfceNumber: resolvedNumber,
       fiscalDocId: fiscalData.fiscal_doc_id || fiscalData.nuvem_fiscal_id || fiscalData.id,
       accessKey: fiscalData.access_key || "",
       serie: fiscalData.serie || "",
