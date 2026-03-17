@@ -723,7 +723,6 @@ Deno.serve(async (req) => {
         let passwordValid = false;
 
         if (isBcrypt) {
-          // 🔒 Bcrypt verification (secure)
           passwordValid = await bcrypt.compare(certPwd, storedHash);
         } else {
           // Legacy plain-text: constant-time comparison
@@ -736,6 +735,21 @@ Deno.serve(async (req) => {
               diff |= a[i] ^ b[i];
             }
             passwordValid = diff === 0;
+          }
+
+          // 🔄 Auto-migrate: rehash legacy plain-text to bcrypt on successful verification
+          if (passwordValid) {
+            try {
+              const migratedHash = await bcrypt.hash(certPwd);
+              await supabase
+                .from("fiscal_configs")
+                .update({ certificate_password_hash: migratedHash } as any)
+                .eq("company_id", certCompanyId)
+                .eq("certificate_type", "A1");
+              console.log(`[emit-nfce] ✅ Legacy password auto-migrated to bcrypt for company ${certCompanyId}`);
+            } catch (migErr) {
+              console.warn("[emit-nfce] Auto-migration to bcrypt failed (non-blocking):", migErr);
+            }
           }
         }
 
@@ -1793,6 +1807,20 @@ Deno.serve(async (req) => {
     const hasCertData = !!effectiveCertBase64;
     const hasCertPwd = !!effectiveCertPassword;
     console.log(`[emit-nfce] Certificate check: has_base64=${hasCertData}, has_password=${hasCertPwd}, config_id=${config.id}, source=${requestCertBase64 ? "request" : configCertBase64 ? "config" : "none"}`);
+
+    // 🔄 Auto-migrate: if password is sent and DB still has legacy plain-text, upgrade to bcrypt
+    if (requestCertPassword && config.certificate_password_hash && !config.certificate_password_hash.startsWith("$2")) {
+      try {
+        const migratedHash = await bcrypt.hash(requestCertPassword);
+        await supabase
+          .from("fiscal_configs")
+          .update({ certificate_password_hash: migratedHash } as any)
+          .eq("id", config.id);
+        console.log(`[emit-nfce] ✅ Legacy password auto-migrated to bcrypt during emission for config ${config.id}`);
+      } catch (migErr) {
+        console.warn("[emit-nfce] Auto-migration during emission failed (non-blocking):", migErr);
+      }
+    }
 
     if (hasCertData && hasCertPwd) {
       try {
