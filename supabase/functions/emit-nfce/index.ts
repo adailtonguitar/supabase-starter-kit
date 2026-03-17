@@ -49,6 +49,39 @@ function jsonResponse(body: object, status = 200) {
   });
 }
 
+function sanitizeFiscalText(value: unknown, fallback = "") {
+  return String(value ?? fallback)
+    .normalize("NFD")
+    .replace(/[\u0000-\u001F\u007F]/g, " ")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+async function checkCompanyOnNuvemFiscal(token: string, cpfCnpj: string): Promise<{ exists: boolean; status: number | null; details?: any }> {
+  const resp = await fetch(`${NUVEM_FISCAL_API}/empresas/${cpfCnpj}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  const rawText = await resp.text();
+  let details: any = null;
+  try {
+    details = rawText ? JSON.parse(rawText) : null;
+  } catch {
+    details = rawText || null;
+  }
+
+  if (resp.ok) {
+    return { exists: true, status: resp.status, details };
+  }
+
+  if (resp.status === 404) {
+    return { exists: false, status: resp.status, details };
+  }
+
+  return { exists: false, status: resp.status, details };
+}
+
 function normalizeFiscalAuthorization(payload: any) {
   const rawStatus = (
     payload?.status ||
