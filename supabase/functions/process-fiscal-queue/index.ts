@@ -91,10 +91,10 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 5️⃣ Buscar dados da venda e itens
+    // 5️⃣ Buscar dados da venda e itens (incluindo dados fiscais do produto)
     const [{ data: sale }, { data: items }, { data: company }] = await Promise.all([
       supabase.from("sales").select("*").eq("id", saleId).single(),
-      supabase.from("sale_items").select("*").eq("sale_id", saleId),
+      supabase.from("sale_items").select("*, products(ncm, cfop, csosn, cst_icms, cst_pis, cst_cofins, aliq_icms, origem, mva)").eq("sale_id", saleId),
       supabase.from("companies").select("crt").eq("id", companyId).maybeSingle(),
     ]);
 
@@ -164,26 +164,51 @@ Deno.serve(async (req) => {
     }
 
     const crt = (company as any)?.crt || 1;
-    const defaultCst = crt === 1 || crt === 2 ? "102" : "00";
+    const isSimples = crt === 1 || crt === 2;
+    const defaultCst = isSimples ? "102" : "00";
+    const defaultPisCofins = isSimples ? "49" : "01"; // 🟠 CORREÇÃO #5: PIS/COFINS por regime
     const payments = (sale.payments as any[]) || [];
     const paymentMethodMap: Record<string, string> = {
       dinheiro: "01", credito: "03", debito: "04", pix: "17", voucher: "05",
     };
 
-    const fiscalItems = items.map((item: any) => ({
-      product_id: item.product_id,
-      name: item.product_name || item.name,
-      ncm: item.ncm || "",
-      cfop: "5102",
-      cst: defaultCst,
-      origem: "0",
-      unit: item.unit || "UN",
-      qty: item.quantity,
-      unit_price: item.unit_price,
-      discount: ((item.discount_percent || 0) / 100) * item.unit_price * item.quantity,
-      pis_cst: "49",
-      cofins_cst: "49",
-    }));
+    // 🔴 CRÍTICO: Verificar NCM de todos os itens antes de emitir
+    const itemsWithoutNcm = items.filter((item: any) => {
+      const ncm = (item.products?.ncm || item.ncm || "").replace(/\D/g, "");
+      return !ncm || ncm.length < 2 || ncm === "00000000";
+    });
+    if (itemsWithoutNcm.length > 0) {
+      const names = itemsWithoutNcm.map((i: any) => i.product_name || i.name).join(", ");
+      const errMsg = `Produto(s) sem NCM válido: ${names}. Cadastre o NCM antes de emitir NFC-e.`;
+      await supabase.from("fiscal_queue")
+        .update({ status: "error", last_error: errMsg })
+        .eq("id", queueId);
+      return new Response(
+        JSON.stringify({ success: false, error: errMsg, sale_id: saleId }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const fiscalItems = items.map((item: any) => {
+      const product = item.products || {};
+      const discountValue = ((item.discount_percent || 0) / 100) * item.unit_price * item.quantity;
+      return {
+        product_id: item.product_id,
+        name: item.product_name || item.name,
+        ncm: product.ncm || item.ncm || "",
+        cfop: product.cfop || "5102", // 🟠 CORREÇÃO #4: CFOP dinâmico do produto
+        cst: (isSimples ? product.csosn : product.cst_icms) || defaultCst,
+        origem: product.origem || "0",
+        unit: item.unit || "UN",
+        qty: item.quantity,
+        unit_price: item.unit_price,
+        discount: Math.round(discountValue * 100) / 100, // 🔴 CORREÇÃO #3: sempre valor absoluto
+        pis_cst: product.cst_pis || defaultPisCofins,
+        cofins_cst: product.cst_cofins || defaultPisCofins,
+        icms_aliquota: product.aliq_icms || 0,
+        mva: product.mva || undefined,
+      };
+    });
 
     // 6️⃣ Chamar emissão fiscal
     const { data: fiscalData, error: fiscalErr } = await supabase.functions.invoke(
