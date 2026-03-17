@@ -1467,28 +1467,19 @@ Deno.serve(async (req) => {
     if (cnpjClean.length >= 11) {
       try {
         const regToken = await getNuvemFiscalToken();
-        let alreadyRegistered = false;
+        const checkBefore = await checkCompanyOnNuvemFiscal(regToken, cnpjClean);
+        let alreadyRegistered = checkBefore.exists;
 
-        const checkResp = await fetch(`${NUVEM_FISCAL_API}/empresas?cpf_cnpj=${cnpjClean}`, {
-          headers: { Authorization: `Bearer ${regToken}` },
-        });
-
-        if (checkResp.ok) {
-          const checkData = await checkResp.json();
-          const foundCompanies = Array.isArray(checkData?.data)
-            ? checkData.data
-            : Array.isArray(checkData)
-              ? checkData
-              : checkData
-                ? [checkData]
-                : [];
-
-          alreadyRegistered = foundCompanies.some((item: any) => String(item?.cpf_cnpj || "") === cnpjClean);
-          console.log(`[emit-nfce] Company lookup for ${cnpjClean}: found=${alreadyRegistered}`);
-        } else {
-          const checkErrorText = await checkResp.text();
-          console.warn(`[emit-nfce] Failed to check company in Nuvem Fiscal [${checkResp.status}]: ${checkErrorText}`);
+        if (!alreadyRegistered && checkBefore.status && checkBefore.status !== 404) {
+          console.error(`[emit-nfce] Failed to verify company ${cnpjClean} before registration [${checkBefore.status}]:`, checkBefore.details);
+          return jsonResponse({
+            success: false,
+            error: `Não foi possível verificar a empresa na Nuvem Fiscal [${checkBefore.status}]. Verifique se as credenciais do projeto pertencem à mesma conta do painel e se a API tem permissão para consultar/cadastrar empresas.`,
+            details: checkBefore.details,
+          }, 400);
         }
+
+        console.log(`[emit-nfce] Company lookup for ${cnpjClean}: found=${alreadyRegistered}`);
 
         if (!alreadyRegistered) {
           console.log(`[emit-nfce] CNPJ ${cnpjClean} not registered in Nuvem Fiscal. Auto-registering...`);
@@ -1544,17 +1535,17 @@ Deno.serve(async (req) => {
 
           const regBody: Record<string, any> = {
             cpf_cnpj: cnpjClean,
-            nome_razao_social: company.razao_social || company.name || "Empresa",
-            nome_fantasia: company.trade_name || company.nome_fantasia || company.name || "",
+            nome_razao_social: sanitizeFiscalText(company.razao_social || company.name || "Empresa", "Empresa"),
+            nome_fantasia: sanitizeFiscalText(company.trade_name || company.nome_fantasia || company.name || "Empresa", "Empresa"),
             inscricao_estadual: (company.ie || "").replace(/\D/g, "") || "ISENTO",
-            email: company.email || "",
+            email: sanitizeFiscalText(company.email || ""),
             fone: (company.phone || "").replace(/\D/g, "") || "",
             endereco: {
-              logradouro: company.address_street || "",
-              numero: company.address_number || "S/N",
-              bairro: company.address_neighborhood || "",
+              logradouro: sanitizeFiscalText(company.address_street || "", "SEM LOGRADOURO"),
+              numero: sanitizeFiscalText(company.address_number || "S/N", "S/N"),
+              bairro: sanitizeFiscalText(company.address_neighborhood || "", "CENTRO"),
               codigo_municipio: regCodigoMunicipio,
-              cidade: company.address_city || "",
+              cidade: sanitizeFiscalText(company.address_city || "", "CIDADE"),
               uf: (company.address_state || "SP").toUpperCase(),
               codigo_pais: "1058",
               pais: "Brasil",
@@ -1563,7 +1554,7 @@ Deno.serve(async (req) => {
           };
 
           if (company.address_complement) {
-            regBody.endereco.complemento = company.address_complement;
+            regBody.endereco.complemento = sanitizeFiscalText(company.address_complement);
           }
 
           const regResp = await fetch(`${NUVEM_FISCAL_API}/empresas`, {
@@ -1585,6 +1576,17 @@ Deno.serve(async (req) => {
           }
 
           console.log(`[emit-nfce] Company ${cnpjClean} registration response [${regResp.status}]: ${regText}`);
+
+          const checkAfter = await checkCompanyOnNuvemFiscal(regToken, cnpjClean);
+          alreadyRegistered = checkAfter.exists;
+          if (!alreadyRegistered) {
+            console.error(`[emit-nfce] Company ${cnpjClean} still not visible after registration [${checkAfter.status}]:`, checkAfter.details);
+            return jsonResponse({
+              success: false,
+              error: "A empresa não apareceu na conta da Nuvem Fiscal após o cadastro. Verifique se as credenciais salvas no projeto pertencem à mesma conta exibida no painel e se essa conta possui permissão de cadastro via API.",
+              details: checkAfter.details,
+            }, 400);
+          }
         }
       } catch (regError: any) {
         console.error("[emit-nfce] Auto-registration FAILED:", regError?.message || regError);
