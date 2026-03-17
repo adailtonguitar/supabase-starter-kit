@@ -2114,6 +2114,7 @@ Deno.serve(async (req) => {
         form,
         xmlContent: emitData.xml || null,
         nuvemFiscalId: finalNuvemFiscalId,
+        protocolNumber: finalAuth.protocolNumber,
       });
     } catch (persistErr: any) {
       console.error("[emit-nfce] Emission persisted remotely but failed locally:", persistErr);
