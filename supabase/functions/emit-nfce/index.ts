@@ -6,7 +6,10 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const NUVEM_FISCAL_API = "https://api.nuvemfiscal.com.br";
+const NUVEM_FISCAL_SANDBOX_MODE = Deno.env.get("NUVEM_FISCAL_SANDBOX") === "true";
+const NUVEM_FISCAL_API = NUVEM_FISCAL_SANDBOX_MODE
+  ? "https://api.sandbox.nuvemfiscal.com.br"
+  : "https://api.nuvemfiscal.com.br";
 const NUVEM_FISCAL_AUTH = "https://auth.nuvemfiscal.com.br";
 
 async function getNuvemFiscalToken(): Promise<string> {
