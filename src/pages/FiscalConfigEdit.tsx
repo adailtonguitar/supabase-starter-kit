@@ -187,7 +187,8 @@ export default function FiscalConfigEdit() {
         if (certType === "A1" && !certMarkedForRemoval) {
           record.certificate_path = certFile || null;
           record.certificate_expires_at = certFile && certExpiry ? new Date(certExpiry).toISOString() : null;
-          record.certificate_password_hash = certFile ? (certPassword || null) : null;
+          // 🔒 Senha não é mais gravada no DB pelo frontend — o backend hasheia via bcrypt no upload_certificate
+          record.certificate_password_hash = null;
         }
 
         if (certType === "A3") {

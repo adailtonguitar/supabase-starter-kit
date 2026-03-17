@@ -1,4 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2.49.1";
+import * as bcrypt from "https://deno.land/x/bcrypt@v0.4.1/mod.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -684,6 +685,20 @@ Deno.serve(async (req) => {
         });
       }
 
+      // 🔒 Hash the password with bcrypt and store in DB (never plain-text)
+      try {
+        const hashedPassword = await bcrypt.hash(certPwd);
+        await supabase
+          .from("fiscal_configs")
+          .update({ certificate_password_hash: hashedPassword } as any)
+          .eq("company_id", certCompanyId)
+          .eq("certificate_type", "A1");
+        console.log(`[emit-nfce] Certificate password hashed and stored for company ${certCompanyId}`);
+      } catch (hashErr) {
+        console.error("[emit-nfce] Failed to hash certificate password:", hashErr);
+        // Non-blocking: cert was uploaded successfully, hash storage is best-effort
+      }
+
       console.log(`[emit-nfce] Certificate uploaded successfully for CNPJ ${certCnpjClean}`);
       return jsonResponse({ success: true, message: "Certificado digital enviado para a Nuvem Fiscal com sucesso." });
     }
@@ -703,27 +718,19 @@ Deno.serve(async (req) => {
         .maybeSingle();
 
       if (certConfig?.certificate_password_hash) {
-        // 🔴 SEGURANÇA: Comparação segura de senha com timing-constant
         const storedHash = certConfig.certificate_password_hash;
-        // Support both legacy plain-text and bcrypt hashes
         const isBcrypt = storedHash.startsWith("$2");
         let passwordValid = false;
+
         if (isBcrypt) {
-          // Use Web Crypto for bcrypt-like comparison (Deno compatible)
-          const encoder = new TextEncoder();
-          const keyData = encoder.encode(certPwd);
-          const hashData = encoder.encode(storedHash);
-          // For bcrypt, we need to rehash and compare
-          // Since Deno doesn't have native bcrypt, use SHA-256 as upgrade path
-          passwordValid = storedHash === certPwd; // Temporary: will be replaced when hash is stored
+          // 🔒 Bcrypt verification (secure)
+          passwordValid = await bcrypt.compare(certPwd, storedHash);
         } else {
-          // Legacy plain-text comparison with constant-time check
+          // Legacy plain-text: constant-time comparison
           const encoder = new TextEncoder();
           const a = encoder.encode(storedHash);
           const b = encoder.encode(certPwd);
-          if (a.length !== b.length) {
-            passwordValid = false;
-          } else {
+          if (a.length === b.length) {
             let diff = 0;
             for (let i = 0; i < a.length; i++) {
               diff |= a[i] ^ b[i];
@@ -731,6 +738,7 @@ Deno.serve(async (req) => {
             passwordValid = diff === 0;
           }
         }
+
         if (!passwordValid) {
           return jsonResponse({ error: "Senha do certificado inválida" }, 400);
         }
@@ -1774,13 +1782,14 @@ Deno.serve(async (req) => {
       }, 404);
     }
 
-    // ── Auto-upload certificate to Nuvem Fiscal using request payload fallback first ──
+    // ── Auto-upload certificate to Nuvem Fiscal using request payload ──
+    // 🔒 SEGURANÇA: Nunca usar certificate_password_hash do DB como senha da API
+    // O hash bcrypt não é reversível. A senha real vem sempre do frontend (IndexedDB).
     const requestCertBase64 = body.certificate_base64 || null;
     const requestCertPassword = body.certificate_password || null;
     const configCertBase64 = config.certificate_base64 || null;
-    const configCertPassword = config.certificate_password_hash || null;
     const effectiveCertBase64 = requestCertBase64 || configCertBase64;
-    const effectiveCertPassword = requestCertPassword || configCertPassword;
+    const effectiveCertPassword = requestCertPassword; // Somente do request, nunca do DB
     const hasCertData = !!effectiveCertBase64;
     const hasCertPwd = !!effectiveCertPassword;
     console.log(`[emit-nfce] Certificate check: has_base64=${hasCertData}, has_password=${hasCertPwd}, config_id=${config.id}, source=${requestCertBase64 ? "request" : configCertBase64 ? "config" : "none"}`);

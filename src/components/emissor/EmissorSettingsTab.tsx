@@ -288,7 +288,8 @@ export default function EmissorSettingsTab({ companyId }: { companyId: string })
         certificate_type: certType,
         certificate_path: certType === "A1" ? (certFile || null) : null,
         certificate_expires_at: certType === "A1" && certExpiry ? new Date(certExpiry).toISOString() : null,
-        certificate_password_hash: certType === "A1" ? (certPassword || null) : null,
+        // 🔒 Senha não é mais gravada no DB pelo frontend — o backend hasheia via bcrypt no upload_certificate
+        certificate_password_hash: null,
         a3_thumbprint: certType === "A3" ? (a3SelectedThumbprint || null) : null,
         a3_subject_name: certType === "A3" ? (selectedCert?.subjectName || fiscalConfig.a3SubjectName || null) : null,
         serie: fiscalConfig.serie,
