@@ -1471,12 +1471,34 @@ Deno.serve(async (req) => {
                 if (viaCepData.ibge) {
                   regCodigoMunicipio = viaCepData.ibge;
                   console.log(`[emit-nfce] Resolved IBGE code from CEP ${regCep}: ${regCodigoMunicipio}`);
-                  // Persist for future use
                   await supabase.from("companies").update({ address_city_code: regCodigoMunicipio } as any).eq("id", company_id || body.company_id);
                 }
               }
             } catch (e) {
               console.warn("[emit-nfce] ViaCEP lookup for registration failed:", e);
+            }
+          }
+
+          // Fallback: lookup IBGE by city name + state via IBGE API
+          if (!regCodigoMunicipio && company.address_city && company.address_state) {
+            try {
+              const uf = (company.address_state || "").toUpperCase();
+              const ibgeResp = await fetch(`https://servicodados.ibge.gov.br/api/v1/localidades/estados/${uf}/municipios`);
+              if (ibgeResp.ok) {
+                const municipios = await ibgeResp.json();
+                const cityNorm = (company.address_city || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+                const found = municipios.find((m: any) => {
+                  const mNorm = (m.nome || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+                  return mNorm === cityNorm;
+                });
+                if (found) {
+                  regCodigoMunicipio = String(found.id);
+                  console.log(`[emit-nfce] Resolved IBGE code from city name "${company.address_city}/${uf}": ${regCodigoMunicipio}`);
+                  await supabase.from("companies").update({ address_city_code: regCodigoMunicipio } as any).eq("id", company_id || body.company_id);
+                }
+              }
+            } catch (e) {
+              console.warn("[emit-nfce] IBGE city lookup failed:", e);
             }
           }
 

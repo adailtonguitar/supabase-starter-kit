@@ -126,7 +126,7 @@ function withTimeout<T>(promise: Promise<T>, ms: number, name: string): Promise<
 export const fiscalCircuitBreaker = new CircuitBreaker("fiscal", {
   failureThreshold: 3,
   resetTimeout: 60_000,   // 1 min cooldown
-  timeout: 10_000,        // 10s per request
+  timeout: 45_000,        // 45s per request (Sandbox + auto-register can be slow)
 });
 
 /** Circuit breaker for TEF / payment gateway */
