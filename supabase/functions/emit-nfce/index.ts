@@ -374,6 +374,85 @@ const FCP_RATES_BY_STATE: Record<string, number> = {
 // ── CSTs that are tax-exempt (no ICMS/FCP calculation needed) ──
 const EXEMPT_CST = new Set(["40", "41", "50", "300", "400", "500"]);
 
+// ── CSOSNs/CSTs that indicate Substituição Tributária ──
+const CSOSN_ST_SET = new Set(["201", "202", "203", "500"]);
+const CST_ST_SET = new Set(["10", "30", "60", "70"]);
+
+/**
+ * 🟠 CORREÇÃO #5: PIS/COFINS CST derivado por regime tributário
+ * SN → CST 49 (Outras Operações de Saída)
+ * LP → CST 01 (Tributável - Cumulativo, 0.65% PIS / 3% COFINS)
+ * LR → CST 01 (Tributável - Não Cumulativo, 1.65% PIS / 7.6% COFINS)
+ */
+function derivePisCofinsCST(itemCst: string | undefined, crt: number): string {
+  if (itemCst && itemCst !== "49") return itemCst; // User explicitly set a CST
+  const isSimples = crt === 1 || crt === 2;
+  if (isSimples) return "49"; // Correto para SN
+  return "01"; // LP e LR: tributação normal
+}
+
+function getPisAliquota(crt: number): number {
+  if (crt === 1 || crt === 2) return 0; // SN: PIS incluído no DAS
+  if (crt === 3) return 0.65; // Lucro Presumido: cumulativo
+  return 1.65; // Lucro Real: não-cumulativo
+}
+
+function getCofinsAliquota(crt: number): number {
+  if (crt === 1 || crt === 2) return 0; // SN: COFINS incluído no DAS
+  if (crt === 3) return 3.0; // Lucro Presumido: cumulativo
+  return 7.6; // Lucro Real: não-cumulativo
+}
+
+function buildPisCofinsPayload(type: "pis" | "cofins", itemCst: string | undefined, crt: number, baseCalc: number) {
+  const cst = derivePisCofinsCST(itemCst, crt);
+  const isSimples = crt === 1 || crt === 2;
+  
+  if (isSimples || cst === "49" || cst === "99") {
+    // Sem tributação destacada
+    if (type === "pis") {
+      return { PISOutr: { CST: cst, vBC: 0, pPIS: 0, vPIS: 0 } };
+    }
+    return { COFINSOutr: { CST: cst, vBC: 0, pCOFINS: 0, vCOFINS: 0 } };
+  }
+
+  // LP/LR com CST 01: tributação normal com alíquota e base
+  const bc = Math.round(baseCalc * 100) / 100;
+  if (type === "pis") {
+    const aliq = getPisAliquota(crt);
+    const valor = Math.round(bc * (aliq / 100) * 100) / 100;
+    return { PISAliq: { CST: cst, vBC: bc, pPIS: aliq, vPIS: valor } };
+  }
+  const aliq = getCofinsAliquota(crt);
+  const valor = Math.round(bc * (aliq / 100) * 100) / 100;
+  return { COFINSAliq: { CST: cst, vBC: bc, pCOFINS: aliq, vCOFINS: valor } };
+}
+
+/**
+ * 🟠 CORREÇÃO #6: Cálculo de ICMS-ST integrado ao fluxo de emissão
+ */
+function calculateIcmsStForItem(
+  item: any, uf: string, crt: number, vProd: number, vDesc: number
+): { vBCST: number; pICMSST: number; vICMSST: number; pMVAST: number } | null {
+  const cst = String(item.cst || "").trim();
+  const isSimples = crt === 1 || crt === 2;
+  const hasST = isSimples ? CSOSN_ST_SET.has(cst) : CST_ST_SET.has(cst);
+  
+  if (!hasST) return null;
+  // CST 60 / CSOSN 500 = ST cobrado anteriormente, não calcula
+  if (cst === "60" || cst === "500") return null;
+
+  const baseCalc = Math.round((vProd - vDesc) * 100) / 100;
+  const icmsOwnRate = item.icms_aliquota || ICMS_RATES_BY_STATE[uf] || 18;
+  const mva = item.mva || 40; // MVA padrão 40% se não informada
+  const bcST = Math.round(baseCalc * (1 + mva / 100) * 100) / 100;
+  const icmsInternalRate = ICMS_RATES_BY_STATE[uf] || 18;
+  const icmsSTTotal = Math.round(bcST * (icmsInternalRate / 100) * 100) / 100;
+  const icmsOwn = Math.round(baseCalc * (icmsOwnRate / 100) * 100) / 100;
+  const icmsST = Math.max(0, Math.round((icmsSTTotal - icmsOwn) * 100) / 100);
+
+  return { vBCST: bcST, pICMSST: icmsInternalRate, vICMSST: icmsST, pMVAST: mva };
+}
+
 // ── Helper: compute FCP for an item ──
 function computeFcp(baseCalc: number, uf: string, itemFcpAliquota?: number): { percentual_fcp: number; valor_fcp: number; valor_base_calculo_fcp: number } | null {
   const fcpRate = itemFcpAliquota ?? FCP_RATES_BY_STATE[uf] ?? 0;
