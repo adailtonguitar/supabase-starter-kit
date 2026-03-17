@@ -771,8 +771,8 @@ export function usePDV() {
                 });
               } else {
                 nfceNumber = "";
-                toast.info("🕒 NFC-e enviada, mas ainda não autorizada.", {
-                  description: "A venda foi salva e o status real aparecerá no histórico fiscal.",
+                toast.info("🕒 NFC-e enviada e aguardando autorização.", {
+                  description: "A venda foi salva e o sistema continuará reprocessando automaticamente.",
                   duration: 6000,
                 });
               }
