@@ -9,7 +9,7 @@ const Privacidade = () => (
         <Link to="/"><ArrowLeft className="w-4 h-4 mr-2" /> Voltar</Link>
       </Button>
 
-      <h1 className="text-3xl font-bold mb-2">Política de Privacidade</h1>
+      <h1 className="text-3xl font-bold mb-2">Política de Privacidade (teste lovable)</h1>
       <p className="text-muted-foreground mb-8">Última atualização: 23 de fevereiro de 2026</p>
 
       <div className="prose prose-sm dark:prose-invert max-w-none space-y-6 text-muted-foreground">

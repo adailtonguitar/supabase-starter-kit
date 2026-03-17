@@ -111,7 +111,7 @@ export default function Ajuda() {
         <div className="flex items-center gap-3">
           <HelpCircle className="w-7 h-7 text-primary" />
           <div>
-            <h1 className="text-2xl font-bold text-foreground">Central de Ajuda</h1>
+            <h1 className="text-2xl font-bold text-foreground">Central de Ajuda (teste lovable)</h1>
             <p className="text-sm text-muted-foreground">Tutoriais e guias de todas as funções do sistema</p>
           </div>
         </div>
