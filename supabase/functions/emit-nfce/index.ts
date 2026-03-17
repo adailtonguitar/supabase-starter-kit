@@ -1949,15 +1949,51 @@ Deno.serve(async (req) => {
     const normalizedAuth = normalizeFiscalAuthorization(emitData);
     const accessKey = normalizedAuth.accessKey;
     const docNumber = emitData.numero || emitData.number || config.next_number || null;
-    const status = normalizedAuth.status;
+    let finalAuth = normalizedAuth;
+    let finalStatus = normalizedAuth.status;
+    let finalDocNumber = docNumber;
+    let finalNuvemFiscalId = emitData.id || null;
+
     console.log("[emit-nfce] Raw status:", JSON.stringify({
       rawStatus: normalizedAuth.rawStatus,
       sefazCode: normalizedAuth.sefazCode,
       accessKey: !!accessKey,
       protocolNumber: !!normalizedAuth.protocolNumber,
       isAuthorized: normalizedAuth.isAuthorized,
-      finalStatus: status,
+      finalStatus: normalizedAuth.status,
     }));
+
+    if (accessKey && normalizedAuth.status === "pendente") {
+      try {
+        const consultResp = await fetch(`${NUVEM_FISCAL_API}/nfce?chave=${accessKey}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const consultText = await consultResp.text();
+        let consultData: any = null;
+        try {
+          consultData = consultText ? JSON.parse(consultText) : null;
+        } catch {
+          consultData = { raw: consultText };
+        }
+
+        if (consultResp.ok) {
+          const consultedDoc = consultData?.data?.[0] || consultData?.items?.[0] || consultData?.value?.[0] || consultData;
+          const consultedAuth = normalizeFiscalAuthorization(consultedDoc || consultData);
+          finalAuth = consultedAuth;
+          finalStatus = consultedAuth.status;
+          finalDocNumber = consultedDoc?.numero || consultedDoc?.number || finalDocNumber;
+          finalNuvemFiscalId = consultedDoc?.id || finalNuvemFiscalId;
+          console.log("[emit-nfce] Consulted status after emit:", JSON.stringify({
+            rawStatus: consultedAuth.rawStatus,
+            sefazCode: consultedAuth.sefazCode,
+            protocolNumber: !!consultedAuth.protocolNumber,
+            finalStatus,
+          }));
+        }
+      } catch (consultErr: any) {
+        console.warn("[emit-nfce] Immediate consult after emit failed:", consultErr?.message || consultErr);
+      }
+    }
 
     try {
       await persistFiscalEmissionResult({
@@ -1965,33 +2001,34 @@ Deno.serve(async (req) => {
         company_id,
         sale_id,
         config,
-        status,
-        accessKey,
-        docNumber,
+        status: finalStatus,
+        accessKey: finalAuth.accessKey || accessKey,
+        docNumber: finalDocNumber,
         totalNF,
         form,
         xmlContent: emitData.xml || null,
+        nuvemFiscalId: finalNuvemFiscalId,
       });
     } catch (persistErr: any) {
       console.error("[emit-nfce] Emission persisted remotely but failed locally:", persistErr);
       return jsonResponse({
         success: false,
         error: persistErr?.message || "Falha ao persistir documento fiscal no banco",
-        details: { stage: "persist_local_state", provider_status: status },
+        details: { stage: "persist_local_state", provider_status: finalStatus },
       }, 500);
     }
 
     // ── Auto-backup XML to Storage ──
-    await backupXml(supabase, company_id, "nfce", accessKey, docNumber, emitData.xml || null, "emissao");
+    await backupXml(supabase, company_id, "nfce", finalAuth.accessKey || accessKey, finalDocNumber, emitData.xml || null, "emissao");
 
     return jsonResponse({
       success: true,
-      access_key: accessKey,
-      number: docNumber,
-      status,
-      sefaz_code: normalizedAuth.sefazCode,
-      protocol_number: normalizedAuth.protocolNumber,
-      nuvem_fiscal_id: emitData.id,
+      access_key: finalAuth.accessKey || accessKey,
+      number: finalDocNumber,
+      status: finalStatus,
+      sefaz_code: finalAuth.sefazCode,
+      protocol_number: finalAuth.protocolNumber,
+      nuvem_fiscal_id: finalNuvemFiscalId,
     });
   } catch (err: unknown) {
     console.error("emit-nfce error:", err);
