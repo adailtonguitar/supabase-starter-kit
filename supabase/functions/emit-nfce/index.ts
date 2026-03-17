@@ -2006,6 +2006,7 @@ Deno.serve(async (req) => {
                   form,
                   xmlContent: retryData.xml || null,
                   nuvemFiscalId: retryData.id || null,
+                  protocolNumber: retryAuth.protocolNumber,
                 });
               } catch (persistErr: any) {
                 console.error("[emit-nfce] Retry emission persisted remotely but failed locally:", persistErr);
