@@ -1929,10 +1929,30 @@ Deno.serve(async (req) => {
       const icmsObj: Record<string, any> = {};
       if (isSimples) {
         // Simples Nacional CSOSNs
-        if (["101", "102", "103", "300", "400", "500"].includes(cstCsosn)) {
+        if (["101", "102", "103", "300", "400"].includes(cstCsosn)) {
           icmsObj[`ICMSSN${cstCsosn}`] = { orig: origem, CSOSN: cstCsosn };
+        } else if (cstCsosn === "500") {
+          // 🟠 CSOSN 500: ICMS cobrado anteriormente por ST — sem cálculo, mas com vBCSTRet
+          icmsObj.ICMSSN500 = { orig: origem, CSOSN: "500" };
         } else if (["201", "202", "203"].includes(cstCsosn)) {
-          icmsObj[`ICMSSN${cstCsosn}`] = { orig: origem, CSOSN: cstCsosn };
+          // 🟠 CORREÇÃO #6/#7: CSOSN ST com cálculo de ICMS-ST e FCP-ST
+          const stCalc = calculateIcmsStForItem(item, uf, crt, vProd, vDesc);
+          const fcpSt = computeFcp(stCalc?.vBCST || 0, uf, item.fcp_aliquota);
+          icmsObj[`ICMSSN${cstCsosn}`] = {
+            orig: origem, CSOSN: cstCsosn,
+            ...(stCalc ? {
+              modBCST: 4, // MVA
+              pMVAST: stCalc.pMVAST,
+              vBCST: stCalc.vBCST,
+              pICMSST: stCalc.pICMSST,
+              vICMSST: stCalc.vICMSST,
+            } : {}),
+            ...(fcpSt ? {
+              vBCFCPST: fcpSt.valor_base_calculo_fcp,
+              pFCPST: fcpSt.percentual_fcp,
+              vFCPST: fcpSt.valor_fcp,
+            } : {}),
+          };
         } else if (cstCsosn === "900") {
           const icmsRate = item.icms_aliquota || ICMS_RATES_BY_STATE[uf] || 18;
           icmsObj.ICMSSN900 = {
@@ -1946,15 +1966,41 @@ Deno.serve(async (req) => {
         }
       } else {
         // Regime Normal
-        if (["40", "41", "50", "60"].includes(cstCsosn)) {
+        if (["40", "41", "50"].includes(cstCsosn)) {
           icmsObj[`ICMS${cstCsosn}`] = { orig: origem, CST: cstCsosn };
+        } else if (cstCsosn === "60") {
+          // CST 60: ICMS cobrado anteriormente por ST
+          icmsObj.ICMS60 = { orig: origem, CST: "60" };
+        } else if (["10", "30", "70"].includes(cstCsosn)) {
+          // 🟠 CST com ST: calcular ICMS-ST
+          const icmsRate = item.icms_aliquota || ICMS_RATES_BY_STATE[uf] || 18;
+          const baseCalc = Math.round((vProd - vDesc) * 100) / 100;
+          const stCalc = calculateIcmsStForItem(item, uf, crt, vProd, vDesc);
+          const fcpOwn = computeFcp(baseCalc, uf, item.fcp_aliquota);
+          const fcpSt = stCalc ? computeFcp(stCalc.vBCST, uf, item.fcp_aliquota) : null;
+          icmsObj[`ICMS${cstCsosn}`] = {
+            orig: origem, CST: cstCsosn, modBC: 3,
+            vBC: baseCalc, pICMS: icmsRate,
+            vICMS: Math.round(baseCalc * (icmsRate / 100) * 100) / 100,
+            ...(stCalc ? {
+              modBCST: 4,
+              pMVAST: stCalc.pMVAST,
+              vBCST: stCalc.vBCST,
+              pICMSST: stCalc.pICMSST,
+              vICMSST: stCalc.vICMSST,
+            } : {}),
+            ...(fcpOwn ? { vBCFCP: fcpOwn.valor_base_calculo_fcp, pFCP: fcpOwn.percentual_fcp, vFCP: fcpOwn.valor_fcp } : {}),
+            ...(fcpSt ? { vBCFCPST: fcpSt.valor_base_calculo_fcp, pFCPST: fcpSt.percentual_fcp, vFCPST: fcpSt.valor_fcp } : {}),
+          };
         } else {
           const icmsRate = item.icms_aliquota || ICMS_RATES_BY_STATE[uf] || 18;
           const baseCalc = Math.round((vProd - vDesc) * 100) / 100;
+          const fcpOwn = computeFcp(baseCalc, uf, item.fcp_aliquota);
           icmsObj[`ICMS${cstCsosn || "00"}`] = {
             orig: origem, CST: cstCsosn || "00", modBC: 3,
             vBC: baseCalc, pICMS: icmsRate,
             vICMS: Math.round(baseCalc * (icmsRate / 100) * 100) / 100,
+            ...(fcpOwn ? { vBCFCP: fcpOwn.valor_base_calculo_fcp, pFCP: fcpOwn.percentual_fcp, vFCP: fcpOwn.valor_fcp } : {}),
           };
         }
       }
