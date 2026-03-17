@@ -1901,8 +1901,8 @@ Deno.serve(async (req) => {
         },
         imposto: {
           ICMS: icmsObj,
-          PIS: { PISOutr: { CST: item.pis_cst || "49", vBC: 0, pPIS: 0, vPIS: 0 } },
-          COFINS: { COFINSOutr: { CST: item.cofins_cst || "49", vBC: 0, pCOFINS: 0, vCOFINS: 0 } },
+          PIS: buildPisCofinsPayload("pis", item.pis_cst, crt, vProd - vDesc),
+          COFINS: buildPisCofinsPayload("cofins", item.cofins_cst, crt, vProd - vDesc),
         },
       };
     });
