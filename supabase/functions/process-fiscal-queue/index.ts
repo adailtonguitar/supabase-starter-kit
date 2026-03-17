@@ -108,21 +108,20 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { data: authorizedDoc } = await supabase
+    const { data: latestDoc } = await supabase
       .from("fiscal_documents")
-      .select("id, access_key, number")
+      .select("id, access_key, number, status")
       .eq("company_id", companyId)
       .eq("sale_id", saleId)
       .eq("doc_type", "nfce")
-      .eq("status", "autorizada")
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
 
-    if (authorizedDoc) {
+    if ((latestDoc as any)?.status === "autorizada") {
       await Promise.all([
         supabase.from("sales")
-          .update({ status: "autorizada", access_key: (authorizedDoc as any).access_key || null, number: (authorizedDoc as any).number || null })
+          .update({ status: "autorizada", access_key: (latestDoc as any).access_key || null, number: (latestDoc as any).number || null })
           .eq("id", saleId)
           .eq("company_id", companyId),
         supabase.from("fiscal_queue")
@@ -134,6 +133,34 @@ Deno.serve(async (req) => {
         JSON.stringify({ success: true, skipped: true, sale_id: saleId, reason: "Documento já autorizado" }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
+    }
+
+    if ((latestDoc as any)?.access_key) {
+      const { data: consultedData, error: consultError } = await supabase.functions.invoke("emit-nfce", {
+        body: {
+          action: "consult_status",
+          access_key: (latestDoc as any).access_key,
+          doc_type: "nfce",
+          company_id: companyId,
+        },
+      });
+
+      if (!consultError && consultedData?.success && consultedData?.status === "autorizada") {
+        await Promise.all([
+          supabase.from("sales")
+            .update({ status: "autorizada", access_key: consultedData.access_key || (latestDoc as any).access_key || null, number: consultedData.number || (latestDoc as any).number || null })
+            .eq("id", saleId)
+            .eq("company_id", companyId),
+          supabase.from("fiscal_queue")
+            .update({ status: "done", processed_at: new Date().toISOString(), last_error: null })
+            .eq("id", queueId),
+        ]);
+
+        return new Response(
+          JSON.stringify({ success: true, skipped: true, sale_id: saleId, reason: "Documento autorizado após consulta" }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
     }
 
     const crt = (company as any)?.crt || 1;

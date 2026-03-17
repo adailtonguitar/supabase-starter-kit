@@ -157,16 +157,34 @@ async function persistFiscalEmissionResult(params: {
   totalNF: number;
   form: any;
   xmlContent?: string | null;
+  nuvemFiscalId?: string | null;
+  protocolNumber?: string | null;
 }) {
-  const { supabase, company_id, sale_id, config, status, accessKey, docNumber, totalNF, form, xmlContent } = params;
+  const {
+    supabase,
+    company_id,
+    sale_id,
+    config,
+    status,
+    accessKey,
+    docNumber,
+    totalNF,
+    form,
+    xmlContent,
+    nuvemFiscalId,
+    protocolNumber,
+  } = params;
 
   const { error: fiscalDocError } = await supabase.from("fiscal_documents").insert({
     company_id,
+    sale_id: sale_id || null,
     doc_type: "nfce",
     number: docNumber,
     serie: config.serie,
     access_key: accessKey,
     status,
+    protocol_number: protocolNumber || null,
+    nuvem_fiscal_id: nuvemFiscalId || null,
     total_value: totalNF,
     customer_name: form.customer_name || null,
     customer_cpf_cnpj: form.customer_doc?.replace(/\D/g, "") || null,
@@ -776,8 +794,11 @@ Deno.serve(async (req) => {
             .from("sales")
             .update({
               status: "autorizada",
+              access_key: normalized.accessKey || access_key,
+              number: resolvedNumber,
             } as any)
-            .eq("company_id", consultCompanyId);
+            .eq("company_id", consultCompanyId)
+            .eq("access_key", access_key);
         }
       }
 
@@ -1985,6 +2006,7 @@ Deno.serve(async (req) => {
                   form,
                   xmlContent: retryData.xml || null,
                   nuvemFiscalId: retryData.id || null,
+                  protocolNumber: retryAuth.protocolNumber,
                 });
               } catch (persistErr: any) {
                 console.error("[emit-nfce] Retry emission persisted remotely but failed locally:", persistErr);
@@ -2092,6 +2114,7 @@ Deno.serve(async (req) => {
         form,
         xmlContent: emitData.xml || null,
         nuvemFiscalId: finalNuvemFiscalId,
+        protocolNumber: finalAuth.protocolNumber,
       });
     } catch (persistErr: any) {
       console.error("[emit-nfce] Emission persisted remotely but failed locally:", persistErr);
