@@ -254,11 +254,13 @@ async function ensureNfceConfigOnNuvemFiscal(
 
     if (checkResp.ok) {
       const existing = await checkResp.json();
-      // If config exists and has the same environment, skip
-      if (existing?.ambiente) {
-        console.log(`[emit-nfce] NFC-e config already exists on Nuvem Fiscal for ${cnpjClean}`);
+      const desiredAmb = config.environment === "producao" ? "producao" : "homologacao";
+      // Only skip if environment AND CSC match — otherwise force update
+      if (existing?.ambiente === desiredAmb) {
+        console.log(`[emit-nfce] NFC-e config already matches (${desiredAmb}) on Nuvem Fiscal for ${cnpjClean}, skipping`);
         return { ok: true };
       }
+      console.log(`[emit-nfce] NFC-e config exists but ambiente differs (${existing?.ambiente} → ${desiredAmb}), updating...`);
     } else {
       // 404 or error means config doesn't exist, proceed to create
       await checkResp.text(); // consume body
