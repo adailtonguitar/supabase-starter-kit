@@ -2107,15 +2107,45 @@ Deno.serve(async (req) => {
           },
         } : {}),
         det: nfceItems,
-        total: {
-          ICMSTot: {
-            vBC: 0, vICMS: 0, vICMSDeson: 0, vFCP: 0,
-            vBCST: 0, vST: 0, vFCPST: 0, vFCPSTRet: 0,
-            vProd: totalProd, vFrete: 0, vSeg: 0, vDesc: totalDesc,
-            vII: 0, vIPI: 0, vIPIDevol: 0, vPIS: 0, vCOFINS: 0, vOutro: 0,
-            vNF: totalNF,
-          },
-        },
+        total: (() => {
+          // 🟠 Calcular totais de ICMS, ST, FCP e PIS/COFINS dinamicamente dos itens
+          let totVBC = 0, totVICMS = 0, totVBCST = 0, totVST = 0;
+          let totVFCP = 0, totVFCPST = 0, totVPIS = 0, totVCOFINS = 0;
+          nfceItems.forEach((it: any) => {
+            const icms = it.imposto?.ICMS || {};
+            const icmsData = Object.values(icms)[0] as any || {};
+            totVBC += icmsData.vBC || 0;
+            totVICMS += icmsData.vICMS || 0;
+            totVBCST += icmsData.vBCST || 0;
+            totVST += icmsData.vICMSST || 0;
+            totVFCP += icmsData.vFCP || 0;
+            totVFCPST += icmsData.vFCPST || 0;
+            const pis = it.imposto?.PIS || {};
+            const pisData = Object.values(pis)[0] as any || {};
+            totVPIS += pisData.vPIS || 0;
+            const cofins = it.imposto?.COFINS || {};
+            const cofinsData = Object.values(cofins)[0] as any || {};
+            totVCOFINS += cofinsData.vCOFINS || 0;
+          });
+          return {
+            ICMSTot: {
+              vBC: Math.round(totVBC * 100) / 100,
+              vICMS: Math.round(totVICMS * 100) / 100,
+              vICMSDeson: 0,
+              vFCP: Math.round(totVFCP * 100) / 100,
+              vBCST: Math.round(totVBCST * 100) / 100,
+              vST: Math.round(totVST * 100) / 100,
+              vFCPST: Math.round(totVFCPST * 100) / 100,
+              vFCPSTRet: 0,
+              vProd: totalProd, vFrete: 0, vSeg: 0, vDesc: totalDesc,
+              vII: 0, vIPI: 0, vIPIDevol: 0,
+              vPIS: Math.round(totVPIS * 100) / 100,
+              vCOFINS: Math.round(totVCOFINS * 100) / 100,
+              vOutro: 0,
+              vNF: totalNF,
+            },
+          };
+        })(),
         transp: { modFrete: 9 },
         pag: {
           detPag: [{ tPag: tPag, vPag: form.payment_value || totalNF }],
