@@ -1855,8 +1855,8 @@ Deno.serve(async (req) => {
         },
         emit: {
           CNPJ: company.cnpj?.replace(/\D/g, "") || "",
-          xNome: company.name || "",
-          xFant: company.trade_name || company.name || "",
+          xNome: (company.razao_social || company.name || "EMPRESA").trim().replace(/\s+/g, " "),
+          xFant: (company.trade_name || company.nome_fantasia || company.name || "EMPRESA").trim().replace(/\s+/g, " "),
           IE: company.ie?.replace(/\D/g, "") || "",
           CRT: crt,
           enderEmit: {
