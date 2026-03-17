@@ -1701,7 +1701,7 @@ Deno.serve(async (req) => {
     };
     const cUF = UF_CODES[uf] || 35;
 
-    // Resolve codigo_municipio (IBGE) if missing — use ViaCEP as fallback
+    // Resolve codigo_municipio (IBGE) if missing — use ViaCEP + IBGE API as fallback
     let codigoMunicipio = company.address_city_code || company.city_ibge_code || "";
     const cepClean = company.address_zip?.replace(/\D/g, "") || "";
     if (!codigoMunicipio && cepClean.length === 8) {
@@ -1720,8 +1720,31 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Fallback: lookup IBGE by city name + state via IBGE API
+    if (!codigoMunicipio && company.address_city && company.address_state) {
+      try {
+        const ibgeUf = (company.address_state || "").toUpperCase();
+        const ibgeResp = await fetch(`https://servicodados.ibge.gov.br/api/v1/localidades/estados/${ibgeUf}/municipios`);
+        if (ibgeResp.ok) {
+          const municipios = await ibgeResp.json();
+          const cityNorm = (company.address_city || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+          const found = municipios.find((m: any) => {
+            const mNorm = (m.nome || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+            return mNorm === cityNorm;
+          });
+          if (found) {
+            codigoMunicipio = String(found.id);
+            console.log(`[emit-nfce] Resolved IBGE code from city name "${company.address_city}/${ibgeUf}": ${codigoMunicipio}`);
+            await supabase.from("companies").update({ address_city_code: codigoMunicipio } as any).eq("id", company_id);
+          }
+        }
+      } catch (e) {
+        console.warn("[emit-nfce] IBGE city lookup failed:", e);
+      }
+    }
+
     if (!codigoMunicipio) {
-      return jsonResponse({ error: "Código IBGE do município não encontrado. Verifique o CEP da empresa em Configurações." }, 400);
+      return jsonResponse({ error: "Código IBGE do município não encontrado. Cadastre o CEP ou a Cidade/UF da empresa em Configurações." }, 400);
     }
 
     // Build items in XML-like format (infNFe schema) required by Nuvem Fiscal API
