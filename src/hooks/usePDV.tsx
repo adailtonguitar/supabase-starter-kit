@@ -5,6 +5,7 @@ import { useCompany } from "@/hooks/useCompany";
 import { useSync } from "@/hooks/useSync";
 import { buildContingencyPayload } from "@/services/ContingencyService";
 import type { PaymentResult } from "@/services/types";
+import { FiscalEmissionService } from "@/services/FiscalEmissionService";
 import { isScaleBarcode, parseScaleBarcode } from "@/lib/scale-barcode";
 import { calculateCartPromos, type PromoMatch } from "@/lib/promo-engine";
 import { cacheSet, cacheGet } from "@/lib/offline-cache";
@@ -550,7 +551,26 @@ export function usePDV() {
       throw new Error(errorMsg);
     }
 
-    const fiscalStatus = fiscalData.status || "pendente";
+    let fiscalStatus = fiscalData.status || "pendente";
+    let resolvedNumber = fiscalData.nfce_number || fiscalData.numero || fiscalData.number || "";
+
+    if (fiscalStatus !== "autorizada" && fiscalData.access_key) {
+      try {
+        await new Promise((resolve) => setTimeout(resolve, 3000));
+        const consulted = await FiscalEmissionService.consultStatus({
+          accessKey: fiscalData.access_key,
+          docType: "nfce",
+          companyId,
+        });
+
+        if ((consulted as any)?.success && (consulted as any)?.status === "autorizada") {
+          fiscalStatus = "autorizada";
+          resolvedNumber = (consulted as any)?.number || resolvedNumber;
+        }
+      } catch (consultErr) {
+        console.warn("[PDV Fiscal] Immediate consult after pending status failed:", consultErr);
+      }
+    }
 
     // Se ainda não autorizou, mantém na fila para reprocessamento automático.
     if (queueId) {
@@ -568,7 +588,7 @@ export function usePDV() {
     }
 
     return {
-      nfceNumber: fiscalData.nfce_number || fiscalData.numero || fiscalData.number || "",
+      nfceNumber: resolvedNumber,
       fiscalDocId: fiscalData.fiscal_doc_id || fiscalData.nuvem_fiscal_id || fiscalData.id,
       accessKey: fiscalData.access_key || "",
       serie: fiscalData.serie || "",
@@ -751,8 +771,8 @@ export function usePDV() {
                 });
               } else {
                 nfceNumber = "";
-                toast.info("🕒 NFC-e enviada, mas ainda não autorizada.", {
-                  description: "A venda foi salva e o status real aparecerá no histórico fiscal.",
+                toast.info("🕒 NFC-e enviada e aguardando autorização.", {
+                  description: "A venda foi salva e o sistema continuará reprocessando automaticamente.",
                   duration: 6000,
                 });
               }
