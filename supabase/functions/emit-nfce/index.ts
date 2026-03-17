@@ -1730,10 +1730,16 @@ Deno.serve(async (req) => {
     for (let i = 0; i < formItems.length; i++) {
       const it = formItems[i];
       let ncmClean = (it.ncm || "").replace(/\D/g, "");
-      if (!ncmClean || ncmClean.length < 4) {
-        // Fallback: use generic NCM instead of blocking the sale
-        console.warn(`[emit-nfce] Item ${i + 1} ("${it.name}") sem NCM válido. Usando NCM genérico 00000000.`);
-        ncmClean = "00000000";
+      if (!ncmClean || ncmClean.length < 2) {
+        // 🔴 CRÍTICO: Bloquear emissão sem NCM válido — NCM genérico gera Rejeição 778
+        return jsonResponse({
+          error: `Item ${i + 1} ("${it.name || ""}"): NCM não informado ou inválido. Cadastre o NCM correto do produto antes de emitir.`,
+        }, 400);
+      }
+      if (ncmClean === "00000000" || ncmClean === "0") {
+        return jsonResponse({
+          error: `Item ${i + 1} ("${it.name || ""}"): NCM "00000000" é genérico e será rejeitado pela SEFAZ. Informe o NCM correto.`,
+        }, 400);
       }
       it.ncm = ncmClean;
       if (!it.cfop || it.cfop.length !== 4) {
