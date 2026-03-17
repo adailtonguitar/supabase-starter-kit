@@ -1856,7 +1856,7 @@ Deno.serve(async (req) => {
           cProd: item.product_code || item.product_id || String(idx + 1).padStart(5, "0"),
           cEAN: "SEM GTIN",
           xProd: item.name || "PRODUTO",
-          NCM: (item.ncm || "00000000").replace(/\D/g, ""),
+          NCM: (item.ncm || "").replace(/\D/g, ""),
           CFOP: Number(item.cfop) || 5102,
           uCom: item.unit || "UN",
           qCom: item.qty || 1,
