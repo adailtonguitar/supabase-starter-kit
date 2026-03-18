@@ -132,7 +132,8 @@ export default function FiscalConfigEdit() {
           }
           // Load CRT from first config
           const firstConfig = data[0];
-          if ((firstConfig as { crt?: number }).crt) setCrt((firstConfig as { crt?: number }).crt!);
+          const rawCrt = (firstConfig as { crt?: number }).crt;
+          if (isValidCrt(rawCrt)) setCrt(rawCrt);
         }
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : "Erro desconhecido";
