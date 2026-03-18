@@ -760,9 +760,9 @@ export default function Fiscal() {
                     const saveResult = await FiscalEmissionService.saveXmlToCloud({
                       companyId,
                       accessKey: selectedDoc.access_key!,
-                      docType: selectedDoc.doc_type as "nfce" | "nfe",
+                      docType: selectedDoc.doc_type === "sat" ? "nfce" : selectedDoc.doc_type as "nfce" | "nfe",
                       number: selectedDoc.number || 0,
-                      xmlContent: xml,
+                      xmlContent: xml2,
                     });
                     if (saveResult.success) {
                       toast.success(`XML salvo na nuvem: ${(saveResult as any).fileName}`);
