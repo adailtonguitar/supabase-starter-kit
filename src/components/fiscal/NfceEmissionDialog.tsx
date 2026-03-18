@@ -393,8 +393,8 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
 
         // Incrementa próximo número
         await supabase.from("fiscal_configs").update({ 
-          next_number: (nfceConfig.next_number || 1) + 1 
-        } as any).eq("id", nfceConfig.id);
+          next_number: ((nfceConfig.next_number as number) || 1) + 1 
+        }).eq("id", nfceConfig.id as string);
 
         setStep("success");
         logAction({ companyId: companyId!, action: "NFC-e emitida (simulação)", module: "fiscal", details: `Venda ${sale?.id?.slice(0, 8)} - ${formatCurrency(sale?.total || 0)}` });
