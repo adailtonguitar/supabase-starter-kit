@@ -462,7 +462,7 @@ async function handleEmit(supabase: any, body: any) {
         dhEmi: new Date().toISOString(),
         tpNF: 1, // saída
         idDest: 1, // operação interna
-        cMunFG: company.ibge_code || company.city_code || "0000000",
+        cMunFG: ibgeClean,
         tpImp: 4, // DANFE NFC-e
         tpEmis: 1, // emissão normal
         tpAmb: ambiente === "producao" ? 1 : 2,
