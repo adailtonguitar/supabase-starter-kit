@@ -316,7 +316,7 @@ export default function Caixa() {
       ) : (
         <div className="space-y-3">
           <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Sessões do dia</h3>
-          {sessions.map((session: any, i: number) => {
+          {sessions.map((session: CashSessionRecord, i: number) => {
             const totalVendas = Number(session.total_vendas || 0);
             const totalDinheiro = Number(session.total_dinheiro || 0);
             const totalDebito = Number(session.total_debito || 0);

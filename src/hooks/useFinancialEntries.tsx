@@ -166,7 +166,7 @@ export function useMarkAsPaid() {
       const { data, error } = await supabase
         .from("financial_entries")
         .update({
-          status: "pago" as any,
+          status: "pago",
           paid_amount,
           paid_date: new Date().toISOString().split("T")[0],
           payment_method,
