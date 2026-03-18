@@ -14,6 +14,7 @@ import { fiscalCircuitBreaker, CircuitBreakerOpenError } from "@/lib/circuit-bre
 import { getFunctionErrorMessage } from "@/lib/get-function-error-message";
 import { getStoredCertificateA1 } from "@/services/LocalXmlSigner";
 import type { FiscalConfigRecord, FiscalEmissionResult, FiscalConsultResult, PromotionRecord } from "@/integrations/supabase/fiscal.types";
+import { getFiscalConfig, type CRT } from "@/lib/fiscal-config-lookup";
 
 export interface PDVProduct {
   id: string;
