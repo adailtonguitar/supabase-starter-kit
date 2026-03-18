@@ -367,7 +367,7 @@ export default function NFeEmissao() {
     if (!companyId) return;
     setQuickSaving(true);
     const isSimples = companyCrt === 1 || companyCrt === 2;
-    const payload: Record<string, any> = {
+    const payload: Record<string, unknown> = {
       company_id: companyId,
       name: quickForm.name.trim(),
       sku: quickForm.sku.trim() || null,
