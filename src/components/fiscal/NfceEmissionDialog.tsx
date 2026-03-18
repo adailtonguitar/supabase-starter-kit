@@ -385,11 +385,11 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
           protocol_number: fakeProtocol,
           environment: "homologacao",
           serie: nfceConfig.serie,
-          number: nfceConfig.next_number || 1,
+          number: (nfceConfig.next_number as number) || 1,
           total_value: form.paymentValue,
           customer_doc: form.customerDoc || null,
           customer_name: form.customerName || null,
-        } as any);
+        });
 
         // Incrementa próximo número
         await supabase.from("fiscal_configs").update({ 
