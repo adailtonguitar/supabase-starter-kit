@@ -289,8 +289,9 @@ export default function FiscalConfigEdit() {
       const certs = await localSignerService.listCertificates();
       setA3Certificates(certs);
       toast.success(`${certs.length} certificado(s) encontrado(s)`);
-    } catch (err: any) {
-      toast.error(err.message || "Erro ao listar certificados");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Erro ao listar certificados";
+      toast.error(message);
     } finally {
       setA3Loading(false);
     }
