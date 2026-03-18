@@ -378,31 +378,10 @@ export function usePDV() {
 
     console.log("[PDV Fiscal] processFiscalEmission called for saleId:", saleId, "companyId:", companyId);
 
-    // Best-effort config lookup in client; if RLS blocks it, server will resolve config.
-    const { data: allConfigs, error: fcError } = await supabase
-      .from("fiscal_configs")
-      .select("id, doc_type, is_active, environment, certificate_path, a3_thumbprint, serie, next_number")
-      .eq("company_id", companyId);
+    // Centralized config lookup — Item 13
+    const { config: fiscalConfig, crt: resolvedCrt, isHomologacao, hasCert } = await getFiscalConfig(companyId, "nfce");
 
-    const { data: companyFiscal } = await supabase
-      .from("companies")
-      .select("crt")
-      .eq("id", companyId)
-      .maybeSingle();
-
-    const fc = allConfigs as Array<Record<string, unknown>> | null;
-    const fiscalConfig = fc?.find((c) => c.doc_type === "nfce" && c.is_active)
-      || fc?.find((c) => c.doc_type === "nfe" && c.is_active)
-      || fc?.find((c) => c.doc_type === "nfce")
-      || fc?.find((c) => c.doc_type === "nfe")
-      || fc?.[0]
-      || null;
-
-    const resolvedCrt = (fiscalConfig?.crt as number) || (companyFiscal as Record<string, unknown> | null)?.crt as number || 1;
-    const isHomologacao = fiscalConfig?.environment === "homologacao";
-    const hasCert = !!(fiscalConfig?.certificate_path || fiscalConfig?.a3_thumbprint);
-
-    console.log("[PDV Fiscal] Config lookup:", JSON.stringify({ fiscalConfig, fcError, companyFiscal }));
+    console.log("[PDV Fiscal] Config lookup:", JSON.stringify({ fiscalConfig, resolvedCrt }));
     console.log("[PDV Fiscal] isHomologacao:", isHomologacao, "hasCert:", hasCert, "resolvedCrt:", resolvedCrt);
 
     // ── MODO SIMULAÇÃO: homologação sem certificado ──
