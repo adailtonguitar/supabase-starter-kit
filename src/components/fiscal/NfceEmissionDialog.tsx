@@ -111,23 +111,24 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
     const q = productSearchText.trim().toLowerCase();
     if (q.length < 2) return [];
     return allProducts.filter(
-      (p: Record<string, unknown>) => p.is_active !== false && (
-        (p.name as string)?.toLowerCase().includes(q) ||
-        (p.barcode as string)?.includes(q) ||
-        (p.sku as string)?.toLowerCase().includes(q)
+      (p) => p.is_active !== false && (
+        p.name?.toLowerCase().includes(q) ||
+        p.barcode?.includes(q) ||
+        p.sku?.toLowerCase().includes(q)
       )
     ).slice(0, 8);
   }, [productSearchText, allProducts]);
 
-  const addProductFromCatalog = (product: Record<string, unknown>) => {
+  const addProductFromCatalog = (product: typeof allProducts[number]) => {
+    const p = product as Record<string, unknown>;
     const newItem: NfceItem = {
-      name: (product.name as string) || "",
-      ncm: (product.ncm as string) || "",
-      cfop: (product.cfop as string) || "5102",
-      cst: (product.csosn as string) || (product.cst_icms as string) || "",
-      unit: (product.unit as string) || "UN",
+      name: (p.name as string) || "",
+      ncm: (p.ncm as string) || "",
+      cfop: (p.cfop as string) || "5102",
+      cst: (p.csosn as string) || (p.cst_icms as string) || "",
+      unit: (p.unit as string) || "UN",
       qty: 1,
-      unitPrice: (product.price as number) || 0,
+      unitPrice: (p.price as number) || 0,
       discount: 0,
       total: (product.price as number) || 0,
       pisCst: (product.cst_pis as string) || "49",
