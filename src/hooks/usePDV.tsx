@@ -253,7 +253,7 @@ export function usePDV() {
   }, 0) * 100) / 100;
 
   // --- Promotions engine ---
-  const [activePromos, setActivePromos] = useState<any[]>([]);
+  const [activePromos, setActivePromos] = useState<PromotionRecord[]>([]);
 
   const loadPromotions = useCallback(async () => {
     if (!companyId) return;
