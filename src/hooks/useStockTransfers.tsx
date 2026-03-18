@@ -187,12 +187,12 @@ export function useReceiveStockTransfer() {
 
       // Fetch transfer with items
       const { data: transfer, error: fetchErr } = await supabase
-        .from("stock_transfers" as any)
+        .from("stock_transfers")
         .select("*, stock_transfer_items(*)")
         .eq("id", transferId)
         .single();
       if (fetchErr) throw fetchErr;
-      if ((transfer as any).to_company_id !== companyId) throw new Error("Transferência não pertence a esta empresa");
+      if ((transfer as Record<string, unknown>).to_company_id !== companyId) throw new Error("Transferência não pertence a esta empresa");
 
       // Fetch origin company name for movement reason
       const { data: originCompany } = await supabase
