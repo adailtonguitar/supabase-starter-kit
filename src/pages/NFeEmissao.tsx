@@ -232,7 +232,7 @@ export default function NFeEmissao() {
     supabase.from("companies")
       .select("name, trade_name, cnpj, ie, phone, address_street, address_number, address_neighborhood, address_city, address_state, address_zip, logo_url")
       .eq("id", companyId).single()
-      .then(({ data }) => { if (data) setCompanyInfo(data); });
+      .then(({ data }) => { if (data) setCompanyInfo(data as NFeCompanyInfo); });
   }, [companyId]);
 
   useEffect(() => {
