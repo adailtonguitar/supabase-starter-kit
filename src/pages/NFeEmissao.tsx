@@ -392,7 +392,7 @@ export default function NFeEmissao() {
     toast.success(`Produto "${newProduct.name}" cadastrado e adicionado!`);
   };
 
-  const selectClient = (client: any) => {
+  const selectClient = (client: NFeClient) => {
     setForm(p => ({
       ...p,
       destName: client.name || "",
