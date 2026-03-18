@@ -286,7 +286,7 @@ export default function NFeEmissao() {
   // Auto-fill fiscal data from fiscal categories when product is selected
   const applyFiscalDefaults = useCallback((item: NFeItem): NFeItem => {
     // Only fill fields that are still empty — product data takes priority
-    const match = fiscalCategories.find((fc: any) => fc.ncm && item.ncm && fc.ncm === item.ncm)
+    const match = fiscalCategories.find((fc) => fc.ncm && item.ncm && fc.ncm === item.ncm)
       || (fiscalCategories.length > 0 ? fiscalCategories[0] : null);
     if (!match) return item;
     return {
