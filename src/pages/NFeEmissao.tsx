@@ -307,7 +307,7 @@ export default function NFeEmissao() {
       .eq("id", companyId)
       .maybeSingle()
       .then(({ data }) => {
-        if (data) setCompanyCrt((data as any).crt || 1);
+        if (data) setCompanyCrt((data as { crt?: number }).crt || 1);
       });
   }, [companyId]);
 
