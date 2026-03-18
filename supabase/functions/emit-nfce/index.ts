@@ -59,21 +59,21 @@ function getApiBaseUrl(): string {
     : "https://api.nuvemfiscal.com.br";
 }
 
-// ─── Numeração segura ───
-async function getNextNumberSafe(supabase: any, configId: string): Promise<number> {
-  const { data, error } = await supabase
-    .from("fiscal_configs")
-    .select("next_number")
-    .eq("id", configId)
-    .single();
+// ─── Numeração segura (atômica via RPC com FOR UPDATE) ───
+async function getNextNumberSafe(supabase: ReturnType<typeof createClient>, configId: string): Promise<number> {
+  const { data, error } = await supabase.rpc("next_fiscal_number", {
+    p_config_id: configId,
+  });
 
-  if (error) throw new Error("Erro ao buscar numeração fiscal");
-  const next = data.next_number || 1;
+  if (error) {
+    console.error("[emit-nfce] Erro na numeração atômica:", error.message);
+    throw new Error(`Erro ao obter próximo número fiscal: ${error.message}`);
+  }
 
-  await supabase
-    .from("fiscal_configs")
-    .update({ next_number: next + 1 })
-    .eq("id", configId);
+  const next = data as number;
+  if (!next || next < 1) {
+    throw new Error("Numeração fiscal retornou valor inválido");
+  }
 
   return next;
 }
