@@ -6,6 +6,7 @@
 -- 1) Tabela sale_items (relacional, substitui JSONB em sales.items)
 CREATE TABLE IF NOT EXISTS sale_items (
   id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  company_id  uuid NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
   sale_id     uuid NOT NULL REFERENCES sales(id) ON DELETE CASCADE,
   product_id  uuid NOT NULL REFERENCES products(id),
   product_name text NOT NULL,
@@ -18,8 +19,24 @@ CREATE TABLE IF NOT EXISTS sale_items (
 
 CREATE INDEX IF NOT EXISTS idx_sale_items_sale ON sale_items(sale_id);
 CREATE INDEX IF NOT EXISTS idx_sale_items_product ON sale_items(product_id);
+CREATE INDEX IF NOT EXISTS idx_sale_items_company ON sale_items(company_id);
 
 ALTER TABLE sale_items ENABLE ROW LEVEL SECURITY;
+
+-- Suggested baseline RLS (align with other tables): company members only
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'sale_items' AND policyname = 'sale_items_company_members'
+  ) THEN
+    EXECUTE $p$
+      CREATE POLICY sale_items_company_members ON sale_items
+      USING (company_id IN (SELECT cu.company_id FROM public.company_users cu WHERE cu.user_id = auth.uid() AND cu.is_active = true))
+      WITH CHECK (company_id IN (SELECT cu.company_id FROM public.company_users cu WHERE cu.user_id = auth.uid() AND cu.is_active = true));
+    $p$;
+  END IF;
+END $$;
 
 -- 2) Função RPC atômica
 CREATE OR REPLACE FUNCTION finalize_sale_atomic(
@@ -37,6 +54,7 @@ CREATE OR REPLACE FUNCTION finalize_sale_atomic(
 RETURNS jsonb
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public
 AS $$
 DECLARE
   v_sale_id        uuid;
@@ -44,7 +62,58 @@ DECLARE
   v_current_stock  numeric;
   v_product_name   text;
   v_session        record;
+  v_uid            uuid;
+  v_sum_items      numeric;
+  v_sum_payments   numeric;
 BEGIN
+  v_uid := auth.uid();
+  IF v_uid IS NULL THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Unauthorized');
+  END IF;
+
+  -- Authorization: user must belong to company
+  IF NOT EXISTS (
+    SELECT 1 FROM company_users cu
+    WHERE cu.user_id = v_uid AND cu.company_id = p_company_id AND cu.is_active = true
+  ) THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Forbidden');
+  END IF;
+
+  -- Validate session belongs to company and lock it
+  SELECT total_vendas, total_dinheiro, total_debito, total_credito,
+         total_pix, total_voucher, total_outros, sales_count, company_id, status
+  INTO v_session
+  FROM cash_sessions
+  WHERE id = p_session_id
+  FOR UPDATE;
+
+  IF v_session IS NULL OR v_session.company_id <> p_company_id THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Sessão de caixa inválida');
+  END IF;
+  IF v_session.status IS NOT NULL AND v_session.status <> 'aberto' THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Caixa não está aberto');
+  END IF;
+
+  -- Financial integrity: validate totals derived from items/payments (tolerance 1 cent)
+  SELECT COALESCE(SUM((it->>'subtotal')::numeric), 0)
+  INTO v_sum_items
+  FROM jsonb_array_elements(p_items) it;
+
+  SELECT COALESCE(SUM((pj->>'amount')::numeric), 0)
+  INTO v_sum_payments
+  FROM jsonb_array_elements(p_payments) pj;
+
+  IF v_sum_items < 0 OR p_total <= 0 THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Total inválido');
+  END IF;
+  IF abs(v_sum_payments - p_total) > 0.01 THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Soma de pagamentos não confere com o total');
+  END IF;
+  IF abs(v_sum_items - p_total) > 0.02 AND abs(v_sum_items - (p_total + COALESCE(p_discount_val,0))) > 0.02 THEN
+    -- keep lenient due to rounding/discount splits, but block obvious tampering
+    RETURN jsonb_build_object('success', false, 'error', 'Total não confere com itens');
+  END IF;
+
   -- STEP 1: Insert sale
   INSERT INTO sales (company_id, terminal_id, session_id, items, subtotal,
                      discount_percent, discount_value, total, payments, status, sold_by)
@@ -55,8 +124,9 @@ BEGIN
   -- STEP 2: Insert sale_items + decrement stock (with row lock)
   FOR v_item IN SELECT * FROM jsonb_array_elements(p_items)
   LOOP
-    INSERT INTO sale_items (sale_id, product_id, product_name, quantity, unit_price, discount_percent, subtotal)
+    INSERT INTO sale_items (company_id, sale_id, product_id, product_name, quantity, unit_price, discount_percent, subtotal)
     VALUES (
+      p_company_id,
       v_sale_id,
       (v_item->>'product_id')::uuid,
       v_item->>'product_name',
@@ -84,14 +154,6 @@ BEGIN
     SET stock_quantity = stock_quantity - (v_item->>'quantity')::numeric
     WHERE id = (v_item->>'product_id')::uuid;
   END LOOP;
-
-  -- STEP 3: Update cash session
-  SELECT total_vendas, total_dinheiro, total_debito, total_credito,
-         total_pix, total_voucher, total_outros, sales_count
-  INTO v_session
-  FROM cash_sessions
-  WHERE id = p_session_id
-  FOR UPDATE;
 
   IF v_session IS NOT NULL THEN
     UPDATE cash_sessions SET
@@ -127,12 +189,12 @@ BEGIN
     'Venda PDV #' || LEFT(v_sale_id::text, 8),
     v_sale_id::text, p_total, CURRENT_DATE, CURRENT_DATE, p_total,
     COALESCE(p_payments->0->>'method', 'outros'), 'pago',
-    COALESCE(p_sold_by, auth.uid())
+    COALESCE(p_sold_by, v_uid)
   );
 
   RETURN jsonb_build_object('success', true, 'sale_id', v_sale_id, 'message', 'Venda finalizada com sucesso');
 
 EXCEPTION WHEN OTHERS THEN
-  RETURN jsonb_build_object('success', false, 'error', SQLERRM, 'code', SQLSTATE);
+  RETURN jsonb_build_object('success', false, 'error', 'Erro interno ao finalizar venda');
 END;
 $$;

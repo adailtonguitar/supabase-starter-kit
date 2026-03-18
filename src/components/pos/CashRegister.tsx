@@ -7,6 +7,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useCompany } from "@/hooks/useCompany";
 import { toast } from "sonner";
 import { openCashDrawer } from "@/lib/escpos";
+import { escapeHtml } from "@/lib/sanitize";
 
 const OFFLINE_SESSION_KEY = "as_offline_cash_session";
 
@@ -183,6 +184,12 @@ export function CashRegister({ onClose, terminalId = "01", preventClose = false,
     const pTerminal = s?.terminal_id ?? session?.terminal_id ?? terminalId;
     const pOpenedAt = s?.opened_at ?? session?.opened_at;
 
+    const safeCompanyName = escapeHtml(companyName || "PDV");
+    const safeTerminal = escapeHtml(`T${pTerminal}`);
+    const safeOpenedAt = pOpenedAt ? escapeHtml(new Date(pOpenedAt).toLocaleString("pt-BR")) : "";
+    const safeClosedAt = escapeHtml(now.toLocaleString("pt-BR"));
+    const safeNotes = pNotes ? escapeHtml(pNotes) : "";
+
     const html = `
       <html><head><title>Fechamento de Caixa</title>
       <style>
@@ -200,12 +207,12 @@ export function CashRegister({ onClose, terminalId = "01", preventClose = false,
         .diff-warn { font-weight: bold; }
       </style></head><body>
         <div class="center bold"><h2>FECHAMENTO DE CAIXA</h2></div>
-        <div class="center">${companyName || 'PDV'}</div>
-        <div class="center">Terminal: T${pTerminal}</div>
-        <div class="center">${now.toLocaleDateString("pt-BR")} ${now.toLocaleTimeString("pt-BR")}</div>
+        <div class="center">${safeCompanyName}</div>
+        <div class="center">Terminal: ${safeTerminal}</div>
+        <div class="center">${escapeHtml(now.toLocaleDateString("pt-BR"))} ${escapeHtml(now.toLocaleTimeString("pt-BR"))}</div>
         <div class="line"></div>
-        ${pOpenedAt ? `<div class="row"><span>Abertura:</span><span>${new Date(pOpenedAt).toLocaleString("pt-BR")}</span></div>` : ''}
-        <div class="row"><span>Fechamento:</span><span>${now.toLocaleString("pt-BR")}</span></div>
+        ${pOpenedAt ? `<div class="row"><span>Abertura:</span><span>${safeOpenedAt}</span></div>` : ''}
+        <div class="row"><span>Fechamento:</span><span>${safeClosedAt}</span></div>
         <div class="line"></div>
         <div class="section bold">RESUMO</div>
         <div class="row"><span>Fundo Inicial:</span><span>${formatCurrency(pOpenBalance)}</span></div>
@@ -228,7 +235,7 @@ export function CashRegister({ onClose, terminalId = "01", preventClose = false,
         <div class="row bold ${Math.abs(pDifference) < 0.01 ? 'diff-ok' : 'diff-warn'}">
           <span>Diferença:</span><span>${pDifference >= 0 ? "+" : ""}${formatCurrency(pDifference)}</span>
         </div>
-        ${pNotes ? `<div class="line"></div><div class="section"><span class="bold">Obs:</span> ${pNotes}</div>` : ''}
+        ${safeNotes ? `<div class="line"></div><div class="section"><span class="bold">Obs:</span> ${safeNotes}</div>` : ''}
         <div class="line"></div>
         <div class="center" style="margin-top:8px;font-size:10px;">Documento não fiscal</div>
         <div style="margin-top:20px;border-top:1px dashed #000;"></div>

@@ -1,6 +1,7 @@
 import { useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Printer, X } from "lucide-react";
+import { sanitizeHtml } from "@/lib/sanitize";
 
 export interface CarneData {
   clientName: string;
@@ -26,7 +27,8 @@ export function CarnePrint({ data, onClose, format = "a4" }: Props) {
     if (!content) return;
     const w = window.open("", "_blank", "width=600,height=800");
     if (!w) return;
-    w.document.write(`<html><head><title>Carnê</title><style>body{font-family:monospace;font-size:11px;padding:10px}table{width:100%;border-collapse:collapse}th,td{padding:4px;border:1px solid #ccc;text-align:left}.bold{font-weight:bold}.center{text-align:center}</style></head><body>${content.innerHTML}</body></html>`);
+    const safe = sanitizeHtml(content.innerHTML);
+    w.document.write(`<html><head><title>Carnê</title><style>body{font-family:monospace;font-size:11px;padding:10px}table{width:100%;border-collapse:collapse}th,td{padding:4px;border:1px solid #ccc;text-align:left}.bold{font-weight:bold}.center{text-align:center}</style></head><body>${safe}</body></html>`);
     w.document.close();
     w.print();
   };

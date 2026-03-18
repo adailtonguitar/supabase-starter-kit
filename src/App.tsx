@@ -21,6 +21,7 @@ import { useTermsAcceptance } from "@/hooks/useTermsAcceptance";
 import { WalkthroughProvider } from "@/hooks/useWalkthrough";
 import { WalkthroughRunner } from "@/components/WalkthroughRunner";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 import {
   LandingPage, Auth, ResetPassword, TrialExpirado, Instalar, Termos,
@@ -75,7 +76,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
       }
       const checkCompany = async () => {
         try {
-          const { data } = await (await import("@/integrations/supabase/client")).supabase
+          const { data } = await supabase
             .from("company_users")
             .select("id")
             .eq("user_id", user.id)

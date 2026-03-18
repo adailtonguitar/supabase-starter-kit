@@ -2,6 +2,7 @@ import { AlertTriangle, Printer, FileText, Receipt, Loader2 } from "lucide-react
 import { useCallback, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { escapeAttr, escapeHtml, safeUrl } from "@/lib/sanitize";
 
 // Map UF → SEFAZ NFC-e consultation URL
 const SEFAZ_NFCE_URLS: Record<string, string> = {
@@ -94,8 +95,10 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
       totalDiscount += discount;
       if (discount > 0) discountedItems.push(item);
 
-      return `<div class="item-name">${item.name}</div>
-              <div class="row item-detail"><span>${qty} x ${formatCurrency(unitPrice)}</span><span>${formatCurrency(totalItem)}</span></div>${item.notes ? `<div class="obs">  📝 ${item.notes}</div>` : ""}`;
+      const safeName = escapeHtml(item.name);
+      const safeNotes = item.notes ? escapeHtml(item.notes) : "";
+      return `<div class="item-name">${safeName}</div>
+              <div class="row item-detail"><span>${escapeHtml(qty)} x ${escapeHtml(formatCurrency(unitPrice))}</span><span>${escapeHtml(formatCurrency(totalItem))}</span></div>${safeNotes ? `<div class="obs">  📝 ${safeNotes}</div>` : ""}`;
     }).join("");
 
     // Build subtotal/discount/total summary block
@@ -109,23 +112,23 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
 
     let summaryHtml = "";
     if (totalDiscount > 0) {
-      summaryHtml = `<div class="row"><span>Subtotal</span><span>${formatCurrency(subtotal)}</span></div>`;
+      summaryHtml = `<div class="row"><span>Subtotal</span><span>${escapeHtml(formatCurrency(subtotal))}</span></div>`;
       if (allHavePromoName) {
         Object.entries(promoGroups).forEach(([name, value]) => {
-          summaryHtml += `<div class="row" style="color:#666"><span>🏷️ ${name}</span><span>-${formatCurrency(value)}</span></div>`;
+          summaryHtml += `<div class="row" style="color:#666"><span>🏷️ ${escapeHtml(name)}</span><span>-${escapeHtml(formatCurrency(value))}</span></div>`;
         });
       } else {
-        summaryHtml += `<div class="row" style="color:#666"><span>Desconto</span><span>-${formatCurrency(totalDiscount)}</span></div>`;
+        summaryHtml += `<div class="row" style="color:#666"><span>Desconto</span><span>-${escapeHtml(formatCurrency(totalDiscount))}</span></div>`;
       }
     }
 
     const paymentsHtml = (payments || []).map((p: any) =>
-      `<div class="row"><span>${methodLabel(p.method)}</span><span>${formatCurrency(p.amount)}</span></div>`
+      `<div class="row"><span>${escapeHtml(methodLabel(p.method))}</span><span>${escapeHtml(formatCurrency(p.amount))}</span></div>`
     ).join("");
 
-    const changeHtml = changeAmount > 0 ? `<div class="row bold"><span>Troco</span><span>${formatCurrency(changeAmount)}</span></div>` : "";
+    const changeHtml = changeAmount > 0 ? `<div class="row bold"><span>Troco</span><span>${escapeHtml(formatCurrency(changeAmount))}</span></div>` : "";
 
-    const now = new Date().toLocaleString("pt-BR");
+    const now = escapeHtml(new Date().toLocaleString("pt-BR"));
     const qtyTotal = printableItems.reduce((s: number, i: any) => s + (i.quantity || 1), 0);
 
     const printWindow = window.open("", "_blank", "width=320,height=600");
@@ -163,14 +166,14 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
         </head>
         <body>
           <div class="center">
-            ${logoUrl ? `<img src="${logoUrl}" class="logo" alt="Logo" />` : ""}
-            <h2>${companyName || "CUPOM DE VENDA"}</h2>
-            ${companyCnpj ? `<p class="sm">CNPJ: ${companyCnpj}</p>` : ""}
-            ${companyIe ? `<p class="sm">IE: ${companyIe}</p>` : ""}
-            ${companyAddress ? `<p class="sm">${companyAddress}</p>` : ""}
-            ${companyPhone ? `<p class="sm">Fone: ${companyPhone}</p>` : ""}
+            ${safeUrl(logoUrl) ? `<img src="${escapeAttr(safeUrl(logoUrl))}" class="logo" alt="Logo" />` : ""}
+            <h2>${escapeHtml(companyName || "CUPOM DE VENDA")}</h2>
+            ${companyCnpj ? `<p class="sm">CNPJ: ${escapeHtml(companyCnpj)}</p>` : ""}
+            ${companyIe ? `<p class="sm">IE: ${escapeHtml(companyIe)}</p>` : ""}
+            ${companyAddress ? `<p class="sm">${escapeHtml(companyAddress)}</p>` : ""}
+            ${companyPhone ? `<p class="sm">Fone: ${escapeHtml(companyPhone)}</p>` : ""}
             <p class="sm">${now}</p>
-            ${saleId ? `<p class="bold" style="margin-top:3px; font-size:12px;">Venda #${saleId.substring(0, 8).toUpperCase()}</p>` : ""}
+            ${saleId ? `<p class="bold" style="margin-top:3px; font-size:12px;">Venda #${escapeHtml(saleId.substring(0, 8).toUpperCase())}</p>` : ""}
           </div>
           <div class="no-fiscal">*** NÃO É DOCUMENTO FISCAL ***</div>
           <div class="dashed"></div>
@@ -180,13 +183,13 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
           ${itemsHtml}
           <div class="dashed"></div>
           ${summaryHtml}
-          <div class="row total-row"><span>TOTAL</span><span>${formatCurrency(total)}</span></div>
+          <div class="row total-row"><span>TOTAL</span><span>${escapeHtml(formatCurrency(total))}</span></div>
           <div class="dashed"></div>
           ${paymentsHtml}
           ${changeHtml}
           <div class="dashed"></div>
-          <p class="center sm">Qtd. total de itens: ${qtyTotal}</p>
-          ${slogan ? `<p class="center sm" style="margin-top:4px; font-style:italic">${slogan}</p>` : ""}
+          <p class="center sm">Qtd. total de itens: ${escapeHtml(qtyTotal)}</p>
+          ${slogan ? `<p class="center sm" style="margin-top:4px; font-style:italic">${escapeHtml(slogan)}</p>` : ""}
           <p class="center sm" style="margin-top:4px">Obrigado pela preferência!</p>
           <p class="cut">--------------------------------</p>
           <script>
@@ -230,26 +233,26 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
       const discount = item.discount || 0;
       subtotal += totalItem;
       totalDiscount += discount;
-      return `<div class="item-desc">${String(idx + 1).padStart(3, '0')} ${item.name}</div>
-              <div class="row item-detail"><span>${qty} ${unit} x ${formatCurrency(unitPrice)}</span><span>${formatCurrency(totalItem)}</span></div>`;
+      return `<div class="item-desc">${escapeHtml(String(idx + 1).padStart(3, "0"))} ${escapeHtml(item.name)}</div>
+              <div class="row item-detail"><span>${escapeHtml(qty)} ${escapeHtml(unit)} x ${escapeHtml(formatCurrency(unitPrice))}</span><span>${escapeHtml(formatCurrency(totalItem))}</span></div>`;
     }).join("");
 
     const paymentsHtml = (payments || []).map((p: any) =>
-      `<div class="row"><span>${methodLabel(p.method)}</span><span>${formatCurrency(p.amount)}</span></div>`
+      `<div class="row"><span>${escapeHtml(methodLabel(p.method))}</span><span>${escapeHtml(formatCurrency(p.amount))}</span></div>`
     ).join("");
 
-    const changeHtml = changeAmount > 0 ? `<div class="row bold"><span>Troco</span><span>${formatCurrency(changeAmount)}</span></div>` : "";
-    const now = new Date().toLocaleString("pt-BR");
+    const changeHtml = changeAmount > 0 ? `<div class="row bold"><span>Troco</span><span>${escapeHtml(formatCurrency(changeAmount))}</span></div>` : "";
+    const now = escapeHtml(new Date().toLocaleString("pt-BR"));
     const qtyTotal = printableItems.reduce((s: number, i: any) => s + (i.quantity || 1), 0);
 
-    const formattedKey = currentAccessKey ? currentAccessKey.replace(/(\d{4})(?=\d)/g, "$1 ") : "";
+    const formattedKey = currentAccessKey ? escapeHtml(currentAccessKey.replace(/(\d{4})(?=\d)/g, "$1 ")) : "";
 
     const consumerHtml = customerCpf 
-      ? `<p class="center sm bold">CPF DO CONSUMIDOR: ${customerCpf}</p>`
+      ? `<p class="center sm bold">CPF DO CONSUMIDOR: ${escapeHtml(customerCpf)}</p>`
       : `<p class="center sm bold">CONSUMIDOR NÃO IDENTIFICADO</p>`;
 
     const protocolHtml = protocolNumber 
-      ? `<p class="center xs" style="margin-top:2px">Protocolo de Autorização: ${protocolNumber}</p>${protocolDate ? `<p class="center xs">${protocolDate}</p>` : ""}`
+      ? `<p class="center xs" style="margin-top:2px">Protocolo de Autorização: ${escapeHtml(protocolNumber)}</p>${protocolDate ? `<p class="center xs">${escapeHtml(protocolDate)}</p>` : ""}`
       : "";
 
     // Subtotal / Desconto / Total section
@@ -266,29 +269,29 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
 
     let subtotalHtml = "";
     if (totalDiscount > 0) {
-      subtotalHtml = `<div class="row"><span>Subtotal</span><span>${formatCurrency(subtotal)}</span></div>`;
+      subtotalHtml = `<div class="row"><span>Subtotal</span><span>${escapeHtml(formatCurrency(subtotal))}</span></div>`;
       if (allHavePromoName) {
         // Show one line per promo name instead of generic "Desconto"
         Object.entries(promoGroups).forEach(([name, value]) => {
-          subtotalHtml += `<div class="row" style="color:#666"><span>🏷️ ${name}</span><span>-${formatCurrency(value)}</span></div>`;
+          subtotalHtml += `<div class="row" style="color:#666"><span>🏷️ ${escapeHtml(name)}</span><span>-${escapeHtml(formatCurrency(value))}</span></div>`;
         });
       } else {
         // Manual discount without promo name
-        subtotalHtml += `<div class="row" style="color:#666"><span>Desconto</span><span>-${formatCurrency(totalDiscount)}</span></div>`;
+        subtotalHtml += `<div class="row" style="color:#666"><span>Desconto</span><span>-${escapeHtml(formatCurrency(totalDiscount))}</span></div>`;
       }
-      subtotalHtml += `<div class="row total-row"><span>TOTAL</span><span>${formatCurrency(total)}</span></div>`;
+      subtotalHtml += `<div class="row total-row"><span>TOTAL</span><span>${escapeHtml(formatCurrency(total))}</span></div>`;
     } else {
-      subtotalHtml = `<div class="row total-row"><span>TOTAL</span><span>${formatCurrency(total)}</span></div>`;
+      subtotalHtml = `<div class="row total-row"><span>TOTAL</span><span>${escapeHtml(formatCurrency(total))}</span></div>`;
     }
 
     // SEFAZ consultation URL based on UF
-    const uf = companyUf?.toUpperCase() || "";
-    const sefazUrl = SEFAZ_NFCE_URLS[uf] || "https://www.nfe.fazenda.gov.br/portal";
+    const uf = (companyUf?.toUpperCase() || "").replace(/[^A-Z]/g, "");
+    const sefazUrl = escapeHtml(SEFAZ_NFCE_URLS[uf] || "https://www.nfe.fazenda.gov.br/portal");
 
     // Tributos aproximados (Lei 12.741/2012)
     const tributos = tributosAprox ?? (total * 0.32);
     const tributosHtml = `<div class="tax-info">
-      Tributos aproximados: ${formatCurrency(tributos)} (Lei Federal 12.741/2012)
+      Tributos aproximados: ${escapeHtml(formatCurrency(tributos))} (Lei Federal 12.741/2012)
     </div>`;
 
     // Homologação message - only in homologação

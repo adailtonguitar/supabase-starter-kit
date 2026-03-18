@@ -1,15 +1,31 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
+function buildCorsHeaders(req: Request) {
+  const origin = req.headers.get("Origin") || "";
+  const allowed = (Deno.env.get("ALLOWED_ORIGINS") || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
 
-function json(body: unknown, status = 200) {
+  // Default: if not configured, keep permissive for local dev but still avoid reflecting arbitrary origins.
+  const allowOrigin =
+    allowed.length > 0
+      ? (allowed.includes(origin) ? origin : allowed[0])
+      : "*";
+
+  return {
+    "Access-Control-Allow-Origin": allowOrigin,
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers":
+      "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+    "Vary": "Origin",
+  };
+}
+
+function json(req: Request, body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
+    headers: { ...buildCorsHeaders(req), "Content-Type": "application/json" },
   });
 }
 
@@ -199,24 +215,61 @@ function buildMercadopagoPayload(amount: number, installments: number, descripti
 }
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  if (req.method === "OPTIONS") return new Response(null, { headers: buildCorsHeaders(req) });
 
   try {
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader?.startsWith("Bearer ")) return json({ error: "Unauthorized" }, 401);
+    if (!authHeader?.startsWith("Bearer ")) return json(req, { error: "Unauthorized" }, 401);
 
     const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
       global: { headers: { Authorization: authHeader } },
     });
     const token = authHeader.replace("Bearer ", "");
     const { data: { user }, error: userError } = await supabase.auth.getUser(token);
-    if (userError || !user) return json({ error: "Unauthorized" }, 401);
+    if (userError || !user) return json(req, { error: "Unauthorized" }, 401);
 
     const body = await req.json();
-    const { action, provider, environment = "sandbox", merchantId, apiKey, pv, integrationKey, accessToken, amount, installments = 1, paymentType = "credito", orderId, transactionId, chargeId, description } = body;
+    const {
+      action,
+      provider,
+      environment = "sandbox",
+      merchantId,
+      apiKey,
+      pv,
+      integrationKey,
+      accessToken,
+      amount,
+      installments = 1,
+      paymentType = "credito",
+      orderId,
+      transactionId,
+      chargeId,
+      description,
+    } = body ?? {};
 
-    if (!provider) return json({ error: "Provedor não especificado" }, 400);
-    if (!action) return json({ error: "Ação não especificada" }, 400);
+    const allowedProviders = ["cielo", "rede", "pagseguro", "stone", "mercadopago"] as const;
+    const allowedActions = ["create", "check", "cancel", "test"] as const;
+
+    if (!provider || !allowedProviders.includes(provider)) {
+      return json(req, { error: "Provedor inválido" }, 400);
+    }
+    if (!action || !allowedActions.includes(action)) {
+      return json(req, { error: "Ação inválida" }, 400);
+    }
+    if (environment !== "sandbox" && environment !== "production") {
+      return json(req, { error: "Ambiente inválido" }, 400);
+    }
+
+    // Basic financial validation
+    const amt = typeof amount === "number" ? amount : Number(amount);
+    if (action === "create" || action === "cancel") {
+      if (!Number.isFinite(amt) || amt <= 0) return json(req, { error: "Valor inválido" }, 400);
+      if (amt > 100000) return json(req, { error: "Valor excede o limite permitido" }, 400);
+    }
+    const inst = typeof installments === "number" ? installments : Number(installments);
+    if (action === "create" && (provider === "cielo" || provider === "rede" || provider === "stone" || provider === "mercadopago")) {
+      if (!Number.isFinite(inst) || inst < 1 || inst > 24) return json(req, { error: "Parcelas inválidas" }, 400);
+    }
 
     let result: unknown;
 
@@ -224,43 +277,48 @@ Deno.serve(async (req) => {
       case "cielo": {
         const mId = merchantId || "";
         const mKey = apiKey || "";
-        const payload = action === "create" ? buildCieloPayload(amount, installments, paymentType, orderId || `PDV-${Date.now()}`) : { amount, chargeId };
+        if (!mId || !mKey) return json(req, { error: "Credenciais Cielo ausentes" }, 400);
+        const payload = action === "create" ? buildCieloPayload(amt, inst, String(paymentType || "credito"), String(orderId || `PDV-${Date.now()}`)) : { amount: amt, chargeId };
         result = await cieloRequest(environment, mId, mKey, action, payload, transactionId);
         break;
       }
       case "rede": {
         const pvNum = pv || merchantId || "";
         const iKey = integrationKey || apiKey || "";
-        const payload = action === "create" ? buildRedePayload(amount, installments, orderId || `PDV-${Date.now()}`) : { amount };
+        if (!pvNum || !iKey) return json(req, { error: "Credenciais Rede ausentes" }, 400);
+        const payload = action === "create" ? buildRedePayload(amt, inst, String(orderId || `PDV-${Date.now()}`)) : { amount: amt };
         result = await redeRequest(environment, pvNum, iKey, action, payload, transactionId);
         break;
       }
       case "pagseguro": {
         const at = accessToken || apiKey || "";
-        const payload = action === "create" ? buildPagseguroPayload(amount, orderId || `PDV-${Date.now()}`) : { chargeId, amount };
+        if (!at) return json(req, { error: "Credenciais PagSeguro ausentes" }, 400);
+        const payload = action === "create" ? buildPagseguroPayload(amt, String(orderId || `PDV-${Date.now()}`)) : { chargeId, amount: amt };
         result = await pagseguroRequest(environment, at, action, payload, transactionId);
         break;
       }
       case "stone": {
         const key = apiKey || "";
-        const payload = action === "create" ? buildStonePayload(amount, installments, orderId || `PDV-${Date.now()}`) : { chargeId };
+        if (!key) return json(req, { error: "Credenciais Stone ausentes" }, 400);
+        const payload = action === "create" ? buildStonePayload(amt, inst, String(orderId || `PDV-${Date.now()}`)) : { chargeId };
         result = await stoneRequest(environment, key, action, payload, transactionId);
         break;
       }
       case "mercadopago": {
         const at = accessToken || apiKey || "";
-        const payload = action === "create" ? buildMercadopagoPayload(amount, installments, description || "Venda PDV") : { amount };
+        if (!at) return json(req, { error: "Credenciais Mercado Pago ausentes" }, 400);
+        const payload = action === "create" ? buildMercadopagoPayload(amt, inst, String(description || "Venda PDV")) : { amount: amt };
         result = await mercadopagoRequest(environment, at, action, payload, transactionId);
         break;
       }
       default:
-        return json({ error: `Provedor '${provider}' não suportado` }, 400);
+        return json(req, { error: `Provedor '${provider}' não suportado` }, 400);
     }
 
-    return json({ success: true, data: result });
+    return json(req, { success: true, data: result });
   } catch (error: unknown) {
     console.error("[tef-gateway] Error:", error);
     const msg = error instanceof Error ? error.message : "Erro interno";
-    return json({ success: false, error: msg }, 500);
+    return json(req, { success: false, error: msg }, 500);
   }
 });

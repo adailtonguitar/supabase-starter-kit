@@ -44,6 +44,23 @@ export interface PaymentResult {
   credit_installments?: number;
 }
 
+// ===== PDV / FINANCE CRITICAL INPUTS =====
+
+export interface FinalizeSaleItemInput {
+  product_id: string;
+  product_name: string;
+  quantity: number;
+  unit_price: number;
+  discount_percent: number;
+  subtotal: number;
+}
+
+export interface FinalizeSalePaymentInput {
+  method: PaymentResult["method"];
+  amount: number;
+  approved: boolean;
+}
+
 export interface StockMovementInput {
   product_id: string;
   type: "entrada" | "saida" | "ajuste" | "venda" | "devolucao";

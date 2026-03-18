@@ -18,6 +18,7 @@ CREATE OR REPLACE FUNCTION finalize_sale_atomic(
 RETURNS jsonb
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public
 AS $$
 DECLARE
   v_sale_id        uuid;
@@ -28,7 +29,54 @@ DECLARE
   v_user_role      text;
   v_max_discount   numeric;
   v_item_discount  numeric;
+  v_uid            uuid;
+  v_sum_items      numeric;
+  v_sum_payments   numeric;
 BEGIN
+  v_uid := auth.uid();
+  IF v_uid IS NULL THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Unauthorized');
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM company_users cu
+    WHERE cu.user_id = v_uid AND cu.company_id = p_company_id AND cu.is_active = true
+  ) THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Forbidden');
+  END IF;
+
+  SELECT total_vendas, total_dinheiro, total_debito, total_credito,
+         total_pix, total_voucher, total_outros, sales_count, company_id, status
+  INTO v_session
+  FROM cash_sessions
+  WHERE id = p_session_id
+  FOR UPDATE;
+
+  IF v_session IS NULL OR v_session.company_id <> p_company_id THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Sessão de caixa inválida');
+  END IF;
+  IF v_session.status IS NOT NULL AND v_session.status <> 'aberto' THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Caixa não está aberto');
+  END IF;
+
+  SELECT COALESCE(SUM((it->>'subtotal')::numeric), 0)
+  INTO v_sum_items
+  FROM jsonb_array_elements(p_items) it;
+
+  SELECT COALESCE(SUM((pj->>'amount')::numeric), 0)
+  INTO v_sum_payments
+  FROM jsonb_array_elements(p_payments) pj;
+
+  IF v_sum_items < 0 OR p_total <= 0 THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Total inválido');
+  END IF;
+  IF abs(v_sum_payments - p_total) > 0.01 THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Soma de pagamentos não confere com o total');
+  END IF;
+  IF abs(v_sum_items - p_total) > 0.02 AND abs(v_sum_items - (p_total + COALESCE(p_discount_val,0))) > 0.02 THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Total não confere com itens');
+  END IF;
+
   -- ═══ NEW: Validate discount against role limits ═══
   IF p_sold_by IS NOT NULL AND p_discount_pct > 0 THEN
     SELECT cu.role INTO v_user_role
@@ -117,14 +165,6 @@ BEGIN
     WHERE id = (v_item->>'product_id')::uuid;
   END LOOP;
 
-  -- STEP 3: Update cash session
-  SELECT total_vendas, total_dinheiro, total_debito, total_credito,
-         total_pix, total_voucher, total_outros, sales_count
-  INTO v_session
-  FROM cash_sessions
-  WHERE id = p_session_id
-  FOR UPDATE;
-
   IF v_session IS NOT NULL THEN
     UPDATE cash_sessions SET
       total_vendas   = COALESCE(v_session.total_vendas, 0)   + p_total,
@@ -159,12 +199,12 @@ BEGIN
     'Venda PDV #' || LEFT(v_sale_id::text, 8),
     v_sale_id::text, p_total, CURRENT_DATE, CURRENT_DATE, p_total,
     COALESCE(p_payments->0->>'method', 'outros'), 'pago',
-    COALESCE(p_sold_by, auth.uid())
+    COALESCE(p_sold_by, v_uid)
   );
 
   RETURN jsonb_build_object('success', true, 'sale_id', v_sale_id, 'message', 'Venda finalizada com sucesso');
 
 EXCEPTION WHEN OTHERS THEN
-  RETURN jsonb_build_object('success', false, 'error', SQLERRM, 'code', SQLSTATE);
+  RETURN jsonb_build_object('success', false, 'error', 'Erro interno ao finalizar venda');
 END;
 $$;

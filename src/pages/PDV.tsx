@@ -35,6 +35,9 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { playAddSound, playErrorSound, playSaleCompleteSound } from "@/lib/pdv-sounds";
 import { formatCurrency } from "@/lib/utils";
 import { logAction } from "@/services/ActionLogger";
+import { assertNonNegativeMoney, ensureMoneyEquals, fromCents, roundMoney, splitInstallments, toCents } from "@/lib/money";
+import type { FinancialEntryInsert } from "@/hooks/useFinancialEntries";
+import type { CashSessionRow } from "@/integrations/supabase/tables";
 
 export default function PDV() {
   const pdv = usePDV();
@@ -143,7 +146,28 @@ export default function PDV() {
   // Track if user manually dismissed the cash register dialog
   const cashRegisterDismissedRef = useRef(false);
   const [forceClosedAlert, setForceClosedAlert] = useState(false);
-  const [forceClosedSnapshot, setForceClosedSnapshot] = useState<any>(null);
+  type ForceClosedSnapshot = {
+    terminal_id: string;
+    opened_at?: string;
+    closed_at: string;
+    openBalance: number;
+    totalVendas: number;
+    salesCount: number;
+    totalDinheiro: number;
+    totalDebito: number;
+    totalCredito: number;
+    totalPix: number;
+    totalSangria: number;
+    totalSuprimento: number;
+    totalFiadoRecebido: number;
+    fiadoCount: number;
+    totalExpected: number;
+    totalCounted: number;
+    difference: number;
+    closingNotes: string;
+  };
+
+  const [forceClosedSnapshot, setForceClosedSnapshot] = useState<ForceClosedSnapshot | null>(null);
   const forceClosedRef = useRef(false);
   // Track if the operator themselves opened the cash register dialog (to avoid false force-close alerts)
   const selfClosingRef = useRef(false);
@@ -198,11 +222,11 @@ export default function PDV() {
         schema: "public",
         table: "cash_sessions",
         filter: `id=eq.${sessionId}`,
-      }, (payload: any) => {
+      }, (payload) => {
         // Skip if the operator themselves is closing (CashRegister dialog is open)
         if (selfClosingRef.current) return;
-        if (payload.new?.status === "fechado") {
-          const s = payload.new;
+        const s = (payload as unknown as { new?: Partial<CashSessionRow> | null }).new ?? null;
+        if (s?.status === "fechado") {
           setForceClosedSnapshot({
             terminal_id: s.terminal_id || terminalId,
             opened_at: s.opened_at,
@@ -363,17 +387,35 @@ export default function PDV() {
     if (raw && pdv.products.length > 0) {
       sessionStorage.removeItem("pdv_load_quote");
       try {
-        const { quoteId, items, clientName } = JSON.parse(raw);
+        const parsed: unknown = JSON.parse(raw);
+        if (!parsed || typeof parsed !== "object") return;
+        const obj = parsed as { quoteId?: unknown; items?: unknown; clientName?: unknown };
+        const quoteId = typeof obj.quoteId === "string" ? obj.quoteId : null;
+        const clientName = typeof obj.clientName === "string" ? obj.clientName : null;
         if (quoteId) setPendingQuoteId(quoteId);
-        if (Array.isArray(items)) {
-          items.forEach((item: any) => {
-            const product = pdv.products.find((p) => p.id === item.product_id);
-            if (product) {
-              for (let i = 0; i < (item.quantity || 1); i++) {
-                pdv.addToCart(product);
-              }
-            }
-          });
+
+        type QuoteLoadItem = { product_id: string; quantity?: number };
+        const items = Array.isArray(obj.items) ? (obj.items as unknown[]) : [];
+        const safeItems: QuoteLoadItem[] = items
+          .map((it) => {
+            if (!it || typeof it !== "object") return null;
+            const rec = it as Record<string, unknown>;
+            const product_id = typeof rec.product_id === "string" ? rec.product_id : null;
+            const quantityRaw = rec.quantity;
+            const quantity = typeof quantityRaw === "number" && Number.isFinite(quantityRaw) ? quantityRaw : 1;
+            if (!product_id) return null;
+            return { product_id, quantity };
+          })
+          .filter((v): v is QuoteLoadItem => !!v);
+
+        for (const item of safeItems) {
+          const product = pdv.products.find((p) => p.id === item.product_id);
+          if (!product) continue;
+          const q = Math.max(1, Math.floor(item.quantity || 1));
+          for (let i = 0; i < q; i++) pdv.addToCart(product);
+        }
+
+        if (safeItems.length > 0) {
           if (clientName) toast.info(`Orçamento carregado — Cliente: ${clientName}`, { duration: 1500 });
           else toast.info("Orçamento carregado no carrinho", { duration: 1500 });
         }
@@ -397,8 +439,9 @@ export default function PDV() {
       });
       toast.success("Orçamento salvo com sucesso!", { duration: 1500 });
       pdv.clearCart(); setSelectedClient(null); setShowSaveQuote(false); setQuoteNotes("");
-    } catch (err: any) {
-      toast.error(`Erro ao salvar orçamento: ${err.message}`);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Erro ao salvar orçamento";
+      toast.error(`Erro ao salvar orçamento: ${msg}`);
     }
   };
 
@@ -537,7 +580,7 @@ export default function PDV() {
     if (added) {
       playAddSound();
       // Show last added item highlight for 3s
-      setLastAddedItem({ name: product.name, price: product.price, image_url: (product as any).image_url });
+      setLastAddedItem({ name: product.name, price: product.price, image_url: product.image_url });
       if (lastAddedTimerRef.current) clearTimeout(lastAddedTimerRef.current);
       lastAddedTimerRef.current = setTimeout(() => setLastAddedItem(null), 3000);
     }
@@ -546,7 +589,7 @@ export default function PDV() {
   // Keyboard shortcuts — work everywhere including from barcode input
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      // Allow F-keys from any element (including input)
+      // Allow F-keys from qualquer elemento (incluindo input)
       const isFKey = e.key.startsWith("F") && e.key.length <= 3;
       const isDelete = e.key === "Delete";
       const isEscape = e.key === "Escape";
@@ -776,9 +819,10 @@ export default function PDV() {
           const pts = await earnPoints(savedClient.id, savedTotal, result.fiscalDocId);
           if (pts > 0) toast.info(`🎁 ${savedClient.name} ganhou ${pts} pontos de fidelidade!`, { duration: 2000 });
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         playErrorSound();
-        toast.error(`Erro ao finalizar venda: ${err.message}`);
+        const msg = err instanceof Error ? err.message : "Erro ao finalizar venda";
+        toast.error(`Erro ao finalizar venda: ${msg}`);
       }
     }
     setShowTEF(false);
@@ -795,41 +839,51 @@ export default function PDV() {
     setShowClientSelector(false);
     if (finalizingSale) return;
     try {
-      const isSignal = mode === "sinal" && downPaymentAmount && downPaymentAmount > 0;
-      const remainingAmount = isSignal ? pdv.total - downPaymentAmount : pdv.total;
+      const total = roundMoney(pdv.total);
+      assertNonNegativeMoney(total, "total da venda");
+
+      const down = downPaymentAmount === undefined ? 0 : roundMoney(downPaymentAmount);
+      assertNonNegativeMoney(down, "valor do sinal");
+
+      const isSignal = mode === "sinal" && down > 0;
+      const remainingAmount = isSignal ? roundMoney(total - down) : total;
+      assertNonNegativeMoney(remainingAmount, "saldo restante");
 
       const paymentResults: PaymentResult[] = [{
-        method: "prazo", approved: true, amount: pdv.total,
+        method: "prazo", approved: true, amount: total,
         credit_client_id: client.id, credit_client_name: client.name,
         credit_mode: isSignal ? "sinal" : mode, credit_installments: installments,
       }];
       const savedItems = [...pdv.cartItems];
-      const savedTotal = pdv.total;
+      const savedTotal = total;
       const result = await pdv.finalizeSale(paymentResults, { skipFiscal: skipFiscalEmission });
       playSaleCompleteSound();
 
       // ── Fix: Update sale status and financial entries ──
       if (result.saleId) {
         const currentBalance = Number(client.credit_balance || 0);
+        assertNonNegativeMoney(currentBalance, "saldo atual do cliente");
         // Only add the remaining (not signal) to credit balance
         const creditAmount = isSignal ? remainingAmount : savedTotal;
+        assertNonNegativeMoney(creditAmount, "valor a creditar");
         const newBalance = currentBalance + creditAmount;
+        assertNonNegativeMoney(newBalance, "novo saldo do cliente");
 
         // Get user id once
         const { data: { user: authUser } } = await supabase.auth.getUser();
         const userId = authUser?.id || null;
 
         // ── Critical updates: run sequentially to avoid silent failures ──
-        const throwErr = (label: string, error: any) => {
-          if (error) {
-            console.error(`[Fiado] ${label} failed:`, error);
-            throw new Error(`${label}: ${error.message}`);
-          }
+        const throwErr = (label: string, error: unknown) => {
+          if (!error) return;
+          const msg = error instanceof Error ? error.message : "erro desconhecido";
+          console.error(`[Fiado] ${label} failed:`, error);
+          throw new Error(`${label}: ${msg}`);
         };
 
         // 1) Update sale status
         const { error: saleErr } = await supabase.from("sales")
-          .update({ status: isSignal ? "sinal" : "fiado" } as any)
+          .update({ status: isSignal ? "sinal" : "fiado" })
           .eq("id", result.saleId);
         throwErr("Atualizar status da venda", saleErr);
 
@@ -848,7 +902,10 @@ export default function PDV() {
             .eq("company_id", companyId);
           throwErr("Remover lançamento automático", delErr);
 
-          const entriesToInsert: any[] = [];
+          if (!companyId) throw new Error("Empresa não carregada");
+
+          const today = new Date().toISOString().split("T")[0];
+          const entriesToInsert: FinancialEntryInsert[] = [];
 
           if (isSignal) {
             // Signal (already paid)
@@ -858,23 +915,25 @@ export default function PDV() {
               description: `Sinal (entrada) - ${client.name}`,
               reference: result.saleId,
               counterpart: client.name,
-              amount: downPaymentAmount,
-              due_date: new Date().toISOString().split("T")[0],
+              amount: down,
+              due_date: today,
               status: "pago",
-              paid_amount: downPaymentAmount,
-              paid_date: new Date().toISOString().split("T")[0],
+              paid_amount: down,
+              paid_date: today,
               created_by: userId,
             });
           }
 
           const baseAmount = isSignal ? remainingAmount : savedTotal;
           const numInstallments = isSignal ? (installments > 1 ? installments : 1) : installments;
-          const installmentAmount = Math.round((baseAmount / numInstallments) * 100) / 100;
+          const centsParts = splitInstallments(baseAmount, numInstallments);
+          ensureMoneyEquals(fromCents(centsParts.reduce((s, c) => s + c, 0)), baseAmount, "parcelas vs total");
 
           for (let i = 0; i < numInstallments; i++) {
             const dueDate = new Date();
             dueDate.setMonth(dueDate.getMonth() + i + 1);
-            const isLast = i === numInstallments - 1;
+            const value = fromCents(centsParts[i] ?? 0);
+            assertNonNegativeMoney(value, "valor da parcela");
             entriesToInsert.push({
               company_id: companyId,
               type: "receber",
@@ -883,11 +942,19 @@ export default function PDV() {
                 : `Saldo (na entrega) - ${client.name}`,
               reference: result.saleId,
               counterpart: client.name,
-              amount: isLast ? baseAmount - installmentAmount * (numInstallments - 1) : installmentAmount,
+              amount: value,
               due_date: dueDate.toISOString().split("T")[0],
               status: "pendente",
               created_by: userId,
             });
+          }
+
+          // Double-check consistency in cents
+          const sumInserted = entriesToInsert
+            .filter((e) => e.status === "pendente")
+            .reduce((s, e) => s + toCents(e.amount), 0);
+          if (sumInserted !== toCents(baseAmount)) {
+            throw new Error("parcelas geradas não conferem com o total (inconsistência interna)");
           }
 
           const { error: insErr } = await supabase.from("financial_entries").insert(entriesToInsert);
@@ -900,7 +967,7 @@ export default function PDV() {
               paid_amount: 0,
               paid_date: null,
               counterpart: client.name,
-            } as any)
+            })
             .eq("reference", result.saleId)
             .eq("company_id", companyId);
           throwErr("Atualizar lançamento para pendente", updErr);
@@ -909,7 +976,7 @@ export default function PDV() {
 
       setReceipt({
         items: savedItems, total: savedTotal,
-        payments: [{ method: "prazo" as any, approved: true, amount: savedTotal }],
+        payments: [{ method: "prazo", approved: true, amount: savedTotal }],
         nfceNumber: result.nfceNumber,
         accessKey: result.accessKey, serie: result.serie,
         isContingency: result.isContingency,
@@ -949,9 +1016,10 @@ export default function PDV() {
         const pts = await earnPoints(client.id, savedTotal, result.fiscalDocId);
         if (pts > 0) toast.info(`🎁 ${client.name} ganhou ${pts} pontos de fidelidade!`, { duration: 2000 });
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       playErrorSound();
-      toast.error(`Erro ao finalizar venda: ${err.message}`);
+      const msg = err instanceof Error ? err.message : "Erro ao finalizar venda";
+      toast.error(`Erro ao finalizar venda: ${msg}`);
     }
   };
 
@@ -1209,7 +1277,7 @@ export default function PDV() {
                             )}
                             {(() => {
                               const prod = pdv.products.find(p => p.id === item.id);
-                              const costPrice = (prod as any)?.cost_price;
+                              const costPrice = prod?.cost_price;
                               const reorder = prod?.reorder_point || 0;
                               const remaining = (prod?.stock_quantity || 0) - item.quantity;
                               const isBelowCost = costPrice && costPrice > 0 && item.price <= costPrice;
@@ -1298,9 +1366,9 @@ export default function PDV() {
               if (!activeItem) return null;
               return (
                 <div className="hidden lg:flex flex-col items-center gap-2 py-3 border-b border-primary/30 bg-primary/5 rounded-lg px-2">
-                  {(activeItem as any).image_url ? (
+                  {activeItem.image_url ? (
                     <div className="w-24 h-24 rounded-xl overflow-hidden border-2 border-primary/30 shadow-lg">
-                      <img src={(activeItem as any).image_url} alt={activeItem.name} className="w-full h-full object-cover" />
+                      <img src={activeItem.image_url} alt={activeItem.name} className="w-full h-full object-cover" />
                     </div>
                   ) : (
                     <div className="w-24 h-24 rounded-xl bg-muted/80 border-2 border-border flex items-center justify-center">
@@ -1805,7 +1873,15 @@ export default function PDV() {
 
       {/* TEF */}
       {showTEF && (
-        <TEFProcessor total={pdv.total} onComplete={handleTEFComplete} onCancel={() => { setShowTEF(false); setTefDefaultMethod(null); }} onPrazoRequested={handlePrazoRequested} defaultMethod={tefDefaultMethod as any} pixConfig={pixKey ? { pixKey, pixKeyType: pixKeyType || undefined, merchantName: companyName || "LOJA", merchantCity: pixCity || "SAO PAULO" } : null} tefConfig={tefConfigData ? { provider: tefConfigData.provider, apiKey: tefConfigData.api_key, apiSecret: tefConfigData.api_secret, terminalId: tefConfigData.terminal_id, merchantId: tefConfigData.merchant_id, companyId: companyId || undefined, environment: tefConfigData.environment } : null} />
+        <TEFProcessor
+          total={pdv.total}
+          onComplete={handleTEFComplete}
+          onCancel={() => { setShowTEF(false); setTefDefaultMethod(null); }}
+          onPrazoRequested={handlePrazoRequested}
+          defaultMethod={tefDefaultMethod}
+          pixConfig={pixKey ? { pixKey, pixKeyType: pixKeyType || undefined, merchantName: companyName || "LOJA", merchantCity: pixCity || "SAO PAULO" } : null}
+          tefConfig={tefConfigData ? { provider: tefConfigData.provider, apiKey: tefConfigData.api_key, apiSecret: tefConfigData.api_secret, terminalId: tefConfigData.terminal_id, merchantId: tefConfigData.merchant_id, companyId: companyId || undefined, environment: tefConfigData.environment } : null}
+        />
       )}
 
       {/* Client selector for credit sales */}

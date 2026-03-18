@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
 import { useSync } from "@/hooks/useSync";
 import { buildContingencyPayload } from "@/services/ContingencyService";
-import type { PaymentResult } from "@/services/types";
+import type { FinalizeSaleItemInput, FinalizeSalePaymentInput, PaymentResult } from "@/services/types";
 import { FiscalEmissionService } from "@/services/FiscalEmissionService";
 import { isScaleBarcode, parseScaleBarcode } from "@/lib/scale-barcode";
 import { calculateCartPromos, type PromoMatch } from "@/lib/promo-engine";
@@ -639,23 +639,31 @@ export function usePDV() {
         if (userId) localStorage.setItem("as_cached_user_id", userId);
       } catch { /* offline fallback */ }
 
-      const saleItems = cartItems.map(item => {
-        const manualDiscount = itemDiscounts[item.id] || 0;
+      const saleItems: FinalizeSaleItemInput[] = cartItems.map((item) => {
+        const manualDiscountRaw = itemDiscounts[item.id] || 0;
         const promoMatch = promoMatches[item.id];
         const effectivePrice = promoMatch ? promoMatch.finalPrice : item.price;
+        const manualDiscount = Number.isFinite(manualDiscountRaw) ? manualDiscountRaw : 0;
         const priceAfterManual = effectivePrice * (1 - manualDiscount / 100);
         const itemSubtotal = priceAfterManual * item.quantity;
+        const baseForPct = item.price > 0 ? item.price : effectivePrice > 0 ? effectivePrice : 0;
+        const promoPct = promoMatch && baseForPct > 0 ? (promoMatch.savingsPerUnit / baseForPct) * 100 : 0;
         return {
           product_id: item.id,
           product_name: item.name,
           quantity: item.quantity,
-          unit_price: item.price,
-          discount_percent: manualDiscount + (promoMatch ? (promoMatch.savingsPerUnit / item.price) * 100 : 0),
+          // Persist the effective unit price used for pricing (promo applied).
+          unit_price: effectivePrice,
+          discount_percent: manualDiscount + promoPct,
           subtotal: Math.round(itemSubtotal * 100) / 100,
         };
       });
 
-      const paymentsSummary = payments.map(p => ({ method: p.method, amount: p.amount, approved: p.approved }));
+      const paymentsSummary: FinalizeSalePaymentInput[] = payments.map((p) => ({
+        method: p.method,
+        amount: p.amount,
+        approved: p.approved,
+      }));
 
       // ── Chamada única: RPC atômica ──
       const { data: rpcResult, error: rpcError } = await supabase.rpc("finalize_sale_atomic", {
@@ -814,14 +822,21 @@ export function usePDV() {
         userId = localStorage.getItem("as_cached_user_id") || "";
       }
 
-      const saleItems = cartItems.map(item => ({
-        product_id: item.id,
-        product_name: item.name,
-        quantity: item.quantity,
-        unit_price: item.price,
-        discount_percent: itemDiscounts[item.id] || 0,
-        subtotal: item.price * (1 - (itemDiscounts[item.id] || 0) / 100) * item.quantity,
-      }));
+      const saleItems: FinalizeSaleItemInput[] = cartItems.map((item) => {
+        const manualDiscountRaw = itemDiscounts[item.id] || 0;
+        const manualDiscount = Number.isFinite(manualDiscountRaw) ? manualDiscountRaw : 0;
+        const effectivePrice = item.price;
+        const priceAfterManual = effectivePrice * (1 - manualDiscount / 100);
+        const itemSubtotal = priceAfterManual * item.quantity;
+        return {
+          product_id: item.id,
+          product_name: item.name,
+          quantity: item.quantity,
+          unit_price: effectivePrice,
+          discount_percent: manualDiscount,
+          subtotal: Math.round(itemSubtotal * 100) / 100,
+        };
+      });
 
       const offlineSaleId = crypto.randomUUID();
       let contingencyNumber = "900001";

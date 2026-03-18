@@ -1,15 +1,58 @@
 import { supabase } from "@/integrations/supabase/client";
 
+type DocType = "nfce" | "nfe";
+
+type FiscalResponse<T = unknown> = {
+  success?: boolean;
+  data?: T;
+  error?: string;
+};
+
+function isValidAccessKey(key: string): boolean {
+  return /^[0-9]{44}$/.test(key);
+}
+
+function getErrorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : "Erro desconhecido";
+}
+
+function getFunctionName(docType: DocType): string {
+  return docType === "nfce" ? "emit-nfce" : "emit-nfe";
+}
+
 export class FiscalEmissionService {
-  static async downloadPdf(accessKey: string, docType: "nfce" | "nfe") {
+
+  static async downloadPdf(accessKey: string, docType: DocType): Promise<FiscalResponse> {
+    if (!isValidAccessKey(accessKey)) {
+      return { error: "Chave de acesso inválida" };
+    }
+
     try {
-      const { data, error } = await supabase.functions.invoke("emit-nfce", {
+      const { data, error } = await supabase.functions.invoke(getFunctionName(docType), {
         body: { action: "download_pdf", access_key: accessKey, doc_type: docType },
       });
+
       if (error) return { error: error.message };
-      return data;
-    } catch (err: any) {
-      return { error: err?.message || "Erro ao baixar PDF" };
+      return { success: true, data };
+    } catch (err: unknown) {
+      return { error: getErrorMessage(err) };
+    }
+  }
+
+  static async downloadXml(accessKey: string, docType: DocType): Promise<FiscalResponse> {
+    if (!isValidAccessKey(accessKey)) {
+      return { error: "Chave de acesso inválida" };
+    }
+
+    try {
+      const { data, error } = await supabase.functions.invoke(getFunctionName(docType), {
+        body: { action: "download_xml", access_key: accessKey, doc_type: docType },
+      });
+
+      if (error) return { error: error.message };
+      return { success: true, data };
+    } catch (err: unknown) {
+      return { error: getErrorMessage(err) };
     }
   }
 
@@ -17,12 +60,21 @@ export class FiscalEmissionService {
     accessKey?: string;
     fiscalDocId?: string;
     saleId?: string;
-    docType: "nfce" | "nfe";
+    docType: DocType;
     justificativa: string;
     nuvemFiscalId?: string;
-  }) {
+  }): Promise<FiscalResponse> {
+
+    if (!params.justificativa || params.justificativa.length < 15) {
+      return { success: false, error: "Justificativa deve ter no mínimo 15 caracteres" };
+    }
+
+    if (params.accessKey && !isValidAccessKey(params.accessKey)) {
+      return { success: false, error: "Chave de acesso inválida" };
+    }
+
     try {
-      const { data, error } = await supabase.functions.invoke("emit-nfce", {
+      const { data, error } = await supabase.functions.invoke(getFunctionName(params.docType), {
         body: {
           action: "cancel",
           access_key: params.accessKey,
@@ -33,38 +85,48 @@ export class FiscalEmissionService {
           justificativa: params.justificativa,
         },
       });
+
       if (error) return { success: false, error: error.message };
-      return data;
-    } catch (err: any) {
-      return { success: false, error: err?.message || "Erro ao cancelar documento" };
+      return { success: true, data };
+    } catch (err: unknown) {
+      return { success: false, error: getErrorMessage(err) };
     }
   }
 
-  /**
-   * Check if a document is within the legal cancellation deadline.
-   * NFC-e: 24 hours | NF-e: 720 hours (30 days)
-   */
-  static isCancelDeadlineExpired(createdAt: string, docType: "nfce" | "nfe"): { expired: boolean; hoursElapsed: number; maxHours: number } {
+  static isCancelDeadlineExpired(createdAt: string, docType: DocType) {
     const created = new Date(createdAt).getTime();
     const now = Date.now();
     const hoursElapsed = (now - created) / (1000 * 60 * 60);
-    const maxHours = docType === "nfce" ? 24 : 720;
-    return { expired: hoursElapsed > maxHours, hoursElapsed: Math.round(hoursElapsed), maxHours };
+
+    const CANCEL_LIMITS = {
+      nfce: 24,
+      nfe: 168,
+    };
+
+    const maxHours = CANCEL_LIMITS[docType];
+
+    return {
+      expired: hoursElapsed > maxHours,
+      hoursElapsed: Math.round(hoursElapsed),
+      maxHours,
+    };
   }
 
-  /**
-   * Inutilizar faixa de numeração na SEFAZ.
-   */
   static async inutilizeNumbers(params: {
     companyId: string;
-    docType: "nfce" | "nfe";
+    docType: DocType;
     serie: number;
     numeroInicial: number;
     numeroFinal: number;
     justificativa: string;
-  }) {
+  }): Promise<FiscalResponse> {
+
+    if (!params.justificativa || params.justificativa.length < 15) {
+      return { success: false, error: "Justificativa inválida" };
+    }
+
     try {
-      const { data, error } = await supabase.functions.invoke("emit-nfce", {
+      const { data, error } = await supabase.functions.invoke(getFunctionName(params.docType), {
         body: {
           action: "inutilize",
           company_id: params.companyId,
@@ -75,35 +137,26 @@ export class FiscalEmissionService {
           justificativa: params.justificativa,
         },
       });
-      if (error) return { success: false, error: error.message };
-      return data;
-    } catch (err: any) {
-      return { success: false, error: err?.message || "Erro ao inutilizar numeração" };
-    }
-  }
 
-  /**
-   * Download XML of a specific document from Nuvem Fiscal.
-   */
-  static async downloadXml(accessKey: string, docType: "nfce" | "nfe") {
-    try {
-      const { data, error } = await supabase.functions.invoke("emit-nfce", {
-        body: { action: "download_xml", access_key: accessKey, doc_type: docType },
-      });
-      if (error) return { error: error.message };
-      return data;
-    } catch (err: any) {
-      return { error: err?.message || "Erro ao baixar XML" };
+      if (error) return { success: false, error: error.message };
+      return { success: true, data };
+    } catch (err: unknown) {
+      return { success: false, error: getErrorMessage(err) };
     }
   }
 
   static async consultStatus(params: {
     accessKey: string;
-    docType: "nfce" | "nfe";
+    docType: DocType;
     companyId?: string;
-  }) {
+  }): Promise<FiscalResponse> {
+
+    if (!isValidAccessKey(params.accessKey)) {
+      return { success: false, error: "Chave de acesso inválida" };
+    }
+
     try {
-      const { data, error } = await supabase.functions.invoke("emit-nfce", {
+      const { data, error } = await supabase.functions.invoke(getFunctionName(params.docType), {
         body: {
           action: "consult_status",
           access_key: params.accessKey,
@@ -111,49 +164,55 @@ export class FiscalEmissionService {
           company_id: params.companyId,
         },
       });
+
       if (error) return { success: false, error: error.message };
-      return data;
-    } catch (err: any) {
-      return { success: false, error: err?.message || "Erro ao consultar status na Nuvem Fiscal" };
+      return { success: true, data };
+    } catch (err: unknown) {
+      return { success: false, error: getErrorMessage(err) };
     }
   }
 
-  /**
-   * Save XML to Supabase Storage bucket for the company.
-   */
   static async saveXmlToCloud(params: {
     companyId: string;
     accessKey: string;
-    docType: "nfce" | "nfe";
+    docType: DocType;
     number: number;
     xmlContent: string;
-  }) {
+  }): Promise<FiscalResponse> {
+
+    if (!params.xmlContent.includes("<NFe") && !params.xmlContent.includes("<nfeProc")) {
+      return { success: false, error: "XML inválido" };
+    }
+
     try {
-      const fileName = `${params.docType}_${params.number}_${params.accessKey.slice(-8)}.xml`;
+      const safeKey = params.accessKey.replace(/\D/g, "").slice(-8);
+      const fileName = `${params.docType}_${params.number}_${safeKey}.xml`;
       const path = `${params.companyId}/xmls/${params.docType}/${fileName}`;
+
       const blob = new Blob([params.xmlContent], { type: "application/xml" });
+
       const { error } = await supabase.storage
         .from("company-backups")
         .upload(path, blob, { upsert: true, contentType: "application/xml" });
+
       if (error) return { success: false, error: error.message };
-      return { success: true, path, fileName };
-    } catch (err: any) {
-      return { success: false, error: err?.message || "Erro ao salvar XML na nuvem" };
+
+      return { success: true, data: { path, fileName } };
+    } catch (err: unknown) {
+      return { success: false, error: getErrorMessage(err) };
     }
   }
 
-  /**
-   * Backup all existing XMLs to Storage bucket.
-   */
-  static async backupXmls(companyId: string) {
+  static async backupXmls(companyId: string): Promise<FiscalResponse> {
     try {
       const { data, error } = await supabase.functions.invoke("emit-nfce", {
         body: { action: "backup_xmls", company_id: companyId },
       });
+
       if (error) return { success: false, error: error.message };
-      return data;
-    } catch (err: any) {
-      return { success: false, error: err?.message || "Erro ao fazer backup de XMLs" };
+      return { success: true, data };
+    } catch (err: unknown) {
+      return { success: false, error: getErrorMessage(err) };
     }
   }
 }

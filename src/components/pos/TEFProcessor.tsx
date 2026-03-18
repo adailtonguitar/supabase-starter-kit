@@ -4,9 +4,10 @@ import { Banknote, CreditCard, Wallet, QrCode, Ticket, Clock as ClockIcon, X, Ch
 import { toast } from "sonner";
 import { generatePixPayload } from "@/lib/pix-brcode";
 import { QRCodeSVG } from "qrcode.react";
+import type { PaymentResult } from "@/services/types";
 
 export interface TEFResult {
-  method: string;
+  method: PaymentResult["method"];
   approved: boolean;
   amount: number;
   nsu?: string;
@@ -30,7 +31,7 @@ interface TEFProcessorProps {
     merchantName: string;
     merchantCity: string;
   } | null;
-  tefConfig?: any;
+  tefConfig?: unknown;
 }
 
 const fmt = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
@@ -51,6 +52,8 @@ export function TEFProcessor({ total, onComplete, onCancel, onPrazoRequested, de
   const [step, setStep] = useState<"select" | "process">(defaultMethod ? "process" : "select");
   const [error, setError] = useState<string | null>(null);
   const [processing, setProcessing] = useState(false);
+  const processingRef = useRef(false);
+  const completedRef = useRef(false);
 
   // Dinheiro
   const [cashReceived, setCashReceived] = useState("");
@@ -95,7 +98,7 @@ export function TEFProcessor({ total, onComplete, onCancel, onPrazoRequested, de
         setPixCode(null);
       }
     }
-  }, [step, selected]);
+  }, [step, selected, pixConfig, total]);
 
   // Keyboard shortcut for method selection
   useEffect(() => {
@@ -132,24 +135,29 @@ export function TEFProcessor({ total, onComplete, onCancel, onPrazoRequested, de
   };
 
   const confirmPayment = useCallback(async (extra?: Partial<TEFResult>) => {
-    if (!selected || processing) return;
+    if (!selected || processingRef.current || completedRef.current) return;
+    processingRef.current = true;
     setProcessing(true);
     setError(null);
     // Brief delay for visual feedback
     await new Promise(r => setTimeout(r, 300));
     try {
+      completedRef.current = true;
       await onComplete([{
         method: selected,
         approved: true,
         amount: total,
         ...extra,
       }]);
-    } catch (err: any) {
-      setError(err.message || "Erro ao processar pagamento");
+    } catch (err: unknown) {
+      completedRef.current = false;
+      const msg = err instanceof Error ? err.message : "Erro ao processar pagamento";
+      setError(msg);
     } finally {
+      processingRef.current = false;
       setProcessing(false);
     }
-  }, [selected, total, onComplete, processing]);
+  }, [selected, total, onComplete]);
 
   const goBack = () => {
     setStep("select");
@@ -160,6 +168,8 @@ export function TEFProcessor({ total, onComplete, onCancel, onPrazoRequested, de
     setPixWaiting(false);
     setVoucherCode("");
     setError(null);
+    processingRef.current = false;
+    completedRef.current = false;
     setProcessing(false);
     setMultiMethod(null);
     setMultiAmount("");
@@ -428,7 +438,7 @@ export function TEFProcessor({ total, onComplete, onCancel, onPrazoRequested, de
   // ── MÚLTIPLAS FORMAS ──
   const renderMulti = () => {
 
-    const addMultiPayment = (method: string, amount: number, extra?: Partial<TEFResult>) => {
+    const addMultiPayment = (method: PaymentResult["method"], amount: number, extra?: Partial<TEFResult>) => {
       const newPayment: TEFResult = { method, approved: true, amount, ...extra };
       const updated = [...multiPayments, newPayment];
       setMultiPayments(updated);
@@ -438,7 +448,10 @@ export function TEFProcessor({ total, onComplete, onCancel, onPrazoRequested, de
       const newPaid = updated.reduce((s, p) => s + p.amount, 0);
       if (newPaid >= total - 0.01) {
         // All paid
-        onComplete(updated);
+        if (!completedRef.current) {
+          completedRef.current = true;
+          onComplete(updated);
+        }
       }
     };
 
@@ -508,14 +521,14 @@ export function TEFProcessor({ total, onComplete, onCancel, onPrazoRequested, de
               onKeyDown={e => {
                 if (e.key === "Enter") {
                   const val = parseCash(multiAmount);
-                  if (val > 0) addMultiPayment(multiMethod!, Math.min(val, remaining));
+                  if (val > 0) addMultiPayment(multiMethod! as PaymentResult["method"], Math.min(val, remaining));
                 }
               }}
             />
             <button
               onClick={() => {
                 const val = parseCash(multiAmount);
-                if (val > 0) addMultiPayment(multiMethod!, Math.min(val, remaining));
+                if (val > 0) addMultiPayment(multiMethod! as PaymentResult["method"], Math.min(val, remaining));
               }}
               disabled={parseCash(multiAmount) <= 0}
               className="w-full h-12 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-sm transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
