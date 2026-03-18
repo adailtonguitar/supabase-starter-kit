@@ -730,7 +730,8 @@ export default function Fiscal() {
                 <button
                   onClick={async () => {
                     const result = await FiscalEmissionService.downloadXml(selectedDoc.access_key!, selectedDoc.doc_type === "sat" ? "nfce" : selectedDoc.doc_type as "nfce" | "nfe");
-                    const xml = (result as any)?.xml || (result as any)?.xml_content;
+                    const xmlResult = result as { data?: { xml?: string; xml_content?: string }; error?: string };
+                    const xml = xmlResult?.data?.xml || xmlResult?.data?.xml_content;
                     if (xml) {
                       const blob = new Blob([xml], { type: "application/xml" });
                       const url = URL.createObjectURL(blob);
