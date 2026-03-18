@@ -236,7 +236,7 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
 
   const totalItems = form.items.reduce((sum, it) => sum + it.total, 0);
 
-  const updateItem = (idx: number, field: keyof NfceItem, value: any) => {
+  const updateItem = (idx: number, field: keyof NfceItem, value: NfceItem[keyof NfceItem]) => {
     setForm((prev) => {
       const items = [...prev.items];
       items[idx] = { ...items[idx], [field]: value };

@@ -369,7 +369,7 @@ export default function NFeEmissao() {
     if (!companyId) return;
     setQuickSaving(true);
     const isSimples = companyCrt === 1 || companyCrt === 2;
-    const payload: Record<string, unknown> = {
+    const payload: Partial<NFeProduct> & { company_id: string; is_active: boolean } = {
       company_id: companyId,
       name: quickForm.name.trim(),
       sku: quickForm.sku.trim() || null,
@@ -381,7 +381,7 @@ export default function NFeEmissao() {
       csosn: isSimples ? (quickForm.csosn || "102") : null,
       cst_icms: !isSimples ? (quickForm.cst_icms || "00") : null,
       is_active: true,
-    };
+    } as Partial<NFeProduct> & { company_id: string; is_active: boolean };
     const { data, error } = await supabase.from("products").insert(payload).select().single();
     setQuickSaving(false);
     if (error) { toast.error("Erro ao cadastrar: " + error.message); return; }

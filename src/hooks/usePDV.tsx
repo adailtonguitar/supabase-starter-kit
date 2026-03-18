@@ -392,7 +392,7 @@ export function usePDV() {
       let simNumber = 1;
       try {
         const { data: rpcNum, error: rpcErr } = await supabase.rpc("next_fiscal_number", {
-          p_config_id: fiscalConfig!.id as string,
+          p_config_id: fiscalConfig!.id,
         });
         if (!rpcErr && typeof rpcNum === "number") {
           simNumber = rpcNum;
