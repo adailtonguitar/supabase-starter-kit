@@ -509,8 +509,25 @@ async function handleEmit(supabase: any, body: any) {
     payload.infNFe.ide.csc = config.csc_token;
   }
 
-  // Certificado digital
+  // Certificado digital — Item 19: Validar formato .pfx antes de usar
   if (config.certificate_base64 || config.certificate_path) {
+    if (config.certificate_base64) {
+      try {
+        const raw = Uint8Array.from(atob(config.certificate_base64), c => c.charCodeAt(0));
+        // PFX/PKCS#12 files start with ASN.1 SEQUENCE tag (0x30) followed by length byte(s)
+        if (raw.length < 4 || raw[0] !== 0x30) {
+          return jsonResponse({
+            success: false,
+            error: "O arquivo enviado não é um certificado .pfx válido. Envie um certificado digital no formato PKCS#12 (.pfx ou .p12).",
+          }, 400);
+        }
+      } catch (decodeErr) {
+        return jsonResponse({
+          success: false,
+          error: "Certificado digital com codificação base64 inválida. Reenvie o arquivo .pfx em Fiscal > Configuração.",
+        }, 400);
+      }
+    }
     payload.certificado = {
       base64: config.certificate_base64 || undefined,
       senha: config.certificate_password_hash ? undefined : config.certificate_password,
