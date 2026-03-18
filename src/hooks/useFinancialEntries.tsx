@@ -13,6 +13,7 @@ export interface FinancialEntry {
   description: string;
   category?: string;
   reference?: string;
+  counterpart?: string | null;
   amount: number;
   due_date: string;
   paid_date?: string | null;

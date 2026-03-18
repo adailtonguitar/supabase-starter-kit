@@ -272,7 +272,7 @@ export default function Fiscal() {
               setBackupLoading(true);
               const result = await FiscalEmissionService.backupXmls(companyId);
               if (result.success) {
-                toast.success(result.message || `Backup concluído: ${result.backed} XMLs salvos.`);
+                toast.success((result as any).message || `Backup concluído: ${(result as any).backed} XMLs salvos.`);
               } else {
                 toast.error(result.error || "Erro ao fazer backup");
               }
@@ -403,7 +403,7 @@ export default function Fiscal() {
                 justificativa: inutJustificativa,
               });
               if (result.success) {
-                toast.success(result.message || "Numeração inutilizada com sucesso!");
+                toast.success((result as any).message || "Numeração inutilizada com sucesso!");
                 setShowInutPanel(false);
                 loadDocs();
                 refreshGaps();
@@ -724,7 +724,7 @@ export default function Fiscal() {
                       xmlContent: xml,
                     });
                     if (saveResult.success) {
-                      toast.success(`XML salvo na nuvem: ${saveResult.fileName}`);
+                      toast.success(`XML salvo na nuvem: ${(saveResult as any).fileName}`);
                     } else {
                       toast.error(saveResult.error || "Erro ao salvar na nuvem");
                     }

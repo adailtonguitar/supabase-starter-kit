@@ -144,7 +144,7 @@ export function TEFProcessor({ total, onComplete, onCancel, onPrazoRequested, de
     try {
       completedRef.current = true;
       await onComplete([{
-        method: selected,
+        method: selected as TEFResult["method"],
         approved: true,
         amount: total,
         ...extra,

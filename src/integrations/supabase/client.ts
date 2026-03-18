@@ -1,6 +1,7 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-type Database = Record<string, unknown>;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Database = any;
 
 const SUPABASE_URL = (import.meta.env.VITE_SUPABASE_URL || 'https://fsvxpxziotklbxkivyug.supabase.co').trim();
 const SUPABASE_ANON_KEY = (import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZzdnhweHppb3RrbGJ4a2l2eXVnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE3ODU5NTMsImV4cCI6MjA4NzM2MTk1M30.8I3ABsRZBZuE1IpK_g9z3PdRUd9Omt_F5qNx0Pgqvyo').trim();

@@ -394,7 +394,7 @@ export default function PDV() {
         const clientName = typeof obj.clientName === "string" ? obj.clientName : null;
         if (quoteId) setPendingQuoteId(quoteId);
 
-        type QuoteLoadItem = { product_id: string; quantity?: number };
+        type QuoteLoadItem = { product_id: string; quantity: number };
         const items = Array.isArray(obj.items) ? (obj.items as unknown[]) : [];
         const safeItems: QuoteLoadItem[] = items
           .map((it) => {
