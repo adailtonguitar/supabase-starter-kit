@@ -18,7 +18,16 @@ import { QRCodeSVG } from "qrcode.react";
 import { getFunctionErrorMessage } from "@/lib/get-function-error-message";
 
 interface NfceEmissionDialogProps {
-  sale: any;
+  sale: {
+    id: string;
+    items_json?: unknown;
+    items?: unknown;
+    customer_name?: string;
+    customer_doc?: string;
+    payment_method?: string;
+    total_value?: number;
+    total?: number;
+  };
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
