@@ -427,7 +427,7 @@ export default function NFeEmissao() {
     const { data, error } = await supabase.from("clients").insert({ ...quickClient, company_id: companyId }).select().single();
     setQuickClientSaving(false);
     if (error) { toast.error("Erro: " + error.message); return; }
-    const c = data as any;
+    const c = data as NFeClient;
     setClients(prev => [...prev, c]);
     selectClient(c);
     setShowQuickClient(false);
