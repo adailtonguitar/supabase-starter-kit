@@ -56,7 +56,7 @@ export default function Caixa() {
   });
 
   // Query fiado movements for all sessions of the day
-  const sessionIds = useMemo(() => sessions.map((s: any) => s.id), [sessions]);
+  const sessionIds = useMemo(() => sessions.map((s: CashSessionRecord) => s.id), [sessions]);
   const { data: fiadoMovements = [] } = useQuery({
     queryKey: ["cash-fiado-movements", sessionIds],
     queryFn: async () => {
