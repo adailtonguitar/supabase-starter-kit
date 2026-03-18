@@ -111,10 +111,10 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
     const q = productSearchText.trim().toLowerCase();
     if (q.length < 2) return [];
     return allProducts.filter(
-      (p: any) => p.is_active !== false && (
-        p.name?.toLowerCase().includes(q) ||
-        p.barcode?.includes(q) ||
-        p.sku?.toLowerCase().includes(q)
+      (p: Record<string, unknown>) => p.is_active !== false && (
+        (p.name as string)?.toLowerCase().includes(q) ||
+        (p.barcode as string)?.includes(q) ||
+        (p.sku as string)?.toLowerCase().includes(q)
       )
     ).slice(0, 8);
   }, [productSearchText, allProducts]);
