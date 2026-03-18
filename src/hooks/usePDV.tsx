@@ -343,8 +343,8 @@ export function usePDV() {
         .limit(1)
         .maybeSingle();
 
-      if ((existingQueue as any)?.id) {
-        return (existingQueue as any).id;
+      if (existingQueue?.id) {
+        return existingQueue.id as string;
       }
 
       const { data, error } = await supabase
