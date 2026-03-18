@@ -59,21 +59,21 @@ function getApiBaseUrl(): string {
     : "https://api.nuvemfiscal.com.br";
 }
 
-// ─── Numeração segura ───
-async function getNextNumberSafe(supabase: any, configId: string): Promise<number> {
-  const { data, error } = await supabase
-    .from("fiscal_configs")
-    .select("next_number")
-    .eq("id", configId)
-    .single();
+// ─── Numeração segura (atômica via RPC com FOR UPDATE) ───
+async function getNextNumberSafe(supabase: ReturnType<typeof createClient>, configId: string): Promise<number> {
+  const { data, error } = await supabase.rpc("next_fiscal_number", {
+    p_config_id: configId,
+  });
 
-  if (error) throw new Error("Erro ao buscar numeração fiscal");
-  const next = data.next_number || 1;
+  if (error) {
+    console.error("[emit-nfce] Erro na numeração atômica:", error.message);
+    throw new Error(`Erro ao obter próximo número fiscal: ${error.message}`);
+  }
 
-  await supabase
-    .from("fiscal_configs")
-    .update({ next_number: next + 1 })
-    .eq("id", configId);
+  const next = data as number;
+  if (!next || next < 1) {
+    throw new Error("Numeração fiscal retornou valor inválido");
+  }
 
   return next;
 }
@@ -403,7 +403,16 @@ async function handleEmit(supabase: any, body: any) {
   const cnpjClean = (company.cnpj || "").replace(/\D/g, "");
   const ieClean = (company.ie || company.state_registration || "").replace(/\D/g, "");
 
-  const emit: any = {
+  // ── Item 5: Validar código IBGE antes de prosseguir ──
+  const ibgeCode = company.ibge_code || company.city_code || "";
+  const ibgeClean = String(ibgeCode).replace(/\D/g, "");
+  if (!ibgeClean || ibgeClean.length < 7 || ibgeClean === "0000000") {
+    return jsonResponse({
+      error: `Código IBGE do município do emitente não configurado ou inválido ("${ibgeCode}"). Acesse Configurações > Empresa e preencha o código IBGE (7 dígitos). Utilize a consulta por CEP para preenchimento automático.`,
+    }, 400);
+  }
+
+  const emit: Record<string, unknown> = {
     CNPJ: cnpjClean,
     xNome: company.name || company.trade_name,
     CRT: crt,
@@ -417,7 +426,7 @@ async function handleEmit(supabase: any, body: any) {
       xLgr: company.street || company.address || "Rua não informada",
       nro: company.number || company.address_number || "S/N",
       xBairro: company.neighborhood || "Centro",
-      cMun: company.ibge_code || company.city_code || "0000000",
+      cMun: ibgeClean,
       xMun: company.city || "Não informada",
       UF: company.state || "MA",
       CEP: (company.zip_code || company.cep || "00000000").replace(/\D/g, ""),
@@ -425,7 +434,7 @@ async function handleEmit(supabase: any, body: any) {
       xPais: "Brasil",
     };
     if (company.complement) {
-      emit.enderEmit.xCpl = company.complement;
+      (emit.enderEmit as Record<string, unknown>).xCpl = company.complement;
     }
   }
 
@@ -453,7 +462,7 @@ async function handleEmit(supabase: any, body: any) {
         dhEmi: new Date().toISOString(),
         tpNF: 1, // saída
         idDest: 1, // operação interna
-        cMunFG: company.ibge_code || company.city_code || "0000000",
+        cMunFG: ibgeClean,
         tpImp: 4, // DANFE NFC-e
         tpEmis: 1, // emissão normal
         tpAmb: ambiente === "producao" ? 1 : 2,
@@ -532,7 +541,7 @@ async function handleEmit(supabase: any, body: any) {
     // Salvar como rejeitada para rastreabilidade
     await supabase.from("fiscal_documents").insert({
       company_id,
-      sale_id,
+      sale_id: sale_id || null,
       doc_type: "nfce",
       number: numero,
       serie: config.serie || 1,
@@ -542,7 +551,10 @@ async function handleEmit(supabase: any, body: any) {
       customer_name: form.customer_name || null,
       customer_cpf_cnpj: form.customer_doc || null,
       payment_method: tPag,
-    } as any);
+      access_key: null,
+      protocol_number: null,
+      is_contingency: false,
+    });
 
     return jsonResponse({ success: false, error: errMsg, details: nfData }, 400);
   }
@@ -566,7 +578,7 @@ async function handleEmit(supabase: any, body: any) {
   // Salvar documento fiscal
   await supabase.from("fiscal_documents").insert({
     company_id,
-    sale_id,
+    sale_id: sale_id || null,
     doc_type: "nfce",
     number: numero,
     serie: config.serie || 1,
@@ -579,7 +591,7 @@ async function handleEmit(supabase: any, body: any) {
     customer_cpf_cnpj: form.customer_doc || null,
     payment_method: tPag,
     is_contingency: isContingency,
-  } as any);
+  });
 
   console.log(`[emit-nfce] NFC-e #${numero} → Status: ${finalStatus} | Chave: ${accessKey?.substring(0, 20)}...`);
 

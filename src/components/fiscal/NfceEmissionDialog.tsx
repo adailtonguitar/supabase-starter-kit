@@ -375,6 +375,19 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
         // Simulação em homologação sem certificado
         const fakeChave = Array.from({ length: 44 }, () => Math.floor(Math.random() * 10)).join("");
         const fakeProtocol = Date.now().toString();
+
+        // Obter número atomicamente via RPC
+        let simNumber = 1;
+        try {
+          const { data: rpcNum, error: rpcErr } = await supabase.rpc("next_fiscal_number", {
+            p_config_id: nfceConfig.id as string,
+          });
+          if (!rpcErr && typeof rpcNum === "number") {
+            simNumber = rpcNum;
+          }
+        } catch {
+          console.warn("[NfceEmission] RPC next_fiscal_number failed, using fallback");
+        }
         
         // Registra como simulação no banco
         await supabase.from("fiscal_documents").insert({
@@ -386,16 +399,10 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
           protocol_number: fakeProtocol,
           environment: "homologacao",
           serie: nfceConfig.serie,
-          number: (nfceConfig.next_number as number) || 1,
+          number: simNumber,
           total_value: form.paymentValue,
-          customer_doc: form.customerDoc || null,
           customer_name: form.customerName || null,
         });
-
-        // Incrementa próximo número
-        await supabase.from("fiscal_configs").update({ 
-          next_number: ((nfceConfig.next_number as number) || 1) + 1 
-        }).eq("id", nfceConfig.id as string);
 
         setStep("success");
         logAction({ companyId: companyId!, action: "NFC-e emitida (simulação)", module: "fiscal", details: `Venda ${sale?.id?.slice(0, 8)} - ${formatCurrency(sale?.total || 0)}` });

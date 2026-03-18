@@ -407,7 +407,19 @@ export function usePDV() {
     // ── MODO SIMULAÇÃO: homologação sem certificado ──
     if (isHomologacao && !hasCert) {
       const fakeChave = Array.from({ length: 44 }, () => Math.floor(Math.random() * 10)).join("");
-      const simNumber = (fiscalConfig?.next_number as number) || 1;
+
+      // Obter número atomicamente via RPC
+      let simNumber = 1;
+      try {
+        const { data: rpcNum, error: rpcErr } = await supabase.rpc("next_fiscal_number", {
+          p_config_id: fiscalConfig!.id as string,
+        });
+        if (!rpcErr && typeof rpcNum === "number") {
+          simNumber = rpcNum;
+        }
+      } catch {
+        console.warn("[PDV Fiscal] RPC next_fiscal_number failed, using fallback");
+      }
 
       // Best-effort DB updates (don't block simulation)
       try {
@@ -418,7 +430,6 @@ export function usePDV() {
             protocol_number: Date.now().toString(), environment: "homologacao",
             serie: (fiscalConfig?.serie as string) || "1", number: simNumber, total_value: 0,
           }),
-          supabase.from("fiscal_configs").update({ next_number: simNumber + 1 }).eq("id", fiscalConfig!.id as string),
           supabase.from("sales").update({ status: "emitida" }).eq("id", saleId),
           queueId ? supabase.from("fiscal_queue").update({ status: "done", processed_at: new Date().toISOString() }).eq("id", queueId) : Promise.resolve(),
         ]);
@@ -745,8 +756,21 @@ export function usePDV() {
             && !simConfig.a3_thumbprint;
 
           if (isSimulation && simConfig) {
-            const simNum = (simConfig.next_number as number) || 1;
             const fakeChave = Array.from({ length: 44 }, () => Math.floor(Math.random() * 10)).join("");
+
+            // Obter número atomicamente via RPC
+            let simNum = 1;
+            try {
+              const { data: rpcNum, error: rpcErr } = await supabase.rpc("next_fiscal_number", {
+                p_config_id: simConfig.id as string,
+              });
+              if (!rpcErr && typeof rpcNum === "number") {
+                simNum = rpcNum;
+              }
+            } catch {
+              console.warn("[PDV Fiscal] RPC next_fiscal_number failed in finalizeSale");
+            }
+
             nfceNumber = `SIM-${simNum}`;
             accessKey = fakeChave;
             serie = (simConfig.serie as string) || "1";
@@ -759,7 +783,6 @@ export function usePDV() {
                 protocol_number: Date.now().toString(), environment: "homologacao",
                 serie: (simConfig.serie as string) || "1", number: simNum, total_value: total,
               }),
-              supabase.from("fiscal_configs").update({ next_number: simNum + 1 }).eq("id", simConfig.id as string),
               supabase.from("sales").update({ status: "emitida" }).eq("id", saleId),
             ]).catch(() => {});
 

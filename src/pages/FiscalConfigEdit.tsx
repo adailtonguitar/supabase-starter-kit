@@ -144,6 +144,23 @@ export default function FiscalConfigEdit() {
 
   const handleSave = async () => {
     if (!companyId) return;
+
+    // ── Item 4: Validar expiração do certificado antes de salvar ──
+    if (certType === "A1" && !certMarkedForRemoval && certFile && certExpiry) {
+      const expiryDate = new Date(certExpiry);
+      const now = new Date();
+      const daysUntilExpiry = Math.ceil((expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+
+      if (daysUntilExpiry < 0) {
+        toast.error(`🚫 Certificado digital expirado em ${expiryDate.toLocaleDateString("pt-BR")}. Envie um certificado válido antes de salvar.`);
+        return;
+      }
+
+      if (daysUntilExpiry <= 30) {
+        toast.warning(`⚠️ Certificado digital expira em ${daysUntilExpiry} dia(s) (${expiryDate.toLocaleDateString("pt-BR")}). Providencie a renovação o quanto antes.`, { duration: 8000 });
+      }
+    }
+
     setSaving(true);
     try {
       if (certMarkedForRemoval) {
