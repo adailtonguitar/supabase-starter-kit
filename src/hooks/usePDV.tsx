@@ -803,9 +803,9 @@ export function usePDV() {
       }
 
       return { saleId, nfceNumber, fiscalDocId, isContingency: false, accessKey, serie };
-    } catch (onlineErr: any) {
+    } catch (onlineErr: unknown) {
       // ── Discount blocked: don't enter contingency, just re-throw ──
-      if (onlineErr?.message === "DISCOUNT_BLOCKED") {
+      if (onlineErr instanceof Error && onlineErr.message === "DISCOUNT_BLOCKED") {
         throw onlineErr;
       }
 
