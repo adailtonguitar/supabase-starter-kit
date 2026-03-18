@@ -779,10 +779,11 @@ export default function NFeEmissao() {
           setRejection(rej);
         } catch { /* ignore */ }
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("[NFeEmissao] outer catch:", err);
       setStep("error");
-      setErrorMsg("Erro inesperado. Verifique a configuração fiscal e o certificado digital.");
+      const outerMsg = err instanceof Error ? err.message : "Erro inesperado. Verifique a configuração fiscal e o certificado digital.";
+      setErrorMsg(outerMsg);
     } finally {
       setEmitting(false);
     }
