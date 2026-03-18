@@ -244,7 +244,7 @@ export default function FiscalConfigEdit() {
           } else {
             toast.warning(`Certificado salvo. Nuvem Fiscal: ${uploadResult?.error || "erro desconhecido"}`);
           }
-        } catch (certUploadErr: any) {
+        } catch (certUploadErr: unknown) {
           console.warn("[FiscalConfig] Certificate upload error:", certUploadErr);
           toast.warning("Certificado salvo localmente. Envio à Nuvem Fiscal falhou.");
         }
