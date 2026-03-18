@@ -800,7 +800,7 @@ export default function Fiscal() {
               {selectedDoc.status === "autorizada" && (() => {
                 const deadline = FiscalEmissionService.isCancelDeadlineExpired(
                   selectedDoc.created_at,
-                  selectedDoc.doc_type as "nfce" | "nfe"
+                  selectedDoc.doc_type === "sat" ? "nfce" : selectedDoc.doc_type as "nfce" | "nfe"
                 );
                 return deadline.expired ? (
                   <div className="flex-1 py-2.5 rounded-xl bg-destructive/10 text-destructive text-xs font-medium text-center px-2">
