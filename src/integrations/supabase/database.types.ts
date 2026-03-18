@@ -12,24 +12,29 @@ type ISODateTime = string;
 type Json = string | number | boolean | null | Json[] | { [key: string]: Json };
 
 /**
- * Helper: coerce interface into index-signature-compatible form
- * required by Supabase's GenericTable constraint (Record<string, unknown>).
+ * Converts an interface to a mapped type with implicit index signature.
+ * This satisfies Supabase's Record<string, unknown> constraint WITHOUT
+ * adding an intersection that breaks select() type resolution.
  */
-type Widen<T> = { [K in keyof T]: T[K] } & Record<string, unknown>;
+type Mapped<T> = { [K in keyof T]: T[K] };
 
 /**
  * Helper: build Table shape from Row.
- * - Row is strongly typed for read operations (type safety where it matters most).
- * - Insert / Update are permissive (Record<string, unknown>) to maintain compatibility
- *   with existing code that uses dynamic objects and partial inserts.
- * - Relationships use a generic array to avoid "Invalid Relationships" errors
- *   on joins like `.select("*, products(name)")`.
+ * - Row is strongly typed via Mapped<> for reads.
+ * - Insert / Update are permissive for backward-compatible writes.
+ * - Relationships uses the SDK's expected shape.
  */
 type TableDef<R extends object> = {
-  Row: Widen<R>;
+  Row: Mapped<R>;
   Insert: Record<string, unknown>;
   Update: Record<string, unknown>;
   Relationships: { foreignKeyName: string; columns: string[]; isOneToOne: boolean; referencedRelation: string; referencedColumns: string[] }[];
+};
+
+/** Generic RPC function shape for untyped functions */
+type GenericRpc = {
+  Args: Record<string, unknown>;
+  Returns: unknown;
 };
 
 // ── Enums ──────────────────────────────────────────────────────────────
