@@ -107,20 +107,20 @@ export default function Fiscal() {
         accessKey: doc.access_key,
         docType: doc.doc_type as "nfce" | "nfe",
         companyId: companyId || undefined,
-      });
+      }) as FiscalConsultResult;
 
-      if (!(result as any)?.success) {
-        toast.error((result as any)?.error || "Falha ao consultar status na Nuvem Fiscal.");
+      if (!result?.success) {
+        toast.error(result?.error || "Falha ao consultar status na Nuvem Fiscal.");
         return;
       }
 
-      setLastConsultDetails((result as any)?.details || null);
-      const newStatus = ((result as any)?.status || doc.status) as DocStatus;
+      setLastConsultDetails(result?.details || null);
+      const newStatus = (result?.status || doc.status) as DocStatus;
       setSelectedDoc({
         ...doc,
         status: newStatus,
-        number: (result as any)?.number || doc.number,
-        access_key: (result as any)?.access_key || doc.access_key,
+        number: result?.number ?? doc.number,
+        access_key: result?.access_key || doc.access_key,
       });
       await loadDocs();
 
