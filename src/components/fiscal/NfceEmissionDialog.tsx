@@ -357,7 +357,7 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
         .eq("is_active", true)
         .limit(1);
 
-      const nfceConfig = configs?.[0] as any;
+      const nfceConfig = configs?.[0] as Record<string, unknown> | undefined;
 
       if (!nfceConfig) {
         setStep("error");
