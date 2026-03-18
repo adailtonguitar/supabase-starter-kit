@@ -825,13 +825,7 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
               )}
 
               {activeTab === "payment" && (
-                <NfcePaymentStep form={form} setForm={setForm} totalItems={totalItems} paymentOptions={PAYMENT_OPTIONS} />
-              )}
-                      step="0.01"
-                    />
-                  </div>
-                </div>
-              )}
+              )
             </div>
 
             {/* Footer */}
