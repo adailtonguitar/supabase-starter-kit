@@ -403,7 +403,16 @@ async function handleEmit(supabase: any, body: any) {
   const cnpjClean = (company.cnpj || "").replace(/\D/g, "");
   const ieClean = (company.ie || company.state_registration || "").replace(/\D/g, "");
 
-  const emit: any = {
+  // ── Item 5: Validar código IBGE antes de prosseguir ──
+  const ibgeCode = company.ibge_code || company.city_code || "";
+  const ibgeClean = String(ibgeCode).replace(/\D/g, "");
+  if (!ibgeClean || ibgeClean.length < 7 || ibgeClean === "0000000") {
+    return jsonResponse({
+      error: `Código IBGE do município do emitente não configurado ou inválido ("${ibgeCode}"). Acesse Configurações > Empresa e preencha o código IBGE (7 dígitos). Utilize a consulta por CEP para preenchimento automático.`,
+    }, 400);
+  }
+
+  const emit: Record<string, unknown> = {
     CNPJ: cnpjClean,
     xNome: company.name || company.trade_name,
     CRT: crt,
@@ -417,7 +426,7 @@ async function handleEmit(supabase: any, body: any) {
       xLgr: company.street || company.address || "Rua não informada",
       nro: company.number || company.address_number || "S/N",
       xBairro: company.neighborhood || "Centro",
-      cMun: company.ibge_code || company.city_code || "0000000",
+      cMun: ibgeClean,
       xMun: company.city || "Não informada",
       UF: company.state || "MA",
       CEP: (company.zip_code || company.cep || "00000000").replace(/\D/g, ""),
@@ -425,7 +434,7 @@ async function handleEmit(supabase: any, body: any) {
       xPais: "Brasil",
     };
     if (company.complement) {
-      emit.enderEmit.xCpl = company.complement;
+      (emit.enderEmit as Record<string, unknown>).xCpl = company.complement;
     }
   }
 
