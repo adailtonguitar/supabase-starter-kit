@@ -120,7 +120,7 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
   }, [productSearchText, allProducts]);
 
   const addProductFromCatalog = (product: typeof allProducts[number]) => {
-    const p = product as Record<string, unknown>;
+    const p = product as unknown as Record<string, unknown>;
     const newItem: NfceItem = {
       name: (p.name as string) || "",
       ncm: (p.ncm as string) || "",
@@ -130,10 +130,10 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
       qty: 1,
       unitPrice: (p.price as number) || 0,
       discount: 0,
-      total: (product.price as number) || 0,
-      pisCst: (product.cst_pis as string) || "49",
-      cofinsCst: (product.cst_cofins as string) || "49",
-      icmsAliquota: (product.aliq_icms as number) || 0,
+      total: (p.price as number) || 0,
+      pisCst: (p.cst_pis as string) || "49",
+      cofinsCst: (p.cst_cofins as string) || "49",
+      icmsAliquota: (p.aliq_icms as number) || 0,
     };
     setForm((prev) => ({ ...prev, items: [...prev.items, newItem] }));
     setProductSearchText("");
