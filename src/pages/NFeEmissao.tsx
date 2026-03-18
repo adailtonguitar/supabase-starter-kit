@@ -16,6 +16,7 @@ import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { NCM_TABLE } from "@/lib/ncm-table";
 import { getStoredCertificateA1 } from "@/services/LocalXmlSigner";
+import { type CRT, isValidCrt } from "@/lib/fiscal-config-lookup";
 
 const PAYMENT_OPTIONS = [
   { value: "01", label: "Dinheiro" },
