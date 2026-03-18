@@ -224,7 +224,7 @@ export default function FiscalConfigEdit() {
         }
       }
 
-      await supabase.from("companies").update({ crt } as any).eq("id", companyId);
+      await supabase.from("companies").update({ crt } as Record<string, unknown>).eq("id", companyId);
 
       if (certType === "A1" && !certMarkedForRemoval && certBase64 && certPassword) {
         try {
