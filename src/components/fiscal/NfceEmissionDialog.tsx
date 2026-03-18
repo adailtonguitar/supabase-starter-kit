@@ -472,7 +472,7 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
         else if (rej?.field === "customer") setActiveTab("customer");
         else if (rej?.field === "payment") setActiveTab("payment");
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       setStep("error");
       setErrorMsg(await getFunctionErrorMessage(err, "Erro de comunicação com o servidor fiscal."));
     } finally {
