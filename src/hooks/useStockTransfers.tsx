@@ -109,7 +109,7 @@ export function useCreateStockTransfer() {
       }));
 
       const { error: itemsError } = await supabase
-        .from("stock_transfer_items" as any)
+        .from("stock_transfer_items")
         .insert(items);
 
       if (itemsError) throw itemsError;
