@@ -272,9 +272,9 @@ export default function Fiscal() {
             onClick={async () => {
               if (!companyId) return;
               setBackupLoading(true);
-              const result = await FiscalEmissionService.backupXmls(companyId);
+              const result = await FiscalEmissionService.backupXmls(companyId) as FiscalBackupResult;
               if (result.success) {
-                toast.success((result as any).message || `Backup concluído: ${(result as any).backed} XMLs salvos.`);
+                toast.success(result.message || `Backup concluído: ${result.backed} XMLs salvos.`);
               } else {
                 toast.error(result.error || "Erro ao fazer backup");
               }
