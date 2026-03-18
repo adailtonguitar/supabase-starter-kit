@@ -114,6 +114,80 @@ const emptyForm = (): NFeFormData => ({
   volumes: 0, grossWeight: 0, netWeight: 0,
 });
 
+// ── Item 6: Interfaces for successData and companyInfo ──
+interface NFeSuccessData {
+  success: boolean;
+  access_key?: string;
+  number?: number;
+  status?: string;
+  serie?: string;
+  fiscal_doc_id?: string;
+  error?: string;
+  details?: Record<string, unknown>;
+}
+
+interface NFeCompanyInfo {
+  name: string;
+  trade_name: string | null;
+  cnpj: string;
+  ie: string | null;
+  phone: string | null;
+  address_street: string | null;
+  address_number: string | null;
+  address_neighborhood: string | null;
+  address_city: string | null;
+  address_state: string | null;
+  address_zip: string | null;
+  logo_url: string | null;
+}
+
+// ── Item 7: Interfaces for products and clients ──
+interface NFeProduct {
+  id: string;
+  name: string;
+  sku: string | null;
+  barcode: string | null;
+  ncm: string | null;
+  unit: string | null;
+  price: number;
+  stock_quantity: number | null;
+  origin: string | null;
+  cfop: string | null;
+  csosn: string | null;
+  cst_icms: string | null;
+  cest: string | null;
+  icms_rate: number | null;
+  pis_rate: number | null;
+  cofins_rate: number | null;
+}
+
+interface NFeClient {
+  id: string;
+  name: string;
+  cpf_cnpj: string | null;
+  ie: string | null;
+  email: string | null;
+  phone: string | null;
+  address_street: string | null;
+  address_number: string | null;
+  address_complement: string | null;
+  address_neighborhood: string | null;
+  address_city: string | null;
+  address_state: string | null;
+  address_zip: string | null;
+}
+
+interface NFeFiscalCategory {
+  id: string;
+  ncm: string | null;
+  cfop: string | null;
+  csosn: string | null;
+  cst_icms: string | null;
+  icms_rate: number | null;
+  pis_rate: number | null;
+  cofins_rate: number | null;
+}
+
 export default function NFeEmissao() {
   const { companyId, companyName, logoUrl } = useCompany();
   const plan = usePlanFeatures();
@@ -126,9 +200,9 @@ export default function NFeEmissao() {
   const [rejection, setRejection] = useState<SefazRejection | null>(null);
   const [activeTab, setActiveTab] = useState<"dest" | "items" | "transport" | "payment">("dest");
   const [companyCrt, setCompanyCrt] = useState<number>(1);
-  const [successData, setSuccessData] = useState<any>(null);
-  const [companyInfo, setCompanyInfo] = useState<any>(null);
-  const [products, setProducts] = useState<any[]>([]);
+  const [successData, setSuccessData] = useState<NFeSuccessData | null>(null);
+  const [companyInfo, setCompanyInfo] = useState<NFeCompanyInfo | null>(null);
+  const [products, setProducts] = useState<NFeProduct[]>([]);
   const [productSearch, setProductSearch] = useState<Record<number, string>>({});
   const [showProductDropdown, setShowProductDropdown] = useState<number | null>(null);
   const [showAddSearch, setShowAddSearch] = useState(false);
@@ -140,8 +214,8 @@ export default function NFeEmissao() {
   const [showNcmDropdown, setShowNcmDropdown] = useState<number | null>(null);
   const [quickNcmSearch, setQuickNcmSearch] = useState("");
   const [showQuickNcmDropdown, setShowQuickNcmDropdown] = useState(false);
-  const [fiscalCategories, setFiscalCategories] = useState<any[]>([]);
-  const [clients, setClients] = useState<any[]>([]);
+  const [fiscalCategories, setFiscalCategories] = useState<NFeFiscalCategory[]>([]);
+  const [clients, setClients] = useState<NFeClient[]>([]);
   const [clientSearch, setClientSearch] = useState("");
   const [showClientSearch, setShowClientSearch] = useState(false);
   const [showQuickClient, setShowQuickClient] = useState(false);
@@ -158,7 +232,7 @@ export default function NFeEmissao() {
     supabase.from("companies")
       .select("name, trade_name, cnpj, ie, phone, address_street, address_number, address_neighborhood, address_city, address_state, address_zip, logo_url")
       .eq("id", companyId).single()
-      .then(({ data }) => { if (data) setCompanyInfo(data); });
+      .then(({ data }) => { if (data) setCompanyInfo(data as NFeCompanyInfo); });
   }, [companyId]);
 
   useEffect(() => {
@@ -170,7 +244,7 @@ export default function NFeEmissao() {
       .eq("is_active", true)
       .order("name")
       .then(({ data }) => {
-        if (data) setProducts(data);
+        if (data) setProducts(data as NFeProduct[]);
       });
   }, [companyId]);
 
@@ -183,7 +257,7 @@ export default function NFeEmissao() {
       .eq("company_id", companyId)
       .order("name")
       .limit(500);
-    if (data) setClients(data);
+    if (data) setClients(data as NFeClient[]);
   }, [companyId]);
 
   useEffect(() => { fetchClients(); }, [fetchClients]);
@@ -196,7 +270,7 @@ export default function NFeEmissao() {
       .select("*")
       .eq("company_id", companyId)
       .then(({ data }) => {
-        if (data) setFiscalCategories(data);
+        if (data) setFiscalCategories(data as NFeFiscalCategory[]);
       });
   }, [companyId]);
 
@@ -212,7 +286,7 @@ export default function NFeEmissao() {
   // Auto-fill fiscal data from fiscal categories when product is selected
   const applyFiscalDefaults = useCallback((item: NFeItem): NFeItem => {
     // Only fill fields that are still empty — product data takes priority
-    const match = fiscalCategories.find((fc: any) => fc.ncm && item.ncm && fc.ncm === item.ncm)
+    const match = fiscalCategories.find((fc) => fc.ncm && item.ncm && fc.ncm === item.ncm)
       || (fiscalCategories.length > 0 ? fiscalCategories[0] : null);
     if (!match) return item;
     return {
@@ -220,8 +294,8 @@ export default function NFeEmissao() {
       cfop: item.cfop || match.cfop || item.cfop,
       cst: item.cst || match.csosn || match.cst_icms || item.cst,
       icmsAliquota: item.icmsAliquota || (match.icms_rate ?? item.icmsAliquota),
-      pisCst: item.pisCst === "49" && match.pis_rate > 0 ? "01" : item.pisCst,
-      cofinsCst: item.cofinsCst === "49" && match.cofins_rate > 0 ? "01" : item.cofinsCst,
+      pisCst: item.pisCst === "49" && (match.pis_rate ?? 0) > 0 ? "01" : item.pisCst,
+      cofinsCst: item.cofinsCst === "49" && (match.cofins_rate ?? 0) > 0 ? "01" : item.cofinsCst,
     };
   }, [fiscalCategories]);
 
@@ -233,7 +307,7 @@ export default function NFeEmissao() {
       .eq("id", companyId)
       .maybeSingle()
       .then(({ data }) => {
-        if (data) setCompanyCrt((data as any).crt || 1);
+        if (data) setCompanyCrt((data as { crt?: number }).crt || 1);
       });
   }, [companyId]);
 
@@ -243,7 +317,7 @@ export default function NFeEmissao() {
 
   const totalItems = form.items.reduce((sum, it) => sum + it.total, 0);
 
-  const updateItem = (idx: number, field: keyof NFeItem, value: any) => {
+  const updateItem = (idx: number, field: keyof NFeItem, value: string | number) => {
     setForm((prev) => {
       const items = [...prev.items];
       items[idx] = { ...items[idx], [field]: value };
@@ -262,7 +336,7 @@ export default function NFeEmissao() {
     setForm((prev) => ({ ...prev, items: [...prev.items, emptyItem()] }));
   };
 
-  const addProductAsItem = (product: any) => {
+  const addProductAsItem = (product: NFeProduct) => {
     const isSN = companyCrt === 1 || companyCrt === 2;
     let newItem: NFeItem = {
       name: product.name || "",
@@ -275,8 +349,8 @@ export default function NFeEmissao() {
       unitPrice: product.price || 0,
       discount: 0,
       total: product.price || 0,
-      pisCst: product.pis_rate > 0 ? "01" : "49",
-      cofinsCst: product.cofins_rate > 0 ? "01" : "49",
+      pisCst: (product.pis_rate ?? 0) > 0 ? "01" : "49",
+      cofinsCst: (product.cofins_rate ?? 0) > 0 ? "01" : "49",
       icmsAliquota: product.icms_rate || 0,
       origem: product.origin || "0",
     };
@@ -293,7 +367,7 @@ export default function NFeEmissao() {
     if (!companyId) return;
     setQuickSaving(true);
     const isSimples = companyCrt === 1 || companyCrt === 2;
-    const payload: Record<string, any> = {
+    const payload: Record<string, unknown> = {
       company_id: companyId,
       name: quickForm.name.trim(),
       sku: quickForm.sku.trim() || null,
@@ -310,7 +384,7 @@ export default function NFeEmissao() {
     setQuickSaving(false);
     if (error) { toast.error("Erro ao cadastrar: " + error.message); return; }
     // Refresh products list and add as item
-    const newProduct = data as any;
+    const newProduct = data as NFeProduct;
     setProducts(prev => [...prev, newProduct]);
     addProductAsItem(newProduct);
     setShowQuickRegister(false);
@@ -318,7 +392,7 @@ export default function NFeEmissao() {
     toast.success(`Produto "${newProduct.name}" cadastrado e adicionado!`);
   };
 
-  const selectClient = (client: any) => {
+  const selectClient = (client: NFeClient) => {
     setForm(p => ({
       ...p,
       destName: client.name || "",
@@ -353,7 +427,7 @@ export default function NFeEmissao() {
     const { data, error } = await supabase.from("clients").insert({ ...quickClient, company_id: companyId }).select().single();
     setQuickClientSaving(false);
     if (error) { toast.error("Erro: " + error.message); return; }
-    const c = data as any;
+    const c = data as NFeClient;
     setClients(prev => [...prev, c]);
     selectClient(c);
     setShowQuickClient(false);
@@ -370,7 +444,7 @@ export default function NFeEmissao() {
       p.barcode?.includes(search)
     ).slice(0, 15);
   };
-  const selectProduct = (idx: number, product: any) => {
+  const selectProduct = (idx: number, product: NFeProduct) => {
     const isSN = companyCrt === 1 || companyCrt === 2;
     setForm((prev) => {
       const items = [...prev.items];
@@ -386,10 +460,10 @@ export default function NFeEmissao() {
         qty: 1,
         discount: 0,
         total: product.price || 0,
-        icmsAliquota: product.icms_rate || 0,
+        icmsAliquota: product.icms_rate ?? 0,
         origem: product.origin || "0",
-        pisCst: product.pis_rate > 0 ? "01" : "49",
-        cofinsCst: product.cofins_rate > 0 ? "01" : "49",
+        pisCst: (product.pis_rate ?? 0) > 0 ? "01" : "49",
+        cofinsCst: (product.cofins_rate ?? 0) > 0 ? "01" : "49",
       };
       updated = applyFiscalDefaults(updated);
       items[idx] = updated;
@@ -562,9 +636,9 @@ export default function NFeEmissao() {
         .eq("company_id", companyId)
         .eq("is_active", true);
 
-      let nfeConfig = configs?.find((c: any) => c.doc_type === "nfe");
+      let nfeConfig = configs?.find((c) => c.doc_type === "nfe");
       if (!nfeConfig) {
-        nfeConfig = configs?.find((c: any) => c.doc_type === "nfce");
+        nfeConfig = configs?.find((c) => c.doc_type === "nfce");
       }
 
       if (!nfeConfig) {
@@ -576,7 +650,7 @@ export default function NFeEmissao() {
 
       // Verificar se há certificado local ou um A1/A3 configurado para deixar o servidor tentar emitir
       const storedCert = await getStoredCertificateA1(companyId);
-      const hasConfiguredCert = !!(nfeConfig.certificate_path || (nfeConfig as any).a3_thumbprint);
+      const hasConfiguredCert = !!(nfeConfig.certificate_path || (nfeConfig as { a3_thumbprint?: string }).a3_thumbprint);
       if (!storedCert && !hasConfiguredCert) {
         setStep("error");
         setErrorMsg("Certificado digital não configurado. Faça o upload do certificado A1 (.pfx) em Fiscal > Configuração ou selecione um certificado A3 válido.");
@@ -584,7 +658,7 @@ export default function NFeEmissao() {
         return;
       }
 
-      let data: any = null;
+      let data: NFeSuccessData | null = null;
 
       try {
         const result = await supabase.functions.invoke("emit-nfce", {
@@ -673,15 +747,17 @@ export default function NFeEmissao() {
           parsed = null;
         }
         data = parsed;
-      } catch (fetchErr: any) {
-        console.error("[NFeEmissao] invoke threw:", fetchErr?.message || fetchErr);
+    } catch (fetchErr: unknown) {
+        const fetchErrObj = fetchErr instanceof Error ? fetchErr : null;
+        console.error("[NFeEmissao] invoke threw:", fetchErrObj?.message || fetchErr);
         let errMsg = "Não foi possível conectar ao servidor fiscal. Verifique sua conexão e se o certificado digital está configurado corretamente.";
         try {
-          if (fetchErr && typeof fetchErr.context?.json === "function") {
-            const body = await fetchErr.context.json();
+          const ctxErr = fetchErr as { context?: { json?: () => Promise<{ error?: string }> } };
+          if (ctxErr?.context && typeof ctxErr.context.json === "function") {
+            const body = await ctxErr.context.json();
             if (body?.error) errMsg = body.error;
-          } else if (typeof fetchErr?.message === "string" && !fetchErr.message.includes("non-2xx")) {
-            errMsg = fetchErr.message;
+          } else if (fetchErrObj?.message && !fetchErrObj.message.includes("non-2xx")) {
+            errMsg = fetchErrObj.message;
           }
         } catch { /* keep default */ }
         setStep("error");
@@ -703,10 +779,11 @@ export default function NFeEmissao() {
           setRejection(rej);
         } catch { /* ignore */ }
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("[NFeEmissao] outer catch:", err);
       setStep("error");
-      setErrorMsg("Erro inesperado. Verifique a configuração fiscal e o certificado digital.");
+      const outerMsg = err instanceof Error ? err.message : "Erro inesperado. Verifique a configuração fiscal e o certificado digital.";
+      setErrorMsg(outerMsg);
     } finally {
       setEmitting(false);
     }

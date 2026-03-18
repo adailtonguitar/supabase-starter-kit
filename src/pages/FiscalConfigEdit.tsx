@@ -101,24 +101,24 @@ export default function FiscalConfigEdit() {
                 id: dbConfig.id,
                 serie: dbConfig.serie,
                 nextNumber: dbConfig.next_number,
-                environment: dbConfig.environment as "homologacao" | "producao",
+                environment: dbConfig.environment as FiscalConfigSection["environment"],
                 cscId: dbConfig.csc_id || "",
                 cscToken: dbConfig.csc_token || "",
                 isActive: dbConfig.is_active,
-                certificateType: (dbConfig as any).certificate_type || "A1",
+                certificateType: (dbConfig as { certificate_type?: string }).certificate_type === "A3" ? "A3" : "A1",
                 certificatePath: dbConfig.certificate_path,
                 certificateExpiresAt: dbConfig.certificate_expires_at,
-                a3Thumbprint: (dbConfig as any).a3_thumbprint || "",
-                a3SubjectName: (dbConfig as any).a3_subject_name || "",
+                a3Thumbprint: (dbConfig as { a3_thumbprint?: string }).a3_thumbprint || "",
+                a3SubjectName: (dbConfig as { a3_subject_name?: string }).a3_subject_name || "",
               } as FiscalConfigSection;
             }
             return def;
           });
           setConfigs(loaded);
-          const firstWithCert = data.find((d) => (d as any).certificate_type);
-          if (firstWithCert) setCertType((firstWithCert as any).certificate_type || "A1");
-          const firstWithA3 = data.find((d) => (d as any).a3_thumbprint);
-          if (firstWithA3) setA3SelectedThumbprint((firstWithA3 as any).a3_thumbprint || "");
+          const firstWithCert = data.find((d) => (d as { certificate_type?: string }).certificate_type);
+          if (firstWithCert) setCertType((firstWithCert as { certificate_type?: string }).certificate_type === "A3" ? "A3" : "A1");
+          const firstWithA3 = data.find((d) => (d as { a3_thumbprint?: string }).a3_thumbprint);
+          if (firstWithA3) setA3SelectedThumbprint((firstWithA3 as { a3_thumbprint?: string }).a3_thumbprint || "");
           const firstWithCertPath = data.find((d) => d.certificate_path);
           if (firstWithCertPath) {
             setCertFile(firstWithCertPath.certificate_path);
@@ -131,10 +131,11 @@ export default function FiscalConfigEdit() {
           }
           // Load CRT from first config
           const firstConfig = data[0];
-          if ((firstConfig as any).crt) setCrt((firstConfig as any).crt);
+          if ((firstConfig as { crt?: number }).crt) setCrt((firstConfig as { crt?: number }).crt!);
         }
-      } catch (err: any) {
-        toast.error(`Erro ao carregar configurações: ${err.message}`);
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : "Erro desconhecido";
+        toast.error(`Erro ao carregar configurações: ${message}`);
       } finally {
         setLoading(false);
       }
@@ -214,16 +215,16 @@ export default function FiscalConfigEdit() {
         }
 
         if (config.id) {
-          const { error } = await supabase.from("fiscal_configs").update(record as any).eq("id", config.id);
+          const { error } = await supabase.from("fiscal_configs").update(record as Record<string, unknown>).eq("id", config.id);
           if (error) throw error;
         } else {
-          const { data, error } = await supabase.from("fiscal_configs").insert(record as any).select("id").single();
+          const { data, error } = await supabase.from("fiscal_configs").insert(record as Record<string, unknown>).select("id").single();
           if (error) throw error;
           if (data) config.id = data.id;
         }
       }
 
-      await supabase.from("companies").update({ crt } as any).eq("id", companyId);
+      await supabase.from("companies").update({ crt } as Record<string, unknown>).eq("id", companyId);
 
       if (certType === "A1" && !certMarkedForRemoval && certBase64 && certPassword) {
         try {
@@ -243,7 +244,7 @@ export default function FiscalConfigEdit() {
           } else {
             toast.warning(`Certificado salvo. Nuvem Fiscal: ${uploadResult?.error || "erro desconhecido"}`);
           }
-        } catch (certUploadErr: any) {
+        } catch (certUploadErr: unknown) {
           console.warn("[FiscalConfig] Certificate upload error:", certUploadErr);
           toast.warning("Certificado salvo localmente. Envio à Nuvem Fiscal falhou.");
         }
@@ -255,8 +256,9 @@ export default function FiscalConfigEdit() {
       logAction({ companyId: companyId!, userId: user?.id, action: "Configuração fiscal salva", module: "fiscal", details: `CRT: ${crt}, Cert: ${certType}` });
       toast.success("Configurações fiscais salvas com sucesso!");
       navigate("/fiscal/config");
-    } catch (err: any) {
-      toast.error(`Erro ao salvar: ${err.message}`);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Erro desconhecido";
+      toast.error(`Erro ao salvar: ${message}`);
     } finally {
       setSaving(false);
     }
@@ -272,8 +274,9 @@ export default function FiscalConfigEdit() {
       setA3Certificates(certs);
       if (certs.length === 0) toast.info("Nenhum certificado digital encontrado.");
       else toast.success(`${certs.length} certificado(s) encontrado(s)`);
-    } catch (err: any) {
-      toast.error(err.message || "Erro ao conectar ao assinador");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Erro ao conectar ao assinador";
+      toast.error(message);
     } finally {
       setA3Loading(false);
     }
@@ -286,8 +289,9 @@ export default function FiscalConfigEdit() {
       const certs = await localSignerService.listCertificates();
       setA3Certificates(certs);
       toast.success(`${certs.length} certificado(s) encontrado(s)`);
-    } catch (err: any) {
-      toast.error(err.message || "Erro ao listar certificados");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Erro ao listar certificados";
+      toast.error(message);
     } finally {
       setA3Loading(false);
     }
@@ -548,7 +552,7 @@ export default function FiscalConfigEdit() {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <label className="text-sm font-medium text-foreground mb-1.5 block"><Server className="w-3.5 h-3.5 inline mr-1" />Ambiente SEFAZ</label>
-                  <select value={config.environment} onChange={(e) => updateConfig(idx, { environment: e.target.value as any })}
+                  <select value={config.environment} onChange={(e) => updateConfig(idx, { environment: e.target.value as "homologacao" | "producao" })}
                     className="w-full px-4 py-2.5 rounded-xl bg-background border border-border text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all">
                     <option value="homologacao">Homologação</option>
                     <option value="producao">Produção</option>
