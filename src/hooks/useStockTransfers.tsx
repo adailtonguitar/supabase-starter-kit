@@ -86,7 +86,7 @@ export function useCreateStockTransfer() {
       if (!user) throw new Error("Não autenticado");
 
       const { data: transfer, error } = await supabase
-        .from("stock_transfers" as any)
+        .from("stock_transfers")
         .insert({
           from_company_id: input.from_company_id,
           to_company_id: input.to_company_id,
