@@ -120,7 +120,7 @@ export function useCreateStockTransfer() {
         .select("name")
         .eq("id", input.to_company_id)
         .single();
-      const destName = (destCompany as any)?.name || "filial";
+      const destName = (destCompany as Record<string, unknown> | null)?.name as string || "filial";
 
       // Decrement stock from origin company
       for (const item of input.items) {
