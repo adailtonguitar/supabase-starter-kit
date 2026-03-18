@@ -541,7 +541,7 @@ async function handleEmit(supabase: any, body: any) {
     // Salvar como rejeitada para rastreabilidade
     await supabase.from("fiscal_documents").insert({
       company_id,
-      sale_id,
+      sale_id: sale_id || null,
       doc_type: "nfce",
       number: numero,
       serie: config.serie || 1,
@@ -551,7 +551,10 @@ async function handleEmit(supabase: any, body: any) {
       customer_name: form.customer_name || null,
       customer_cpf_cnpj: form.customer_doc || null,
       payment_method: tPag,
-    } as any);
+      access_key: null,
+      protocol_number: null,
+      is_contingency: false,
+    });
 
     return jsonResponse({ success: false, error: errMsg, details: nfData }, 400);
   }
