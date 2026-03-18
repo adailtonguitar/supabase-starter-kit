@@ -263,7 +263,7 @@ export function usePDV() {
         .select("*")
         .eq("company_id", companyId)
         .eq("is_active", true);
-      setActivePromos(data || []);
+      setActivePromos((data || []) as PromotionRecord[]);
     } catch {}
   }, [companyId]);
 
