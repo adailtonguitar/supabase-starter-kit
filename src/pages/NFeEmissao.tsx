@@ -270,7 +270,7 @@ export default function NFeEmissao() {
       .select("*")
       .eq("company_id", companyId)
       .then(({ data }) => {
-        if (data) setFiscalCategories(data);
+        if (data) setFiscalCategories(data as NFeFiscalCategory[]);
       });
   }, [companyId]);
 
