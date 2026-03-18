@@ -658,7 +658,7 @@ export default function NFeEmissao() {
         return;
       }
 
-      let data: any = null;
+      let data: NFeSuccessData | null = null;
 
       try {
         const result = await supabase.functions.invoke("emit-nfce", {
