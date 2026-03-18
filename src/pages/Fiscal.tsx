@@ -64,7 +64,7 @@ export default function Fiscal() {
   const [loading, setLoading] = useState(true);
   const [printingDanfe, setPrintingDanfe] = useState(false);
   const [consultingStatus, setConsultingStatus] = useState(false);
-  const [lastConsultDetails, setLastConsultDetails] = useState<any | null>(null);
+  const [lastConsultDetails, setLastConsultDetails] = useState<Record<string, unknown> | null>(null);
   const [cancelling, setCancelling] = useState(false);
   const [cancelJustificativa, setCancelJustificativa] = useState("");
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
