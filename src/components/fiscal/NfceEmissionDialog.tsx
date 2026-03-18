@@ -185,22 +185,22 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
     } catch { parsedItems = []; }
 
     const nfceItems: NfceItem[] = parsedItems.map((item) => {
-      const qty = item.qty || item.quantity || 1;
-      const unitPrice = item.price || item.unit_price || 0;
-      const discount = item.discount || 0;
+      const qty = (item.qty as number) || (item.quantity as number) || 1;
+      const unitPrice = (item.price as number) || (item.unit_price as number) || 0;
+      const discount = (item.discount as number) || 0;
       return {
-        name: item.name || item.product_name || "Produto",
-        ncm: item.ncm || "",
-        cfop: item.cfop || "5102",
-        cst: item.cst || item.csosn || (companyCrt === 1 || companyCrt === 2 ? "102" : "00"),
-        unit: item.unit || "UN",
+        name: (item.name as string) || (item.product_name as string) || "Produto",
+        ncm: (item.ncm as string) || "",
+        cfop: (item.cfop as string) || "5102",
+        cst: (item.cst as string) || (item.csosn as string) || (companyCrt === 1 || companyCrt === 2 ? "102" : "00"),
+        unit: (item.unit as string) || "UN",
         qty,
         unitPrice,
         discount,
         total: qty * unitPrice - discount,
-        pisCst: item.pis_cst || "49",
-        cofinsCst: item.cofins_cst || "49",
-        icmsAliquota: item.icms_aliquota || 0,
+        pisCst: (item.pis_cst as string) || "49",
+        cofinsCst: (item.cofins_cst as string) || "49",
+        icmsAliquota: (item.icms_aliquota as number) || 0,
       };
     });
 
