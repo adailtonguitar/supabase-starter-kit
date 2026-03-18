@@ -294,8 +294,8 @@ export default function NFeEmissao() {
       cfop: item.cfop || match.cfop || item.cfop,
       cst: item.cst || match.csosn || match.cst_icms || item.cst,
       icmsAliquota: item.icmsAliquota || (match.icms_rate ?? item.icmsAliquota),
-      pisCst: item.pisCst === "49" && match.pis_rate > 0 ? "01" : item.pisCst,
-      cofinsCst: item.cofinsCst === "49" && match.cofins_rate > 0 ? "01" : item.cofinsCst,
+      pisCst: item.pisCst === "49" && (match.pis_rate ?? 0) > 0 ? "01" : item.pisCst,
+      cofinsCst: item.cofinsCst === "49" && (match.cofins_rate ?? 0) > 0 ? "01" : item.cofinsCst,
     };
   }, [fiscalCategories]);
 
