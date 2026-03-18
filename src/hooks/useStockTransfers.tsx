@@ -286,7 +286,7 @@ export function useReceiveStockTransfer() {
             const { data: newProduct } = await supabase.from("products").insert({
               ...rest,
               company_id: companyId,
-              stock_quantity: item.quantity,
+              stock_quantity: item.quantity as number,
             }).select("id").single();
 
             if (newProduct) {
