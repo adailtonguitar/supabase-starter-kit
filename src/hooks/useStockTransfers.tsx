@@ -39,7 +39,7 @@ export function useStockTransfers() {
       if (!companyId) return [];
 
       const { data, error } = await supabase
-        .from("stock_transfers" as any)
+        .from("stock_transfers")
         .select("*, stock_transfer_items(*)")
         .or(`from_company_id.eq.${companyId},to_company_id.eq.${companyId}`)
         .order("created_at", { ascending: false })
