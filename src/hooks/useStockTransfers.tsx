@@ -59,13 +59,13 @@ export function useStockTransfers() {
         .select("id, name")
         .in("id", Array.from(companyIds));
 
-      const nameMap = new Map((companies || []).map((c: any) => [c.id, c.name]));
+      const nameMap = new Map((companies || []).map((c: Record<string, unknown>) => [c.id as string, c.name as string]));
 
-      return (data || []).map((t: any) => ({
+      return (data || []).map((t: Record<string, unknown>) => ({
         ...t,
-        from_company: { name: nameMap.get(t.from_company_id) || "?" },
-        to_company: { name: nameMap.get(t.to_company_id) || "?" },
-        items: t.stock_transfer_items || [],
+        from_company: { name: nameMap.get(t.from_company_id as string) || "?" },
+        to_company: { name: nameMap.get(t.to_company_id as string) || "?" },
+        items: (t as Record<string, unknown>).stock_transfer_items || [],
       })) as StockTransfer[];
     },
     enabled: !!companyId,
