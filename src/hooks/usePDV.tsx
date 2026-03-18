@@ -354,7 +354,7 @@ export function usePDV() {
           company_id: companyId,
           status: "pending",
           attempts: 0,
-        } as any)
+        })
         .select("id")
         .single();
 
