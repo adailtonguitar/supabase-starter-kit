@@ -129,8 +129,9 @@ export default function Fiscal() {
       } else {
         toast.info(`Status atual na Nuvem Fiscal: ${newStatus}`);
       }
-    } catch (err: any) {
-      toast.error(err?.message || "Erro ao consultar status.");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Erro ao consultar status.";
+      toast.error(message);
     } finally {
       setConsultingStatus(false);
     }
