@@ -565,9 +565,10 @@ export function usePDV() {
           companyId,
         });
 
-        if ((consulted as any)?.success && (consulted as any)?.status === "autorizada") {
+        const consultResult = consulted as FiscalConsultResult;
+        if (consultResult?.success && consultResult?.status === "autorizada") {
           fiscalStatus = "autorizada";
-          resolvedNumber = (consulted as any)?.number || resolvedNumber;
+          resolvedNumber = String(consultResult?.number || resolvedNumber);
         }
       } catch (consultErr) {
         console.warn("[PDV Fiscal] Immediate consult after pending status failed:", consultErr);
