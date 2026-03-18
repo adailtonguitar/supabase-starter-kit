@@ -108,8 +108,8 @@ export default function FiscalConfigEdit() {
                 certificateType: (dbConfig as { certificate_type?: string }).certificate_type === "A3" ? "A3" : "A1",
                 certificatePath: dbConfig.certificate_path,
                 certificateExpiresAt: dbConfig.certificate_expires_at,
-                a3Thumbprint: (dbConfig as any).a3_thumbprint || "",
-                a3SubjectName: (dbConfig as any).a3_subject_name || "",
+                a3Thumbprint: (dbConfig as { a3_thumbprint?: string }).a3_thumbprint || "",
+                a3SubjectName: (dbConfig as { a3_subject_name?: string }).a3_subject_name || "",
               } as FiscalConfigSection;
             }
             return def;
