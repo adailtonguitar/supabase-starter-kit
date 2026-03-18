@@ -26,6 +26,14 @@ import { useGapDetection, type NumberingGap } from "@/hooks/useGapDetection";
 import { toast } from "sonner";
 import type { FiscalConsultResult, FiscalPdfResult, FiscalBackupResult } from "@/integrations/supabase/fiscal.types";
 
+// ── Item 9: Interface for SPED processing result ──
+interface SpedJobResult {
+  period?: string;
+  docs_count?: number;
+  file_path?: string;
+  error?: string;
+}
+
 type DocType = "nfce" | "nfe" | "sat";
 type DocStatus = "pendente" | "autorizada" | "cancelada" | "rejeitada" | "contingencia" | "inutilizada";
 
