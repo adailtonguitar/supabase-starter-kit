@@ -76,7 +76,7 @@ export default function FiscalConfigEdit() {
   const [satActivation, setSatActivation] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [crt, setCrt] = useState<number>(1);
+  const [crt, setCrt] = useState<CRT>(1);
   const [a3Certificates, setA3Certificates] = useState<CertificateInfo[]>([]);
   const [a3SelectedThumbprint, setA3SelectedThumbprint] = useState("");
   const [a3Loading, setA3Loading] = useState(false);
