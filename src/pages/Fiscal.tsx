@@ -87,21 +87,42 @@ export default function Fiscal() {
   const [backupLoading, setBackupLoading] = useState(false);
   const { gaps, loading: gapsLoading, refresh: refreshGaps } = useGapDetection();
 
+  // ── Item 16: Pagination state ──
+  const PAGE_SIZE = 50;
+  const [page, setPage] = useState(0);
+  const [totalCount, setTotalCount] = useState(0);
+
   const loadDocs = useCallback(async () => {
     if (!companyId) return;
     setLoading(true);
+
+    // First get total count for pagination
+    const { count } = await supabase
+      .from("fiscal_documents")
+      .select("id", { count: "exact", head: true })
+      .eq("company_id", companyId);
+
+    setTotalCount(count ?? 0);
+
+    const from = page * PAGE_SIZE;
+    const to = from + PAGE_SIZE - 1;
+
     const { data, error } = await supabase
       .from("fiscal_documents")
       .select("id, doc_type, number, serie, access_key, status, total_value, customer_name, customer_cpf_cnpj, payment_method, created_at, is_contingency, environment")
       .eq("company_id", companyId)
       .order("created_at", { ascending: false })
-      .limit(100);
+      .range(from, to);
 
     if (!error && data) setDocs(data as FiscalDoc[]);
     setLoading(false);
-  }, [companyId]);
+  }, [companyId, page]);
 
   useEffect(() => { loadDocs(); }, [loadDocs]);
+
+  const totalPages = Math.ceil(totalCount / PAGE_SIZE);
+  const hasNextPage = page < totalPages - 1;
+  const hasPrevPage = page > 0;
 
   const handleConsultStatus = async (doc: FiscalDoc) => {
     if (!doc.access_key) {
@@ -636,6 +657,31 @@ export default function Fiscal() {
         )}
       </div>
 
+      {/* ── Item 16: Pagination controls ── */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between pt-2">
+          <p className="text-xs text-muted-foreground">
+            Página {page + 1} de {totalPages} ({totalCount} documentos)
+          </p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setPage((p) => Math.max(0, p - 1))}
+              disabled={!hasPrevPage}
+              className="px-3 py-1.5 rounded-lg text-xs font-medium border border-border text-foreground hover:bg-muted transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              ← Anterior
+            </button>
+            <button
+              onClick={() => setPage((p) => p + 1)}
+              disabled={!hasNextPage}
+              className="px-3 py-1.5 rounded-lg text-xs font-medium border border-border text-foreground hover:bg-muted transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Próxima →
+            </button>
+          </div>
+        </div>
+      )}
+
       {selectedDoc && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/20 backdrop-blur-sm"
@@ -708,8 +754,9 @@ export default function Fiscal() {
               <div className="flex gap-2 mt-6">
                 <button
                   onClick={async () => {
-                    const result = await FiscalEmissionService.downloadXml(selectedDoc.access_key!, selectedDoc.doc_type as "nfce" | "nfe");
-                    const xml = (result as any)?.xml || (result as any)?.xml_content;
+                    const result = await FiscalEmissionService.downloadXml(selectedDoc.access_key!, selectedDoc.doc_type === "sat" ? "nfce" : selectedDoc.doc_type as "nfce" | "nfe");
+                    const xmlResult = result as { data?: { xml?: string; xml_content?: string }; error?: string };
+                    const xml = xmlResult?.data?.xml || xmlResult?.data?.xml_content;
                     if (xml) {
                       const blob = new Blob([xml], { type: "application/xml" });
                       const url = URL.createObjectURL(blob);
@@ -720,7 +767,7 @@ export default function Fiscal() {
                       URL.revokeObjectURL(url);
                       toast.success("XML baixado no seu PC!");
                     } else {
-                      toast.error((result as any)?.error || "Não foi possível obter o XML.");
+                      toast.error(xmlResult?.error || "Não foi possível obter o XML.");
                     }
                   }}
                   className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-accent text-accent-foreground text-sm font-medium hover:opacity-90 transition-all"
@@ -731,18 +778,19 @@ export default function Fiscal() {
                 <button
                   onClick={async () => {
                     if (!companyId) return;
-                    const result = await FiscalEmissionService.downloadXml(selectedDoc.access_key!, selectedDoc.doc_type as "nfce" | "nfe");
-                    const xml = (result as any)?.xml || (result as any)?.xml_content;
-                    if (!xml) { toast.error((result as any)?.error || "Não foi possível obter o XML."); return; }
+                    const result2 = await FiscalEmissionService.downloadXml(selectedDoc.access_key!, selectedDoc.doc_type === "sat" ? "nfce" : selectedDoc.doc_type as "nfce" | "nfe");
+                    const xmlResult2 = result2 as { data?: { xml?: string; xml_content?: string }; error?: string };
+                    const xml2 = xmlResult2?.data?.xml || xmlResult2?.data?.xml_content;
+                    if (!xml2) { toast.error(xmlResult2?.error || "Não foi possível obter o XML."); return; }
                     const saveResult = await FiscalEmissionService.saveXmlToCloud({
                       companyId,
                       accessKey: selectedDoc.access_key!,
-                      docType: selectedDoc.doc_type as "nfce" | "nfe",
+                      docType: selectedDoc.doc_type === "sat" ? "nfce" : selectedDoc.doc_type as "nfce" | "nfe",
                       number: selectedDoc.number || 0,
-                      xmlContent: xml,
+                      xmlContent: xml2,
                     });
                     if (saveResult.success) {
-                      toast.success(`XML salvo na nuvem: ${(saveResult as any).fileName}`);
+                      toast.success(`XML salvo na nuvem: ${(saveResult.data as { fileName?: string })?.fileName || "OK"}`);
                     } else {
                       toast.error(saveResult.error || "Erro ao salvar na nuvem");
                     }
@@ -777,7 +825,7 @@ export default function Fiscal() {
               {selectedDoc.status === "autorizada" && (() => {
                 const deadline = FiscalEmissionService.isCancelDeadlineExpired(
                   selectedDoc.created_at,
-                  selectedDoc.doc_type as "nfce" | "nfe"
+                  selectedDoc.doc_type === "sat" ? "nfce" : selectedDoc.doc_type as "nfce" | "nfe"
                 );
                 return deadline.expired ? (
                   <div className="flex-1 py-2.5 rounded-xl bg-destructive/10 text-destructive text-xs font-medium text-center px-2">
