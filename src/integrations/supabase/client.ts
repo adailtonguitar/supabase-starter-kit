@@ -1,5 +1,12 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
+/**
+ * ⚠️ Database = any é temporário.
+ * Para tipagem real, rode: npx supabase gen types typescript --project-id fsvxpxziotklbxkivyug > src/integrations/supabase/database.types.generated.ts
+ * Depois importe: import type { Database } from './database.types.generated';
+ *
+ * O arquivo database.types.ts contém as interfaces Row para uso nos hooks (tipagem parcial).
+ */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Database = any;
 
