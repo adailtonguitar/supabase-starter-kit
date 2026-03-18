@@ -75,7 +75,8 @@ export default function Caixa() {
 
   const fiadoBySession = useMemo(() => {
     const map: Record<string, { total: number; count: number }> = {};
-    fiadoMovements.forEach((m: any) => {
+    fiadoMovements.forEach((m: CashMovementRecord) => {
+      if (!m.session_id) return;
       if (!map[m.session_id]) map[m.session_id] = { total: 0, count: 0 };
       map[m.session_id].total += Number(m.amount);
       map[m.session_id].count += 1;
