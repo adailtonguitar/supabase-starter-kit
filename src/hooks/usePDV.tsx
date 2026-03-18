@@ -13,6 +13,8 @@ import { logAction } from "@/services/ActionLogger";
 import { fiscalCircuitBreaker, CircuitBreakerOpenError } from "@/lib/circuit-breaker";
 import { getFunctionErrorMessage } from "@/lib/get-function-error-message";
 import { getStoredCertificateA1 } from "@/services/LocalXmlSigner";
+import type { FiscalConfigRecord, FiscalEmissionResult, PromotionRecord } from "@/integrations/supabase/fiscal.types";
+import { getStoredCertificateA1 } from "@/services/LocalXmlSigner";
 
 export interface PDVProduct {
   id: string;
