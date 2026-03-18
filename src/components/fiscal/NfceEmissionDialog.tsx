@@ -418,7 +418,7 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
         body: {
           sale_id: sale.id,
           company_id: companyId,
-          config_id: nfceConfig.id,
+          config_id: nfceConfig.id as string,
           form: {
             customer_name: form.customerName,
             customer_doc: form.customerDoc,
