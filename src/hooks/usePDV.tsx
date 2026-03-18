@@ -970,7 +970,7 @@ export function usePDV() {
       if (!items || items.length === 0) { toast.info("Itens da última venda não encontrados"); return; }
 
       let added = 0;
-      for (const item of items as any[]) {
+      for (const item of items as Array<Record<string, unknown>>) {
         const product = products.find(p => p.id === item.product_id);
         if (product && product.stock_quantity > 0) {
           const qty = Math.min(Number(item.quantity), product.stock_quantity);
