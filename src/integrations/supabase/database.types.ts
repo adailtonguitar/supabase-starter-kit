@@ -15,7 +15,7 @@ type Json = string | number | boolean | null | Json[] | { [key: string]: Json };
 type AutoCols = "id" | "created_at" | "updated_at";
 
 /** Helper: build Table shape from Row */
-type TableDef<R extends Record<string, unknown>> = {
+type TableDef<R extends object> = {
   Row: R;
   Insert: Omit<R, AutoCols> & Partial<Pick<R, Extract<keyof R, AutoCols>>>;
   Update: Partial<R>;
