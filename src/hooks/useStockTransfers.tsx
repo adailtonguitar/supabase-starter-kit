@@ -252,12 +252,12 @@ export function useReceiveStockTransfer() {
         }
 
         if (existingProduct) {
-          const previousStock = (existingProduct as any).stock_quantity || 0;
-          const newStock = previousStock + item.quantity;
+          const previousStock = (existingProduct.stock_quantity as number) || 0;
+          const newStock = previousStock + (item.quantity as number);
           await supabase
             .from("products")
-            .update({ stock_quantity: newStock } as any)
-            .eq("id", (existingProduct as any).id)
+            .update({ stock_quantity: newStock })
+            .eq("id", existingProduct.id as string)
             .eq("company_id", companyId);
 
           // Register stock movement
