@@ -821,87 +821,12 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
               )}
 
               {activeTab === "customer" && (
-                <div className="space-y-4">
-                  <p className="text-xs text-muted-foreground">
-                    Dados do consumidor (opcional para NFC-e até R$ 200,00)
-                  </p>
-                  <div>
-                    <label className="text-sm font-medium text-foreground">CPF / CNPJ</label>
-                    <input
-                      value={form.customerDoc}
-                      onChange={(e) => setForm((p) => ({ ...p, customerDoc: e.target.value }))}
-                      className="w-full mt-1 px-3 py-2.5 rounded-lg border border-border bg-background text-sm text-foreground font-mono focus:outline-none focus:ring-2 focus:ring-primary/30"
-                      placeholder="000.000.000-00"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-foreground">Nome</label>
-                    <input
-                      value={form.customerName}
-                      onChange={(e) => setForm((p) => ({ ...p, customerName: e.target.value }))}
-                      className="w-full mt-1 px-3 py-2.5 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
-                      placeholder="Nome do consumidor"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-foreground">Natureza da Operação</label>
-                    <input
-                      value={form.natOp}
-                      onChange={(e) => setForm((p) => ({ ...p, natOp: e.target.value }))}
-                      className="w-full mt-1 px-3 py-2.5 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-foreground">Informações Adicionais</label>
-                    <textarea
-                      value={form.infAdic}
-                      onChange={(e) => setForm((p) => ({ ...p, infAdic: e.target.value }))}
-                      rows={3}
-                      className="w-full mt-1 px-3 py-2.5 rounded-lg border border-border bg-background text-sm text-foreground resize-none focus:outline-none focus:ring-2 focus:ring-primary/30"
-                      placeholder="Informações complementares..."
-                    />
-                  </div>
-                </div>
+                <NfceCustomerStep form={form} setForm={setForm} />
               )}
 
               {activeTab === "payment" && (
-                <div className="space-y-4">
-                  <div>
-                    <label className="text-sm font-medium text-foreground">Forma de Pagamento</label>
-                    <select
-                      value={form.paymentMethod}
-                      onChange={(e) => setForm((p) => ({ ...p, paymentMethod: e.target.value }))}
-                      className="w-full mt-1 px-3 py-2.5 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
-                    >
-                      {PAYMENT_OPTIONS.map((opt) => (
-                        <option key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-foreground">Valor Pago</label>
-                    <input
-                      type="number"
-                      value={form.paymentValue}
-                      onChange={(e) => {
-                        const val = parseFloat(e.target.value) || 0;
-                        setForm((p) => ({ ...p, paymentValue: val, change: Math.max(0, val - totalItems) }));
-                      }}
-                      className="w-full mt-1 px-3 py-2.5 rounded-lg border border-border bg-background text-sm text-foreground font-mono focus:outline-none focus:ring-2 focus:ring-primary/30"
-                      min="0"
-                      step="0.01"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-foreground">Troco</label>
-                    <input
-                      type="number"
-                      value={form.change}
-                      onChange={(e) => setForm((p) => ({ ...p, change: parseFloat(e.target.value) || 0 }))}
-                      className="w-full mt-1 px-3 py-2.5 rounded-lg border border-border bg-background text-sm text-foreground font-mono focus:outline-none focus:ring-2 focus:ring-primary/30"
-                      min="0"
+                <NfcePaymentStep form={form} setForm={setForm} totalItems={totalItems} paymentOptions={PAYMENT_OPTIONS} />
+              )}
                       step="0.01"
                     />
                   </div>
