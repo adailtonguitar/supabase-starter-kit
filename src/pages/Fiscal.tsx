@@ -216,18 +216,24 @@ export default function Fiscal() {
         clearInterval(interval);
         setSpedGenerating(false);
         setSpedJobId(null);
-        const result = data.result as any;
-        toast.success(`SPED gerado: ${result?.period} — ${result?.docs_count} documentos`);
-        if (result?.file_path) {
+        const result = (data.result ?? {}) as SpedJobResult;
+        const period = result.period || `${spedMonth}/${spedYear}`;
+        const docsCount = result.docs_count ?? 0;
+        toast.success(`SPED gerado: ${period} — ${docsCount} documentos`);
+        if (result.file_path) {
           const { data: fileData } = await supabase.storage.from("company-backups").download(result.file_path);
           if (fileData) {
             const url = URL.createObjectURL(fileData);
             const a = document.createElement("a");
             a.href = url;
-            a.download = `SPED_${result.period?.replace("/", "_")}.txt`;
+            a.download = `SPED_${period.replace("/", "_")}.txt`;
             a.click();
             URL.revokeObjectURL(url);
+          } else {
+            toast.error("SPED gerado mas não foi possível baixar o arquivo. Verifique o storage.");
           }
+        } else {
+          toast.warning("SPED gerado mas nenhum arquivo foi retornado pelo servidor.");
         }
       } else if (data.status === "failed") {
         clearInterval(interval);
