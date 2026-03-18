@@ -728,26 +728,27 @@ export function usePDV() {
             .select("id, doc_type, is_active, environment, certificate_path, a3_thumbprint, next_number, serie")
             .eq("company_id", companyId);
 
-          const simConfig = allSimConfigs?.find((c: any) => c.doc_type === "nfce" && c.is_active)
-            || allSimConfigs?.find((c: any) => c.doc_type === "nfe" && c.is_active)
-            || allSimConfigs?.find((c: any) => c.doc_type === "nfce")
-            || allSimConfigs?.find((c: any) => c.doc_type === "nfe")
-            || allSimConfigs?.[0]
+          const sc = allSimConfigs as Array<Record<string, unknown>> | null;
+          const simConfig = sc?.find((c) => c.doc_type === "nfce" && c.is_active)
+            || sc?.find((c) => c.doc_type === "nfe" && c.is_active)
+            || sc?.find((c) => c.doc_type === "nfce")
+            || sc?.find((c) => c.doc_type === "nfe")
+            || sc?.[0]
             || null;
 
           console.log("[PDV finalizeSale] simConfig:", simConfig);
 
           const isSimulation = simConfig 
-            && (simConfig as any).environment === "homologacao" 
-            && !(simConfig as any).certificate_path 
-            && !(simConfig as any).a3_thumbprint;
+            && simConfig.environment === "homologacao" 
+            && !simConfig.certificate_path 
+            && !simConfig.a3_thumbprint;
 
           if (isSimulation && simConfig) {
-            const simNum = (simConfig as any).next_number || 1;
+            const simNum = (simConfig.next_number as number) || 1;
             const fakeChave = Array.from({ length: 44 }, () => Math.floor(Math.random() * 10)).join("");
             nfceNumber = `SIM-${simNum}`;
             accessKey = fakeChave;
-            serie = (simConfig as any).serie || "1";
+            serie = (simConfig.serie as string) || "1";
 
             // Best-effort DB updates
             Promise.allSettled([
@@ -755,10 +756,10 @@ export function usePDV() {
                 company_id: companyId, sale_id: saleId, doc_type: "nfce",
                 status: "simulado", access_key: fakeChave,
                 protocol_number: Date.now().toString(), environment: "homologacao",
-                serie: (simConfig as any).serie || "1", number: simNum, total_value: total,
-              } as any),
-              supabase.from("fiscal_configs").update({ next_number: simNum + 1 } as any).eq("id", simConfig.id),
-              supabase.from("sales").update({ status: "emitida" } as any).eq("id", saleId),
+                serie: (simConfig.serie as string) || "1", number: simNum, total_value: total,
+              }),
+              supabase.from("fiscal_configs").update({ next_number: simNum + 1 }).eq("id", simConfig.id as string),
+              supabase.from("sales").update({ status: "emitida" }).eq("id", saleId),
             ]).catch(() => {});
 
             toast.success("✅ Simulação concluída! (modo teste — sem envio à SEFAZ)", {
