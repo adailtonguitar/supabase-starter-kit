@@ -747,8 +747,9 @@ export default function NFeEmissao() {
           parsed = null;
         }
         data = parsed;
-      } catch (fetchErr: any) {
-        console.error("[NFeEmissao] invoke threw:", fetchErr?.message || fetchErr);
+    } catch (fetchErr: unknown) {
+        const fetchErrObj = fetchErr instanceof Error ? fetchErr : null;
+        console.error("[NFeEmissao] invoke threw:", fetchErrObj?.message || fetchErr);
         let errMsg = "Não foi possível conectar ao servidor fiscal. Verifique sua conexão e se o certificado digital está configurado corretamente.";
         try {
           if (fetchErr && typeof fetchErr.context?.json === "function") {
