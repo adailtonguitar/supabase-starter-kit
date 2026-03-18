@@ -14,12 +14,18 @@ type Json = string | number | boolean | null | Json[] | { [key: string]: Json };
 /** Auto-generated columns omitted from Insert */
 type AutoCols = "id" | "created_at" | "updated_at";
 
+/**
+ * Helper: coerce interface into index-signature-compatible form
+ * required by Supabase's GenericTable constraint (Record<string, unknown>).
+ */
+type Widen<T> = { [K in keyof T]: T[K] } & Record<string, unknown>;
+
 /** Helper: build Table shape from Row */
 type TableDef<R extends object> = {
-  Row: R;
-  Insert: Omit<R, AutoCols> & Partial<Pick<R, Extract<keyof R, AutoCols>>>;
-  Update: Partial<R>;
-  Relationships: unknown[];
+  Row: Widen<R>;
+  Insert: Widen<Omit<R, AutoCols> & Partial<Pick<R, Extract<keyof R, AutoCols>>>>;
+  Update: Widen<Partial<R>>;
+  Relationships: [];
 };
 
 // ── Enums ──────────────────────────────────────────────────────────────
