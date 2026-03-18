@@ -278,7 +278,7 @@ export function useReceiveStockTransfer() {
           const { data: sourceProduct } = await supabase
             .from("products")
             .select("*")
-            .eq("id", item.product_id)
+            .eq("id", item.product_id as string)
             .maybeSingle();
 
           if (sourceProduct) {
