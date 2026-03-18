@@ -3,6 +3,10 @@ import {
   FileText, Send, Loader2, CheckCircle, AlertTriangle, X,
   Plus, Trash2, User, Package, CreditCard, Receipt, Info, ShieldAlert, Lock, Search
 } from "lucide-react";
+import { NfceCustomerStep } from "./NfceCustomerStep";
+import { NfcePaymentStep } from "./NfcePaymentStep";
+import { NfceSuccessStep } from "./NfceSuccessStep";
+import { NfceErrorStep } from "./NfceErrorStep";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
 import { formatCurrency } from "@/lib/utils";
