@@ -466,7 +466,7 @@ export function usePDV() {
     }
 
     // Marcar sale como pendente_fiscal
-    await supabase.from("sales").update({ status: "pendente_fiscal" } as any).eq("id", saleId);
+    await supabase.from("sales").update({ status: "pendente_fiscal" }).eq("id", saleId);
 
     // Atualizar queue status
     if (queueId) {
