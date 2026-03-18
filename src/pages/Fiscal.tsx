@@ -23,7 +23,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
 import { FiscalEmissionService } from "@/services/FiscalEmissionService";
 import { useGapDetection, type NumberingGap } from "@/hooks/useGapDetection";
-import { toast } from "sonner";
+import type { FiscalConsultResult, FiscalPdfResult, FiscalBackupResult, isFiscalConsultResult, isFiscalPdfResult } from "@/integrations/supabase/fiscal.types";
 
 type DocType = "nfce" | "nfe" | "sat";
 type DocStatus = "pendente" | "autorizada" | "cancelada" | "rejeitada" | "contingencia" | "inutilizada";
