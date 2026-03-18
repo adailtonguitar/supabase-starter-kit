@@ -87,21 +87,42 @@ export default function Fiscal() {
   const [backupLoading, setBackupLoading] = useState(false);
   const { gaps, loading: gapsLoading, refresh: refreshGaps } = useGapDetection();
 
+  // ── Item 16: Pagination state ──
+  const PAGE_SIZE = 50;
+  const [page, setPage] = useState(0);
+  const [totalCount, setTotalCount] = useState(0);
+
   const loadDocs = useCallback(async () => {
     if (!companyId) return;
     setLoading(true);
+
+    // First get total count for pagination
+    const { count } = await supabase
+      .from("fiscal_documents")
+      .select("id", { count: "exact", head: true })
+      .eq("company_id", companyId);
+
+    setTotalCount(count ?? 0);
+
+    const from = page * PAGE_SIZE;
+    const to = from + PAGE_SIZE - 1;
+
     const { data, error } = await supabase
       .from("fiscal_documents")
       .select("id, doc_type, number, serie, access_key, status, total_value, customer_name, customer_cpf_cnpj, payment_method, created_at, is_contingency, environment")
       .eq("company_id", companyId)
       .order("created_at", { ascending: false })
-      .limit(100);
+      .range(from, to);
 
     if (!error && data) setDocs(data as FiscalDoc[]);
     setLoading(false);
-  }, [companyId]);
+  }, [companyId, page]);
 
   useEffect(() => { loadDocs(); }, [loadDocs]);
+
+  const totalPages = Math.ceil(totalCount / PAGE_SIZE);
+  const hasNextPage = page < totalPages - 1;
+  const hasPrevPage = page > 0;
 
   const handleConsultStatus = async (doc: FiscalDoc) => {
     if (!doc.access_key) {
