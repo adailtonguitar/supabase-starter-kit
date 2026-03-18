@@ -144,8 +144,8 @@ export default function Fiscal() {
     }
     setPrintingDanfe(true);
     try {
-      const result = await FiscalEmissionService.downloadPdf(doc.access_key, doc.doc_type as "nfce" | "nfe");
-      const pdfBase64 = (result as any)?.pdf_base64 || (result as any)?.base64;
+      const result = await FiscalEmissionService.downloadPdf(doc.access_key, doc.doc_type as "nfce" | "nfe") as FiscalPdfResult;
+      const pdfBase64 = result?.pdf_base64 || result?.base64;
       if (pdfBase64) {
         const byteCharacters = atob(pdfBase64);
         const byteNumbers = new Array(byteCharacters.length);
@@ -157,8 +157,8 @@ export default function Fiscal() {
         const url = URL.createObjectURL(blob);
         window.open(url, "_blank");
         toast.success("DANFE gerada com sucesso!");
-      } else if ((result as any)?.error) {
-        toast.error(`Erro da Nuvem Fiscal: ${typeof (result as any).error === 'string' ? (result as any).error : 'Documento não encontrado no provedor fiscal.'}`);
+      } else if (result?.error) {
+        toast.error(`Erro da Nuvem Fiscal: ${typeof result.error === 'string' ? result.error : 'Documento não encontrado no provedor fiscal.'}`);
       } else {
         toast.error("Não foi possível obter o PDF da DANFE.");
       }
