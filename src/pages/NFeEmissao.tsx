@@ -460,10 +460,10 @@ export default function NFeEmissao() {
         qty: 1,
         discount: 0,
         total: product.price || 0,
-        icmsAliquota: product.icms_rate || 0,
+        icmsAliquota: product.icms_rate ?? 0,
         origem: product.origin || "0",
-        pisCst: product.pis_rate > 0 ? "01" : "49",
-        cofinsCst: product.cofins_rate > 0 ? "01" : "49",
+        pisCst: (product.pis_rate ?? 0) > 0 ? "01" : "49",
+        cofinsCst: (product.cofins_rate ?? 0) > 0 ? "01" : "49",
       };
       updated = applyFiscalDefaults(updated);
       items[idx] = updated;
