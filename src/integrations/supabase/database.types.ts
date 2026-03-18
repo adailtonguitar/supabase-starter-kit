@@ -19,14 +19,17 @@ type Widen<T> = { [K in keyof T]: T[K] } & Record<string, unknown>;
 
 /**
  * Helper: build Table shape from Row.
- * Insert is fully Partial because most columns have DB defaults.
- * This maximises compatibility during the migration from untyped code.
+ * - Row is strongly typed for read operations (type safety where it matters most).
+ * - Insert / Update are permissive (Record<string, unknown>) to maintain compatibility
+ *   with existing code that uses dynamic objects and partial inserts.
+ * - Relationships use a generic array to avoid "Invalid Relationships" errors
+ *   on joins like `.select("*, products(name)")`.
  */
 type TableDef<R extends object> = {
   Row: Widen<R>;
-  Insert: Widen<Partial<R>>;
-  Update: Widen<Partial<R>>;
-  Relationships: [];
+  Insert: Record<string, unknown>;
+  Update: Record<string, unknown>;
+  Relationships: { foreignKeyName: string; columns: string[]; isOneToOne: boolean; referencedRelation: string; referencedColumns: string[] }[];
 };
 
 // ── Enums ──────────────────────────────────────────────────────────────
