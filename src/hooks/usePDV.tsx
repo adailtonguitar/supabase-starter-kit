@@ -496,17 +496,17 @@ export function usePDV() {
       dinheiro: "01", credito: "03", debito: "04", pix: "17", voucher: "05",
     };
 
-    const fiscalItems = saleItems.map((item: any) => ({
+    const fiscalItems = saleItems.map((item: Record<string, unknown>) => ({
       product_id: item.product_id,
-      name: item.product_name || item.name,
-      ncm: item.ncm || "",
+      name: (item.product_name || item.name) as string,
+      ncm: (item.ncm as string) || "",
       cfop: "5102",
       cst: defaultCst,
       origem: "0",
-      unit: item.unit || "UN",
-      qty: item.quantity,
-      unit_price: item.unit_price,
-      discount: (item.discount_percent || 0) / 100 * item.unit_price * item.quantity,
+      unit: (item.unit as string) || "UN",
+      qty: item.quantity as number,
+      unit_price: item.unit_price as number,
+      discount: ((item.discount_percent as number) || 0) / 100 * (item.unit_price as number) * (item.quantity as number),
       pis_cst: "49",
       cofins_cst: "49",
     }));
