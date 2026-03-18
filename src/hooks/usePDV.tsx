@@ -585,7 +585,7 @@ export function usePDV() {
                 status: "pending",
                 processed_at: null,
                 last_error: "Documento enviado ao provedor e aguardando autorização da SEFAZ.",
-              } as any
+              }
         )
         .eq("id", queueId);
     }
