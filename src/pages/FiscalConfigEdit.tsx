@@ -133,8 +133,9 @@ export default function FiscalConfigEdit() {
           const firstConfig = data[0];
           if ((firstConfig as { crt?: number }).crt) setCrt((firstConfig as { crt?: number }).crt!);
         }
-      } catch (err: any) {
-        toast.error(`Erro ao carregar configurações: ${err.message}`);
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : "Erro desconhecido";
+        toast.error(`Erro ao carregar configurações: ${message}`);
       } finally {
         setLoading(false);
       }
