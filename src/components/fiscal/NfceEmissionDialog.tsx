@@ -173,18 +173,18 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
     setStep("edit");
     setActiveTab("items");
 
-    let parsedItems: any[] = [];
+    let parsedItems: Array<Record<string, unknown>> = [];
     try {
-      const raw = (sale as any).items_json || (sale as any).items;
+      const raw = sale.items_json || sale.items;
       if (Array.isArray(raw)) parsedItems = raw;
-      else if (raw?.items) parsedItems = raw.items;
+      else if (raw && typeof raw === "object" && "items" in (raw as Record<string, unknown>)) parsedItems = (raw as Record<string, unknown>).items as Array<Record<string, unknown>>;
       else if (typeof raw === "string") {
         const p = JSON.parse(raw);
         parsedItems = Array.isArray(p) ? p : p?.items || [];
       }
     } catch { parsedItems = []; }
 
-    const nfceItems: NfceItem[] = parsedItems.map((item: any) => {
+    const nfceItems: NfceItem[] = parsedItems.map((item) => {
       const qty = item.qty || item.quantity || 1;
       const unitPrice = item.price || item.unit_price || 0;
       const discount = item.discount || 0;
