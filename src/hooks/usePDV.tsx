@@ -470,7 +470,7 @@ export function usePDV() {
 
     // Atualizar queue status
     if (queueId) {
-      await supabase.from("fiscal_queue").update({ status: "processing", attempts: 1 } as any).eq("id", queueId);
+      await supabase.from("fiscal_queue").update({ status: "processing", attempts: 1 }).eq("id", queueId);
     }
 
     // Buscar sale_items do banco (fonte única de verdade)
