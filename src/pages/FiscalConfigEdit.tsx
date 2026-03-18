@@ -37,6 +37,7 @@ import { useCompany } from "@/hooks/useCompany";
 import { useAuth } from "@/hooks/useAuth";
 import { logAction } from "@/services/ActionLogger";
 import forge from "node-forge";
+import { type CRT, isValidCrt } from "@/lib/fiscal-config-lookup";
 
 interface FiscalConfigSection {
   id?: string;
@@ -75,7 +76,7 @@ export default function FiscalConfigEdit() {
   const [satActivation, setSatActivation] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [crt, setCrt] = useState<number>(1);
+  const [crt, setCrt] = useState<CRT>(1);
   const [a3Certificates, setA3Certificates] = useState<CertificateInfo[]>([]);
   const [a3SelectedThumbprint, setA3SelectedThumbprint] = useState("");
   const [a3Loading, setA3Loading] = useState(false);
@@ -131,7 +132,8 @@ export default function FiscalConfigEdit() {
           }
           // Load CRT from first config
           const firstConfig = data[0];
-          if ((firstConfig as { crt?: number }).crt) setCrt((firstConfig as { crt?: number }).crt!);
+          const rawCrt = (firstConfig as { crt?: number }).crt;
+          if (isValidCrt(rawCrt)) setCrt(rawCrt);
         }
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : "Erro desconhecido";
@@ -504,7 +506,7 @@ export default function FiscalConfigEdit() {
           <p className="text-xs text-muted-foreground">
             O CRT define como os impostos são calculados na nota fiscal. Selecionar o regime errado pode causar rejeição ou multa na SEFAZ.
           </p>
-          <select value={crt} onChange={(e) => setCrt(Number(e.target.value))}
+          <select value={crt} onChange={(e) => { const v = Number(e.target.value); if (isValidCrt(v)) setCrt(v); }}
             className="w-full px-4 py-2.5 rounded-xl bg-background border border-border text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all">
             <option value={1}>1 — Simples Nacional</option>
             <option value={2}>2 — Simples Nacional (Excesso de Sublimite)</option>

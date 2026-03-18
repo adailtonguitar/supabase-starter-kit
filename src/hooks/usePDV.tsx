@@ -14,6 +14,7 @@ import { fiscalCircuitBreaker, CircuitBreakerOpenError } from "@/lib/circuit-bre
 import { getFunctionErrorMessage } from "@/lib/get-function-error-message";
 import { getStoredCertificateA1 } from "@/services/LocalXmlSigner";
 import type { FiscalConfigRecord, FiscalEmissionResult, FiscalConsultResult, PromotionRecord } from "@/integrations/supabase/fiscal.types";
+import { getFiscalConfig, type CRT } from "@/lib/fiscal-config-lookup";
 
 export interface PDVProduct {
   id: string;
@@ -377,31 +378,10 @@ export function usePDV() {
 
     console.log("[PDV Fiscal] processFiscalEmission called for saleId:", saleId, "companyId:", companyId);
 
-    // Best-effort config lookup in client; if RLS blocks it, server will resolve config.
-    const { data: allConfigs, error: fcError } = await supabase
-      .from("fiscal_configs")
-      .select("id, doc_type, is_active, environment, certificate_path, a3_thumbprint, serie, next_number")
-      .eq("company_id", companyId);
+    // Centralized config lookup — Item 13
+    const { config: fiscalConfig, crt: resolvedCrt, isHomologacao, hasCert } = await getFiscalConfig(companyId, "nfce");
 
-    const { data: companyFiscal } = await supabase
-      .from("companies")
-      .select("crt")
-      .eq("id", companyId)
-      .maybeSingle();
-
-    const fc = allConfigs as Array<Record<string, unknown>> | null;
-    const fiscalConfig = fc?.find((c) => c.doc_type === "nfce" && c.is_active)
-      || fc?.find((c) => c.doc_type === "nfe" && c.is_active)
-      || fc?.find((c) => c.doc_type === "nfce")
-      || fc?.find((c) => c.doc_type === "nfe")
-      || fc?.[0]
-      || null;
-
-    const resolvedCrt = (fiscalConfig?.crt as number) || (companyFiscal as Record<string, unknown> | null)?.crt as number || 1;
-    const isHomologacao = fiscalConfig?.environment === "homologacao";
-    const hasCert = !!(fiscalConfig?.certificate_path || fiscalConfig?.a3_thumbprint);
-
-    console.log("[PDV Fiscal] Config lookup:", JSON.stringify({ fiscalConfig, fcError, companyFiscal }));
+    console.log("[PDV Fiscal] Config lookup:", JSON.stringify({ fiscalConfig, resolvedCrt }));
     console.log("[PDV Fiscal] isHomologacao:", isHomologacao, "hasCert:", hasCert, "resolvedCrt:", resolvedCrt);
 
     // ── MODO SIMULAÇÃO: homologação sem certificado ──
@@ -412,7 +392,7 @@ export function usePDV() {
       let simNumber = 1;
       try {
         const { data: rpcNum, error: rpcErr } = await supabase.rpc("next_fiscal_number", {
-          p_config_id: fiscalConfig!.id as string,
+          p_config_id: fiscalConfig!.id,
         });
         if (!rpcErr && typeof rpcNum === "number") {
           simNumber = rpcNum;
@@ -428,7 +408,7 @@ export function usePDV() {
             company_id: companyId, sale_id: saleId, doc_type: "nfce",
             status: "simulado", access_key: fakeChave,
             protocol_number: Date.now().toString(), environment: "homologacao",
-            serie: (fiscalConfig?.serie as string) || "1", number: simNumber, total_value: 0,
+            serie: String(fiscalConfig?.serie ?? 1), number: simNumber, total_value: 0,
           }),
           supabase.from("sales").update({ status: "emitida" }).eq("id", saleId),
           queueId ? supabase.from("fiscal_queue").update({ status: "done", processed_at: new Date().toISOString() }).eq("id", queueId) : Promise.resolve(),
@@ -734,26 +714,12 @@ export function usePDV() {
       if (!options?.skipFiscal) {
         // Check simulation mode directly here
         try {
-          // Fetch ALL configs, pick best match
-          const { data: allSimConfigs } = await supabase
-            .from("fiscal_configs")
-            .select("id, doc_type, is_active, environment, certificate_path, a3_thumbprint, next_number, serie")
-            .eq("company_id", companyId);
-
-          const sc = allSimConfigs as Array<Record<string, unknown>> | null;
-          const simConfig = sc?.find((c) => c.doc_type === "nfce" && c.is_active)
-            || sc?.find((c) => c.doc_type === "nfe" && c.is_active)
-            || sc?.find((c) => c.doc_type === "nfce")
-            || sc?.find((c) => c.doc_type === "nfe")
-            || sc?.[0]
-            || null;
+          // Centralized config lookup — Item 13
+          const { config: simConfig, isHomologacao: isSimHomolog, hasCert: simHasCert } = await getFiscalConfig(companyId, "nfce");
 
           console.log("[PDV finalizeSale] simConfig:", simConfig);
 
-          const isSimulation = simConfig 
-            && simConfig.environment === "homologacao" 
-            && !simConfig.certificate_path 
-            && !simConfig.a3_thumbprint;
+          const isSimulation = simConfig && isSimHomolog && !simHasCert;
 
           if (isSimulation && simConfig) {
             const fakeChave = Array.from({ length: 44 }, () => Math.floor(Math.random() * 10)).join("");
@@ -762,7 +728,7 @@ export function usePDV() {
             let simNum = 1;
             try {
               const { data: rpcNum, error: rpcErr } = await supabase.rpc("next_fiscal_number", {
-                p_config_id: simConfig.id as string,
+                p_config_id: simConfig.id,
               });
               if (!rpcErr && typeof rpcNum === "number") {
                 simNum = rpcNum;
@@ -773,7 +739,7 @@ export function usePDV() {
 
             nfceNumber = `SIM-${simNum}`;
             accessKey = fakeChave;
-            serie = (simConfig.serie as string) || "1";
+            serie = String(simConfig.serie ?? 1);
 
             // Best-effort DB updates
             Promise.allSettled([
@@ -781,7 +747,7 @@ export function usePDV() {
                 company_id: companyId, sale_id: saleId, doc_type: "nfce",
                 status: "simulado", access_key: fakeChave,
                 protocol_number: Date.now().toString(), environment: "homologacao",
-                serie: (simConfig.serie as string) || "1", number: simNum, total_value: total,
+                serie: String(simConfig.serie ?? 1), number: simNum, total_value: total,
               }),
               supabase.from("sales").update({ status: "emitida" }).eq("id", saleId),
             ]).catch(() => {});
@@ -878,22 +844,16 @@ export function usePDV() {
         // Only query Supabase for fiscal config if online; when offline use cached defaults
         if (navigator.onLine) {
           try {
-            const { data: configs } = await supabase
-              .from("fiscal_configs")
-              .select("id, serie, environment")
-              .eq("company_id", companyId)
-              .eq("doc_type", "nfce")
-              .eq("is_active", true)
-              .limit(1);
-            if (configs && configs.length > 0) {
-              configId = configs[0].id;
-              serie = configs[0].serie || 1;
-              environment = configs[0].environment || "homologacao";
+            const { config: contConfig, crt: contCrt } = await getFiscalConfig(companyId, "nfce");
+            if (contConfig) {
+              configId = contConfig.id;
+              serie = contConfig.serie || 1;
+              environment = contConfig.environment || "homologacao";
             }
 
             const { data: company } = await supabase
               .from("companies")
-              .select("cnpj, name, state_registration, address_state, crt")
+              .select("cnpj, name, state_registration, address_state")
               .eq("id", companyId)
               .single();
 
@@ -903,7 +863,7 @@ export function usePDV() {
                 name: company.name || "",
                 ie: company.state_registration || "",
                 uf: company.address_state || "SP",
-                crt: (company as Record<string, unknown>).crt as number || 1,
+                crt: contCrt,
               };
             }
           } catch { /* use defaults */ }

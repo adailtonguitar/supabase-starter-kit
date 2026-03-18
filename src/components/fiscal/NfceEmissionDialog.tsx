@@ -16,6 +16,7 @@ import { NCM_TABLE } from "@/lib/ncm-table";
 import { useProducts } from "@/hooks/useProducts";
 import { QRCodeSVG } from "qrcode.react";
 import { getFunctionErrorMessage } from "@/lib/get-function-error-message";
+import { type CRT, isValidCrt } from "@/lib/fiscal-config-lookup";
 
 interface NfceEmissionDialogProps {
   sale: {
@@ -91,7 +92,7 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
   const [errorMsg, setErrorMsg] = useState("");
   const [rejection, setRejection] = useState<SefazRejection | null>(null);
   const [activeTab, setActiveTab] = useState<"items" | "customer" | "payment">("items");
-  const [companyCrt, setCompanyCrt] = useState<number>(1);
+  const [companyCrt, setCompanyCrt] = useState<CRT>(1);
   const [cstValidationErrors, setCstValidationErrors] = useState<Record<number, string[]>>({});
   const [preflightIssues, setPreflightIssues] = useState<PreflightIssue[]>([]);
   const [ncmSearchIdx, setNcmSearchIdx] = useState<number | null>(null);
@@ -160,7 +161,8 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
       .eq("id", companyId)
       .maybeSingle()
       .then(({ data }) => {
-        if (data) setCompanyCrt(Number((data as Record<string, unknown>).crt) || 1);
+        const rawCrt = (data as { crt?: number } | null)?.crt;
+        setCompanyCrt(isValidCrt(rawCrt) ? rawCrt : 1);
       });
   }, [open, companyId]);
 
@@ -234,7 +236,7 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
 
   const totalItems = form.items.reduce((sum, it) => sum + it.total, 0);
 
-  const updateItem = (idx: number, field: keyof NfceItem, value: any) => {
+  const updateItem = (idx: number, field: keyof NfceItem, value: NfceItem[keyof NfceItem]) => {
     setForm((prev) => {
       const items = [...prev.items];
       items[idx] = { ...items[idx], [field]: value };

@@ -16,6 +16,7 @@ import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { NCM_TABLE } from "@/lib/ncm-table";
 import { getStoredCertificateA1 } from "@/services/LocalXmlSigner";
+import { type CRT, isValidCrt } from "@/lib/fiscal-config-lookup";
 
 const PAYMENT_OPTIONS = [
   { value: "01", label: "Dinheiro" },
@@ -199,7 +200,7 @@ export default function NFeEmissao() {
   const [errorMsg, setErrorMsg] = useState("");
   const [rejection, setRejection] = useState<SefazRejection | null>(null);
   const [activeTab, setActiveTab] = useState<"dest" | "items" | "transport" | "payment">("dest");
-  const [companyCrt, setCompanyCrt] = useState<number>(1);
+  const [companyCrt, setCompanyCrt] = useState<CRT>(1);
   const [successData, setSuccessData] = useState<NFeSuccessData | null>(null);
   const [companyInfo, setCompanyInfo] = useState<NFeCompanyInfo | null>(null);
   const [products, setProducts] = useState<NFeProduct[]>([]);
@@ -307,7 +308,8 @@ export default function NFeEmissao() {
       .eq("id", companyId)
       .maybeSingle()
       .then(({ data }) => {
-        if (data) setCompanyCrt((data as { crt?: number }).crt || 1);
+        const rawCrt = (data as { crt?: number } | null)?.crt;
+        setCompanyCrt(isValidCrt(rawCrt) ? rawCrt : 1);
       });
   }, [companyId]);
 
@@ -367,7 +369,7 @@ export default function NFeEmissao() {
     if (!companyId) return;
     setQuickSaving(true);
     const isSimples = companyCrt === 1 || companyCrt === 2;
-    const payload: Record<string, unknown> = {
+    const payload: Partial<NFeProduct> & { company_id: string; is_active: boolean } = {
       company_id: companyId,
       name: quickForm.name.trim(),
       sku: quickForm.sku.trim() || null,
@@ -379,7 +381,7 @@ export default function NFeEmissao() {
       csosn: isSimples ? (quickForm.csosn || "102") : null,
       cst_icms: !isSimples ? (quickForm.cst_icms || "00") : null,
       is_active: true,
-    };
+    } as Partial<NFeProduct> & { company_id: string; is_active: boolean };
     const { data, error } = await supabase.from("products").insert(payload).select().single();
     setQuickSaving(false);
     if (error) { toast.error("Erro ao cadastrar: " + error.message); return; }
