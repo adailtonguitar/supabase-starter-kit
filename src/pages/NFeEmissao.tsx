@@ -317,7 +317,7 @@ export default function NFeEmissao() {
 
   const totalItems = form.items.reduce((sum, it) => sum + it.total, 0);
 
-  const updateItem = (idx: number, field: keyof NFeItem, value: any) => {
+  const updateItem = (idx: number, field: keyof NFeItem, value: string | number) => {
     setForm((prev) => {
       const items = [...prev.items];
       items[idx] = { ...items[idx], [field]: value };
