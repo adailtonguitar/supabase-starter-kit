@@ -101,7 +101,7 @@ export default function FiscalConfigEdit() {
                 id: dbConfig.id,
                 serie: dbConfig.serie,
                 nextNumber: dbConfig.next_number,
-                environment: dbConfig.environment as "homologacao" | "producao",
+                environment: dbConfig.environment as FiscalConfigSection["environment"],
                 cscId: dbConfig.csc_id || "",
                 cscToken: dbConfig.csc_token || "",
                 isActive: dbConfig.is_active,
