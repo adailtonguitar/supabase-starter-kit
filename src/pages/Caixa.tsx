@@ -91,7 +91,7 @@ export default function Caixa() {
       totalCredito: 0, totalPix: 0, totalSangria: 0, totalSuprimento: 0,
       totalFiado: 0, fiadoCount: 0, sessionsCount: sessions.length,
     };
-    sessions.forEach((session: any) => {
+    sessions.forEach((session: CashSessionRecord) => {
       s.totalVendas += Number(session.total_vendas || 0);
       s.salesCount += Number(session.sales_count || 0);
       s.totalDinheiro += Number(session.total_dinheiro || 0);
