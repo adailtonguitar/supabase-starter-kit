@@ -198,9 +198,9 @@ export function useReceiveStockTransfer() {
       const { data: originCompany } = await supabase
         .from("companies")
         .select("name")
-        .eq("id", (transfer as any).from_company_id)
+        .eq("id", (transfer as Record<string, unknown>).from_company_id as string)
         .single();
-      const originName = (originCompany as any)?.name || "matriz";
+      const originName = (originCompany as Record<string, unknown> | null)?.name as string || "matriz";
 
       // Update transfer status
       const { error } = await supabase
