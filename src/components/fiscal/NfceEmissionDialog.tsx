@@ -18,7 +18,16 @@ import { QRCodeSVG } from "qrcode.react";
 import { getFunctionErrorMessage } from "@/lib/get-function-error-message";
 
 interface NfceEmissionDialogProps {
-  sale: any;
+  sale: {
+    id: string;
+    items_json?: unknown;
+    items?: unknown;
+    customer_name?: string;
+    customer_doc?: string;
+    payment_method?: string;
+    total_value?: number;
+    total?: number;
+  };
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
@@ -102,7 +111,7 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
     const q = productSearchText.trim().toLowerCase();
     if (q.length < 2) return [];
     return allProducts.filter(
-      (p: any) => p.is_active !== false && (
+      (p) => p.is_active !== false && (
         p.name?.toLowerCase().includes(q) ||
         p.barcode?.includes(q) ||
         p.sku?.toLowerCase().includes(q)
@@ -110,20 +119,21 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
     ).slice(0, 8);
   }, [productSearchText, allProducts]);
 
-  const addProductFromCatalog = (product: any) => {
+  const addProductFromCatalog = (product: typeof allProducts[number]) => {
+    const p = product as unknown as Record<string, unknown>;
     const newItem: NfceItem = {
-      name: product.name || "",
-      ncm: product.ncm || "",
-      cfop: product.cfop || "5102",
-      cst: product.csosn || product.cst_icms || "",
-      unit: product.unit || "UN",
+      name: (p.name as string) || "",
+      ncm: (p.ncm as string) || "",
+      cfop: (p.cfop as string) || "5102",
+      cst: (p.csosn as string) || (p.cst_icms as string) || "",
+      unit: (p.unit as string) || "UN",
       qty: 1,
-      unitPrice: product.price || 0,
+      unitPrice: (p.price as number) || 0,
       discount: 0,
-      total: product.price || 0,
-      pisCst: product.cst_pis || "49",
-      cofinsCst: product.cst_cofins || "49",
-      icmsAliquota: product.aliq_icms || 0,
+      total: (p.price as number) || 0,
+      pisCst: (p.cst_pis as string) || "49",
+      cofinsCst: (p.cst_cofins as string) || "49",
+      icmsAliquota: (p.aliq_icms as number) || 0,
     };
     setForm((prev) => ({ ...prev, items: [...prev.items, newItem] }));
     setProductSearchText("");
@@ -150,7 +160,7 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
       .eq("id", companyId)
       .maybeSingle()
       .then(({ data }) => {
-        if (data) setCompanyCrt((data as any).crt || 1);
+        if (data) setCompanyCrt(Number((data as Record<string, unknown>).crt) || 1);
       });
   }, [open, companyId]);
 
@@ -164,34 +174,34 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
     setStep("edit");
     setActiveTab("items");
 
-    let parsedItems: any[] = [];
+    let parsedItems: Array<Record<string, unknown>> = [];
     try {
-      const raw = (sale as any).items_json || (sale as any).items;
+      const raw = sale.items_json || sale.items;
       if (Array.isArray(raw)) parsedItems = raw;
-      else if (raw?.items) parsedItems = raw.items;
+      else if (raw && typeof raw === "object" && "items" in (raw as Record<string, unknown>)) parsedItems = (raw as Record<string, unknown>).items as Array<Record<string, unknown>>;
       else if (typeof raw === "string") {
         const p = JSON.parse(raw);
         parsedItems = Array.isArray(p) ? p : p?.items || [];
       }
     } catch { parsedItems = []; }
 
-    const nfceItems: NfceItem[] = parsedItems.map((item: any) => {
-      const qty = item.qty || item.quantity || 1;
-      const unitPrice = item.price || item.unit_price || 0;
-      const discount = item.discount || 0;
+    const nfceItems: NfceItem[] = parsedItems.map((item) => {
+      const qty = (item.qty as number) || (item.quantity as number) || 1;
+      const unitPrice = (item.price as number) || (item.unit_price as number) || 0;
+      const discount = (item.discount as number) || 0;
       return {
-        name: item.name || item.product_name || "Produto",
-        ncm: item.ncm || "",
-        cfop: item.cfop || "5102",
-        cst: item.cst || item.csosn || (companyCrt === 1 || companyCrt === 2 ? "102" : "00"),
-        unit: item.unit || "UN",
+        name: (item.name as string) || (item.product_name as string) || "Produto",
+        ncm: (item.ncm as string) || "",
+        cfop: (item.cfop as string) || "5102",
+        cst: (item.cst as string) || (item.csosn as string) || (companyCrt === 1 || companyCrt === 2 ? "102" : "00"),
+        unit: (item.unit as string) || "UN",
         qty,
         unitPrice,
         discount,
         total: qty * unitPrice - discount,
-        pisCst: item.pis_cst || "49",
-        cofinsCst: item.cofins_cst || "49",
-        icmsAliquota: item.icms_aliquota || 0,
+        pisCst: (item.pis_cst as string) || "49",
+        cofinsCst: (item.cofins_cst as string) || "49",
+        icmsAliquota: (item.icms_aliquota as number) || 0,
       };
     });
 
@@ -348,7 +358,7 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
         .eq("is_active", true)
         .limit(1);
 
-      const nfceConfig = configs?.[0] as any;
+      const nfceConfig = configs?.[0] as Record<string, unknown> | undefined;
 
       if (!nfceConfig) {
         setStep("error");
@@ -358,7 +368,7 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
       }
 
       const isHomologacao = nfceConfig.environment === "homologacao";
-      const hasCert = !!(nfceConfig.certificate_path || (nfceConfig as any).a3_thumbprint);
+      const hasCert = !!(nfceConfig.certificate_path || (nfceConfig as Record<string, unknown>).a3_thumbprint);
 
       // Modo teste local: simula emissão em homologação sem certificado
       if (isHomologacao && !hasCert) {
@@ -376,16 +386,16 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
           protocol_number: fakeProtocol,
           environment: "homologacao",
           serie: nfceConfig.serie,
-          number: nfceConfig.next_number || 1,
+          number: (nfceConfig.next_number as number) || 1,
           total_value: form.paymentValue,
           customer_doc: form.customerDoc || null,
           customer_name: form.customerName || null,
-        } as any);
+        });
 
         // Incrementa próximo número
         await supabase.from("fiscal_configs").update({ 
-          next_number: (nfceConfig.next_number || 1) + 1 
-        } as any).eq("id", nfceConfig.id);
+          next_number: ((nfceConfig.next_number as number) || 1) + 1 
+        }).eq("id", nfceConfig.id as string);
 
         setStep("success");
         logAction({ companyId: companyId!, action: "NFC-e emitida (simulação)", module: "fiscal", details: `Venda ${sale?.id?.slice(0, 8)} - ${formatCurrency(sale?.total || 0)}` });
@@ -409,7 +419,7 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
         body: {
           sale_id: sale.id,
           company_id: companyId,
-          config_id: nfceConfig.id,
+          config_id: nfceConfig.id as string,
           form: {
             customer_name: form.customerName,
             customer_doc: form.customerDoc,
@@ -463,7 +473,7 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
         else if (rej?.field === "customer") setActiveTab("customer");
         else if (rej?.field === "payment") setActiveTab("payment");
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       setStep("error");
       setErrorMsg(await getFunctionErrorMessage(err, "Erro de comunicação com o servidor fiscal."));
     } finally {

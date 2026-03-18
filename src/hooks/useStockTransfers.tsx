@@ -39,7 +39,7 @@ export function useStockTransfers() {
       if (!companyId) return [];
 
       const { data, error } = await supabase
-        .from("stock_transfers" as any)
+        .from("stock_transfers")
         .select("*, stock_transfer_items(*)")
         .or(`from_company_id.eq.${companyId},to_company_id.eq.${companyId}`)
         .order("created_at", { ascending: false })
@@ -49,9 +49,9 @@ export function useStockTransfers() {
 
       // Fetch company names
       const companyIds = new Set<string>();
-      for (const t of (data || [])) {
-        companyIds.add((t as any).from_company_id);
-        companyIds.add((t as any).to_company_id);
+      for (const t of (data || []) as Record<string, unknown>[]) {
+        companyIds.add(t.from_company_id as string);
+        companyIds.add(t.to_company_id as string);
       }
 
       const { data: companies } = await supabase
@@ -59,13 +59,13 @@ export function useStockTransfers() {
         .select("id, name")
         .in("id", Array.from(companyIds));
 
-      const nameMap = new Map((companies || []).map((c: any) => [c.id, c.name]));
+      const nameMap = new Map((companies || []).map((c: Record<string, unknown>) => [c.id as string, c.name as string]));
 
-      return (data || []).map((t: any) => ({
+      return (data || []).map((t: Record<string, unknown>) => ({
         ...t,
-        from_company: { name: nameMap.get(t.from_company_id) || "?" },
-        to_company: { name: nameMap.get(t.to_company_id) || "?" },
-        items: t.stock_transfer_items || [],
+        from_company: { name: nameMap.get(t.from_company_id as string) || "?" },
+        to_company: { name: nameMap.get(t.to_company_id as string) || "?" },
+        items: (t as Record<string, unknown>).stock_transfer_items || [],
       })) as StockTransfer[];
     },
     enabled: !!companyId,
@@ -86,7 +86,7 @@ export function useCreateStockTransfer() {
       if (!user) throw new Error("Não autenticado");
 
       const { data: transfer, error } = await supabase
-        .from("stock_transfers" as any)
+        .from("stock_transfers")
         .insert({
           from_company_id: input.from_company_id,
           to_company_id: input.to_company_id,
@@ -100,7 +100,7 @@ export function useCreateStockTransfer() {
       if (error) throw error;
 
       const items = input.items.map((item) => ({
-        transfer_id: (transfer as any).id,
+        transfer_id: (transfer as Record<string, unknown>).id as string,
         product_id: item.product_id,
         product_name: item.product_name,
         product_sku: item.product_sku || "",
@@ -109,7 +109,7 @@ export function useCreateStockTransfer() {
       }));
 
       const { error: itemsError } = await supabase
-        .from("stock_transfer_items" as any)
+        .from("stock_transfer_items")
         .insert(items);
 
       if (itemsError) throw itemsError;
@@ -120,7 +120,7 @@ export function useCreateStockTransfer() {
         .select("name")
         .eq("id", input.to_company_id)
         .single();
-      const destName = (destCompany as any)?.name || "filial";
+      const destName = (destCompany as Record<string, unknown> | null)?.name as string || "filial";
 
       // Decrement stock from origin company
       for (const item of input.items) {
@@ -131,21 +131,21 @@ export function useCreateStockTransfer() {
           .eq("company_id", input.from_company_id)
           .single();
 
-        if (product && item.quantity > ((product as any).stock_quantity || 0)) {
-          throw new Error(`Estoque insuficiente para "${item.product_name}". Disponível: ${(product as any).stock_quantity}`);
+        if (product && item.quantity > ((product as Record<string, unknown>).stock_quantity as number || 0)) {
+          throw new Error(`Estoque insuficiente para "${item.product_name}". Disponível: ${(product as Record<string, unknown>).stock_quantity}`);
         }
 
         if (product) {
-          const previousStock = (product as any).stock_quantity;
+          const previousStock = (product as Record<string, unknown>).stock_quantity as number;
           const newStock = Math.max(0, previousStock - item.quantity);
           await supabase
             .from("products")
-            .update({ stock_quantity: newStock } as any)
+            .update({ stock_quantity: newStock })
             .eq("id", item.product_id)
             .eq("company_id", input.from_company_id);
 
           // Register stock movement (saída)
-          const { error: movError } = await supabase.from("stock_movements" as any).insert({
+          const { error: movError } = await supabase.from("stock_movements").insert({
             company_id: input.from_company_id,
             product_id: item.product_id,
             type: "saida",
@@ -154,7 +154,7 @@ export function useCreateStockTransfer() {
             new_stock: newStock,
             unit_cost: item.unit_cost || 0,
             reason: `Transferência enviada para ${destName}`,
-            reference: (transfer as any).id,
+            reference: (transfer as Record<string, unknown>).id as string,
             performed_by: user.id,
           });
           if (movError) console.error("Erro ao registrar movimentação de saída:", movError);
@@ -187,24 +187,24 @@ export function useReceiveStockTransfer() {
 
       // Fetch transfer with items
       const { data: transfer, error: fetchErr } = await supabase
-        .from("stock_transfers" as any)
+        .from("stock_transfers")
         .select("*, stock_transfer_items(*)")
         .eq("id", transferId)
         .single();
       if (fetchErr) throw fetchErr;
-      if ((transfer as any).to_company_id !== companyId) throw new Error("Transferência não pertence a esta empresa");
+      if ((transfer as Record<string, unknown>).to_company_id !== companyId) throw new Error("Transferência não pertence a esta empresa");
 
       // Fetch origin company name for movement reason
       const { data: originCompany } = await supabase
         .from("companies")
         .select("name")
-        .eq("id", (transfer as any).from_company_id)
+        .eq("id", (transfer as Record<string, unknown>).from_company_id as string)
         .single();
-      const originName = (originCompany as any)?.name || "matriz";
+      const originName = (originCompany as Record<string, unknown> | null)?.name as string || "matriz";
 
       // Update transfer status
       const { error } = await supabase
-        .from("stock_transfers" as any)
+        .from("stock_transfers")
         .update({
           status: "received",
           received_by: user.id,
@@ -216,10 +216,10 @@ export function useReceiveStockTransfer() {
       if (error) throw error;
 
       // Increment stock in destination company
-      const items = (transfer as any).stock_transfer_items || [];
+      const items = ((transfer as Record<string, unknown>).stock_transfer_items || []) as Array<Record<string, unknown>>;
       for (const item of items) {
         // Try to find product in destination by SKU first, then by ID
-        let existingProduct: any = null;
+        let existingProduct: Record<string, unknown> | null = null;
 
         if (item.product_sku) {
           const { data } = await supabase
@@ -252,23 +252,23 @@ export function useReceiveStockTransfer() {
         }
 
         if (existingProduct) {
-          const previousStock = (existingProduct as any).stock_quantity || 0;
-          const newStock = previousStock + item.quantity;
+          const previousStock = (existingProduct.stock_quantity as number) || 0;
+          const newStock = previousStock + (item.quantity as number);
           await supabase
             .from("products")
-            .update({ stock_quantity: newStock } as any)
-            .eq("id", (existingProduct as any).id)
+            .update({ stock_quantity: newStock })
+            .eq("id", existingProduct.id as string)
             .eq("company_id", companyId);
 
           // Register stock movement
-          await supabase.from("stock_movements" as any).insert({
+          await supabase.from("stock_movements").insert({
             company_id: companyId,
-            product_id: (existingProduct as any).id,
+            product_id: existingProduct.id as string,
             type: "entrada",
-            quantity: item.quantity,
+            quantity: item.quantity as number,
             previous_stock: previousStock,
             new_stock: newStock,
-            unit_cost: item.unit_cost || 0,
+            unit_cost: (item.unit_cost as number) || 0,
             reason: `Transferência recebida de ${originName} #${transferId.slice(0, 8)}`,
             reference: transferId,
             performed_by: user.id,
@@ -278,26 +278,26 @@ export function useReceiveStockTransfer() {
           const { data: sourceProduct } = await supabase
             .from("products")
             .select("*")
-            .eq("id", item.product_id)
+            .eq("id", item.product_id as string)
             .maybeSingle();
 
           if (sourceProduct) {
-            const { id, created_at, updated_at, company_id, ...rest } = sourceProduct as any;
+            const { id: _id, created_at: _ca, updated_at: _ua, company_id: _cid, ...rest } = sourceProduct as Record<string, unknown>;
             const { data: newProduct } = await supabase.from("products").insert({
               ...rest,
               company_id: companyId,
-              stock_quantity: item.quantity,
+              stock_quantity: item.quantity as number,
             }).select("id").single();
 
             if (newProduct) {
-              await supabase.from("stock_movements" as any).insert({
+              await supabase.from("stock_movements").insert({
                 company_id: companyId,
-                product_id: (newProduct as any).id,
+                product_id: (newProduct as Record<string, unknown>).id as string,
                 type: "entrada",
-                quantity: item.quantity,
+                quantity: item.quantity as number,
                 previous_stock: 0,
-                new_stock: item.quantity,
-                unit_cost: item.unit_cost || 0,
+                new_stock: item.quantity as number,
+                unit_cost: (item.unit_cost as number) || 0,
                 reason: `Transferência recebida de ${originName} #${transferId.slice(0, 8)} (produto criado)`,
                 reference: transferId,
                 performed_by: user.id,

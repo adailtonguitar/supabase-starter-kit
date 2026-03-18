@@ -52,7 +52,7 @@ export function useFinancialEntries(filters?: {
         .order("due_date", { ascending: true });
 
       if (filters?.type) query = query.eq("type", filters.type);
-      if (filters?.status) query = query.eq("status", filters.status as any);
+      if (filters?.status) query = query.eq("status", filters.status);
       if (filters?.startDate) query = query.gte("due_date", filters.startDate);
       if (filters?.endDate) query = query.lte("due_date", filters.endDate);
 
@@ -166,7 +166,7 @@ export function useMarkAsPaid() {
       const { data, error } = await supabase
         .from("financial_entries")
         .update({
-          status: "pago" as any,
+          status: "pago",
           paid_amount,
           paid_date: new Date().toISOString().split("T")[0],
           payment_method,

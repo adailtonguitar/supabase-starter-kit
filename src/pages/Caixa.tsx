@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import type { CashSessionRecord, CashMovementRecord } from "@/integrations/supabase/fiscal.types";
 
 export default function Caixa() {
   const { companyId, companyName } = useCompany();
@@ -56,7 +57,7 @@ export default function Caixa() {
   });
 
   // Query fiado movements for all sessions of the day
-  const sessionIds = useMemo(() => sessions.map((s: any) => s.id), [sessions]);
+  const sessionIds = useMemo(() => sessions.map((s: CashSessionRecord) => s.id), [sessions]);
   const { data: fiadoMovements = [] } = useQuery({
     queryKey: ["cash-fiado-movements", sessionIds],
     queryFn: async () => {
@@ -74,7 +75,8 @@ export default function Caixa() {
 
   const fiadoBySession = useMemo(() => {
     const map: Record<string, { total: number; count: number }> = {};
-    fiadoMovements.forEach((m: any) => {
+    fiadoMovements.forEach((m: CashMovementRecord) => {
+      if (!m.session_id) return;
       if (!map[m.session_id]) map[m.session_id] = { total: 0, count: 0 };
       map[m.session_id].total += Number(m.amount);
       map[m.session_id].count += 1;
@@ -89,7 +91,7 @@ export default function Caixa() {
       totalCredito: 0, totalPix: 0, totalSangria: 0, totalSuprimento: 0,
       totalFiado: 0, fiadoCount: 0, sessionsCount: sessions.length,
     };
-    sessions.forEach((session: any) => {
+    sessions.forEach((session: CashSessionRecord) => {
       s.totalVendas += Number(session.total_vendas || 0);
       s.salesCount += Number(session.sales_count || 0);
       s.totalDinheiro += Number(session.total_dinheiro || 0);
@@ -146,7 +148,7 @@ export default function Caixa() {
         ${summary.totalFiado > 0 ? `<div class="row bold"><span>Receb. Fiado (${summary.fiadoCount}):</span><span>+${formatCurrency(summary.totalFiado)}</span></div>` : ''}
         <div class="line"></div>
         <div class="section bold">SESSÕES</div>
-        ${sessions.map((s: any) => {
+         ${sessions.map((s: CashSessionRecord) => {
           const opened = new Date(s.opened_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
           const closed = s.closed_at ? new Date(s.closed_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : "Aberto";
           return `<div class="row"><span>T${s.terminal_id} ${opened}-${closed}</span><span>${formatCurrency(Number(s.total_vendas || 0))}</span></div>`;
@@ -314,7 +316,7 @@ export default function Caixa() {
       ) : (
         <div className="space-y-3">
           <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Sessões do dia</h3>
-          {sessions.map((session: any, i: number) => {
+          {sessions.map((session: CashSessionRecord, i: number) => {
             const totalVendas = Number(session.total_vendas || 0);
             const totalDinheiro = Number(session.total_dinheiro || 0);
             const totalDebito = Number(session.total_debito || 0);

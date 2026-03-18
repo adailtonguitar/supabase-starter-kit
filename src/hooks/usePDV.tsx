@@ -13,6 +13,7 @@ import { logAction } from "@/services/ActionLogger";
 import { fiscalCircuitBreaker, CircuitBreakerOpenError } from "@/lib/circuit-breaker";
 import { getFunctionErrorMessage } from "@/lib/get-function-error-message";
 import { getStoredCertificateA1 } from "@/services/LocalXmlSigner";
+import type { FiscalConfigRecord, FiscalEmissionResult, FiscalConsultResult, PromotionRecord } from "@/integrations/supabase/fiscal.types";
 
 export interface PDVProduct {
   id: string;
@@ -251,7 +252,7 @@ export function usePDV() {
   }, 0) * 100) / 100;
 
   // --- Promotions engine ---
-  const [activePromos, setActivePromos] = useState<any[]>([]);
+  const [activePromos, setActivePromos] = useState<PromotionRecord[]>([]);
 
   const loadPromotions = useCallback(async () => {
     if (!companyId) return;
@@ -261,7 +262,7 @@ export function usePDV() {
         .select("*")
         .eq("company_id", companyId)
         .eq("is_active", true);
-      setActivePromos(data || []);
+      setActivePromos((data || []) as PromotionRecord[]);
     } catch {}
   }, [companyId]);
 
@@ -341,8 +342,8 @@ export function usePDV() {
         .limit(1)
         .maybeSingle();
 
-      if ((existingQueue as any)?.id) {
-        return (existingQueue as any).id;
+      if (existingQueue?.id) {
+        return existingQueue.id as string;
       }
 
       const { data, error } = await supabase
@@ -352,7 +353,7 @@ export function usePDV() {
           company_id: companyId,
           status: "pending",
           attempts: 0,
-        } as any)
+        })
         .select("id")
         .single();
 
@@ -362,10 +363,10 @@ export function usePDV() {
         return null;
       }
 
-      return (data as any)?.id || null;
-    } catch (err: any) {
-      console.error("[PDV] Erro ao enfileirar fiscal:", err?.message);
-      toast.warning("Venda registrada, mas NFC-e não foi enfileirada. Reprocesse manualmente.", { duration: 8000 });
+      return (data as Record<string, unknown>)?.id as string || null;
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Erro desconhecido";
+      console.error("[PDV] Erro ao enfileirar fiscal:", message);
       return null;
     }
   }, [companyId]);
@@ -388,16 +389,17 @@ export function usePDV() {
       .eq("id", companyId)
       .maybeSingle();
 
-    const fiscalConfig = allConfigs?.find((c: any) => c.doc_type === "nfce" && c.is_active)
-      || allConfigs?.find((c: any) => c.doc_type === "nfe" && c.is_active)
-      || allConfigs?.find((c: any) => c.doc_type === "nfce")
-      || allConfigs?.find((c: any) => c.doc_type === "nfe")
-      || allConfigs?.[0]
+    const fc = allConfigs as Array<Record<string, unknown>> | null;
+    const fiscalConfig = fc?.find((c) => c.doc_type === "nfce" && c.is_active)
+      || fc?.find((c) => c.doc_type === "nfe" && c.is_active)
+      || fc?.find((c) => c.doc_type === "nfce")
+      || fc?.find((c) => c.doc_type === "nfe")
+      || fc?.[0]
       || null;
 
-    const resolvedCrt = (fiscalConfig as any)?.crt || (companyFiscal as any)?.crt || 1;
-    const isHomologacao = (fiscalConfig as any)?.environment === "homologacao";
-    const hasCert = !!((fiscalConfig as any)?.certificate_path || (fiscalConfig as any)?.a3_thumbprint);
+    const resolvedCrt = (fiscalConfig?.crt as number) || (companyFiscal as Record<string, unknown> | null)?.crt as number || 1;
+    const isHomologacao = fiscalConfig?.environment === "homologacao";
+    const hasCert = !!(fiscalConfig?.certificate_path || fiscalConfig?.a3_thumbprint);
 
     console.log("[PDV Fiscal] Config lookup:", JSON.stringify({ fiscalConfig, fcError, companyFiscal }));
     console.log("[PDV Fiscal] isHomologacao:", isHomologacao, "hasCert:", hasCert, "resolvedCrt:", resolvedCrt);
@@ -405,7 +407,7 @@ export function usePDV() {
     // ── MODO SIMULAÇÃO: homologação sem certificado ──
     if (isHomologacao && !hasCert) {
       const fakeChave = Array.from({ length: 44 }, () => Math.floor(Math.random() * 10)).join("");
-      const simNumber = (fiscalConfig as any).next_number || 1;
+      const simNumber = (fiscalConfig?.next_number as number) || 1;
 
       // Best-effort DB updates (don't block simulation)
       try {
@@ -414,11 +416,11 @@ export function usePDV() {
             company_id: companyId, sale_id: saleId, doc_type: "nfce",
             status: "simulado", access_key: fakeChave,
             protocol_number: Date.now().toString(), environment: "homologacao",
-            serie: (fiscalConfig as any).serie || "1", number: simNumber, total_value: 0,
-          } as any),
-          supabase.from("fiscal_configs").update({ next_number: simNumber + 1 } as any).eq("id", fiscalConfig.id),
-          supabase.from("sales").update({ status: "emitida" } as any).eq("id", saleId),
-          queueId ? supabase.from("fiscal_queue").update({ status: "done", processed_at: new Date().toISOString() } as any).eq("id", queueId) : Promise.resolve(),
+            serie: (fiscalConfig?.serie as string) || "1", number: simNumber, total_value: 0,
+          }),
+          supabase.from("fiscal_configs").update({ next_number: simNumber + 1 }).eq("id", fiscalConfig!.id as string),
+          supabase.from("sales").update({ status: "emitida" }).eq("id", saleId),
+          queueId ? supabase.from("fiscal_queue").update({ status: "done", processed_at: new Date().toISOString() }).eq("id", queueId) : Promise.resolve(),
         ]);
       } catch (e) {
         console.warn("[PDV Fiscal] Simulation DB updates failed (non-blocking):", e);
@@ -456,19 +458,19 @@ export function usePDV() {
         } else {
           console.warn("[PDV Fiscal] Certificate upload failed:", uploadResult?.error || uploadErr?.message);
         }
-      } catch (certErr: any) {
-        console.warn("[PDV Fiscal] Certificate pre-upload error:", certErr.message);
+    } catch (certErr: unknown) {
+        console.warn("[PDV Fiscal] Certificate pre-upload error:", certErr instanceof Error ? certErr.message : certErr);
       }
     } else {
       console.log(`[PDV Fiscal] Certificate status: has_base64=${!!certB64}, has_password=${!!certPwd}`);
     }
 
     // Marcar sale como pendente_fiscal
-    await supabase.from("sales").update({ status: "pendente_fiscal" } as any).eq("id", saleId);
+    await supabase.from("sales").update({ status: "pendente_fiscal" }).eq("id", saleId);
 
     // Atualizar queue status
     if (queueId) {
-      await supabase.from("fiscal_queue").update({ status: "processing", attempts: 1 } as any).eq("id", queueId);
+      await supabase.from("fiscal_queue").update({ status: "processing", attempts: 1 }).eq("id", queueId);
     }
 
     // Buscar sale_items do banco (fonte única de verdade)
@@ -489,22 +491,22 @@ export function usePDV() {
 
     const crt = resolvedCrt;
     const defaultCst = (crt === 1 || crt === 2) ? "102" : "00";
-    const payments = (sale.payments as any[]) || [];
+    const payments = Array.isArray(sale.payments) ? sale.payments as Record<string, unknown>[] : [];
     const paymentMethodMap: Record<string, string> = {
       dinheiro: "01", credito: "03", debito: "04", pix: "17", voucher: "05",
     };
 
-    const fiscalItems = saleItems.map((item: any) => ({
+    const fiscalItems = saleItems.map((item: Record<string, unknown>) => ({
       product_id: item.product_id,
-      name: item.product_name || item.name,
-      ncm: item.ncm || "",
+      name: (item.product_name || item.name) as string,
+      ncm: (item.ncm as string) || "",
       cfop: "5102",
       cst: defaultCst,
       origem: "0",
-      unit: item.unit || "UN",
-      qty: item.quantity,
-      unit_price: item.unit_price,
-      discount: (item.discount_percent || 0) / 100 * item.unit_price * item.quantity,
+      unit: (item.unit as string) || "UN",
+      qty: item.quantity as number,
+      unit_price: item.unit_price as number,
+      discount: ((item.discount_percent as number) || 0) / 100 * (item.unit_price as number) * (item.quantity as number),
       pis_cst: "49",
       cofins_cst: "49",
     }));
@@ -521,9 +523,9 @@ export function usePDV() {
           form: {
             nat_op: "VENDA DE MERCADORIA",
             crt,
-            payment_method: paymentMethodMap[payments[0]?.method] || "99",
+            payment_method: paymentMethodMap[(payments[0]?.method as string) ?? ""] || "99",
             payment_value: sale.total,
-            change: payments[0]?.change_amount || 0,
+            change: Number(payments[0]?.change_amount ?? 0),
             items: fiscalItems,
           },
         },
@@ -546,7 +548,7 @@ export function usePDV() {
       }
 
       if (queueId) {
-        await supabase.from("fiscal_queue").update({ status: "error", last_error: errorMsg } as any).eq("id", queueId);
+        await supabase.from("fiscal_queue").update({ status: "error", last_error: errorMsg }).eq("id", queueId);
       }
       throw new Error(errorMsg);
     }
@@ -563,9 +565,10 @@ export function usePDV() {
           companyId,
         });
 
-        if ((consulted as any)?.success && (consulted as any)?.status === "autorizada") {
+        const consultResult = consulted as FiscalConsultResult;
+        if (consultResult?.success && consultResult?.status === "autorizada") {
           fiscalStatus = "autorizada";
-          resolvedNumber = (consulted as any)?.number || resolvedNumber;
+          resolvedNumber = String(consultResult?.number || resolvedNumber);
         }
       } catch (consultErr) {
         console.warn("[PDV Fiscal] Immediate consult after pending status failed:", consultErr);
@@ -582,7 +585,7 @@ export function usePDV() {
                 status: "pending",
                 processed_at: null,
                 last_error: "Documento enviado ao provedor e aguardando autorização da SEFAZ.",
-              } as any
+              }
         )
         .eq("id", queueId);
     }
@@ -606,8 +609,9 @@ export function usePDV() {
         toast.info("NFC-e enviada, mas ainda não autorizada.");
       }
       return result;
-    } catch (err: any) {
-      toast.error(`Erro ao reprocessar fiscal: ${err.message}`);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Erro desconhecido";
+      toast.error(`Erro ao reprocessar fiscal: ${message}`);
       throw err;
     }
   }, [processFiscalEmission]);
@@ -725,26 +729,27 @@ export function usePDV() {
             .select("id, doc_type, is_active, environment, certificate_path, a3_thumbprint, next_number, serie")
             .eq("company_id", companyId);
 
-          const simConfig = allSimConfigs?.find((c: any) => c.doc_type === "nfce" && c.is_active)
-            || allSimConfigs?.find((c: any) => c.doc_type === "nfe" && c.is_active)
-            || allSimConfigs?.find((c: any) => c.doc_type === "nfce")
-            || allSimConfigs?.find((c: any) => c.doc_type === "nfe")
-            || allSimConfigs?.[0]
+          const sc = allSimConfigs as Array<Record<string, unknown>> | null;
+          const simConfig = sc?.find((c) => c.doc_type === "nfce" && c.is_active)
+            || sc?.find((c) => c.doc_type === "nfe" && c.is_active)
+            || sc?.find((c) => c.doc_type === "nfce")
+            || sc?.find((c) => c.doc_type === "nfe")
+            || sc?.[0]
             || null;
 
           console.log("[PDV finalizeSale] simConfig:", simConfig);
 
           const isSimulation = simConfig 
-            && (simConfig as any).environment === "homologacao" 
-            && !(simConfig as any).certificate_path 
-            && !(simConfig as any).a3_thumbprint;
+            && simConfig.environment === "homologacao" 
+            && !simConfig.certificate_path 
+            && !simConfig.a3_thumbprint;
 
           if (isSimulation && simConfig) {
-            const simNum = (simConfig as any).next_number || 1;
+            const simNum = (simConfig.next_number as number) || 1;
             const fakeChave = Array.from({ length: 44 }, () => Math.floor(Math.random() * 10)).join("");
             nfceNumber = `SIM-${simNum}`;
             accessKey = fakeChave;
-            serie = (simConfig as any).serie || "1";
+            serie = (simConfig.serie as string) || "1";
 
             // Best-effort DB updates
             Promise.allSettled([
@@ -752,10 +757,10 @@ export function usePDV() {
                 company_id: companyId, sale_id: saleId, doc_type: "nfce",
                 status: "simulado", access_key: fakeChave,
                 protocol_number: Date.now().toString(), environment: "homologacao",
-                serie: (simConfig as any).serie || "1", number: simNum, total_value: total,
-              } as any),
-              supabase.from("fiscal_configs").update({ next_number: simNum + 1 } as any).eq("id", simConfig.id),
-              supabase.from("sales").update({ status: "emitida" } as any).eq("id", saleId),
+                serie: (simConfig.serie as string) || "1", number: simNum, total_value: total,
+              }),
+              supabase.from("fiscal_configs").update({ next_number: simNum + 1 }).eq("id", simConfig.id as string),
+              supabase.from("sales").update({ status: "emitida" }).eq("id", saleId),
             ]).catch(() => {});
 
             toast.success("✅ Simulação concluída! (modo teste — sem envio à SEFAZ)", {
@@ -784,7 +789,7 @@ export function usePDV() {
                   duration: 6000,
                 });
               }
-            } catch (fiscalErr: any) {
+            } catch (fiscalErr: unknown) {
               const errMsg = await getFunctionErrorMessage(fiscalErr, "Erro desconhecido na emissão fiscal");
               console.error("[PDV Fiscal] Emission failed:", errMsg);
               toast.error(`⚠️ Emissão fiscal falhou: ${errMsg}`, {
@@ -793,15 +798,15 @@ export function usePDV() {
               });
             }
           }
-        } catch (checkErr: any) {
-          console.error("[PDV Fiscal] Config check failed:", checkErr?.message);
+        } catch (checkErr: unknown) {
+          console.error("[PDV Fiscal] Config check failed:", checkErr instanceof Error ? checkErr.message : checkErr);
         }
       }
 
       return { saleId, nfceNumber, fiscalDocId, isContingency: false, accessKey, serie };
-    } catch (onlineErr: any) {
+    } catch (onlineErr: unknown) {
       // ── Discount blocked: don't enter contingency, just re-throw ──
-      if (onlineErr?.message === "DISCOUNT_BLOCKED") {
+      if (onlineErr instanceof Error && onlineErr.message === "DISCOUNT_BLOCKED") {
         throw onlineErr;
       }
 
@@ -875,7 +880,7 @@ export function usePDV() {
                 name: company.name || "",
                 ie: company.state_registration || "",
                 uf: company.address_state || "SP",
-                crt: (company as any).crt || 1,
+                crt: (company as Record<string, unknown>).crt as number || 1,
               };
             }
           } catch { /* use defaults */ }
@@ -911,8 +916,8 @@ export function usePDV() {
 
         contingencyNumber = String(contingencyPayload.contingency_number || contingencyNumber);
         await queueOperation("fiscal_contingency", contingencyPayload as unknown as Record<string, unknown>, 1, 5);
-      } catch (contErr: any) {
-        console.error("[PDV Contingency] Falha ao criar payload de contingência:", contErr?.message);
+      } catch (contErr: unknown) {
+        console.error("[PDV Contingency] Falha ao criar payload de contingência:", contErr instanceof Error ? contErr.message : contErr);
         toast.error("Erro ao preparar NFC-e de contingência. A venda será registrada sem fiscal.", { duration: 8000 });
       }
 
@@ -930,8 +935,8 @@ export function usePDV() {
           user_id: userId,
           created_at: new Date().toISOString(),
         }, 2, 3);
-      } catch (queueErr: any) {
-        console.error("[PDV Contingency] CRITICAL — Falha ao enfileirar venda offline:", queueErr?.message);
+      } catch (queueErr: unknown) {
+        console.error("[PDV Contingency] CRITICAL — Falha ao enfileirar venda offline:", queueErr instanceof Error ? queueErr.message : queueErr);
         toast.error("ATENÇÃO: Venda NÃO foi salva! Tente novamente quando a conexão retornar.", { duration: 15000 });
       }
 
@@ -965,7 +970,7 @@ export function usePDV() {
       if (!items || items.length === 0) { toast.info("Itens da última venda não encontrados"); return; }
 
       let added = 0;
-      for (const item of items as any[]) {
+      for (const item of items as Array<Record<string, unknown>>) {
         const product = products.find(p => p.id === item.product_id);
         if (product && product.stock_quantity > 0) {
           const qty = Math.min(Number(item.quantity), product.stock_quantity);

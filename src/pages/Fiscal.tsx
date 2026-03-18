@@ -24,6 +24,7 @@ import { useCompany } from "@/hooks/useCompany";
 import { FiscalEmissionService } from "@/services/FiscalEmissionService";
 import { useGapDetection, type NumberingGap } from "@/hooks/useGapDetection";
 import { toast } from "sonner";
+import type { FiscalConsultResult, FiscalPdfResult, FiscalBackupResult } from "@/integrations/supabase/fiscal.types";
 
 type DocType = "nfce" | "nfe" | "sat";
 type DocStatus = "pendente" | "autorizada" | "cancelada" | "rejeitada" | "contingencia" | "inutilizada";
@@ -64,7 +65,7 @@ export default function Fiscal() {
   const [loading, setLoading] = useState(true);
   const [printingDanfe, setPrintingDanfe] = useState(false);
   const [consultingStatus, setConsultingStatus] = useState(false);
-  const [lastConsultDetails, setLastConsultDetails] = useState<any | null>(null);
+  const [lastConsultDetails, setLastConsultDetails] = useState<Record<string, unknown> | null>(null);
   const [cancelling, setCancelling] = useState(false);
   const [cancelJustificativa, setCancelJustificativa] = useState("");
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
@@ -107,20 +108,20 @@ export default function Fiscal() {
         accessKey: doc.access_key,
         docType: doc.doc_type as "nfce" | "nfe",
         companyId: companyId || undefined,
-      });
+      }) as FiscalConsultResult;
 
-      if (!(result as any)?.success) {
-        toast.error((result as any)?.error || "Falha ao consultar status na Nuvem Fiscal.");
+      if (!result?.success) {
+        toast.error(result?.error || "Falha ao consultar status na Nuvem Fiscal.");
         return;
       }
 
-      setLastConsultDetails((result as any)?.details || null);
-      const newStatus = ((result as any)?.status || doc.status) as DocStatus;
+      setLastConsultDetails(result?.details || null);
+      const newStatus = (result?.status || doc.status) as DocStatus;
       setSelectedDoc({
         ...doc,
         status: newStatus,
-        number: (result as any)?.number || doc.number,
-        access_key: (result as any)?.access_key || doc.access_key,
+        number: result?.number ?? doc.number,
+        access_key: result?.access_key || doc.access_key,
       });
       await loadDocs();
 
@@ -129,8 +130,9 @@ export default function Fiscal() {
       } else {
         toast.info(`Status atual na Nuvem Fiscal: ${newStatus}`);
       }
-    } catch (err: any) {
-      toast.error(err?.message || "Erro ao consultar status.");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Erro ao consultar status.";
+      toast.error(message);
     } finally {
       setConsultingStatus(false);
     }
@@ -143,8 +145,8 @@ export default function Fiscal() {
     }
     setPrintingDanfe(true);
     try {
-      const result = await FiscalEmissionService.downloadPdf(doc.access_key, doc.doc_type as "nfce" | "nfe");
-      const pdfBase64 = (result as any)?.pdf_base64 || (result as any)?.base64;
+      const result = await FiscalEmissionService.downloadPdf(doc.access_key, doc.doc_type as "nfce" | "nfe") as FiscalPdfResult;
+      const pdfBase64 = result?.pdf_base64 || result?.base64;
       if (pdfBase64) {
         const byteCharacters = atob(pdfBase64);
         const byteNumbers = new Array(byteCharacters.length);
@@ -156,13 +158,14 @@ export default function Fiscal() {
         const url = URL.createObjectURL(blob);
         window.open(url, "_blank");
         toast.success("DANFE gerada com sucesso!");
-      } else if ((result as any)?.error) {
-        toast.error(`Erro da Nuvem Fiscal: ${typeof (result as any).error === 'string' ? (result as any).error : 'Documento não encontrado no provedor fiscal.'}`);
+      } else if (result?.error) {
+        toast.error(`Erro da Nuvem Fiscal: ${typeof result.error === 'string' ? result.error : 'Documento não encontrado no provedor fiscal.'}`);
       } else {
         toast.error("Não foi possível obter o PDF da DANFE.");
       }
-    } catch (err: any) {
-      toast.error(`Erro ao gerar DANFE: ${err.message}`);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Erro ao gerar DANFE";
+      toast.error(`Erro ao gerar DANFE: ${message}`);
     } finally {
       setPrintingDanfe(false);
     }
@@ -245,9 +248,10 @@ export default function Fiscal() {
       } else {
         throw new Error(data?.error || "Erro desconhecido");
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       setSpedGenerating(false);
-      toast.error(err?.message || "Erro ao gerar SPED");
+      const message = err instanceof Error ? err.message : "Erro ao gerar SPED";
+      toast.error(message);
     }
   };
 
@@ -270,9 +274,9 @@ export default function Fiscal() {
             onClick={async () => {
               if (!companyId) return;
               setBackupLoading(true);
-              const result = await FiscalEmissionService.backupXmls(companyId);
+              const result = await FiscalEmissionService.backupXmls(companyId) as FiscalBackupResult;
               if (result.success) {
-                toast.success((result as any).message || `Backup concluído: ${(result as any).backed} XMLs salvos.`);
+                toast.success(result.message || `Backup concluído: ${result.backed} XMLs salvos.`);
               } else {
                 toast.error(result.error || "Erro ao fazer backup");
               }
