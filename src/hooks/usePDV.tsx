@@ -609,8 +609,9 @@ export function usePDV() {
         toast.info("NFC-e enviada, mas ainda não autorizada.");
       }
       return result;
-    } catch (err: any) {
-      toast.error(`Erro ao reprocessar fiscal: ${err.message}`);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Erro desconhecido";
+      toast.error(`Erro ao reprocessar fiscal: ${message}`);
       throw err;
     }
   }, [processFiscalEmission]);
