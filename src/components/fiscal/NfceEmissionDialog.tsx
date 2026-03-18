@@ -119,7 +119,7 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
     ).slice(0, 8);
   }, [productSearchText, allProducts]);
 
-  const addProductFromCatalog = (product: any) => {
+  const addProductFromCatalog = (product: Record<string, unknown>) => {
     const newItem: NfceItem = {
       name: product.name || "",
       ncm: product.ncm || "",
