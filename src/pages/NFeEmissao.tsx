@@ -350,7 +350,7 @@ export default function NFeEmissao() {
       discount: 0,
       total: product.price || 0,
       pisCst: (product.pis_rate ?? 0) > 0 ? "01" : "49",
-      cofinsCst: product.cofins_rate > 0 ? "01" : "49",
+      cofinsCst: (product.cofins_rate ?? 0) > 0 ? "01" : "49",
       icmsAliquota: product.icms_rate || 0,
       origem: product.origin || "0",
     };
