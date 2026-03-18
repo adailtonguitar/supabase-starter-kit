@@ -247,10 +247,10 @@ export default function Fiscal() {
       } else {
         throw new Error(data?.error || "Erro desconhecido");
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       setSpedGenerating(false);
-      toast.error(err?.message || "Erro ao gerar SPED");
-    }
+      const message = err instanceof Error ? err.message : "Erro ao gerar SPED";
+      toast.error(message);
   };
 
   return (
