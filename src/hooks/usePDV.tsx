@@ -747,7 +747,7 @@ export function usePDV() {
                 company_id: companyId, sale_id: saleId, doc_type: "nfce",
                 status: "simulado", access_key: fakeChave,
                 protocol_number: Date.now().toString(), environment: "homologacao",
-                serie: (simConfig.serie as string) || "1", number: simNum, total_value: total,
+                serie: String(simConfig.serie ?? 1), number: simNum, total_value: total,
               }),
               supabase.from("sales").update({ status: "emitida" }).eq("id", saleId),
             ]).catch(() => {});
