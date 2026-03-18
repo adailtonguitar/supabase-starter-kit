@@ -161,7 +161,8 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
       .eq("id", companyId)
       .maybeSingle()
       .then(({ data }) => {
-        if (data) setCompanyCrt(Number((data as Record<string, unknown>).crt) || 1);
+        const rawCrt = (data as { crt?: number } | null)?.crt;
+        setCompanyCrt(isValidCrt(rawCrt) ? rawCrt : 1);
       });
   }, [open, companyId]);
 
