@@ -444,7 +444,7 @@ export default function NFeEmissao() {
       p.barcode?.includes(search)
     ).slice(0, 15);
   };
-  const selectProduct = (idx: number, product: any) => {
+  const selectProduct = (idx: number, product: NFeProduct) => {
     const isSN = companyCrt === 1 || companyCrt === 2;
     setForm((prev) => {
       const items = [...prev.items];
