@@ -219,7 +219,7 @@ export function useReceiveStockTransfer() {
       const items = ((transfer as Record<string, unknown>).stock_transfer_items || []) as Array<Record<string, unknown>>;
       for (const item of items) {
         // Try to find product in destination by SKU first, then by ID
-        let existingProduct: any = null;
+        let existingProduct: Record<string, unknown> | null = null;
 
         if (item.product_sku) {
           const { data } = await supabase
