@@ -525,7 +525,7 @@ export function usePDV() {
             crt,
             payment_method: paymentMethodMap[payments[0]?.method] || "99",
             payment_value: sale.total,
-            change: payments[0]?.change_amount || 0,
+            change: (payments[0]?.change_amount as number) || 0,
             items: fiscalItems,
           },
         },
