@@ -879,7 +879,7 @@ export function usePDV() {
                 name: company.name || "",
                 ie: company.state_registration || "",
                 uf: company.address_state || "SP",
-                crt: (company as any).crt || 1,
+                crt: (company as Record<string, unknown>).crt as number || 1,
               };
             }
           } catch { /* use defaults */ }
