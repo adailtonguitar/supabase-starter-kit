@@ -523,9 +523,9 @@ export function usePDV() {
           form: {
             nat_op: "VENDA DE MERCADORIA",
             crt,
-            payment_method: paymentMethodMap[payments[0]?.method] || "99",
+            payment_method: paymentMethodMap[(payments[0]?.method as string) ?? ""] || "99",
             payment_value: sale.total,
-            change: (payments[0]?.change_amount as number) || 0,
+            change: Number(payments[0]?.change_amount ?? 0),
             items: fiscalItems,
           },
         },
