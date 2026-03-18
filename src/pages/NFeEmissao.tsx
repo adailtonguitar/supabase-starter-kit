@@ -336,7 +336,7 @@ export default function NFeEmissao() {
     setForm((prev) => ({ ...prev, items: [...prev.items, emptyItem()] }));
   };
 
-  const addProductAsItem = (product: any) => {
+  const addProductAsItem = (product: NFeProduct) => {
     const isSN = companyCrt === 1 || companyCrt === 2;
     let newItem: NFeItem = {
       name: product.name || "",
