@@ -114,6 +114,80 @@ const emptyForm = (): NFeFormData => ({
   volumes: 0, grossWeight: 0, netWeight: 0,
 });
 
+// ── Item 6: Interfaces for successData and companyInfo ──
+interface NFeSuccessData {
+  success: boolean;
+  access_key?: string;
+  number?: number;
+  status?: string;
+  serie?: string;
+  fiscal_doc_id?: string;
+  error?: string;
+  details?: Record<string, unknown>;
+}
+
+interface NFeCompanyInfo {
+  name: string;
+  trade_name: string | null;
+  cnpj: string;
+  ie: string | null;
+  phone: string | null;
+  address_street: string | null;
+  address_number: string | null;
+  address_neighborhood: string | null;
+  address_city: string | null;
+  address_state: string | null;
+  address_zip: string | null;
+  logo_url: string | null;
+}
+
+// ── Item 7: Interfaces for products and clients ──
+interface NFeProduct {
+  id: string;
+  name: string;
+  sku: string | null;
+  barcode: string | null;
+  ncm: string | null;
+  unit: string | null;
+  price: number;
+  stock_quantity: number | null;
+  origin: string | null;
+  cfop: string | null;
+  csosn: string | null;
+  cst_icms: string | null;
+  cest: string | null;
+  icms_rate: number | null;
+  pis_rate: number | null;
+  cofins_rate: number | null;
+}
+
+interface NFeClient {
+  id: string;
+  name: string;
+  cpf_cnpj: string | null;
+  ie: string | null;
+  email: string | null;
+  phone: string | null;
+  address_street: string | null;
+  address_number: string | null;
+  address_complement: string | null;
+  address_neighborhood: string | null;
+  address_city: string | null;
+  address_state: string | null;
+  address_zip: string | null;
+}
+
+interface NFeFiscalCategory {
+  id: string;
+  ncm: string | null;
+  cfop: string | null;
+  csosn: string | null;
+  cst_icms: string | null;
+  icms_rate: number | null;
+  pis_rate: number | null;
+  cofins_rate: number | null;
+}
+
 export default function NFeEmissao() {
   const { companyId, companyName, logoUrl } = useCompany();
   const plan = usePlanFeatures();
@@ -126,9 +200,9 @@ export default function NFeEmissao() {
   const [rejection, setRejection] = useState<SefazRejection | null>(null);
   const [activeTab, setActiveTab] = useState<"dest" | "items" | "transport" | "payment">("dest");
   const [companyCrt, setCompanyCrt] = useState<number>(1);
-  const [successData, setSuccessData] = useState<any>(null);
-  const [companyInfo, setCompanyInfo] = useState<any>(null);
-  const [products, setProducts] = useState<any[]>([]);
+  const [successData, setSuccessData] = useState<NFeSuccessData | null>(null);
+  const [companyInfo, setCompanyInfo] = useState<NFeCompanyInfo | null>(null);
+  const [products, setProducts] = useState<NFeProduct[]>([]);
   const [productSearch, setProductSearch] = useState<Record<number, string>>({});
   const [showProductDropdown, setShowProductDropdown] = useState<number | null>(null);
   const [showAddSearch, setShowAddSearch] = useState(false);
@@ -140,8 +214,8 @@ export default function NFeEmissao() {
   const [showNcmDropdown, setShowNcmDropdown] = useState<number | null>(null);
   const [quickNcmSearch, setQuickNcmSearch] = useState("");
   const [showQuickNcmDropdown, setShowQuickNcmDropdown] = useState(false);
-  const [fiscalCategories, setFiscalCategories] = useState<any[]>([]);
-  const [clients, setClients] = useState<any[]>([]);
+  const [fiscalCategories, setFiscalCategories] = useState<NFeFiscalCategory[]>([]);
+  const [clients, setClients] = useState<NFeClient[]>([]);
   const [clientSearch, setClientSearch] = useState("");
   const [showClientSearch, setShowClientSearch] = useState(false);
   const [showQuickClient, setShowQuickClient] = useState(false);
