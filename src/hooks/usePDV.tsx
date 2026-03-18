@@ -365,9 +365,9 @@ export function usePDV() {
       }
 
       return (data as Record<string, unknown>)?.id as string || null;
-    } catch (err: any) {
-      console.error("[PDV] Erro ao enfileirar fiscal:", err?.message);
-      toast.warning("Venda registrada, mas NFC-e não foi enfileirada. Reprocesse manualmente.", { duration: 8000 });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Erro desconhecido";
+      console.error("[PDV] Erro ao enfileirar fiscal:", message);
       return null;
     }
   }, [companyId]);
