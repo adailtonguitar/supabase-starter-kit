@@ -131,7 +131,7 @@ export default function FiscalConfigEdit() {
           }
           // Load CRT from first config
           const firstConfig = data[0];
-          if ((firstConfig as any).crt) setCrt((firstConfig as any).crt);
+          if ((firstConfig as { crt?: number }).crt) setCrt((firstConfig as { crt?: number }).crt!);
         }
       } catch (err: any) {
         toast.error(`Erro ao carregar configurações: ${err.message}`);
