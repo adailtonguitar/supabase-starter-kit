@@ -244,7 +244,7 @@ export default function NFeEmissao() {
       .eq("is_active", true)
       .order("name")
       .then(({ data }) => {
-        if (data) setProducts(data);
+        if (data) setProducts(data as NFeProduct[]);
       });
   }, [companyId]);
 
