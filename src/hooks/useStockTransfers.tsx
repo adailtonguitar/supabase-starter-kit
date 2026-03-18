@@ -145,7 +145,7 @@ export function useCreateStockTransfer() {
             .eq("company_id", input.from_company_id);
 
           // Register stock movement (saída)
-          const { error: movError } = await supabase.from("stock_movements" as any).insert({
+          const { error: movError } = await supabase.from("stock_movements").insert({
             company_id: input.from_company_id,
             product_id: item.product_id,
             type: "saida",
@@ -154,7 +154,7 @@ export function useCreateStockTransfer() {
             new_stock: newStock,
             unit_cost: item.unit_cost || 0,
             reason: `Transferência enviada para ${destName}`,
-            reference: (transfer as any).id,
+            reference: (transfer as Record<string, unknown>).id as string,
             performed_by: user.id,
           });
           if (movError) console.error("Erro ao registrar movimentação de saída:", movError);
