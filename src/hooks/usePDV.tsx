@@ -797,8 +797,8 @@ export function usePDV() {
               });
             }
           }
-        } catch (checkErr: any) {
-          console.error("[PDV Fiscal] Config check failed:", checkErr?.message);
+        } catch (checkErr: unknown) {
+          console.error("[PDV Fiscal] Config check failed:", checkErr instanceof Error ? checkErr.message : checkErr);
         }
       }
 
