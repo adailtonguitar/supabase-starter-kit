@@ -367,7 +367,7 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
       }
 
       const isHomologacao = nfceConfig.environment === "homologacao";
-      const hasCert = !!(nfceConfig.certificate_path || (nfceConfig as any).a3_thumbprint);
+      const hasCert = !!(nfceConfig.certificate_path || (nfceConfig as Record<string, unknown>).a3_thumbprint);
 
       // Modo teste local: simula emissão em homologação sem certificado
       if (isHomologacao && !hasCert) {
