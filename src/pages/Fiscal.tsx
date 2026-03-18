@@ -162,8 +162,9 @@ export default function Fiscal() {
       } else {
         toast.error("Não foi possível obter o PDF da DANFE.");
       }
-    } catch (err: any) {
-      toast.error(`Erro ao gerar DANFE: ${err.message}`);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Erro ao gerar DANFE";
+      toast.error(`Erro ao gerar DANFE: ${message}`);
     } finally {
       setPrintingDanfe(false);
     }
