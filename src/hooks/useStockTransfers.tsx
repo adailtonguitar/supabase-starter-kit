@@ -261,14 +261,14 @@ export function useReceiveStockTransfer() {
             .eq("company_id", companyId);
 
           // Register stock movement
-          await supabase.from("stock_movements" as any).insert({
+          await supabase.from("stock_movements").insert({
             company_id: companyId,
-            product_id: (existingProduct as any).id,
+            product_id: existingProduct.id as string,
             type: "entrada",
-            quantity: item.quantity,
+            quantity: item.quantity as number,
             previous_stock: previousStock,
             new_stock: newStock,
-            unit_cost: item.unit_cost || 0,
+            unit_cost: (item.unit_cost as number) || 0,
             reason: `Transferência recebida de ${originName} #${transferId.slice(0, 8)}`,
             reference: transferId,
             performed_by: user.id,
