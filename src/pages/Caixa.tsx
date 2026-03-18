@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import type { CashSessionRecord, CashMovementRecord } from "@/integrations/supabase/fiscal.types";
 
 export default function Caixa() {
   const { companyId, companyName } = useCompany();
