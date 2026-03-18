@@ -200,7 +200,7 @@ export default function NFeEmissao() {
   const [errorMsg, setErrorMsg] = useState("");
   const [rejection, setRejection] = useState<SefazRejection | null>(null);
   const [activeTab, setActiveTab] = useState<"dest" | "items" | "transport" | "payment">("dest");
-  const [companyCrt, setCompanyCrt] = useState<number>(1);
+  const [companyCrt, setCompanyCrt] = useState<CRT>(1);
   const [successData, setSuccessData] = useState<NFeSuccessData | null>(null);
   const [companyInfo, setCompanyInfo] = useState<NFeCompanyInfo | null>(null);
   const [products, setProducts] = useState<NFeProduct[]>([]);
