@@ -256,8 +256,9 @@ export default function FiscalConfigEdit() {
       logAction({ companyId: companyId!, userId: user?.id, action: "Configuração fiscal salva", module: "fiscal", details: `CRT: ${crt}, Cert: ${certType}` });
       toast.success("Configurações fiscais salvas com sucesso!");
       navigate("/fiscal/config");
-    } catch (err: any) {
-      toast.error(`Erro ao salvar: ${err.message}`);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Erro desconhecido";
+      toast.error(`Erro ao salvar: ${message}`);
     } finally {
       setSaving(false);
     }
