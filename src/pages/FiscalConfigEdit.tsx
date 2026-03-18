@@ -115,10 +115,10 @@ export default function FiscalConfigEdit() {
             return def;
           });
           setConfigs(loaded);
-          const firstWithCert = data.find((d) => (d as any).certificate_type);
-          if (firstWithCert) setCertType((firstWithCert as any).certificate_type || "A1");
-          const firstWithA3 = data.find((d) => (d as any).a3_thumbprint);
-          if (firstWithA3) setA3SelectedThumbprint((firstWithA3 as any).a3_thumbprint || "");
+          const firstWithCert = data.find((d) => (d as { certificate_type?: string }).certificate_type);
+          if (firstWithCert) setCertType((firstWithCert as { certificate_type?: string }).certificate_type === "A3" ? "A3" : "A1");
+          const firstWithA3 = data.find((d) => (d as { a3_thumbprint?: string }).a3_thumbprint);
+          if (firstWithA3) setA3SelectedThumbprint((firstWithA3 as { a3_thumbprint?: string }).a3_thumbprint || "");
           const firstWithCertPath = data.find((d) => d.certificate_path);
           if (firstWithCertPath) {
             setCertFile(firstWithCertPath.certificate_path);
