@@ -204,7 +204,7 @@ export function useReceiveStockTransfer() {
 
       // Update transfer status
       const { error } = await supabase
-        .from("stock_transfers" as any)
+        .from("stock_transfers")
         .update({
           status: "received",
           received_by: user.id,
