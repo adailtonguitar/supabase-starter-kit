@@ -407,7 +407,7 @@ export function usePDV() {
     // ── MODO SIMULAÇÃO: homologação sem certificado ──
     if (isHomologacao && !hasCert) {
       const fakeChave = Array.from({ length: 44 }, () => Math.floor(Math.random() * 10)).join("");
-      const simNumber = (fiscalConfig as any).next_number || 1;
+      const simNumber = (fiscalConfig?.next_number as number) || 1;
 
       // Best-effort DB updates (don't block simulation)
       try {
@@ -416,11 +416,11 @@ export function usePDV() {
             company_id: companyId, sale_id: saleId, doc_type: "nfce",
             status: "simulado", access_key: fakeChave,
             protocol_number: Date.now().toString(), environment: "homologacao",
-            serie: (fiscalConfig as any).serie || "1", number: simNumber, total_value: 0,
-          } as any),
-          supabase.from("fiscal_configs").update({ next_number: simNumber + 1 } as any).eq("id", fiscalConfig.id),
-          supabase.from("sales").update({ status: "emitida" } as any).eq("id", saleId),
-          queueId ? supabase.from("fiscal_queue").update({ status: "done", processed_at: new Date().toISOString() } as any).eq("id", queueId) : Promise.resolve(),
+            serie: (fiscalConfig?.serie as string) || "1", number: simNumber, total_value: 0,
+          }),
+          supabase.from("fiscal_configs").update({ next_number: simNumber + 1 }).eq("id", fiscalConfig!.id as string),
+          supabase.from("sales").update({ status: "emitida" }).eq("id", saleId),
+          queueId ? supabase.from("fiscal_queue").update({ status: "done", processed_at: new Date().toISOString() }).eq("id", queueId) : Promise.resolve(),
         ]);
       } catch (e) {
         console.warn("[PDV Fiscal] Simulation DB updates failed (non-blocking):", e);
