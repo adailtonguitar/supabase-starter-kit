@@ -403,7 +403,7 @@ export default function Fiscal() {
                 justificativa: inutJustificativa,
               });
               if (result.success) {
-                toast.success(result.message || "Numeração inutilizada com sucesso!");
+                toast.success((result as any).message || "Numeração inutilizada com sucesso!");
                 setShowInutPanel(false);
                 loadDocs();
                 refreshGaps();
