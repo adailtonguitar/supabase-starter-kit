@@ -548,7 +548,7 @@ export default function FiscalConfigEdit() {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <label className="text-sm font-medium text-foreground mb-1.5 block"><Server className="w-3.5 h-3.5 inline mr-1" />Ambiente SEFAZ</label>
-                  <select value={config.environment} onChange={(e) => updateConfig(idx, { environment: e.target.value as any })}
+                  <select value={config.environment} onChange={(e) => updateConfig(idx, { environment: e.target.value as "homologacao" | "producao" })}
                     className="w-full px-4 py-2.5 rounded-xl bg-background border border-border text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all">
                     <option value="homologacao">Homologação</option>
                     <option value="producao">Produção</option>
