@@ -131,8 +131,8 @@ export function useCreateStockTransfer() {
           .eq("company_id", input.from_company_id)
           .single();
 
-        if (product && item.quantity > ((product as any).stock_quantity || 0)) {
-          throw new Error(`Estoque insuficiente para "${item.product_name}". Disponível: ${(product as any).stock_quantity}`);
+        if (product && item.quantity > ((product as Record<string, unknown>).stock_quantity as number || 0)) {
+          throw new Error(`Estoque insuficiente para "${item.product_name}". Disponível: ${(product as Record<string, unknown>).stock_quantity}`);
         }
 
         if (product) {
