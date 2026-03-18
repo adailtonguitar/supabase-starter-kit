@@ -650,7 +650,7 @@ export default function NFeEmissao() {
 
       // Verificar se há certificado local ou um A1/A3 configurado para deixar o servidor tentar emitir
       const storedCert = await getStoredCertificateA1(companyId);
-      const hasConfiguredCert = !!(nfeConfig.certificate_path || (nfeConfig as any).a3_thumbprint);
+      const hasConfiguredCert = !!(nfeConfig.certificate_path || (nfeConfig as { a3_thumbprint?: string }).a3_thumbprint);
       if (!storedCert && !hasConfiguredCert) {
         setStep("error");
         setErrorMsg("Certificado digital não configurado. Faça o upload do certificado A1 (.pfx) em Fiscal > Configuração ou selecione um certificado A3 válido.");
