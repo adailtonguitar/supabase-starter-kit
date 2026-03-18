@@ -148,7 +148,7 @@ export default function Caixa() {
         ${summary.totalFiado > 0 ? `<div class="row bold"><span>Receb. Fiado (${summary.fiadoCount}):</span><span>+${formatCurrency(summary.totalFiado)}</span></div>` : ''}
         <div class="line"></div>
         <div class="section bold">SESSÕES</div>
-        ${sessions.map((s: any) => {
+         ${sessions.map((s: CashSessionRecord) => {
           const opened = new Date(s.opened_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
           const closed = s.closed_at ? new Date(s.closed_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : "Aberto";
           return `<div class="row"><span>T${s.terminal_id} ${opened}-${closed}</span><span>${formatCurrency(Number(s.total_vendas || 0))}</span></div>`;
