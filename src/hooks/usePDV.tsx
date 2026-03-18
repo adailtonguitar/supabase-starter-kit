@@ -408,7 +408,7 @@ export function usePDV() {
             company_id: companyId, sale_id: saleId, doc_type: "nfce",
             status: "simulado", access_key: fakeChave,
             protocol_number: Date.now().toString(), environment: "homologacao",
-            serie: (fiscalConfig?.serie as string) || "1", number: simNumber, total_value: 0,
+            serie: String(fiscalConfig?.serie ?? 1), number: simNumber, total_value: 0,
           }),
           supabase.from("sales").update({ status: "emitida" }).eq("id", saleId),
           queueId ? supabase.from("fiscal_queue").update({ status: "done", processed_at: new Date().toISOString() }).eq("id", queueId) : Promise.resolve(),
