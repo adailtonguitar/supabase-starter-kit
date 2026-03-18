@@ -251,6 +251,7 @@ export default function Fiscal() {
       setSpedGenerating(false);
       const message = err instanceof Error ? err.message : "Erro ao gerar SPED";
       toast.error(message);
+    }
   };
 
   return (
