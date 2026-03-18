@@ -105,7 +105,7 @@ export default function FiscalConfigEdit() {
                 cscId: dbConfig.csc_id || "",
                 cscToken: dbConfig.csc_token || "",
                 isActive: dbConfig.is_active,
-                certificateType: (dbConfig as any).certificate_type || "A1",
+                certificateType: (dbConfig as { certificate_type?: string }).certificate_type === "A3" ? "A3" : "A1",
                 certificatePath: dbConfig.certificate_path,
                 certificateExpiresAt: dbConfig.certificate_expires_at,
                 a3Thumbprint: (dbConfig as any).a3_thumbprint || "",
