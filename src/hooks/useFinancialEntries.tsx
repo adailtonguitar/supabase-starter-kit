@@ -52,7 +52,7 @@ export function useFinancialEntries(filters?: {
         .order("due_date", { ascending: true });
 
       if (filters?.type) query = query.eq("type", filters.type);
-      if (filters?.status) query = query.eq("status", filters.status as any);
+      if (filters?.status) query = query.eq("status", filters.status);
       if (filters?.startDate) query = query.gte("due_date", filters.startDate);
       if (filters?.endDate) query = query.lte("due_date", filters.endDate);
 
