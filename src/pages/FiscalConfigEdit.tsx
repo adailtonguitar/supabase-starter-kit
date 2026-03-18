@@ -37,6 +37,7 @@ import { useCompany } from "@/hooks/useCompany";
 import { useAuth } from "@/hooks/useAuth";
 import { logAction } from "@/services/ActionLogger";
 import forge from "node-forge";
+import { type CRT, isValidCrt } from "@/lib/fiscal-config-lookup";
 
 interface FiscalConfigSection {
   id?: string;
