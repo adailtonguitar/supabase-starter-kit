@@ -788,7 +788,7 @@ export function usePDV() {
                   duration: 6000,
                 });
               }
-            } catch (fiscalErr: any) {
+            } catch (fiscalErr: unknown) {
               const errMsg = await getFunctionErrorMessage(fiscalErr, "Erro desconhecido na emissão fiscal");
               console.error("[PDV Fiscal] Emission failed:", errMsg);
               toast.error(`⚠️ Emissão fiscal falhou: ${errMsg}`, {
