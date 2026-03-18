@@ -724,7 +724,7 @@ export default function Fiscal() {
                       xmlContent: xml,
                     });
                     if (saveResult.success) {
-                      toast.success(`XML salvo na nuvem: ${saveResult.fileName}`);
+                      toast.success(`XML salvo na nuvem: ${(saveResult as any).fileName}`);
                     } else {
                       toast.error(saveResult.error || "Erro ao salvar na nuvem");
                     }
