@@ -274,8 +274,9 @@ export default function FiscalConfigEdit() {
       setA3Certificates(certs);
       if (certs.length === 0) toast.info("Nenhum certificado digital encontrado.");
       else toast.success(`${certs.length} certificado(s) encontrado(s)`);
-    } catch (err: any) {
-      toast.error(err.message || "Erro ao conectar ao assinador");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Erro ao conectar ao assinador";
+      toast.error(message);
     } finally {
       setA3Loading(false);
     }
