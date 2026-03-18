@@ -136,11 +136,11 @@ export function useCreateStockTransfer() {
         }
 
         if (product) {
-          const previousStock = (product as any).stock_quantity;
+          const previousStock = (product as Record<string, unknown>).stock_quantity as number;
           const newStock = Math.max(0, previousStock - item.quantity);
           await supabase
             .from("products")
-            .update({ stock_quantity: newStock } as any)
+            .update({ stock_quantity: newStock })
             .eq("id", item.product_id)
             .eq("company_id", input.from_company_id);
 
