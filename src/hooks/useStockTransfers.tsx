@@ -49,9 +49,9 @@ export function useStockTransfers() {
 
       // Fetch company names
       const companyIds = new Set<string>();
-      for (const t of (data || [])) {
-        companyIds.add((t as any).from_company_id);
-        companyIds.add((t as any).to_company_id);
+      for (const t of (data || []) as Record<string, unknown>[]) {
+        companyIds.add(t.from_company_id as string);
+        companyIds.add(t.to_company_id as string);
       }
 
       const { data: companies } = await supabase
