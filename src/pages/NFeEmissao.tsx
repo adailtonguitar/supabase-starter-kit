@@ -636,9 +636,9 @@ export default function NFeEmissao() {
         .eq("company_id", companyId)
         .eq("is_active", true);
 
-      let nfeConfig = configs?.find((c: any) => c.doc_type === "nfe");
+      let nfeConfig = configs?.find((c) => c.doc_type === "nfe");
       if (!nfeConfig) {
-        nfeConfig = configs?.find((c: any) => c.doc_type === "nfce");
+        nfeConfig = configs?.find((c) => c.doc_type === "nfce");
       }
 
       if (!nfeConfig) {
