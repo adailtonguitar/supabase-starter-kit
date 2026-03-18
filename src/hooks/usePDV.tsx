@@ -714,26 +714,12 @@ export function usePDV() {
       if (!options?.skipFiscal) {
         // Check simulation mode directly here
         try {
-          // Fetch ALL configs, pick best match
-          const { data: allSimConfigs } = await supabase
-            .from("fiscal_configs")
-            .select("id, doc_type, is_active, environment, certificate_path, a3_thumbprint, next_number, serie")
-            .eq("company_id", companyId);
-
-          const sc = allSimConfigs as Array<Record<string, unknown>> | null;
-          const simConfig = sc?.find((c) => c.doc_type === "nfce" && c.is_active)
-            || sc?.find((c) => c.doc_type === "nfe" && c.is_active)
-            || sc?.find((c) => c.doc_type === "nfce")
-            || sc?.find((c) => c.doc_type === "nfe")
-            || sc?.[0]
-            || null;
+          // Centralized config lookup — Item 13
+          const { config: simConfig, isHomologacao: isSimHomolog, hasCert: simHasCert } = await getFiscalConfig(companyId, "nfce");
 
           console.log("[PDV finalizeSale] simConfig:", simConfig);
 
-          const isSimulation = simConfig 
-            && simConfig.environment === "homologacao" 
-            && !simConfig.certificate_path 
-            && !simConfig.a3_thumbprint;
+          const isSimulation = simConfig && isSimHomolog && !simHasCert;
 
           if (isSimulation && simConfig) {
             const fakeChave = Array.from({ length: 44 }, () => Math.floor(Math.random() * 10)).join("");
@@ -742,7 +728,7 @@ export function usePDV() {
             let simNum = 1;
             try {
               const { data: rpcNum, error: rpcErr } = await supabase.rpc("next_fiscal_number", {
-                p_config_id: simConfig.id as string,
+                p_config_id: simConfig.id,
               });
               if (!rpcErr && typeof rpcNum === "number") {
                 simNum = rpcNum;
@@ -753,7 +739,7 @@ export function usePDV() {
 
             nfceNumber = `SIM-${simNum}`;
             accessKey = fakeChave;
-            serie = (simConfig.serie as string) || "1";
+            serie = String(simConfig.serie ?? 1);
 
             // Best-effort DB updates
             Promise.allSettled([
