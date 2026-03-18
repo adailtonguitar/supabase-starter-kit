@@ -491,7 +491,7 @@ export function usePDV() {
 
     const crt = resolvedCrt;
     const defaultCst = (crt === 1 || crt === 2) ? "102" : "00";
-    const payments = (sale.payments as any[]) || [];
+    const payments = Array.isArray(sale.payments) ? sale.payments as Record<string, unknown>[] : [];
     const paymentMethodMap: Record<string, string> = {
       dinheiro: "01", credito: "03", debito: "04", pix: "17", voucher: "05",
     };
