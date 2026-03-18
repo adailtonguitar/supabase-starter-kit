@@ -753,9 +753,10 @@ export default function Fiscal() {
                 <button
                   onClick={async () => {
                     if (!companyId) return;
-                    const result = await FiscalEmissionService.downloadXml(selectedDoc.access_key!, selectedDoc.doc_type as "nfce" | "nfe");
-                    const xml = (result as any)?.xml || (result as any)?.xml_content;
-                    if (!xml) { toast.error((result as any)?.error || "Não foi possível obter o XML."); return; }
+                    const result2 = await FiscalEmissionService.downloadXml(selectedDoc.access_key!, selectedDoc.doc_type === "sat" ? "nfce" : selectedDoc.doc_type as "nfce" | "nfe");
+                    const xmlResult2 = result2 as { data?: { xml?: string; xml_content?: string }; error?: string };
+                    const xml2 = xmlResult2?.data?.xml || xmlResult2?.data?.xml_content;
+                    if (!xml2) { toast.error(xmlResult2?.error || "Não foi possível obter o XML."); return; }
                     const saveResult = await FiscalEmissionService.saveXmlToCloud({
                       companyId,
                       accessKey: selectedDoc.access_key!,
