@@ -506,7 +506,7 @@ export default function FiscalConfigEdit() {
           <p className="text-xs text-muted-foreground">
             O CRT define como os impostos são calculados na nota fiscal. Selecionar o regime errado pode causar rejeição ou multa na SEFAZ.
           </p>
-          <select value={crt} onChange={(e) => setCrt(Number(e.target.value))}
+          <select value={crt} onChange={(e) => { const v = Number(e.target.value); if (isValidCrt(v)) setCrt(v); }}
             className="w-full px-4 py-2.5 rounded-xl bg-background border border-border text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all">
             <option value={1}>1 — Simples Nacional</option>
             <option value={2}>2 — Simples Nacional (Excesso de Sublimite)</option>
