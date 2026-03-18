@@ -215,10 +215,10 @@ export default function FiscalConfigEdit() {
         }
 
         if (config.id) {
-          const { error } = await supabase.from("fiscal_configs").update(record as any).eq("id", config.id);
+          const { error } = await supabase.from("fiscal_configs").update(record as Record<string, unknown>).eq("id", config.id);
           if (error) throw error;
         } else {
-          const { data, error } = await supabase.from("fiscal_configs").insert(record as any).select("id").single();
+          const { data, error } = await supabase.from("fiscal_configs").insert(record as Record<string, unknown>).select("id").single();
           if (error) throw error;
           if (data) config.id = data.id;
         }
