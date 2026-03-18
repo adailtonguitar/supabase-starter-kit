@@ -458,8 +458,8 @@ export function usePDV() {
         } else {
           console.warn("[PDV Fiscal] Certificate upload failed:", uploadResult?.error || uploadErr?.message);
         }
-      } catch (certErr: any) {
-        console.warn("[PDV Fiscal] Certificate pre-upload error:", certErr.message);
+    } catch (certErr: unknown) {
+        console.warn("[PDV Fiscal] Certificate pre-upload error:", certErr instanceof Error ? certErr.message : certErr);
       }
     } else {
       console.log(`[PDV Fiscal] Certificate status: has_base64=${!!certB64}, has_password=${!!certPwd}`);
