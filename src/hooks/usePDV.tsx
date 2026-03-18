@@ -548,7 +548,7 @@ export function usePDV() {
       }
 
       if (queueId) {
-        await supabase.from("fiscal_queue").update({ status: "error", last_error: errorMsg } as any).eq("id", queueId);
+        await supabase.from("fiscal_queue").update({ status: "error", last_error: errorMsg }).eq("id", queueId);
       }
       throw new Error(errorMsg);
     }
