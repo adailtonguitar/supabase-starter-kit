@@ -384,7 +384,7 @@ export default function NFeEmissao() {
     setQuickSaving(false);
     if (error) { toast.error("Erro ao cadastrar: " + error.message); return; }
     // Refresh products list and add as item
-    const newProduct = data as any;
+    const newProduct = data as NFeProduct;
     setProducts(prev => [...prev, newProduct]);
     addProductAsItem(newProduct);
     setShowQuickRegister(false);
