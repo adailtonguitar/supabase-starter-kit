@@ -844,22 +844,16 @@ export function usePDV() {
         // Only query Supabase for fiscal config if online; when offline use cached defaults
         if (navigator.onLine) {
           try {
-            const { data: configs } = await supabase
-              .from("fiscal_configs")
-              .select("id, serie, environment")
-              .eq("company_id", companyId)
-              .eq("doc_type", "nfce")
-              .eq("is_active", true)
-              .limit(1);
-            if (configs && configs.length > 0) {
-              configId = configs[0].id;
-              serie = configs[0].serie || 1;
-              environment = configs[0].environment || "homologacao";
+            const { config: contConfig, crt: contCrt } = await getFiscalConfig(companyId, "nfce");
+            if (contConfig) {
+              configId = contConfig.id;
+              serie = contConfig.serie || 1;
+              environment = contConfig.environment || "homologacao";
             }
 
             const { data: company } = await supabase
               .from("companies")
-              .select("cnpj, name, state_registration, address_state, crt")
+              .select("cnpj, name, state_registration, address_state")
               .eq("id", companyId)
               .single();
 
@@ -869,7 +863,7 @@ export function usePDV() {
                 name: company.name || "",
                 ie: company.state_registration || "",
                 uf: company.address_state || "SP",
-                crt: (company as Record<string, unknown>).crt as number || 1,
+                crt: contCrt,
               };
             }
           } catch { /* use defaults */ }
