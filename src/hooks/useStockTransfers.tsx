@@ -216,7 +216,7 @@ export function useReceiveStockTransfer() {
       if (error) throw error;
 
       // Increment stock in destination company
-      const items = (transfer as any).stock_transfer_items || [];
+      const items = ((transfer as Record<string, unknown>).stock_transfer_items || []) as Array<Record<string, unknown>>;
       for (const item of items) {
         // Try to find product in destination by SKU first, then by ID
         let existingProduct: any = null;
