@@ -282,7 +282,7 @@ export function useReceiveStockTransfer() {
             .maybeSingle();
 
           if (sourceProduct) {
-            const { id, created_at, updated_at, company_id, ...rest } = sourceProduct as any;
+            const { id: _id, created_at: _ca, updated_at: _ua, company_id: _cid, ...rest } = sourceProduct as Record<string, unknown>;
             const { data: newProduct } = await supabase.from("products").insert({
               ...rest,
               company_id: companyId,
