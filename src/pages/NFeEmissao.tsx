@@ -257,7 +257,7 @@ export default function NFeEmissao() {
       .eq("company_id", companyId)
       .order("name")
       .limit(500);
-    if (data) setClients(data);
+    if (data) setClients(data as NFeClient[]);
   }, [companyId]);
 
   useEffect(() => { fetchClients(); }, [fetchClients]);
