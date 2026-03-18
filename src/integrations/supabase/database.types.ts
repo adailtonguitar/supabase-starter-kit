@@ -11,19 +11,20 @@ type ISODate = string;
 type ISODateTime = string;
 type Json = string | number | boolean | null | Json[] | { [key: string]: Json };
 
-/** Auto-generated columns omitted from Insert */
-type AutoCols = "id" | "created_at" | "updated_at";
-
 /**
  * Helper: coerce interface into index-signature-compatible form
  * required by Supabase's GenericTable constraint (Record<string, unknown>).
  */
 type Widen<T> = { [K in keyof T]: T[K] } & Record<string, unknown>;
 
-/** Helper: build Table shape from Row */
+/**
+ * Helper: build Table shape from Row.
+ * Insert is fully Partial because most columns have DB defaults.
+ * This maximises compatibility during the migration from untyped code.
+ */
 type TableDef<R extends object> = {
   Row: Widen<R>;
-  Insert: Widen<Omit<R, AutoCols> & Partial<Pick<R, Extract<keyof R, AutoCols>>>>;
+  Insert: Widen<Partial<R>>;
   Update: Widen<Partial<R>>;
   Relationships: [];
 };
