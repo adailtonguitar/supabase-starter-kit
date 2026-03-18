@@ -538,7 +538,13 @@ async function handleEmit(supabase: any, body: any) {
     const errMsg = nfData?.mensagem || nfData?.error?.message || nfData?.message || JSON.stringify(nfData);
     console.error(`[emit-nfce] Erro Nuvem Fiscal [${nfResp.status}]:`, errMsg);
 
-    // Salvar como rejeitada para rastreabilidade
+    // ── Item 11: Extract rejection protocol and access key from SEFAZ response ──
+    const rejAccessKey = nfData?.chave || nfData?.chave_acesso || nfData?.access_key || null;
+    const rejProtocol = nfData?.protocolo || nfData?.numero_protocolo || null;
+    const rejReason = nfData?.motivo || nfData?.xMotivo || nfData?.rejection_reason || errMsg;
+    const rejCode = nfData?.codigo_status || nfData?.cStat || null;
+
+    // Salvar como rejeitada com protocolo, chave e motivo para rastreabilidade e reprocessamento
     await supabase.from("fiscal_documents").insert({
       company_id,
       sale_id: sale_id || null,
@@ -551,12 +557,13 @@ async function handleEmit(supabase: any, body: any) {
       customer_name: form.customer_name || null,
       customer_cpf_cnpj: form.customer_doc || null,
       payment_method: tPag,
-      access_key: null,
-      protocol_number: null,
+      access_key: rejAccessKey,
+      protocol_number: rejProtocol,
+      rejection_reason: rejCode ? `[${rejCode}] ${rejReason}` : rejReason,
       is_contingency: false,
     });
 
-    return jsonResponse({ success: false, error: errMsg, details: nfData }, 400);
+    return jsonResponse({ success: false, error: errMsg, rejection_reason: rejReason, details: nfData }, 400);
   }
 
   // Detectar status de autorização
