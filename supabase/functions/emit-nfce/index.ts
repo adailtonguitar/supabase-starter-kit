@@ -578,7 +578,7 @@ async function handleEmit(supabase: any, body: any) {
   // Salvar documento fiscal
   await supabase.from("fiscal_documents").insert({
     company_id,
-    sale_id,
+    sale_id: sale_id || null,
     doc_type: "nfce",
     number: numero,
     serie: config.serie || 1,
@@ -591,7 +591,7 @@ async function handleEmit(supabase: any, body: any) {
     customer_cpf_cnpj: form.customer_doc || null,
     payment_method: tPag,
     is_contingency: isContingency,
-  } as any);
+  });
 
   console.log(`[emit-nfce] NFC-e #${numero} → Status: ${finalStatus} | Chave: ${accessKey?.substring(0, 20)}...`);
 
