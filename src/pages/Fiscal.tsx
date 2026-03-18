@@ -657,6 +657,31 @@ export default function Fiscal() {
         )}
       </div>
 
+      {/* ── Item 16: Pagination controls ── */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between pt-2">
+          <p className="text-xs text-muted-foreground">
+            Página {page + 1} de {totalPages} ({totalCount} documentos)
+          </p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setPage((p) => Math.max(0, p - 1))}
+              disabled={!hasPrevPage}
+              className="px-3 py-1.5 rounded-lg text-xs font-medium border border-border text-foreground hover:bg-muted transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              ← Anterior
+            </button>
+            <button
+              onClick={() => setPage((p) => p + 1)}
+              disabled={!hasNextPage}
+              className="px-3 py-1.5 rounded-lg text-xs font-medium border border-border text-foreground hover:bg-muted transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Próxima →
+            </button>
+          </div>
+        </div>
+      )}
+
       {selectedDoc && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/20 backdrop-blur-sm"
