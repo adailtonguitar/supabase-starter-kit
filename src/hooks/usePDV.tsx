@@ -389,16 +389,17 @@ export function usePDV() {
       .eq("id", companyId)
       .maybeSingle();
 
-    const fiscalConfig = allConfigs?.find((c: any) => c.doc_type === "nfce" && c.is_active)
-      || allConfigs?.find((c: any) => c.doc_type === "nfe" && c.is_active)
-      || allConfigs?.find((c: any) => c.doc_type === "nfce")
-      || allConfigs?.find((c: any) => c.doc_type === "nfe")
-      || allConfigs?.[0]
+    const fc = allConfigs as Array<Record<string, unknown>> | null;
+    const fiscalConfig = fc?.find((c) => c.doc_type === "nfce" && c.is_active)
+      || fc?.find((c) => c.doc_type === "nfe" && c.is_active)
+      || fc?.find((c) => c.doc_type === "nfce")
+      || fc?.find((c) => c.doc_type === "nfe")
+      || fc?.[0]
       || null;
 
-    const resolvedCrt = (fiscalConfig as any)?.crt || (companyFiscal as any)?.crt || 1;
-    const isHomologacao = (fiscalConfig as any)?.environment === "homologacao";
-    const hasCert = !!((fiscalConfig as any)?.certificate_path || (fiscalConfig as any)?.a3_thumbprint);
+    const resolvedCrt = (fiscalConfig?.crt as number) || (companyFiscal as Record<string, unknown> | null)?.crt as number || 1;
+    const isHomologacao = fiscalConfig?.environment === "homologacao";
+    const hasCert = !!(fiscalConfig?.certificate_path || fiscalConfig?.a3_thumbprint);
 
     console.log("[PDV Fiscal] Config lookup:", JSON.stringify({ fiscalConfig, fcError, companyFiscal }));
     console.log("[PDV Fiscal] isHomologacao:", isHomologacao, "hasCert:", hasCert, "resolvedCrt:", resolvedCrt);
