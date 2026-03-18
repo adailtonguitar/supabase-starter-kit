@@ -742,7 +742,7 @@ export default function Fiscal() {
                       URL.revokeObjectURL(url);
                       toast.success("XML baixado no seu PC!");
                     } else {
-                      toast.error((result as any)?.error || "Não foi possível obter o XML.");
+                      toast.error(xmlResult?.error || "Não foi possível obter o XML.");
                     }
                   }}
                   className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-accent text-accent-foreground text-sm font-medium hover:opacity-90 transition-all"
