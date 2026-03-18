@@ -729,7 +729,7 @@ export default function Fiscal() {
               <div className="flex gap-2 mt-6">
                 <button
                   onClick={async () => {
-                    const result = await FiscalEmissionService.downloadXml(selectedDoc.access_key!, selectedDoc.doc_type as "nfce" | "nfe");
+                    const result = await FiscalEmissionService.downloadXml(selectedDoc.access_key!, selectedDoc.doc_type === "sat" ? "nfce" : selectedDoc.doc_type as "nfce" | "nfe");
                     const xml = (result as any)?.xml || (result as any)?.xml_content;
                     if (xml) {
                       const blob = new Blob([xml], { type: "application/xml" });
