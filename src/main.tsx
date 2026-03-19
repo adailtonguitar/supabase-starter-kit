@@ -5,25 +5,34 @@ import "./styles/theme.css";
 import { loadScaleConfigFromStorage } from "./lib/scale-barcode";
 import { initErrorTracker } from "./services/ErrorTracker";
 
-async function clearPreviewServiceWorkers() {
+async function clearStaleServiceWorkers() {
+  if (!("serviceWorker" in navigator)) return;
+
   const isLovablePreview =
     window.location.hostname.includes("lovable.app") &&
     window.location.hostname.includes("id-preview--");
 
-  if (!isLovablePreview || !("serviceWorker" in navigator)) return;
-
   try {
-    const registrations = await navigator.serviceWorker.getRegistrations();
-    await Promise.allSettled(registrations.map((registration) => registration.unregister()));
-
-    if ("caches" in window) {
-      const cacheKeys = await caches.keys();
-      await Promise.allSettled(cacheKeys.map((key) => caches.delete(key)));
+    // In preview, always unregister everything
+    if (isLovablePreview) {
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      await Promise.allSettled(registrations.map((r) => r.unregister()));
     }
 
-    console.info("[PWA] Preview cache cleared to avoid stale Lovable bundle");
+    // Always clean up outdated caches (fixes "version (1) < version (2)" errors)
+    if ("caches" in window) {
+      const cacheKeys = await caches.keys();
+      const outdated = cacheKeys.filter(
+        (k) => k.startsWith("workbox-precache") || (isLovablePreview && true)
+      );
+      await Promise.allSettled(outdated.map((key) => caches.delete(key)));
+    }
+
+    if (outdated.length > 0 || isLovablePreview) {
+      console.info("[PWA] Stale caches cleared");
+    }
   } catch (error) {
-    console.warn("[PWA] Failed to clear preview service workers:", error);
+    console.warn("[PWA] Failed to clear service workers:", error);
   }
 }
 
