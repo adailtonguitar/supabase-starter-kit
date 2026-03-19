@@ -46,15 +46,20 @@ export function ReturnReceipt({
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Comprovante de Devolução</title>
 <style>
   @page { margin: 0; size: 80mm auto; }
-  body { font-family: 'Courier New', monospace; font-size: 12px; width: 72mm; margin: 4mm auto; color: #000; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { width: 80mm; }
+  body { font-family: 'Courier New', monospace; font-size: 12px; width: 80mm; max-width: 80mm; margin: 0; padding: 2mm 3mm; color: #000; line-height: 1.4; overflow-x: hidden; word-wrap: break-word; overflow-wrap: break-word; }
   .center { text-align: center; }
   .bold { font-weight: bold; }
   .sep { border-top: 1px dashed #000; margin: 6px 0; }
-  .row { display: flex; justify-content: space-between; line-height: 1.6; }
-  .detail { font-size: 11px; color: #333; padding-left: 8px; }
+  .row { display: flex; justify-content: space-between; line-height: 1.6; gap: 4px; overflow: hidden; }
+  .row span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1; }
+  .row span:last-child { text-align: right; white-space: nowrap; flex-shrink: 0; }
+  .detail { font-size: 11px; color: #333; padding-left: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .title { font-size: 14px; font-weight: bold; text-align: center; margin: 8px 0; letter-spacing: 1px; }
   .big { font-size: 16px; font-weight: bold; text-align: center; margin: 4px 0; }
   .small { font-size: 10px; color: #555; }
+  @media print { html, body { width: 80mm; height: auto; margin: 0; padding: 2mm 3mm; } }
 </style></head><body>
   ${companyName ? `<div class="center bold">${companyName}</div>` : ""}
   ${companyCnpj ? `<div class="center small">CNPJ: ${companyCnpj}</div>` : ""}
