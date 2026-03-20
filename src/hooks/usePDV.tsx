@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, safeRpc } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
 import { useSync } from "@/hooks/useSync";
 import { buildContingencyPayload } from "@/services/ContingencyService";
@@ -405,11 +405,11 @@ export function usePDV() {
       // Obter número atomicamente via RPC
       let simNumber = 1;
       try {
-        const { data: rpcNum, error: rpcErr } = await supabase.rpc("next_fiscal_number", {
+        const rpcNum = await safeRpc<number>("next_fiscal_number", {
           p_config_id: fiscalConfig!.id,
         });
-        if (!rpcErr && typeof rpcNum === "number") {
-          simNumber = rpcNum;
+        if (rpcNum.success && typeof rpcNum.data === "number") {
+          simNumber = rpcNum.data;
         }
       } catch {
         console.warn("[PDV Fiscal] RPC next_fiscal_number failed, using fallback");
@@ -680,7 +680,7 @@ export function usePDV() {
       }));
 
       // ── Chamada única: RPC atômica ──
-      const { data: rpcResult, error: rpcError } = await supabase.rpc("finalize_sale_atomic", {
+      const rpcFinalize = await safeRpc<{ success: boolean; sale_id?: string; error?: string }>("finalize_sale_atomic", {
         p_company_id: companyId,
         p_terminal_id: currentSession.terminal_id,
         p_session_id: currentSession.id,
@@ -692,10 +692,8 @@ export function usePDV() {
         p_payments: paymentsSummary,
         p_sold_by: userId || null,
       });
-
-      if (rpcError) throw new Error(rpcError.message);
-
-      const result = rpcResult as { success: boolean; sale_id?: string; error?: string };
+      if (!rpcFinalize.success) throw new Error(rpcFinalize.error);
+      const result = rpcFinalize.data;
       if (!result.success) {
         const err = result.error || "Erro desconhecido na transação";
         // Detect discount limit errors — these should NOT trigger contingency
@@ -746,11 +744,11 @@ export function usePDV() {
             // Obter número atomicamente via RPC
             let simNum = 1;
             try {
-              const { data: rpcNum, error: rpcErr } = await supabase.rpc("next_fiscal_number", {
+              const rpcNum = await safeRpc<number>("next_fiscal_number", {
                 p_config_id: simConfig.id,
               });
-              if (!rpcErr && typeof rpcNum === "number") {
-                simNum = rpcNum;
+              if (rpcNum.success && typeof rpcNum.data === "number") {
+                simNum = rpcNum.data;
               }
             } catch {
               console.warn("[PDV Fiscal] RPC next_fiscal_number failed in finalizeSale");

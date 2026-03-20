@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, safeRpc } from "@/integrations/supabase/client";
 import { useCompany } from "./useCompany";
 import { useAuth } from "./useAuth";
 import { toast } from "sonner";
@@ -159,16 +159,15 @@ export function useMarkAsPaid() {
         throw new Error("Valor pago inválido");
       }
 
-      const { data: rpcData, error: rpcError } = await supabase.rpc("mark_financial_entry_paid_atomic", {
+      const rpc = await safeRpc<{ success?: boolean; error?: string }>("mark_financial_entry_paid_atomic", {
         p_company_id: companyId,
         p_entry_id: id,
         p_paid_amount: paid_amount,
         p_payment_method: payment_method ?? "dinheiro",
         p_performed_by: user.id,
       });
-      if (rpcError) throw rpcError;
-
-      const result = (rpcData || {}) as { success?: boolean; error?: string };
+      if (!rpc.success) throw new Error(rpc.error);
+      const result = rpc.data || {};
       if (!result.success) {
         throw new Error(result.error || "Falha ao registrar pagamento");
       }

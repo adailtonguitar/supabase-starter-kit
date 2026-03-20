@@ -13,7 +13,7 @@ import {
   resetFailed,
   getFailedItems,
 } from "@/lib/sync-queue";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, safeRpc } from "@/integrations/supabase/client";
 import type {
   SyncQueueItem,
   FinalizeSaleItemInput,
@@ -133,7 +133,7 @@ const processors: Record<string, SyncProcessor> = {
     const payments = parseFinalizeSalePayments(p.payments, total);
     const soldBy = parseString(p.user_id);
 
-    const { data: rpcResult, error: rpcError } = await supabase.rpc("finalize_sale_atomic", {
+    const rpcFinalize = await safeRpc<RpcFinalizeSaleResult>("finalize_sale_atomic", {
       p_company_id: companyId,
       p_terminal_id: terminalId,
       p_session_id: sessionId,
@@ -145,9 +145,8 @@ const processors: Record<string, SyncProcessor> = {
       p_payments: payments,
       p_sold_by: soldBy ?? null,
     });
-
-    if (rpcError) throw new Error(rpcError.message);
-    const result = rpcResult as RpcFinalizeSaleResult | null;
+    if (!rpcFinalize.success) throw new Error(rpcFinalize.error);
+    const result = rpcFinalize.data ?? null;
     if (result && result.success === false) {
       throw new Error(result.error || "Erro ao sincronizar venda");
     }

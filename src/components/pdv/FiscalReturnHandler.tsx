@@ -14,6 +14,10 @@ interface FiscalDocument {
   nuvem_fiscal_id?: string;
 }
 
+function getErrorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
+
 interface FiscalReturnHandlerProps {
   saleId: string;
   companyId: string;
@@ -71,7 +75,7 @@ export function FiscalReturnHandler({ saleId, companyId, onFiscalComplete }: Fis
         fiscalDocId: fiscalDoc.id,
         saleId,
         docType: fiscalDoc.doc_type,
-        nuvemFiscalId: (fiscalDoc as any).nuvem_fiscal_id,
+        nuvemFiscalId: fiscalDoc.nuvem_fiscal_id,
         justificativa: "Cancelamento por devolução de mercadoria ao consumidor",
       });
 
@@ -83,9 +87,10 @@ export function FiscalReturnHandler({ saleId, companyId, onFiscalComplete }: Fis
         setCancelResult({ success: false, message: result.error || "Erro ao cancelar NFC-e" });
         toast.error(result.error || "Erro ao cancelar NFC-e");
       }
-    } catch (err: any) {
-      setCancelResult({ success: false, message: err.message });
-      toast.error(`Erro: ${err.message}`);
+    } catch (err: unknown) {
+      const message = getErrorMessage(err);
+      setCancelResult({ success: false, message });
+      toast.error(`Erro: ${message}`);
     }
     setCanceling(false);
   };

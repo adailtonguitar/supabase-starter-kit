@@ -8,6 +8,7 @@ import { useCompany } from "@/hooks/useCompany";
 import { toast } from "sonner";
 import { openCashDrawer } from "@/lib/escpos";
 import { escapeHtml } from "@/lib/sanitize";
+import type { CashMovementRecord, CashSessionRecord } from "@/integrations/supabase/fiscal.types";
 
 const OFFLINE_SESSION_KEY = "as_offline_cash_session";
 
@@ -34,8 +35,12 @@ function makeOfflineSession(companyId: string, userId: string, openingBalance: n
   };
 }
 
-function getCachedSession(companyId: string): any | null {
+function getCachedSession(companyId: string): CashSessionRecord | null {
   try { const raw = localStorage.getItem(OFFLINE_SESSION_KEY); if (!raw) return null; const s = JSON.parse(raw); return s?.company_id === companyId && s?.status === "aberto" ? s : null; } catch { return null; }
+}
+
+function toErrorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
 }
 
 type CashView = "status" | "open" | "close" | "movement" | "closed_summary";
@@ -44,7 +49,7 @@ export interface CashRegisterProps {
   onClose: () => void;
   terminalId?: string;
   preventClose?: boolean;
-  initialSession?: any | null;
+  initialSession?: CashSessionRecord | null;
   skipInitialLoad?: boolean;
 }
 
@@ -52,8 +57,8 @@ export function CashRegister({ onClose, terminalId = "01", preventClose = false,
   const { user } = useAuth();
   const { companyId, companyName } = useCompany();
   const [view, setView] = useState<CashView>("status");
-  const [closedSnapshot, setClosedSnapshot] = useState<any>(null);
-  const [session, setSession] = useState<any | null>(initialSession ?? null);
+  const [closedSnapshot, setClosedSnapshot] = useState<Record<string, unknown> | null>(null);
+  const [session, setSession] = useState<CashSessionRecord | null>(initialSession ?? null);
   const [loading, setLoading] = useState(!skipInitialLoad);
   const [submitting, setSubmitting] = useState(false);
   const [openingBalance, setOpeningBalance] = useState("200");
@@ -73,7 +78,8 @@ export function CashRegister({ onClose, terminalId = "01", preventClose = false,
     try {
       const { data } = await supabase.from("cash_movements").select("amount").eq("session_id", sessionId).eq("type", "suprimento").ilike("description", "Recebimento fiado%");
       if (data && data.length > 0) {
-        setTotalFiadoRecebido(data.reduce((s: number, m: any) => s + Number(m.amount), 0));
+        const movements = data as Pick<CashMovementRecord, "amount">[];
+        setTotalFiadoRecebido(movements.reduce((s, m) => s + Number(m.amount), 0));
         setFiadoCount(data.length);
       } else { setTotalFiadoRecebido(0); setFiadoCount(0); }
     } catch { setTotalFiadoRecebido(0); setFiadoCount(0); }
@@ -83,7 +89,7 @@ export function CashRegister({ onClose, terminalId = "01", preventClose = false,
     if (!companyId) { setLoading(false); return; }
     setLoading(true);
     const online = await canReachServer();
-    let foundSession: any = null;
+    let foundSession: CashSessionRecord | null = null;
     if (!online) { foundSession = getCachedSession(companyId); if (foundSession) { setSession(foundSession); loadFiadoMovements(foundSession.id); } setLoading(false); }
     else {
       try { foundSession = await CashSessionService.getCurrentSession(companyId, terminalId); setSession(foundSession); if (foundSession) loadFiadoMovements(foundSession.id); }
@@ -119,7 +125,7 @@ export function CashRegister({ onClose, terminalId = "01", preventClose = false,
     if (!online) {
       const offlineSession = makeOfflineSession(companyId, user.id, Number(openingBalance) || 0, terminalId);
       try { localStorage.setItem(OFFLINE_SESSION_KEY, JSON.stringify(offlineSession)); } catch { }
-      setSession(offlineSession as any); setView("status"); setSubmitting(false);
+      setSession(offlineSession); setView("status"); setSubmitting(false);
       toast.success("Caixa aberto offline (sem conexão)"); return;
     }
     try {
@@ -128,7 +134,7 @@ export function CashRegister({ onClose, terminalId = "01", preventClose = false,
     } catch {
       const offlineSession = makeOfflineSession(companyId, user.id, Number(openingBalance) || 0, terminalId);
       try { localStorage.setItem(OFFLINE_SESSION_KEY, JSON.stringify(offlineSession)); } catch { }
-      setSession(offlineSession as any); setView("status"); toast.success("Caixa aberto offline (sem conexão)");
+      setSession(offlineSession); setView("status"); toast.success("Caixa aberto offline (sem conexão)");
     } finally { setSubmitting(false); }
   };
 
@@ -158,11 +164,11 @@ export function CashRegister({ onClose, terminalId = "01", preventClose = false,
       setSession(null);
       setView("closed_summary");
       toast.success("Caixa fechado com sucesso");
-    } catch (err: any) { toast.error(err.message); }
+    } catch (err: unknown) { toast.error(toErrorMessage(err)); }
     finally { setSubmitting(false); }
   };
 
-  const handlePrintClosing = useCallback((snapshot?: any) => {
+  const handlePrintClosing = useCallback((snapshot?: Record<string, unknown> | null) => {
     const s = snapshot || closedSnapshot;
     const now = new Date();
     const pOpenBalance = s?.openBalance ?? openBalance;
@@ -259,7 +265,7 @@ export function CashRegister({ onClose, terminalId = "01", preventClose = false,
       setMovementAmount(""); setMovementDesc(""); openCashDrawer();
       toast.success(`${movementType === "sangria" ? "Sangria" : "Suprimento"} registrado — gaveta aberta`);
       await loadSession(); setView("status");
-    } catch (err: any) { toast.error(err.message); }
+    } catch (err: unknown) { toast.error(toErrorMessage(err)); }
     finally { setSubmitting(false); }
   };
 
