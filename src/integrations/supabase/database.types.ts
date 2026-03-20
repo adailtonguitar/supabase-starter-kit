@@ -2266,20 +2266,22 @@ export type Database = {
 
         }
       }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       [key: string]: {
-        Row: Record<string, unknown>
-        Insert: Record<string, unknown>
-        Update: Record<string, unknown>
-        Relationships?: unknown[]
+        Row: any
+        Insert: any
+        Update: any
+        Relationships?: any[]
       }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in string]: {
-        Args: Record<string, unknown>
-        Returns: unknown
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      [key: string]: {
+        Args: any
+        Returns: any
       }
     }
     Enums: {
