@@ -22,6 +22,25 @@ interface CnpjData {
   qsa?: { nome_socio: string }[];
 }
 
+interface PublicaCnpjWsResponse {
+  razao_social?: string;
+  estabelecimento?: {
+    nome_fantasia?: string;
+    logradouro?: string;
+    numero?: string;
+    complemento?: string;
+    bairro?: string;
+    cidade?: { nome?: string; ibge_id?: number | string };
+    estado?: { sigla?: string };
+    cep?: string;
+    email?: string;
+    ddd1?: string;
+    telefone1?: string;
+    situacao_cadastral?: string;
+  };
+  socios?: Array<{ nome?: string }>;
+}
+
 export interface CnpjResult {
   name: string;
   trade_name: string;
@@ -79,7 +98,7 @@ export function useCnpjLookup() {
         try {
           const res2 = await fetch(`https://publica.cnpj.ws/cnpj/${clean}`);
           if (res2.ok) {
-            const raw = await res2.json();
+            const raw = (await res2.json()) as PublicaCnpjWsResponse;
             data = {
               razao_social: raw.razao_social || "",
               nome_fantasia: raw.estabelecimento?.nome_fantasia || "",
@@ -96,7 +115,7 @@ export function useCnpjLookup() {
                 ? `${raw.estabelecimento.ddd1}${raw.estabelecimento.telefone1}` : "",
               codigo_ibge_municipio: raw.estabelecimento?.cidade?.ibge_id ? String(raw.estabelecimento.cidade.ibge_id) : "",
               descricao_situacao_cadastral: raw.estabelecimento?.situacao_cadastral || "",
-              qsa: raw.socios?.map((s: any) => ({ nome_socio: s.nome })) || [],
+              qsa: raw.socios?.map((s) => ({ nome_socio: s.nome || "" })) || [],
             };
           }
         } catch {

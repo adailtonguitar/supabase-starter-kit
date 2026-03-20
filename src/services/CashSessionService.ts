@@ -1,36 +1,66 @@
 import { supabase } from "@/integrations/supabase/client";
 import { logAction } from "@/services/ActionLogger";
+import type { CashSessionRecord } from "@/integrations/supabase/fiscal.types";
 
 const LOCAL_SESSION_KEY = "as_offline_cash_session";
 const LOCAL_MOVEMENTS_KEY = "as_offline_cash_movements";
 
-function isNetworkError(err: any): boolean {
-  if (!err) return false;
+function isNetworkError(err: unknown): boolean {
+  if (err == null) return false;
+  const toStr = (v: unknown) => (typeof v === "string" ? v : v == null ? "" : String(v));
   const candidates = [
     typeof err === "string" ? err : "",
-    err?.message, err?.msg, err?.error_description, err?.name, String(err),
+    toStr((err as { message?: unknown } | undefined)?.message),
+    toStr((err as { msg?: unknown } | undefined)?.msg),
+    toStr((err as { error_description?: unknown } | undefined)?.error_description),
+    toStr((err as { name?: unknown } | undefined)?.name),
+    toStr(err),
   ].filter(Boolean);
   const patterns = ["Failed to fetch", "NetworkError", "TypeError", "network", "ECONNREFUSED", "ERR_INTERNET_DISCONNECTED", "Load failed"];
   return candidates.some((c: string) => patterns.some((p) => c.includes(p)));
 }
 
-function getOfflineSession(): any | null {
-  try { const raw = localStorage.getItem(LOCAL_SESSION_KEY); return raw ? JSON.parse(raw) : null; } catch { return null; }
+function getOfflineSession(): CashSessionRecord | null {
+  try {
+    const raw = localStorage.getItem(LOCAL_SESSION_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as CashSessionRecord;
+  } catch {
+    return null;
+  }
 }
 
-function saveOfflineSession(session: any | null) {
-  try { if (session) localStorage.setItem(LOCAL_SESSION_KEY, JSON.stringify(session)); else localStorage.removeItem(LOCAL_SESSION_KEY); } catch {}
+function saveOfflineSession(session: CashSessionRecord | null) {
+  try {
+    if (session) localStorage.setItem(LOCAL_SESSION_KEY, JSON.stringify(session));
+    else localStorage.removeItem(LOCAL_SESSION_KEY);
+  } catch {
+    // offline cache only
+  }
 }
 
-function queueOfflineMovement(movement: any) {
-  try { const raw = localStorage.getItem(LOCAL_MOVEMENTS_KEY); const movements = raw ? JSON.parse(raw) : []; movements.push(movement); localStorage.setItem(LOCAL_MOVEMENTS_KEY, JSON.stringify(movements)); } catch {}
+type OfflineQueuedMovement = {
+  action: "open" | "close" | "movement";
+  params: unknown;
+  created_at: string;
+};
+
+function queueOfflineMovement(movement: OfflineQueuedMovement) {
+  try {
+    const raw = localStorage.getItem(LOCAL_MOVEMENTS_KEY);
+    const movements = raw ? (JSON.parse(raw) as OfflineQueuedMovement[]) : [];
+    movements.push(movement);
+    localStorage.setItem(LOCAL_MOVEMENTS_KEY, JSON.stringify(movements));
+  } catch {
+    // offline queue only
+  }
 }
 
 export class CashSessionService {
   static async open(params: { companyId: string; userId: string; openingBalance: number; terminalId?: string }) {
     const terminalId = params.terminalId || "01";
     const openOffline = () => {
-      const offlineSession = {
+      const offlineSession: CashSessionRecord = {
         id: `offline_${Date.now()}`, company_id: params.companyId, opened_by: params.userId,
         opening_balance: params.openingBalance, terminal_id: terminalId, status: "aberto" as const,
         opened_at: new Date().toISOString(), closed_at: null, closed_by: null, closing_balance: null,
@@ -54,7 +84,9 @@ export class CashSessionService {
       saveOfflineSession(data);
       logAction({ companyId: params.companyId, userId: params.userId, action: "Caixa aberto", module: "caixa", details: `Terminal ${terminalId} - R$ ${params.openingBalance}` });
       return data;
-    } catch (err: any) { return openOffline(); }
+    } catch {
+      return openOffline();
+    }
   }
 
   static async close(params: { sessionId: string; companyId: string; userId: string; countedDinheiro: number; countedDebito: number; countedCredito: number; countedPix: number; notes?: string }) {
@@ -85,13 +117,22 @@ export class CashSessionService {
       logAction({ companyId: params.companyId, userId: params.userId, action: "Caixa fechado", module: "caixa", details: `Contagem: R$ ${totalCounted.toFixed(2)} | Diferença: R$ ${(totalCounted - totalExpected).toFixed(2)}` });
       saveOfflineSession(null);
       return data;
-    } catch (err: any) { if (isNetworkError(err)) return closeOffline(); throw err; }
+    } catch (err: unknown) {
+      if (isNetworkError(err)) return closeOffline();
+      throw err;
+    }
   }
 
   static async registerMovement(params: { companyId: string; userId: string; sessionId: string; type: "sangria" | "suprimento"; amount: number; description?: string }) {
     const moveOffline = () => {
       const offlineSession = getOfflineSession();
-      if (offlineSession) { const field = params.type === "sangria" ? "total_sangria" : "total_suprimento"; offlineSession[field] = Number(offlineSession[field] || 0) + params.amount; saveOfflineSession(offlineSession); queueOfflineMovement({ action: "movement", params, created_at: new Date().toISOString() }); return { id: `offline_mv_${Date.now()}`, ...params }; }
+      if (offlineSession) {
+        const field = (params.type === "sangria" ? "total_sangria" : "total_suprimento") as "total_sangria" | "total_suprimento";
+        offlineSession[field] = Number(offlineSession[field] ?? 0) + params.amount;
+        saveOfflineSession(offlineSession);
+        queueOfflineMovement({ action: "movement", params, created_at: new Date().toISOString() });
+        return { id: `offline_mv_${Date.now()}`, ...params };
+      }
       throw new Error("Sessão offline não encontrada");
     };
     try {
@@ -102,7 +143,10 @@ export class CashSessionService {
       const { data: session } = await supabase.from("cash_sessions").select(field).eq("id", params.sessionId).eq("company_id", params.companyId).single();
       if (session) await supabase.from("cash_sessions").update({ [field]: Number(session[field] || 0) + params.amount }).eq("id", params.sessionId).eq("company_id", params.companyId);
       return data;
-    } catch (err: any) { if (isNetworkError(err)) return moveOffline(); throw err; }
+    } catch (err: unknown) {
+      if (isNetworkError(err)) return moveOffline();
+      throw err;
+    }
   }
 
   static async getCurrentSession(companyId: string, terminalId?: string) {
@@ -120,6 +164,12 @@ export class CashSessionService {
       if (error) { const offlineSession = getOfflineSession(); if (offlineSession && offlineSession.company_id === companyId && offlineSession.status === "aberto") { if (!terminalId || offlineSession.terminal_id === terminalId) return offlineSession; } return null; }
       if (data) saveOfflineSession(data);
       return data;
-    } catch { const offlineSession = getOfflineSession(); if (offlineSession && offlineSession.company_id === companyId && offlineSession.status === "aberto") { if (!terminalId || offlineSession.terminal_id === terminalId) return offlineSession; } return null; }
+    } catch {
+      const offlineSession = getOfflineSession();
+      if (offlineSession && offlineSession.company_id === companyId && offlineSession.status === "aberto") {
+        if (!terminalId || offlineSession.terminal_id === terminalId) return offlineSession;
+      }
+      return null;
+    }
   }
 }

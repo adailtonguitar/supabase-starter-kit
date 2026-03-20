@@ -26,6 +26,18 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 
+type BadgeVariant = "default" | "secondary" | "destructive" | "outline";
+
+type LossMovementRow = {
+  id: string;
+  type: string;
+  quantity: number | null;
+  reason: string | null;
+  product_id: string;
+  created_at: string;
+  products?: { name?: string | null; sku?: string | null } | null;
+};
+
 const LOSS_CATEGORIES = [
   { value: "quebra", label: "Quebra", color: "destructive" },
   { value: "vencimento", label: "Vencimento", color: "default" },
@@ -173,14 +185,15 @@ function RegisterLossDialog({
 export default function Perdas() {
   const { data: movements = [], isLoading } = useStockMovements();
   const { data: products = [] } = useProducts();
+  const typedMovements = movements as unknown as LossMovementRow[];
   const [search, setSearch] = useState("");
   const [showRegister, setShowRegister] = useState(false);
   const [filterCategory, setFilterCategory] = useState<string>("all");
 
   const lossMovements = useMemo(() => {
-    return movements.filter((m: any) => {
+    return typedMovements.filter((m) => {
       if (m.type !== "saida") return false;
-      const reason = (m.reason || "").toLowerCase();
+      const reason = (m.reason ?? "").toLowerCase();
       return (
         reason.includes("perda") ||
         reason.includes("quebra") ||
@@ -189,10 +202,10 @@ export default function Perdas() {
         reason.includes("avaria")
       );
     });
-  }, [movements]);
+  }, [typedMovements]);
 
   const filtered = useMemo(() => {
-    return lossMovements.filter((m: any) => {
+    return lossMovements.filter((m) => {
       const name = m.products?.name?.toLowerCase() || "";
       const sku = m.products?.sku?.toLowerCase() || "";
       const matchSearch = name.includes(search.toLowerCase()) || sku.includes(search.toLowerCase());
@@ -203,15 +216,20 @@ export default function Perdas() {
   }, [lossMovements, search, filterCategory]);
 
   const stats = useMemo(() => {
-    const totalItems = lossMovements.reduce((sum: number, m: any) => sum + (m.quantity || 0), 0);
-    const totalValue = lossMovements.reduce((sum: number, m: any) => {
+    const totalItems = lossMovements.reduce(
+      (sum: number, m) => sum + (m.quantity ?? 0),
+      0,
+    );
+    const totalValue = lossMovements.reduce((sum: number, m) => {
       const product = products.find((p) => p.id === m.product_id);
-      return sum + (m.quantity || 0) * (product?.cost_price || product?.price || 0);
+      const qty = m.quantity ?? 0;
+      const unitValue = product?.cost_price ?? product?.price ?? 0;
+      return sum + qty * unitValue;
     }, 0);
     const byCategory: Record<string, number> = {};
-    for (const m of lossMovements as any[]) {
+    for (const m of lossMovements) {
       const cat = isLossReason(m.reason) || "outros";
-      byCategory[cat] = (byCategory[cat] || 0) + (m.quantity || 0);
+      byCategory[cat] = (byCategory[cat] || 0) + (m.quantity ?? 0);
     }
     return { totalItems, totalValue, byCategory };
   }, [lossMovements, products]);
@@ -220,7 +238,7 @@ export default function Perdas() {
     const cat = isLossReason(reason);
     const info = LOSS_CATEGORIES.find((c) => c.value === cat);
     if (!info) return <Badge variant="outline">Outros</Badge>;
-    return <Badge variant={info.color as any}>{info.label}</Badge>;
+    return <Badge variant={info.color as BadgeVariant}>{info.label}</Badge>;
   };
 
   return (
@@ -294,11 +312,12 @@ export default function Perdas() {
             Nenhuma perda registrada.
           </div>
         ) : (
-          filtered.map((m: any) => {
+          filtered.map((m) => {
             const product = products.find((p) => p.id === m.product_id);
-            const unitValue = product?.cost_price || product?.price || 0;
-            const totalLoss = (m.quantity || 0) * unitValue;
-            const reasonText = (m.reason || "").replace(/^Perda:\s*\w+\s*-?\s*/i, "").trim();
+            const unitValue = product?.cost_price ?? product?.price ?? 0;
+            const qty = m.quantity ?? 0;
+            const totalLoss = qty * unitValue;
+            const reasonText = (m.reason ?? "").replace(/^Perda:\s*\w+\s*-?\s*/i, "").trim();
             return (
               <div key={m.id} className="bg-card rounded-xl border border-border p-4 space-y-2">
                 <div className="flex items-center justify-between">
@@ -311,7 +330,7 @@ export default function Perdas() {
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground text-xs">{new Date(m.created_at).toLocaleDateString("pt-BR")}</span>
                   <div className="flex items-center gap-3">
-                    <span className="font-mono font-semibold text-destructive">-{m.quantity}</span>
+                    <span className="font-mono font-semibold text-destructive">-{qty}</span>
                     <span className="font-mono text-destructive">{formatCurrency(totalLoss)}</span>
                   </div>
                 </div>
@@ -351,11 +370,12 @@ export default function Perdas() {
                   </td>
                 </tr>
               ) : (
-                filtered.map((m: any) => {
+                filtered.map((m) => {
                   const product = products.find((p) => p.id === m.product_id);
-                  const unitValue = product?.cost_price || product?.price || 0;
-                  const totalLoss = (m.quantity || 0) * unitValue;
-                  const reasonText = (m.reason || "").replace(/^Perda:\s*\w+\s*-?\s*/i, "").trim();
+                  const unitValue = product?.cost_price ?? product?.price ?? 0;
+                  const qty = m.quantity ?? 0;
+                  const totalLoss = qty * unitValue;
+                  const reasonText = (m.reason ?? "").replace(/^Perda:\s*\w+\s*-?\s*/i, "").trim();
                   return (
                     <tr key={m.id} className="border-b border-border last:border-0 hover:bg-muted/50">
                       <td className="px-5 py-3 text-muted-foreground text-xs">
@@ -371,7 +391,7 @@ export default function Perdas() {
                         {getCategoryBadge(m.reason)}
                       </td>
                       <td className="px-5 py-3 text-right font-mono font-semibold text-destructive">
-                        -{m.quantity}
+                        -{qty}
                       </td>
                       <td className="px-5 py-3 text-right font-mono text-destructive">
                         {formatCurrency(totalLoss)}

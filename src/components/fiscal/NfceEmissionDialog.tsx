@@ -17,6 +17,7 @@ import { useProducts } from "@/hooks/useProducts";
 import { QRCodeSVG } from "qrcode.react";
 import { getFunctionErrorMessage } from "@/lib/get-function-error-message";
 import { type CRT, isValidCrt } from "@/lib/fiscal-config-lookup";
+import { escapeHtml } from "@/lib/sanitize";
 
 interface NfceEmissionDialogProps {
   sale: {
@@ -82,6 +83,12 @@ const mapPaymentToFiscal = (method: string): string => {
   };
   return map[method] || "99";
 };
+
+const MONEY_TOLERANCE = 0.01;
+
+function isMoneyConsistent(a: number, b: number): boolean {
+  return Math.abs(a - b) <= MONEY_TOLERANCE;
+}
 
 export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: NfceEmissionDialogProps) {
   const { companyId } = useCompany();
@@ -214,7 +221,7 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
       infAdic: "",
       items: nfceItems,
       paymentMethod: mapPaymentToFiscal(sale.payment_method || ""),
-      paymentValue: sale.total_value || 0,
+      paymentValue: sale.total_value ?? sale.total ?? Math.round(nfceItems.reduce((sum, it) => sum + it.total, 0) * 100) / 100,
       change: 0,
     });
   }, [open, sale]);
@@ -282,6 +289,16 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
     const emptyCst = form.items.some((it) => !it.cst.trim());
     if (emptyCst) {
       toast.error("Preencha o CST/CSOSN de todos os itens.");
+      return;
+    }
+    if (form.paymentValue <= 0) {
+      toast.error("Valor de pagamento deve ser maior que zero.");
+      setActiveTab("payment");
+      return;
+    }
+    if (!isMoneyConsistent(form.paymentValue - form.change, totalItems)) {
+      toast.error("Valor de pagamento inconsistente com o total dos itens.");
+      setActiveTab("payment");
       return;
     }
 
@@ -594,7 +611,7 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
                       />
                       {productFiltered.length > 0 && (
                         <div className="mt-2 border border-border rounded-lg overflow-hidden bg-popover max-h-48 overflow-y-auto">
-                          {productFiltered.map((p: any) => (
+                          {productFiltered.map((p) => (
                             <button
                               key={p.id}
                               onClick={() => addProductFromCatalog(p)}
@@ -1008,6 +1025,18 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
                   if (!cupom) return;
                   const win = window.open("", "_blank", "width=320,height=600");
                   if (!win) return;
+                  const safeSaleId = sale?.id ? escapeHtml(sale.id.substring(0, 8).toUpperCase()) : "";
+                  const safeItemsHtml = form.items.map((item, i) => `
+                        <div class="item-row">
+                          <span class="name">${escapeHtml(`${i + 1}. ${item.name}`)}</span>
+                          <span class="value">R$ ${item.total.toFixed(2)}</span>
+                        </div>
+                      `).join("");
+                  const safePaymentLabel = escapeHtml(
+                    PAYMENT_OPTIONS.find((p) => p.value === form.paymentMethod)?.label || form.paymentMethod
+                  );
+                  const safeCustomerName = escapeHtml(form.customerName);
+                  const safeCustomerDoc = escapeHtml(form.customerDoc);
                   win.document.write(`
                     <html><head><title>Cupom NFC-e</title>
                     <style>
@@ -1036,16 +1065,11 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
                     <div class="cupom-header">
                       <div class="title">CUPOM FISCAL ELETRÔNICO</div>
                       <div class="subtitle">NFC-e - Documento Auxiliar</div>
-                      ${sale?.id ? `<div class="venda">Venda: ${sale.id.substring(0, 8).toUpperCase()}</div>` : ""}
+                      ${safeSaleId ? `<div class="venda">Venda: ${safeSaleId}</div>` : ""}
                     </div>
                     <div class="cupom-section">
                       <div class="label">ITENS</div>
-                      ${form.items.map((item, i) => `
-                        <div class="item-row">
-                          <span class="name">${i + 1}. ${item.name}</span>
-                          <span class="value">R$ ${item.total.toFixed(2)}</span>
-                        </div>
-                      `).join("")}
+                      ${safeItemsHtml}
                       <div class="item-meta">
                         <span>${form.items.length} item(ns)</span>
                         <span>Qtd: ${form.items.reduce((s, it) => s + it.qty, 0)}</span>
@@ -1053,13 +1077,13 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
                     </div>
                     <div class="cupom-section">
                       <div class="total-row"><span>TOTAL</span><span>R$ ${form.paymentValue.toFixed(2)}</span></div>
-                      <div class="pay-row"><span>Pagamento</span><span>${PAYMENT_OPTIONS.find(p => p.value === form.paymentMethod)?.label || form.paymentMethod}</span></div>
+                      <div class="pay-row"><span>Pagamento</span><span>${safePaymentLabel}</span></div>
                       ${form.change > 0 ? `<div class="pay-row"><span>Troco</span><span>R$ ${form.change.toFixed(2)}</span></div>` : ""}
                     </div>
-                    ${form.customerName ? `
+                    ${safeCustomerName ? `
                       <div class="cupom-section">
-                        <div><strong>Cliente:</strong> ${form.customerName}</div>
-                        ${form.customerDoc ? `<div><strong>CPF/CNPJ:</strong> ${form.customerDoc}</div>` : ""}
+                        <div><strong>Cliente:</strong> ${safeCustomerName}</div>
+                        ${safeCustomerDoc ? `<div><strong>CPF/CNPJ:</strong> ${safeCustomerDoc}</div>` : ""}
                       </div>
                     ` : ""}
                     <div class="qr-section">

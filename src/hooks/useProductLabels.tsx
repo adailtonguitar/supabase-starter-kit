@@ -17,6 +17,12 @@ export function useProductLabels(tab: "pendente" | "impressa" | "todas") {
     queryKey: ["product-labels", companyId, tab],
     queryFn: async () => {
       if (!companyId) return [];
+      type ProductLabelRow = {
+        id: string;
+        product_id: string;
+        status: "pendente" | "impressa";
+        products?: { name: string; sku: string; barcode?: string; price: number } | null;
+      };
       let query = supabase
         .from("product_labels")
         .select("id, product_id, status, products(name, sku, barcode, price)")
@@ -24,7 +30,7 @@ export function useProductLabels(tab: "pendente" | "impressa" | "todas") {
         .order("created_at", { ascending: false });
       if (tab !== "todas") query = query.eq("status", tab);
       const { data } = await query.limit(200);
-      return (data || []).map((d: any) => ({ ...d, product: d.products })) as ProductLabel[];
+      return (data || []).map((d: ProductLabelRow) => ({ ...d, product: d.products ?? undefined })) as ProductLabel[];
     },
     enabled: !!companyId,
   });

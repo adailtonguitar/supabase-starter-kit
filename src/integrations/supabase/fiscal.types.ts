@@ -2,6 +2,7 @@
  * Shared fiscal types used across PDV, emission dialogs, and fiscal pages.
  * Eliminates `any` casts in fiscal workflows.
  */
+import type { PaymentMethod } from "./tables";
 
 // ── Fiscal Config (from fiscal_configs table) ──
 export interface FiscalConfigRecord {
@@ -84,16 +85,16 @@ export interface CashSessionRecord {
   counted_pix: number | null;
   difference: number | null;
   notes: string | null;
-  sales_count: number;
-  total_vendas: number;
-  total_dinheiro: number;
-  total_debito: number;
-  total_credito: number;
-  total_pix: number;
-  total_voucher: number;
-  total_outros: number;
-  total_sangria: number;
-  total_suprimento: number;
+  sales_count: number | null;
+  total_vendas: number | null;
+  total_dinheiro: number | null;
+  total_debito: number | null;
+  total_credito: number | null;
+  total_pix: number | null;
+  total_voucher: number | null;
+  total_outros: number | null;
+  total_sangria: number | null;
+  total_suprimento: number | null;
   created_at: string;
 }
 
@@ -104,7 +105,7 @@ export interface CashMovementRecord {
   amount: number;
   type: string;
   description: string | null;
-  payment_method: string | null;
+  payment_method: PaymentMethod | null;
 }
 
 // ── Promotion record (used in PDV promo engine) ──

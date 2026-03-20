@@ -35,6 +35,9 @@ export function useFiscalDashboard() {
     queryFn: async (): Promise<FiscalMetrics> => {
       if (!companyId) return { emittedToday: 0, pending: 0, processing: 0, errors: 0, criticalErrors: false };
 
+      type EmittedDocRow = { id: string; sale_id: string | null; access_key: string | null };
+      type QueueStatusRow = { sale_id: string | null; status: string; attempts: number | null };
+
       const [emittedDocsRes, queueEntriesRes] = await Promise.all([
         supabase
           .from("fiscal_documents")
@@ -52,13 +55,13 @@ export function useFiscalDashboard() {
       ]);
 
       const emittedToday = new Set(
-        (emittedDocsRes.data || []).map((row: any) => row.sale_id || row.access_key || row.id)
+        (emittedDocsRes.data || []).map((row: EmittedDocRow) => row.sale_id || row.access_key || row.id)
       ).size;
 
       const latestQueueBySale = new Map<string, { status: string; attempts: number }>();
-      (queueEntriesRes.data || []).forEach((row: any) => {
+      (queueEntriesRes.data || []).forEach((row: QueueStatusRow) => {
         if (row.sale_id && !latestQueueBySale.has(row.sale_id)) {
-          latestQueueBySale.set(row.sale_id, row);
+          latestQueueBySale.set(row.sale_id, { status: row.status, attempts: Number(row.attempts ?? 0) });
         }
       });
 
@@ -92,6 +95,7 @@ export function useFiscalDashboard() {
     queryKey: ["fiscal-queue-map", companyId],
     queryFn: async (): Promise<Map<string, FiscalQueueEntry>> => {
       if (!companyId) return new Map();
+      type QueueEntryRow = FiscalQueueEntry;
       const { data } = await supabase
         .from("fiscal_queue")
         .select("sale_id, status, last_error, attempts, created_at")
@@ -100,7 +104,7 @@ export function useFiscalDashboard() {
         .order("created_at", { ascending: false });
 
       const map = new Map<string, FiscalQueueEntry>();
-      (data || []).forEach((row: any) => {
+      (data || []).forEach((row: QueueEntryRow) => {
         if (row.sale_id && !map.has(row.sale_id)) {
           map.set(row.sale_id, row);
         }
@@ -135,8 +139,9 @@ export function useFiscalDashboard() {
       queryClient.invalidateQueries({ queryKey: ["fiscal-metrics"] });
       queryClient.invalidateQueries({ queryKey: ["fiscal-queue-map"] });
       queryClient.invalidateQueries({ queryKey: ["sales"] });
-    } catch (e: any) {
-      toast.error(e.message || "Erro ao processar fila fiscal");
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      toast.error(msg || "Erro ao processar fila fiscal");
     } finally {
       setIsProcessing(false);
     }

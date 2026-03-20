@@ -10,7 +10,7 @@ export interface ProductCategory {
   company_id: string;
   name: string;
   description?: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 export function useProductCategories() {
@@ -19,7 +19,7 @@ export function useProductCategories() {
     queryKey: ["product_categories", companyId],
     queryFn: async () => {
       if (!companyId) return [];
-      const { data, error } = await supabase.from("product_categories" as any).select("*").eq("company_id", companyId).order("name");
+      const { data, error } = await supabase.from("product_categories").select("*").eq("company_id", companyId).order("name");
       if (error) throw error;
       return data as ProductCategory[];
     },
@@ -32,9 +32,9 @@ export function useCreateProductCategory() {
   const { companyId } = useCompany();
   const { user } = useAuth();
   return useMutation({
-    mutationFn: async (c: any) => {
+    mutationFn: async (c: Omit<ProductCategory, "id" | "company_id">) => {
       if (!companyId) throw new Error("Empresa não encontrada");
-      const { data, error } = await supabase.from("product_categories" as any).insert({ ...c, company_id: companyId }).select().single();
+      const { data, error } = await supabase.from("product_categories").insert({ ...c, company_id: companyId }).select().single();
       if (error) throw error;
       logAction({ companyId, userId: user?.id, action: "Categoria criada", module: "produtos", details: c.name });
       return data;
@@ -49,9 +49,9 @@ export function useUpdateProductCategory() {
   const { companyId } = useCompany();
   const { user } = useAuth();
   return useMutation({
-    mutationFn: async ({ id, ...updates }: any) => {
+    mutationFn: async ({ id, ...updates }: Partial<ProductCategory> & { id: string }) => {
       if (!companyId) throw new Error("Empresa não encontrada");
-      const { data, error } = await supabase.from("product_categories" as any).update(updates).eq("id", id).eq("company_id", companyId).select().single();
+      const { data, error } = await supabase.from("product_categories").update(updates).eq("id", id).eq("company_id", companyId).select().single();
       if (error) throw error;
       logAction({ companyId, userId: user?.id, action: "Categoria editada", module: "produtos", details: updates.name || id });
       return data;
@@ -68,7 +68,7 @@ export function useDeleteProductCategory() {
   return useMutation({
     mutationFn: async (id: string) => {
       if (!companyId) throw new Error("Empresa não encontrada");
-      const { error } = await supabase.from("product_categories" as any).delete().eq("id", id).eq("company_id", companyId);
+      const { error } = await supabase.from("product_categories").delete().eq("id", id).eq("company_id", companyId);
       if (error) throw error;
       logAction({ companyId, userId: user?.id, action: "Categoria excluída", module: "produtos", details: id });
     },

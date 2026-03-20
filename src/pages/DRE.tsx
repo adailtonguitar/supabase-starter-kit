@@ -6,7 +6,7 @@ import {
   ChevronLeft, ChevronRight, TrendingUp, TrendingDown, Minus,
   Download, Printer,
 } from "lucide-react";
-import { useFinancialEntries } from "@/hooks/useFinancialEntries";
+import { useFinancialEntries, type FinancialEntry } from "@/hooks/useFinancialEntries";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
@@ -61,7 +61,8 @@ export default function DRE() {
         throw error;
       }
       console.log("[DRE] Sales found:", data?.length, data);
-      return (data || []).map((s: any) => ({ total_value: s.total }));
+      type SaleRow = { total: number | null };
+      return ((data || []) as SaleRow[]).map((s) => ({ total_value: s.total }));
     },
     enabled: !!companyId,
   });
@@ -69,14 +70,18 @@ export default function DRE() {
   const isLoading = loadingEntries || loadingSales;
 
   const dreLines = useMemo((): DRELine[] => {
-    const paidEntries = entries.filter((e: any) => e.status === "pago");
+    const paidEntries = entries.filter((e) => e.status === "pago");
     
     const sumByCategories = (type: "receber" | "pagar", categories: string[]) =>
       paidEntries
-        .filter((e: any) => e.type === type && categories.includes(e.category))
-        .reduce((s: number, e: any) => s + Number(e.paid_amount || e.amount), 0);
+        .filter((e) => e.type === type && e.category && categories.includes(e.category))
+        .reduce((s: number, e) => s + Number(e.paid_amount ?? e.amount), 0);
 
-    const receitaVendas = salesDocs.reduce((s: number, d: any) => s + Number(d.total_value || 0), 0);
+    type SaleDocRow = { total_value: number | null };
+    const receitaVendas = (salesDocs as SaleDocRow[]).reduce(
+      (s: number, d) => s + Number(d.total_value ?? 0),
+      0,
+    );
     const receitaServicos = sumByCategories("receber", ["servico"]);
     const outrasReceitas = sumByCategories("receber", ["comissao", "reembolso"]);
     const receitaBruta = receitaVendas + receitaServicos + outrasReceitas;

@@ -5,8 +5,21 @@ import { useAuth } from "./useAuth";
 import { toast } from "sonner";
 import { logAction, buildDiff } from "@/services/ActionLogger";
 
-export type Employee = any;
-export type EmployeeInsert = any;
+export interface Employee {
+  id: string;
+  company_id: string;
+  name: string;
+  role?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  salary?: number | null;
+  is_active?: boolean | null;
+  created_at?: string;
+  updated_at?: string;
+  [key: string]: unknown;
+}
+
+export type EmployeeInsert = Omit<Employee, "id" | "company_id" | "created_at" | "updated_at">;
 
 export function useEmployees() {
   const { companyId } = useCompany();
@@ -36,7 +49,7 @@ export function useCreateEmployee() {
     onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: ["employees"] });
       toast.success("Funcionário criado");
-      if (companyId) logAction({ companyId, userId: user?.id, action: "Funcionário criado", module: "funcionarios", details: (variables as any).name || null });
+      if (companyId) logAction({ companyId, userId: user?.id, action: "Funcionário criado", module: "funcionarios", details: variables.name || null });
     },
     onError: (e: Error) => toast.error(`Erro: ${e.message}`),
   });
@@ -59,7 +72,7 @@ export function useUpdateEmployee() {
       qc.invalidateQueries({ queryKey: ["employees"] });
       toast.success("Funcionário atualizado");
       const diff = result?.oldData ? buildDiff(result.oldData, { ...result.oldData, ...variables }, Object.keys(variables).filter(k => k !== "id")) : undefined;
-      if (companyId) logAction({ companyId, userId: user?.id, action: "Funcionário atualizado", module: "funcionarios", details: (variables as any).name || (variables as any).id, diff });
+      if (companyId) logAction({ companyId, userId: user?.id, action: "Funcionário atualizado", module: "funcionarios", details: variables.name || variables.id, diff });
     },
     onError: (e: Error) => toast.error(`Erro: ${e.message}`),
   });

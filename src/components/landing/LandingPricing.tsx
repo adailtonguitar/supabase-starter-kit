@@ -7,10 +7,13 @@ import { PLANS, useSubscription } from "@/hooks/useSubscription";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 
+const formatMonthlyPrice = (value: number) =>
+  value.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
 const plans = [
   {
     name: "Starter",
-    price: "149,90",
+    price: formatMonthlyPrice(PLANS.starter.price),
     desc: "Para pequenos comércios e mercearias",
     icon: Zap,
     features: [
@@ -26,7 +29,7 @@ const plans = [
   },
   {
     name: "Business",
-    price: "199,90",
+    price: formatMonthlyPrice(PLANS.business.price),
     desc: "Para negócios em crescimento",
     icon: Star,
     features: [
@@ -43,7 +46,7 @@ const plans = [
   },
   {
     name: "Pro",
-    price: "449,90",
+    price: formatMonthlyPrice(PLANS.pro.price),
     desc: "Para redes e operações avançadas",
     icon: Star,
     features: [

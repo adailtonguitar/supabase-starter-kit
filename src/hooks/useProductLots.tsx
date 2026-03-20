@@ -30,7 +30,7 @@ export function useProductLots(productId?: string) {
     queryFn: async () => {
       if (!companyId) return [];
       let query = supabase
-        .from("product_lots" as any)
+        .from("product_lots")
         .select("*, products(name, sku)")
         .eq("company_id", companyId)
         .order("expiry_date", { ascending: true });
@@ -53,7 +53,7 @@ export function useExpiringLots(daysAhead = 30) {
     queryFn: async () => {
       if (!companyId) return [];
       const { data, error } = await supabase
-        .from("product_lots" as any)
+        .from("product_lots")
         .select("*, products(name, sku)")
         .eq("company_id", companyId)
         .eq("is_active", true)
@@ -86,7 +86,7 @@ export function useCreateProductLot() {
     }) => {
       if (!companyId) throw new Error("Sem empresa");
       const { data, error } = await supabase
-        .from("product_lots" as any)
+        .from("product_lots")
         .insert({ ...lot, company_id: companyId })
         .select()
         .single();
@@ -111,7 +111,7 @@ export function useDeleteProductLot() {
   return useMutation({
     mutationFn: async (id: string) => {
       if (!companyId) throw new Error("Empresa não encontrada");
-      const { error } = await supabase.from("product_lots" as any).delete().eq("id", id).eq("company_id", companyId);
+      const { error } = await supabase.from("product_lots").delete().eq("id", id).eq("company_id", companyId);
       if (error) throw error;
       logAction({ companyId, userId: user?.id, action: "Lote excluído", module: "estoque", details: id });
     },

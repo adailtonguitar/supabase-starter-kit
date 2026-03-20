@@ -34,6 +34,16 @@ interface SpedJobResult {
   error?: string;
 }
 
+interface FiscalXmlPayload {
+  xml?: string;
+  xml_content?: string;
+  error?: string;
+}
+
+interface SaveXmlResultData {
+  fileName?: string;
+}
+
 type DocType = "nfce" | "nfe" | "sat";
 type DocStatus = "pendente" | "autorizada" | "cancelada" | "rejeitada" | "contingencia" | "inutilizada";
 
@@ -201,6 +211,14 @@ export default function Fiscal() {
   const [spedJobId, setSpedJobId] = useState<string | null>(null);
   const [spedProgress, setSpedProgress] = useState(0);
   const [showSpedPanel, setShowSpedPanel] = useState(false);
+
+  const extractXmlFromResult = (result: unknown): { xml: string | null; error: string | null } => {
+    const wrapped = result as { error?: string; data?: unknown } | null;
+    const payload = (wrapped?.data ?? result) as FiscalXmlPayload | null;
+    const xml = payload?.xml ?? payload?.xml_content ?? null;
+    const err = wrapped?.error ?? payload?.error ?? null;
+    return { xml, error: err };
+  };
 
   useEffect(() => {
     if (!spedJobId) return;
@@ -709,7 +727,7 @@ export default function Fiscal() {
                 <button
                   onClick={async () => {
                     const result = await FiscalEmissionService.downloadXml(selectedDoc.access_key!, selectedDoc.doc_type as "nfce" | "nfe");
-                    const xml = (result as any)?.xml || (result as any)?.xml_content;
+                    const { xml, error } = extractXmlFromResult(result);
                     if (xml) {
                       const blob = new Blob([xml], { type: "application/xml" });
                       const url = URL.createObjectURL(blob);
@@ -720,7 +738,7 @@ export default function Fiscal() {
                       URL.revokeObjectURL(url);
                       toast.success("XML baixado no seu PC!");
                     } else {
-                      toast.error((result as any)?.error || "Não foi possível obter o XML.");
+                      toast.error(error || "Não foi possível obter o XML.");
                     }
                   }}
                   className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-accent text-accent-foreground text-sm font-medium hover:opacity-90 transition-all"
@@ -732,8 +750,8 @@ export default function Fiscal() {
                   onClick={async () => {
                     if (!companyId) return;
                     const result = await FiscalEmissionService.downloadXml(selectedDoc.access_key!, selectedDoc.doc_type as "nfce" | "nfe");
-                    const xml = (result as any)?.xml || (result as any)?.xml_content;
-                    if (!xml) { toast.error((result as any)?.error || "Não foi possível obter o XML."); return; }
+                    const { xml, error } = extractXmlFromResult(result);
+                    if (!xml) { toast.error(error || "Não foi possível obter o XML."); return; }
                     const saveResult = await FiscalEmissionService.saveXmlToCloud({
                       companyId,
                       accessKey: selectedDoc.access_key!,
@@ -742,7 +760,8 @@ export default function Fiscal() {
                       xmlContent: xml,
                     });
                     if (saveResult.success) {
-                      toast.success(`XML salvo na nuvem: ${(saveResult as any).fileName}`);
+                      const saveData = saveResult.data as SaveXmlResultData | undefined;
+                      toast.success(`XML salvo na nuvem: ${saveData?.fileName || "arquivo.xml"}`);
                     } else {
                       toast.error(saveResult.error || "Erro ao salvar na nuvem");
                     }

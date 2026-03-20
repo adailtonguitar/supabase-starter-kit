@@ -29,12 +29,12 @@ export function useIcmsStRules() {
     queryFn: async () => {
       if (!companyId) return [];
       const { data, error } = await supabase
-        .from("icms_st_rules" as any)
+        .from("icms_st_rules")
         .select("*")
         .eq("company_id", companyId)
         .order("uf_destination");
       if (error) throw error;
-      return (data as any[]) as IcmsStRule[];
+      return (data ?? []) as IcmsStRule[];
     },
     enabled: !!companyId,
   });
@@ -47,17 +47,21 @@ export function useCreateIcmsStRule() {
     mutationFn: async (rule: Omit<IcmsStRule, "id" | "company_id" | "created_at" | "updated_at">) => {
       if (!companyId) throw new Error("Empresa não encontrada");
       const { data, error } = await supabase
-        .from("icms_st_rules" as any)
-        .insert({ ...rule, company_id: companyId } as any)
+        .from("icms_st_rules")
+        .insert({ ...rule, company_id: companyId })
         .select()
         .single();
       if (error) throw error;
+
+      const created = data as IcmsStRule | null;
+      if (!created?.id) throw new Error("Falha ao criar regra ICMS-ST (id ausente)");
+
       logFiscalAudit({
         companyId,
         action: "icms_st_rule_CRIADA",
-        details: { entity_type: "icms_st_rule", entity_id: (data as any).id, entity_name: `${rule.uf_origin}→${rule.uf_destination}`, before: null, after: data as any },
+        details: { entity_type: "icms_st_rule", entity_id: created.id, entity_name: `${rule.uf_origin}→${rule.uf_destination}`, before: null, after: created },
       });
-      return data;
+      return created;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["icms_st_rules"] }); toast.success("Regra ICMS-ST criada"); },
     onError: (e: Error) => toast.error(`Erro: ${e.message}`),
@@ -69,17 +73,21 @@ export function useUpdateIcmsStRule() {
   const { companyId } = useCompany();
   return useMutation({
     mutationFn: async ({ id, ...updates }: Partial<IcmsStRule> & { id: string }) => {
-      const { data: before } = await supabase.from("icms_st_rules" as any).select("*").eq("id", id).single();
-      const { data, error } = await supabase.from("icms_st_rules" as any).update(updates as any).eq("id", id).select().single();
+      const { data: before } = await supabase.from("icms_st_rules").select("*").eq("id", id).single();
+      const { data, error } = await supabase.from("icms_st_rules").update(updates).eq("id", id).select().single();
       if (error) throw error;
       if (companyId) {
+        const beforeRow = before as IcmsStRule | null;
+        const afterRow = data as IcmsStRule | null;
+        if (!afterRow) throw new Error("Falha ao atualizar regra ICMS-ST");
+
         logFiscalAudit({
           companyId,
           action: "icms_st_rule_ALTERADA",
-          details: { entity_type: "icms_st_rule", entity_id: id, entity_name: `${(data as any).uf_origin}→${(data as any).uf_destination}`, before: before as any, after: data as any },
+          details: { entity_type: "icms_st_rule", entity_id: id, entity_name: `${afterRow.uf_origin}→${afterRow.uf_destination}`, before: beforeRow, after: afterRow },
         });
       }
-      return data;
+      return data as IcmsStRule;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["icms_st_rules"] }); toast.success("Regra ICMS-ST atualizada"); },
     onError: (e: Error) => toast.error(`Erro: ${e.message}`),
@@ -91,14 +99,15 @@ export function useDeleteIcmsStRule() {
   const { companyId } = useCompany();
   return useMutation({
     mutationFn: async (id: string) => {
-      const { data: before } = await supabase.from("icms_st_rules" as any).select("*").eq("id", id).single();
-      const { error } = await supabase.from("icms_st_rules" as any).delete().eq("id", id);
+      const { data: before } = await supabase.from("icms_st_rules").select("*").eq("id", id).single();
+      const { error } = await supabase.from("icms_st_rules").delete().eq("id", id);
       if (error) throw error;
       if (companyId) {
+        const beforeRow = before as IcmsStRule | null;
         logFiscalAudit({
           companyId,
           action: "icms_st_rule_EXCLUIDA",
-          details: { entity_type: "icms_st_rule", entity_id: id, entity_name: `${(before as any)?.uf_origin}→${(before as any)?.uf_destination}`, before: before as any, after: null },
+          details: { entity_type: "icms_st_rule", entity_id: id, entity_name: `${beforeRow?.uf_origin ?? ""}→${beforeRow?.uf_destination ?? ""}`, before: beforeRow, after: null },
         });
       }
     },

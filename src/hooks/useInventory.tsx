@@ -88,6 +88,9 @@ export function useCreateInventory() {
         .select()
         .single();
       if (error) throw error;
+      type InventoryRow = { id: string };
+      const inventoryId = (inventory as InventoryRow | null)?.id;
+      if (!inventoryId) throw new Error("Falha ao criar inventário (id ausente)");
 
       const { data: products, error: pErr } = await supabase
         .from("products")
@@ -97,11 +100,12 @@ export function useCreateInventory() {
       if (pErr) throw pErr;
 
       if (products && products.length > 0) {
-        const items = products.map((p: any) => ({
-          inventory_id: (inventory as any).id,
+        type ProductRow = { id: string; stock_quantity: number | null };
+        const items = (products as ProductRow[]).map((p) => ({
+          inventory_id: inventoryId,
           company_id: companyId,
           product_id: p.id,
-          system_quantity: Number(p.stock_quantity),
+          system_quantity: Number(p.stock_quantity ?? 0),
         }));
         const { error: iErr } = await supabase.from("inventory_count_items").insert(items);
         if (iErr) throw iErr;
@@ -151,6 +155,12 @@ export function useFinishInventory() {
     mutationFn: async (inventoryId: string) => {
       if (!companyId) throw new Error("Empresa não encontrada");
 
+      type InventoryCountItemRow = {
+        product_id: string;
+        system_quantity: number | string;
+        counted_quantity: number | string;
+      };
+
       // 1) Buscar itens contados para aplicar ajustes
       const { data: items, error: itemsErr } = await supabase
         .from("inventory_count_items")
@@ -162,7 +172,7 @@ export function useFinishInventory() {
 
       // 2) Aplicar ajustes de estoque para cada produto contado
       if (items && items.length > 0) {
-        for (const item of items as any[]) {
+        for (const item of items as InventoryCountItemRow[]) {
           const counted = Number(item.counted_quantity);
           const system = Number(item.system_quantity);
           if (counted !== system) {
@@ -174,7 +184,7 @@ export function useFinishInventory() {
 
             // Registrar movimentação de ajuste
             await supabase
-              .from("stock_movements" as any)
+              .from("stock_movements")
               .insert({
                 company_id: companyId,
                 product_id: item.product_id,

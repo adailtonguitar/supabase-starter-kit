@@ -47,6 +47,8 @@ const FINALIDADE_OPTIONS = [
   { value: "4", label: "Devolução" },
 ];
 
+const MONEY_TOLERANCE = 0.01;
+
 interface NFeItem {
   name: string;
   productCode: string;
@@ -619,6 +621,14 @@ export default function NFeEmissao() {
       setActiveTab("payment");
       return;
     }
+    const normalizedPaymentValue = form.paymentMethod === "90"
+      ? 0
+      : (form.paymentValue > 0 ? form.paymentValue : totalItems);
+    if (form.paymentMethod !== "90" && Math.abs(normalizedPaymentValue - totalItems) > MONEY_TOLERANCE) {
+      toast.error(`Pagamento inconsistente com total da nota. Total itens: ${formatCurrency(totalItems)} | Pagamento: ${formatCurrency(normalizedPaymentValue)}`);
+      setActiveTab("payment");
+      return;
+    }
 
     // --- Natureza da Operação ---
     if (!form.natOp.trim()) {
@@ -687,7 +697,7 @@ export default function NFeEmissao() {
               dest_uf: form.destUF,
               dest_zip: form.destZip,
               payment_method: form.paymentMethod,
-              payment_value: form.paymentValue || totalItems,
+              payment_value: normalizedPaymentValue,
               frete: form.frete,
               transport_name: form.transportName,
               transport_doc: form.transportDoc,

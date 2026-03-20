@@ -40,6 +40,22 @@ export function useProfitAnalytics(dateFrom?: Date, dateTo?: Date) {
     queryFn: async (): Promise<ProfitSummary> => {
       if (!companyId) throw new Error("No company");
 
+      type SaleRow = { id: string; total: number | null };
+      type ProductRow = {
+        id: string;
+        name: string;
+        sku: string;
+        price: number | null;
+        cost_price: number | null;
+      };
+      type SaleItemRow = {
+        product_id: string;
+        product_name: string | null;
+        quantity: number | null;
+        unit_price: number | null;
+        subtotal: number | null;
+      };
+
       // Fetch sales and products in parallel
       const [salesRes, productsRes] = await Promise.all([
         supabase
@@ -56,12 +72,14 @@ export function useProfitAnalytics(dateFrom?: Date, dateTo?: Date) {
           .eq("is_active", true),
       ]);
 
-      const sales = salesRes.data || [];
-      const productsMap = new Map((productsRes.data || []).map(p => [p.id, p]));
+      const sales = (salesRes.data || []) as SaleRow[];
+      const productsMap = new Map<string, ProductRow>(
+        (productsRes.data || []).map((p) => [p.id, p as ProductRow]),
+      );
 
       // Fetch sale_items for all sales (batched)
-      const saleIds = sales.map((s: any) => s.id);
-      let allItems: any[] = [];
+      const saleIds = sales.map((s) => s.id);
+      let allItems: SaleItemRow[] = [];
       const BATCH = 15;
       for (let i = 0; i < saleIds.length; i += BATCH) {
         const batch = saleIds.slice(i, i + BATCH);
@@ -69,7 +87,7 @@ export function useProfitAnalytics(dateFrom?: Date, dateTo?: Date) {
           .from("sale_items")
           .select("sale_id, product_id, product_name, quantity, unit_price, subtotal, discount_percent")
           .in("sale_id", batch);
-        if (itemsData) allItems.push(...itemsData);
+        if (itemsData) allItems.push(...(itemsData as SaleItemRow[]));
       }
 
       const productStats = new Map<string, {
@@ -90,19 +108,19 @@ export function useProfitAnalytics(dateFrom?: Date, dateTo?: Date) {
         for (const item of allItems) {
           const productId = item.product_id;
           const prod = productsMap.get(productId);
-          const qty = Number(item.quantity || 1);
+          const qty = Number(item.quantity ?? 1);
           // Use subtotal (already includes discounts/promos) when available,
           // otherwise fall back to unit_price * qty
           const revenue = item.subtotal != null
             ? Number(item.subtotal)
-            : Number(item.unit_price || 0) * qty;
+            : Number(item.unit_price ?? 0) * qty;
           const cost = (prod?.cost_price || 0) * qty;
 
           const existing = productStats.get(productId) || {
             revenue: 0, cost: 0, units: 0,
             name: item.product_name || prod?.name || "Produto",
             sku: prod?.sku || "",
-            price: Number(item.unit_price || prod?.price || 0),
+            price: Number(item.unit_price ?? prod?.price ?? 0),
             cost_price: prod?.cost_price || 0,
           };
 
@@ -115,7 +133,7 @@ export function useProfitAnalytics(dateFrom?: Date, dateTo?: Date) {
         }
       } else {
         // Fallback: use sale totals when no items available
-        totalRevenue = sales.reduce((s: number, sale: any) => s + Number(sale.total || 0), 0);
+        totalRevenue = sales.reduce((s: number, sale: SaleRow) => s + Number(sale.total ?? 0), 0);
       }
 
       const estimatedTaxes = Math.round(totalRevenue * 0.10 * 100) / 100;

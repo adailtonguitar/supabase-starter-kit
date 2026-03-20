@@ -43,9 +43,37 @@ export function useSales(limit = 50) {
       if (error) throw error;
       if (!salesData?.length) return [];
 
-      const saleIds = salesData.map((s: any) => s.id).filter(Boolean);
+      type SaleDbRow = {
+        id: string;
+        sale_number?: number | null;
+        number?: number | null;
+        payment_method?: string | null;
+        payments?: unknown;
+        total?: number | null;
+        total_value?: number | null;
+        status?: string | null;
+        created_at: string;
+        client_name?: string | null;
+        customer_name?: string | null;
+        counterpart?: string | null;
+        access_key?: string | null;
+        company_id: string;
+      };
+
+      const sales = salesData as SaleDbRow[];
+      const saleIds = sales.map((s) => s.id).filter(Boolean);
       const BATCH = 20;
-      let allItems: any[] = [];
+      type SaleItemDbRow = {
+        sale_id: string;
+        product_id: string;
+        product_name: string;
+        quantity: number | string;
+        unit_price: number | string;
+        subtotal: number | string;
+        discount_percent?: number | string | null;
+      };
+
+      let allItems: SaleItemDbRow[] = [];
 
       for (let i = 0; i < saleIds.length; i += BATCH) {
         const batch = saleIds.slice(i, i + BATCH);
@@ -55,11 +83,11 @@ export function useSales(limit = 50) {
           .in("sale_id", batch);
 
         if (itemsError) throw itemsError;
-        if (items) allItems.push(...items);
+        if (items) allItems.push(...(items as SaleItemDbRow[]));
       }
 
       const itemsBySale: Record<string, SaleItem[]> = {};
-      allItems.forEach((item: any) => {
+      allItems.forEach((item) => {
         if (!itemsBySale[item.sale_id]) itemsBySale[item.sale_id] = [];
         itemsBySale[item.sale_id].push({
           product_id: item.product_id,
@@ -67,20 +95,20 @@ export function useSales(limit = 50) {
           quantity: Number(item.quantity),
           unit_price: Number(item.unit_price),
           subtotal: Number(item.subtotal),
-          discount_percent: Number(item.discount_percent || 0),
+          discount_percent: Number(item.discount_percent ?? 0),
         });
       });
 
-      return salesData.map((row: any) => ({
+      return sales.map((row) => ({
         id: row.id,
-        number: row.sale_number ?? row.number,
+        number: row.sale_number ?? row.number ?? undefined,
         payment_method: row.payment_method || extractPaymentMethod(row.payments),
         total_value: Number(row.total ?? row.total_value ?? 0),
         status: row.status || "completed",
         created_at: row.created_at,
         items: itemsBySale[row.id] || [],
-        customer_name: row.client_name ?? row.customer_name ?? row.counterpart,
-        access_key: row.access_key,
+        customer_name: row.client_name ?? row.customer_name ?? row.counterpart ?? undefined,
+        access_key: row.access_key ?? undefined,
         company_id: row.company_id,
       })) as Sale[];
     },
@@ -88,10 +116,18 @@ export function useSales(limit = 50) {
   });
 }
 
-function extractPaymentMethod(payments: any): string {
+function extractPaymentMethod(payments: unknown): string {
   try {
-    const arr = Array.isArray(payments) ? payments : typeof payments === "string" ? JSON.parse(payments) : [];
-    if (arr.length > 0) return arr[0].method || "";
-  } catch {}
-  return "";
+    const arr: unknown[] =
+      Array.isArray(payments) ? payments
+      : typeof payments === "string"
+        ? JSON.parse(payments)
+        : [];
+
+    if (!Array.isArray(arr) || arr.length === 0) return "";
+    const first = arr[0] as Record<string, unknown>;
+    return typeof first?.method === "string" ? first.method : "";
+  } catch {
+    return "";
+  }
 }

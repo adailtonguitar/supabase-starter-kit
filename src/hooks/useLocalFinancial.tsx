@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "./useCompany";
+import type { PaymentMethod } from "@/integrations/supabase/tables";
 
 export interface LocalFinancialEntry {
   id: string;
@@ -12,7 +13,7 @@ export interface LocalFinancialEntry {
   paid_amount?: number;
   due_date: string;
   status: string;
-  payment_method?: string;
+  payment_method?: PaymentMethod | null;
   company_id: string;
 }
 
@@ -57,7 +58,7 @@ export function useMarkAsLocalPaid() {
   const qc = useQueryClient();
   const { companyId } = useCompany();
   return useMutation({
-    mutationFn: async (params: { id: string; paid_amount: number; payment_method: string }) => {
+    mutationFn: async (params: { id: string; paid_amount: number; payment_method: PaymentMethod }) => {
       if (!companyId) throw new Error("Empresa não identificada");
       const { error } = await supabase.from("financial_entries").update({
         status: "pago",

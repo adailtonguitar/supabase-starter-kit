@@ -30,6 +30,40 @@ export function useDFe() {
     queryFn: async () => {
       if (!companyId) return { documents: [], total: 0 };
 
+      const toErrorMessage = (err: unknown, fallback: string): string => {
+        if (err instanceof Error && err.message) return err.message;
+        if (typeof err === "string") return err;
+        return fallback;
+      };
+
+      type DFeRawDoc = {
+        id?: string;
+        chave?: string;
+        chNFe?: string;
+        tipo_documento?: string;
+        numero?: number;
+        serie?: number;
+        data_emissao?: string;
+        dh_emissao?: string;
+        valor_total?: number;
+        vNF?: number;
+        cnpj_emitente?: string;
+        nome_emitente?: string;
+        situacao?: string;
+        nsu?: number;
+        schema?: string;
+        tipo_nfe?: number;
+      };
+
+      type DFeListResponse = {
+        success?: boolean;
+        error?: string;
+        data?: {
+          data?: DFeRawDoc[];
+          "@count"?: number;
+        };
+      };
+
       try {
         const { data, error } = await supabase.functions.invoke("fetch-dfe", {
           body: { action: "list", company_id: companyId },
@@ -51,12 +85,14 @@ export function useDFe() {
           return { documents: [], total: 0 };
         }
 
-        if (!data?.success) {
-          toast.error(data?.error || "Erro ao buscar documentos");
+        const response = (data ?? {}) as DFeListResponse;
+
+        if (!response?.success) {
+          toast.error(response?.error || "Erro ao buscar documentos");
           return { documents: [], total: 0 };
         }
 
-        const docs = (data.data?.data || []).map((d: any) => ({
+        const docs = (response.data?.data || []).map((d) => ({
           id: d.id,
           chave: d.chave || d.chNFe || "",
           tipo_documento: d.tipo_documento || d.schema || "NF-e",
@@ -74,11 +110,11 @@ export function useDFe() {
 
         return {
           documents: docs as DFeDocument[],
-          total: data.data?.["@count"] || docs.length,
+          total: response.data?.["@count"] || docs.length,
         };
-      } catch (e: any) {
+      } catch (e: unknown) {
         console.error("[useDFe] queryFn error:", e);
-        toast.error(e?.message || "Erro inesperado ao buscar documentos");
+        toast.error(toErrorMessage(e, "Erro inesperado ao buscar documentos"));
         return { documents: [], total: 0 };
       }
     },
@@ -100,8 +136,9 @@ export function useDFe() {
       setTimeout(() => {
         queryClient.invalidateQueries({ queryKey: ["dfe-documents"] });
       }, 5000);
-    } catch (e: any) {
-      toast.error(e.message || "Erro ao solicitar distribuição");
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      toast.error(msg || "Erro ao solicitar distribuição");
     } finally {
       setIsDistributing(false);
     }
@@ -116,8 +153,9 @@ export function useDFe() {
       if (error) throw error;
       if (!data?.success) throw new Error(data?.error || "Erro ao baixar XML");
       return data.xml as string;
-    } catch (e: any) {
-      toast.error(e.message || "Erro ao baixar XML");
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      toast.error(msg || "Erro ao baixar XML");
       return null;
     }
   };

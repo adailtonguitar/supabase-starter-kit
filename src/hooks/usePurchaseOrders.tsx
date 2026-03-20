@@ -11,13 +11,15 @@ export function useReorderSuggestions() {
     queryKey: ["reorder-suggestions", companyId],
     queryFn: async () => {
       if (!companyId) return [];
+
+      type ProductRow = { stock_quantity: number | string | null; reorder_point: number | string | null };
       const { data } = await supabase
         .from("products")
         .select("*")
         .eq("company_id", companyId)
         .eq("is_active", true)
         .not("reorder_point", "is", null);
-      return (data || []).filter((p: any) => Number(p.stock_quantity) <= Number(p.reorder_point));
+      return (data || []).filter((p: ProductRow) => Number(p.stock_quantity ?? 0) <= Number(p.reorder_point ?? 0));
     },
     enabled: !!companyId,
   });
@@ -62,7 +64,10 @@ export function useCreatePurchaseOrder() {
       toast.success("Pedido de compra criado!");
       qc.invalidateQueries({ queryKey: ["purchase-orders"] });
     },
-    onError: (e: any) => toast.error(e.message),
+    onError: (e: unknown) => {
+      const msg = e instanceof Error ? e.message : String(e);
+      toast.error(msg);
+    },
   });
 }
 
@@ -71,7 +76,7 @@ export function useUpdatePurchaseOrderStatus() {
   const { companyId } = useCompany();
   const { user } = useAuth();
   return useMutation({
-    mutationFn: async (input: { id: string; status: string; [key: string]: any }) => {
+    mutationFn: async (input: { id: string; status: string; [key: string]: unknown }) => {
       if (!companyId) throw new Error("Empresa não encontrada");
       const { id, status, ...rest } = input;
       const { error } = await supabase.from("purchase_orders").update({ status, ...rest }).eq("id", id).eq("company_id", companyId);
@@ -82,6 +87,9 @@ export function useUpdatePurchaseOrderStatus() {
       toast.success("Status atualizado!");
       qc.invalidateQueries({ queryKey: ["purchase-orders"] });
     },
-    onError: (e: any) => toast.error(e.message),
+    onError: (e: unknown) => {
+      const msg = e instanceof Error ? e.message : String(e);
+      toast.error(msg);
+    },
   });
 }

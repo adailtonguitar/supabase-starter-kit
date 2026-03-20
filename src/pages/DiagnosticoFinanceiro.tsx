@@ -36,16 +36,18 @@ export default function DiagnosticoFinanceiro() {
     if (!user) return;
     setLoadingExistente(true);
     try {
+      type DiagnosticRow = { conteudo: string; created_at: string };
       const { data, error } = await supabase
-        .from("diagnosticos_financeiros" as any)
+        .from("diagnosticos_financeiros")
         .select("conteudo, created_at")
         .eq("user_id", user.id)
         .eq("mes_referencia", mesReferencia)
         .order("created_at", { ascending: false })
         .limit(1);
 
-      if (!error && data && (data as any[]).length > 0) {
-        const row = (data as any[])[0];
+      const rows = (data ?? []) as DiagnosticRow[];
+      if (!error && rows.length > 0) {
+        const row = rows[0];
         setDiagnostico(row.conteudo);
         setGeradoEm(row.created_at);
       } else {
@@ -135,7 +137,7 @@ export default function DiagnosticoFinanceiro() {
       } else {
         setErrorMsg(data?.error || "Resposta inesperada do servidor.");
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("[DiagnosticoFinanceiro] Erro:", err);
       setErrorMsg("Falha na conexão com o servidor.");
     } finally {

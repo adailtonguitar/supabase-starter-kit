@@ -6,10 +6,20 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { X } from "lucide-react";
 
+type FinancialEntryFormEntry = {
+  id: string;
+  type: "pagar" | "receber";
+  description: string;
+  category?: string;
+  amount: number;
+  due_date: string;
+  notes?: string | null;
+};
+
 interface FinancialEntryFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  entry?: any;
+  entry?: FinancialEntryFormEntry | null;
   defaultType?: "pagar" | "receber";
 }
 
@@ -87,7 +97,7 @@ export function FinancialEntryFormDialog({ open, onOpenChange, entry, defaultTyp
           category,
           amount,
           due_date: dueDate,
-          status: "pendente" as any,
+          status: "pendente",
           notes: notes.trim() || null,
         });
       }
@@ -121,7 +131,14 @@ export function FinancialEntryFormDialog({ open, onOpenChange, entry, defaultTyp
         <div className="space-y-3">
           <div>
             <label className="text-xs font-medium text-foreground mb-1 block">Tipo</label>
-            <Select value={type} onValueChange={(v) => { setType(v as any); setCategory("outros"); }}>
+            <Select
+              value={type}
+              onValueChange={(v) => {
+                const nextType = v === "pagar" || v === "receber" ? v : defaultType;
+                setType(nextType);
+                setCategory("outros");
+              }}
+            >
               <SelectTrigger className="h-12">
                 <SelectValue />
               </SelectTrigger>

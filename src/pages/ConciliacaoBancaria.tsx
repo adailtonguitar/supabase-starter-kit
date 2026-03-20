@@ -8,13 +8,35 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCompany } from "@/hooks/useCompany";
 import { useAuth } from "@/hooks/useAuth";
-import { useFinancialEntries } from "@/hooks/useFinancialEntries";
+import { useFinancialEntries, type FinancialEntry } from "@/hooks/useFinancialEntries";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format, subMonths } from "date-fns";
 import { toast } from "sonner";
 import { logAction } from "@/services/ActionLogger";
 import { Upload, CheckCircle2, XCircle, Link2, Unlink, Search, FileUp, ArrowRightLeft, DollarSign, AlertCircle } from "lucide-react";
+
+type BankTxType = "credit" | "debit";
+
+type BankTransaction = {
+  id: string;
+  company_id: string;
+  transaction_date: string;
+  description: string;
+  amount: number;
+  type: BankTxType;
+  reconciled: boolean;
+  financial_entry_id?: string | null;
+};
+
+type BankTransactionInsertRow = {
+  company_id: string;
+  transaction_date: string;
+  description: string;
+  amount: number;
+  type: BankTxType;
+  imported_by: string;
+};
 
 export default function ConciliacaoBancaria() {
   const { companyId } = useCompany();
@@ -23,7 +45,7 @@ export default function ConciliacaoBancaria() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importOpen, setImportOpen] = useState(false);
   const [matchOpen, setMatchOpen] = useState(false);
-  const [selectedTx, setSelectedTx] = useState<any>(null);
+  const [selectedTx, setSelectedTx] = useState<BankTransaction | null>(null);
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("all");
 
@@ -42,19 +64,28 @@ export default function ConciliacaoBancaria() {
   const { data: entries = [] } = useFinancialEntries({ startDate: threeMonthsAgo });
 
   const filtered = useMemo(() => {
-    let list = transactions;
-    if (filterStatus === "reconciled") list = list.filter((t: any) => t.reconciled);
-    if (filterStatus === "pending") list = list.filter((t: any) => !t.reconciled);
-    if (search) { const q = search.toLowerCase(); list = list.filter((t: any) => t.description.toLowerCase().includes(q) || String(t.amount).includes(q)); }
+    const txs = transactions as unknown as BankTransaction[];
+    let list = txs;
+    if (filterStatus === "reconciled") list = list.filter((t) => t.reconciled);
+    if (filterStatus === "pending") list = list.filter((t) => !t.reconciled);
+    if (search) {
+      const q = search.toLowerCase();
+      list = list.filter(
+        (t) =>
+          t.description.toLowerCase().includes(q) ||
+          String(t.amount).includes(q),
+      );
+    }
     return list;
   }, [transactions, filterStatus, search]);
 
   const stats = useMemo(() => {
     const total = transactions.length;
-    const reconciled = transactions.filter((t: any) => t.reconciled).length;
+    const reconciled = (transactions as unknown as BankTransaction[]).filter((t) => t.reconciled).length;
     const pending = total - reconciled;
-    const totalCredit = transactions.filter((t: any) => t.type === "credit").reduce((s: number, t: any) => s + Number(t.amount), 0);
-    const totalDebit = transactions.filter((t: any) => t.type === "debit").reduce((s: number, t: any) => s + Number(t.amount), 0);
+    const txs = transactions as unknown as BankTransaction[];
+    const totalCredit = txs.filter((t) => t.type === "credit").reduce((s, t) => s + Number(t.amount), 0);
+    const totalDebit = txs.filter((t) => t.type === "debit").reduce((s, t) => s + Number(t.amount), 0);
     return { total, reconciled, pending, totalCredit, totalDebit };
   }, [transactions]);
 
@@ -71,7 +102,7 @@ export default function ConciliacaoBancaria() {
       const descIdx = header.findIndex((h) => h.includes("descri") || h.includes("hist") || h.includes("description"));
       const amountIdx = header.findIndex((h) => h.includes("valor") || h.includes("amount") || h.includes("value"));
       if (dateIdx === -1 || descIdx === -1 || amountIdx === -1) { toast.error("Colunas obrigatórias não encontradas. Use: Data, Descrição, Valor"); return; }
-      const rows: any[] = [];
+      const rows: BankTransactionInsertRow[] = [];
       for (let i = 1; i < lines.length; i++) {
         const cols = lines[i].split(sep).map((c) => c.trim().replace(/"/g, ""));
         if (cols.length <= Math.max(dateIdx, descIdx, amountIdx)) continue;
@@ -88,7 +119,10 @@ export default function ConciliacaoBancaria() {
       toast.success(`${rows.length} transações importadas!`);
       qc.invalidateQueries({ queryKey: ["bank_transactions"] });
       setImportOpen(false);
-    } catch (err: any) { toast.error("Erro na importação: " + err.message); }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Erro desconhecido";
+      toast.error("Erro na importação: " + msg);
+    }
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
@@ -111,10 +145,15 @@ export default function ConciliacaoBancaria() {
   });
 
   const autoMatch = async () => {
-    const pending = transactions.filter((t: any) => !t.reconciled);
+    const txs = transactions as unknown as BankTransaction[];
+    const pending = txs.filter((t) => !t.reconciled);
     let matched = 0;
     for (const tx of pending) {
-      const candidates = entries.filter((e: any) => Math.abs(Number(e.amount) - Number(tx.amount)) < 0.01 && ((tx.type === "credit" && e.type === "receber") || (tx.type === "debit" && e.type === "pagar")));
+      const candidates = entries.filter(
+        (e) =>
+          Math.abs(Number(e.amount) - Number(tx.amount)) < 0.01 &&
+          ((tx.type === "credit" && e.type === "receber") || (tx.type === "debit" && e.type === "pagar")),
+      );
       if (candidates.length === 1) {
         const { error } = await supabase.from("bank_transactions").update({ reconciled: true, financial_entry_id: candidates[0].id }).eq("id", tx.id);
         if (!error) matched++;
@@ -127,8 +166,18 @@ export default function ConciliacaoBancaria() {
 
   const suggestions = useMemo(() => {
     if (!selectedTx) return [];
-    return entries.filter((e: any) => (selectedTx.type === "credit" && e.type === "receber") || (selectedTx.type === "debit" && e.type === "pagar"))
-      .sort((a: any, b: any) => Math.abs(Number(a.amount) - Number(selectedTx.amount)) - Math.abs(Number(b.amount) - Number(selectedTx.amount))).slice(0, 10);
+    return entries
+      .filter(
+        (e) =>
+          (selectedTx.type === "credit" && e.type === "receber") ||
+          (selectedTx.type === "debit" && e.type === "pagar"),
+      )
+      .sort(
+        (a, b) =>
+          Math.abs(Number(a.amount) - Number(selectedTx.amount)) -
+          Math.abs(Number(b.amount) - Number(selectedTx.amount)),
+      )
+      .slice(0, 10);
   }, [selectedTx, entries]);
 
   const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -162,7 +211,7 @@ export default function ConciliacaoBancaria() {
           <div className="overflow-x-auto"><Table><TableHeader><TableRow>
             <TableHead>Data</TableHead><TableHead>Descrição</TableHead><TableHead className="text-right">Valor</TableHead><TableHead>Tipo</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Ações</TableHead>
           </TableRow></TableHeader><TableBody>
-            {filtered.map((tx: any) => (
+            {filtered.map((tx) => (
               <TableRow key={tx.id}>
                 <TableCell className="whitespace-nowrap">{format(new Date(tx.transaction_date + "T12:00:00"), "dd/MM/yyyy")}</TableCell>
                 <TableCell className="max-w-[300px] truncate">{tx.description}</TableCell>
@@ -185,7 +234,7 @@ export default function ConciliacaoBancaria() {
             <p className="text-sm font-medium">Lançamentos sugeridos (ordenados por proximidade de valor):</p>
             {suggestions.length === 0 ? <p className="text-sm text-muted-foreground">Nenhum lançamento compatível encontrado.</p> : (
               <div className="max-h-[300px] overflow-y-auto"><Table><TableHeader><TableRow><TableHead>Descrição</TableHead><TableHead>Vencimento</TableHead><TableHead className="text-right">Valor</TableHead><TableHead></TableHead></TableRow></TableHeader><TableBody>
-                {suggestions.map((entry: any) => {
+                {suggestions.map((entry: FinancialEntry) => {
                   const diff = Math.abs(Number(entry.amount) - Number(selectedTx.amount));
                   return (
                     <TableRow key={entry.id}>

@@ -161,12 +161,12 @@ export function useDeleteProduct() {
     mutationFn: async (id: string) => {
       if (!companyId) throw new Error("Empresa não encontrada");
       // Delete dependent records — but NOT sale_items (preserves sales history)
-      await supabase.from("product_labels" as any).delete().eq("product_id", id).eq("company_id", companyId);
-      await supabase.from("stock_movements" as any).delete().eq("product_id", id).eq("company_id", companyId);
-      await supabase.from("product_lots" as any).delete().eq("product_id", id).eq("company_id", companyId);
+      await supabase.from("product_labels").delete().eq("product_id", id).eq("company_id", companyId);
+      await supabase.from("stock_movements").delete().eq("product_id", id).eq("company_id", companyId);
+      await supabase.from("product_lots").delete().eq("product_id", id).eq("company_id", companyId);
       
       // Soft-delete: deactivate product instead of hard delete to preserve referential integrity
-      const { error } = await supabase.from("products").update({ is_active: false } as any).eq("id", id).eq("company_id", companyId);
+      const { error } = await supabase.from("products").update({ is_active: false }).eq("id", id).eq("company_id", companyId);
       if (error) throw error;
     },
     onSuccess: (_data, id) => {

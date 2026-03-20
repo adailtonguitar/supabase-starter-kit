@@ -5,6 +5,15 @@ import { toast } from "sonner";
 import { logAction } from "@/services/ActionLogger";
 import { useAuth } from "./useAuth";
 
+interface CardAdminInput {
+  id?: string;
+  created_at?: string;
+  updated_at?: string;
+  company_id?: string;
+  name?: string | null;
+  [key: string]: unknown;
+}
+
 export function useCardAdmins() {
   const { companyId } = useCompany();
   return useQuery({
@@ -13,7 +22,7 @@ export function useCardAdmins() {
       if (!companyId) return [];
       const { data, error } = await supabase.from("card_administrators").select("*").eq("company_id", companyId).order("name");
       if (error) throw error;
-      return data as any[];
+      return data || [];
     },
     enabled: !!companyId,
   });
@@ -24,7 +33,7 @@ export function useCreateCardAdmin() {
   const { companyId } = useCompany();
   const { user } = useAuth();
   return useMutation({
-    mutationFn: async (d: any) => {
+    mutationFn: async (d: CardAdminInput) => {
       if (!companyId) throw new Error("Empresa não encontrada");
       const { id, created_at, updated_at, ...rest } = d;
       const { error } = await supabase.from("card_administrators").insert({ ...rest, company_id: companyId });
@@ -41,7 +50,7 @@ export function useUpdateCardAdmin() {
   const { companyId } = useCompany();
   const { user } = useAuth();
   return useMutation({
-    mutationFn: async (d: any) => {
+    mutationFn: async (d: CardAdminInput & { id: string }) => {
       if (!companyId) throw new Error("Empresa não encontrada");
       const { id, created_at, updated_at, company_id, ...rest } = d;
       const { error } = await supabase.from("card_administrators").update(rest).eq("id", id).eq("company_id", companyId);

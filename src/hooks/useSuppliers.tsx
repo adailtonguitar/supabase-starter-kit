@@ -4,6 +4,21 @@ import { useCompany } from "./useCompany";
 import { useAuth } from "./useAuth";
 import { logAction, buildDiff } from "@/services/ActionLogger";
 
+type SupplierInput = {
+  id?: string;
+  created_at?: string;
+  updated_at?: string;
+  company_id?: string;
+  name?: string | null;
+  trade_name?: string | null;
+  cnpj?: string | null;
+  ie?: string | null;
+  contact_name?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  notes?: string | null;
+};
+
 export function useSuppliers() {
   const { companyId } = useCompany();
   return useQuery({
@@ -22,11 +37,11 @@ export function useCreateSupplier() {
   const qc = useQueryClient();
   const { companyId } = useCompany();
   return useMutation({
-    mutationFn: async (data: any) => {
+    mutationFn: async (data: SupplierInput) => {
       // Only send known columns to avoid schema cache errors
       const { id, created_at, updated_at, ...rest } = data;
-      const payload: Record<string, any> = { company_id: companyId };
-      const knownCols = ["name","trade_name","cnpj","ie","contact_name","email","phone","notes"];
+      const payload: Record<string, unknown> = { company_id: companyId };
+      const knownCols: (keyof SupplierInput)[] = ["name", "trade_name", "cnpj", "ie", "contact_name", "email", "phone", "notes"];
       for (const k of knownCols) {
         if (rest[k] !== undefined) payload[k] = rest[k];
       }
@@ -35,7 +50,7 @@ export function useCreateSupplier() {
     },
     onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: ["suppliers"] });
-      if (companyId) logAction({ companyId, action: "Fornecedor cadastrado", module: "fornecedores", details: (variables as any).name || null });
+      if (companyId) logAction({ companyId, action: "Fornecedor cadastrado", module: "fornecedores", details: variables.name || null });
     },
   });
 }
@@ -45,11 +60,11 @@ export function useUpdateSupplier() {
   const { companyId } = useCompany();
   const { user } = useAuth();
   return useMutation({
-    mutationFn: async (data: any) => {
+    mutationFn: async (data: SupplierInput & { id: string }) => {
       if (!companyId) throw new Error("Empresa não encontrada");
       const { id, created_at, updated_at, company_id, ...rest } = data;
-      const knownCols = ["name","trade_name","cnpj","ie","contact_name","email","phone","notes"];
-      const payload: Record<string, any> = {};
+      const knownCols: (keyof SupplierInput)[] = ["name", "trade_name", "cnpj", "ie", "contact_name", "email", "phone", "notes"];
+      const payload: Record<string, unknown> = {};
       for (const k of knownCols) {
         if (rest[k] !== undefined) payload[k] = rest[k];
       }
@@ -64,7 +79,7 @@ export function useUpdateSupplier() {
     onSuccess: (result, variables) => {
       qc.invalidateQueries({ queryKey: ["suppliers"] });
       const diff = result?.oldData ? buildDiff(result.oldData, { ...result.oldData, ...variables }, Object.keys(variables).filter(k => !["id","created_at","updated_at","company_id"].includes(k))) : undefined;
-      if (companyId) logAction({ companyId, userId: user?.id, action: "Fornecedor atualizado", module: "fornecedores", details: (variables as any).name || (variables as any).id, diff });
+      if (companyId) logAction({ companyId, userId: user?.id, action: "Fornecedor atualizado", module: "fornecedores", details: variables.name || variables.id, diff });
     },
   });
 }

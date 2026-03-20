@@ -59,7 +59,7 @@ export function useCreateLocalProduct() {
   const { companyId } = useCompany();
 
   return useMutation({
-    mutationFn: async (product: any) => {
+    mutationFn: async (product: Partial<Product>) => {
       if (!companyId) throw new Error("Empresa não encontrada");
       const { data, error } = await supabase
         .from("products")

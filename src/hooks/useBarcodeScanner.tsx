@@ -14,7 +14,7 @@ export function useBarcodeScanner(onScan: (barcode: string) => void) {
       // Only capture from scanner (rapid keystrokes) when focused on body or barcode input
       const target = e.target as HTMLElement;
       if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT") return;
-      if ((target as any).dataset?.noBarcodeFocus) return;
+      if (target.dataset?.noBarcodeFocus) return;
 
       if (e.key === "Enter" && bufferRef.current.length >= 4) {
         e.preventDefault();

@@ -24,13 +24,23 @@ export function useActionLogs() {
       if (!companyId) return [];
       const from = page * PAGE_SIZE;
       const to = from + PAGE_SIZE - 1;
+
+      type ActionLogRow = {
+        id: string;
+        action: string;
+        module: string;
+        details: string | null;
+        created_at: string;
+        user_id: string | null;
+      };
+
       const { data } = await supabase
         .from("action_logs")
         .select("id, action, module, details, created_at, user_id")
         .eq("company_id", companyId)
         .order("created_at", { ascending: false })
         .range(from, to);
-      return (data || []).map((d: any) => ({ ...d, user_name: null })) as ActionLog[];
+      return (data || []).map((d: ActionLogRow) => ({ ...d, user_name: null })) as ActionLog[];
     },
     enabled: !!companyId,
   });

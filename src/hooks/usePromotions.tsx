@@ -24,6 +24,13 @@ export interface Promotion {
   is_active: boolean;
 }
 
+type PromotionInput = Omit<Promotion, "id"> & {
+  description?: string;
+  ends_at?: string;
+  active_days?: number[];
+  product_ids?: string[];
+};
+
 export function usePromotions() {
   const { companyId } = useCompany();
   const { user } = useAuth();
@@ -43,7 +50,7 @@ export function usePromotions() {
     enabled: !!companyId,
   });
 
-  const createPromotion = async (input: any) => {
+  const createPromotion = async (input: PromotionInput) => {
     if (!companyId) return;
     const { error } = await supabase.from("promotions").insert({ ...input, company_id: companyId });
     if (error) { toast.error(error.message); throw error; }

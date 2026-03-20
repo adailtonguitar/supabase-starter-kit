@@ -22,16 +22,35 @@ export function useCompanyUsers() {
   const load = useCallback(async () => {
     if (!companyId) return;
     setIsLoading(true);
+
+    type CompanyUserRow = {
+      id: string;
+      user_id: string;
+      role: CompanyUser["role"];
+      is_active: boolean;
+    };
+
+    type ProfileRow = {
+      id: string;
+      full_name: string | null;
+      email: string | null;
+    };
+
     const { data } = await supabase
       .from("company_users")
       .select("id, user_id, role, is_active")
       .eq("company_id", companyId);
 
     if (data) {
-      const userIds = data.map((u: any) => u.user_id);
-      const { data: profiles } = await supabase.from("profiles").select("id, full_name, email").in("id", userIds);
-      const profileMap = new Map((profiles || []).map((p: any) => [p.id, p]));
-      setUsers(data.map((u: any) => ({ ...u, profile: profileMap.get(u.user_id) || null })));
+      const companyUsers = data as CompanyUserRow[];
+      const userIds = companyUsers.map((u) => u.user_id);
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("id, full_name, email")
+        .in("id", userIds);
+      const profilesRows = (profiles ?? []) as ProfileRow[];
+      const profileMap = new Map<string, ProfileRow>(profilesRows.map((p) => [p.id, p]));
+      setUsers(companyUsers.map((u) => ({ ...u, profile: profileMap.get(u.user_id) ?? undefined })));
     }
     setIsLoading(false);
   }, [companyId]);

@@ -69,7 +69,7 @@ export function useSessionControl() {
       storeToken(token);
       registeredRef.current = true;
 
-      const result = data as any;
+      const result = data as { action?: string } | null;
       if (result?.action === "replaced_oldest") {
         toast.info("Uma sessão anterior foi encerrada para liberar esta.", { duration: 5000 });
       }
@@ -92,7 +92,7 @@ export function useSessionControl() {
 
       if (error) return;
 
-      const result = data as any;
+      const result = data as { valid?: boolean; reason?: string } | null;
       if (result && !result.valid) {
         toast.error(result.reason || "Sua sessão foi encerrada.", { duration: 8000 });
         clearToken();
@@ -127,7 +127,8 @@ export function useSessionControl() {
         .eq("id", companyId)
         .maybeSingle()
         .then(({ data }) => {
-          isDemoRef.current = !!(data as any)?.is_demo;
+          const row = data as { is_demo?: boolean } | null;
+          isDemoRef.current = Boolean(row?.is_demo);
           if (!isDemoRef.current) {
             registerSession();
           }
