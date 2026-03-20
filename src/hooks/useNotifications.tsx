@@ -26,6 +26,9 @@ export function useNotifications() {
     }
 
     try {
+      type NotificationRow = Omit<AppNotification, "is_read">;
+      type NotificationReadRow = { notification_id: string };
+
       // Get notifications visible to this user (RLS handles filtering)
       const { data: notifs } = await supabase
         .from("admin_notifications")
@@ -39,9 +42,9 @@ export function useNotifications() {
         .select("notification_id")
         .eq("user_id", user.id);
 
-      const readIds = new Set((reads || []).map((r: any) => r.notification_id));
+      const readIds = new Set((reads || []).map((r: NotificationReadRow) => r.notification_id));
 
-      const mapped: AppNotification[] = (notifs || []).map((n: any) => ({
+      const mapped: AppNotification[] = (notifs || []).map((n: NotificationRow) => ({
         ...n,
         is_read: readIds.has(n.id),
       }));
@@ -75,7 +78,7 @@ export function useNotifications() {
     if (!user) return;
     await supabase
       .from("notification_reads")
-      .insert({ notification_id: notificationId, user_id: user.id } as any);
+      .insert({ notification_id: notificationId, user_id: user.id });
 
     setNotifications((prev) =>
       prev.map((n) => (n.id === notificationId ? { ...n, is_read: true } : n))
@@ -93,7 +96,7 @@ export function useNotifications() {
       user_id: user.id,
     }));
 
-    await supabase.from("notification_reads").insert(inserts as any);
+    await supabase.from("notification_reads").insert(inserts);
 
     setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
     setUnreadCount(0);

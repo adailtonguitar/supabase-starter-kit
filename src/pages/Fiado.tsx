@@ -5,6 +5,9 @@ import { useFinancialEntries } from "@/hooks/useFinancialEntries";
 import { useCompany } from "@/hooks/useCompany";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import type { PaymentMethod } from "@/integrations/supabase/tables";
+import type { CashSessionRecord } from "@/integrations/supabase/fiscal.types";
+import type { FinancialEntry } from "@/hooks/useFinancialEntries";
 import { CashSessionService } from "@/services/CashSessionService";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { formatCurrency } from "@/lib/utils";
@@ -25,12 +28,21 @@ const paymentMethods = [
   { value: "pix", label: "PIX" },
   { value: "debito", label: "Débito" },
   { value: "credito", label: "Crédito" },
-];
+] satisfies Array<{ value: PaymentMethod; label: string }>;
+
+type Client = {
+  id: string;
+  name: string;
+  cpf_cnpj: string | null;
+  phone: string | null;
+  credit_balance: number | null;
+  credit_limit: number | null;
+};
 
 export default function Fiado() {
   const [search, setSearch] = useState("");
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
-  const [selectedMethod, setSelectedMethod] = useState("dinheiro");
+  const [selectedMethod, setSelectedMethod] = useState<PaymentMethod>("dinheiro");
   const [customAmount, setCustomAmount] = useState(0);
   const [isProcessing, setIsProcessing] = useState(false);
   const [receiptData, setReceiptData] = useState<CreditReceiptData | null>(null);
@@ -44,31 +56,46 @@ export default function Fiado() {
   const { user } = useAuth();
   const qc = useQueryClient();
 
-  const clientsWithDebt = useMemo(() => {
-    return clients.filter((c: any) => Number(c.credit_balance || 0) > 0).filter((c: any) => c.name.toLowerCase().includes(search.toLowerCase()) || (c.cpf_cnpj && c.cpf_cnpj.includes(search))).sort((a: any, b: any) => Number(b.credit_balance || 0) - Number(a.credit_balance || 0));
-  }, [clients, search]);
+  const typedClients = clients as Client[];
+  const typedEntries = entries as FinancialEntry[];
 
-  const totalDebt = useMemo(() => clients.reduce((sum: number, c: any) => sum + Number(c.credit_balance || 0), 0), [clients]);
-  const debtorCount = useMemo(() => clients.filter((c: any) => Number(c.credit_balance || 0) > 0).length, [clients]);
-  const selectedClient = clients.find((c: any) => c.id === selectedClientId) as any;
-  const clientBalance = Number(selectedClient?.credit_balance || 0);
+  const clientsWithDebt = useMemo(() => {
+    return typedClients
+      .filter((c) => Number(c.credit_balance ?? 0) > 0)
+      .filter((c) => c.name.toLowerCase().includes(search.toLowerCase()) || (c.cpf_cnpj && c.cpf_cnpj.includes(search)))
+      .sort((a, b) => Number(b.credit_balance ?? 0) - Number(a.credit_balance ?? 0));
+  }, [typedClients, search]);
+
+  const totalDebt = useMemo(() => typedClients.reduce((sum: number, c) => sum + Number(c.credit_balance ?? 0), 0), [typedClients]);
+  const debtorCount = useMemo(() => typedClients.filter((c) => Number(c.credit_balance ?? 0) > 0).length, [typedClients]);
+
+  const selectedClient = typedClients.find((c) => c.id === selectedClientId);
+  const clientBalance = Number(selectedClient?.credit_balance ?? 0);
 
   const clientEntries = useMemo(() => {
     if (!selectedClient) return [];
-    return entries.filter((e: any) => e.type === "receber" && e.status === "pendente" && e.counterpart === selectedClient.name);
-  }, [entries, selectedClient]);
+    return typedEntries.filter((e) => e.type === "receber" && e.status === "pendente" && e.counterpart === selectedClient.name);
+  }, [typedEntries, selectedClient]);
 
   const [cashPromptOpen, setCashPromptOpen] = useState(false);
-  const [pendingSession, setPendingSession] = useState<any>(null);
+  const [pendingSession, setPendingSession] = useState<CashSessionRecord | null>(null);
   const pendingPayRef = useRef<{ amount: number } | null>(null);
 
-  const executePayment = useCallback(async (payAmount: number, registerInCash: boolean, session: any) => {
+  const executePayment = useCallback(async (payAmount: number, registerInCash: boolean, session: CashSessionRecord | null) => {
     if (!companyId || !user || !selectedClient) return;
     const prevBalance = clientBalance;
     setIsProcessing(true);
     try {
       if (registerInCash && session) {
-        await supabase.from("cash_movements").insert({ company_id: companyId, session_id: session.id, type: "suprimento" as any, amount: payAmount, performed_by: user.id, payment_method: selectedMethod as any, description: `Recebimento fiado: ${selectedClient.name}` });
+        await supabase.from("cash_movements").insert({
+          company_id: companyId,
+          session_id: session.id,
+          type: "suprimento",
+          amount: payAmount,
+          performed_by: user.id,
+          payment_method: selectedMethod,
+          description: `Recebimento fiado: ${selectedClient.name}`,
+        });
       }
       const newBalance = Math.max(0, clientBalance - payAmount);
       await supabase.from("clients").update({ credit_balance: newBalance }).eq("id", selectedClient.id);
@@ -76,15 +103,29 @@ export default function Fiado() {
       const settledSaleRefs = new Set<string>();
       for (const entry of clientEntries) {
         if (remaining <= 0) break;
-        const entryAmount = Number(entry.amount);
-        const entryRef = typeof entry.reference === "string" ? entry.reference : null;
+        const entryAmount = entry.amount;
+        const entryRef = entry.reference ?? null;
 
         if (remaining >= entryAmount) {
-          await supabase.from("financial_entries").update({ status: "pago" as any, paid_amount: entryAmount, paid_date: new Date().toISOString().split("T")[0], payment_method: selectedMethod }).eq("id", entry.id);
+          await supabase
+            .from("financial_entries")
+            .update({
+              status: "pago",
+              paid_amount: entryAmount,
+              paid_date: new Date().toISOString().split("T")[0],
+              payment_method: selectedMethod,
+            })
+            .eq("id", entry.id);
           if (entryRef) settledSaleRefs.add(entryRef);
           remaining -= entryAmount;
         } else {
-          await supabase.from("financial_entries").update({ paid_amount: remaining, payment_method: selectedMethod }).eq("id", entry.id);
+          await supabase
+            .from("financial_entries")
+            .update({
+              paid_amount: remaining,
+              payment_method: selectedMethod,
+            })
+            .eq("id", entry.id);
           if (entryRef) settledSaleRefs.add(entryRef);
           remaining = 0;
         }
@@ -95,8 +136,8 @@ export default function Fiado() {
       toast.success(`Recebimento de ${formatCurrency(payAmount)} registrado!`);
       setCustomAmount(0);
       const pendingList = clientEntries
-        .filter((e: any) => e.status === "pendente")
-        .map((e: any, i: number) => ({ number: i + 1, dueDate: format(parseISO(e.due_date), "dd/MM/yyyy"), amount: Number(e.amount) }));
+        .filter((e) => e.status === "pendente")
+        .map((e, i) => ({ number: i + 1, dueDate: format(parseISO(e.due_date), "dd/MM/yyyy"), amount: e.amount }));
 
       // Fetch sale items linked to the installments settled in this payment
       let receiptItems: { name: string; qty: number; price: number }[] = [];
@@ -110,7 +151,8 @@ export default function Fiado() {
             .in("sale_id", settledSaleIds);
 
           if (saleItemsData && saleItemsData.length > 0) {
-            receiptItems = saleItemsData.map((si: any) => ({
+            type SaleItemRow = { product_name: string; quantity: number | string; unit_price: number | string };
+            receiptItems = (saleItemsData as SaleItemRow[]).map((si) => ({
               name: si.product_name,
               qty: Number(si.quantity),
               price: Number(si.unit_price),
@@ -124,7 +166,7 @@ export default function Fiado() {
 
             if (salesData && salesData.length > 0) {
               for (const sale of salesData) {
-                let items: any[] = [];
+                let items: Array<{ name?: string; product_name?: string; quantity?: number | string; qty?: number | string; unit_price?: number | string; price?: number | string }> = [];
                 try {
                   items = Array.isArray(sale.items)
                     ? sale.items
@@ -149,7 +191,9 @@ export default function Fiado() {
       } catch { /* ignore fetch errors */ }
 
       setReceiptData({ clientName: selectedClient.name, clientDoc: selectedClient.cpf_cnpj || undefined, amount: payAmount, previousBalance: prevBalance, newBalance, paymentMethod: selectedMethod, storeName: companyName || undefined, storeSlogan: slogan || undefined, pendingInstallments: pendingList.length > 0 ? pendingList : undefined, paidDate: format(new Date(), "dd/MM/yyyy"), saleItems: receiptItems.length > 0 ? receiptItems : undefined });
-    } catch (err: any) { toast.error(`Erro: ${err.message}`); } finally { setIsProcessing(false); }
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? `Erro: ${err.message}` : "Erro ao processar recebimento");
+    } finally { setIsProcessing(false); }
   }, [companyId, user, selectedClient, clientBalance, selectedMethod, clientEntries, qc, companyName, slogan]);
 
   const handleReceivePayment = async (amount?: number) => {
@@ -158,7 +202,7 @@ export default function Fiado() {
     if (payAmount > clientBalance) { toast.error("Valor maior que o saldo devedor"); return; }
     if (!companyId || !user || !selectedClient) return;
     try {
-      const session = await CashSessionService.getCurrentSession(companyId);
+      const session = (await CashSessionService.getCurrentSession(companyId)) as CashSessionRecord | null;
       if (session) { pendingPayRef.current = { amount: payAmount }; setPendingSession(session); setCashPromptOpen(true); return; }
     } catch { /* No session */ }
     await executePayment(payAmount, false, null);
@@ -169,10 +213,10 @@ export default function Fiado() {
       toast.error("Selecione um cliente com parcelas pendentes");
       return;
     }
-    const installments = clientEntries.map((e: any, i: number) => ({
+    const installments = clientEntries.map((e, i) => ({
       number: i + 1,
       dueDate: e.due_date,
-      amount: Number(e.amount),
+      amount: e.amount,
     }));
     setCarneData({
       storeName: companyName || "Loja",
@@ -195,17 +239,17 @@ export default function Fiado() {
       <div className="px-6 pt-4 grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Card><CardContent className="flex items-center gap-4 p-4"><div className="w-10 h-10 rounded-xl bg-destructive/10 flex items-center justify-center"><DollarSign className="w-5 h-5 text-destructive" /></div><div><p className="text-xs text-muted-foreground">Total em Aberto</p><p className="text-lg font-bold font-mono text-destructive">{formatCurrency(totalDebt)}</p></div></CardContent></Card>
         <Card><CardContent className="flex items-center gap-4 p-4"><div className="w-10 h-10 rounded-xl bg-warning/10 flex items-center justify-center"><User className="w-5 h-5 text-warning" /></div><div><p className="text-xs text-muted-foreground">Clientes Devedores</p><p className="text-lg font-bold text-foreground">{debtorCount}</p></div></CardContent></Card>
-        <Card><CardContent className="flex items-center gap-4 p-4"><div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center"><CreditCard className="w-5 h-5 text-primary" /></div><div><p className="text-xs text-muted-foreground">Parcelas Pendentes</p><p className="text-lg font-bold text-foreground">{entries.filter((e: any) => e.type === "receber" && e.status === "pendente").length}</p></div></CardContent></Card>
+        <Card><CardContent className="flex items-center gap-4 p-4"><div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center"><CreditCard className="w-5 h-5 text-primary" /></div><div><p className="text-xs text-muted-foreground">Parcelas Pendentes</p><p className="text-lg font-bold text-foreground">{typedEntries.filter((e) => e.type === "receber" && e.status === "pendente").length}</p></div></CardContent></Card>
       </div>
       <div className="min-h-0 flex flex-col lg:flex-row gap-4 p-6 flex-1">
         <div className="lg:w-1/3 flex flex-col border border-border rounded-xl bg-card overflow-hidden min-h-[300px] max-h-[60vh]">
           <div className="p-3 border-b border-border"><div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" /><Input placeholder="Buscar cliente..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-10" /></div></div>
           <div className="flex-1 overflow-y-auto p-2 space-y-1">
             {clientsWithDebt.length === 0 ? (<div className="flex flex-col items-center justify-center py-12 text-muted-foreground"><User className="w-8 h-8 mb-2 opacity-40" /><p className="text-sm">Nenhum cliente com débito</p></div>) : (
-              clientsWithDebt.map((client: any) => {
+              clientsWithDebt.map((client) => {
                 const isSelected = client.id === selectedClientId;
-                const balance = Number(client.credit_balance || 0);
-                const limit = Number(client.credit_limit || 0);
+                const balance = Number(client.credit_balance ?? 0);
+                const limit = Number(client.credit_limit ?? 0);
                 const overLimit = limit > 0 && balance >= limit;
                 return (
                   <button key={client.id} onClick={() => { setSelectedClientId(client.id); setCustomAmount(0); }} className={`w-full flex items-center justify-between p-3 rounded-lg text-left transition-all ${isSelected ? "bg-primary/10 border border-primary/30" : "hover:bg-muted border border-transparent"}`}>
@@ -253,10 +297,10 @@ export default function Fiado() {
               <div className="flex-1 overflow-y-auto p-4">
                 <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Parcelas Pendentes ({clientEntries.length})</h3>
                 {clientEntries.length === 0 ? (<p className="text-sm text-muted-foreground text-center py-6">Nenhuma parcela pendente registrada</p>) : (
-                  <div className="space-y-2">{clientEntries.map((entry: any) => (
+                  <div className="space-y-2">{clientEntries.map((entry) => (
                     <div key={entry.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50 border border-border">
                       <div><p className="text-sm font-medium text-foreground">{entry.description}</p><p className="text-xs text-muted-foreground">Vencimento: {format(parseISO(entry.due_date), "dd/MM/yyyy")}</p></div>
-                      <div className="flex items-center gap-3"><p className="text-sm font-bold font-mono text-foreground">{formatCurrency(Number(entry.amount))}</p><Button size="sm" onClick={() => handleReceivePayment(Number(entry.amount))} disabled={isProcessing}>Receber</Button></div>
+                      <div className="flex items-center gap-3"><p className="text-sm font-bold font-mono text-foreground">{formatCurrency(entry.amount)}</p><Button size="sm" onClick={() => handleReceivePayment(entry.amount)} disabled={isProcessing}>Receber</Button></div>
                     </div>
                   ))}</div>
                 )}

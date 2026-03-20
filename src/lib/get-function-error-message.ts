@@ -1,13 +1,16 @@
-export async function getFunctionErrorMessage(error: any, fallback = "Erro ao processar solicitação") {
-  let message = typeof error?.message === "string" ? error.message : fallback;
+export async function getFunctionErrorMessage(error: unknown, fallback = "Erro ao processar solicitação") {
+  let message = fallback;
+  const errObj = error as { message?: unknown; context?: unknown } | null | undefined;
+  if (typeof errObj?.message === "string") message = errObj.message;
 
   try {
-    const context = error?.context;
+    const context = errObj?.context as unknown;
 
-    if (context?.json) {
-      const body = await context.json();
-      const bodyMessage = body?.error || body?.message;
-      const rejectionReason = body?.rejection_reason;
+    if (context && typeof context === "object" && "json" in context && typeof (context as { json?: unknown }).json === "function") {
+      const body = await (context as { json: () => Promise<unknown> }).json();
+      const bodyObj = body as { error?: unknown; message?: unknown; rejection_reason?: unknown } | null;
+      const bodyMessage = bodyObj?.error ?? bodyObj?.message;
+      const rejectionReason = bodyObj?.rejection_reason;
 
       if (bodyMessage) message = String(bodyMessage);
       if (rejectionReason && !String(message).includes(String(rejectionReason))) {
@@ -17,13 +20,13 @@ export async function getFunctionErrorMessage(error: any, fallback = "Erro ao pr
       return message;
     }
 
-    if (context?.text) {
-      const rawText = await context.text();
+    if (context && typeof context === "object" && "text" in context && typeof (context as { text?: unknown }).text === "function") {
+      const rawText = await (context as { text: () => Promise<string> }).text();
       if (rawText) {
         try {
           const parsed = JSON.parse(rawText);
-          const bodyMessage = parsed?.error || parsed?.message;
-          const rejectionReason = parsed?.rejection_reason;
+          const bodyMessage = (parsed as { error?: unknown; message?: unknown })?.error ?? (parsed as { error?: unknown; message?: unknown })?.message;
+          const rejectionReason = (parsed as { rejection_reason?: unknown })?.rejection_reason;
 
           if (bodyMessage) message = String(bodyMessage);
           if (rejectionReason && !String(message).includes(String(rejectionReason))) {

@@ -5,6 +5,15 @@ import { toast } from "sonner";
 import { logAction } from "@/services/ActionLogger";
 import { useAuth } from "./useAuth";
 
+interface CarrierInput {
+  id?: string;
+  created_at?: string;
+  updated_at?: string;
+  company_id?: string;
+  name?: string | null;
+  [key: string]: unknown;
+}
+
 export function useCarriers() {
   const { companyId } = useCompany();
   return useQuery({
@@ -13,7 +22,7 @@ export function useCarriers() {
       if (!companyId) return [];
       const { data, error } = await supabase.from("carriers").select("*").eq("company_id", companyId).order("name");
       if (error) throw error;
-      return data as any[];
+      return data || [];
     },
     enabled: !!companyId,
   });
@@ -24,7 +33,7 @@ export function useCreateCarrier() {
   const { companyId } = useCompany();
   const { user } = useAuth();
   return useMutation({
-    mutationFn: async (d: any) => {
+    mutationFn: async (d: CarrierInput) => {
       if (!companyId) throw new Error("Empresa não encontrada");
       const { id, created_at, updated_at, ...rest } = d;
       const { error } = await supabase.from("carriers").insert({ ...rest, company_id: companyId });
@@ -41,7 +50,7 @@ export function useUpdateCarrier() {
   const { companyId } = useCompany();
   const { user } = useAuth();
   return useMutation({
-    mutationFn: async (d: any) => {
+    mutationFn: async (d: CarrierInput & { id: string }) => {
       if (!companyId) throw new Error("Empresa não encontrada");
       const { id, created_at, updated_at, company_id, ...rest } = d;
       const { error } = await supabase.from("carriers").update(rest).eq("id", id).eq("company_id", companyId);

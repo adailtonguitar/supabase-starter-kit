@@ -42,6 +42,20 @@ interface CashSession {
   initial_amount: number;
 }
 
+function isConnectivityError(err: unknown): boolean {
+  if (!navigator.onLine) return true;
+  if (err instanceof CircuitBreakerOpenError) return true;
+  const message = err instanceof Error ? err.message.toLowerCase() : String(err ?? "").toLowerCase();
+  return (
+    message.includes("offline") ||
+    message.includes("network") ||
+    message.includes("fetch") ||
+    message.includes("timeout") ||
+    message.includes("failed to fetch") ||
+    message.includes("load failed")
+  );
+}
+
 export function usePDV() {
   const { companyId } = useCompany();
   const { queueOperation, stats: syncStats, syncing: syncingSales } = useSync();
@@ -403,7 +417,7 @@ export function usePDV() {
 
       // Best-effort DB updates (don't block simulation)
       try {
-        await Promise.allSettled([
+        const settle = await Promise.allSettled([
           supabase.from("fiscal_documents").insert({
             company_id: companyId, sale_id: saleId, doc_type: "nfce",
             status: "simulado", access_key: fakeChave,
@@ -413,6 +427,11 @@ export function usePDV() {
           supabase.from("sales").update({ status: "emitida" }).eq("id", saleId),
           queueId ? supabase.from("fiscal_queue").update({ status: "done", processed_at: new Date().toISOString() }).eq("id", queueId) : Promise.resolve(),
         ]);
+        const failed = settle.some((entry) => entry.status === "rejected");
+        if (failed) {
+          console.warn("[PDV Fiscal] Simulation persisted partially");
+          toast.warning("Simulação fiscal concluída com pendências de persistência. Verifique os documentos fiscais.", { duration: 6000 });
+        }
       } catch (e) {
         console.warn("[PDV Fiscal] Simulation DB updates failed (non-blocking):", e);
       }
@@ -750,7 +769,12 @@ export function usePDV() {
                 serie: String(simConfig.serie ?? 1), number: simNum, total_value: total,
               }),
               supabase.from("sales").update({ status: "emitida" }).eq("id", saleId),
-            ]).catch(() => {});
+            ]).then((settle) => {
+              const failed = settle.some((entry) => entry.status === "rejected");
+              if (failed) {
+                toast.warning("NFC-e simulada com pendência de persistência. Confira em Fiscal > Documentos.", { duration: 6000 });
+              }
+            }).catch(() => {});
 
             toast.success("✅ Simulação concluída! (modo teste — sem envio à SEFAZ)", {
               description: `NFC-e simulada: ${nfceNumber}`,
@@ -797,6 +821,9 @@ export function usePDV() {
       // ── Discount blocked: don't enter contingency, just re-throw ──
       if (onlineErr instanceof Error && onlineErr.message === "DISCOUNT_BLOCKED") {
         throw onlineErr;
+      }
+      if (!isConnectivityError(onlineErr)) {
+        throw onlineErr instanceof Error ? onlineErr : new Error("Falha na finalização da venda");
       }
 
       // ── CONTINGENCY FALLBACK ──

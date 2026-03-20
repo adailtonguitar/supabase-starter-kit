@@ -30,6 +30,10 @@ export function useConsolidatedReport(dateFrom?: Date, dateTo?: Date) {
     queryFn: async (): Promise<ConsolidatedReport> => {
       if (!user) throw new Error("Não autenticado");
 
+      type CompanyUserRow = { company_id: string };
+      type CompanyRow = { id: string; name: string };
+      type SaleRow = { total: number | string | null };
+
       // Get all companies this user belongs to
       const { data: cuData } = await supabase
         .from("company_users")
@@ -41,7 +45,7 @@ export function useConsolidatedReport(dateFrom?: Date, dateTo?: Date) {
         return { branches: [], totalSales: 0, totalSalesCount: 0, totalProducts: 0, totalClients: 0 };
       }
 
-      const companyIds = cuData.map((cu: any) => cu.company_id);
+      const companyIds = (cuData as CompanyUserRow[]).map((cu) => cu.company_id);
 
       // Get company names
       const { data: companies } = await supabase
@@ -49,7 +53,7 @@ export function useConsolidatedReport(dateFrom?: Date, dateTo?: Date) {
         .select("id, name")
         .in("id", companyIds);
 
-      const nameMap = new Map((companies || []).map((c: any) => [c.id, c.name]));
+      const nameMap = new Map((companies || []).map((c: CompanyRow) => [c.id, c.name]));
 
       // Fetch data for all companies in parallel
       const branches: BranchSummary[] = await Promise.all(
@@ -74,7 +78,7 @@ export function useConsolidatedReport(dateFrom?: Date, dateTo?: Date) {
           ]);
 
           const sales = salesRes.data || [];
-          const totalSales = sales.reduce((sum: number, s: any) => sum + Number(s.total || 0), 0);
+          const totalSales = sales.reduce((sum: number, s: SaleRow) => sum + Number(s.total ?? 0), 0);
 
           return {
             companyId: cid,

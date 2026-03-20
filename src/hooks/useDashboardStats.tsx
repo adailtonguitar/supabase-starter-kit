@@ -49,10 +49,14 @@ interface DashboardStats {
   pendingReceivablesCount: number;
 }
 
-function extractPaymentMethod(payments: any): string {
+function extractPaymentMethod(payments: unknown): string {
   try {
-    const arr = Array.isArray(payments) ? payments : typeof payments === "string" ? JSON.parse(payments) : [];
-    if (arr.length > 0) return arr[0].method || "";
+    const arr: unknown[] =
+      Array.isArray(payments) ? payments : typeof payments === "string" ? JSON.parse(payments) : [];
+
+    if (!Array.isArray(arr) || arr.length === 0) return "";
+    const first = arr[0] as Record<string, unknown>;
+    return typeof first?.method === "string" ? first.method : "";
   } catch {}
   return "";
 }
@@ -103,54 +107,78 @@ export function useDashboardStats() {
       ]);
 
       // Partition sales by date ranges client-side
-      const allSales = monthAllSalesResult.data || [];
+      type MonthAllSaleRow = {
+        created_at?: string | null;
+        total?: number | null;
+      };
+      const allSales = (monthAllSalesResult.data ?? []) as MonthAllSaleRow[];
       const todayPrefix = today;
       const yesterdayPrefix = yesterday;
-      const todaySales = allSales.filter((s: any) => (s.created_at || "").startsWith(todayPrefix));
-      const yesterdaySales = allSales.filter((s: any) => { const d = (s.created_at || "").split("T")[0]; return d === yesterdayPrefix; });
-      const monthSales = allSales.filter((s: any) => (s.created_at || "") >= monthStart + "T00:00:00");
-      const last7Data = allSales.filter((s: any) => (s.created_at || "") >= sevenDaysAgo + "T00:00:00");
-      const prevPeriodData = allSales.filter((s: any) => { const ca = s.created_at || ""; return ca >= fourteenDaysAgo + "T00:00:00" && ca < sevenDaysAgo + "T00:00:00"; });
+      const todaySales = allSales.filter((s) => (s.created_at || "").startsWith(todayPrefix));
+      const yesterdaySales = allSales.filter((s) => {
+        const d = (s.created_at || "").split("T")[0];
+        return d === yesterdayPrefix;
+      });
+      const monthSales = allSales.filter((s) => (s.created_at || "") >= monthStart + "T00:00:00");
+      const last7Data = allSales.filter((s) => (s.created_at || "") >= sevenDaysAgo + "T00:00:00");
+      const prevPeriodData = allSales.filter((s) => {
+        const ca = s.created_at || "";
+        return ca >= fourteenDaysAgo + "T00:00:00" && ca < sevenDaysAgo + "T00:00:00";
+      });
 
       // Partition financial entries client-side
-      const allFinancial = financialAllResult.data || [];
-      const alertsData = allFinancial.filter((e: any) => e.status === "pendente" && e.due_date <= today);
-      const financialPaidMonth = allFinancial.filter((e: any) => e.status === "pago" && e.due_date >= monthStart);
-      const billsDueData = allFinancial.filter((e: any) => e.status === "pendente" && e.type === "pagar" && e.due_date === today);
-      const overdueData = allFinancial.filter((e: any) => (e.status === "pendente" || e.status === "vencido") && e.type === "pagar" && e.due_date < today);
-      const receivablesData = allFinancial.filter((e: any) => (e.status === "pendente" || e.status === "vencido") && e.type === "receber");
+      type FinancialEntryRow = {
+        status: string;
+        due_date: string;
+        type: "pagar" | "receber" | string;
+        amount?: number | null;
+      };
+      const allFinancial = (financialAllResult.data ?? []) as FinancialEntryRow[];
+      const alertsData = allFinancial.filter((e) => e.status === "pendente" && e.due_date <= today);
+      const financialPaidMonth = allFinancial.filter((e) => e.status === "pago" && e.due_date >= monthStart);
+      const billsDueData = allFinancial.filter((e) => e.status === "pendente" && e.type === "pagar" && e.due_date === today);
+      const overdueData = allFinancial.filter(
+        (e) => (e.status === "pendente" || e.status === "vencido") && e.type === "pagar" && e.due_date < today
+      );
+      const receivablesData = allFinancial.filter((e) => (e.status === "pendente" || e.status === "vencido") && e.type === "receber");
 
-      const salesToday = todaySales.reduce((sum: number, s: any) => sum + Number(s.total || 0), 0);
+      const salesToday = todaySales.reduce((sum: number, s) => sum + Number(s.total ?? 0), 0);
       const salesCountToday = todaySales.length;
       const ticketMedio = salesCountToday > 0 ? salesToday / salesCountToday : 0;
-      const monthRevenue = monthSales.reduce((sum: number, s: any) => sum + Number(s.total || 0), 0);
+      const monthRevenue = monthSales.reduce((sum: number, s) => sum + Number(s.total ?? 0), 0);
 
       // Yesterday
-      const salesYesterday = yesterdaySales.reduce((sum: number, s: any) => sum + Number(s.total || 0), 0);
+      const salesYesterday = yesterdaySales.reduce((sum: number, s) => sum + Number(s.total ?? 0), 0);
       const salesCountYesterday = yesterdaySales.length;
 
       // Fiado — from clients with outstanding balance
-      const fiadoData = fiadoResult.data || [];
-      const fiadoTotal = fiadoData.reduce((sum: number, c: any) => sum + Number(c.credit_balance || 0), 0);
+      type FiadoClientRow = { credit_balance?: number | null };
+      const fiadoData = (fiadoResult.data ?? []) as FiadoClientRow[];
+      const fiadoTotal = fiadoData.reduce((sum: number, c) => sum + Number(c.credit_balance ?? 0), 0);
       const fiadoCount = fiadoData.length;
 
       // Bills
-      const billsDueToday = billsDueData.reduce((sum: number, e: any) => sum + Number(e.amount || 0), 0);
+      const billsDueToday = billsDueData.reduce((sum: number, e) => sum + Number(e.amount ?? 0), 0);
       const billsDueTodayCount = billsDueData.length;
 
-      const overdueBills = overdueData.reduce((sum: number, e: any) => sum + Number(e.amount || 0), 0);
+      const overdueBills = overdueData.reduce((sum: number, e) => sum + Number(e.amount ?? 0), 0);
       const overdueBillsCount = overdueData.length;
 
-      const pendingReceivables = receivablesData.reduce((sum: number, e: any) => sum + Number(e.amount || 0), 0);
+      const pendingReceivables = receivablesData.reduce((sum: number, e) => sum + Number(e.amount ?? 0), 0);
       const pendingReceivablesCount = receivablesData.length;
 
-      const products = productsResult.data || [];
-      const productsAtRisk = products.filter((p: any) => p.min_stock > 0 && (p.stock_quantity ?? 0) <= p.min_stock).length;
+      type ProductRiskRow = { min_stock: number; stock_quantity?: number | null };
+      const products = (productsResult.data ?? []) as ProductRiskRow[];
+      const productsAtRisk = products.filter((p) => p.min_stock > 0 && (p.stock_quantity ?? 0) <= p.min_stock).length;
       const activeAlerts = alertsData.length;
       const fiscalProtected = (fiscalResult.data || []).length > 0;
 
-      const receitas = financialPaidMonth.filter((e: any) => e.type === "receber").reduce((s: number, e: any) => s + Number(e.amount || 0), 0);
-      const despesas = financialPaidMonth.filter((e: any) => e.type === "pagar").reduce((s: number, e: any) => s + Number(e.amount || 0), 0);
+      const receitas = financialPaidMonth
+        .filter((e) => e.type === "receber")
+        .reduce((s: number, e) => s + Number(e.amount ?? 0), 0);
+      const despesas = financialPaidMonth
+        .filter((e) => e.type === "pagar")
+        .reduce((s: number, e) => s + Number(e.amount ?? 0), 0);
       // Use real financial data when available; otherwise show 0 instead of fabricated estimate
       const monthProfit = receitas > 0 || despesas > 0 ? receitas - despesas : 0;
 
@@ -169,10 +197,10 @@ export function useDashboardStats() {
         const key = d.toISOString().split("T")[0];
         dayMap[key] = { total: 0, count: 0 };
       }
-      last7Data.forEach((s: any) => {
+      last7Data.forEach((s) => {
         const key = (s.created_at || "").split("T")[0];
         if (dayMap[key]) {
-          dayMap[key].total += Number(s.total || 0);
+          dayMap[key].total += Number(s.total ?? 0);
           dayMap[key].count += 1;
         }
       });
@@ -183,17 +211,19 @@ export function useDashboardStats() {
       }));
 
       // Sales growth
-      const currentPeriodTotal = last7Data.reduce((s: number, r: any) => s + Number(r.total || 0), 0);
-      const prevPeriodTotal = prevPeriodData.reduce((s: number, r: any) => s + Number(r.total || 0), 0);
+      const currentPeriodTotal = last7Data.reduce((s: number, r) => s + Number(r.total ?? 0), 0);
+      const prevPeriodTotal = prevPeriodData.reduce((s: number, r) => s + Number(r.total ?? 0), 0);
       const salesGrowth = prevPeriodTotal > 0 ? ((currentPeriodTotal - prevPeriodTotal) / prevPeriodTotal) * 100 : 0;
 
       // Top products
       const productMap: Record<string, { quantity: number; revenue: number }> = {};
-      (saleItemsResult.data || []).forEach((item: any) => {
+      type SaleItemRow = { product_name?: string | null; quantity?: number | string | null; unit_price?: number | string | null };
+      const saleItems = (saleItemsResult.data ?? []) as SaleItemRow[];
+      saleItems.forEach((item) => {
         const name = item.product_name || "Sem nome";
         if (!productMap[name]) productMap[name] = { quantity: 0, revenue: 0 };
-        productMap[name].quantity += Number(item.quantity || 0);
-        productMap[name].revenue += Number(item.quantity || 0) * Number(item.unit_price || 0);
+        productMap[name].quantity += Number(item.quantity ?? 0);
+        productMap[name].revenue += Number(item.quantity ?? 0) * Number(item.unit_price ?? 0);
       });
       const topProducts: TopProduct[] = Object.entries(productMap)
         .map(([name, v]) => ({ name, ...v }))
@@ -225,13 +255,24 @@ export function useDashboardStats() {
         overdueBillsCount,
         pendingReceivables,
         pendingReceivablesCount,
-        recentSales: (recentResult.data || []).map((row: any) => ({
-          id: row.id,
-          number: row.sale_number || row.number,
-          payment_method: extractPaymentMethod(row.payments),
-          total_value: row.total ?? 0,
-          status: row.status || "completed",
-        })),
+        recentSales: (() => {
+          type RecentSaleRow = {
+            id: string;
+            sale_number?: number | null;
+            number?: number | null;
+            payments?: unknown;
+            total?: number | null;
+            status?: string | null;
+          };
+          const rows = (recentResult.data ?? []) as RecentSaleRow[];
+          return rows.map((row) => ({
+            id: row.id,
+            number: row.sale_number ?? row.number ?? null,
+            payment_method: extractPaymentMethod(row.payments),
+            total_value: row.total ?? 0,
+            status: row.status || "completed",
+          }));
+        })(),
       };
     },
     enabled: !!companyId,

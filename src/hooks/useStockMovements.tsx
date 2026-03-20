@@ -13,9 +13,25 @@ export function useStockMovements(productId?: string) {
     queryFn: async () => {
       if (!companyId) return [];
 
+      type StockMovementType = "entrada" | "saida" | "ajuste" | "venda" | "devolucao";
+      type StockMovementRow = {
+        id: string;
+        company_id: string;
+        product_id: string;
+        type: StockMovementType;
+        quantity: number;
+        previous_stock: number;
+        new_stock: number;
+        created_at: string;
+        reason?: string | null;
+        reference?: string | null;
+        products?: { name: string; sku: string } | null;
+      };
+      type TransferRow = { id: string };
+
       // Main query: movements belonging to this company
       let query = supabase
-        .from("stock_movements" as any)
+        .from("stock_movements")
         .select("*, products(name, sku)")
         .eq("company_id", companyId)
         .order("created_at", { ascending: false })
@@ -26,15 +42,15 @@ export function useStockMovements(productId?: string) {
 
       // Also fetch transfer movements from other companies that reference transfers involving this company
       const { data: relatedTransfers } = await supabase
-        .from("stock_transfers" as any)
+        .from("stock_transfers")
         .select("id")
         .or(`from_company_id.eq.${companyId},to_company_id.eq.${companyId}`);
 
-      const transferIds = (relatedTransfers || []).map((t: any) => t.id);
+      const transferIds = ((relatedTransfers ?? []) as TransferRow[]).map((t) => t.id);
 
       if (transferIds.length > 0) {
         let relatedQuery = supabase
-          .from("stock_movements" as any)
+          .from("stock_movements")
           .select("*, products(name, sku)")
           .neq("company_id", companyId)
           .in("reference", transferIds)
@@ -45,13 +61,19 @@ export function useStockMovements(productId?: string) {
 
         if (relatedData && relatedData.length > 0) {
           // Merge and sort by date
-          const all = [...(data || []), ...relatedData];
-          all.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-          return all as any[];
+          const all = [
+            ...((data ?? []) as StockMovementRow[]),
+            ...((relatedData ?? []) as StockMovementRow[]),
+          ];
+          all.sort(
+            (a, b) =>
+              new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+          );
+          return all;
         }
       }
 
-      return (data || []) as any[];
+      return (data ?? []) as StockMovementRow[];
     },
     enabled: !!companyId,
   });
@@ -81,7 +103,7 @@ export function useCreateStockMovement() {
         .single();
       if (pErr) throw pErr;
 
-      const previous = Number((product as any).stock_quantity);
+      const previous = Number(product?.stock_quantity ?? 0);
       let newStock: number;
 
       switch (movement.type) {
@@ -102,7 +124,7 @@ export function useCreateStockMovement() {
       }
 
       const { data, error } = await supabase
-        .from("stock_movements" as any)
+        .from("stock_movements")
         .insert({
           company_id: companyId,
           product_id: movement.product_id,

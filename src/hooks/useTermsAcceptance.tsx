@@ -38,7 +38,8 @@ export function useTermsAcceptance(): TermsAcceptance {
           .eq("id", companyId)
           .maybeSingle();
 
-        if ((companyData as any)?.is_demo === true) {
+        const row = companyData as { is_demo?: boolean } | null;
+        if (row?.is_demo === true) {
           setAccepted(true);
           localStorage.setItem(cacheKey, "true");
           setLoading(false);

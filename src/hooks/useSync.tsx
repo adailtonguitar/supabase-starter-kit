@@ -14,7 +14,13 @@ import {
   getFailedItems,
 } from "@/lib/sync-queue";
 import { supabase } from "@/integrations/supabase/client";
-import type { SyncQueueItem } from "@/services/types";
+import type {
+  SyncQueueItem,
+  FinalizeSaleItemInput,
+  FinalizeSalePaymentInput,
+  StockMovementInput,
+  PaymentResult,
+} from "@/services/types";
 import { toast } from "sonner";
 import { fiscalCircuitBreaker, CircuitBreakerOpenError } from "@/lib/circuit-breaker";
 
@@ -23,67 +29,208 @@ const CLEANUP_INTERVAL_MS = 60 * 60 * 1000;
 
 type SyncProcessor = (item: SyncQueueItem) => Promise<void>;
 
+type RpcFinalizeSaleResult = {
+  success?: boolean;
+  error?: string;
+  sale_id?: string;
+  message?: string;
+};
+
+const parseString = (v: unknown): string | null => (typeof v === "string" ? v : null);
+const parseFiniteNumber = (v: unknown): number | null => {
+  if (typeof v === "number" && Number.isFinite(v)) return v;
+  if (typeof v === "string") {
+    const n = Number(v.replace(",", "."));
+    return Number.isFinite(n) ? n : null;
+  }
+  return null;
+};
+
+const PAYMENT_METHODS: PaymentResult["method"][] = [
+  "dinheiro",
+  "debito",
+  "credito",
+  "pix",
+  "voucher",
+  "outros",
+  "prazo",
+];
+
+const normalizePaymentMethod = (v: unknown): PaymentResult["method"] => {
+  const s = parseString(v);
+  if (!s) return "outros";
+  const normalized = s.trim().toLowerCase();
+  return PAYMENT_METHODS.includes(normalized as PaymentResult["method"]) ? (normalized as PaymentResult["method"]) : "outros";
+};
+
+const parseFinalizeSaleItems = (items: unknown): FinalizeSaleItemInput[] => {
+  if (!Array.isArray(items)) return [];
+  const parsed: FinalizeSaleItemInput[] = [];
+  for (const it of items) {
+    if (!it || typeof it !== "object") continue;
+    const obj = it as Record<string, unknown>;
+    const product_id = parseString(obj.product_id);
+    const product_name = parseString(obj.product_name);
+    const quantity = parseFiniteNumber(obj.quantity);
+    const unit_price = parseFiniteNumber(obj.unit_price);
+    const discount_percent = parseFiniteNumber(obj.discount_percent) ?? 0;
+    const subtotal = parseFiniteNumber(obj.subtotal);
+
+    if (!product_id || !product_name) continue;
+    if (quantity === null || unit_price === null || subtotal === null) continue;
+    if (!Number.isFinite(quantity) || !Number.isFinite(unit_price) || !Number.isFinite(subtotal)) continue;
+
+    parsed.push({ product_id, product_name, quantity, unit_price, discount_percent, subtotal });
+  }
+  return parsed;
+};
+
+const parseFinalizeSalePayments = (payments: unknown, fallbackAmount: number): FinalizeSalePaymentInput[] => {
+  if (!Array.isArray(payments)) return [];
+  const parsed: FinalizeSalePaymentInput[] = [];
+  for (const p of payments) {
+    if (!p || typeof p !== "object") continue;
+    const obj = p as Record<string, unknown>;
+    const method = normalizePaymentMethod(obj.method);
+    const amount = parseFiniteNumber(obj.amount);
+    const approvedRaw = obj.approved;
+    const approved = typeof approvedRaw === "boolean" ? approvedRaw : true;
+    if (amount === null) continue;
+    if (!Number.isFinite(amount) || amount <= 0) continue;
+    parsed.push({ method, amount, approved });
+  }
+  // If queue payload had payments but they were empty/invalid, keep a safe fallback.
+  return parsed.length > 0 ? parsed : [{ method: "outros", amount: fallbackAmount, approved: true }];
+};
+
+const getSessionIdForRpc = (raw: unknown): string | null => {
+  const s = parseString(raw);
+  if (!s) return null;
+  return s.startsWith("offline_") ? null : s;
+};
+
 const processors: Record<string, SyncProcessor> = {
   sale: async (item) => {
     const p = item.payload;
 
     // Use the atomic RPC — same as online PDV flow
+    const companyId = parseString(p.company_id);
+    if (!companyId) throw new Error("Payload inválido: company_id ausente");
+
+    const terminalId = parseString(p.terminal_id) ?? "OFFLINE";
+    const sessionId = getSessionIdForRpc(p.session_id);
+
+    const total = parseFiniteNumber(p.total);
+    if (total === null) throw new Error("Payload inválido: total ausente");
+
+    const items = parseFinalizeSaleItems(p.items);
+    if (items.length === 0) throw new Error("Payload inválido: itens ausentes/invalidos");
+
+    const subtotal = parseFiniteNumber(p.subtotal) ?? total;
+    const discountPct = parseFiniteNumber(p.discount_pct) ?? 0;
+    const discountVal = parseFiniteNumber(p.discount_val) ?? 0;
+
+    const payments = parseFinalizeSalePayments(p.payments, total);
+    const soldBy = parseString(p.user_id);
+
     const { data: rpcResult, error: rpcError } = await supabase.rpc("finalize_sale_atomic", {
-      p_company_id: p.company_id as string,
-      p_terminal_id: p.terminal_id as string || "OFFLINE",
-      p_session_id: typeof p.session_id === "string" && p.session_id.startsWith("offline_") ? null : (p.session_id as string || null),
-      p_items: p.items as any,
-      p_subtotal: p.subtotal as number || p.total as number,
-      p_discount_pct: (p.discount_pct as number) || 0,
-      p_discount_val: (p.discount_val as number) || 0,
-      p_total: p.total as number,
-      p_payments: p.payments as any || [{ method: p.payment_method || "dinheiro", amount: p.total, approved: true }],
-      p_sold_by: (p.user_id as string) || null,
+      p_company_id: companyId,
+      p_terminal_id: terminalId,
+      p_session_id: sessionId,
+      p_items: items,
+      p_subtotal: subtotal,
+      p_discount_pct: discountPct,
+      p_discount_val: discountVal,
+      p_total: total,
+      p_payments: payments,
+      p_sold_by: soldBy ?? null,
     });
 
     if (rpcError) throw new Error(rpcError.message);
-    const result = rpcResult as any;
-    if (result && !result.success) throw new Error(result.error || "Erro ao sincronizar venda");
+    const result = rpcResult as RpcFinalizeSaleResult | null;
+    if (result && result.success === false) {
+      throw new Error(result.error || "Erro ao sincronizar venda");
+    }
   },
   stock_movement: async (item) => {
     const p = item.payload;
+    const companyId = parseString(p.company_id);
+    const productId = parseString(p.product_id);
+    const typeRaw = parseString(p.type);
+    const quantity = parseFiniteNumber(p.quantity);
+    const previousStock = parseFiniteNumber(p.previous_stock);
+    const newStock = parseFiniteNumber(p.new_stock);
+    const performedBy = parseString(p.performed_by);
+    const reason = parseString(p.reason);
+
+    if (!companyId || !productId || !typeRaw || quantity === null || previousStock === null || newStock === null || !performedBy) {
+      throw new Error("Payload inválido: stock_movement incompleto");
+    }
+
+    const allowedTypes: StockMovementInput["type"][] = ["entrada", "saida", "ajuste", "venda", "devolucao"];
+    if (!allowedTypes.includes(typeRaw as StockMovementInput["type"])) {
+      throw new Error(`Payload inválido: tipo stock_movement desconhecido (${typeRaw})`);
+    }
+    const movementType = typeRaw as StockMovementInput["type"];
+
     const { error } = await supabase.from("stock_movements").insert({
-      company_id: p.company_id as string,
-      product_id: p.product_id as string,
-      type: p.type as any,
-      quantity: p.quantity as number,
-      previous_stock: p.previous_stock as number,
-      new_stock: p.new_stock as number,
-      performed_by: p.performed_by as string,
-      reason: p.reason as string,
+      company_id: companyId,
+      product_id: productId,
+      type: movementType,
+      quantity,
+      previous_stock: previousStock,
+      new_stock: newStock,
+      performed_by: performedBy,
+      reason: reason ?? undefined,
     });
     if (error) throw new Error(error.message);
   },
   cash_movement: async (item) => {
     const p = item.payload;
+    const companyId = parseString(p.company_id);
+    const sessionId = getSessionIdForRpc(p.session_id);
+    const type = parseString(p.type);
+    const amount = parseFiniteNumber(p.amount);
+    const performedBy = parseString(p.performed_by);
+    const description = parseString(p.description);
+
+    if (!companyId || !type || amount === null || !performedBy || !description) {
+      throw new Error("Payload inválido: cash_movement incompleto");
+    }
+
     const { error } = await supabase.from("cash_movements").insert({
-      company_id: p.company_id as string,
-      session_id: typeof p.session_id === "string" && p.session_id.startsWith("offline_") ? null : (p.session_id as string),
-      type: p.type as any,
-      amount: p.amount as number,
-      performed_by: p.performed_by as string,
-      description: p.description as string,
+      company_id: companyId,
+      session_id: sessionId,
+      type,
+      amount,
+      performed_by: performedBy,
+      description,
     });
     if (error) throw new Error(error.message);
   },
   fiscal_contingency: async (item) => {
     // Transmit contingency NFC-e to SEFAZ via edge function
     const p = item.payload;
+    const saleId = parseString(p.sale_id);
+    const companyId = parseString(p.company_id);
+    const configId = parseString(p.config_id);
+    const contingencyNumber = parseFiniteNumber(p.contingency_number);
+    const serie = parseFiniteNumber(p.serie);
+
+    if (!saleId || !companyId || !configId || contingencyNumber === null || serie === null) {
+      throw new Error("Payload inválido: fiscal_contingency incompleto");
+    }
+
     try {
       const { data, error } = await fiscalCircuitBreaker.call(() =>
         supabase.functions.invoke("emit-nfce", {
           body: {
             action: "emit_contingency",
-            sale_id: p.sale_id as string,
-            company_id: p.company_id as string,
-            config_id: p.config_id as string,
-            contingency_number: p.contingency_number as number,
-            serie: p.serie as number,
+            sale_id: saleId,
+            company_id: companyId,
+            config_id: configId,
+            contingency_number: contingencyNumber,
+            serie,
             form: p.form,
           },
         })
@@ -106,9 +253,9 @@ const processors: Record<string, SyncProcessor> = {
         }
         throw new Error(errMsg);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       // Circuit breaker open or network error → rethrow for retry later
-      const msg = err?.message || "";
+      const msg = err instanceof Error ? err.message : String(err);
       if (err instanceof CircuitBreakerOpenError || msg.includes("Failed to fetch") || msg.includes("NetworkError") || msg.includes("TypeError") || msg.includes("Timeout")) {
         throw err;
       }
@@ -163,12 +310,13 @@ export function useSync() {
           await processor(item);
           await updateStatus(item.id, "synced");
           synced++;
-        } catch (err: any) {
-          const isConflict = err.message?.includes("duplicate") || err.message?.includes("conflict");
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : String(err);
+          const isConflict = msg.includes("duplicate") || msg.includes("conflict");
           if (isConflict) {
-            await updateStatus(item.id, "conflict", err.message);
+            await updateStatus(item.id, "conflict", msg);
           } else {
-            await handleFailure(item.id, err.message || "Unknown error");
+            await handleFailure(item.id, msg || "Unknown error");
           }
         }
       }

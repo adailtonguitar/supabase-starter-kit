@@ -18,7 +18,6 @@ import { runPreflightValidation, type PreflightIssue } from "@/lib/fiscal-prefli
 import { usePlanFeatures } from "@/hooks/usePlanFeatures";
 import { NCM_TABLE } from "@/lib/ncm-table";
 import { useProducts } from "@/hooks/useProducts";
-import { QRCodeSVG } from "qrcode.react";
 import { getFunctionErrorMessage } from "@/lib/get-function-error-message";
 import { type CRT, isValidCrt } from "@/lib/fiscal-config-lookup";
 
@@ -86,6 +85,12 @@ const mapPaymentToFiscal = (method: string): string => {
   };
   return map[method] || "99";
 };
+
+const MONEY_TOLERANCE = 0.01;
+
+function isMoneyConsistent(a: number, b: number): boolean {
+  return Math.abs(a - b) <= MONEY_TOLERANCE;
+}
 
 export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: NfceEmissionDialogProps) {
   const { companyId } = useCompany();
@@ -218,7 +223,7 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
       infAdic: "",
       items: nfceItems,
       paymentMethod: mapPaymentToFiscal(sale.payment_method || ""),
-      paymentValue: sale.total_value || 0,
+      paymentValue: sale.total_value ?? sale.total ?? Math.round(nfceItems.reduce((sum, it) => sum + it.total, 0) * 100) / 100,
       change: 0,
     });
   }, [open, sale]);
@@ -286,6 +291,16 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
     const emptyCst = form.items.some((it) => !it.cst.trim());
     if (emptyCst) {
       toast.error("Preencha o CST/CSOSN de todos os itens.");
+      return;
+    }
+    if (form.paymentValue <= 0) {
+      toast.error("Valor de pagamento deve ser maior que zero.");
+      setActiveTab("payment");
+      return;
+    }
+    if (!isMoneyConsistent(form.paymentValue - form.change, totalItems)) {
+      toast.error("Valor de pagamento inconsistente com o total dos itens.");
+      setActiveTab("payment");
       return;
     }
 
@@ -598,7 +613,7 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
                       />
                       {productFiltered.length > 0 && (
                         <div className="mt-2 border border-border rounded-lg overflow-hidden bg-popover max-h-48 overflow-y-auto">
-                          {productFiltered.map((p: any) => (
+                          {productFiltered.map((p) => (
                             <button
                               key={p.id}
                               onClick={() => addProductFromCatalog(p)}

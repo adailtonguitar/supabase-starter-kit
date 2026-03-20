@@ -25,6 +25,23 @@ interface CachedCompany {
   addressState: string | null;
 }
 
+type CompanyRow = {
+  name?: string | null;
+  logo_url?: string | null;
+  slogan?: string | null;
+  pix_key?: string | null;
+  pix_key_type?: string | null;
+  pix_city?: string | null;
+  address_city?: string | null;
+  address_street?: string | null;
+  address_number?: string | null;
+  address_neighborhood?: string | null;
+  address_state?: string | null;
+  cnpj?: string | null;
+  ie?: string | null;
+  phone?: string | null;
+};
+
 function cacheCompany(data: CachedCompany) {
   try { localStorage.setItem(COMPANY_CACHE_KEY, JSON.stringify(data)); } catch { /* */ }
 }
@@ -37,7 +54,7 @@ function getCachedCompany(): CachedCompany | null {
   return null;
 }
 
-function extractCompanyFields(company: any): Omit<CachedCompany, 'companyId'> {
+function extractCompanyFields(company: CompanyRow | null | undefined): Omit<CachedCompany, 'companyId'> {
   return {
     companyName: company?.name ?? null,
     logoUrl: company?.logo_url ?? null,
@@ -90,7 +107,7 @@ export function useCompany(): CompanyData {
   const retryCount = useRef(0);
   const retryTimer = useRef<ReturnType<typeof setTimeout>>();
 
-  const applyCompany = useCallback((resolvedId: string, company: any) => {
+  const applyCompany = useCallback((resolvedId: string, company: CompanyRow | null | undefined) => {
     const f = extractCompanyFields(company);
     setCompanyId(resolvedId);
     setFields(f);

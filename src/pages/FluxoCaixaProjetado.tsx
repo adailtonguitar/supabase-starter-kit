@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import {
   TrendingUp, TrendingDown, Download, AlertTriangle, Eye, EyeOff,
 } from "lucide-react";
-import { useFinancialEntries } from "@/hooks/useFinancialEntries";
+import { useFinancialEntries, type FinancialEntry } from "@/hooks/useFinancialEntries";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
@@ -17,6 +17,23 @@ import { cn } from "@/lib/utils";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, ReferenceLine } from "recharts";
 
 type ViewRange = "30" | "60" | "90";
+
+type ChartPoint = {
+  date: string;
+  label: string;
+  saldo: number;
+  entradas: number;
+  saidas: number;
+};
+
+type DailyDetail = {
+  date: string;
+  label: string;
+  entradas: number;
+  saidas: number;
+  saldo: number;
+  items: FinancialEntry[];
+};
 
 export default function FluxoCaixaProjetado() {
   const now = new Date();
@@ -49,14 +66,14 @@ export default function FluxoCaixaProjetado() {
   });
 
   const { chartData, dailyDetails, totals, alerts } = useMemo(() => {
-    const pendingEntries = showPaid ? entries : entries.filter((e: any) => e.status === "pendente" || e.status === "vencido");
+    const pendingEntries = showPaid ? entries : entries.filter((e) => e.status === "pendente" || e.status === "vencido");
     const days = eachDayOfInterval({ start: startOfDay(now), end: startOfDay(rangeEnd) });
     let runningBalance = currentBalance;
 
-    const dailyMap: Record<string, { entradas: number; saidas: number; items: any[] }> = {};
+    const dailyMap: Record<string, { entradas: number; saidas: number; items: FinancialEntry[] }> = {};
     days.forEach(d => { dailyMap[format(d, "yyyy-MM-dd")] = { entradas: 0, saidas: 0, items: [] }; });
 
-    pendingEntries.forEach((entry: any) => {
+    pendingEntries.forEach((entry) => {
       const key = entry.due_date;
       if (dailyMap[key]) {
         const amount = Number(entry.amount);
@@ -66,8 +83,8 @@ export default function FluxoCaixaProjetado() {
       }
     });
 
-    const chartPoints: any[] = [];
-    const details: any[] = [];
+    const chartPoints: ChartPoint[] = [];
+    const details: DailyDetail[] = [];
     const negativeAlerts: string[] = [];
     let totalEntradas = 0, totalSaidas = 0;
 
@@ -89,7 +106,12 @@ export default function FluxoCaixaProjetado() {
   }, [entries, currentBalance, now, rangeEnd, showPaid]);
 
   const handleExportCSV = () => {
-    const csv = ["Data;Entradas;Saídas;Saldo Projetado", ...chartData.filter((d: any) => d.entradas > 0 || d.saidas > 0).map((d: any) => `${d.date};${d.entradas.toFixed(2)};${d.saidas.toFixed(2)};${d.saldo.toFixed(2)}`)].join("\n");
+    const csv = [
+      "Data;Entradas;Saídas;Saldo Projetado",
+      ...chartData
+        .filter((d) => d.entradas > 0 || d.saidas > 0)
+        .map((d) => `${d.date};${d.entradas.toFixed(2)};${d.saidas.toFixed(2)};${d.saldo.toFixed(2)}`),
+    ].join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -97,7 +119,12 @@ export default function FluxoCaixaProjetado() {
     URL.revokeObjectURL(url);
   };
 
-  const CustomTooltip = ({ active, payload }: any) => {
+  type CustomTooltipProps = {
+    active?: boolean;
+    payload?: Array<{ payload: ChartPoint }>;
+  };
+
+  const CustomTooltip = ({ active, payload }: CustomTooltipProps) => {
     if (!active || !payload?.length) return null;
     const data = payload[0].payload;
     return (
@@ -189,14 +216,14 @@ export default function FluxoCaixaProjetado() {
         <div className="px-1 py-2"><h3 className="text-sm font-semibold text-foreground">Detalhamento por Dia</h3></div>
         {isLoading ? [...Array(3)].map((_, i) => <Skeleton key={i} className="h-20 w-full rounded-xl" />) : dailyDetails.length === 0 ? (
           <div className="text-center py-12 text-muted-foreground text-sm">Nenhum lançamento pendente nos próximos {range} dias.</div>
-        ) : dailyDetails.map((day: any) => (
+        ) : dailyDetails.map((day) => (
           <div key={day.date} className={cn("bg-card rounded-xl border border-border p-3 space-y-2", day.saldo < 0 && "border-destructive/30 bg-destructive/5")}>
             <div className="flex items-center justify-between">
               <span className="text-xs font-mono font-medium text-foreground">{day.label}</span>
               <span className={cn("text-sm font-mono font-bold", day.saldo >= 0 ? "text-primary" : "text-destructive")}>{formatCurrency(day.saldo)}</span>
             </div>
             <div className="space-y-1">
-              {day.items.map((item: any) => (
+              {day.items.map((item) => (
                 <div key={item.id} className="flex items-center justify-between gap-2 text-xs">
                   <div className="flex items-center gap-1.5 min-w-0">
                     <Badge variant={item.type === "receber" ? "default" : "destructive"} className="text-[10px] px-1 py-0 shrink-0">{item.type === "receber" ? "E" : "S"}</Badge>
@@ -233,12 +260,12 @@ export default function FluxoCaixaProjetado() {
                 <tr key={i} className="border-b border-border"><td className="px-5 py-2.5" colSpan={5}><Skeleton className="h-5 w-full" /></td></tr>
               )) : dailyDetails.length === 0 ? (
                 <tr><td colSpan={5} className="px-5 py-12 text-center text-muted-foreground">Nenhum lançamento pendente nos próximos {range} dias.</td></tr>
-              ) : dailyDetails.map((day: any) => (
+              ) : dailyDetails.map((day) => (
                 <tr key={day.date} className={cn("border-b border-border last:border-0 hover:bg-muted/50", day.saldo < 0 && "bg-destructive/5")}>
                   <td className="px-5 py-2.5 font-mono text-xs text-foreground whitespace-nowrap">{day.label}</td>
                   <td className="px-5 py-2.5">
                     <div className="space-y-0.5">
-                      {day.items.map((item: any) => (
+                      {day.items.map((item) => (
                         <div key={item.id} className="flex items-center gap-2 text-xs">
                           <Badge variant={item.type === "receber" ? "default" : "destructive"} className="text-[10px] px-1.5 py-0">{item.type === "receber" ? "E" : "S"}</Badge>
                           <span className="text-muted-foreground truncate max-w-[200px]">{item.description}</span>

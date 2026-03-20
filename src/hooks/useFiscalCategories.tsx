@@ -36,12 +36,12 @@ export function useFiscalCategories() {
     queryFn: async () => {
       if (!companyId) return [];
       const { data, error } = await supabase
-        .from("fiscal_categories" as any)
+        .from("fiscal_categories")
         .select("*")
         .eq("company_id", companyId)
         .order("name");
       if (error) throw error;
-      return data as unknown as FiscalCategory[];
+      return (data ?? []) as FiscalCategory[];
     },
     enabled: !!companyId,
   });
@@ -54,17 +54,21 @@ export function useCreateFiscalCategory() {
     mutationFn: async (c: Partial<FiscalCategoryInsert> & { name: string }) => {
       if (!companyId) throw new Error("Empresa não encontrada");
       const { data, error } = await supabase
-        .from("fiscal_categories" as any)
-        .insert({ ...c, company_id: companyId } as any)
+        .from("fiscal_categories")
+        .insert({ ...c, company_id: companyId })
         .select()
         .single();
       if (error) throw error;
+
+      const created = data as FiscalCategory | null;
+      if (!created?.id) throw new Error("Falha ao criar categoria fiscal (id ausente)");
+
       logFiscalAudit({
         companyId,
         action: "fiscal_category_CRIADA",
-        details: { entity_type: "fiscal_category", entity_id: (data as any).id, entity_name: c.name, before: null, after: data },
+        details: { entity_type: "fiscal_category", entity_id: created.id, entity_name: c.name, before: null, after: created },
       });
-      return data;
+      return created;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["fiscal_categories"] }); toast.success("Categoria fiscal criada"); },
     onError: (e: Error) => toast.error(`Erro: ${e.message}`),
@@ -77,17 +81,22 @@ export function useUpdateFiscalCategory() {
   return useMutation({
     mutationFn: async ({ id, ...updates }: Partial<FiscalCategory> & { id: string }) => {
       if (!companyId) throw new Error("Empresa não encontrada");
-      const { data: before } = await supabase.from("fiscal_categories" as any).select("*").eq("id", id).eq("company_id", companyId).single();
-      const { data, error } = await supabase.from("fiscal_categories" as any).update(updates as any).eq("id", id).eq("company_id", companyId).select().single();
+      const { data: before } = await supabase.from("fiscal_categories").select("*").eq("id", id).eq("company_id", companyId).single();
+      const { data, error } = await supabase.from("fiscal_categories").update(updates).eq("id", id).eq("company_id", companyId).select().single();
       if (error) throw error;
+
+      const beforeRow = before as FiscalCategory | null;
+      const afterRow = data as FiscalCategory | null;
+      if (!afterRow) throw new Error("Falha ao atualizar categoria fiscal");
+
       if (companyId) {
         logFiscalAudit({
           companyId,
           action: "fiscal_category_ALTERADA",
-          details: { entity_type: "fiscal_category", entity_id: id, entity_name: (data as any).name, before, after: data },
+          details: { entity_type: "fiscal_category", entity_id: id, entity_name: afterRow.name, before: beforeRow, after: afterRow },
         });
       }
-      return data;
+      return afterRow;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["fiscal_categories"] }); toast.success("Categoria fiscal atualizada"); },
     onError: (e: Error) => toast.error(`Erro: ${e.message}`),
@@ -100,14 +109,16 @@ export function useDeleteFiscalCategory() {
   return useMutation({
     mutationFn: async (id: string) => {
       if (!companyId) throw new Error("Empresa não encontrada");
-      const { data: before } = await supabase.from("fiscal_categories" as any).select("*").eq("id", id).eq("company_id", companyId).single();
-      const { error } = await supabase.from("fiscal_categories" as any).delete().eq("id", id).eq("company_id", companyId);
+      const { data: before } = await supabase.from("fiscal_categories").select("*").eq("id", id).eq("company_id", companyId).single();
+      const { error } = await supabase.from("fiscal_categories").delete().eq("id", id).eq("company_id", companyId);
       if (error) throw error;
+
+      const beforeRow = before as FiscalCategory | null;
       if (companyId) {
         logFiscalAudit({
           companyId,
           action: "fiscal_category_EXCLUIDA",
-          details: { entity_type: "fiscal_category", entity_id: id, entity_name: (before as any)?.name, before, after: null },
+          details: { entity_type: "fiscal_category", entity_id: id, entity_name: beforeRow?.name ?? id, before: beforeRow, after: null },
         });
       }
     },

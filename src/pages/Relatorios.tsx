@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, type ComponentType } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { format, startOfMonth, endOfMonth, startOfDay, endOfDay } from "date-fns";
@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 
 
-type ReportCard = { icon: any; label: string; desc: string; path: string };
+type ReportCard = { icon: ComponentType<{ className?: string }>; label: string; desc: string; path: string };
 
 const categories: { title: string; color: string; cards: ReportCard[] }[] = [
   {
@@ -64,10 +64,21 @@ const categories: { title: string; color: string; cards: ReportCard[] }[] = [
   },
 ];
 
-function extractPaymentMethod(payments: any): string {
+function extractPaymentMethod(payments: unknown): string {
   try {
-    const arr = Array.isArray(payments) ? payments : typeof payments === "string" ? JSON.parse(payments) : [];
-    if (arr.length > 0) return arr[0].method || "Outros";
+    const arr = Array.isArray(payments)
+      ? payments
+      : typeof payments === "string"
+        ? JSON.parse(payments) as unknown
+        : [];
+
+    if (!Array.isArray(arr) || arr.length === 0) return "Outros";
+
+    const first = arr[0];
+    if (first && typeof first === "object") {
+      const maybeMethod = (first as Record<string, unknown>).method;
+      if (typeof maybeMethod === "string" && maybeMethod.trim().length > 0) return maybeMethod;
+    }
   } catch {}
   return "Outros";
 }
@@ -84,6 +95,34 @@ export default function Relatorios() {
     queryKey: ["report-sales-general", companyId, dateFrom, dateTo],
     enabled: !!companyId,
     queryFn: async () => {
+      type RawSaleRow = {
+        id: string;
+        total: number | null;
+        payments: unknown;
+        status: string | null;
+        created_at: string;
+      };
+
+      type ReportSaleRow = {
+        id: string;
+        total: number;
+        payment_method: string;
+        status: string | null;
+        created_at: string;
+      };
+
+      type SaleItemRow = {
+        product_id: string;
+        product_name: string | null;
+        quantity: number | null;
+        unit_price: number | null;
+        sale_id: string;
+      };
+
+      type SaleItemRowWithCost = SaleItemRow & { cost_price: number };
+
+      type ProductCostRow = { id: string; cost_price: number | null };
+
       const from = startOfDay(dateFrom).toISOString();
       const to = endOfDay(dateTo).toISOString();
 
@@ -95,7 +134,8 @@ export default function Relatorios() {
         .lte("created_at", to)
         .or("status.is.null,status.neq.cancelled");
 
-      const sales = (rawSales || []).map((s: any) => ({
+      const rawSalesRows = (rawSales ?? []) as RawSaleRow[];
+      const sales: ReportSaleRow[] = rawSalesRows.map((s) => ({
         id: s.id,
         total: s.total ?? 0,
         payment_method: extractPaymentMethod(s.payments),
@@ -108,14 +148,14 @@ export default function Relatorios() {
       // Fetch sale_items in batches (no cost_price column in sale_items)
       const saleIds = sales.map(s => s.id);
       const BATCH_SIZE = 15;
-      let allItems: any[] = [];
+      let allItems: SaleItemRow[] = [];
       for (let i = 0; i < saleIds.length; i += BATCH_SIZE) {
         const batch = saleIds.slice(i, i + BATCH_SIZE);
         const { data: batchItems } = await supabase
           .from("sale_items")
           .select("product_id, product_name, quantity, unit_price, sale_id")
           .in("sale_id", batch);
-        if (batchItems) allItems = allItems.concat(batchItems);
+        if (batchItems) allItems = allItems.concat(batchItems as SaleItemRow[]);
       }
 
       // Get cost_price from products
@@ -125,11 +165,11 @@ export default function Relatorios() {
         for (let i = 0; i < productIds.length; i += BATCH_SIZE) {
           const batch = productIds.slice(i, i + BATCH_SIZE);
           const { data: prods } = await supabase.from("products").select("id, cost_price").in("id", batch);
-          (prods || []).forEach((p: any) => { costMap[p.id] = p.cost_price || 0; });
+          (prods || []).forEach((p: ProductCostRow) => { costMap[p.id] = p.cost_price ?? 0; });
         }
       }
 
-      const items = allItems.map(i => ({ ...i, cost_price: costMap[i.product_id] || 0 }));
+      const items: SaleItemRowWithCost[] = allItems.map(i => ({ ...i, cost_price: costMap[i.product_id] ?? 0 }));
       return { sales, items };
     },
   });

@@ -113,7 +113,24 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
       }
 
       // If there's a plan record but it's starter and trial is still active, override to Pro
-      const planTier = (data as any).plan || "starter";
+      type CompanyPlanRow = {
+        plan?: string;
+        status?: SubscriptionState["status"];
+        max_users?: number;
+        fiscal_enabled?: boolean;
+        advanced_reports_enabled?: boolean;
+        financial_module_level?: FinancialLevel | string;
+        expires_at?: string | null;
+      };
+
+      const planRow = data as CompanyPlanRow;
+
+      const normalizePlanTier = (v: unknown): PlanTier => {
+        if (v === "starter" || v === "business" || v === "pro" || v === "emissor") return v;
+        return "starter";
+      };
+
+      const planTier = normalizePlanTier(planRow?.plan);
       if (planTier === "starter" && trialActive) {
         setState(PRO_TRIAL);
         cachePlan(PRO_TRIAL);
@@ -122,12 +139,13 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
 
       const s: PlanFeatures = {
         plan: planTier,
-        status: (data as any).status || "active",
-        maxUsers: (data as any).max_users || 1,
-        fiscalEnabled: (data as any).fiscal_enabled || false,
-        advancedReportsEnabled: (data as any).advanced_reports_enabled || false,
-        financialModuleLevel: (data as any).financial_module_level || "basic",
-        expiresAt: (data as any).expires_at || null,
+        status: (planRow?.status === "active" || planRow?.status === "suspended" || planRow?.status === "canceled") ? planRow.status : "active",
+        maxUsers: typeof planRow?.max_users === "number" ? planRow.max_users : 1,
+        fiscalEnabled: typeof planRow?.fiscal_enabled === "boolean" ? planRow.fiscal_enabled : false,
+        advancedReportsEnabled: typeof planRow?.advanced_reports_enabled === "boolean" ? planRow.advanced_reports_enabled : false,
+        financialModuleLevel:
+          (planRow?.financial_module_level === "basic" || planRow?.financial_module_level === "full") ? planRow.financial_module_level : "basic",
+        expiresAt: planRow?.expires_at ?? null,
         loading: false,
       };
       setState(s);

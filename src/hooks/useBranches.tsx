@@ -22,6 +22,15 @@ export function useBranches() {
     queryFn: async (): Promise<Branch[]> => {
       if (!user) return [];
 
+      type CompanyUserRow = { company_id: string };
+      type CompanyRow = {
+        id: string;
+        name: string | null;
+        cnpj: string | null;
+        parent_company_id: string | null;
+        logo_url: string | null;
+      };
+
       const { data: cuData } = await supabase
         .from("company_users")
         .select("company_id")
@@ -30,7 +39,7 @@ export function useBranches() {
 
       if (!cuData || cuData.length === 0) return [];
 
-      const companyIds = cuData.map((cu: any) => cu.company_id);
+      const companyIds = (cuData as CompanyUserRow[]).map((cu) => cu.company_id);
 
       const { data: companies } = await supabase
         .from("companies")
@@ -44,19 +53,19 @@ export function useBranches() {
         .select("id, name, cnpj, parent_company_id, logo_url")
         .in("parent_company_id", companyIds);
 
-      const allCompanies = new Map<string, any>();
+      const allCompanies = new Map<string, CompanyRow>();
       for (const c of companies) allCompanies.set(c.id, c);
       if (children) {
         for (const c of children) allCompanies.set(c.id, c);
       }
 
-      return Array.from(allCompanies.values()).map((c: any) => ({
+      return Array.from(allCompanies.values()).map((c) => ({
         id: c.id,
         name: c.name || "Sem nome",
-        cnpj: c.cnpj,
+        cnpj: c.cnpj ?? undefined,
         parent_company_id: c.parent_company_id,
         is_parent: !c.parent_company_id,
-        logo_url: c.logo_url,
+        logo_url: c.logo_url ?? undefined,
       }));
     },
     enabled: !!user,
@@ -71,7 +80,7 @@ export function useSetParentCompany() {
     mutationFn: async ({ companyId, parentId }: { companyId: string; parentId: string | null }) => {
       const { error } = await supabase
         .from("companies")
-        .update({ parent_company_id: parentId } as any)
+        .update({ parent_company_id: parentId })
         .eq("id", companyId);
       if (error) throw error;
     },
@@ -91,7 +100,7 @@ export function useCreateBranch() {
     mutationFn: async ({ name, cnpj, parentId, userId }: { name: string; cnpj?: string; parentId: string; userId: string }) => {
       const { data: company, error: companyErr } = await supabase
         .from("companies")
-        .insert({ name, cnpj: cnpj || null, parent_company_id: parentId } as any)
+        .insert({ name, cnpj: cnpj || null, parent_company_id: parentId })
         .select("id")
         .maybeSingle();
 
@@ -99,7 +108,7 @@ export function useCreateBranch() {
         throw new Error(companyErr?.message || "Falha ao criar empresa");
       }
 
-      const { error: linkErr } = await supabase.rpc("link_user_to_company" as any, {
+      const { error: linkErr } = await supabase.rpc("link_user_to_company", {
         p_company_id: company.id,
         p_user_id: userId,
         p_role: "admin",
@@ -128,7 +137,7 @@ export function useUpdateBranch() {
     mutationFn: async ({ companyId, name, cnpj }: { companyId: string; name: string; cnpj?: string }) => {
       const { error } = await supabase
         .from("companies")
-        .update({ name, cnpj: cnpj || null } as any)
+        .update({ name, cnpj: cnpj || null })
         .eq("id", companyId);
       if (error) throw error;
       logAction({ companyId, action: "Filial editada", module: "filiais", details: name });
@@ -155,6 +164,19 @@ export function useSyncProducts() {
       toCompanyId: string;
       priceMarginPct?: number;
     }) => {
+      type CompanyParentRow = { id: string; parent_company_id: string | null };
+      type ProductLiteRow = { sku: string | null; name: string | null };
+      type SourceProductRow = {
+        id: string;
+        created_at: string;
+        updated_at: string;
+        stock_quantity: number | null;
+        sku: string | null;
+        name: string | null;
+        price: number | null;
+        [key: string]: unknown;
+      };
+
       // GOVERNANCE: Verify fromCompanyId is a parent (matrix) company
       const { data: fromCompany } = await supabase
         .from("companies")
@@ -163,7 +185,7 @@ export function useSyncProducts() {
         .single();
 
       if (!fromCompany) throw new Error("Empresa origem não encontrada");
-      if ((fromCompany as any).parent_company_id) {
+      if ((fromCompany as CompanyParentRow).parent_company_id) {
         throw new Error("Apenas a matriz pode sincronizar produtos para filiais. Filiais não podem puxar dados.");
       }
 
@@ -174,7 +196,7 @@ export function useSyncProducts() {
         .eq("id", toCompanyId)
         .single();
 
-      if (!toCompany || (toCompany as any).parent_company_id !== fromCompanyId) {
+      if (!toCompany || (toCompany as CompanyParentRow).parent_company_id !== fromCompanyId) {
         throw new Error("A empresa destino não é filial desta matriz");
       }
 
@@ -194,11 +216,19 @@ export function useSyncProducts() {
         .select("sku, name")
         .eq("company_id", toCompanyId);
 
-      const existingSkus = new Set((existingProducts || []).map((p: any) => p.sku).filter(Boolean));
-      const existingNames = new Set((existingProducts || []).map((p: any) => p.name));
+      const existingSkus = new Set(
+        ((existingProducts || []) as ProductLiteRow[])
+          .map((p) => p.sku)
+          .filter((v): v is string => Boolean(v))
+      );
+      const existingNames = new Set(
+        ((existingProducts || []) as ProductLiteRow[])
+          .map((p) => p.name)
+          .filter((v): v is string => Boolean(v))
+      );
 
       // Filter out duplicates
-      const newProducts = sourceProducts.filter((p: any) => {
+      const newProducts = (sourceProducts as SourceProductRow[]).filter((p) => {
         if (p.sku && existingSkus.has(p.sku)) return false;
         if (existingNames.has(p.name)) return false;
         return true;
@@ -208,13 +238,13 @@ export function useSyncProducts() {
 
       // Insert products with new company_id, applying price margin
       const marginMultiplier = 1 + (priceMarginPct / 100);
-      const toInsert = newProducts.map((p: any) => {
+      const toInsert = newProducts.map((p) => {
         const { id, created_at, updated_at, stock_quantity, ...rest } = p;
         return { 
           ...rest, 
           company_id: toCompanyId,
           stock_quantity: 0, // Branch starts with zero stock
-          price: Math.round((rest.price || 0) * marginMultiplier * 100) / 100,
+          price: Math.round((Number(rest.price || 0)) * marginMultiplier * 100) / 100,
         };
       });
 
@@ -234,6 +264,18 @@ export function useSyncProducts() {
 /** Auto-sync: push a single new product to all branches of the parent */
 export async function autoSyncProductToBranches(productId: string, parentCompanyId: string) {
   try {
+    type BranchRow = { id: string };
+    type ProductRow = {
+      id: string;
+      created_at: string;
+      updated_at: string;
+      stock_quantity: number | null;
+      company_id: string;
+      sku: string | null;
+      name: string | null;
+      [key: string]: unknown;
+    };
+
     // Get all branches of this parent
     const { data: branches } = await supabase
       .from("companies")
@@ -252,21 +294,21 @@ export async function autoSyncProductToBranches(productId: string, parentCompany
 
     if (!product) return;
 
-    for (const branch of branches) {
+    for (const branch of branches as BranchRow[]) {
       // Check if already exists
       const { data: existing } = await supabase
         .from("products")
         .select("id")
-        .eq("company_id", (branch as any).id)
-        .or(`sku.eq.${(product as any).sku || "NONE"},name.eq.${(product as any).name}`)
+        .eq("company_id", branch.id)
+        .or(`sku.eq.${(product as ProductRow).sku || "NONE"},name.eq.${(product as ProductRow).name}`)
         .maybeSingle();
 
       if (existing) continue;
 
-      const { id, created_at, updated_at, stock_quantity, company_id, ...rest } = product as any;
+      const { id, created_at, updated_at, stock_quantity, company_id, ...rest } = product as ProductRow;
       await supabase.from("products").insert({
         ...rest,
-        company_id: (branch as any).id,
+        company_id: branch.id,
         stock_quantity: 0,
       });
     }
@@ -282,7 +324,7 @@ export function useDeleteBranch() {
   return useMutation({
     mutationFn: async (companyId: string) => {
       // Use the SECURITY DEFINER function that handles all FK dependencies
-      const { error } = await supabase.rpc("admin_delete_company" as any, {
+      const { error } = await supabase.rpc("admin_delete_company", {
         p_company_id: companyId,
       });
       if (error) throw error;

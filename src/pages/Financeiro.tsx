@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ComponentType } from "react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
@@ -22,6 +22,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
+import type { PaymentMethod } from "@/integrations/supabase/tables";
 
 const statusConfig: Record<string, { label: string; icon: typeof Clock; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   pendente: { label: "Pendente", icon: Clock, variant: "secondary" },
@@ -47,7 +48,7 @@ export default function Financeiro() {
   const [deleteTarget, setDeleteTarget] = useState<LocalFinancialEntry | null>(null);
   const [showClosing, setShowClosing] = useState(false);
   const [payTarget, setPayTarget] = useState<LocalFinancialEntry | null>(null);
-  const [payMethod, setPayMethod] = useState("dinheiro");
+  const [payMethod, setPayMethod] = useState<PaymentMethod>("dinheiro");
 
   const monthStart = `${month}-01`;
   const monthEndDate = new Date(parseInt(month.split("-")[0]), parseInt(month.split("-")[1]), 0);
@@ -147,7 +148,7 @@ export default function Financeiro() {
         </motion.div>
       </div>
 
-      <CashFlowChart entries={allEntries as any} month={month} />
+      <CashFlowChart entries={allEntries} month={month} />
 
       <div className="space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
@@ -328,7 +329,7 @@ export default function Financeiro() {
         key={editEntry?.id ?? "new"}
         open={showForm}
         onOpenChange={handleCloseForm}
-        entry={editEntry as any}
+        entry={editEntry}
         defaultType={defaultType}
       />
 
@@ -409,7 +410,7 @@ export default function Financeiro() {
   );
 }
 
-function SummaryCard({ icon: Icon, label, value, paid, color }: { icon: any; label: string; value: number; paid?: number; color: string }) {
+function SummaryCard({ icon: Icon, label, value, paid, color }: { icon: ComponentType<{ className?: string }>; label: string; value: number; paid?: number; color: string }) {
   return (
     <div className="bg-card rounded-xl border border-border p-3 sm:p-4 card-shadow min-w-0 overflow-hidden">
       <div className="flex items-center gap-2 mb-2">

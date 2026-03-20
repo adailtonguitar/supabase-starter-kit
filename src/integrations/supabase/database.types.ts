@@ -1,715 +1,2266 @@
-/**
- * Supabase Database Types — hand-maintained based on actual schema usage.
- *
- * Run `supabase gen types typescript` against a live DB to regenerate automatically.
- * Until then, this file provides real type safety for all known tables.
- */
-
-// ── Utility types ──────────────────────────────────────────────────────
-type UUID = string;
-type ISODate = string;
-type ISODateTime = string;
-type Json = string | number | boolean | null | Json[] | { [key: string]: Json };
-
-/**
- * Converts an interface to a mapped type with implicit index signature.
- * This satisfies Supabase's Record<string, unknown> constraint WITHOUT
- * adding an intersection that breaks select() type resolution.
- */
-type Mapped<T> = { [K in keyof T]: T[K] };
-
-/**
- * Helper: build Table shape from Row.
- * - Row is strongly typed via Mapped<> for reads.
- * - Insert / Update are permissive for backward-compatible writes.
- * - Relationships uses the SDK's expected shape.
- */
-type TableDef<R extends object> = {
-  Row: Mapped<R>;
-  Insert: Record<string, unknown>;
-  Update: Record<string, unknown>;
-  Relationships: { foreignKeyName: string; columns: string[]; isOneToOne: boolean; referencedRelation: string; referencedColumns: string[] }[];
-};
-
-/** Generic RPC function shape for untyped functions */
-type GenericRpc = {
-  Args: Record<string, unknown>;
-  Returns: unknown;
-};
-
-// ── Enums ──────────────────────────────────────────────────────────────
-export type PaymentMethod = "dinheiro" | "debito" | "credito" | "pix" | "voucher" | "outros" | "prazo";
-export type CashMovementType = "abertura" | "venda" | "sangria" | "suprimento" | "estorno" | "fechamento";
-export type FinancialEntryType = "pagar" | "receber";
-export type FinancialEntryStatus = "pendente" | "pago" | "vencido" | "cancelado" | "parcial";
-export type TransferStatus = "pending" | "in_transit" | "received" | "cancelled";
-export type CompanyUserRole = "admin" | "gerente" | "supervisor" | "caixa";
-export type AdminRole = "super_admin";
-
-// ── Row types ──────────────────────────────────────────────────────────
-
-export interface ActionLogRow {
-  id: UUID;
-  company_id: UUID;
-  user_id: UUID | null;
-  action: string;
-  module: string;
-  details: string | null;
-  diff: Json | null;
-  session_id: string | null;
-  created_at: ISODateTime;
-}
-
-export interface AdminNotificationRow {
-  id: UUID;
-  title: string;
-  message: string;
-  type: string;
-  target_role: string | null;
-  target_company_id: UUID | null;
-  created_at: ISODateTime;
-}
-
-export interface AdminRoleRow {
-  id: UUID;
-  user_id: UUID;
-  role: AdminRole;
-  created_at: ISODateTime;
-}
-
-export interface CardAdministratorRow {
-  id: UUID;
-  company_id: UUID;
-  name: string;
-  fee_debit: number | null;
-  fee_credit: number | null;
-  fee_credit_installment: number | null;
-  settlement_days_debit: number | null;
-  settlement_days_credit: number | null;
-  notes: string | null;
-  created_at: ISODateTime;
-  updated_at: ISODateTime;
-}
-
-export interface CarrierRow {
-  id: UUID;
-  company_id: UUID;
-  name: string;
-  cnpj: string | null;
-  ie: string | null;
-  phone: string | null;
-  email: string | null;
-  notes: string | null;
-  created_at: ISODateTime;
-  updated_at: ISODateTime;
-}
-
-export interface CashMovementRow {
-  id: UUID;
-  company_id: UUID;
-  session_id: UUID | null;
-  type: CashMovementType;
-  amount: number;
-  performed_by: UUID;
-  payment_method: PaymentMethod | null;
-  description: string | null;
-  sale_id: UUID | null;
-  created_at: ISODateTime;
-}
-
-export interface CashSessionRow {
-  id: UUID;
-  company_id: UUID;
-  terminal_id: string;
-  status: string;
-  opened_by: UUID;
-  opened_at: ISODateTime;
-  closed_at: ISODateTime | null;
-  closed_by: UUID | null;
-  opening_balance: number;
-  closing_balance: number | null;
-  counted_dinheiro: number | null;
-  counted_debito: number | null;
-  counted_credito: number | null;
-  counted_pix: number | null;
-  difference: number | null;
-  notes: string | null;
-  sales_count: number;
-  total_vendas: number;
-  total_dinheiro: number;
-  total_debito: number;
-  total_credito: number;
-  total_pix: number;
-  total_voucher: number;
-  total_outros: number;
-  total_sangria: number;
-  total_suprimento: number;
-  created_at: ISODateTime;
-}
-
-export interface ClientRow {
-  id: UUID;
-  company_id: UUID;
-  name: string;
-  cpf_cnpj: string | null;
-  phone: string | null;
-  email: string | null;
-  address: string | null;
-  notes: string | null;
-  loyalty_points: number;
-  credit_balance: number;
-  credit_limit: number | null;
-  birth_date: ISODate | null;
-  is_active: boolean;
-  created_at: ISODateTime;
-  updated_at: ISODateTime;
-}
-
-export interface CompanyRow {
-  id: UUID;
-  name: string;
-  trade_name: string | null;
-  cnpj: string | null;
-  ie: string | null;
-  phone: string | null;
-  email: string | null;
-  logo_url: string | null;
-  slogan: string | null;
-  pix_key: string | null;
-  pix_key_type: string | null;
-  pix_city: string | null;
-  address_street: string | null;
-  address_number: string | null;
-  address_neighborhood: string | null;
-  address_city: string | null;
-  address_state: string | null;
-  address_zip: string | null;
-  address_complement: string | null;
-  crt: string | null;
-  is_demo: boolean;
-  is_blocked: boolean;
-  block_reason: string | null;
-  parent_company_id: UUID | null;
-  furniture_mode: boolean;
-  created_at: ISODateTime;
-  updated_at: ISODateTime;
-}
-
-export interface CompanyPlanRow {
-  id: UUID;
-  company_id: UUID;
-  plan: string;
-  status: string;
-  started_at: ISODateTime | null;
-  expires_at: ISODateTime | null;
-  stripe_customer_id: string | null;
-  stripe_subscription_id: string | null;
-  created_at: ISODateTime;
-  updated_at: ISODateTime;
-}
-
-export interface CompanyUserRow {
-  id: UUID;
-  company_id: UUID;
-  user_id: UUID;
-  role: CompanyUserRole;
-  is_active: boolean;
-  created_at: ISODateTime;
-}
-
-export interface CostCenterRow {
-  id: UUID;
-  company_id: UUID;
-  name: string;
-  description: string | null;
-  is_active: boolean;
-  created_at: ISODateTime;
-}
-
-export interface DiscountLimitRow {
-  id: UUID;
-  company_id: UUID;
-  role: string;
-  max_discount_percent: number;
-  created_at: ISODateTime;
-}
-
-export interface EmployeeRow {
-  id: UUID;
-  company_id: UUID;
-  name: string;
-  role: string | null;
-  phone: string | null;
-  email: string | null;
-  cpf: string | null;
-  salary: number | null;
-  commission_percent: number | null;
-  admission_date: ISODate | null;
-  is_active: boolean;
-  notes: string | null;
-  created_at: ISODateTime;
-  updated_at: ISODateTime;
-}
-
-export interface FinancialEntryRow {
-  id: UUID;
-  company_id: UUID;
-  type: FinancialEntryType;
-  description: string;
-  category: string | null;
-  reference: string | null;
-  counterpart: string | null;
-  amount: number;
-  due_date: ISODate;
-  paid_date: ISODate | null;
-  paid_amount: number | null;
-  payment_method: string | null;
-  status: FinancialEntryStatus;
-  notes: string | null;
-  created_by: UUID;
-  cost_center_id: UUID | null;
-  recurrence: string | null;
-  recurrence_end: ISODate | null;
-  parent_entry_id: UUID | null;
-  bank_account: string | null;
-  created_at: ISODateTime;
-  updated_at: ISODateTime;
-}
-
-export interface FiscalAuditLogRow {
-  id: UUID;
-  company_id: UUID;
-  event_type: string;
-  document_id: UUID | null;
-  sale_id: UUID | null;
-  details: Json | null;
-  created_at: ISODateTime;
-}
-
-export interface FiscalConfigRow {
-  id: UUID;
-  company_id: UUID;
-  serie: string;
-  next_number: number;
-  environment: string;
-  certificate_thumbprint: string | null;
-  emissor_client_id: string | null;
-  auto_emit: boolean;
-  created_at: ISODateTime;
-  updated_at: ISODateTime;
-}
-
-export interface FiscalDocumentRow {
-  id: UUID;
-  company_id: UUID;
-  sale_id: UUID | null;
-  type: string;
-  number: number | null;
-  serie: string | null;
-  status: string;
-  access_key: string | null;
-  xml_url: string | null;
-  pdf_url: string | null;
-  protocol: string | null;
-  total_value: number | null;
-  issued_by: UUID | null;
-  customer_name: string | null;
-  customer_cpf: string | null;
-  rejection_reason: string | null;
-  created_at: ISODateTime;
-  updated_at: ISODateTime;
-}
-
-export interface FiscalQueueRow {
-  id: UUID;
-  company_id: UUID;
-  sale_id: UUID;
-  status: string;
-  attempts: number;
-  last_error: string | null;
-  processed_at: ISODateTime | null;
-  created_at: ISODateTime;
-}
-
-export interface InventoryCountRow {
-  id: UUID;
-  company_id: UUID;
-  name: string;
-  status: string;
-  started_at: ISODateTime;
-  finished_at: ISODateTime | null;
-  performed_by: UUID;
-  notes: string | null;
-  created_at: ISODateTime;
-}
-
-export interface InventoryCountItemRow {
-  id: UUID;
-  inventory_id: UUID;
-  company_id: UUID;
-  product_id: UUID;
-  system_quantity: number;
-  counted_quantity: number | null;
-  difference: number;
-  notes: string | null;
-  counted_at: ISODateTime | null;
-}
-
-export interface LoyaltyConfigRow {
-  id: UUID;
-  company_id: UUID;
-  points_per_real: number;
-  min_redemption: number;
-  reward_value: number;
-  is_active: boolean;
-  created_at: ISODateTime;
-  updated_at: ISODateTime;
-}
-
-export interface LoyaltyTransactionRow {
-  id: UUID;
-  company_id: UUID;
-  client_id: UUID;
-  type: string;
-  points: number;
-  balance_after: number;
-  description: string;
-  created_at: ISODateTime;
-}
-
-export interface NfeImportRow {
-  id: UUID;
-  company_id: UUID;
-  access_key: string;
-  supplier_name: string | null;
-  total_value: number | null;
-  items_count: number | null;
-  imported_at: ISODateTime;
-}
-
-export interface NotificationReadRow {
-  id: UUID;
-  notification_id: UUID;
-  user_id: UUID;
-  read_at: ISODateTime;
-}
-
-export interface PriceHistoryRow {
-  id: UUID;
-  company_id: UUID;
-  product_id: UUID;
-  field_changed: string;
-  old_value: number;
-  new_value: number;
-  source: string;
-  changed_at: ISODateTime;
-}
-
-export interface ProductCategoryRow {
-  id: UUID;
-  company_id: UUID;
-  name: string;
-  description: string | null;
-  created_at: ISODateTime;
-}
-
-export interface ProductLabelRow {
-  id: UUID;
-  company_id: UUID;
-  product_id: UUID;
-  status: string;
-  created_at: ISODateTime;
-}
-
-export interface ProductLotRow {
-  id: UUID;
-  company_id: UUID;
-  product_id: UUID;
-  lot_number: string;
-  manufacture_date: ISODate | null;
-  expiry_date: ISODate | null;
-  quantity: number;
-  unit_cost: number | null;
-  supplier: string | null;
-  notes: string | null;
-  is_active: boolean;
-  created_at: ISODateTime;
-  updated_at: ISODateTime;
-}
-
-export interface ProductRow {
-  id: UUID;
-  company_id: UUID;
-  name: string;
-  sku: string;
-  barcode: string | null;
-  ncm: string | null;
-  category: string | null;
-  price: number;
-  cost_price: number | null;
-  stock_quantity: number;
-  min_stock: number | null;
-  reorder_point: number | null;
-  unit: string;
-  is_active: boolean;
-  image_url: string | null;
-  shelf_location: string | null;
-  voltage: string | null;
-  warranty_months: number | null;
-  serial_number: string | null;
-  created_at: ISODateTime;
-  updated_at: ISODateTime;
-}
-
-export interface ProfileRow {
-  id: UUID;
-  email: string | null;
-  full_name: string | null;
-  avatar_url: string | null;
-  created_at: ISODateTime;
-  updated_at: ISODateTime;
-}
-
-export interface PromotionRow {
-  id: UUID;
-  company_id: UUID;
-  name: string;
-  description: string | null;
-  promo_type: string;
-  discount_percent: number;
-  fixed_price: number;
-  buy_quantity: number;
-  pay_quantity: number;
-  scope: string;
-  category_name: string | null;
-  min_quantity: number;
-  starts_at: ISODateTime;
-  ends_at: ISODateTime | null;
-  active_days: number[] | null;
-  product_ids: string[] | null;
-  is_active: boolean;
-  created_at: ISODateTime;
-  updated_at: ISODateTime;
-}
-
-export interface PurchaseOrderRow {
-  id: UUID;
-  company_id: UUID;
-  supplier_id: UUID | null;
-  status: string;
-  total: number;
-  items: Json;
-  notes: string | null;
-  expected_date: ISODate | null;
-  created_by: UUID | null;
-  created_at: ISODateTime;
-  updated_at: ISODateTime;
-}
-
-export interface QuoteRow {
-  id: UUID;
-  company_id: UUID;
-  client_id: UUID | null;
-  client_name: string | null;
-  items_json: Json;
-  total: number;
-  status: string;
-  notes: string | null;
-  valid_until: ISODate | null;
-  created_by: UUID | null;
-  created_at: ISODateTime;
-  updated_at: ISODateTime;
-}
-
-export interface SaleItemRow {
-  id: UUID;
-  company_id: UUID;
-  sale_id: UUID;
-  product_id: UUID;
-  product_name: string;
-  quantity: number;
-  unit_price: number;
-  discount_percent: number;
-  subtotal: number;
-  created_at: ISODateTime | null;
-}
-
-export interface SaleRow {
-  id: UUID;
-  company_id: UUID;
-  terminal_id: string;
-  session_id: UUID;
-  sale_number: number | null;
-  subtotal: number;
-  discount_percent: number;
-  discount_value: number;
-  total: number;
-  status: string;
-  payment_method: string | null;
-  payments: Json | null;
-  items: Json | null;
-  sold_by: UUID | null;
-  client_id: UUID | null;
-  client_name: string | null;
-  access_key: string | null;
-  canceled_at: ISODateTime | null;
-  canceled_by: UUID | null;
-  cancel_reason: string | null;
-  created_at: ISODateTime;
-}
-
-export interface StockMovementRow {
-  id: UUID;
-  company_id: UUID;
-  product_id: UUID;
-  type: string;
-  quantity: number;
-  reason: string | null;
-  performed_by: UUID | null;
-  created_by: UUID | null;
-  reference_id: UUID | null;
-  created_at: ISODateTime;
-}
-
-export interface StockTransferRow {
-  id: UUID;
-  from_company_id: UUID;
-  to_company_id: UUID;
-  status: TransferStatus;
-  notes: string | null;
-  created_by: UUID | null;
-  received_by: UUID | null;
-  created_at: ISODateTime;
-  received_at: ISODateTime | null;
-}
-
-export interface StockTransferItemRow {
-  id: UUID;
-  transfer_id: UUID;
-  product_id: UUID;
-  product_name: string;
-  product_sku: string | null;
-  quantity: number;
-  unit_cost: number;
-}
-
-export interface SupplierRow {
-  id: UUID;
-  company_id: UUID;
-  name: string;
-  trade_name: string | null;
-  cnpj: string | null;
-  ie: string | null;
-  contact_name: string | null;
-  email: string | null;
-  phone: string | null;
-  notes: string | null;
-  created_at: ISODateTime;
-  updated_at: ISODateTime;
-}
-
-export interface SupportMessageRow {
-  id: UUID;
-  user_id: UUID;
-  company_id: UUID;
-  message: string;
-  response: string | null;
-  status: string;
-  created_at: ISODateTime;
-}
-
-export interface SystemErrorRow {
-  id: UUID;
-  company_id: UUID;
-  error_type: string;
-  message: string;
-  stack: string | null;
-  context: Json | null;
-  resolved: boolean;
-  created_at: ISODateTime;
-}
-
-export interface TefConfigRow {
-  id: UUID;
-  company_id: UUID;
-  provider: string;
-  environment: string;
-  merchant_id: string | null;
-  api_key: string | null;
-  terminal_id: string | null;
-  created_at: ISODateTime;
-  updated_at: ISODateTime;
-}
-
-// ── Database type ──────────────────────────────────────────────────────
+export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[]
 
 export type Database = {
   public: {
     Tables: {
-      action_logs: TableDef<ActionLogRow>;
-      admin_notifications: TableDef<AdminNotificationRow>;
-      admin_roles: TableDef<AdminRoleRow>;
-      card_administrators: TableDef<CardAdministratorRow>;
-      carriers: TableDef<CarrierRow>;
-      cash_movements: TableDef<CashMovementRow>;
-      cash_sessions: TableDef<CashSessionRow>;
-      clients: TableDef<ClientRow>;
-      companies: TableDef<CompanyRow>;
-      company_plans: TableDef<CompanyPlanRow>;
-      company_users: TableDef<CompanyUserRow>;
-      cost_centers: TableDef<CostCenterRow>;
-      discount_limits: TableDef<DiscountLimitRow>;
-      employees: TableDef<EmployeeRow>;
-      financial_entries: TableDef<FinancialEntryRow>;
-      fiscal_audit_logs: TableDef<FiscalAuditLogRow>;
-      fiscal_configs: TableDef<FiscalConfigRow>;
-      fiscal_documents: TableDef<FiscalDocumentRow>;
-      fiscal_queue: TableDef<FiscalQueueRow>;
-      inventory_count_items: TableDef<InventoryCountItemRow>;
-      inventory_counts: TableDef<InventoryCountRow>;
-      loyalty_config: TableDef<LoyaltyConfigRow>;
-      loyalty_transactions: TableDef<LoyaltyTransactionRow>;
-      nfe_imports: TableDef<NfeImportRow>;
-      notification_reads: TableDef<NotificationReadRow>;
-      price_history: TableDef<PriceHistoryRow>;
-      product_categories: TableDef<ProductCategoryRow>;
-      product_labels: TableDef<ProductLabelRow>;
-      product_lots: TableDef<ProductLotRow>;
-      products: TableDef<ProductRow>;
-      profiles: TableDef<ProfileRow>;
-      promotions: TableDef<PromotionRow>;
-      purchase_orders: TableDef<PurchaseOrderRow>;
-      quotes: TableDef<QuoteRow>;
-      sale_items: TableDef<SaleItemRow>;
-      sales: TableDef<SaleRow>;
-      stock_movements: TableDef<StockMovementRow>;
-      stock_transfer_items: TableDef<StockTransferItemRow>;
-      stock_transfers: TableDef<StockTransferRow>;
-      suppliers: TableDef<SupplierRow>;
-      support_messages: TableDef<SupportMessageRow>;
-      system_errors: TableDef<SystemErrorRow>;
-      tef_config: TableDef<TefConfigRow>;
-    };
-    Views: Record<string, never>;
-    Functions: Record<string, never>;
-    Enums: {
-      payment_method: PaymentMethod;
-      cash_movement_type: CashMovementType;
-      financial_entry_type: FinancialEntryType;
-      transfer_status: TransferStatus;
-      company_user_role: CompanyUserRole;
-      admin_role: AdminRole;
-    };
-    CompositeTypes: Record<string, never>;
-  };
-};
+      action_logs: {
+        Row: {
+          id: string
+          company_id: string
+          user_id: string
+          user_name: string | null
+          action: string
+          module: string
+          details: string | null
+          metadata: Json | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          company_id: string
+          user_id: string
+          user_name?: string | null
+          action: string
+          module: string
+          details?: string | null
+          metadata?: Json | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          company_id?: string
+          user_id?: string
+          user_name?: string | null
+          action?: string
+          module?: string
+          details?: string | null
+          metadata?: Json | null
+          created_at?: string
+        }
+      }
+      action_logs_archive: {
+        Row: {
+          id: string
+          company_id: string
+          user_id: string | null
+          action: string
+          module: string | null
+          details: string | null
+          user_name: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          company_id: string
+          user_id?: string | null
+          action: string
+          module?: string | null
+          details?: string | null
+          user_name?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          company_id?: string
+          user_id?: string | null
+          action?: string
+          module?: string | null
+          details?: string | null
+          user_name?: string | null
+          created_at?: string
+        }
+      }
+      admin_notifications: {
+        Row: {
+          id: string
+          company_id: string | null
+          title: string
+          message: string
+          type: string
+          created_at: string | null
+          created_by: string | null
+        }
+        Insert: {
+          id?: string
+          company_id?: string | null
+          title: string
+          message: string
+          type: string
+          created_at?: string | null
+          created_by?: string | null
+        }
+        Update: {
+          id?: string
+          company_id?: string | null
+          title?: string
+          message?: string
+          type?: string
+          created_at?: string | null
+          created_by?: string | null
+        }
+      }
+      admin_roles: {
+        Row: {
+          id: string
+          user_id: string
+          role: string
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          role: string
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          role?: string
+          created_at?: string | null
+        }
+      }
+      assemblies: {
+        Row: {
+          id: string
+          company_id: string
+          client_name: string
+          address: string
+          phone: string | null
+          assembler: string | null
+          helper: string | null
+          scheduled_date: string
+          scheduled_time: string | null
+          items: string | null
+          notes: string | null
+          status: string
+          photos: string[] | null
+          created_at: string | null
+          created_by: string | null
+        }
+        Insert: {
+          id?: string
+          company_id: string
+          client_name: string
+          address: string
+          phone?: string | null
+          assembler?: string | null
+          helper?: string | null
+          scheduled_date: string
+          scheduled_time?: string | null
+          items?: string | null
+          notes?: string | null
+          status: string
+          photos?: string[] | null
+          created_at?: string | null
+          created_by?: string | null
+        }
+        Update: {
+          id?: string
+          company_id?: string
+          client_name?: string
+          address?: string
+          phone?: string | null
+          assembler?: string | null
+          helper?: string | null
+          scheduled_date?: string
+          scheduled_time?: string | null
+          items?: string | null
+          notes?: string | null
+          status?: string
+          photos?: string[] | null
+          created_at?: string | null
+          created_by?: string | null
+        }
+      }
+      backup_history: {
+        Row: {
+          id: string
+          company_id: string
+          file_path: string
+          file_size: number | null
+          tables_included: string[]
+          records_count: Json | null
+          created_by: string
+          created_at: string
+          expires_at: string | null
+        }
+        Insert: {
+          id?: string
+          company_id: string
+          file_path: string
+          file_size?: number | null
+          tables_included: string[]
+          records_count?: Json | null
+          created_by: string
+          created_at?: string
+          expires_at?: string | null
+        }
+        Update: {
+          id?: string
+          company_id?: string
+          file_path?: string
+          file_size?: number | null
+          tables_included?: string[]
+          records_count?: Json | null
+          created_by?: string
+          created_at?: string
+          expires_at?: string | null
+        }
+      }
+      bank_transactions: {
+        Row: {
+          id: string
+          company_id: string
+          transaction_date: string
+          description: string
+          amount: number
+          type: string
+          bank_name: string | null
+          account_number: string | null
+          reconciled: boolean
+          financial_entry_id: string | null
+          imported_at: string
+          imported_by: string
+          notes: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          company_id: string
+          transaction_date: string
+          description: string
+          amount: number
+          type: string
+          bank_name?: string | null
+          account_number?: string | null
+          reconciled?: boolean
+          financial_entry_id?: string | null
+          imported_at?: string
+          imported_by: string
+          notes?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          company_id?: string
+          transaction_date?: string
+          description?: string
+          amount?: number
+          type?: string
+          bank_name?: string | null
+          account_number?: string | null
+          reconciled?: boolean
+          financial_entry_id?: string | null
+          imported_at?: string
+          imported_by?: string
+          notes?: string | null
+          created_at?: string
+        }
+      }
+      card_administrators: {
+        Row: {
+          id: string
+          company_id: string
+          name: string
+          cnpj: string | null
+          debit_rate: number
+          credit_rate: number
+          credit_installment_rate: number
+          debit_settlement_days: number
+          credit_settlement_days: number
+          antecipation_rate: number | null
+          contact_phone: string | null
+          contact_email: string | null
+          notes: string | null
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          company_id: string
+          name: string
+          cnpj?: string | null
+          debit_rate?: number
+          credit_rate?: number
+          credit_installment_rate?: number
+          debit_settlement_days?: number
+          credit_settlement_days?: number
+          antecipation_rate?: number | null
+          contact_phone?: string | null
+          contact_email?: string | null
+          notes?: string | null
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          company_id?: string
+          name?: string
+          cnpj?: string | null
+          debit_rate?: number
+          credit_rate?: number
+          credit_installment_rate?: number
+          debit_settlement_days?: number
+          credit_settlement_days?: number
+          antecipation_rate?: number | null
+          contact_phone?: string | null
+          contact_email?: string | null
+          notes?: string | null
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      carriers: {
+        Row: {
+          id: string
+          company_id: string
+          name: string
+          trade_name: string | null
+          cnpj: string | null
+          ie: string | null
+          email: string | null
+          phone: string | null
+          address_street: string | null
+          address_city: string | null
+          address_state: string | null
+          address_zip: string | null
+          antt_code: string | null
+          vehicle_plate: string | null
+          notes: string | null
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          company_id: string
+          name: string
+          trade_name?: string | null
+          cnpj?: string | null
+          ie?: string | null
+          email?: string | null
+          phone?: string | null
+          address_street?: string | null
+          address_city?: string | null
+          address_state?: string | null
+          address_zip?: string | null
+          antt_code?: string | null
+          vehicle_plate?: string | null
+          notes?: string | null
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          company_id?: string
+          name?: string
+          trade_name?: string | null
+          cnpj?: string | null
+          ie?: string | null
+          email?: string | null
+          phone?: string | null
+          address_street?: string | null
+          address_city?: string | null
+          address_state?: string | null
+          address_zip?: string | null
+          antt_code?: string | null
+          vehicle_plate?: string | null
+          notes?: string | null
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      cash_movements: {
+        Row: {
+          id: string
+          session_id: string
+          company_id: string
+          type: string
+          amount: number
+          payment_method: string | null
+          description: string | null
+          performed_by: string
+          sale_id: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          session_id: string
+          company_id: string
+          type: string
+          amount: number
+          payment_method?: string | null
+          description?: string | null
+          performed_by: string
+          sale_id?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          session_id?: string
+          company_id?: string
+          type?: string
+          amount?: number
+          payment_method?: string | null
+          description?: string | null
+          performed_by?: string
+          sale_id?: string | null
+          created_at?: string
+        }
+      }
+      cash_sessions: {
+        Row: {
+          id: string
+          company_id: string
+          terminal_id: string
+          status: string
+          opening_balance: number
+          closing_balance: number | null
+          opened_by: string
+          closed_by: string | null
+          opened_at: string
+          closed_at: string | null
+          total_dinheiro: number | null
+          total_debito: number | null
+          total_credito: number | null
+          total_pix: number | null
+          total_voucher: number | null
+          total_outros: number | null
+          total_sangria: number | null
+          total_suprimento: number | null
+          total_vendas: number | null
+          sales_count: number | null
+          counted_dinheiro: number | null
+          counted_debito: number | null
+          counted_credito: number | null
+          counted_pix: number | null
+          difference: number | null
+          notes: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          company_id: string
+          terminal_id: string
+          status: string
+          opening_balance?: number
+          closing_balance?: number | null
+          opened_by: string
+          closed_by?: string | null
+          opened_at?: string
+          closed_at?: string | null
+          total_dinheiro?: number | null
+          total_debito?: number | null
+          total_credito?: number | null
+          total_pix?: number | null
+          total_voucher?: number | null
+          total_outros?: number | null
+          total_sangria?: number | null
+          total_suprimento?: number | null
+          total_vendas?: number | null
+          sales_count?: number | null
+          counted_dinheiro?: number | null
+          counted_debito?: number | null
+          counted_credito?: number | null
+          counted_pix?: number | null
+          difference?: number | null
+          notes?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          company_id?: string
+          terminal_id?: string
+          status?: string
+          opening_balance?: number
+          closing_balance?: number | null
+          opened_by?: string
+          closed_by?: string | null
+          opened_at?: string
+          closed_at?: string | null
+          total_dinheiro?: number | null
+          total_debito?: number | null
+          total_credito?: number | null
+          total_pix?: number | null
+          total_voucher?: number | null
+          total_outros?: number | null
+          total_sangria?: number | null
+          total_suprimento?: number | null
+          total_vendas?: number | null
+          sales_count?: number | null
+          counted_dinheiro?: number | null
+          counted_debito?: number | null
+          counted_credito?: number | null
+          counted_pix?: number | null
+          difference?: number | null
+          notes?: string | null
+          created_at?: string
+        }
+      }
+      clients: {
+        Row: {
+          id: string
+          company_id: string
+          name: string
+          trade_name: string | null
+          cpf_cnpj: string | null
+          ie: string | null
+          email: string | null
+          phone: string | null
+          phone2: string | null
+          address_street: string | null
+          address_number: string | null
+          address_complement: string | null
+          address_neighborhood: string | null
+          address_city: string | null
+          address_state: string | null
+          address_zip: string | null
+          address_ibge_code: string | null
+          notes: string | null
+          is_active: boolean
+          created_at: string
+          updated_at: string
+          credit_limit: number | null
+          credit_balance: number | null
+          tipo_pessoa: string
+          loyalty_points: number
+          is_demo: boolean | null
+        }
+        Insert: {
+          id?: string
+          company_id: string
+          name: string
+          trade_name?: string | null
+          cpf_cnpj?: string | null
+          ie?: string | null
+          email?: string | null
+          phone?: string | null
+          phone2?: string | null
+          address_street?: string | null
+          address_number?: string | null
+          address_complement?: string | null
+          address_neighborhood?: string | null
+          address_city?: string | null
+          address_state?: string | null
+          address_zip?: string | null
+          address_ibge_code?: string | null
+          notes?: string | null
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+          credit_limit?: number | null
+          credit_balance?: number | null
+          tipo_pessoa?: string
+          loyalty_points?: number
+          is_demo?: boolean | null
+        }
+        Update: {
+          id?: string
+          company_id?: string
+          name?: string
+          trade_name?: string | null
+          cpf_cnpj?: string | null
+          ie?: string | null
+          email?: string | null
+          phone?: string | null
+          phone2?: string | null
+          address_street?: string | null
+          address_number?: string | null
+          address_complement?: string | null
+          address_neighborhood?: string | null
+          address_city?: string | null
+          address_state?: string | null
+          address_zip?: string | null
+          address_ibge_code?: string | null
+          notes?: string | null
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+          credit_limit?: number | null
+          credit_balance?: number | null
+          tipo_pessoa?: string
+          loyalty_points?: number
+          is_demo?: boolean | null
+        }
+      }
+      companies: {
+        Row: {
+          id: string
+          name: string
+          trade_name: string | null
+          cnpj: string | null
+          ie: string | null
+          im: string | null
+          email: string | null
+          phone: string | null
+          address_street: string | null
+          address_number: string | null
+          address_complement: string | null
+          address_neighborhood: string | null
+          address_city: string | null
+          address_state: string | null
+          address_zip: string | null
+          address_ibge_code: string | null
+          logo_url: string | null
+          slogan: string | null
+          tax_regime: string | null
+          modo_seguro_fiscal: boolean
+          is_blocked: boolean
+          block_reason: string | null
+          pix_key: string | null
+          pix_key_type: string | null
+          pix_city: string | null
+          whatsapp_support: string | null
+          accountant_name: string | null
+          accountant_email: string | null
+          accountant_phone: string | null
+          accountant_crc: string | null
+          accountant_auto_send: boolean | null
+          accountant_send_day: number | null
+          created_at: string
+          updated_at: string
+          parent_company_id: string | null
+          crt: number | null
+          segment: string | null
+        }
+        Insert: {
+          id?: string
+          name: string
+          trade_name?: string | null
+          cnpj?: string | null
+          ie?: string | null
+          im?: string | null
+          email?: string | null
+          phone?: string | null
+          address_street?: string | null
+          address_number?: string | null
+          address_complement?: string | null
+          address_neighborhood?: string | null
+          address_city?: string | null
+          address_state?: string | null
+          address_zip?: string | null
+          address_ibge_code?: string | null
+          logo_url?: string | null
+          slogan?: string | null
+          tax_regime?: string | null
+          modo_seguro_fiscal?: boolean
+          is_blocked?: boolean
+          block_reason?: string | null
+          pix_key?: string | null
+          pix_key_type?: string | null
+          pix_city?: string | null
+          whatsapp_support?: string | null
+          accountant_name?: string | null
+          accountant_email?: string | null
+          accountant_phone?: string | null
+          accountant_crc?: string | null
+          accountant_auto_send?: boolean | null
+          accountant_send_day?: number | null
+          created_at?: string
+          updated_at?: string
+          parent_company_id?: string | null
+          crt?: number | null
+          segment?: string | null
+        }
+        Update: {
+          id?: string
+          name?: string
+          trade_name?: string | null
+          cnpj?: string | null
+          ie?: string | null
+          im?: string | null
+          email?: string | null
+          phone?: string | null
+          address_street?: string | null
+          address_number?: string | null
+          address_complement?: string | null
+          address_neighborhood?: string | null
+          address_city?: string | null
+          address_state?: string | null
+          address_zip?: string | null
+          address_ibge_code?: string | null
+          logo_url?: string | null
+          slogan?: string | null
+          tax_regime?: string | null
+          modo_seguro_fiscal?: boolean
+          is_blocked?: boolean
+          block_reason?: string | null
+          pix_key?: string | null
+          pix_key_type?: string | null
+          pix_city?: string | null
+          whatsapp_support?: string | null
+          accountant_name?: string | null
+          accountant_email?: string | null
+          accountant_phone?: string | null
+          accountant_crc?: string | null
+          accountant_auto_send?: boolean | null
+          accountant_send_day?: number | null
+          created_at?: string
+          updated_at?: string
+          parent_company_id?: string | null
+          crt?: number | null
+          segment?: string | null
+        }
+      }
+      company_plans: {
+        Row: {
+          id: string
+          company_id: string
+          plan: string
+          status: string
+          max_users: number
+          fiscal_enabled: boolean
+          advanced_reports_enabled: boolean
+          financial_module_level: string
+          created_at: string
+          expires_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          company_id: string
+          plan: string
+          status: string
+          max_users?: number
+          fiscal_enabled?: boolean
+          advanced_reports_enabled?: boolean
+          financial_module_level: string
+          created_at?: string
+          expires_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          company_id?: string
+          plan?: string
+          status?: string
+          max_users?: number
+          fiscal_enabled?: boolean
+          advanced_reports_enabled?: boolean
+          financial_module_level?: string
+          created_at?: string
+          expires_at?: string | null
+          updated_at?: string
+        }
+      }
+      company_users: {
+        Row: {
+          id: string
+          user_id: string
+          company_id: string
+          role: string
+          is_active: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          company_id: string
+          role: string
+          is_active?: boolean
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          company_id?: string
+          role?: string
+          is_active?: boolean
+          created_at?: string
+        }
+      }
+      contingencies: {
+        Row: {
+          id: string
+          company_id: string
+          doc_type: string
+          reason: string
+          auto_detected: boolean
+          documents_count: number
+          started_at: string
+          ended_at: string | null
+          resolved_by: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          company_id: string
+          doc_type: string
+          reason: string
+          auto_detected?: boolean
+          documents_count?: number
+          started_at?: string
+          ended_at?: string | null
+          resolved_by?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          company_id?: string
+          doc_type?: string
+          reason?: string
+          auto_detected?: boolean
+          documents_count?: number
+          started_at?: string
+          ended_at?: string | null
+          resolved_by?: string | null
+          created_at?: string
+        }
+      }
+      credit_clients: {
+        Row: {
+          id: string
+          company_id: string
+          client_id: string | null
+          name: string
+          cpf: string | null
+          phone: string | null
+          score: number | null
+          credit_limit: number | null
+          credit_used: number | null
+          status: string | null
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          company_id: string
+          client_id?: string | null
+          name: string
+          cpf?: string | null
+          phone?: string | null
+          score?: number | null
+          credit_limit?: number | null
+          credit_used?: number | null
+          status?: string | null
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          company_id?: string
+          client_id?: string | null
+          name?: string
+          cpf?: string | null
+          phone?: string | null
+          score?: number | null
+          credit_limit?: number | null
+          credit_used?: number | null
+          status?: string | null
+          created_at?: string | null
+        }
+      }
+      credit_installments: {
+        Row: {
+          id: string
+          credit_client_id: string
+          company_id: string
+          order_id: string | null
+          installment_number: string
+          value: number
+          due_date: string
+          paid: boolean | null
+          paid_date: string | null
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          credit_client_id: string
+          company_id: string
+          order_id?: string | null
+          installment_number: string
+          value: number
+          due_date: string
+          paid?: boolean | null
+          paid_date?: string | null
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          credit_client_id?: string
+          company_id?: string
+          order_id?: string | null
+          installment_number?: string
+          value?: number
+          due_date?: string
+          paid?: boolean | null
+          paid_date?: string | null
+          created_at?: string | null
+        }
+      }
+      customer_reviews: {
+        Row: {
+          id: string
+          company_id: string
+          client_name: string
+          rating: number
+          comment: string
+          ambiente_name: string | null
+          photo_url: string | null
+          created_at: string | null
+          created_by: string | null
+        }
+        Insert: {
+          id?: string
+          company_id: string
+          client_name: string
+          rating: number
+          comment: string
+          ambiente_name?: string | null
+          photo_url?: string | null
+          created_at?: string | null
+          created_by?: string | null
+        }
+        Update: {
+          id?: string
+          company_id?: string
+          client_name?: string
+          rating?: number
+          comment?: string
+          ambiente_name?: string | null
+          photo_url?: string | null
+          created_at?: string | null
+          created_by?: string | null
+        }
+      }
+      daily_closings: {
+        Row: {
+          id: string
+          company_id: string
+          closing_date: string
+          closed_by: string
+          total_sales: number | null
+          total_dinheiro: number | null
+          total_debito: number | null
+          total_credito: number | null
+          total_pix: number | null
+          total_outros: number | null
+          total_receivables: number | null
+          total_payables: number | null
+          cash_balance: number | null
+          notes: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          company_id: string
+          closing_date: string
+          closed_by: string
+          total_sales?: number | null
+          total_dinheiro?: number | null
+          total_debito?: number | null
+          total_credito?: number | null
+          total_pix?: number | null
+          total_outros?: number | null
+          total_receivables?: number | null
+          total_payables?: number | null
+          cash_balance?: number | null
+          notes?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          company_id?: string
+          closing_date?: string
+          closed_by?: string
+          total_sales?: number | null
+          total_dinheiro?: number | null
+          total_debito?: number | null
+          total_credito?: number | null
+          total_pix?: number | null
+          total_outros?: number | null
+          total_receivables?: number | null
+          total_payables?: number | null
+          cash_balance?: number | null
+          notes?: string | null
+          created_at?: string
+        }
+      }
+      delivery_tracking: {
+        Row: {
+          id: string
+          company_id: string
+          order_id: string | null
+          client_name: string
+          client_phone: string | null
+          address: string
+          driver_name: string | null
+          driver_phone: string | null
+          status: string | null
+          eta: string | null
+          timeline: Json | null
+          tracking_code: string | null
+          created_at: string | null
+          delivered_at: string | null
+        }
+        Insert: {
+          id?: string
+          company_id: string
+          order_id?: string | null
+          client_name: string
+          client_phone?: string | null
+          address: string
+          driver_name?: string | null
+          driver_phone?: string | null
+          status?: string | null
+          eta?: string | null
+          timeline?: Json | null
+          tracking_code?: string | null
+          created_at?: string | null
+          delivered_at?: string | null
+        }
+        Update: {
+          id?: string
+          company_id?: string
+          order_id?: string | null
+          client_name?: string
+          client_phone?: string | null
+          address?: string
+          driver_name?: string | null
+          driver_phone?: string | null
+          status?: string | null
+          eta?: string | null
+          timeline?: Json | null
+          tracking_code?: string | null
+          created_at?: string | null
+          delivered_at?: string | null
+        }
+      }
+      diagnosticos_financeiros: {
+        Row: {
+          id: string
+          user_id: string
+          mes_referencia: string
+          conteudo: string
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          mes_referencia: string
+          conteudo: string
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          mes_referencia?: string
+          conteudo?: string
+          created_at?: string | null
+        }
+      }
+      discount_limits: {
+        Row: {
+          id: string
+          company_id: string
+          role: string
+          max_discount_percent: number
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          company_id: string
+          role: string
+          max_discount_percent: number
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          company_id?: string
+          role?: string
+          max_discount_percent?: number
+          created_at?: string | null
+          updated_at?: string | null
+        }
+      }
+      employees: {
+        Row: {
+          id: string
+          company_id: string
+          user_id: string | null
+          name: string
+          cpf: string | null
+          rg: string | null
+          role: string | null
+          department: string | null
+          email: string | null
+          phone: string | null
+          address_street: string | null
+          address_number: string | null
+          address_city: string | null
+          address_state: string | null
+          address_zip: string | null
+          admission_date: string | null
+          salary: number | null
+          commission_rate: number | null
+          notes: string | null
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          company_id: string
+          user_id?: string | null
+          name: string
+          cpf?: string | null
+          rg?: string | null
+          role?: string | null
+          department?: string | null
+          email?: string | null
+          phone?: string | null
+          address_street?: string | null
+          address_number?: string | null
+          address_city?: string | null
+          address_state?: string | null
+          address_zip?: string | null
+          admission_date?: string | null
+          salary?: number | null
+          commission_rate?: number | null
+          notes?: string | null
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          company_id?: string
+          user_id?: string | null
+          name?: string
+          cpf?: string | null
+          rg?: string | null
+          role?: string | null
+          department?: string | null
+          email?: string | null
+          phone?: string | null
+          address_street?: string | null
+          address_number?: string | null
+          address_city?: string | null
+          address_state?: string | null
+          address_zip?: string | null
+          admission_date?: string | null
+          salary?: number | null
+          commission_rate?: number | null
+          notes?: string | null
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      financeiro_mensal: {
+        Row: {
+          id: string
+          user_id: string
+          mes_referencia: string
+          receita: number | null
+          despesas: number | null
+          lucro: number | null
+          inadimplencia: number | null
+          clientes_ativos: number | null
+          percentual_maior_cliente: number | null
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          mes_referencia: string
+          receita?: number | null
+          despesas?: number | null
+          lucro?: number | null
+          inadimplencia?: number | null
+          clientes_ativos?: number | null
+          percentual_maior_cliente?: number | null
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          mes_referencia?: string
+          receita?: number | null
+          despesas?: number | null
+          lucro?: number | null
+          inadimplencia?: number | null
+          clientes_ativos?: number | null
+          percentual_maior_cliente?: number | null
+          created_at?: string | null
+        }
+      }
+      financial_entries: {
+        Row: {
+          id: string
+          company_id: string
+          type: string
+          category: string
+          status: string
+          description: string
+          amount: number
+          paid_amount: number | null
+          due_date: string
+          paid_date: string | null
+          payment_method: string | null
+          counterpart: string | null
+          cost_center: string | null
+          reference: string | null
+          recurrence: string | null
+          notes: string | null
+          created_by: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          company_id: string
+          type: string
+          category: string
+          status: string
+          description: string
+          amount: number
+          paid_amount?: number | null
+          due_date: string
+          paid_date?: string | null
+          payment_method?: string | null
+          counterpart?: string | null
+          cost_center?: string | null
+          reference?: string | null
+          recurrence?: string | null
+          notes?: string | null
+          created_by: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          company_id?: string
+          type?: string
+          category?: string
+          status?: string
+          description?: string
+          amount?: number
+          paid_amount?: number | null
+          due_date?: string
+          paid_date?: string | null
+          payment_method?: string | null
+          counterpart?: string | null
+          cost_center?: string | null
+          reference?: string | null
+          recurrence?: string | null
+          notes?: string | null
+          created_by?: string
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      fiscal_audit_logs: {
+        Row: {
+          id: string
+          company_id: string
+          document_id: string | null
+          doc_type: string | null
+          action: string
+          details: Json | null
+          user_id: string | null
+          ip_address: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          company_id: string
+          document_id?: string | null
+          doc_type?: string | null
+          action: string
+          details?: Json | null
+          user_id?: string | null
+          ip_address?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          company_id?: string
+          document_id?: string | null
+          doc_type?: string | null
+          action?: string
+          details?: Json | null
+          user_id?: string | null
+          ip_address?: string | null
+          created_at?: string
+        }
+      }
+      fiscal_categories: {
+        Row: {
+          id: string
+          company_id: string
+          name: string
+          regime: string
+          operation_type: string
+          product_type: string
+          ncm: string | null
+          cest: string | null
+          cfop: string
+          csosn: string | null
+          cst_icms: string | null
+          icms_rate: number
+          icms_st_rate: number | null
+          mva: number | null
+          pis_rate: number
+          cofins_rate: number
+          ipi_rate: number | null
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          company_id: string
+          name: string
+          regime: string
+          operation_type: string
+          product_type: string
+          ncm?: string | null
+          cest?: string | null
+          cfop: string
+          csosn?: string | null
+          cst_icms?: string | null
+          icms_rate?: number
+          icms_st_rate?: number | null
+          mva?: number | null
+          pis_rate?: number
+          cofins_rate?: number
+          ipi_rate?: number | null
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          company_id?: string
+          name?: string
+          regime?: string
+          operation_type?: string
+          product_type?: string
+          ncm?: string | null
+          cest?: string | null
+          cfop?: string
+          csosn?: string | null
+          cst_icms?: string | null
+          icms_rate?: number
+          icms_st_rate?: number | null
+          mva?: number | null
+          pis_rate?: number
+          cofins_rate?: number
+          ipi_rate?: number | null
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      fiscal_configs: {
+        Row: {
+          id: string
+          company_id: string
+          doc_type: string
+          environment: string
+          serie: number
+          next_number: number
+          certificate_type: string
+          certificate_path: string | null
+          certificate_password_hash: string | null
+          certificate_expires_at: string | null
+          csc_id: string | null
+          csc_token: string | null
+          sat_serial_number: string | null
+          sat_activation_code: string | null
+          a3_subject_name: string | null
+          a3_thumbprint: string | null
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          company_id: string
+          doc_type: string
+          environment: string
+          serie?: number
+          next_number?: number
+          certificate_type: string
+          certificate_path?: string | null
+          certificate_password_hash?: string | null
+          certificate_expires_at?: string | null
+          csc_id?: string | null
+          csc_token?: string | null
+          sat_serial_number?: string | null
+          sat_activation_code?: string | null
+          a3_subject_name?: string | null
+          a3_thumbprint?: string | null
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          company_id?: string
+          doc_type?: string
+          environment?: string
+          serie?: number
+          next_number?: number
+          certificate_type?: string
+          certificate_path?: string | null
+          certificate_password_hash?: string | null
+          certificate_expires_at?: string | null
+          csc_id?: string | null
+          csc_token?: string | null
+          sat_serial_number?: string | null
+          sat_activation_code?: string | null
+          a3_subject_name?: string | null
+          a3_thumbprint?: string | null
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      fiscal_documents: {
+        Row: {
+          id: string
+          company_id: string
+          doc_type: string
+          number: number | null
+          serie: number | null
+          status: string
+          environment: string
+          access_key: string | null
+          protocol_number: string | null
+          protocol_date: string | null
+          total_value: number
+          items_json: Json | null
+          payment_method: string | null
+          customer_cpf_cnpj: string | null
+          customer_name: string | null
+          is_contingency: boolean
+          contingency_type: string | null
+          contingency_reason: string | null
+          issued_by: string | null
+          canceled_at: string | null
+          canceled_by: string | null
+          cancel_reason: string | null
+          cancel_protocol: string | null
+          rejection_reason: string | null
+          xml_sent: string | null
+          xml_response: string | null
+          synced_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          company_id: string
+          doc_type: string
+          number?: number | null
+          serie?: number | null
+          status: string
+          environment: string
+          access_key?: string | null
+          protocol_number?: string | null
+          protocol_date?: string | null
+          total_value: number
+          items_json?: Json | null
+          payment_method?: string | null
+          customer_cpf_cnpj?: string | null
+          customer_name?: string | null
+          is_contingency?: boolean
+          contingency_type?: string | null
+          contingency_reason?: string | null
+          issued_by?: string | null
+          canceled_at?: string | null
+          canceled_by?: string | null
+          cancel_reason?: string | null
+          cancel_protocol?: string | null
+          rejection_reason?: string | null
+          xml_sent?: string | null
+          xml_response?: string | null
+          synced_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          company_id?: string
+          doc_type?: string
+          number?: number | null
+          serie?: number | null
+          status?: string
+          environment?: string
+          access_key?: string | null
+          protocol_number?: string | null
+          protocol_date?: string | null
+          total_value?: number
+          items_json?: Json | null
+          payment_method?: string | null
+          customer_cpf_cnpj?: string | null
+          customer_name?: string | null
+          is_contingency?: boolean
+          contingency_type?: string | null
+          contingency_reason?: string | null
+          issued_by?: string | null
+          canceled_at?: string | null
+          canceled_by?: string | null
+          cancel_reason?: string | null
+          cancel_protocol?: string | null
+          rejection_reason?: string | null
+          xml_sent?: string | null
+          xml_response?: string | null
+          synced_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      fiscal_queue: {
+        Row: {
+          id: string
+          sale_id: string
+          company_id: string
+          status: string
+          attempts: number | null
+          last_error: string | null
+          created_at: string | null
+          processed_at: string | null
+        }
+        Insert: {
+          id?: string
+          sale_id: string
+          company_id: string
+          status: string
+          attempts?: number | null
+          last_error?: string | null
+          created_at?: string | null
+          processed_at?: string | null
+        }
+        Update: {
+          id?: string
+          sale_id?: string
+          company_id?: string
+          status?: string
+          attempts?: number | null
+          last_error?: string | null
+          created_at?: string | null
+          processed_at?: string | null
+        }
+      }
+      follow_ups: {
+        Row: {
+          id: string
+          company_id: string
+          quote_id: string | null
+          client_id: string | null
+          assigned_to: string | null
+          contact_type: string
+          due_date: string
+          notes: string | null
+          status: string
+          completed_at: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          company_id: string
+          quote_id?: string | null
+          client_id?: string | null
+          assigned_to?: string | null
+          contact_type: string
+          due_date: string
+          notes?: string | null
+          status: string
+          completed_at?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          company_id?: string
+          quote_id?: string | null
+          client_id?: string | null
+          assigned_to?: string | null
+          contact_type?: string
+          due_date?: string
+          notes?: string | null
+          status?: string
+          completed_at?: string | null
+          created_at?: string
+        }
+      }
+      furniture_projects: {
+        Row: {
+          id: string
+          company_id: string
+          client_name: string
+          room: string
+          description: string | null
+          before_url: string | null
+          after_url: string | null
+          rating: number | null
+          created_at: string | null
+          created_by: string | null
+        }
+        Insert: {
+          id?: string
+          company_id: string
+          client_name: string
+          room: string
+          description?: string | null
+          before_url?: string | null
+          after_url?: string | null
+          rating?: number | null
+          created_at?: string | null
+          created_by?: string | null
+        }
+        Update: {
+          id?: string
+          company_id?: string
+          client_name?: string
+          room?: string
+          description?: string | null
+          before_url?: string | null
+          after_url?: string | null
+          rating?: number | null
+          created_at?: string | null
+          created_by?: string | null
+        }
+      }
+      icms_st_rules: {
+        Row: {
+          id: string
+          company_id: string
+          fiscal_category_id: string | null
+          uf_origin: string
+          uf_destination: string
+          ncm: string | null
+          cest: string | null
+          description: string | null
+          mva_original: number
+          mva_adjusted: number | null
+          icms_internal_rate: number
+          icms_interstate_rate: number
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          company_id: string
+          fiscal_category_id?: string | null
+          uf_origin: string
+          uf_destination: string
+          ncm?: string | null
+          cest?: string | null
+          description?: string | null
+          mva_original: number
+          mva_adjusted?: number | null
+          icms_internal_rate: number
+          icms_interstate_rate: number
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          company_id?: string
+          fiscal_category_id?: string | null
+          uf_origin?: string
+          uf_destination?: string
+          ncm?: string | null
+          cest?: string | null
+          description?: string | null
+          mva_original?: number
+          mva_adjusted?: number | null
+          icms_internal_rate?: number
+          icms_interstate_rate?: number
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      inventory_count_items: {
+        Row: {
+          id: string
+          company_id: string
+          inventory_id: string
+          product_id: string
+          system_quantity: number
+          counted_quantity: number | null
+          difference: number | null
+          counted_at: string | null
+          notes: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          company_id: string
+          inventory_id: string
+          product_id: string
+          system_quantity: number
+          counted_quantity?: number | null
+          difference?: number | null
+          counted_at?: string | null
+          notes?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          company_id?: string
+          inventory_id?: string
+          product_id?: string
+          system_quantity?: number
+          counted_quantity?: number | null
+          difference?: number | null
+          counted_at?: string | null
+          notes?: string | null
+          created_at?: string
+        }
+      }
+      inventory_counts: {
+        Row: {
+          id: string
+          company_id: string
+          name: string
+          status: string
+          performed_by: string
+          started_at: string
+          finished_at: string | null
+          notes: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          company_id: string
+          name: string
+          status: string
+          performed_by: string
+          started_at?: string
+          finished_at?: string | null
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          company_id?: string
+          name?: string
+          status?: string
+          performed_by?: string
+          started_at?: string
+          finished_at?: string | null
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      loyalty_config: {
+        Row: {
+          id: string
+          company_id: string
+          is_active: boolean
+          points_per_real: number
+          redemption_value: number
+          min_redemption_points: number
+          birthday_multiplier: number
+        }
+        Insert: {
+          id?: string
+          company_id: string
+          is_active?: boolean
+          points_per_real?: number
+          redemption_value?: number
+          min_redemption_points?: number
+          birthday_multiplier?: number
+        }
+        Update: {
+          id?: string
+          company_id?: string
+          is_active?: boolean
+          points_per_real?: number
+          redemption_value?: number
+          min_redemption_points?: number
+          birthday_multiplier?: number
+        }
+      }
+      loyalty_points: {
+        Row: {
+          id: string
+          company_id: string
+          client_id: string
+          points: number
+          source: string | null
+          sale_id: string | null
+          created_at: string | null
+          created_by: string | null
+        }
+        Insert: {
+          id?: string
+          company_id: string
+          client_id: string
+          points: number
+          source?: string | null
+          sale_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+        }
+        Update: {
+          id?: string
+          company_id?: string
+          client_id?: string
+          points?: number
+          source?: string | null
+          sale_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+        }
+      }
+      loyalty_transactions: {
+        Row: {
+          id: string
+          company_id: string
+          client_id: string
+          sale_id: string | null
+          type: string
+          points: number
+          balance_after: number
+          description: string | null
+          created_by: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          company_id: string
+          client_id: string
+          sale_id?: string | null
+          type: string
+          points: number
+          balance_after: number
+          description?: string | null
+          created_by?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          company_id?: string
+          client_id?: string
+          sale_id?: string | null
+          type?: string
+          points?: number
+          balance_after?: number
+          description?: string | null
+          created_by?: string | null
+          created_at?: string
+        }
+      }
+      nfe_imports: {
+        Row: {
+          id: string
+          company_id: string
+          access_key: string
+          nfe_number: string | null
+          supplier_name: string | null
+          supplier_cnpj: string | null
+          total_value: number | null
+          products_count: number | null
+          imported_at: string | null
+          imported_by: string | null
+        }
+        Insert: {
+          id?: string
+          company_id: string
+          access_key: string
+          nfe_number?: string | null
+          supplier_name?: string | null
+          supplier_cnpj?: string | null
+          total_value?: number | null
+          products_count?: number | null
+          imported_at?: string | null
+          imported_by?: string | null
+        }
+        Update: {
+          id?: string
+          company_id?: string
+          access_key?: string
+          nfe_number?: string | null
+          supplier_name?: string | null
+          supplier_cnpj?: string | null
+          total_value?: number | null
+          products_count?: number | null
+          imported_at?: string | null
+          imported_by?: string | null
+        }
+      }
+      notification_reads: {
+        Row: {
+          id: string
+          notification_id: string
+          user_id: string
+          read_at: string | null
+        }
+        Insert: {
+          id?: string
+          notification_id: string
+          user_id: string
+          read_at?: string | null
+        }
+        Update: {
+          id?: string
+          notification_id?: string
+          user_id?: string
+          read_at?: string | null
+        }
+      }
+      payment_history: {
+        Row: {
+          id: string
+          user_id: string
+          subscription_id: string | null
+          plan_key: string
+          amount: number
+          status: string
+          mp_payment_id: string | null
+          mp_preference_id: string | null
+          payment_method: string | null
+          paid_at: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          subscription_id?: string | null
+          plan_key: string
+          amount: number
+          status: string
+          mp_payment_id?: string | null
+          mp_preference_id?: string | null
+          payment_method?: string | null
+          paid_at?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          subscription_id?: string | null
+          plan_key?: string
+          amount?: number
+          status?: string
+          mp_payment_id?: string | null
+          mp_preference_id?: string | null
+          payment_method?: string | null
+          paid_at?: string | null
+          created_at?: string
+        }
+      }
+      payment_webhook_logs: {
+        Row: {
+          id: string
+          mp_payment_id: string | null
+          event_type: string
+          status: string | null
+          amount: number | null
+          plan_key: string | null
+          user_id: string | null
+          company_id: string | null
+          raw_payload: Json | null
+          error_message: string | null
+          processed: boolean
+          retry_count: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          mp_payment_id?: string | null
+          event_type: string
+          status?: string | null
+          amount?: number | null
+          plan_key?: string | null
+          user_id?: string | null
+          company_id?: string | null
+          raw_payload?: Json | null
+          error_message?: string | null
+          processed?: boolean
+          retry_count?: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          mp_payment_id?: string | null
+          event_type?: string
+          status?: string | null
+          amount?: number | null
+          plan_key?: string | null
+          user_id?: string | null
+          company_id?: string | null
+          raw_payload?: Json | null
+          error_message?: string | null
+          processed?: boolean
+          retry_count?: number
+          created_at?: string
+        }
+      }
+      payments: {
+        Row: {
+          id: string
+          company_id: string | null
+          user_id: string | null
+          plan_key: string
+          amount: number
+          method: string | null
+          status: string
+          transaction_id: string | null
+          mp_preference_id: string | null
+          mp_payment_id: string | null
+          metadata: Json | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          company_id?: string | null
+          user_id?: string | null
+          plan_key: string
+          amount: number
+          method?: string | null
+          status: string
+          transaction_id?: string | null
+          mp_preference_id?: string | null
+          mp_payment_id?: string | null
+          metadata?: Json | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          company_id?: string | null
+          user_id?: string | null
+          plan_key?: string
+          amount?: number
+          method?: string | null
+          status?: string
+          transaction_id?: string | null
+          mp_preference_id?: string | null
+          mp_payment_id?: string | null
+          metadata?: Json | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      permissions: {
+        Row: {
+          id: string
+          role: string
+          module: string
+          can_view: boolean
+          can_create: boolean
+          can_edit: boolean
+          can_delete: boolean
+        }
+        Insert: {
+          id?: string
+          role: string
+          module: string
+          can_view?: boolean
+          can_create?: boolean
+          can_edit?: boolean
+          can_delete?: boolean
+        }
+        Update: {
+          id?: string
+          role?: string
+          module?: string
+          can_view?: boolean
+          can_create?: boolean
+          can_edit?: boolean
+          can_delete?: boolean
+        }
+      }
+      pix_payments: {
+        Row: {
+          id: string
+          company_id: string
+          external_reference: string
+          amount: number
+          description: string | null
+          status: string
+          qr_code: string | null
+          qr_code_base64: string | null
+          ticket_url: string | null
+          mp_payment_id: string | null
+          created_by: string
+          paid_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          company_id: string
+          external_reference: string
+          amount: number
+          description?: string | null
+          status: string
+          qr_code?: string | null
+          qr_code_base64?: string | null
+          ticket_url?: string | null
+          mp_payment_id?: string | null
+          created_by: string
+          paid_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          company_id?: string
+          external_reference?: string
+          amount?: number
+          description?: string | null
+          status?: string
+          qr_code?: string | null
+          qr_code_base64?: string | null
+          ticket_url?: string | null
+          mp_payment_id?: string | null
+          created_by?: string
+          paid_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      price_history: {
+        Row: {
+          id: string
+          company_id: string
+          product_id: string
+          field_changed: string
+          old_value: number
+          new_value: number
+          changed_by: string | null
+          changed_at: string
+          source: string
+        }
+        Insert: {
+          id?: string
+          company_id: string
+          product_id: string
+          field_changed: string
+          old_value: number
+          new_value: number
+          changed_by?: string | null
+          changed_at?: string
+          source: string
+        }
+        Update: {
+          id?: string
+          company_id?: string
+          product_id?: string
+          field_changed?: string
+          old_value?: number
+          new_value?: number
+          changed_by?: string | null
+          changed_at?: string
+          source?: string
+        }
+      }
+      processing_jobs: {
+        Row: {
+          id: string
+          company_id: string
+          type: string
+          status: string
+          progress: number | null
+          result: Json | null
+          error: string | null
+          params: Json | null
+          created_by: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          company_id: string
+          type: string
+          status: string
+          progress?: number | null
+          result?: Json | null
+          error?: string | null
+          params?: Json | null
+          created_by: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          company_id?: string
+          type?: string
+          status?: string
+          progress?: number | null
+          result?: Json | null
+          error?: string | null
+          params?: Json | null
+          created_by?: string
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      product_categories: {
+        Row: {
+          id: string
+          company_id: string
+          parent_id: string | null
+          name: string
+          description: string | null
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          company_id: string
+          parent_id?: string | null
+          name: string
+          description?: string | null
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          company_id?: string
+          parent_id?: string | null
+          name?: string
+          description?: string | null
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      product_extras: {
+        Row: {
+          id: string
+          company_id: string
+          product_id: string
+          volumes: Json | null
+          variations: Json | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          company_id: string
+          product_id: string
+          volumes?: Json | null
+          variations?: Json | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          company_id?: string
+          product_id?: string
+          volumes?: Json | null
+          variations?: Json | null
 
-// ── Convenience re-exports ─────────────────────────────────────────────
-export type Tables<T extends keyof Database["public"]["Tables"]> =
-  Database["public"]["Tables"][T]["Row"];
-export type TablesInsert<T extends keyof Database["public"]["Tables"]> =
-  Database["public"]["Tables"][T]["Insert"];
-export type TablesUpdate<T extends keyof Database["public"]["Tables"]> =
-  Database["public"]["Tables"][T]["Update"];
-export type Enums<T extends keyof Database["public"]["Enums"]> =
-  Database["public"]["Enums"][T];
+

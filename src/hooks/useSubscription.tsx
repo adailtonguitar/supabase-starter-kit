@@ -95,7 +95,17 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
     try { const cuResult = await supabase.from("company_users").select("created_at").eq("user_id", user.id).eq("is_active", true).limit(1).single(); if (cuResult.data?.created_at) createdAt = cuResult.data.created_at; } catch { /* */ }
 
     // Try edge function first, fall back to direct DB query
-    let data: any = null;
+    type EdgeSubscriptionPayload = {
+      subscribed?: boolean;
+      plan_key?: string | null;
+      subscription_end?: string | null;
+      was_subscriber?: boolean;
+      last_subscription_end?: string | null;
+      blocked?: boolean;
+      block_reason?: string | null;
+    };
+
+    let data: EdgeSubscriptionPayload | null = null;
     try {
       const response = await supabase.functions.invoke("check-subscription");
       if (
@@ -104,7 +114,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
         typeof response.data === "object" &&
         !("error" in response.data)
       ) {
-        data = response.data;
+        data = response.data as EdgeSubscriptionPayload;
       }
     } catch {
       // Silently fall through to DB fallback
@@ -112,6 +122,13 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
 
     if (!data) {
       try {
+        type CompanyUserBlockedRow = { is_active: boolean } | null;
+        type SubscriptionRow = {
+          status: string;
+          plan_key: string | null;
+          subscription_end: string | null;
+        } | null;
+
         // Check if user is blocked
         const { data: cu } = await supabase.from("company_users").select("is_active").eq("user_id", user.id).limit(1).maybeSingle();
         if (cu && !cu.is_active) {
@@ -119,12 +136,24 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
           return;
         }
 
-        const { data: sub } = await supabase.from("subscriptions").select("*").eq("user_id", user.id).order("created_at", { ascending: false }).limit(1).maybeSingle();
+        const { data: sub } = await supabase
+          .from("subscriptions")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
         if (sub) {
           const now = new Date();
           const endDate = sub.subscription_end ? new Date(sub.subscription_end) : null;
           const isActive = sub.status === "active" && endDate && endDate > now;
-          data = { subscribed: isActive, plan_key: sub.plan_key || null, subscription_end: sub.subscription_end || null, was_subscriber: true, last_subscription_end: sub.subscription_end || null };
+          data = {
+            subscribed: isActive,
+            plan_key: sub.plan_key || null,
+            subscription_end: sub.subscription_end || null,
+            was_subscriber: true,
+            last_subscription_end: sub.subscription_end || null,
+          };
         } else {
           data = { subscribed: false, plan_key: null, subscription_end: null, was_subscriber: false, last_subscription_end: null };
         }
@@ -176,11 +205,15 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
       if (error) {
         let message = typeof error === "object" && error?.message ? String(error.message) : "Erro ao criar checkout";
         try {
-          const context = (error as any)?.context;
-          if (context?.json) {
-            const body = await context.json();
-            if (body?.error) message = String(body.error);
-            if (body?.message) message = String(body.message);
+          const errObj = error as unknown as Record<string, unknown>;
+          const context = errObj?.context as unknown;
+          const maybeContext = context as { json?: unknown } | null;
+          if (maybeContext?.json && typeof maybeContext.json === "function") {
+            const body = await (maybeContext.json as () => Promise<Record<string, unknown>> )();
+            const errValue = body?.error;
+            const msgValue = body?.message;
+            if (errValue) message = String(errValue);
+            if (msgValue) message = String(msgValue);
           }
         } catch {
           // ignore parse errors
@@ -198,14 +231,14 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
     try {
       await tryInvoke("create-checkout-v2");
       return;
-    } catch (firstErr: any) {
+    } catch (firstErr: unknown) {
       console.warn("[createCheckout] create-checkout-v2 failed, trying create-checkout", firstErr);
     }
 
     try {
       await tryInvoke("create-checkout");
-    } catch (secondErr: any) {
-      const secondMsg = String(secondErr?.message || "");
+    } catch (secondErr: unknown) {
+      const secondMsg = secondErr instanceof Error ? secondErr.message : String(secondErr);
       if (secondMsg.includes("getClaims")) {
         throw new Error("Backend de checkout desatualizado (usa getClaims). Atualize/publice a função create-checkout no backend.");
       }

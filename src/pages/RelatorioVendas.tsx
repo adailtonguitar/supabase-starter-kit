@@ -19,6 +19,7 @@ interface SaleItemJson {
   quantity: number;
   unit_price: number;
   unit: string;
+  cost_price?: number;
 }
 
 interface ProductProfit {
@@ -81,10 +82,31 @@ export default function RelatorioVendas() {
       console.log("[RelatorioVendas] Sales found:", salesData?.length || 0);
       if (!salesData || salesData.length === 0) return [];
 
+      type SaleDbRow = {
+        id: string;
+        created_at: string;
+        total: number | null;
+        status: string | null;
+        items?: unknown;
+      };
+
+      type SaleItemDbRow = {
+        sale_id: string;
+        product_id: string;
+        product_name?: string | null;
+        quantity: number | string;
+        unit_price: number | string;
+        subtotal?: number | string | null;
+      };
+
+      type ProductCostDbRow = { id: string; cost_price: number | null };
+
+      const sales = salesData as SaleDbRow[];
+
       // Fetch sale_items in batches + product cost from products table
-      const saleIds = salesData.map((s: any) => s.id);
+      const saleIds = sales.map((s) => s.id);
       const BATCH_SIZE = 15;
-      let allItems: any[] = [];
+      let allItems: SaleItemDbRow[] = [];
       for (let i = 0; i < saleIds.length; i += BATCH_SIZE) {
         const batch = saleIds.slice(i, i + BATCH_SIZE);
         const { data: batchItems, error: batchError } = await supabase
@@ -95,7 +117,7 @@ export default function RelatorioVendas() {
           console.error("[RelatorioVendas] Batch error:", batchError);
           throw batchError;
         }
-        if (batchItems) allItems = allItems.concat(batchItems);
+        if (batchItems) allItems = allItems.concat(batchItems as SaleItemDbRow[]);
       }
 
       // Fetch cost_price from products table
@@ -108,13 +130,13 @@ export default function RelatorioVendas() {
             .from("products")
             .select("id, cost_price")
             .in("id", batch);
-          (prods || []).forEach((p: any) => { costMap[p.id] = p.cost_price || 0; });
+          (prods || []).forEach((p: ProductCostDbRow) => { costMap[p.id] = p.cost_price ?? 0; });
         }
       }
 
       // Attach items to each sale
-      const itemsBySale: Record<string, any[]> = {};
-      allItems.forEach((item: any) => {
+      const itemsBySale: Record<string, SaleItemJson[]> = {};
+      allItems.forEach((item) => {
         if (!itemsBySale[item.sale_id]) itemsBySale[item.sale_id] = [];
         itemsBySale[item.sale_id].push({
           product_id: item.product_id,
@@ -122,24 +144,41 @@ export default function RelatorioVendas() {
           sku: "",
           quantity: Number(item.quantity),
           unit_price: Number(item.unit_price),
+          unit: "",
           cost_price: costMap[item.product_id] || 0,
         });
       });
 
-      return salesData.map((s: any) => {
+      return sales.map((s) => {
         // Use sale_items if available, otherwise fall back to JSONB items column
         let items = itemsBySale[s.id] || [];
         if (items.length === 0 && s.items) {
           try {
-            const jsonItems = Array.isArray(s.items) ? s.items : JSON.parse(s.items);
-            items = jsonItems.map((ji: any) => ({
-              product_id: ji.product_id || ji.id || "unknown",
-              name: ji.product_name || ji.name || "Produto",
-              sku: ji.sku || "",
-              quantity: Number(ji.quantity || 0),
-              unit_price: Number(ji.unit_price || ji.price || 0),
-              cost_price: Number(ji.cost_price || 0),
-            }));
+            const rawItems = Array.isArray(s.items)
+              ? s.items
+              : typeof s.items === "string"
+                ? JSON.parse(s.items)
+                : [];
+
+            items = (rawItems as unknown[]).map((ji) => {
+              const obj = (ji ?? {}) as Record<string, unknown>;
+              const productId = typeof obj.product_id === "string" ? obj.product_id : typeof obj.id === "string" ? obj.id : "unknown";
+              const name = typeof obj.product_name === "string" ? obj.product_name : typeof obj.name === "string" ? obj.name : "Produto";
+              const sku = typeof obj.sku === "string" ? obj.sku : "";
+              const quantity = Number(obj.quantity ?? 0);
+              const unitPrice = Number(obj.unit_price ?? obj.price ?? 0);
+              const costPrice = Number(obj.cost_price ?? 0);
+
+              return {
+                product_id: productId,
+                name,
+                sku,
+                quantity,
+                unit_price: unitPrice,
+                unit: "",
+                cost_price: costPrice,
+              };
+            });
           } catch {}
         }
         return {
@@ -201,7 +240,7 @@ export default function RelatorioVendas() {
         }
         const p = byProduct[item.product_id];
         const revenue = item.quantity * item.unit_price;
-        const itemCost = (item as any).cost_price || costMap[item.product_id] || 0;
+        const itemCost = item.cost_price ?? costMap[item.product_id] ?? 0;
         const cost = item.quantity * itemCost;
         p.total_quantity += item.quantity;
         p.total_revenue += revenue;

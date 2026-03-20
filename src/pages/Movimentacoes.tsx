@@ -26,14 +26,36 @@ export default function Movimentacoes() {
   const [showNewEntry, setShowNewEntry] = useState(false);
   const [movementProduct, setMovementProduct] = useState<Product | null>(null);
 
-  const getProductName = (m: any) => {
-    return m.products?.name ?? products.find((p) => p.id === m.product_id)?.name ?? "—";
-  };
-  const getProductSku = (m: any) => {
-    return m.products?.sku ?? products.find((p) => p.id === m.product_id)?.sku ?? "";
+  type StockMovementRow = {
+    id: string;
+    type: string;
+    created_at: string;
+    quantity: number;
+    previous_stock: number;
+    new_stock: number;
+    reason?: string | null;
+    product_id: string;
+    products?: { name?: string | null; sku?: string | null } | null;
   };
 
-  const filtered = movements.filter((m: any) => {
+  const typedMovements = movements as unknown as StockMovementRow[];
+
+  const getProductName = (m: StockMovementRow): string => {
+    return (
+      m.products?.name ??
+      products.find((p) => p.id === m.product_id)?.name ??
+      "—"
+    );
+  };
+  const getProductSku = (m: StockMovementRow): string => {
+    return (
+      m.products?.sku ??
+      products.find((p) => p.id === m.product_id)?.sku ??
+      ""
+    );
+  };
+
+  const filtered = typedMovements.filter((m) => {
     const name = getProductName(m).toLowerCase();
     const sku = getProductSku(m).toLowerCase();
     return name.includes(search.toLowerCase()) || sku.includes(search.toLowerCase());
@@ -42,7 +64,7 @@ export default function Movimentacoes() {
   if (batchMode) {
     return (
       <div className="p-6 max-w-7xl mx-auto">
-        <BatchMovementMode products={products as any} onClose={() => setBatchMode(false)} />
+        <BatchMovementMode products={products} onClose={() => setBatchMode(false)} />
       </div>
     );
   }
@@ -89,7 +111,7 @@ export default function Movimentacoes() {
         ) : filtered.length === 0 ? (
           <div className="text-center py-12 text-muted-foreground text-sm">Nenhuma movimentação encontrada.</div>
         ) : (
-          filtered.map((m: any) => {
+          filtered.map((m) => {
             const info = typeLabels[m.type] || { label: m.type, variant: "secondary" as const };
             return (
               <div key={m.id} className="bg-card rounded-xl border border-border p-3 space-y-2">
@@ -146,7 +168,7 @@ export default function Movimentacoes() {
                   </td>
                 </tr>
               ) : (
-                filtered.map((m: any) => {
+                filtered.map((m) => {
                   const info = typeLabels[m.type] || { label: m.type, variant: "secondary" as const };
                   return (
                     <tr key={m.id} className="border-b border-border last:border-0 hover:bg-muted/50">
@@ -216,7 +238,7 @@ export default function Movimentacoes() {
         <StockMovementDialog
           open={!!movementProduct}
           onOpenChange={(v) => !v && setMovementProduct(null)}
-          product={movementProduct as any}
+          product={movementProduct}
         />
       )}
     </div>

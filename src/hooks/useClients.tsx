@@ -5,6 +5,17 @@ import { useAuth } from "./useAuth";
 import { toast } from "sonner";
 import { logAction, buildDiff } from "@/services/ActionLogger";
 
+interface ClientInput {
+  id?: string;
+  name?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  cpf_cnpj?: string | null;
+  address?: string | null;
+  notes?: string | null;
+  [key: string]: unknown;
+}
+
 export function useClients() {
   const { companyId } = useCompany();
   return useQuery({
@@ -26,7 +37,7 @@ export function useCreateClient() {
   const { companyId } = useCompany();
   const { user } = useAuth();
   return useMutation({
-    mutationFn: async (data: any) => {
+    mutationFn: async (data: ClientInput) => {
       const { error } = await supabase.from("clients").insert({ ...data, company_id: companyId });
       if (error) throw error;
       if (companyId) logAction({ companyId, userId: user?.id, action: "Cliente cadastrado", module: "clientes", details: data.name || null });
@@ -44,7 +55,7 @@ export function useUpdateClient() {
   const { companyId } = useCompany();
   const { user } = useAuth();
   return useMutation({
-    mutationFn: async (data: any) => {
+    mutationFn: async (data: ClientInput & { id: string }) => {
       if (!companyId) throw new Error("Empresa não encontrada");
       const { id, ...rest } = data;
       // Fetch old data for diff

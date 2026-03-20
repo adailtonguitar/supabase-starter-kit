@@ -9,7 +9,7 @@ export interface Quote {
   id: string;
   client_id: string | null;
   client_name: string | null;
-  items_json: any[];
+  items_json: unknown[];
   total: number;
   status: string;
   notes: string | null;
@@ -17,6 +17,15 @@ export interface Quote {
   created_by: string | null;
   created_at: string;
   updated_at: string;
+}
+
+interface QuoteCreateInput {
+  clientId?: string | null;
+  clientName?: string | null;
+  items: unknown[];
+  total: number;
+  notes?: string | null;
+  validDays?: number | null;
 }
 
 export function useQuotes({ skipInitialFetch }: { skipInitialFetch?: boolean } = {}) {
@@ -38,7 +47,7 @@ export function useQuotes({ skipInitialFetch }: { skipInitialFetch?: boolean } =
     enabled: !!companyId && !skipInitialFetch,
   });
 
-  const createQuote = async (data: any) => {
+  const createQuote = async (data: QuoteCreateInput) => {
     if (!companyId) throw new Error("Empresa não encontrada");
 
     const validUntil = data.validDays

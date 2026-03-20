@@ -3,8 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "./useCompany";
 import { useAuth } from "./useAuth";
 import { toast } from "sonner";
-import { CashSessionService } from "@/services/CashSessionService";
 import { logAction, buildDiff } from "@/services/ActionLogger";
+import type { PaymentMethod } from "@/integrations/supabase/tables";
 
 export interface FinancialEntry {
   id: string;
@@ -18,7 +18,7 @@ export interface FinancialEntry {
   due_date: string;
   paid_date?: string | null;
   paid_amount?: number | null;
-  payment_method?: string | null;
+  payment_method?: PaymentMethod | null;
   status: string;
   notes?: string | null;
   created_by: string;
@@ -153,71 +153,33 @@ export function useMarkAsPaid() {
   const { user } = useAuth();
 
   return useMutation({
-    mutationFn: async ({ id, paid_amount, payment_method }: { id: string; paid_amount: number; payment_method?: string }) => {
-      if (!companyId) throw new Error("Sem permissão");
-      const { data: entry, error: fetchErr } = await supabase
-        .from("financial_entries")
-        .select("type, reference, description")
-        .eq("id", id)
-        .eq("company_id", companyId)
-        .single();
-      if (fetchErr) throw fetchErr;
+    mutationFn: async ({ id, paid_amount, payment_method }: { id: string; paid_amount: number; payment_method?: PaymentMethod }) => {
+      if (!companyId || !user) throw new Error("Sem permissão");
+      if (!Number.isFinite(paid_amount) || paid_amount <= 0) {
+        throw new Error("Valor pago inválido");
+      }
+
+      const { data: rpcData, error: rpcError } = await supabase.rpc("mark_financial_entry_paid_atomic", {
+        p_company_id: companyId,
+        p_entry_id: id,
+        p_paid_amount: paid_amount,
+        p_payment_method: payment_method ?? "dinheiro",
+        p_performed_by: user.id,
+      });
+      if (rpcError) throw rpcError;
+
+      const result = (rpcData || {}) as { success?: boolean; error?: string };
+      if (!result.success) {
+        throw new Error(result.error || "Falha ao registrar pagamento");
+      }
 
       const { data, error } = await supabase
         .from("financial_entries")
-        .update({
-          status: "pago",
-          paid_amount,
-          paid_date: new Date().toISOString().split("T")[0],
-          payment_method,
-        })
+        .select("*")
         .eq("id", id)
         .eq("company_id", companyId)
-        .select()
         .single();
       if (error) throw error;
-
-      if (entry.type === "receber" && companyId && user) {
-        const session = await CashSessionService.getCurrentSession(companyId);
-        if (session) {
-          const method = payment_method || "dinheiro";
-          const { error: movErr } = await supabase.from("cash_movements").insert({
-            company_id: companyId,
-            session_id: session.id,
-            type: "suprimento" as any,
-            amount: paid_amount,
-            performed_by: user.id,
-            payment_method: method as any,
-            description: `Recebimento: ${entry.description}`,
-            sale_id: entry.reference || null,
-          });
-          if (movErr) throw new Error(`Pagamento registrado, mas falha ao lançar no caixa: ${movErr.message}`);
-
-          const paymentField = method === "dinheiro" ? "total_dinheiro"
-            : method === "pix" ? "total_pix"
-            : method === "debito" ? "total_debito"
-            : method === "credito" ? "total_credito"
-            : "total_outros";
-
-          const { data: sessionData } = await supabase
-            .from("cash_sessions")
-            .select(`${paymentField}, total_suprimento`)
-            .eq("id", session.id)
-            .single();
-
-          if (sessionData) {
-            const { error: sessErr } = await supabase
-              .from("cash_sessions")
-              .update({
-                [paymentField]: Number((sessionData as any)[paymentField] || 0) + paid_amount,
-                total_suprimento: Number(sessionData.total_suprimento || 0) + paid_amount,
-              })
-              .eq("id", session.id);
-            if (sessErr) throw new Error(`Pagamento registrado, mas falha ao atualizar sessão do caixa: ${sessErr.message}`);
-          }
-        }
-      }
-
       return data;
     },
     onSuccess: (_data, variables) => {

@@ -15,6 +15,16 @@ export interface LoyaltyTransaction {
   created_at: string;
 }
 
+interface LoyaltyConfig {
+  id?: string;
+  is_active?: boolean;
+  points_per_real?: number;
+  min_redeem_points?: number;
+  [key: string]: unknown;
+}
+
+type LoyaltyConfigInput = Omit<LoyaltyConfig, "id">;
+
 export function useLoyalty() {
   const { companyId } = useCompany();
   const { user } = useAuth();
@@ -29,7 +39,7 @@ export function useLoyalty() {
         .select("*")
         .eq("company_id", companyId)
         .maybeSingle();
-      return data as any;
+      return data as LoyaltyConfig | null;
     },
     enabled: !!companyId,
   });
@@ -67,7 +77,7 @@ export function useLoyalty() {
 
   const isActive = config?.is_active ?? false;
 
-  const saveConfig = async (form: any) => {
+  const saveConfig = async (form: LoyaltyConfigInput) => {
     if (!companyId) return;
     const payload = { ...form, company_id: companyId };
     if (config?.id) {
