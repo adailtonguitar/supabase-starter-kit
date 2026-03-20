@@ -388,7 +388,7 @@ export function NFeImportDialog({ open, onOpenChange, xmlContent }: NFeImportDia
             if (error) { console.error("[NFeImport] update error:", error.message); errors++; } else {
               updated++;
               // Register stock movement for traceability
-              await supabase.from("stock_movements" as never).insert({
+              await supabase.from("stock_movements").insert({
                 company_id: companyId,
                 product_id: existing.id,
                 type: "entrada",
@@ -437,7 +437,7 @@ export function NFeImportDialog({ open, onOpenChange, xmlContent }: NFeImportDia
       if (error) { console.error("[NFeImport] insert error:", error.message, error.details, error.code); errors++; } else {
         imported++;
         // Register initial stock movement for new product
-        await supabase.from("stock_movements" as never).insert({
+        await supabase.from("stock_movements").insert({
           company_id: companyId,
           product_id: newProduct.id,
           type: "entrada",
