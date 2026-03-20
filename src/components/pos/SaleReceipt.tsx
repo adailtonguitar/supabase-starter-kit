@@ -142,22 +142,23 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
             @page { size: 80mm auto; margin: 0; }
             @media print {
               html, body { width: 80mm; height: auto; margin: 0; padding: 0; }
-              body { page-break-after: avoid; }
+              body { page-break-after: avoid; padding: 2mm 3mm; }
               title { display: none; }
             }
             * { box-sizing: border-box; margin: 0; padding: 0; }
             html { width: 80mm; }
-            body { font-family: 'Courier New', monospace; font-size: 11px; width: 80mm; max-width: 80mm; margin: 0; padding: 3mm 4mm; line-height: 1.4; color: #000; }
+            body { font-family: 'Courier New', monospace; font-size: 11px; width: 80mm; max-width: 80mm; margin: 0; padding: 2mm 3mm; line-height: 1.4; color: #000; overflow-x: hidden; word-wrap: break-word; overflow-wrap: break-word; }
             .center { text-align: center; }
             .bold { font-weight: bold; }
             .dashed { border-top: 1px dashed #000; margin: 3px 0; }
-            .row { display: flex; justify-content: space-between; gap: 4px; }
-            .row span:last-child { text-align: right; white-space: nowrap; }
+            .row { display: flex; justify-content: space-between; gap: 4px; overflow: hidden; }
+            .row span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1; }
+            .row span:last-child { text-align: right; white-space: nowrap; flex-shrink: 0; }
             .total-row { font-size: 14px; font-weight: bold; margin: 4px 0; }
             .sm { font-size: 9px; }
-            .item-name { font-size: 10px; font-weight: bold; margin-top: 2px; }
+            .item-name { font-size: 10px; font-weight: bold; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
             .item-detail { font-size: 10px; }
-            .obs { font-size: 9px; color: #666; }
+            .obs { font-size: 9px; color: #666; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
             h2 { font-size: 13px; margin: 2px 0; }
             .cut { margin-top: 6px; text-align: center; font-size: 9px; letter-spacing: 2px; }
             .logo { max-height: 40px; max-width: 60mm; object-fit: contain; margin: 0 auto 4px; display: block; }
@@ -310,17 +311,18 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
             @page { size: 80mm auto; margin: 0; }
             @media print {
               html, body { width: 80mm; height: auto; margin: 0; padding: 0; }
-              body { page-break-after: avoid; }
+              body { page-break-after: avoid; padding: 2mm 3mm; }
             }
             * { box-sizing: border-box; margin: 0; padding: 0; }
             html { width: 80mm; }
-            body { font-family: 'Courier New', monospace; font-size: 11px; width: 80mm; max-width: 80mm; margin: 0; padding: 3mm 4mm; line-height: 1.4; color: #000; }
+            body { font-family: 'Courier New', monospace; font-size: 11px; width: 80mm; max-width: 80mm; margin: 0; padding: 2mm 3mm; line-height: 1.4; color: #000; overflow-x: hidden; word-wrap: break-word; overflow-wrap: break-word; }
             .center { text-align: center; }
             .bold { font-weight: bold; }
             .dashed { border-top: 1px dashed #000; margin: 3px 0; }
-            .row { display: flex; justify-content: space-between; gap: 4px; }
-            .row span:last-child { text-align: right; white-space: nowrap; }
-            .item-desc { font-size: 10px; font-weight: bold; margin-top: 2px; }
+            .row { display: flex; justify-content: space-between; gap: 4px; overflow: hidden; }
+            .row span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1; }
+            .row span:last-child { text-align: right; white-space: nowrap; flex-shrink: 0; }
+            .item-desc { font-size: 10px; font-weight: bold; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
             .item-detail { font-size: 10px; }
             .total-row { font-size: 14px; font-weight: bold; margin: 4px 0; }
             .sm { font-size: 9px; }

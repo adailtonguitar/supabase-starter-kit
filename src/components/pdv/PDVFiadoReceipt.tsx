@@ -144,15 +144,19 @@ export function PDVFiadoReceipt({ data, onClose }: Props) {
     const w = window.open("", "_blank", "width=400,height=900");
     if (!w) return;
     w.document.write(`<html><head><title>Venda a Prazo</title><style>
-      body{font-family:monospace;font-size:11px;padding:10px;margin:0}
+      @page{size:80mm auto;margin:0}
+      *{box-sizing:border-box;margin:0;padding:0}
+      html{width:80mm}
+      body{font-family:'Courier New',monospace;font-size:11px;width:80mm;max-width:80mm;padding:2mm 3mm;margin:0;line-height:1.4;color:#000;overflow-x:hidden;word-wrap:break-word;overflow-wrap:break-word}
       table{width:100%;border-collapse:collapse}
-      td,th{padding:2px 0}
+      td,th{padding:2px 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:0}
+      td:last-child,th:last-child{text-align:right;white-space:nowrap;width:auto;max-width:none}
       .line{border-top:1px dashed #000;margin:6px 0}
       .center{text-align:center}
       .bold{font-weight:bold}
       .right{text-align:right}
       .cut-line{border-top:2px dashed #999;margin:16px 0;position:relative}
-      @media print{.no-print{display:none}}
+      @media print{html,body{width:80mm;height:auto;margin:0;padding:2mm 3mm}.no-print{display:none}}
     </style></head><body>${content.innerHTML}</body></html>`);
     w.document.close();
     w.print();

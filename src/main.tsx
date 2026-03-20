@@ -5,25 +5,33 @@ import "./styles/theme.css";
 import { loadScaleConfigFromStorage } from "./lib/scale-barcode";
 import { initErrorTracker } from "./services/ErrorTracker";
 
-async function clearPreviewServiceWorkers() {
+async function clearStaleServiceWorkers() {
+  if (!("serviceWorker" in navigator)) return;
+
   const isLovablePreview =
     window.location.hostname.includes("lovable.app") &&
     window.location.hostname.includes("id-preview--");
 
-  if (!isLovablePreview || !("serviceWorker" in navigator)) return;
-
   try {
-    const registrations = await navigator.serviceWorker.getRegistrations();
-    await Promise.allSettled(registrations.map((registration) => registration.unregister()));
-
-    if ("caches" in window) {
-      const cacheKeys = await caches.keys();
-      await Promise.allSettled(cacheKeys.map((key) => caches.delete(key)));
+    // In preview, always unregister everything
+    if (isLovablePreview) {
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      await Promise.allSettled(registrations.map((r) => r.unregister()));
     }
 
-    console.info("[PWA] Preview cache cleared to avoid stale Lovable bundle");
+    // Always clean up outdated caches (fixes "version (1) < version (2)" errors)
+    if ("caches" in window) {
+      const cacheKeys = await caches.keys();
+      const stale = cacheKeys.filter(
+        (k) => k.startsWith("workbox-precache") || isLovablePreview
+      );
+      if (stale.length > 0) {
+        await Promise.allSettled(stale.map((key) => caches.delete(key)));
+        console.info("[PWA] Stale caches cleared:", stale.length);
+      }
+    }
   } catch (error) {
-    console.warn("[PWA] Failed to clear preview service workers:", error);
+    console.warn("[PWA] Failed to clear service workers:", error);
   }
 }
 
@@ -33,6 +41,6 @@ loadScaleConfigFromStorage();
 // Initialize error tracking (global error + unhandled rejection handlers)
 initErrorTracker();
 
-clearPreviewServiceWorkers().finally(() => {
+clearStaleServiceWorkers().finally(() => {
   createRoot(document.getElementById("root")!).render(<App />);
 });
