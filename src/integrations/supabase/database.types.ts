@@ -2264,3 +2264,29 @@ export type Database = {
           variations?: Json | null
 
 
+        }
+      }
+      [key: string]: {
+        Row: Record<string, unknown>
+        Insert: Record<string, unknown>
+        Update: Record<string, unknown>
+        Relationships?: unknown[]
+      }
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      [_ in string]: {
+        Args: Record<string, unknown>
+        Returns: unknown
+      }
+    }
+    Enums: {
+      [_ in string]: string
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
+}

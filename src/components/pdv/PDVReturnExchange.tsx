@@ -23,6 +23,19 @@ interface SaleResult {
   }>;
 }
 
+type SaleLookupRow = {
+  id: string;
+  total: number;
+  created_at: string;
+  status: string;
+  items: unknown;
+};
+
+function toErrorMessage(err: unknown): string {
+  if (err instanceof Error) return err.message;
+  return String(err);
+}
+
 interface PDVReturnExchangeProps {
   open: boolean;
   onClose: () => void;
@@ -52,7 +65,7 @@ export function PDVReturnExchangeDialog({ open, onClose }: PDVReturnExchangeProp
       const query = searchQuery.trim().toLowerCase();
 
       // Try exact UUID match first, then prefix search with limited fetch
-      let sale: any = null;
+      let sale: SaleLookupRow | null = null;
 
       // If query looks like a full UUID, fetch directly
       if (query.length >= 36) {
@@ -89,28 +102,36 @@ export function PDVReturnExchangeDialog({ open, onClose }: PDVReturnExchangeProp
         .select("id, product_id, product_name, quantity, unit_price, subtotal")
         .eq("sale_id", sale.id);
 
-      let parsedItems = saleItems || [];
+      let parsedItems = (saleItems || []) as SaleResult["items"];
       
       // Fallback: parse JSONB items from sales table
       if (parsedItems.length === 0 && sale.items) {
-        const jsonItems = Array.isArray(sale.items) ? sale.items : 
-          typeof sale.items === "string" ? JSON.parse(sale.items) : [];
-        parsedItems = jsonItems.map((it: any, idx: number) => ({
-          id: it.id || `json-${idx}`,
-          product_id: it.product_id,
-          product_name: it.product_name || it.name || "Produto",
-          quantity: it.quantity || 1,
-          unit_price: it.unit_price || it.price || 0,
-          subtotal: it.subtotal || (it.quantity || 1) * (it.unit_price || it.price || 0),
-        }));
+        const jsonItems = Array.isArray(sale.items)
+          ? sale.items
+          : typeof sale.items === "string"
+            ? (JSON.parse(sale.items) as unknown[])
+            : [];
+        parsedItems = jsonItems.map((item, idx) => {
+          const it = (item && typeof item === "object" ? item : {}) as Record<string, unknown>;
+          const quantity = Number(it.quantity ?? 1);
+          const unitPrice = Number(it.unit_price ?? it.price ?? 0);
+          return {
+            id: String(it.id ?? `json-${idx}`),
+            product_id: String(it.product_id ?? ""),
+            product_name: String(it.product_name ?? it.name ?? "Produto"),
+            quantity,
+            unit_price: unitPrice,
+            subtotal: Number(it.subtotal ?? quantity * unitPrice),
+          };
+        });
       }
 
       setFoundSale({
         ...sale,
         items: parsedItems,
       });
-    } catch (err: any) {
-      toast.error(`Erro na busca: ${err.message}`);
+    } catch (err: unknown) {
+      toast.error(`Erro na busca: ${toErrorMessage(err)}`);
     }
     setSearching(false);
   }, [searchQuery, companyId]);
@@ -149,7 +170,7 @@ export function PDVReturnExchangeDialog({ open, onClose }: PDVReturnExchangeProp
         }));
 
       // Single atomic RPC call: status + stock + financial + audit
-      const { data: result, error: rpcError } = await supabase.rpc("cancel_sale_atomic" as any, {
+      const { data: result, error: rpcError } = await supabase.rpc("cancel_sale_atomic" as never, {
         p_sale_id: foundSale.id,
         p_company_id: companyId,
         p_user_id: user?.id || null,
@@ -190,8 +211,8 @@ export function PDVReturnExchangeDialog({ open, onClose }: PDVReturnExchangeProp
       });
 
       toast.success(`Devolução processada: ${formatCurrency(totalRefund)} devolvido`, { duration: 3000 });
-    } catch (err: any) {
-      toast.error(`Erro ao processar devolução: ${err.message}`);
+    } catch (err: unknown) {
+      toast.error(`Erro ao processar devolução: ${toErrorMessage(err)}`);
     }
     setProcessing(false);
   };

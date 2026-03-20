@@ -14,6 +14,7 @@ import { logAction } from "@/services/ActionLogger";
 import { useQueryClient } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { PDVCreditReceipt, type CreditReceiptData } from "@/components/pdv/PDVCreditReceipt";
+import type { PaymentMethod } from "@/integrations/supabase/tables";
 
 const paymentMethods = [
   { value: "dinheiro", label: "Dinheiro" },
@@ -27,10 +28,32 @@ interface PDVReceiveCreditDialogProps {
   onClose: () => void;
 }
 
+type ClientWithDebt = {
+  id: string;
+  name: string;
+  cpf_cnpj?: string | null;
+  credit_balance?: number | null;
+};
+
+type PendingEntry = {
+  id: string;
+  type: "pagar" | "receber";
+  status: string;
+  counterpart?: string | null;
+  amount: number;
+  reference?: string | null;
+  description: string;
+  due_date: string;
+};
+
+function getErrorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
+
 export function PDVReceiveCreditDialog({ open, onClose }: PDVReceiveCreditDialogProps) {
   const [search, setSearch] = useState("");
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
-  const [selectedMethod, setSelectedMethod] = useState("dinheiro");
+  const [selectedMethod, setSelectedMethod] = useState<PaymentMethod>("dinheiro");
   const [customAmount, setCustomAmount] = useState(0);
   const [isProcessing, setIsProcessing] = useState(false);
   const [receiptData, setReceiptData] = useState<CreditReceiptData | null>(null);
@@ -42,22 +65,23 @@ export function PDVReceiveCreditDialog({ open, onClose }: PDVReceiveCreditDialog
   const qc = useQueryClient();
 
   const clientsWithDebt = useMemo(() => {
-    return clients
-      .filter((c: any) => Number(c.credit_balance || 0) > 0)
-      .filter((c: any) =>
+    const typedClients = clients as ClientWithDebt[];
+    return typedClients
+      .filter((c) => Number(c.credit_balance || 0) > 0)
+      .filter((c) =>
         c.name.toLowerCase().includes(search.toLowerCase()) ||
         (c.cpf_cnpj && c.cpf_cnpj.includes(search))
       )
-      .sort((a: any, b: any) => Number(b.credit_balance || 0) - Number(a.credit_balance || 0));
+      .sort((a, b) => Number(b.credit_balance || 0) - Number(a.credit_balance || 0));
   }, [clients, search]);
 
-  const selectedClient = clients.find((c: any) => c.id === selectedClientId) as any;
+  const selectedClient = (clients as ClientWithDebt[]).find((c) => c.id === selectedClientId) ?? null;
   const clientBalance = Number(selectedClient?.credit_balance || 0);
 
   const clientEntries = useMemo(() => {
     if (!selectedClient) return [];
-    return entries.filter(
-      (e: any) => e.type === "receber" && e.status === "pendente" && e.counterpart === selectedClient.name
+    return (entries as PendingEntry[]).filter(
+      (e) => e.type === "receber" && e.status === "pendente" && e.counterpart === selectedClient.name
     );
   }, [entries, selectedClient]);
 
@@ -73,10 +97,10 @@ export function PDVReceiveCreditDialog({ open, onClose }: PDVReceiveCreditDialog
           await supabase.from("cash_movements").insert({
             company_id: companyId,
             session_id: session.id,
-            type: "suprimento" as any,
+            type: "suprimento",
             amount: payAmount,
             performed_by: user.id,
-            payment_method: selectedMethod as any,
+            payment_method: selectedMethod,
             description: `Recebimento fiado: ${selectedClient.name}`,
           });
         }
@@ -91,7 +115,7 @@ export function PDVReceiveCreditDialog({ open, onClose }: PDVReceiveCreditDialog
         const entryAmount = Number(entry.amount);
         if (remaining >= entryAmount) {
           await supabase.from("financial_entries").update({
-            status: "pago" as any,
+            status: "pago",
             paid_amount: entryAmount,
             paid_date: new Date().toISOString().split("T")[0],
             payment_method: selectedMethod,
@@ -108,7 +132,7 @@ export function PDVReceiveCreditDialog({ open, onClose }: PDVReceiveCreditDialog
 
       // Fetch sale items from related sales
       const saleIds = clientEntries
-        .map((e: any) => e.reference)
+        .map((e) => e.reference)
         .filter(Boolean)
         .filter((v: string, i: number, a: string[]) => a.indexOf(v) === i);
 
@@ -120,7 +144,7 @@ export function PDVReceiveCreditDialog({ open, onClose }: PDVReceiveCreditDialog
           .select("product_name, quantity, unit_price")
           .in("sale_id", saleIds);
         if (saleItems && saleItems.length > 0) {
-          receiptItems = saleItems.map((si: any) => ({
+          receiptItems = saleItems.map((si) => ({
             name: si.product_name,
             quantity: Number(si.quantity),
             unitPrice: Number(si.unit_price),
@@ -134,11 +158,11 @@ export function PDVReceiveCreditDialog({ open, onClose }: PDVReceiveCreditDialog
           if (salesData) {
             for (const sale of salesData) {
               const items = Array.isArray(sale.items) ? sale.items : [];
-              for (const item of items) {
+              for (const item of items as Record<string, unknown>[]) {
                 receiptItems.push({
-                  name: item.product_name || item.name || "Produto",
-                  quantity: Number(item.quantity || item.qty || 1),
-                  unitPrice: Number(item.unit_price || item.price || 0),
+                  name: String(item.product_name ?? item.name ?? "Produto"),
+                  quantity: Number(item.quantity ?? item.qty ?? 1),
+                  unitPrice: Number(item.unit_price ?? item.price ?? 0),
                 });
               }
             }
@@ -178,8 +202,8 @@ export function PDVReceiveCreditDialog({ open, onClose }: PDVReceiveCreditDialog
         saleItems: receiptItems.map(i => ({ name: i.name, qty: i.quantity, price: i.unitPrice })),
         receiptNumber,
       });
-    } catch (err: any) {
-      toast.error(`Erro: ${err.message}`);
+    } catch (err: unknown) {
+      toast.error(`Erro: ${getErrorMessage(err)}`);
     } finally {
       setIsProcessing(false);
     }
@@ -240,7 +264,7 @@ export function PDVReceiveCreditDialog({ open, onClose }: PDVReceiveCreditDialog
                   <p className="text-sm">Nenhum cliente com débito</p>
                 </div>
               ) : (
-                clientsWithDebt.map((client: any) => (
+                clientsWithDebt.map((client) => (
                   <button
                     key={client.id}
                     onClick={() => { setSelectedClientId(client.id); setCustomAmount(0); }}
@@ -336,7 +360,7 @@ export function PDVReceiveCreditDialog({ open, onClose }: PDVReceiveCreditDialog
                   Parcelas Pendentes ({clientEntries.length})
                 </p>
                 <div className="space-y-1.5">
-                  {clientEntries.map((entry: any) => (
+                  {clientEntries.map((entry) => (
                     <div key={entry.id} className="flex items-center justify-between p-2.5 rounded-lg bg-muted/50 border border-border">
                       <div>
                         <p className="text-xs font-medium text-foreground">{entry.description}</p>

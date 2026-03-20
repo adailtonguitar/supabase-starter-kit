@@ -48,6 +48,15 @@ interface NFeInfo {
   products: NFeProduct[];
 }
 
+interface SupplierLookup {
+  id: string;
+  cnpj?: string | null;
+}
+
+function getErrorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
+
 function parseNFeXML(xmlText: string): NFeInfo | null {
   try {
     const parser = new DOMParser();
@@ -176,7 +185,7 @@ export function NFeImportDialog({ open, onOpenChange, xmlContent }: NFeImportDia
       return;
     }
     const cnpjClean = nfeInfo.supplierCnpj.replace(/\D/g, "");
-    const found = suppliers.find((s: any) => (s.cnpj || "").replace(/\D/g, "") === cnpjClean);
+    const found = (suppliers as SupplierLookup[]).find((s) => (s.cnpj || "").replace(/\D/g, "") === cnpjClean);
     if (found) {
       setSupplierId(found.id);
       setSupplierStatus("found");
@@ -248,7 +257,7 @@ export function NFeImportDialog({ open, onOpenChange, xmlContent }: NFeImportDia
     if (!companyId || !nfeInfo) return;
     setCreatingSupplier(true);
     try {
-      const supplierData: Record<string, any> = {
+      const supplierData: Record<string, unknown> = {
         company_id: companyId,
         name: nfeInfo.supplierName,
         cnpj: nfeInfo.supplierCnpj,
@@ -264,8 +273,8 @@ export function NFeImportDialog({ open, onOpenChange, xmlContent }: NFeImportDia
       setSupplierStatus("created");
       queryClient.invalidateQueries({ queryKey: ["suppliers"] });
       toast.success("Fornecedor cadastrado com sucesso!");
-    } catch (err: any) {
-      toast.error("Erro ao cadastrar fornecedor: " + err.message);
+    } catch (err: unknown) {
+      toast.error("Erro ao cadastrar fornecedor: " + getErrorMessage(err));
     } finally {
       setCreatingSupplier(false);
     }
@@ -368,7 +377,7 @@ export function NFeImportDialog({ open, onOpenChange, xmlContent }: NFeImportDia
           if (updateStock) {
             const previousStock = existing.stock_quantity || 0;
             const newStock = previousStock + p.quantity;
-            const updateData: Record<string, any> = {
+            const updateData: Record<string, unknown> = {
               stock_quantity: newStock,
               cost_price: p.unitPrice,
               price: p.salePrice,
@@ -379,7 +388,7 @@ export function NFeImportDialog({ open, onOpenChange, xmlContent }: NFeImportDia
             if (error) { console.error("[NFeImport] update error:", error.message); errors++; } else {
               updated++;
               // Register stock movement for traceability
-              await supabase.from("stock_movements" as any).insert({
+              await supabase.from("stock_movements" as never).insert({
                 company_id: companyId,
                 product_id: existing.id,
                 type: "entrada",
@@ -410,7 +419,7 @@ export function NFeImportDialog({ open, onOpenChange, xmlContent }: NFeImportDia
 
       // Create new product
       const autoSku = `NFE-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-      const insertData: Record<string, any> = {
+      const insertData: Record<string, unknown> = {
         name: p.name,
         sku: autoSku,
         barcode: p.barcode || null,
@@ -428,7 +437,7 @@ export function NFeImportDialog({ open, onOpenChange, xmlContent }: NFeImportDia
       if (error) { console.error("[NFeImport] insert error:", error.message, error.details, error.code); errors++; } else {
         imported++;
         // Register initial stock movement for new product
-        await supabase.from("stock_movements" as any).insert({
+        await supabase.from("stock_movements" as never).insert({
           company_id: companyId,
           product_id: newProduct.id,
           type: "entrada",
