@@ -170,7 +170,7 @@ export function PDVReturnExchangeDialog({ open, onClose }: PDVReturnExchangeProp
         }));
 
       // Single atomic RPC call: status + stock + financial + audit
-      const { data: result, error: rpcError } = await supabase.rpc("cancel_sale_atomic" as never, {
+      const { data: result, error: rpcError } = await supabase.rpc("cancel_sale_atomic", {
         p_sale_id: foundSale.id,
         p_company_id: companyId,
         p_user_id: user?.id || null,

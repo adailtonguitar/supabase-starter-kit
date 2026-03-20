@@ -2277,6 +2277,59 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      cancel_sale_atomic: {
+        Args: {
+          p_sale_id: string
+          p_company_id: string
+          p_user_id: string
+          p_items: Json
+          p_refund_amount: number
+          p_reason?: string
+        }
+        Returns: Json
+      }
+      finalize_sale_atomic: {
+        Args: {
+          p_company_id: string
+          p_terminal_id: string
+          p_session_id: string | null
+          p_items: Json
+          p_subtotal: number
+          p_discount_pct: number
+          p_discount_val: number
+          p_total: number
+          p_payments: Json
+          p_sold_by?: string | null
+        }
+        Returns: Json
+      }
+      mark_financial_entry_paid_atomic: {
+        Args: {
+          p_company_id: string
+          p_entry_id: string
+          p_paid_amount: number
+          p_payment_method: string
+          p_performed_by: string
+        }
+        Returns: Json
+      }
+      next_receipt_number: {
+        Args: {
+          p_company_id: string
+          p_type?: string
+        }
+        Returns: number
+      }
+      receive_credit_payment_atomic: {
+        Args: {
+          p_company_id: string
+          p_client_id: string
+          p_paid_amount: number
+          p_payment_method: string
+          p_performed_by: string
+        }
+        Returns: Json
+      }
       [_ in string]: {
         Args: Record<string, unknown>
         Returns: unknown

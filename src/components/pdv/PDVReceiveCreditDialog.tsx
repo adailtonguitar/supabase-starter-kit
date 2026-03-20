@@ -4,8 +4,7 @@ import { useClients } from "@/hooks/useClients";
 import { useFinancialEntries } from "@/hooks/useFinancialEntries";
 import { useCompany } from "@/hooks/useCompany";
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
-import { CashSessionService } from "@/services/CashSessionService";
+import { supabase, safeRpc } from "@/integrations/supabase/client";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { formatCurrency } from "@/lib/utils";
 import { format, parseISO } from "date-fns";
@@ -90,51 +89,33 @@ export function PDVReceiveCreditDialog({ open, onClose }: PDVReceiveCreditDialog
     const prevBalance = clientBalance;
     setIsProcessing(true);
     try {
-      // Try to register in cash session if open
-      try {
-        const session = await CashSessionService.getCurrentSession(companyId);
-        if (session) {
-          await supabase.from("cash_movements").insert({
-            company_id: companyId,
-            session_id: session.id,
-            type: "suprimento",
-            amount: payAmount,
-            performed_by: user.id,
-            payment_method: selectedMethod,
-            description: `Recebimento fiado: ${selectedClient.name}`,
-          });
-        }
-      } catch { /* no session */ }
-
-      const newBalance = Math.max(0, clientBalance - payAmount);
-      await supabase.from("clients").update({ credit_balance: newBalance }).eq("id", selectedClient.id);
-
-      let remaining = payAmount;
-      for (const entry of clientEntries) {
-        if (remaining <= 0) break;
-        const entryAmount = Number(entry.amount);
-        if (remaining >= entryAmount) {
-          await supabase.from("financial_entries").update({
-            status: "pago",
-            paid_amount: entryAmount,
-            paid_date: new Date().toISOString().split("T")[0],
-            payment_method: selectedMethod,
-          }).eq("id", entry.id);
-          remaining -= entryAmount;
-        } else {
-          await supabase.from("financial_entries").update({
-            paid_amount: remaining,
-            payment_method: selectedMethod,
-          }).eq("id", entry.id);
-          remaining = 0;
-        }
+      const rpc = await safeRpc<{
+        success?: boolean;
+        error?: string;
+        new_balance?: number;
+        applied_amount?: number;
+        references?: unknown;
+      }>("receive_credit_payment_atomic", {
+        p_company_id: companyId,
+        p_client_id: selectedClient.id,
+        p_paid_amount: payAmount,
+        p_payment_method: selectedMethod,
+        p_performed_by: user.id,
+      });
+      if (!rpc.success) throw new Error(rpc.error);
+      const rpcResult = rpc.data || {};
+      if (!rpcResult.success) {
+        throw new Error(rpcResult.error || "Falha ao registrar recebimento");
       }
 
+      const newBalance = Number(rpcResult.new_balance ?? Math.max(0, clientBalance - payAmount));
+      const appliedAmount = Number(rpcResult.applied_amount ?? payAmount);
+
       // Fetch sale items from related sales
-      const saleIds = clientEntries
-        .map((e) => e.reference)
+      const saleIds = (Array.isArray(rpcResult.references) ? rpcResult.references : [])
+        .map((v) => (typeof v === "string" ? v : ""))
         .filter(Boolean)
-        .filter((v: string, i: number, a: string[]) => a.indexOf(v) === i);
+        .filter((v, i, a) => a.indexOf(v) === i);
 
       let receiptItems: { name: string; quantity: number; unitPrice: number }[] = [];
       if (saleIds.length > 0) {
@@ -182,13 +163,15 @@ export function PDVReceiveCreditDialog({ open, onClose }: PDVReceiveCreditDialog
 
       qc.invalidateQueries({ queryKey: ["clients"] });
       qc.invalidateQueries({ queryKey: ["financial_entries"] });
-      logAction({ companyId: companyId!, userId: user?.id, action: "Recebimento de crédito fiado", module: "financeiro", details: `Cliente: ${selectedClient?.name} - ${formatCurrency(payAmount)}` });
-      toast.success(`Recebimento de ${formatCurrency(payAmount)} registrado!`);
+      qc.invalidateQueries({ queryKey: ["cash_sessions"] });
+      qc.invalidateQueries({ queryKey: ["cash_movements"] });
+      logAction({ companyId: companyId!, userId: user?.id, action: "Recebimento de crédito fiado", module: "financeiro", details: `Cliente: ${selectedClient?.name} - ${formatCurrency(appliedAmount)}` });
+      toast.success(`Recebimento de ${formatCurrency(appliedAmount)} registrado!`);
       setCustomAmount(0);
       setReceiptData({
         clientName: selectedClient.name,
         clientDoc: selectedClient.cpf_cnpj || undefined,
-        amount: payAmount,
+        amount: appliedAmount,
         previousBalance: prevBalance,
         newBalance,
         paymentMethod: selectedMethod,
