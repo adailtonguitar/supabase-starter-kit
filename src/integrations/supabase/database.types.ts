@@ -2266,21 +2266,138 @@ export type Database = {
 
         }
       }
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      [key: string]: {
-        Row: any
-        Insert: any
-        Update: any
-        Relationships?: any[]
+      product_labels: {
+        Row: Record<string, any>
+        Insert: Record<string, any>
+        Update: Record<string, any>
+      }
+      product_lots: {
+        Row: Record<string, any>
+        Insert: Record<string, any>
+        Update: Record<string, any>
+      }
+      production_order_items: {
+        Row: Record<string, any>
+        Insert: Record<string, any>
+        Update: Record<string, any>
+      }
+      production_orders: {
+        Row: Record<string, any>
+        Insert: Record<string, any>
+        Update: Record<string, any>
+      }
+      products: {
+        Row: Record<string, any>
+        Insert: Record<string, any>
+        Update: Record<string, any>
+      }
+      profiles: {
+        Row: Record<string, any>
+        Insert: Record<string, any>
+        Update: Record<string, any>
+      }
+      promotions: {
+        Row: Record<string, any>
+        Insert: Record<string, any>
+        Update: Record<string, any>
+      }
+      purchase_order_items: {
+        Row: Record<string, any>
+        Insert: Record<string, any>
+        Update: Record<string, any>
+      }
+      purchase_orders: {
+        Row: Record<string, any>
+        Insert: Record<string, any>
+        Update: Record<string, any>
+      }
+      quotes: {
+        Row: Record<string, any>
+        Insert: Record<string, any>
+        Update: Record<string, any>
+      }
+      recipe_ingredients: {
+        Row: Record<string, any>
+        Insert: Record<string, any>
+        Update: Record<string, any>
+      }
+      recipes: {
+        Row: Record<string, any>
+        Insert: Record<string, any>
+        Update: Record<string, any>
+      }
+      reseller_licenses: {
+        Row: Record<string, any>
+        Insert: Record<string, any>
+        Update: Record<string, any>
+      }
+      resellers: {
+        Row: Record<string, any>
+        Insert: Record<string, any>
+        Update: Record<string, any>
+      }
+      sale_items: {
+        Row: Record<string, any>
+        Insert: Record<string, any>
+        Update: Record<string, any>
+      }
+      sales: {
+        Row: Record<string, any>
+        Insert: Record<string, any>
+        Update: Record<string, any>
+      }
+      stock_movements: {
+        Row: Record<string, any>
+        Insert: Record<string, any>
+        Update: Record<string, any>
+      }
+      stock_transfer_items: {
+        Row: Record<string, any>
+        Insert: Record<string, any>
+        Update: Record<string, any>
+      }
+      stock_transfers: {
+        Row: Record<string, any>
+        Insert: Record<string, any>
+        Update: Record<string, any>
+      }
+      subscriptions: {
+        Row: Record<string, any>
+        Insert: Record<string, any>
+        Update: Record<string, any>
+      }
+      suppliers: {
+        Row: Record<string, any>
+        Insert: Record<string, any>
+        Update: Record<string, any>
+      }
+      support_messages: {
+        Row: Record<string, any>
+        Insert: Record<string, any>
+        Update: Record<string, any>
+      }
+      system_errors: {
+        Row: Record<string, any>
+        Insert: Record<string, any>
+        Update: Record<string, any>
+      }
+      tef_config: {
+        Row: Record<string, any>
+        Insert: Record<string, any>
+        Update: Record<string, any>
+      }
+      terms_acceptance: {
+        Row: Record<string, any>
+        Insert: Record<string, any>
+        Update: Record<string, any>
       }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      [key: string]: {
-        Args: any
+      [_ in string]: {
+        Args: Record<string, any>
         Returns: any
       }
     }
