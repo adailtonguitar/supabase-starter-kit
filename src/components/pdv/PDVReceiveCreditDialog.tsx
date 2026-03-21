@@ -9,7 +9,7 @@ import { CurrencyInput } from "@/components/ui/currency-input";
 import { formatCurrency } from "@/lib/utils";
 import { format, parseISO } from "date-fns";
 import { toast } from "sonner";
-import { logAction } from "@/services/ActionLogger";
+import { logAction, newPdvTraceId } from "@/services/ActionLogger";
 import { useQueryClient } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { PDVCreditReceipt, type CreditReceiptData } from "@/components/pdv/PDVCreditReceipt";
@@ -88,6 +88,7 @@ export function PDVReceiveCreditDialog({ open, onClose }: PDVReceiveCreditDialog
     if (!companyId || !user || !selectedClient) return;
     const prevBalance = clientBalance;
     setIsProcessing(true);
+    const pdvTraceId = newPdvTraceId();
     try {
       const rpc = await safeRpc<{
         success?: boolean;
@@ -95,6 +96,9 @@ export function PDVReceiveCreditDialog({ open, onClose }: PDVReceiveCreditDialog
         new_balance?: number;
         applied_amount?: number;
         references?: unknown;
+        session_id?: string | null;
+        movement_id?: string | null;
+        entry_ids?: string[];
       }>("receive_credit_payment_atomic", {
         p_company_id: companyId,
         p_client_id: selectedClient.id,
@@ -165,7 +169,24 @@ export function PDVReceiveCreditDialog({ open, onClose }: PDVReceiveCreditDialog
       qc.invalidateQueries({ queryKey: ["financial_entries"] });
       qc.invalidateQueries({ queryKey: ["cash_sessions"] });
       qc.invalidateQueries({ queryKey: ["cash_movements"] });
-      logAction({ companyId: companyId!, userId: user?.id, action: "Recebimento de crédito fiado", module: "financeiro", details: `Cliente: ${selectedClient?.name} - ${formatCurrency(appliedAmount)}` });
+      logAction({
+        companyId: companyId!,
+        userId: user?.id,
+        action: "Recebimento de crédito fiado",
+        module: "financeiro",
+        details: `Cliente: ${selectedClient?.name} - ${formatCurrency(appliedAmount)}`,
+        correlation: {
+          trace_id: pdvTraceId,
+          company_id: companyId!,
+          client_id: selectedClient.id,
+          session_id: rpcResult.session_id ?? null,
+          movement_id: rpcResult.movement_id ?? null,
+          entry_ids: Array.isArray(rpcResult.entry_ids) ? rpcResult.entry_ids : undefined,
+          amount: appliedAmount,
+          payment_method: selectedMethod,
+          summary: `Cliente: ${selectedClient.name} - ${formatCurrency(appliedAmount)}`,
+        },
+      });
       toast.success(`Recebimento de ${formatCurrency(appliedAmount)} registrado!`);
       setCustomAmount(0);
       setReceiptData({

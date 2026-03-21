@@ -1,4 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
+import type { Database } from "@/integrations/supabase/database.types";
+
+type SystemErrorInsert = Database["public"]["Tables"]["system_errors"]["Insert"];
 
 function getDeviceInfo(): { browser: string; device: string } {
   const ua = navigator.userAgent;
@@ -45,7 +48,7 @@ export async function trackError(opts: {
     const { browser, device } = getDeviceInfo();
     const page = opts.page || window.location.pathname;
 
-    const { error: insertError } = await supabase.from("system_errors" as any).insert({
+    const row: SystemErrorInsert = {
       user_id: _userId,
       user_email: _userEmail,
       page,
@@ -54,12 +57,21 @@ export async function trackError(opts: {
       error_stack: stack,
       browser,
       device,
-    });
+    };
+
+    const { error: insertError } = await supabase.from("system_errors").insert(row);
     if (insertError) {
       console.warn("[ErrorTracker] Failed to log error:", insertError.message);
     }
   } catch (e) {
     console.warn("[ErrorTracker] Exception:", e);
+  }
+}
+
+declare global {
+  interface Window {
+    /** Debug: dispara um erro de teste para validar `system_errors` (somente dev). */
+    __testError?: () => void;
   }
 }
 
@@ -80,8 +92,8 @@ export function initErrorTracker() {
   });
 
   // Expose test function for debugging
-  (window as any).__testError = () => {
-    trackError({
+  window.__testError = () => {
+    void trackError({
       action: "manual_test",
       error: new Error("Teste manual de erro do sistema"),
     }).then(() => console.log("[ErrorTracker] Test error sent!"));

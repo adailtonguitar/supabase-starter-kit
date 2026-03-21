@@ -3,7 +3,17 @@ import { AlertTriangle, Package, FileText, CreditCard } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { motion } from "framer-motion";
 
-interface DashboardAlertsProps {
+export interface DashboardAlertItem {
+  icon: typeof AlertTriangle;
+  label: string;
+  detail: string;
+  to: string;
+  color: string;
+  bg: string;
+  border: string;
+}
+
+export interface DashboardAlertsProps {
   productsAtRisk: number;
   overdueBills: number;
   overdueBillsCount: number;
@@ -15,32 +25,15 @@ interface DashboardAlertsProps {
   pendingReceivablesCount: number;
 }
 
-export function DashboardAlerts({
-  productsAtRisk,
-  overdueBills,
-  overdueBillsCount,
-  fiadoTotal,
-  fiadoCount,
-  billsDueToday,
-  billsDueTodayCount,
-  pendingReceivables,
-  pendingReceivablesCount,
-}: DashboardAlertsProps) {
-  const alerts: Array<{
-    icon: typeof AlertTriangle;
-    label: string;
-    detail: string;
-    to: string;
-    color: string;
-    bg: string;
-    border: string;
-  }> = [];
+/** Mesma ordem de prioridade do painel completo (primeiro = mais urgente). */
+export function buildDashboardAlertsList(p: DashboardAlertsProps): DashboardAlertItem[] {
+  const alerts: DashboardAlertItem[] = [];
 
-  if (overdueBillsCount > 0) {
+  if (p.overdueBillsCount > 0) {
     alerts.push({
       icon: AlertTriangle,
-      label: `${overdueBillsCount} conta${overdueBillsCount > 1 ? "s" : ""} a pagar vencida${overdueBillsCount > 1 ? "s" : ""}`,
-      detail: formatCurrency(overdueBills),
+      label: `${p.overdueBillsCount} conta${p.overdueBillsCount > 1 ? "s" : ""} a pagar vencida${p.overdueBillsCount > 1 ? "s" : ""}`,
+      detail: formatCurrency(p.overdueBills),
       to: "/financeiro",
       color: "text-destructive",
       bg: "bg-destructive/10",
@@ -48,11 +41,11 @@ export function DashboardAlerts({
     });
   }
 
-  if (billsDueTodayCount > 0) {
+  if (p.billsDueTodayCount > 0) {
     alerts.push({
       icon: CreditCard,
-      label: `${billsDueTodayCount} conta${billsDueTodayCount > 1 ? "s" : ""} vence${billsDueTodayCount > 1 ? "m" : ""} hoje`,
-      detail: formatCurrency(billsDueToday),
+      label: `${p.billsDueTodayCount} conta${p.billsDueTodayCount > 1 ? "s" : ""} vence${p.billsDueTodayCount > 1 ? "m" : ""} hoje`,
+      detail: formatCurrency(p.billsDueToday),
       to: "/financeiro",
       color: "text-warning",
       bg: "bg-warning/10",
@@ -60,10 +53,10 @@ export function DashboardAlerts({
     });
   }
 
-  if (productsAtRisk > 0) {
+  if (p.productsAtRisk > 0) {
     alerts.push({
       icon: Package,
-      label: `${productsAtRisk} produto${productsAtRisk > 1 ? "s" : ""} com estoque baixo`,
+      label: `${p.productsAtRisk} produto${p.productsAtRisk > 1 ? "s" : ""} com estoque baixo`,
       detail: "Repor estoque",
       to: "/produtos",
       color: "text-warning",
@@ -72,11 +65,11 @@ export function DashboardAlerts({
     });
   }
 
-  if (fiadoCount > 0) {
+  if (p.fiadoCount > 0) {
     alerts.push({
       icon: FileText,
-      label: `${fiadoCount} cliente${fiadoCount > 1 ? "s" : ""} no fiado`,
-      detail: formatCurrency(fiadoTotal),
+      label: `${p.fiadoCount} cliente${p.fiadoCount > 1 ? "s" : ""} no fiado`,
+      detail: formatCurrency(p.fiadoTotal),
       to: "/fiado",
       color: "text-primary",
       bg: "bg-primary/10",
@@ -84,17 +77,23 @@ export function DashboardAlerts({
     });
   }
 
-  if (pendingReceivablesCount > 0) {
+  if (p.pendingReceivablesCount > 0) {
     alerts.push({
       icon: CreditCard,
-      label: `${pendingReceivablesCount} conta${pendingReceivablesCount > 1 ? "s" : ""} a receber`,
-      detail: formatCurrency(pendingReceivables),
+      label: `${p.pendingReceivablesCount} conta${p.pendingReceivablesCount > 1 ? "s" : ""} a receber`,
+      detail: formatCurrency(p.pendingReceivables),
       to: "/financeiro",
       color: "text-success",
       bg: "bg-success/10",
       border: "border-success/20",
     });
   }
+
+  return alerts;
+}
+
+export function DashboardAlerts(props: DashboardAlertsProps) {
+  const alerts = buildDashboardAlertsList(props);
 
   if (alerts.length === 0) return null;
 

@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/utils";
-import { logAction } from "@/services/ActionLogger";
+import { logAction, newPdvTraceId } from "@/services/ActionLogger";
 import { ReturnReceipt } from "./ReturnReceipt";
 import { FiscalReturnHandler } from "./FiscalReturnHandler";
 
@@ -169,6 +169,8 @@ export function PDVReturnExchangeDialog({ open, onClose }: PDVReturnExchangeProp
           quantity: selectedItems[item.id],
         }));
 
+      const pdvTraceId = newPdvTraceId();
+
       // Single atomic RPC call: status + stock + financial + audit
       const { data: result, error: rpcError } = await supabase.rpc("cancel_sale_atomic", {
         p_sale_id: foundSale.id,
@@ -190,6 +192,13 @@ export function PDVReturnExchangeDialog({ open, onClose }: PDVReturnExchangeProp
         action: "sale_return_session_meta",
         module: "vendas",
         details: `Devolução PDV - Venda #${foundSale.id.substring(0, 8)} - Estorno ${formatCurrency(totalRefund)}`,
+        correlation: {
+          trace_id: pdvTraceId,
+          company_id: companyId,
+          sale_id: foundSale.id,
+          amount: totalRefund,
+          summary: `Devolução PDV - Venda #${foundSale.id.substring(0, 8)} - Estorno ${formatCurrency(totalRefund)}`,
+        },
       });
 
       // Save completed return data for receipt

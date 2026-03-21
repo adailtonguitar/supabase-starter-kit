@@ -1,7 +1,8 @@
+import { useState, useEffect } from "react";
 import {
   TrendingUp, TrendingDown, ShoppingBag, DollarSign, AlertTriangle,
-  Shield, Heart, Target, Package, Users, ArrowUpRight, ArrowDownRight,
-  Activity, Zap, RefreshCw, Wallet, BarChart3,
+  Shield, Heart, Package, Users, ArrowUpRight,
+  Zap, RefreshCw, Wallet, BarChart3, LayoutGrid, Sparkles, CheckCircle2,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { useCountUp } from "@/hooks/useCountUp";
@@ -12,12 +13,30 @@ import { QuickAccessCards } from "@/components/dashboard/QuickAccessCards";
 import { SalesChart } from "@/components/dashboard/SalesChart";
 import { TopProductsList } from "@/components/dashboard/TopProductsList";
 import { AiInsightWidget } from "@/components/dashboard/AiInsightWidget";
-import { DashboardAlerts } from "@/components/dashboard/DashboardAlerts";
+import { DashboardAlerts, buildDashboardAlertsList } from "@/components/dashboard/DashboardAlerts";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { usePlanFeatures } from "@/hooks/usePlanFeatures";
 import { useAdminRole } from "@/hooks/useAdminRole";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+
+const DASHBOARD_SUMMARY_STORAGE_KEY = "as_dashboard_owner_summary";
+
+function readSummaryPreference(): boolean {
+  try {
+    return localStorage.getItem(DASHBOARD_SUMMARY_STORAGE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function writeSummaryPreference(on: boolean) {
+  try {
+    localStorage.setItem(DASHBOARD_SUMMARY_STORAGE_KEY, on ? "1" : "0");
+  } catch { /* ignore */ }
+}
 
 function getGreeting(): string {
   const h = new Date().getHours();
@@ -62,12 +81,173 @@ function CountUpValue({ value, isCurrency }: { value: number; isCurrency: boolea
   return <>{sign}{animated.toFixed(1)}%</>;
 }
 
+type OwnerSummaryStats = {
+  salesToday: number;
+  salesCountToday: number;
+  monthProfit: number;
+  healthScore: number;
+  productsAtRisk: number;
+  overdueBills: number;
+  overdueBillsCount: number;
+  fiadoTotal: number;
+  fiadoCount: number;
+  billsDueToday: number;
+  billsDueTodayCount: number;
+  pendingReceivables: number;
+  pendingReceivablesCount: number;
+};
+
+function DashboardOwnerSummaryView({
+  stats,
+  onShowFull,
+}: {
+  stats: OwnerSummaryStats;
+  onShowFull: () => void;
+}) {
+  const healthAnimated = useCountUp(stats.healthScore, 900, 0);
+
+  const alertProps = {
+    productsAtRisk: stats.productsAtRisk,
+    overdueBills: stats.overdueBills,
+    overdueBillsCount: stats.overdueBillsCount,
+    fiadoTotal: stats.fiadoTotal,
+    fiadoCount: stats.fiadoCount,
+    billsDueToday: stats.billsDueToday,
+    billsDueTodayCount: stats.billsDueTodayCount,
+    pendingReceivables: stats.pendingReceivables,
+    pendingReceivablesCount: stats.pendingReceivablesCount,
+  };
+  const alerts = buildDashboardAlertsList(alertProps);
+  const primary = alerts[0];
+
+  const healthColor =
+    stats.healthScore >= 80 ? "text-success" : stats.healthScore >= 50 ? "text-warning" : "text-destructive";
+
+  const moneyCards = [
+    {
+      title: "Vendas hoje",
+      raw: stats.salesToday,
+      sub: `${stats.salesCountToday} venda${stats.salesCountToday !== 1 ? "s" : ""}`,
+      icon: DollarSign,
+      accent: "text-primary",
+      bg: "bg-primary/10",
+      ring: "ring-primary/20",
+    },
+    {
+      title: "Lucro est. no mês",
+      raw: stats.monthProfit,
+      sub: "Estimativa com base nas vendas",
+      icon: Wallet,
+      accent: "text-success",
+      bg: "bg-success/10",
+      ring: "ring-success/20",
+    },
+  ] as const;
+
+  const healthBg =
+    stats.healthScore >= 80 ? "bg-success/10" : stats.healthScore >= 50 ? "bg-warning/10" : "bg-destructive/10";
+  const healthRing =
+    stats.healthScore >= 80 ? "ring-success/20" : stats.healthScore >= 50 ? "ring-warning/20" : "ring-destructive/20";
+
+  return (
+    <motion.div variants={container} initial="initial" animate="animate" className="space-y-4 sm:space-y-5">
+      <motion.p variants={item} className="text-xs text-muted-foreground flex items-center gap-2">
+        <Sparkles className="w-3.5 h-3.5 text-primary shrink-0" />
+        Visão rápida: o essencial para decidir em segundos. Use o botão abaixo para gráficos e detalhes.
+      </motion.p>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        {moneyCards.map((k) => (
+          <motion.div
+            key={k.title}
+            variants={item}
+            className="bg-card rounded-2xl p-4 sm:p-5 border border-border relative overflow-hidden"
+          >
+            <div className={`absolute top-0 right-0 w-16 h-16 ${k.bg} rounded-full blur-2xl -translate-y-6 translate-x-6 opacity-40`} />
+            <div className="relative">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">{k.title}</span>
+                <div className={`w-8 h-8 rounded-xl ${k.bg} flex items-center justify-center ring-1 ${k.ring}`}>
+                  <k.icon className={`w-4 h-4 ${k.accent}`} />
+                </div>
+              </div>
+              <p className="text-2xl sm:text-3xl font-extrabold font-mono tracking-tight">
+                <CountUpValue value={k.raw} isCurrency />
+              </p>
+              <p className="text-[11px] text-muted-foreground mt-1 font-medium">{k.sub}</p>
+            </div>
+          </motion.div>
+        ))}
+        <motion.div variants={item} className="bg-card rounded-2xl p-4 sm:p-5 border border-border relative overflow-hidden">
+          <div className={`absolute top-0 right-0 w-16 h-16 ${healthBg} rounded-full blur-2xl -translate-y-6 translate-x-6 opacity-40`} />
+          <div className="relative">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Saúde da loja</span>
+              <div className={`w-8 h-8 rounded-xl ${healthBg} flex items-center justify-center ring-1 ${healthRing}`}>
+                <Heart className={`w-4 h-4 ${healthColor}`} />
+              </div>
+            </div>
+            <p className={`text-2xl sm:text-3xl font-extrabold font-mono tracking-tight ${healthColor}`}>
+              {Math.round(healthAnimated)}
+              <span className="text-lg font-bold text-muted-foreground">/100</span>
+            </p>
+            <p className="text-[11px] text-muted-foreground mt-1 font-medium">
+              {stats.healthScore >= 80 ? "Excelente" : stats.healthScore >= 50 ? "Regular" : "Precisa atenção"}
+            </p>
+          </div>
+        </motion.div>
+      </div>
+
+      <motion.div variants={item}>
+        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2">Alerta prioritário</p>
+        {primary ? (
+          <Link
+            to={primary.to}
+            className={`flex items-center gap-3 px-4 py-4 rounded-xl border ${primary.border} ${primary.bg} hover:opacity-90 transition-opacity`}
+          >
+            <div className={`w-10 h-10 rounded-lg ${primary.bg} flex items-center justify-center shrink-0`}>
+              <primary.icon className={`w-5 h-5 ${primary.color}`} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className={`text-sm font-semibold ${primary.color}`}>{primary.label}</p>
+              <p className="text-xs text-muted-foreground">{primary.detail}</p>
+            </div>
+            <span className="text-xs font-semibold text-muted-foreground shrink-0">Abrir →</span>
+          </Link>
+        ) : (
+          <div className="flex items-start gap-3 px-4 py-4 rounded-xl border border-success/25 bg-success/5">
+            <CheckCircle2 className="w-9 h-9 text-success shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-semibold text-foreground">Nada urgente nos alertas</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Sem contas vencidas, vencendo hoje, estoque crítico ou pendências destacadas neste painel.
+              </p>
+            </div>
+          </div>
+        )}
+      </motion.div>
+
+      <motion.div variants={item}>
+        <Button variant="outline" className="w-full gap-2 h-11 border-primary/30 hover:bg-primary/5" onClick={onShowFull}>
+          <LayoutGrid className="w-4 h-4" />
+          Ver painel completo
+        </Button>
+      </motion.div>
+    </motion.div>
+  );
+}
+
 export default function Dashboard() {
   const { data: stats, isLoading, dataUpdatedAt, refetch } = useDashboardStats();
   const { user } = useAuth();
   const plan = usePlanFeatures();
   const { isSuperAdmin } = useAdminRole();
   const firstName = getFirstName(user?.email);
+  const [ownerSummary, setOwnerSummary] = useState(readSummaryPreference);
+
+  useEffect(() => {
+    writeSummaryPreference(ownerSummary);
+  }, [ownerSummary]);
 
   // Emissor-only plan: redirect to standalone emitter (super_admin bypasses)
   if (!isSuperAdmin && plan.isEmissorOnly()) {
@@ -152,7 +332,18 @@ export default function Dashboard() {
             )}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 sm:gap-3 flex-wrap justify-end">
+          <div className="flex items-center gap-2 rounded-full border border-border/80 bg-muted/40 px-2.5 sm:px-3 py-1.5">
+            <Switch
+              id="dashboard-owner-summary"
+              checked={ownerSummary}
+              onCheckedChange={setOwnerSummary}
+              aria-label="Alternar visão resumida do dono"
+            />
+            <Label htmlFor="dashboard-owner-summary" className="text-[11px] sm:text-xs font-medium cursor-pointer whitespace-nowrap leading-none">
+              Resumo do dono
+            </Label>
+          </div>
           <Button variant="ghost" size="icon" className="h-9 w-9 hover:bg-primary/10 hover:text-primary transition-colors" onClick={() => refetch()} title="Atualizar dados">
             <RefreshCw className="w-4 h-4" />
           </Button>
@@ -173,8 +364,8 @@ export default function Dashboard() {
         </div>
       </motion.div>
 
-      {/* ─── Urgent Alerts ─── */}
-      {stats && (
+      {/* ─── Urgent Alerts (painel completo) ─── */}
+      {stats && !ownerSummary && (
         <motion.div variants={item}>
           <DashboardAlerts
             productsAtRisk={stats.productsAtRisk}
@@ -190,27 +381,47 @@ export default function Dashboard() {
         </motion.div>
       )}
 
-      {/* ─── Quick Access ─── */}
-      <motion.div variants={item} data-tour="quick-access">
-        <QuickAccessCards productsAtRisk={stats?.productsAtRisk} activeAlerts={stats?.activeAlerts} />
-      </motion.div>
+      {/* ─── Quick Access (painel completo) ─── */}
+      {!ownerSummary && (
+        <motion.div variants={item} data-tour="quick-access">
+          <QuickAccessCards productsAtRisk={stats?.productsAtRisk} activeAlerts={stats?.activeAlerts} />
+        </motion.div>
+      )}
 
       {isLoading ? (
-        <div className="space-y-4 sm:space-y-5">
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            {[...Array(4)].map((_, i) => (
-              <div key={i} className="bg-card rounded-2xl p-4 border border-border space-y-3">
-                <Skeleton className="h-3 w-20" />
-                <Skeleton className="h-7 w-28" />
-                <Skeleton className="h-3 w-16" />
-              </div>
-            ))}
+        ownerSummary ? (
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="bg-card rounded-2xl p-4 border border-border space-y-3">
+                  <Skeleton className="h-3 w-24" />
+                  <Skeleton className="h-9 w-36" />
+                  <Skeleton className="h-3 w-20" />
+                </div>
+              ))}
+            </div>
+            <Skeleton className="h-24 w-full rounded-xl" />
+            <Skeleton className="h-11 w-full rounded-md" />
           </div>
-          <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-            <Skeleton className="lg:col-span-3 h-64 rounded-2xl" />
-            <Skeleton className="lg:col-span-2 h-64 rounded-2xl" />
+        ) : (
+          <div className="space-y-4 sm:space-y-5">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="bg-card rounded-2xl p-4 border border-border space-y-3">
+                  <Skeleton className="h-3 w-20" />
+                  <Skeleton className="h-7 w-28" />
+                  <Skeleton className="h-3 w-16" />
+                </div>
+              ))}
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+              <Skeleton className="lg:col-span-3 h-64 rounded-2xl" />
+              <Skeleton className="lg:col-span-2 h-64 rounded-2xl" />
+            </div>
           </div>
-        </div>
+        )
+      ) : stats && ownerSummary ? (
+        <DashboardOwnerSummaryView stats={stats} onShowFull={() => setOwnerSummary(false)} />
       ) : stats ? (
         <>
           {/* ─── KPI Cards ─── */}

@@ -276,20 +276,27 @@ export default function Auth() {
       setLockedUntil(null);
       toast.success("Login realizado com sucesso!");
       navigate("/");
-    } catch (error: any) {
+    } catch (error: unknown) {
       const newAttempts = failedAttempts + 1;
       setFailedAttempts(newAttempts);
 
-      // Log failed attempt (fire-and-forget)
-      supabase
-        .from("system_errors" as any)
-        .insert({
-          error_type: "auth_failed_login",
-          message: `Tentativa ${newAttempts} falha para ${email.trim().toLowerCase()}`,
-          details: { email: email.trim().toLowerCase(), attempt: newAttempts, user_agent: navigator.userAgent },
-          severity: newAttempts >= MAX_ATTEMPTS ? "high" : "medium",
-        })
-        .then(() => {});
+      const errMsg = error instanceof Error ? error.message : String(error);
+      const emailNorm = email.trim().toLowerCase();
+
+      // Log failed attempt (fire-and-forget) — colunas alinhadas a `public.system_errors`
+      void supabase.from("system_errors").insert({
+        user_email: emailNorm,
+        page: window.location.pathname || "/auth",
+        action: "auth_failed_login",
+        error_message: `Tentativa ${newAttempts} falha para ${emailNorm}: ${errMsg}`,
+        error_stack: JSON.stringify({
+          attempt: newAttempts,
+          max_lockout: newAttempts >= MAX_ATTEMPTS,
+          user_agent: navigator.userAgent,
+        }),
+        browser: navigator.userAgent.slice(0, 240),
+        device: /Mobi|Android/i.test(navigator.userAgent) ? "Mobile" : "Desktop",
+      });
 
       // Lock after MAX_ATTEMPTS
       if (newAttempts >= MAX_ATTEMPTS) {
@@ -298,7 +305,7 @@ export default function Auth() {
         toast.error(`Conta bloqueada temporariamente. Tente novamente em ${LOCKOUT_DURATION / 1000}s.`);
       } else {
         const remaining = MAX_ATTEMPTS - newAttempts;
-        const msg = translateAuthError(error.message || "Erro ao fazer login");
+        const msg = translateAuthError(errMsg || "Erro ao fazer login");
         toast.error(`${msg} (${remaining} tentativa${remaining > 1 ? "s" : ""} restante${remaining > 1 ? "s" : ""})`);
       }
     } finally {

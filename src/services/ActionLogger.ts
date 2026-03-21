@@ -28,6 +28,33 @@ export interface DiffEntry {
   to: any;
 }
 
+/**
+ * Optional correlation payload for PDV/finance audit trails (stored inside `details` JSON).
+ * Use with {@link newPdvTraceId} at the start of a critical operation.
+ */
+export interface PdvAuditCorrelation {
+  trace_id: string;
+  company_id: string;
+  /** Full UUID when known (e.g. after finalize_sale_atomic) */
+  sale_id?: string;
+  client_id?: string;
+  session_id?: string | null;
+  movement_id?: string | null;
+  entry_ids?: string[];
+  /** Human-readable summary line (also mirrored in `details` when provided) */
+  summary?: string;
+  amount?: number;
+  payment_method?: string;
+}
+
+export function newPdvTraceId(): string {
+  try {
+    return crypto.randomUUID();
+  } catch {
+    return `trace-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
+  }
+}
+
 interface LogActionParams {
   companyId: string;
   userId?: string | null;
@@ -36,6 +63,8 @@ interface LogActionParams {
   details?: string | null;
   /** Structured diff: what changed (field, old value, new value) */
   diff?: DiffEntry[] | null;
+  /** PDV/financial correlation (trace_id, sale_id, etc.) — merged into stored JSON */
+  correlation?: PdvAuditCorrelation | null;
 }
 
 /**
@@ -79,12 +108,24 @@ export function logAction(params: LogActionParams) {
   if (!params.companyId) return;
 
   const meta = getSessionMeta();
-  const payload: Record<string, any> = {};
+  const payload: Record<string, unknown> = {};
   if (params.details) payload.text = params.details;
   if (params.diff && params.diff.length > 0) payload.diff = params.diff;
+  if (params.correlation && Object.keys(params.correlation).length > 0) {
+    payload.correlation = params.correlation;
+  }
   if (Object.keys(meta).length > 0) payload.meta = meta;
 
   const detailsStr = Object.keys(payload).length > 0 ? JSON.stringify(payload) : params.details || null;
+
+  // Dev-only: facilita correlacionar ação no console com `action_logs.details` (JSON)
+  if (import.meta.env.DEV && params.correlation?.trace_id) {
+    console.info("[PdvAudit]", {
+      module: params.module,
+      action: params.action,
+      ...params.correlation,
+    });
+  }
 
   const doInsert = (attempt: number) => {
     supabase
