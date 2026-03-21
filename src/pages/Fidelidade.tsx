@@ -12,7 +12,7 @@ import { Loader2 } from "lucide-react";
 
 function ConfigTab() {
   const { config, saveConfig, configLoading } = useLoyalty();
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<Record<string, any>>({
     is_active: config?.is_active ?? true,
     points_per_real: config?.points_per_real ?? 1,
     redemption_value: config?.redemption_value ?? 0.01,
