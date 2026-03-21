@@ -353,6 +353,13 @@ export function NFeImportDialog({ open, onOpenChange, xmlContent }: NFeImportDia
         return;
       }
 
+      // Validate destination CNPJ
+      const cnpjError = validateDestCnpj(parsed, companyCnpj);
+      if (cnpjError) {
+        toast.error(cnpjError);
+        return;
+      }
+
       // Check for duplicate import
       if (parsed.accessKey && companyId) {
         const { data: existing } = await supabase
