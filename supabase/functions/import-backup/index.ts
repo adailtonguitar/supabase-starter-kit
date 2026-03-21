@@ -133,9 +133,8 @@ Deno.serve(async (req) => {
             .eq("company_id", company_id);
           results.push({ table: dep.table, phase: "dep-delete", count: count || 0, error: error?.message });
         }
-      } catch (e) {
-        // Table may not exist — skip silently
-        results.push({ table: dep.table, phase: "dep-delete", count: 0, error: e.message });
+      } catch (e: unknown) {
+        results.push({ table: dep.table, phase: "dep-delete", count: 0, error: e instanceof Error ? e.message : "unknown" });
       }
     }
 
