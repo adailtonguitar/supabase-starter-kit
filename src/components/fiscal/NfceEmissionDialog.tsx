@@ -7,6 +7,7 @@ import { NfceCustomerStep } from "./NfceCustomerStep";
 import { NfcePaymentStep } from "./NfcePaymentStep";
 import { NfceSuccessStep } from "./NfceSuccessStep";
 import { NfceErrorStep } from "./NfceErrorStep";
+import { FiscalStockWarningDialog, type FiscalStockItem } from "./FiscalStockWarningDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
 import { formatCurrency } from "@/lib/utils";
