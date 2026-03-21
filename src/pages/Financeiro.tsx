@@ -371,7 +371,7 @@ export default function Financeiro() {
                 )}
                 <div>
                   <label className="text-xs font-medium text-foreground mb-1 block">Forma de pagamento</label>
-                  <Select value={payMethod} onValueChange={setPayMethod}>
+                  <Select value={payMethod} onValueChange={(v) => setPayMethod(v as any)}>
                     <SelectTrigger className="w-full">
                       <SelectValue />
                     </SelectTrigger>

@@ -116,7 +116,7 @@ export default function Promocoes() {
         // Fallback: DB may not have advanced columns yet
         console.warn("Advanced promo columns not available, saving basic fields only. Run sql/promotions_advanced_columns.sql to enable full features.");
         toast.warning("Promoção salva com campos básicos. Execute a migração SQL para habilitar escopo por produto.");
-        await createPromotion(basicPayload);
+        await createPromotion(basicPayload as any);
       }
       setOpen(false);
       resetForm();

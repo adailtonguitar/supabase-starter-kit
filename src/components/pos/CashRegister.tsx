@@ -57,7 +57,7 @@ export function CashRegister({ onClose, terminalId = "01", preventClose = false,
   const { user } = useAuth();
   const { companyId, companyName } = useCompany();
   const [view, setView] = useState<CashView>("status");
-  const [closedSnapshot, setClosedSnapshot] = useState<Record<string, unknown> | null>(null);
+  const [closedSnapshot, setClosedSnapshot] = useState<Record<string, any> | null>(null);
   const [session, setSession] = useState<CashSessionRecord | null>(initialSession ?? null);
   const [loading, setLoading] = useState(!skipInitialLoad);
   const [submitting, setSubmitting] = useState(false);

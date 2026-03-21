@@ -1989,7 +1989,7 @@ export default function PDV() {
             ...stockMovementProduct, id: stockMovementProduct.id, name: stockMovementProduct.name,
             sku: stockMovementProduct.sku, unit: stockMovementProduct.unit,
             stock_quantity: stockMovementProduct.stock_quantity, price: stockMovementProduct.price,
-            is_active: 1, created_at: "", updated_at: "", company_id: "",
+            is_active: true, created_at: "", updated_at: "", company_id: "",
             ncm: stockMovementProduct.ncm, category: stockMovementProduct.category,
             barcode: stockMovementProduct.barcode, cost_price: null, min_stock: null,
             origem: 0, cfop: "5102", cest: null, csosn: "102", cst_icms: "00",
