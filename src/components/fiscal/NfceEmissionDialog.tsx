@@ -110,6 +110,9 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
   const [ncmSearchText, setNcmSearchText] = useState("");
   const [productSearchText, setProductSearchText] = useState("");
   const [showProductSearch, setShowProductSearch] = useState(false);
+  const [fiscalWarningOpen, setFiscalWarningOpen] = useState(false);
+  const [fiscalStockItems, setFiscalStockItems] = useState<FiscalStockItem[]>([]);
+  const [fiscalCheckPassed, setFiscalCheckPassed] = useState(false);
 
   const ncmFiltered = useMemo(() => {
     const q = ncmSearchText.trim().toLowerCase();
