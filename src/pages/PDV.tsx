@@ -432,11 +432,11 @@ export default function PDV() {
         quantity: item.quantity, unit_price: item.price, unit: item.unit,
       }));
       await createQuote({
-        items, subtotal: pdv.subtotal, discountPercent: pdv.globalDiscountPercent,
+        items, discountPercent: pdv.globalDiscountPercent,
         discountValue: pdv.globalDiscountValue, total: pdv.total,
         clientName: selectedClient?.name, clientId: selectedClient?.id,
         notes: quoteNotes || undefined, validDays: 30,
-      });
+      } as any);
       toast.success("Orçamento salvo com sucesso!", { duration: 1500 });
       pdv.clearCart(); setSelectedClient(null); setShowSaveQuote(false); setQuoteNotes("");
     } catch (err: unknown) {
