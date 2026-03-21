@@ -1989,13 +1989,12 @@ export default function PDV() {
             ...stockMovementProduct, id: stockMovementProduct.id, name: stockMovementProduct.name,
             sku: stockMovementProduct.sku, unit: stockMovementProduct.unit,
             stock_quantity: stockMovementProduct.stock_quantity, price: stockMovementProduct.price,
-            is_active: true as any, created_at: "" as any, updated_at: "" as any, company_id: "" as any,
             ncm: stockMovementProduct.ncm, category: stockMovementProduct.category,
             barcode: stockMovementProduct.barcode, cost_price: null, min_stock: null,
             origem: 0, cfop: "5102", cest: null, csosn: "102", cst_icms: "00",
             aliq_icms: 0, cst_pis: "01", aliq_pis: 1.65, cst_cofins: "01",
             aliq_cofins: 7.60, gtin_tributavel: null, fiscal_category_id: null,
-          }}
+          } as any}
         />
       )}
 
