@@ -160,8 +160,19 @@ function parseNFeXML(xmlText: string): NFeInfo | null {
   }
 }
 
+function validateDestCnpj(parsed: NFeInfo, companyCnpj: string | null): string | null {
+  if (!companyCnpj) return null; // no company CNPJ set, skip validation
+  const destClean = (parsed.destCnpj || "").replace(/\D/g, "");
+  const companyClean = companyCnpj.replace(/\D/g, "");
+  if (!destClean) return null; // XML has no dest CNPJ (e.g. CPF consumer), skip
+  if (destClean !== companyClean) {
+    return `O CNPJ destinatário do XML (${destClean}) não corresponde ao CNPJ da sua empresa (${companyClean}). Importação bloqueada.`;
+  }
+  return null;
+}
+
 export function NFeImportDialog({ open, onOpenChange, xmlContent }: NFeImportDialogProps) {
-  const { companyId } = useCompany();
+  const { companyId, cnpj: companyCnpj } = useCompany();
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const { data: suppliers = [] } = useSuppliers();
