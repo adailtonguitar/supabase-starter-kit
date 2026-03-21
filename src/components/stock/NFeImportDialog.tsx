@@ -220,6 +220,11 @@ export function NFeImportDialog({ open, onOpenChange, xmlContent }: NFeImportDia
       toast.error("XML inválido ou sem produtos");
       return;
     }
+    const cnpjError = validateDestCnpj(parsed, companyCnpj);
+    if (cnpjError) {
+      toast.error(cnpjError);
+      return;
+    }
     setNfeInfo(parsed);
     setStep("preview");
   }, [open, xmlContent]); // eslint-disable-line react-hooks/exhaustive-deps
