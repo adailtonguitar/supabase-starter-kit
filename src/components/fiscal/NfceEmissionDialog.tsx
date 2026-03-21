@@ -51,6 +51,7 @@ interface NfceItem {
   pisCst: string;
   cofinsCst: string;
   icmsAliquota: number;
+  product_id?: string;
 }
 
 interface NfceFormData {
