@@ -156,8 +156,8 @@ export function useSessionControl() {
       const token = getStoredToken();
       if (token) {
         // Use sendBeacon with proper headers via Blob for reliability on tab close
-        const url = `${import.meta.env.VITE_SUPABASE_URL || ""}/rest/v1/rpc/invalidate_session`;
-        const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || "";
+        const url = `https://fsvxpxziotklbxkivyug.supabase.co/rest/v1/rpc/invalidate_session`;
+        const anonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZzdnhweHppb3RrbGJ4a2l2eXVnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE3ODU5NTMsImV4cCI6MjA4NzM2MTk1M30.8I3ABsRZBZuE1IpK_g9z3PdRUd9Omt_F5qNx0Pgqvyo";
         const blob = new Blob(
           [JSON.stringify({ p_session_token: token })],
           { type: "application/json" }
