@@ -38,7 +38,7 @@ Deno.serve(async (req) => {
     // Check if user already exists (by email, without loading all users)
     let existingUser: any = null;
     try {
-      const { data: userByEmail } = await supabaseAdmin.auth.admin.listUsers({ filter: `email.eq.${email}`, perPage: 1 });
+      const { data: userByEmail } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1 } as any);
       existingUser = userByEmail?.users?.[0] || null;
     } catch {
       existingUser = null;
