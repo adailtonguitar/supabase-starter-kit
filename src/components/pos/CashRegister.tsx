@@ -168,7 +168,7 @@ export function CashRegister({ onClose, terminalId = "01", preventClose = false,
     finally { setSubmitting(false); }
   };
 
-  const handlePrintClosing = useCallback((snapshot?: Record<string, unknown> | null) => {
+  const handlePrintClosing = useCallback((snapshot?: Record<string, any> | null) => {
     const s = snapshot || closedSnapshot;
     const now = new Date();
     const pOpenBalance = s?.openBalance ?? openBalance;

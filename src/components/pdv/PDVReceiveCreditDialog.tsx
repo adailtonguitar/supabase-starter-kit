@@ -317,7 +317,7 @@ export function PDVReceiveCreditDialog({ open, onClose }: PDVReceiveCreditDialog
                 {paymentMethods.map((m) => (
                   <button
                     key={m.value}
-                    onClick={() => setSelectedMethod(m.value)}
+                    onClick={() => setSelectedMethod(m.value as PaymentMethod)}
                     className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all border ${
                       selectedMethod === m.value
                         ? "bg-primary text-primary-foreground border-primary"

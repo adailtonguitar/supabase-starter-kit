@@ -694,7 +694,7 @@ export function usePDV() {
         p_payments: paymentsSummary,
         p_sold_by: userId || null,
       });
-      if (!rpcFinalize.success) throw new Error(rpcFinalize.error);
+      if (!rpcFinalize.success) throw new Error((rpcFinalize as any).error);
       const result = rpcFinalize.data;
       if (!result.success) {
         const err = result.error || "Erro desconhecido na transação";

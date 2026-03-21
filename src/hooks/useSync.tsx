@@ -145,7 +145,7 @@ const processors: Record<string, SyncProcessor> = {
       p_payments: payments,
       p_sold_by: soldBy ?? null,
     });
-    if (!rpcFinalize.success) throw new Error(rpcFinalize.error);
+    if (!rpcFinalize.success) throw new Error((rpcFinalize as any).error);
     const result = rpcFinalize.data ?? null;
     if (result && result.success === false) {
       throw new Error(result.error || "Erro ao sincronizar venda");
