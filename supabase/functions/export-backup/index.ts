@@ -96,8 +96,8 @@ Deno.serve(async (req) => {
         }
 
         backup[table] = allRows;
-      } catch (e) {
-        errors.push(`${table}: ${e.message}`);
+      } catch (e: unknown) {
+        errors.push(`${table}: ${e instanceof Error ? e.message : "unknown"}`);
         backup[table] = [];
       }
     }
