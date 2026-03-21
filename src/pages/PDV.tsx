@@ -432,11 +432,11 @@ export default function PDV() {
         quantity: item.quantity, unit_price: item.price, unit: item.unit,
       }));
       await createQuote({
-        items, subtotal: pdv.subtotal, discountPercent: pdv.globalDiscountPercent,
+        items, discountPercent: pdv.globalDiscountPercent,
         discountValue: pdv.globalDiscountValue, total: pdv.total,
         clientName: selectedClient?.name, clientId: selectedClient?.id,
         notes: quoteNotes || undefined, validDays: 30,
-      });
+      } as any);
       toast.success("Orçamento salvo com sucesso!", { duration: 1500 });
       pdv.clearCart(); setSelectedClient(null); setShowSaveQuote(false); setQuoteNotes("");
     } catch (err: unknown) {
@@ -1989,13 +1989,12 @@ export default function PDV() {
             ...stockMovementProduct, id: stockMovementProduct.id, name: stockMovementProduct.name,
             sku: stockMovementProduct.sku, unit: stockMovementProduct.unit,
             stock_quantity: stockMovementProduct.stock_quantity, price: stockMovementProduct.price,
-            is_active: 1, created_at: "", updated_at: "", company_id: "",
             ncm: stockMovementProduct.ncm, category: stockMovementProduct.category,
             barcode: stockMovementProduct.barcode, cost_price: null, min_stock: null,
             origem: 0, cfop: "5102", cest: null, csosn: "102", cst_icms: "00",
             aliq_icms: 0, cst_pis: "01", aliq_pis: 1.65, cst_cofins: "01",
             aliq_cofins: 7.60, gtin_tributavel: null, fiscal_category_id: null,
-          }}
+          } as any}
         />
       )}
 

@@ -127,9 +127,10 @@ Deno.serve(async (req) => {
       status: 400,
       headers: corsHeaders,
     });
-  } catch (err) {
+  } catch (err: unknown) {
     console.error("admin-action error:", err);
-    return new Response(JSON.stringify({ error: err.message || "Internal error" }), {
+    const message = err instanceof Error ? err.message : "Internal error";
+    return new Response(JSON.stringify({ error: message }), {
       status: 500,
       headers: corsHeaders,
     });

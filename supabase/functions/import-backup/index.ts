@@ -133,9 +133,8 @@ Deno.serve(async (req) => {
             .eq("company_id", company_id);
           results.push({ table: dep.table, phase: "dep-delete", count: count || 0, error: error?.message });
         }
-      } catch (e) {
-        // Table may not exist — skip silently
-        results.push({ table: dep.table, phase: "dep-delete", count: 0, error: e.message });
+      } catch (e: unknown) {
+        results.push({ table: dep.table, phase: "dep-delete", count: 0, error: e instanceof Error ? e.message : "unknown" });
       }
     }
 
@@ -148,8 +147,8 @@ Deno.serve(async (req) => {
           .delete({ count: "exact" })
           .eq("company_id", company_id);
         results.push({ table, phase: "delete", count: count || 0, error: error?.message });
-      } catch (e) {
-        results.push({ table, phase: "delete", count: 0, error: e.message });
+      } catch (e: unknown) {
+        results.push({ table, phase: "delete", count: 0, error: e instanceof Error ? e.message : "unknown" });
       }
     }
 
@@ -176,8 +175,8 @@ Deno.serve(async (req) => {
           }
         }
         results.push({ table, phase: "insert", count: totalInserted });
-      } catch (e) {
-        results.push({ table, phase: "insert", count: 0, error: e.message });
+      } catch (e: unknown) {
+        results.push({ table, phase: "insert", count: 0, error: e instanceof Error ? e.message : "unknown" });
       }
     }
 
@@ -197,8 +196,8 @@ Deno.serve(async (req) => {
           }
         }
         results.push({ table: "sale_items", phase: "insert", count: totalInserted });
-      } catch (e) {
-        results.push({ table: "sale_items", phase: "insert", count: 0, error: e.message });
+      } catch (e: unknown) {
+        results.push({ table: "sale_items", phase: "insert", count: 0, error: e instanceof Error ? e.message : "unknown" });
       }
     }
 
@@ -213,9 +212,10 @@ Deno.serve(async (req) => {
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-  } catch (err) {
+  } catch (err: unknown) {
     console.error("import-backup error:", err);
-    return new Response(JSON.stringify({ error: err.message || "Internal error" }), {
+    const message = err instanceof Error ? err.message : "Internal error";
+    return new Response(JSON.stringify({ error: message }), {
       status: 500, headers: corsHeaders,
     });
   }

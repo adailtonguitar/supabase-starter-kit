@@ -32,15 +32,15 @@ Deno.serve(async (req) => {
     await stuckQuery;
 
     // 2️⃣ Buscar próximo item pendente
-    const pendingQuery = supabase
+    let pendingQuery: any = supabase
       .from("fiscal_queue")
       .select("*")
       .eq("status", "pending")
       .order("created_at", { ascending: true })
-      .limit(1)
-      .maybeSingle();
+      .limit(1);
 
-    if (companyFilter) pendingQuery.eq("company_id", companyFilter);
+    if (companyFilter) pendingQuery = pendingQuery.eq("company_id", companyFilter);
+    pendingQuery = pendingQuery.maybeSingle();
     const { data: queueItem } = await pendingQuery;
 
     if (!queueItem) {

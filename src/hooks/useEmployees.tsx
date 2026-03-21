@@ -49,7 +49,7 @@ export function useCreateEmployee() {
     onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: ["employees"] });
       toast.success("Funcionário criado");
-      if (companyId) logAction({ companyId, userId: user?.id, action: "Funcionário criado", module: "funcionarios", details: variables.name || null });
+      if (companyId) logAction({ companyId, userId: user?.id, action: "Funcionário criado", module: "funcionarios", details: (variables as any).name || null });
     },
     onError: (e: Error) => toast.error(`Erro: ${e.message}`),
   });

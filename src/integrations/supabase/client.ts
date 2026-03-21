@@ -9,7 +9,7 @@ if (!SUPABASE_URL) throw new Error("VITE_SUPABASE_URL não definida");
 if (!SUPABASE_ANON_KEY) throw new Error("VITE_SUPABASE_ANON_KEY não definida");
 
 // 🚀 CLIENT
-export const supabase = createClient<Database>(
+export const supabase = createClient<any>(
   SUPABASE_URL,
   SUPABASE_ANON_KEY,
   {

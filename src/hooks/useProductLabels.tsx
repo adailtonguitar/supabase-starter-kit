@@ -30,7 +30,7 @@ export function useProductLabels(tab: "pendente" | "impressa" | "todas") {
         .order("created_at", { ascending: false });
       if (tab !== "todas") query = query.eq("status", tab);
       const { data } = await query.limit(200);
-      return (data || []).map((d: ProductLabelRow) => ({ ...d, product: d.products ?? undefined })) as ProductLabel[];
+      return (data || []).map((d: any) => ({ ...d, product: d.products ?? undefined })) as ProductLabel[];
     },
     enabled: !!companyId,
   });

@@ -96,8 +96,8 @@ Deno.serve(async (req) => {
         }
 
         backup[table] = allRows;
-      } catch (e) {
-        errors.push(`${table}: ${e.message}`);
+      } catch (e: unknown) {
+        errors.push(`${table}: ${e instanceof Error ? e.message : "unknown"}`);
         backup[table] = [];
       }
     }
@@ -119,8 +119,8 @@ Deno.serve(async (req) => {
       } else {
         backup.sale_items = [];
       }
-    } catch (e) {
-      errors.push(`sale_items: ${e.message}`);
+    } catch (e: unknown) {
+      errors.push(`sale_items: ${e instanceof Error ? e.message : "unknown"}`);
       backup.sale_items = [];
     }
 
@@ -142,9 +142,10 @@ Deno.serve(async (req) => {
         "Content-Disposition": `attachment; filename="backup-${company_id}.json"`,
       },
     });
-  } catch (err) {
+  } catch (err: unknown) {
     console.error("export-backup error:", err);
-    return new Response(JSON.stringify({ error: err.message || "Internal error" }), {
+    const message = err instanceof Error ? err.message : "Internal error";
+    return new Response(JSON.stringify({ error: message }), {
       status: 500,
       headers: corsHeaders,
     });

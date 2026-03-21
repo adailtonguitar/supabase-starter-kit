@@ -79,7 +79,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    let query = adminClient.from(table).select(select);
+    let query: any = adminClient.from(table).select(select);
 
     // Apply filters
     for (const f of filters) {
@@ -104,9 +104,10 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ data }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-  } catch (err) {
+  } catch (err: unknown) {
     console.error("admin-query error:", err);
-    return new Response(JSON.stringify({ error: err.message || "Internal error" }), {
+    const message = err instanceof Error ? err.message : "Internal error";
+    return new Response(JSON.stringify({ error: message }), {
       status: 500,
       headers: corsHeaders,
     });

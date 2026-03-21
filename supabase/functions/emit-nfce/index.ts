@@ -61,9 +61,9 @@ function getApiBaseUrl(): string {
 
 // ─── Numeração segura (atômica via RPC com FOR UPDATE) ───
 async function getNextNumberSafe(supabase: ReturnType<typeof createClient>, configId: string): Promise<number> {
-  const { data, error } = await supabase.rpc("next_fiscal_number", {
+  const { data, error } = await supabase.rpc("next_fiscal_number" as any, {
     p_config_id: configId,
-  });
+  } as any);
 
   if (error) {
     console.error("[emit-nfce] Erro na numeração atômica:", error.message);
