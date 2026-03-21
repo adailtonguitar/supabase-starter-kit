@@ -147,8 +147,8 @@ Deno.serve(async (req) => {
           .delete({ count: "exact" })
           .eq("company_id", company_id);
         results.push({ table, phase: "delete", count: count || 0, error: error?.message });
-      } catch (e) {
-        results.push({ table, phase: "delete", count: 0, error: e.message });
+      } catch (e: unknown) {
+        results.push({ table, phase: "delete", count: 0, error: e instanceof Error ? e.message : "unknown" });
       }
     }
 
