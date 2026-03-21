@@ -175,8 +175,8 @@ Deno.serve(async (req) => {
           }
         }
         results.push({ table, phase: "insert", count: totalInserted });
-      } catch (e) {
-        results.push({ table, phase: "insert", count: 0, error: e.message });
+      } catch (e: unknown) {
+        results.push({ table, phase: "insert", count: 0, error: e instanceof Error ? e.message : "unknown" });
       }
     }
 
