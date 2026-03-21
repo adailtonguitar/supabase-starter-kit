@@ -52,6 +52,7 @@ export function BatchMovementMode({ products, onClose }: Props) {
   const [priceEntries, setPriceEntries] = useState<Record<string, PriceEntry>>({});
   const [saving, setSaving] = useState(false);
   const [globalMargin, setGlobalMargin] = useState<string>("");
+  const [batchAcquisitionType, setBatchAcquisitionType] = useState<"cnpj" | "cpf">("cnpj");
 
   const applyGlobalMargin = useCallback(() => {
     const margin = parseFloat(globalMargin);
