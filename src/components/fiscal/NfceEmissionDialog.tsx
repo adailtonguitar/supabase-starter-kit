@@ -310,6 +310,51 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
       return;
     }
 
+    // ── VALIDAÇÃO DE LASTRO FISCAL (acquisition_type) ──
+    if (!fiscalCheckPassed) {
+      const productIds = form.items.map((it) => it.product_id).filter(Boolean) as string[];
+      if (productIds.length > 0 && companyId) {
+        try {
+          // Sum CNPJ stock per product from stock_movements
+          const { data: cnpjMovements } = await supabase
+            .from("stock_movements")
+            .select("product_id, quantity, type")
+            .eq("company_id", companyId)
+            .eq("acquisition_type", "cnpj")
+            .in("product_id", productIds);
+
+          const cnpjStockMap: Record<string, number> = {};
+          for (const m of (cnpjMovements ?? []) as Array<{ product_id: string; quantity: number; type: string }>) {
+            if (!cnpjStockMap[m.product_id]) cnpjStockMap[m.product_id] = 0;
+            if (m.type === "entrada" || m.type === "devolucao") {
+              cnpjStockMap[m.product_id] += m.quantity;
+            } else if (m.type === "saida" || m.type === "venda") {
+              cnpjStockMap[m.product_id] -= m.quantity;
+            }
+          }
+
+          const fiscalItems: FiscalStockItem[] = form.items
+            .filter((it) => it.product_id)
+            .map((it) => ({
+              name: it.name,
+              quantity: it.qty,
+              cnpjStock: Math.max(0, cnpjStockMap[it.product_id!] ?? 0),
+              hasSufficientFiscalStock: (cnpjStockMap[it.product_id!] ?? 0) >= it.qty,
+            }));
+
+          const hasIssues = fiscalItems.some((fi) => !fi.hasSufficientFiscalStock);
+          if (hasIssues) {
+            setFiscalStockItems(fiscalItems);
+            setFiscalWarningOpen(true);
+            return; // Stop - user will choose action in the dialog
+          }
+        } catch (err) {
+          console.warn("[NfceEmission] Fiscal stock check failed, proceeding:", err);
+        }
+      }
+    }
+    setFiscalCheckPassed(false); // Reset for next emission
+
     // ── VALIDAÇÃO CRUZADA CST × CRT ──
     const validationErrors: Record<number, string[]> = {};
     let hasBlockingError = false;
