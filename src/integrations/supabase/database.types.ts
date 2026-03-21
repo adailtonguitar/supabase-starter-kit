@@ -2482,13 +2482,8 @@ export type Database = {
         }
         Returns: Json
       }
-      [_ in string]: {
-        Args: Record<string, any>
-        Returns: any
-      }
     }
     Enums: {
-      [_ in string]: string
     }
     CompositeTypes: {
       [_ in never]: never
