@@ -44,6 +44,7 @@ interface NFeInfo {
   supplierIe: string;
   supplierPhone: string;
   supplierEmail: string;
+  destCnpj: string;
   totalValue: number;
   products: NFeProduct[];
 }
