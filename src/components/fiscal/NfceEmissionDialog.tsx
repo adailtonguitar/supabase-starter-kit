@@ -944,6 +944,28 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
           />
         )}
       </div>
+
+      <FiscalStockWarningDialog
+        open={fiscalWarningOpen}
+        onOpenChange={setFiscalWarningOpen}
+        items={fiscalStockItems}
+        onEmitAll={() => {
+          setFiscalWarningOpen(false);
+          setFiscalCheckPassed(true);
+          setTimeout(() => handleEmit(), 50);
+        }}
+        onEmitOnlyFiscal={() => {
+          // Remove items without fiscal backing
+          const okNames = new Set(fiscalStockItems.filter(i => i.hasSufficientFiscalStock).map(i => i.name));
+          setForm(prev => ({ ...prev, items: prev.items.filter(it => okNames.has(it.name)) }));
+          setFiscalWarningOpen(false);
+          setFiscalCheckPassed(true);
+          toast.info("Itens sem lastro fiscal foram removidos. Clique em Emitir novamente.");
+        }}
+        onCancel={() => {
+          setFiscalWarningOpen(false);
+        }}
+      />
     </div>
   );
 }
