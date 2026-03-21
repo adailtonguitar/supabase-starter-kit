@@ -79,7 +79,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    let query = adminClient.from(table).select(select);
+    let query: any = adminClient.from(table).select(select);
 
     // Apply filters
     for (const f of filters) {
