@@ -106,7 +106,7 @@ export function PDVReceiveCreditDialog({ open, onClose }: PDVReceiveCreditDialog
         p_payment_method: selectedMethod,
         p_performed_by: user.id,
       });
-      if (!rpc.success) throw new Error(rpc.error);
+      if (!rpc.success) throw new Error((rpc as any).error);
       const rpcResult = rpc.data || {};
       if (!rpcResult.success) {
         throw new Error(rpcResult.error || "Falha ao registrar recebimento");
