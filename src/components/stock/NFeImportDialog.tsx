@@ -101,6 +101,10 @@ function parseNFeXML(xmlText: string): NFeInfo | null {
     // Extract additional supplier data from emit element
     const enderEmit = emit ? getEl(emit, "enderEmit") : null;
 
+    // Extract destination CNPJ
+    const dest = getEl(doc, "dest");
+    const destCnpj = dest ? getText(dest, "CNPJ") : "";
+
     const nfeInfo: NFeInfo = {
       number: ide ? getText(ide, "nNF") : "",
       series: ide ? getText(ide, "serie") : "",
@@ -112,6 +116,7 @@ function parseNFeXML(xmlText: string): NFeInfo | null {
       supplierIe: emit ? getText(emit, "IE") : "",
       supplierPhone: enderEmit ? getText(enderEmit, "fone") : "",
       supplierEmail: emit ? getText(emit, "email") : "",
+      destCnpj,
       totalValue: total ? parseFloat(getText(total, "vNF")) || 0 : 0,
       products: [],
     };
