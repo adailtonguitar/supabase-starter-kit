@@ -478,6 +478,7 @@ export function NFeImportDialog({ open, onOpenChange, xmlContent }: NFeImportDia
           reason: `Importação NF-e ${nfeInfo.number || ""}`.trim(),
           reference: nfeInfo.accessKey || null,
           performed_by: user?.id || null,
+          acquisition_type: "cnpj",
         });
       }
     }
