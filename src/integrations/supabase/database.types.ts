@@ -37,6 +37,7 @@ export type Database = {
           metadata?: Json | null
           created_at?: string
         }
+        Relationships: []
       }
       action_logs_archive: {
         Row: {
@@ -69,6 +70,7 @@ export type Database = {
           user_name?: string | null
           created_at?: string
         }
+        Relationships: []
       }
       admin_notifications: {
         Row: {
@@ -98,6 +100,7 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
         }
+        Relationships: []
       }
       admin_roles: {
         Row: {
@@ -118,6 +121,7 @@ export type Database = {
           role?: string
           created_at?: string | null
         }
+        Relationships: []
       }
       assemblies: {
         Row: {
@@ -171,6 +175,7 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
         }
+        Relationships: []
       }
       backup_history: {
         Row: {
@@ -206,6 +211,7 @@ export type Database = {
           created_at?: string
           expires_at?: string | null
         }
+        Relationships: []
       }
       bank_transactions: {
         Row: {
@@ -256,6 +262,7 @@ export type Database = {
           notes?: string | null
           created_at?: string
         }
+        Relationships: []
       }
       card_administrators: {
         Row: {
@@ -312,6 +319,7 @@ export type Database = {
           created_at?: string
           updated_at?: string
         }
+        Relationships: []
       }
       carriers: {
         Row: {
@@ -374,6 +382,7 @@ export type Database = {
           created_at?: string
           updated_at?: string
         }
+        Relationships: []
       }
       cash_movements: {
         Row: {
@@ -412,6 +421,7 @@ export type Database = {
           sale_id?: string | null
           created_at?: string
         }
+        Relationships: []
       }
       cash_sessions: {
         Row: {
@@ -501,6 +511,7 @@ export type Database = {
           notes?: string | null
           created_at?: string
         }
+        Relationships: []
       }
       clients: {
         Row: {
@@ -587,6 +598,7 @@ export type Database = {
           loyalty_points?: number
           is_demo?: boolean | null
         }
+        Relationships: []
       }
       companies: {
         Row: {
@@ -706,6 +718,7 @@ export type Database = {
           crt?: number | null
           segment?: string | null
         }
+        Relationships: []
       }
       company_plans: {
         Row: {
@@ -747,6 +760,7 @@ export type Database = {
           expires_at?: string | null
           updated_at?: string
         }
+        Relationships: []
       }
       company_users: {
         Row: {
@@ -773,6 +787,7 @@ export type Database = {
           is_active?: boolean
           created_at?: string
         }
+        Relationships: []
       }
       contingencies: {
         Row: {
@@ -811,6 +826,7 @@ export type Database = {
           resolved_by?: string | null
           created_at?: string
         }
+        Relationships: []
       }
       credit_clients: {
         Row: {
@@ -852,6 +868,7 @@ export type Database = {
           status?: string | null
           created_at?: string | null
         }
+        Relationships: []
       }
       credit_installments: {
         Row: {
@@ -890,6 +907,7 @@ export type Database = {
           paid_date?: string | null
           created_at?: string | null
         }
+        Relationships: []
       }
       customer_reviews: {
         Row: {
@@ -925,6 +943,7 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
         }
+        Relationships: []
       }
       daily_closings: {
         Row: {
@@ -978,6 +997,7 @@ export type Database = {
           notes?: string | null
           created_at?: string
         }
+        Relationships: []
       }
       delivery_tracking: {
         Row: {
@@ -1028,6 +1048,7 @@ export type Database = {
           created_at?: string | null
           delivered_at?: string | null
         }
+        Relationships: []
       }
       diagnosticos_financeiros: {
         Row: {
@@ -1051,6 +1072,7 @@ export type Database = {
           conteudo?: string
           created_at?: string | null
         }
+        Relationships: []
       }
       discount_limits: {
         Row: {
@@ -1077,6 +1099,7 @@ export type Database = {
           created_at?: string | null
           updated_at?: string | null
         }
+        Relationships: []
       }
       employees: {
         Row: {
@@ -1151,6 +1174,7 @@ export type Database = {
           created_at?: string
           updated_at?: string
         }
+        Relationships: []
       }
       financeiro_mensal: {
         Row: {
@@ -1189,6 +1213,7 @@ export type Database = {
           percentual_maior_cliente?: number | null
           created_at?: string | null
         }
+        Relationships: []
       }
       financial_entries: {
         Row: {
@@ -1254,6 +1279,7 @@ export type Database = {
           created_at?: string
           updated_at?: string
         }
+        Relationships: []
       }
       fiscal_audit_logs: {
         Row: {
@@ -1289,6 +1315,7 @@ export type Database = {
           ip_address?: string | null
           created_at?: string
         }
+        Relationships: []
       }
       fiscal_categories: {
         Row: {
@@ -1357,6 +1384,7 @@ export type Database = {
           created_at?: string
           updated_at?: string
         }
+        Relationships: []
       }
       fiscal_configs: {
         Row: {
@@ -1422,6 +1450,7 @@ export type Database = {
           created_at?: string
           updated_at?: string
         }
+        Relationships: []
       }
       fiscal_documents: {
         Row: {
@@ -1517,6 +1546,7 @@ export type Database = {
           created_at?: string
           updated_at?: string
         }
+        Relationships: []
       }
       fiscal_queue: {
         Row: {
@@ -1549,6 +1579,7 @@ export type Database = {
           created_at?: string | null
           processed_at?: string | null
         }
+        Relationships: []
       }
       follow_ups: {
         Row: {
@@ -1590,6 +1621,7 @@ export type Database = {
           completed_at?: string | null
           created_at?: string
         }
+        Relationships: []
       }
       furniture_projects: {
         Row: {
@@ -1628,6 +1660,7 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
         }
+        Relationships: []
       }
       icms_st_rules: {
         Row: {
@@ -1681,6 +1714,7 @@ export type Database = {
           created_at?: string
           updated_at?: string
         }
+        Relationships: []
       }
       inventory_count_items: {
         Row: {
@@ -1719,6 +1753,7 @@ export type Database = {
           notes?: string | null
           created_at?: string
         }
+        Relationships: []
       }
       inventory_counts: {
         Row: {
@@ -1757,6 +1792,7 @@ export type Database = {
           created_at?: string
           updated_at?: string
         }
+        Relationships: []
       }
       loyalty_config: {
         Row: {
@@ -1786,6 +1822,7 @@ export type Database = {
           min_redemption_points?: number
           birthday_multiplier?: number
         }
+        Relationships: []
       }
       loyalty_points: {
         Row: {
@@ -1818,6 +1855,7 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
         }
+        Relationships: []
       }
       loyalty_transactions: {
         Row: {
@@ -1856,6 +1894,7 @@ export type Database = {
           created_by?: string | null
           created_at?: string
         }
+        Relationships: []
       }
       nfe_imports: {
         Row: {
@@ -1894,6 +1933,7 @@ export type Database = {
           imported_at?: string | null
           imported_by?: string | null
         }
+        Relationships: []
       }
       notification_reads: {
         Row: {
@@ -1914,6 +1954,7 @@ export type Database = {
           user_id?: string
           read_at?: string | null
         }
+        Relationships: []
       }
       payment_history: {
         Row: {
@@ -1955,6 +1996,7 @@ export type Database = {
           paid_at?: string | null
           created_at?: string
         }
+        Relationships: []
       }
       payment_webhook_logs: {
         Row: {
@@ -2002,6 +2044,7 @@ export type Database = {
           retry_count?: number
           created_at?: string
         }
+        Relationships: []
       }
       payments: {
         Row: {
@@ -2049,6 +2092,7 @@ export type Database = {
           created_at?: string
           updated_at?: string
         }
+        Relationships: []
       }
       permissions: {
         Row: {
@@ -2078,6 +2122,7 @@ export type Database = {
           can_edit?: boolean
           can_delete?: boolean
         }
+        Relationships: []
       }
       pix_payments: {
         Row: {
@@ -2128,6 +2173,7 @@ export type Database = {
           created_at?: string
           updated_at?: string
         }
+        Relationships: []
       }
       price_history: {
         Row: {
@@ -2163,6 +2209,7 @@ export type Database = {
           changed_at?: string
           source?: string
         }
+        Relationships: []
       }
       processing_jobs: {
         Row: {
@@ -2204,6 +2251,7 @@ export type Database = {
           created_at?: string
           updated_at?: string
         }
+        Relationships: []
       }
       product_categories: {
         Row: {
@@ -2236,6 +2284,7 @@ export type Database = {
           created_at?: string
           updated_at?: string
         }
+        Relationships: []
       }
       product_extras: {
         Row: {
@@ -2265,116 +2314,139 @@ export type Database = {
 
 
         }
+        Relationships: []
       }
       product_labels: {
         Row: Record<string, any>
         Insert: Record<string, any>
         Update: Record<string, any>
+        Relationships: []
       }
       product_lots: {
         Row: Record<string, any>
         Insert: Record<string, any>
         Update: Record<string, any>
+        Relationships: []
       }
       production_order_items: {
         Row: Record<string, any>
         Insert: Record<string, any>
         Update: Record<string, any>
+        Relationships: []
       }
       production_orders: {
         Row: Record<string, any>
         Insert: Record<string, any>
         Update: Record<string, any>
+        Relationships: []
       }
       products: {
         Row: Record<string, any>
         Insert: Record<string, any>
         Update: Record<string, any>
+        Relationships: []
       }
       profiles: {
         Row: Record<string, any>
         Insert: Record<string, any>
         Update: Record<string, any>
+        Relationships: []
       }
       promotions: {
         Row: Record<string, any>
         Insert: Record<string, any>
         Update: Record<string, any>
+        Relationships: []
       }
       purchase_order_items: {
         Row: Record<string, any>
         Insert: Record<string, any>
         Update: Record<string, any>
+        Relationships: []
       }
       purchase_orders: {
         Row: Record<string, any>
         Insert: Record<string, any>
         Update: Record<string, any>
+        Relationships: []
       }
       quotes: {
         Row: Record<string, any>
         Insert: Record<string, any>
         Update: Record<string, any>
+        Relationships: []
       }
       recipe_ingredients: {
         Row: Record<string, any>
         Insert: Record<string, any>
         Update: Record<string, any>
+        Relationships: []
       }
       recipes: {
         Row: Record<string, any>
         Insert: Record<string, any>
         Update: Record<string, any>
+        Relationships: []
       }
       reseller_licenses: {
         Row: Record<string, any>
         Insert: Record<string, any>
         Update: Record<string, any>
+        Relationships: []
       }
       resellers: {
         Row: Record<string, any>
         Insert: Record<string, any>
         Update: Record<string, any>
+        Relationships: []
       }
       sale_items: {
         Row: Record<string, any>
         Insert: Record<string, any>
         Update: Record<string, any>
+        Relationships: []
       }
       sales: {
         Row: Record<string, any>
         Insert: Record<string, any>
         Update: Record<string, any>
+        Relationships: []
       }
       stock_movements: {
         Row: Record<string, any>
         Insert: Record<string, any>
         Update: Record<string, any>
+        Relationships: []
       }
       stock_transfer_items: {
         Row: Record<string, any>
         Insert: Record<string, any>
         Update: Record<string, any>
+        Relationships: []
       }
       stock_transfers: {
         Row: Record<string, any>
         Insert: Record<string, any>
         Update: Record<string, any>
+        Relationships: []
       }
       subscriptions: {
         Row: Record<string, any>
         Insert: Record<string, any>
         Update: Record<string, any>
+        Relationships: []
       }
       suppliers: {
         Row: Record<string, any>
         Insert: Record<string, any>
         Update: Record<string, any>
+        Relationships: []
       }
       support_messages: {
         Row: Record<string, any>
         Insert: Record<string, any>
         Update: Record<string, any>
+        Relationships: []
       }
       system_errors: {
         Row: {
@@ -2413,16 +2485,19 @@ export type Database = {
           device?: string
           created_at?: string
         }
+        Relationships: []
       }
       tef_config: {
         Row: Record<string, any>
         Insert: Record<string, any>
         Update: Record<string, any>
+        Relationships: []
       }
       terms_acceptance: {
         Row: Record<string, any>
         Insert: Record<string, any>
         Update: Record<string, any>
+        Relationships: []
       }
     }
     Views: {
