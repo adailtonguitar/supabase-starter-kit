@@ -111,7 +111,7 @@ export default function Promocoes() {
       if (description.trim()) advancedPayload.description = description.trim();
 
       try {
-        await createPromotion(advancedPayload);
+        await createPromotion(advancedPayload as any);
       } catch {
         // Fallback: DB may not have advanced columns yet
         console.warn("Advanced promo columns not available, saving basic fields only. Run sql/promotions_advanced_columns.sql to enable full features.");
