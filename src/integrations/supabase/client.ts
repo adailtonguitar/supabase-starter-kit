@@ -5,7 +5,7 @@ import type { Database } from "./database.types";
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string
   || "https://fsvxpxziotklbxkivyug.supabase.co";
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string
-  || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZzdnhweHppb3RrbGJ4a2l2eXVnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDI0MDI5MjEsImV4cCI6MjA1Nzk3ODkyMX0.aBJecXTKMGFMcOlMO0s3JFjQMX5UGvV9H2pMZEMKYwU";
+  || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZzdnhweHppb3RrbGJ4a2l2eXVnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE3ODU5NTMsImV4cCI6MjA4NzM2MTk1M30.8I3ABsRZBZuE1IpK_g9z3PdRUd9Omt_F5qNx0Pgqvyo";
 
 // 🚀 CLIENT
 export const supabase = createClient<any>(
