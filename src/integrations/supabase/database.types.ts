@@ -2557,6 +2557,22 @@ export type Database = {
         }
         Returns: Json
       }
+      admin_delete_company: {
+        Args: { p_company_id: string }
+        Returns: Json
+      }
+      next_fiscal_number: {
+        Args: { p_config_id: string }
+        Returns: number
+      }
+      invalidate_session: {
+        Args: { p_session_id: string; p_user_id: string }
+        Returns: Json
+      }
+      create_onboarding_company: {
+        Args: { p_name: string; p_cnpj: string; p_phone: string }
+        Returns: Json
+      }
     }
     Enums: {
     }
