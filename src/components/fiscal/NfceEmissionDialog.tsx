@@ -215,6 +215,7 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
         pisCst: (item.pis_cst as string) || "49",
         cofinsCst: (item.cofins_cst as string) || "49",
         icmsAliquota: (item.icms_aliquota as number) || 0,
+        product_id: (item.product_id as string) || (item.id as string) || undefined,
       };
     });
 
