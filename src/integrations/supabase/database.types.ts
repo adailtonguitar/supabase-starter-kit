@@ -2377,9 +2377,42 @@ export type Database = {
         Update: Record<string, any>
       }
       system_errors: {
-        Row: Record<string, any>
-        Insert: Record<string, any>
-        Update: Record<string, any>
+        Row: {
+          id: string
+          user_id: string | null
+          user_email: string | null
+          page: string
+          action: string
+          error_message: string
+          error_stack: string
+          browser: string
+          device: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id?: string | null
+          user_email?: string | null
+          page?: string
+          action?: string
+          error_message: string
+          error_stack?: string
+          browser?: string
+          device?: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string | null
+          user_email?: string | null
+          page?: string
+          action?: string
+          error_message?: string
+          error_stack?: string
+          browser?: string
+          device?: string
+          created_at?: string
+        }
       }
       tef_config: {
         Row: Record<string, any>

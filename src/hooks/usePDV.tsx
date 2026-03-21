@@ -9,7 +9,7 @@ import { FiscalEmissionService } from "@/services/FiscalEmissionService";
 import { isScaleBarcode, parseScaleBarcode } from "@/lib/scale-barcode";
 import { calculateCartPromos, type PromoMatch } from "@/lib/promo-engine";
 import { cacheSet, cacheGet } from "@/lib/offline-cache";
-import { logAction } from "@/services/ActionLogger";
+import { logAction, newPdvTraceId } from "@/services/ActionLogger";
 import { fiscalCircuitBreaker, CircuitBreakerOpenError } from "@/lib/circuit-breaker";
 import { getFunctionErrorMessage } from "@/lib/get-function-error-message";
 import { getStoredCertificateA1 } from "@/services/LocalXmlSigner";
@@ -679,6 +679,8 @@ export function usePDV() {
         approved: p.approved,
       }));
 
+      const pdvTraceId = newPdvTraceId();
+
       // ── Chamada única: RPC atômica ──
       const rpcFinalize = await safeRpc<{ success: boolean; sale_id?: string; error?: string }>("finalize_sale_atomic", {
         p_company_id: companyId,
@@ -719,8 +721,21 @@ export function usePDV() {
       clearCart();
       setContingencyMode(false);
 
-      // Log de auditoria da venda
-      logAction({ companyId, userId: userId || undefined, action: "Venda finalizada", module: "vendas", details: `Venda #${saleId.substring(0, 8)} - R$ ${total.toFixed(2)}` });
+      // Log de auditoria da venda (trace_id correlaciona com a transação no cliente)
+      logAction({
+        companyId,
+        userId: userId || undefined,
+        action: "Venda finalizada",
+        module: "vendas",
+        details: `Venda #${saleId.substring(0, 8)} - R$ ${total.toFixed(2)}`,
+        correlation: {
+          trace_id: pdvTraceId,
+          company_id: companyId,
+          sale_id: saleId,
+          amount: total,
+          summary: `Venda #${saleId.substring(0, 8)} - R$ ${total.toFixed(2)}`,
+        },
+      });
 
       // ── Fiscal: enfileira na fiscal_queue e tenta processar ──
       let nfceNumber = "";
