@@ -44,6 +44,7 @@ interface NFeInfo {
   supplierIe: string;
   supplierPhone: string;
   supplierEmail: string;
+  destCnpj: string;
   totalValue: number;
   products: NFeProduct[];
 }
@@ -100,6 +101,10 @@ function parseNFeXML(xmlText: string): NFeInfo | null {
     // Extract additional supplier data from emit element
     const enderEmit = emit ? getEl(emit, "enderEmit") : null;
 
+    // Extract destination CNPJ
+    const dest = getEl(doc, "dest");
+    const destCnpj = dest ? getText(dest, "CNPJ") : "";
+
     const nfeInfo: NFeInfo = {
       number: ide ? getText(ide, "nNF") : "",
       series: ide ? getText(ide, "serie") : "",
@@ -111,6 +116,7 @@ function parseNFeXML(xmlText: string): NFeInfo | null {
       supplierIe: emit ? getText(emit, "IE") : "",
       supplierPhone: enderEmit ? getText(enderEmit, "fone") : "",
       supplierEmail: emit ? getText(emit, "email") : "",
+      destCnpj,
       totalValue: total ? parseFloat(getText(total, "vNF")) || 0 : 0,
       products: [],
     };
@@ -154,8 +160,19 @@ function parseNFeXML(xmlText: string): NFeInfo | null {
   }
 }
 
+function validateDestCnpj(parsed: NFeInfo, companyCnpj: string | null): string | null {
+  if (!companyCnpj) return null; // no company CNPJ set, skip validation
+  const destClean = (parsed.destCnpj || "").replace(/\D/g, "");
+  const companyClean = companyCnpj.replace(/\D/g, "");
+  if (!destClean) return null; // XML has no dest CNPJ (e.g. CPF consumer), skip
+  if (destClean !== companyClean) {
+    return `O CNPJ destinatário do XML (${destClean}) não corresponde ao CNPJ da sua empresa (${companyClean}). Importação bloqueada.`;
+  }
+  return null;
+}
+
 export function NFeImportDialog({ open, onOpenChange, xmlContent }: NFeImportDialogProps) {
-  const { companyId } = useCompany();
+  const { companyId, cnpj: companyCnpj } = useCompany();
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const { data: suppliers = [] } = useSuppliers();
@@ -201,6 +218,11 @@ export function NFeImportDialog({ open, onOpenChange, xmlContent }: NFeImportDia
     const parsed = parseNFeXML(xmlContent);
     if (!parsed || parsed.products.length === 0) {
       toast.error("XML inválido ou sem produtos");
+      return;
+    }
+    const cnpjError = validateDestCnpj(parsed, companyCnpj);
+    if (cnpjError) {
+      toast.error(cnpjError);
       return;
     }
     setNfeInfo(parsed);
@@ -328,6 +350,13 @@ export function NFeImportDialog({ open, onOpenChange, xmlContent }: NFeImportDia
       const parsed = parseNFeXML(text);
       if (!parsed || parsed.products.length === 0) {
         toast.error("Arquivo XML inválido ou sem produtos");
+        return;
+      }
+
+      // Validate destination CNPJ
+      const cnpjError = validateDestCnpj(parsed, companyCnpj);
+      if (cnpjError) {
+        toast.error(cnpjError);
         return;
       }
 
