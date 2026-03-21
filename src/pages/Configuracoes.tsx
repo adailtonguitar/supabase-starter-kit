@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { TEFConfigSection } from "@/components/settings/TEFConfigSection";
 import { ScaleConfigSection } from "@/components/settings/ScaleConfigSection";
 import { motion } from "framer-motion";
-import { supabase } from "@/integrations/supabase/client";
+import { SUPABASE_ANON_KEY, SUPABASE_URL, supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { logAction } from "@/services/ActionLogger";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -669,9 +669,9 @@ export default function Configuracoes() {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { toast.error("Faça login para exportar"); return; }
-      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/export-company-data?download=true`;
+      const url = `${SUPABASE_URL}/functions/v1/export-company-data?download=true`;
       const res = await fetch(url, {
-        headers: { Authorization: `Bearer ${session.access_token}`, apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY },
+        headers: { Authorization: `Bearer ${session.access_token}`, apikey: SUPABASE_ANON_KEY },
       });
       if (!res.ok) { toast.error("Erro ao baixar backup"); return; }
       const blob = await res.blob();
