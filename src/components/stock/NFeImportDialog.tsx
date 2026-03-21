@@ -428,6 +428,7 @@ export function NFeImportDialog({ open, onOpenChange, xmlContent }: NFeImportDia
                 reason: `Importação NF-e ${nfeInfo.number || ""}`.trim(),
                 reference: nfeInfo.accessKey || null,
                 performed_by: user?.id || null,
+                acquisition_type: "cnpj",
               });
               // Record price changes
               const changes: Array<{ company_id: string; product_id: string; field_changed: "price" | "cost_price"; old_value: number; new_value: number; changed_by?: string | null; source: "xml_import" }> = [];
