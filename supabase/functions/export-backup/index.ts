@@ -119,8 +119,8 @@ Deno.serve(async (req) => {
       } else {
         backup.sale_items = [];
       }
-    } catch (e) {
-      errors.push(`sale_items: ${e.message}`);
+    } catch (e: unknown) {
+      errors.push(`sale_items: ${e instanceof Error ? e.message : "unknown"}`);
       backup.sale_items = [];
     }
 
