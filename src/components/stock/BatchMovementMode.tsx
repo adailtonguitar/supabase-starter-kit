@@ -145,6 +145,7 @@ export function BatchMovementMode({ products, onClose }: Props) {
           quantity: entry.quantity,
           unit_cost: type === "entrada" ? entry.unit_cost : undefined,
           reference: entry.reference,
+          acquisition_type: type === "entrada" ? batchAcquisitionType : null,
         });
         success++;
       } catch {
