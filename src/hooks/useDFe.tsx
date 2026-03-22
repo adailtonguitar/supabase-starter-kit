@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "./useCompany";
 import { toast } from "sonner";
@@ -18,51 +18,19 @@ export interface DFeDocument {
   nsu: number;
   schema: string;
   tipo_nfe?: number;
+  nuvem_fiscal_id?: string;
+  status_manifestacao?: string;
+  importado?: boolean;
 }
 
 export function useDFe() {
   const { companyId } = useCompany();
-  const queryClient = useQueryClient();
   const [isDistributing, setIsDistributing] = useState(false);
 
   const documentsQuery = useQuery({
     queryKey: ["dfe-documents", companyId],
     queryFn: async () => {
       if (!companyId) return { documents: [], total: 0 };
-
-      const toErrorMessage = (err: unknown, fallback: string): string => {
-        if (err instanceof Error && err.message) return err.message;
-        if (typeof err === "string") return err;
-        return fallback;
-      };
-
-      type DFeRawDoc = {
-        id?: string;
-        chave?: string;
-        chNFe?: string;
-        tipo_documento?: string;
-        numero?: number;
-        serie?: number;
-        data_emissao?: string;
-        dh_emissao?: string;
-        valor_total?: number;
-        vNF?: number;
-        cnpj_emitente?: string;
-        nome_emitente?: string;
-        situacao?: string;
-        nsu?: number;
-        schema?: string;
-        tipo_nfe?: number;
-      };
-
-      type DFeListResponse = {
-        success?: boolean;
-        error?: string;
-        data?: {
-          data?: DFeRawDoc[];
-          "@count"?: number;
-        };
-      };
 
       try {
         const { data, error } = await supabase.functions.invoke("fetch-dfe", {
@@ -78,25 +46,22 @@ export function useDFe() {
             } else if (typeof error === "object" && "message" in error) {
               errMsg = error.message;
             }
-          } catch {
-            // fallback
-          }
+          } catch { /* fallback */ }
           toast.error(errMsg);
           return { documents: [], total: 0 };
         }
 
-        const response = (data ?? {}) as DFeListResponse;
-
+        const response = (data ?? {}) as any;
         if (!response?.success) {
           toast.error(response?.error || "Erro ao buscar documentos");
           return { documents: [], total: 0 };
         }
 
-        const docs = (response.data?.data || []).map((d) => ({
+        const docs = (response.data?.data || []).map((d: any) => ({
           id: d.id,
           chave: d.chave || d.chNFe || "",
           tipo_documento: d.tipo_documento || d.schema || "NF-e",
-          numero: d.numero || 0,
+          numero: d.numero || d.numero_nfe || 0,
           serie: d.serie || 0,
           data_emissao: d.data_emissao || d.dh_emissao || "",
           valor_total: d.valor_total || d.vNF || 0,
@@ -104,8 +69,11 @@ export function useDFe() {
           nome_emitente: d.nome_emitente || "",
           situacao: d.situacao || "",
           nsu: d.nsu || 0,
-          schema: d.schema || "",
+          schema: d.schema || d.schema_tipo || "",
           tipo_nfe: d.tipo_nfe,
+          nuvem_fiscal_id: d.nuvem_fiscal_id,
+          status_manifestacao: d.status_manifestacao,
+          importado: d.importado,
         }));
 
         return {
@@ -114,7 +82,8 @@ export function useDFe() {
         };
       } catch (e: unknown) {
         console.error("[useDFe] queryFn error:", e);
-        toast.error(toErrorMessage(e, "Erro inesperado ao buscar documentos"));
+        const msg = e instanceof Error ? e.message : "Erro inesperado ao buscar documentos";
+        toast.error(msg);
         return { documents: [], total: 0 };
       }
     },
@@ -132,15 +101,39 @@ export function useDFe() {
       });
       if (error) throw error;
       if (!data?.success) throw new Error(data?.error || "Erro na distribuição");
-      toast.success("Distribuição solicitada! Aguarde alguns segundos e atualize a lista.");
+      toast.success("Consulta SEFAZ realizada! Atualizando lista...");
       setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey: ["dfe-documents"] });
+        documentsQuery.refetch();
       }, 5000);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
       toast.error(msg || "Erro ao solicitar distribuição");
     } finally {
       setIsDistributing(false);
+    }
+  };
+
+  const manifest = async (documentId: string, chaveNfe: string, tipoEvento = "ciencia") => {
+    if (!companyId) return false;
+    try {
+      const { data, error } = await supabase.functions.invoke("fetch-dfe", {
+        body: {
+          action: "manifest",
+          company_id: companyId,
+          document_id: documentId,
+          chave_nfe: chaveNfe,
+          tipo_evento: tipoEvento,
+        },
+      });
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || "Erro na manifestação");
+      toast.success("Manifestação realizada com sucesso!");
+      documentsQuery.refetch();
+      return true;
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      toast.error(msg || "Erro ao manifestar");
+      return false;
     }
   };
 
@@ -168,6 +161,7 @@ export function useDFe() {
     refetch: documentsQuery.refetch,
     distribute,
     isDistributing,
+    manifest,
     downloadXml,
   };
 }
