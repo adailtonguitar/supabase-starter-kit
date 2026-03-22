@@ -9,7 +9,7 @@ import { ProductFormDialog } from "@/components/stock/ProductFormDialog";
 import { StockMovementDialog } from "@/components/stock/StockMovementDialog";
 import { MovementHistoryDialog } from "@/components/stock/MovementHistoryDialog";
 import { CSVImportDialog } from "@/components/stock/CSVImportDialog";
-import { NFeImportDialog } from "@/components/stock/NFeImportDialog";
+
 import { LowStockAlert } from "@/components/stock/LowStockAlert";
 import { PriceHistoryDialog } from "@/components/stock/PriceHistoryDialog";
 import { Button } from "@/components/ui/button";
