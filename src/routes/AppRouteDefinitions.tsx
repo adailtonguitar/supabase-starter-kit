@@ -47,6 +47,7 @@ export const NFeEmissao = lazyRetry(() => import("@/pages/NFeEmissao"));
 export const EmissorNFe = lazyRetry(() => import("@/pages/EmissorNFe"));
 export const EmissorLanding = lazyRetry(() => import("@/pages/EmissorLanding"));
 export const ConsultaDFe = lazyRetry(() => import("@/pages/ConsultaDFe"));
+export const ImportacaoNFe = lazyRetry(() => import("@/pages/ImportacaoNFe"));
 
 // ── Financeiro ──
 export const Financeiro = lazyRetry(() => import("@/pages/Financeiro"));
@@ -155,6 +156,7 @@ export function LayoutRoutes() {
       <Route path="/painel-dono" element={<PainelDono />} />
       <Route path="/sugestao-compra" element={<PlanGate feature="hasAiReports" featureName="Sugestão de Compra por IA"><SugestaoCompra /></PlanGate>} />
       <Route path="/consulta-dfe" element={<ConsultaDFe />} />
+      <Route path="/importacao-nfe" element={<ImportacaoNFe />} />
       <Route path="/admin" element={<Admin />} />
       <Route path="/admin/erros" element={<RegistroErros />} />
       <Route path="/admin/diagnostico" element={<DiagnosticoSistema />} />

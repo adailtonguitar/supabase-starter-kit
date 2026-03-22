@@ -14,7 +14,7 @@ import {
   BadgeDollarSign, Bell, Stethoscope, Scan, FileDown, FilePen, FileSearch, Cog,
   Network, Smartphone, LifeBuoy, Boxes, BarChart, Calculator, Armchair, Wrench, Eye,
   Ruler, Camera, Box, Navigation, Move, Brain as BrainIcon, User as UserIcon, RotateCcw, Calendar,
-  Bot,
+  Bot, Sparkles,
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
@@ -159,6 +159,7 @@ const navItems: NavEntry[] = [
       { icon: Receipt, label: "Documentos", path: "/fiscal" },
       { icon: FilePen, label: "Emitir NF-e", path: "/fiscal/nfe" },
       { icon: FileSearch, label: "Consulta DFe", path: "/consulta-dfe" },
+      { icon: Sparkles, label: "Importação NF-e", path: "/importacao-nfe" },
       { icon: Shield, label: "Config. Fiscal", path: "/fiscal/config" },
       { icon: Scan, label: "Auditoria Fiscal", path: "/fiscal/auditoria" },
       { icon: ArrowRightLeft, label: "Comparar XML", path: "/fiscal/comparar-xml" },
