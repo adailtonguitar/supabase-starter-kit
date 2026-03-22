@@ -92,26 +92,36 @@ Deno.serve(async (req) => {
 
     // ─── Auto-configure DistNFe if needed ───
     async function ensureDistNfeConfig() {
-      const checkRes = await fetch(`${apiBase}/empresas/${cnpj}/distnfe`, {
-        method: "GET",
-        headers: nfHeaders,
-      });
-      if (checkRes.ok) return;
+      try {
+        const checkRes = await fetch(`${apiBase}/empresas/${cnpj}/distnfe`, {
+          method: "GET",
+          headers: nfHeaders,
+        });
+        if (checkRes.ok) {
+          console.log("DistNFe already configured for", cnpj);
+          return;
+        }
+        console.log("DistNFe not configured, setting up for", cnpj, "status:", checkRes.status);
+      } catch (e) {
+        console.log("DistNFe check failed, attempting setup:", e);
+      }
+
+      // Configure DistNFe
+      const configBody = {
+        ambiente: ambiente === "homologacao" ? 1 : 2,
+      };
+      console.log("PUT distnfe body:", JSON.stringify(configBody));
 
       const configRes = await fetch(`${apiBase}/empresas/${cnpj}/distnfe`, {
         method: "PUT",
         headers: nfHeaders,
-        body: JSON.stringify({
-          cpf_cnpj: cnpj,
-          ambiente,
-          dist_nsu_automatica: true,
-          manifestacao_automatica: true,
-          tipo_manifestacao: "ciencia",
-        }),
+        body: JSON.stringify(configBody),
       });
+      const configText = await configRes.text();
+      console.log("PUT distnfe response:", configRes.status, configText);
       if (!configRes.ok) {
-        const errData = await configRes.json().catch(() => ({}));
-        console.error("Erro ao configurar DistNFe:", errData);
+        console.error("Erro ao configurar DistNFe:", configText);
+        throw new Error(`Não foi possível configurar DistNFe: ${configText}`);
       }
     }
 
