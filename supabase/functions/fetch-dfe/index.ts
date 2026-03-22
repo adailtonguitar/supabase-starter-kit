@@ -179,9 +179,10 @@ Deno.serve(async (req) => {
       }
 
       // Fallback: fetch from Nuvem Fiscal API
-      const url = new URL("https://api.nuvemfiscal.com.br/distribuicao/nfe/documentos");
+      await ensureDistNfeConfig();
+      const url = new URL(`${apiBase}/distribuicao/nfe/documentos`);
       url.searchParams.set("cpf_cnpj", cnpj);
-      url.searchParams.set("ambiente", "producao");
+      url.searchParams.set("ambiente", ambiente);
       url.searchParams.set("$top", "50");
       url.searchParams.set("$skip", "0");
       url.searchParams.set("$inlinecount", "true");
