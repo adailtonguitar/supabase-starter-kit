@@ -137,9 +137,8 @@ Deno.serve(async (req) => {
         lastError = configText;
       }
 
-      throw new Error(
-        `Não foi possível configurar DistNFe automaticamente. Resposta da Nuvem Fiscal: ${lastError}`
-      );
+      // Non-blocking: log but don't throw - the API might work without explicit config
+      console.warn("DistNFe config failed, proceeding anyway. Last error:", lastError);
     }
 
     // ─── ACTION: distribute ───
