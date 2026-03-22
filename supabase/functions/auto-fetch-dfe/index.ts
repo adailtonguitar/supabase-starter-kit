@@ -74,8 +74,7 @@ Deno.serve(async (req) => {
           .limit(1)
           .maybeSingle();
 
-        const rawLastNsu = String(lastDoc?.nsu ?? "0").replace(/\D/g, "") || "0";
-        const lastNsu = rawLastNsu.padStart(15, "0");
+        const normalizedLastNsu = Number(String(lastDoc?.nsu ?? 0).replace(/\D/g, "") || 0);
 
         await fetch("https://api.nuvemfiscal.com.br/distribuicao/nfe", {
           method: "POST",
@@ -84,7 +83,7 @@ Deno.serve(async (req) => {
             cpf_cnpj: cnpj,
             ambiente: "producao",
             tipo_consulta: "dist-nsu",
-            dist_nsu: lastNsu,
+            dist_nsu: normalizedLastNsu,
             ignorar_tempo_espera: true,
           }),
         });
