@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Search, Plus, Edit, Package, Upload, Trash2, FileText, ArrowUpDown, History, Zap } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { motion } from "framer-motion";
@@ -8,7 +9,7 @@ import { ProductFormDialog } from "@/components/stock/ProductFormDialog";
 import { StockMovementDialog } from "@/components/stock/StockMovementDialog";
 import { MovementHistoryDialog } from "@/components/stock/MovementHistoryDialog";
 import { CSVImportDialog } from "@/components/stock/CSVImportDialog";
-import { NFeImportDialog } from "@/components/stock/NFeImportDialog";
+
 import { LowStockAlert } from "@/components/stock/LowStockAlert";
 import { PriceHistoryDialog } from "@/components/stock/PriceHistoryDialog";
 import { Button } from "@/components/ui/button";
@@ -35,7 +36,7 @@ export default function Produtos() {
   const [movementProduct, setMovementProduct] = useState<Product | null>(null);
   const [historyProduct, setHistoryProduct] = useState<Product | null>(null);
   const [showImport, setShowImport] = useState(false);
-  const [showNFeImport, setShowNFeImport] = useState(false);
+  const navigate = useNavigate();
   const [deleteTarget, setDeleteTarget] = useState<Product | null>(null);
   const [priceHistoryProduct, setPriceHistoryProduct] = useState<Product | null>(null);
 
@@ -82,7 +83,7 @@ export default function Produtos() {
           </p>
         </div>
         <div data-tour="product-import" className="flex items-center gap-2 flex-wrap">
-          <Button variant="outline" size="sm" onClick={() => setShowNFeImport(true)}>
+          <Button variant="outline" size="sm" onClick={() => navigate("/importacao-nfe")}>
             <FileText className="w-4 h-4 sm:mr-2" />
             <span className="hidden sm:inline">Importar NF-e</span>
           </Button>
@@ -281,7 +282,7 @@ export default function Produtos() {
       )}
 
       <CSVImportDialog open={showImport} onOpenChange={setShowImport} />
-      <NFeImportDialog open={showNFeImport} onOpenChange={setShowNFeImport} />
+      
 
       {priceHistoryProduct && (
         <PriceHistoryDialog
