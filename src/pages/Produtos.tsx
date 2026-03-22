@@ -83,7 +83,7 @@ export default function Produtos() {
           </p>
         </div>
         <div data-tour="product-import" className="flex items-center gap-2 flex-wrap">
-          <Button variant="outline" size="sm" onClick={() => setShowNFeImport(true)}>
+          <Button variant="outline" size="sm" onClick={() => navigate("/importacao-nfe")}>
             <FileText className="w-4 h-4 sm:mr-2" />
             <span className="hidden sm:inline">Importar NF-e</span>
           </Button>
