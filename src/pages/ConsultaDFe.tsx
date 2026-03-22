@@ -134,7 +134,7 @@ function ConsultaDFeContent() {
         <Card>
           <CardContent className="pt-4 pb-3">
             <div className="flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4 text-yellow-500" />
+              <AlertTriangle className="w-4 h-4 text-warning" />
               <div>
                 <p className="text-2xl font-bold">{stats.pendentes}</p>
                 <p className="text-xs text-muted-foreground">Pendentes</p>
