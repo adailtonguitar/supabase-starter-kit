@@ -269,7 +269,7 @@ Deno.serve(async (req) => {
       if (!document_id) throw new Error("document_id é obrigatório");
 
       const res = await fetch(
-        `https://api.nuvemfiscal.com.br/distribuicao/nfe/documentos/${document_id}/xml`,
+        `${apiBase}/distribuicao/nfe/documentos/${document_id}/xml`,
         { method: "GET", headers: { ...nfHeaders, Accept: "application/xml" } }
       );
 
