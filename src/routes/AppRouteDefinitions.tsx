@@ -47,6 +47,7 @@ export const NFeEmissao = lazyRetry(() => import("@/pages/NFeEmissao"));
 export const EmissorNFe = lazyRetry(() => import("@/pages/EmissorNFe"));
 export const EmissorLanding = lazyRetry(() => import("@/pages/EmissorLanding"));
 export const ConsultaDFe = lazyRetry(() => import("@/pages/ConsultaDFe"));
+export const ImportacaoNFe = lazyRetry(() => import("@/pages/ImportacaoNFe"));
 
 // ── Financeiro ──
 export const Financeiro = lazyRetry(() => import("@/pages/Financeiro"));
