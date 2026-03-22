@@ -102,3 +102,6 @@ verify_jwt = false
 
 [functions.admin-revenue]
 verify_jwt = false
+
+[functions.auto-fetch-dfe]
+verify_jwt = false
