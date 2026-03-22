@@ -36,7 +36,7 @@ export default function Produtos() {
   const [movementProduct, setMovementProduct] = useState<Product | null>(null);
   const [historyProduct, setHistoryProduct] = useState<Product | null>(null);
   const [showImport, setShowImport] = useState(false);
-  const [showNFeImport, setShowNFeImport] = useState(false);
+  const navigate = useNavigate();
   const [deleteTarget, setDeleteTarget] = useState<Product | null>(null);
   const [priceHistoryProduct, setPriceHistoryProduct] = useState<Product | null>(null);
 
