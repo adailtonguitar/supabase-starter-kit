@@ -234,7 +234,7 @@ Deno.serve(async (req) => {
       const evento = eventoMap[tipoEvento] || "ciencia";
 
       const res = await fetch(
-        `https://api.nuvemfiscal.com.br/distribuicao/nfe/documentos/${document_id}/manifestacao`,
+        `${apiBase}/distribuicao/nfe/documentos/${document_id}/manifestacao`,
         {
           method: "POST",
           headers: nfHeaders,
