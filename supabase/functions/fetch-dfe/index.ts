@@ -145,6 +145,17 @@ Deno.serve(async (req) => {
     if (action === "distribute") {
       await ensureDistNfeConfig();
 
+      // Get last NSU from DB
+      const { data: lastDoc } = await supabaseAdmin
+        .from("notas_recebidas")
+        .select("nsu")
+        .eq("company_id", company_id)
+        .order("nsu", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      const lastNsu = lastDoc?.nsu || 0;
+
       const res = await fetch(`${apiBase}/distribuicao/nfe`, {
         method: "POST",
         headers: nfHeaders,
@@ -152,6 +163,7 @@ Deno.serve(async (req) => {
           cpf_cnpj: cnpj,
           ambiente,
           tipo_consulta: "dist-nsu",
+          dist_nsu: lastNsu,
         }),
       });
 
