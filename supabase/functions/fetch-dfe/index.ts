@@ -84,14 +84,47 @@ Deno.serve(async (req) => {
       "Content-Type": "application/json",
     };
 
+    const isSandbox = Deno.env.get("NUVEM_FISCAL_SANDBOX") === "true";
+    const apiBase = isSandbox
+      ? "https://api.sandbox.nuvemfiscal.com.br"
+      : "https://api.nuvemfiscal.com.br";
+    const ambiente = isSandbox ? "homologacao" : "producao";
+
+    // ─── Auto-configure DistNFe if needed ───
+    async function ensureDistNfeConfig() {
+      const checkRes = await fetch(`${apiBase}/empresas/${cnpj}/distnfe`, {
+        method: "GET",
+        headers: nfHeaders,
+      });
+      if (checkRes.ok) return;
+
+      const configRes = await fetch(`${apiBase}/empresas/${cnpj}/distnfe`, {
+        method: "PUT",
+        headers: nfHeaders,
+        body: JSON.stringify({
+          cpf_cnpj: cnpj,
+          ambiente,
+          dist_nsu_automatica: true,
+          manifestacao_automatica: true,
+          tipo_manifestacao: "ciencia",
+        }),
+      });
+      if (!configRes.ok) {
+        const errData = await configRes.json().catch(() => ({}));
+        console.error("Erro ao configurar DistNFe:", errData);
+      }
+    }
+
     // ─── ACTION: distribute ───
     if (action === "distribute") {
-      const res = await fetch("https://api.nuvemfiscal.com.br/distribuicao/nfe", {
+      await ensureDistNfeConfig();
+
+      const res = await fetch(`${apiBase}/distribuicao/nfe`, {
         method: "POST",
         headers: nfHeaders,
         body: JSON.stringify({
           cpf_cnpj: cnpj,
-          ambiente: "producao",
+          ambiente,
           tipo_consulta: "dist-nsu",
         }),
       });
@@ -146,9 +179,10 @@ Deno.serve(async (req) => {
       }
 
       // Fallback: fetch from Nuvem Fiscal API
-      const url = new URL("https://api.nuvemfiscal.com.br/distribuicao/nfe/documentos");
+      await ensureDistNfeConfig();
+      const url = new URL(`${apiBase}/distribuicao/nfe/documentos`);
       url.searchParams.set("cpf_cnpj", cnpj);
-      url.searchParams.set("ambiente", "producao");
+      url.searchParams.set("ambiente", ambiente);
       url.searchParams.set("$top", "50");
       url.searchParams.set("$skip", "0");
       url.searchParams.set("$inlinecount", "true");
@@ -200,7 +234,7 @@ Deno.serve(async (req) => {
       const evento = eventoMap[tipoEvento] || "ciencia";
 
       const res = await fetch(
-        `https://api.nuvemfiscal.com.br/distribuicao/nfe/documentos/${document_id}/manifestacao`,
+        `${apiBase}/distribuicao/nfe/documentos/${document_id}/manifestacao`,
         {
           method: "POST",
           headers: nfHeaders,
@@ -235,7 +269,7 @@ Deno.serve(async (req) => {
       if (!document_id) throw new Error("document_id é obrigatório");
 
       const res = await fetch(
-        `https://api.nuvemfiscal.com.br/distribuicao/nfe/documentos/${document_id}/xml`,
+        `${apiBase}/distribuicao/nfe/documentos/${document_id}/xml`,
         { method: "GET", headers: { ...nfHeaders, Accept: "application/xml" } }
       );
 
