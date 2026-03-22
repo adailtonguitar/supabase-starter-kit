@@ -145,7 +145,7 @@ function ConsultaDFeContent() {
         <Card>
           <CardContent className="pt-4 pb-3">
             <div className="flex items-center gap-2">
-              <ShieldCheck className="w-4 h-4 text-green-500" />
+              <ShieldCheck className="w-4 h-4 text-accent-foreground" />
               <div>
                 <p className="text-2xl font-bold">{stats.manifestados}</p>
                 <p className="text-xs text-muted-foreground">Manifestados</p>
