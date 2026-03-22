@@ -282,7 +282,7 @@ export default function Produtos() {
       )}
 
       <CSVImportDialog open={showImport} onOpenChange={setShowImport} />
-      <NFeImportDialog open={showNFeImport} onOpenChange={setShowNFeImport} />
+      
 
       {priceHistoryProduct && (
         <PriceHistoryDialog
