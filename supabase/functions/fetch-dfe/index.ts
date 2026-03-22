@@ -145,7 +145,7 @@ Deno.serve(async (req) => {
     if (action === "distribute") {
       await ensureDistNfeConfig();
 
-      // Get last NSU from DB
+      // Get last NSU from DB and normalize to SEFAZ/Nuvem Fiscal format
       const { data: lastDoc } = await supabaseAdmin
         .from("notas_recebidas")
         .select("nsu")
@@ -154,7 +154,8 @@ Deno.serve(async (req) => {
         .limit(1)
         .maybeSingle();
 
-      const lastNsu = lastDoc?.nsu || 0;
+      const rawLastNsu = String(lastDoc?.nsu ?? "0").replace(/\D/g, "") || "0";
+      const lastNsu = rawLastNsu.padStart(15, "0");
 
       const res = await fetch(`${apiBase}/distribuicao/nfe`, {
         method: "POST",
@@ -164,6 +165,7 @@ Deno.serve(async (req) => {
           ambiente,
           tipo_consulta: "dist-nsu",
           dist_nsu: lastNsu,
+          ignorar_tempo_espera: true,
         }),
       });
 
