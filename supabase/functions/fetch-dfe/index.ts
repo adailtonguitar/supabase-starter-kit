@@ -99,33 +99,47 @@ Deno.serve(async (req) => {
         });
         if (checkRes.ok) {
           console.log("DistNFe already configured for", cnpj);
+          await checkRes.text();
           return;
         }
         console.log("DistNFe not configured, status:", checkRes.status);
-        await checkRes.text(); // consume body
+        await checkRes.text();
       } catch (e) {
         console.log("DistNFe check failed:", e);
       }
 
-      // Configure using the correct API format (string ambiente)
-      const configBody = {
-        distribuicao_automatica: true,
-        distribuicao_intervalo_horas: 1,
-        ciencia_automatica: true,
-        ambiente: ambiente, // "homologacao" or "producao"
-      };
-      console.log("PUT distnfe body:", JSON.stringify(configBody));
+      const payloads = [
+        {
+          distribuicao_automatica: true,
+          distribuicao_intervalo_horas: 1,
+          ciencia_automatica: true,
+          ambiente,
+        },
+        { ambiente },
+      ];
 
-      const configRes = await fetch(`${apiBase}/empresas/${cnpj}/distnfe`, {
-        method: "PUT",
-        headers: nfHeaders,
-        body: JSON.stringify(configBody),
-      });
-      const configText = await configRes.text();
-      console.log("PUT distnfe response:", configRes.status, configText);
-      if (!configRes.ok) {
-        throw new Error(`Falha ao configurar DistNFe (${configRes.status}): ${configText}`);
+      let lastError = "";
+
+      for (const configBody of payloads) {
+        console.log("Trying PUT distnfe with body:", JSON.stringify(configBody));
+        const configRes = await fetch(`${apiBase}/empresas/${cnpj}/distnfe`, {
+          method: "PUT",
+          headers: nfHeaders,
+          body: JSON.stringify(configBody),
+        });
+        const configText = await configRes.text();
+        console.log("PUT distnfe response:", configRes.status, configText);
+
+        if (configRes.ok) {
+          return;
+        }
+
+        lastError = configText;
       }
+
+      throw new Error(
+        `Não foi possível configurar DistNFe automaticamente. Resposta da Nuvem Fiscal: ${lastError}`
+      );
     }
 
     // ─── ACTION: distribute ───
