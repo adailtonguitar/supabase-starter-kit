@@ -101,14 +101,18 @@ Deno.serve(async (req) => {
           console.log("DistNFe already configured for", cnpj);
           return;
         }
-        console.log("DistNFe not configured, setting up for", cnpj, "status:", checkRes.status);
+        console.log("DistNFe not configured, status:", checkRes.status);
+        await checkRes.text(); // consume body
       } catch (e) {
-        console.log("DistNFe check failed, attempting setup:", e);
+        console.log("DistNFe check failed:", e);
       }
 
-      // Configure DistNFe
+      // Configure using the correct API format (string ambiente)
       const configBody = {
-        ambiente: ambiente === "homologacao" ? 1 : 2,
+        distribuicao_automatica: true,
+        distribuicao_intervalo_horas: 1,
+        ciencia_automatica: true,
+        ambiente: ambiente, // "homologacao" or "producao"
       };
       console.log("PUT distnfe body:", JSON.stringify(configBody));
 
@@ -120,8 +124,7 @@ Deno.serve(async (req) => {
       const configText = await configRes.text();
       console.log("PUT distnfe response:", configRes.status, configText);
       if (!configRes.ok) {
-        console.error("Erro ao configurar DistNFe:", configText);
-        throw new Error(`Não foi possível configurar DistNFe: ${configText}`);
+        throw new Error(`Falha ao configurar DistNFe (${configRes.status}): ${configText}`);
       }
     }
 
