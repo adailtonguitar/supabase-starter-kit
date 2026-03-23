@@ -140,7 +140,7 @@ function buildIcmsBlock(item: any, isSimples: boolean) {
 
   // Regime Normal → CST ICMS
   if (CST_ST.has(cst)) {
-    const mva = item.mva || 0;
+    const mva = item.mva != null && item.mva > 0 ? item.mva : 40;
     const vBC = vProd;
     const vICMS = vBC * (aliqIcms / 100);
     const bcST = vProd * (1 + mva / 100);
