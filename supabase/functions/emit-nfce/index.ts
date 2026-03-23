@@ -807,8 +807,8 @@ async function handleDownloadXml(body: any) {
   return jsonResponse({ success: true, xml });
 }
 
-// ─── Inutilizar numeração ───
-async function handleInutilize(body: any) {
+// ─── Inutilizar numeração (com persistência) ───
+async function handleInutilize(supabase: any, body: any) {
   const { company_id, doc_type, serie, numero_inicial, numero_final, justificativa } = body;
   if (!justificativa || justificativa.length < 15) {
     return jsonResponse({ error: "Justificativa deve ter no mínimo 15 caracteres" }, 400);
@@ -836,6 +836,24 @@ async function handleInutilize(body: any) {
   const data = await resp.json();
   if (!resp.ok) {
     return jsonResponse({ success: false, error: data?.mensagem || "Erro na inutilização" });
+  }
+
+  // Persistir inutilização na tabela fiscal_documents
+  if (company_id) {
+    const ambiente = Deno.env.get("NUVEM_FISCAL_SANDBOX") === "true" ? "homologacao" : "producao";
+    for (let num = numero_inicial; num <= numero_final; num++) {
+      await supabase.from("fiscal_documents").insert({
+        company_id,
+        doc_type: doc_type || "nfce",
+        number: num,
+        serie: serie || 1,
+        status: "inutilizada",
+        environment: ambiente,
+        rejection_reason: justificativa,
+        is_contingency: false,
+        total_value: 0,
+      });
+    }
   }
 
   return jsonResponse({ success: true, data });
