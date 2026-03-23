@@ -228,6 +228,18 @@ Deno.serve(async (req) => {
       };
     });
 
+    // Build payments array for multi-payment support
+    const paymentMethodMap: Record<string, string> = {
+      dinheiro: "01", credito: "03", debito: "04", pix: "17", voucher: "05",
+    };
+
+    const fiscalPayments = payments.length > 0
+      ? payments.map((p: any) => ({
+          tPag: paymentMethodMap[p.method] || "99",
+          vPag: p.amount || p.value || 0,
+        }))
+      : [{ tPag: "99", vPag: sale.total }];
+
     // 6️⃣ Chamar emissão fiscal
     const { data: fiscalData, error: fiscalErr } = await supabase.functions.invoke(
       "emit-nfce",
@@ -240,6 +252,7 @@ Deno.serve(async (req) => {
           form: {
             nat_op: "VENDA DE MERCADORIA",
             crt,
+            payments: fiscalPayments,
             payment_method: paymentMethodMap[payments[0]?.method] || "99",
             payment_value: sale.total,
             change: payments[0]?.change_amount || 0,
