@@ -550,6 +550,19 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "company_id required" }), { status: 400, headers: corsHeaders });
     }
 
+    // Rate limiting: máx 3 relatórios por minuto por empresa
+    const { data: allowed } = await supabase.rpc("check_rate_limit", {
+      p_company_id: company_id,
+      p_fn_name: "ai-report",
+      p_max_calls: 3,
+      p_window_sec: 60,
+    });
+    if (allowed === false) {
+      return new Response(JSON.stringify({ error: "Limite de relatórios excedido. Aguarde 1 minuto." }), {
+        status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const today = new Date().toISOString().split("T")[0];
     const monthStart = today.slice(0, 7) + "-01";
 

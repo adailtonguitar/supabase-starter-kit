@@ -62,13 +62,29 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { barcode } = await req.json();
+    const { barcode, company_id } = await req.json();
 
     if (!barcode || barcode.length < 8) {
       return new Response(JSON.stringify({ found: false, error: "Código de barras inválido" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    // Rate limiting: máx 30 buscas por minuto por empresa
+    if (company_id) {
+      const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+      const { data: allowed } = await sb.rpc("check_rate_limit", {
+        p_company_id: company_id,
+        p_fn_name: "lookup-barcode",
+        p_max_calls: 30,
+        p_window_sec: 60,
+      });
+      if (allowed === false) {
+        return new Response(JSON.stringify({ found: false, error: "Limite de buscas excedido. Aguarde." }), {
+          status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
     }
 
     console.log(`[lookup-barcode] Buscando EAN: ${barcode}`);

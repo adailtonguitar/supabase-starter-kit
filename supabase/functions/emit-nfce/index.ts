@@ -233,6 +233,19 @@ async function handleEmit(supabase: any, body: any) {
     return jsonResponse({ error: "Dados incompletos: sale_id e form são obrigatórios" }, 400);
   }
 
+  // Rate limiting: máx 5 emissões por minuto por empresa
+  if (company_id) {
+    const { data: allowed } = await supabase.rpc("check_rate_limit", {
+      p_company_id: company_id,
+      p_fn_name: "emit-nfce",
+      p_max_calls: 5,
+      p_window_sec: 60,
+    });
+    if (allowed === false) {
+      return jsonResponse({ error: "Limite de emissões excedido. Aguarde 1 minuto." }, 429);
+    }
+  }
+
   // Anti-duplicação
   const isDuplicate = await checkDuplicate(supabase, sale_id);
   if (isDuplicate) {
