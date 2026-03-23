@@ -626,7 +626,7 @@ export function usePDV() {
     }
   }, [processFiscalEmission]);
 
-  const finalizeSale = useCallback(async (payments: PaymentResult[], options?: { skipFiscal?: boolean }) => {
+  const finalizeSale = useCallback(async (payments: PaymentResult[], options?: { skipFiscal?: boolean; maxDiscountPercent?: number }) => {
     // ── Guard contra double-click (ref + state) ──
     if (finalizingRef.current) {
       toast.warning("Venda já em processamento, aguarde...", { duration: 1200 });
