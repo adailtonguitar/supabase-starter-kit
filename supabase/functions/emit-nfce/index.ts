@@ -387,12 +387,25 @@ async function handleEmit(supabase: any, body: any) {
   // Valor total da NF
   const vNF = Math.round((totalVProd - totalVDesc + totalVST) * 100) / 100;
 
-  // Pagamento
-  const tPag = form.payment_method || "01";
-  const vPag = form.payment_value || vNF;
+  // Pagamento — suporte a múltiplas formas (split payment)
   const troco = form.change || 0;
+  const detPag: any[] = [];
 
-  const detPag: any[] = [{ tPag, vPag: Math.round(vPag * 100) / 100 }];
+  if (form.payments && Array.isArray(form.payments) && form.payments.length > 0) {
+    // Múltiplas formas de pagamento
+    for (const p of form.payments) {
+      detPag.push({
+        tPag: p.tPag || p.method || "99",
+        vPag: Math.round((p.vPag || p.value || 0) * 100) / 100,
+      });
+    }
+  } else {
+    // Fallback: forma única
+    const tPag = form.payment_method || "01";
+    const vPag = form.payment_value || vNF;
+    detPag.push({ tPag, vPag: Math.round(vPag * 100) / 100 });
+  }
+
   const pagBlock: any = { detPag };
   if (troco > 0) {
     pagBlock.vTroco = Math.round(troco * 100) / 100;
