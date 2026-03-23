@@ -680,8 +680,9 @@ export function usePDV() {
       }));
 
       const pdvTraceId = newPdvTraceId();
+      const idempotencyKey = crypto.randomUUID();
 
-      // ── Chamada única: RPC atômica ──
+      // ── Chamada única: RPC atômica (com idempotência) ──
       const rpcFinalize = await safeRpc<{ success: boolean; sale_id?: string; error?: string }>("finalize_sale_atomic", {
         p_company_id: companyId,
         p_terminal_id: currentSession.terminal_id,
@@ -693,6 +694,7 @@ export function usePDV() {
         p_total: total,
         p_payments: paymentsSummary,
         p_sold_by: userId || null,
+        p_idempotency_key: idempotencyKey,
       });
       if (!rpcFinalize.success) throw new Error((rpcFinalize as any).error);
       const result = rpcFinalize.data;

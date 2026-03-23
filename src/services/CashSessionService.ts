@@ -136,13 +136,20 @@ export class CashSessionService {
       throw new Error("Sessão offline não encontrada");
     };
     try {
-      const { data, error } = await supabase.from("cash_movements").insert({ company_id: params.companyId, session_id: params.sessionId, type: params.type, amount: params.amount, performed_by: params.userId, description: params.description }).select().single();
-      if (error) { if (isNetworkError(error)) return moveOffline(); throw new Error(`Erro na movimentação: ${error.message}`); }
+      // Use atomic RPC to avoid read-then-write race condition
+      const { data: rpcResult, error: rpcError } = await supabase.rpc("register_cash_movement_atomic" as any, {
+        p_company_id: params.companyId,
+        p_session_id: params.sessionId,
+        p_type: params.type,
+        p_amount: params.amount,
+        p_performed_by: params.userId,
+        p_description: params.description || null,
+      });
+      if (rpcError) { if (isNetworkError(rpcError)) return moveOffline(); throw new Error(`Erro na movimentação: ${rpcError.message}`); }
+      const result = rpcResult as any;
+      if (result && !result.success) throw new Error(result.error || "Erro na movimentação");
       logAction({ companyId: params.companyId, userId: params.userId, action: params.type === "sangria" ? "Sangria registrada" : "Suprimento registrado", module: "caixa", details: `R$ ${params.amount} - ${params.description || ""}` });
-      const field = params.type === "sangria" ? "total_sangria" : "total_suprimento";
-      const { data: session } = await supabase.from("cash_sessions").select(field).eq("id", params.sessionId).eq("company_id", params.companyId).single();
-      if (session) await supabase.from("cash_sessions").update({ [field]: Number(session[field] || 0) + params.amount }).eq("id", params.sessionId).eq("company_id", params.companyId);
-      return data;
+      return { id: result?.movement_id || `mv_${Date.now()}`, ...params };
     } catch (err: unknown) {
       if (isNetworkError(err)) return moveOffline();
       throw err;
