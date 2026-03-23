@@ -641,10 +641,32 @@ async function handleEmit(supabase: any, body: any) {
   });
 }
 
-// ─── Consultar status ───
-async function handleConsultStatus(body: any) {
-  const { access_key, doc_type } = body;
+// ─── Consultar status (com validação cross-tenant) ───
+async function handleConsultStatus(supabase: any, body: any, callerUserId?: string | null) {
+  const { access_key, doc_type, company_id } = body;
   if (!access_key) return jsonResponse({ error: "Chave de acesso obrigatória" }, 400);
+
+  // Validação cross-tenant: verificar que o documento pertence à empresa do caller
+  if (callerUserId && company_id) {
+    const { data: docOwner } = await supabase
+      .from("fiscal_documents")
+      .select("id")
+      .eq("access_key", access_key)
+      .eq("company_id", company_id)
+      .maybeSingle();
+
+    // Se existe no banco mas não pertence a esta empresa, bloquear
+    if (!docOwner) {
+      const { data: anyDoc } = await supabase
+        .from("fiscal_documents")
+        .select("id")
+        .eq("access_key", access_key)
+        .maybeSingle();
+      if (anyDoc) {
+        return jsonResponse({ success: false, error: "Documento não pertence a esta empresa" }, 403);
+      }
+    }
+  }
 
   const token = await getNuvemFiscalToken();
   const baseUrl = getApiBaseUrl();
@@ -664,16 +686,12 @@ async function handleConsultStatus(body: any) {
   const isAuth = status.includes("autoriz") || status.includes("aprovad") || String(data.codigo_status) === "100";
 
   // Auto-reconciliar no banco se autorizada
-  if (isAuth && body.company_id) {
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
-
+  if (isAuth && company_id) {
     await supabase
       .from("fiscal_documents")
       .update({ status: "autorizada", access_key: data.chave || access_key, protocol_number: data.protocolo || null })
-      .eq("access_key", access_key);
+      .eq("access_key", access_key)
+      .eq("company_id", company_id);
   }
 
   return jsonResponse({
