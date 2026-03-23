@@ -327,7 +327,7 @@ function CompaniesTab() {
     setDeleting(company.id);
     try {
       // Use SECURITY DEFINER function to bypass RLS and delete all related data
-      const { error } = await supabase.rpc("admin_delete_company" as any, {
+      const { error } = await supabase.rpc("admin_delete_company", {
         p_company_id: company.id,
       });
       if (error) {

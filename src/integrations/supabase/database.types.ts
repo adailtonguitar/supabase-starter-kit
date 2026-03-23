@@ -2566,12 +2566,70 @@ export type Database = {
         Returns: number
       }
       invalidate_session: {
-        Args: { p_session_id: string; p_user_id: string }
+        Args: { p_session_token: string }
         Returns: Json
       }
       create_onboarding_company: {
         Args: { p_name: string; p_cnpj: string; p_phone: string }
         Returns: Json
+      }
+      register_session: {
+        Args: {
+          p_user_id: string
+          p_company_id: string
+          p_session_token: string
+          p_device_info: string | null
+          p_ip_address: string | null
+        }
+        Returns: Json
+      }
+      validate_session: {
+        Args: { p_session_token: string }
+        Returns: Json
+      }
+      check_plan_limit: {
+        Args: {
+          p_company_id: string
+          p_feature: string
+        }
+        Returns: Json
+      }
+      register_cash_movement_atomic: {
+        Args: {
+          p_company_id: string
+          p_session_id: string
+          p_type: string
+          p_amount: number
+          p_performed_by: string
+          p_description: string | null
+        }
+        Returns: Json
+      }
+      link_user_to_company: {
+        Args: {
+          p_company_id: string
+          p_user_id: string
+          p_role: string
+        }
+        Returns: Json
+      }
+      transfer_stock_atomic: {
+        Args: {
+          p_company_id: string
+          p_from_branch_id: string
+          p_to_branch_id: string
+          p_items: Json
+          p_performed_by: string
+          p_notes: string | null
+        }
+        Returns: Json
+      }
+      check_rate_limit: {
+        Args: {
+          p_company_id: string
+          p_action: string
+        }
+        Returns: boolean
       }
     }
     Enums: {

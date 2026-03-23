@@ -137,7 +137,7 @@ export class CashSessionService {
     };
     try {
       // Use atomic RPC to avoid read-then-write race condition
-      const { data: rpcResult, error: rpcError } = await supabase.rpc("register_cash_movement_atomic" as any, {
+      const { data: rpcResult, error: rpcError } = await supabase.rpc("register_cash_movement_atomic", {
         p_company_id: params.companyId,
         p_session_id: params.sessionId,
         p_type: params.type,
