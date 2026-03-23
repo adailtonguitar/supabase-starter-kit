@@ -39,6 +39,18 @@ BEGIN
     RETURN jsonb_build_object('success', false, 'error', 'Unauthorized');
   END IF;
 
+  -- Idempotência: se a mesma chave já processou, retornar sucesso sem duplicar
+  IF p_idempotency_key IS NOT NULL THEN
+    IF EXISTS (
+      SELECT 1 FROM action_logs
+      WHERE company_id = p_company_id
+        AND action = 'mark_paid_idempotent'
+        AND details LIKE '%' || p_idempotency_key::text || '%'
+    ) THEN
+      RETURN jsonb_build_object('success', true, 'idempotent_hit', true, 'entry_id', p_entry_id);
+    END IF;
+  END IF;
+
   IF NOT EXISTS (
     SELECT 1
     FROM company_users cu
