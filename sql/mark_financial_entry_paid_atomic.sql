@@ -6,10 +6,22 @@ CREATE OR REPLACE FUNCTION public.mark_financial_entry_paid_atomic(
   p_entry_id uuid,
   p_paid_amount numeric,
   p_payment_method text,
-  p_performed_by uuid
+  p_performed_by uuid,
+  p_idempotency_key uuid DEFAULT NULL
 )
 RETURNS jsonb
 LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_uid uuid;
+  v_entry record;
+  v_session record;
+  v_method text;
+  v_payment_field text;
+  v_movement_id uuid;
+  v_session_id uuid := null;
 SECURITY DEFINER
 SET search_path = public
 AS $$
