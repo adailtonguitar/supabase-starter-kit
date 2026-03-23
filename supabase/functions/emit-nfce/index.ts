@@ -850,6 +850,42 @@ function getUfCode(uf: string): number {
 }
 
 // ════════════════════════════════════════════════
+// AUTH HELPER — validates JWT for external calls
+// ════════════════════════════════════════════════
+
+async function validateCaller(req: Request): Promise<{ userId: string | null; isServiceCall: boolean }> {
+  const authHeader = req.headers.get("Authorization");
+  if (!authHeader?.startsWith("Bearer ")) {
+    return { userId: null, isServiceCall: false };
+  }
+
+  const token = authHeader.replace("Bearer ", "");
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+  // If the token IS the service_role_key itself, it's an internal call (e.g. process-fiscal-queue)
+  if (token === serviceRoleKey) {
+    return { userId: null, isServiceCall: true };
+  }
+
+  // Validate user JWT via getClaims
+  const userClient = createClient(supabaseUrl, anonKey, {
+    global: { headers: { Authorization: authHeader } },
+  });
+
+  try {
+    const { data, error } = await userClient.auth.getClaims(token);
+    if (error || !data?.claims?.sub) {
+      return { userId: null, isServiceCall: false };
+    }
+    return { userId: data.claims.sub as string, isServiceCall: false };
+  } catch {
+    return { userId: null, isServiceCall: false };
+  }
+}
+
+// ════════════════════════════════════════════════
 // MAIN HANDLER
 // ════════════════════════════════════════════════
 
@@ -859,6 +895,12 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // ── Auth: require valid JWT or internal service call ──
+    const { userId, isServiceCall } = await validateCaller(req);
+    if (!userId && !isServiceCall) {
+      return jsonResponse({ error: "Não autorizado" }, 401);
+    }
+
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
@@ -866,6 +908,21 @@ Deno.serve(async (req) => {
 
     const body = await req.json();
     const action = body.action || "emit";
+
+    // ── For user calls, verify they belong to the company ──
+    if (userId && body.company_id) {
+      const { data: access } = await supabase
+        .from("company_users")
+        .select("id")
+        .eq("user_id", userId)
+        .eq("company_id", body.company_id)
+        .eq("is_active", true)
+        .maybeSingle();
+
+      if (!access) {
+        return jsonResponse({ error: "Sem permissão para esta empresa" }, 403);
+      }
+    }
 
     switch (action) {
       case "emit":
