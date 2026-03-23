@@ -162,7 +162,6 @@ function AppRoutes() {
 
   return (
     <Suspense fallback={<PageSpinner />}>
-      <UpdateNoticeModal />
       <Routes>
         <Route path="/" element={<LandingRedirectWrapper />} />
         <Route
