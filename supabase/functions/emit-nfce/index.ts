@@ -633,6 +633,7 @@ async function handleEmit(supabase: any, body: any) {
   else finalStatus = "pendente";
 
   // Salvar documento fiscal
+  const mainPayMethod = detPag[0]?.tPag || "99";
   await supabase.from("fiscal_documents").insert({
     company_id,
     sale_id: sale_id || null,
@@ -646,9 +647,32 @@ async function handleEmit(supabase: any, body: any) {
     environment: ambiente,
     customer_name: form.customer_name || null,
     customer_cpf_cnpj: form.customer_doc || null,
-    payment_method: tPag,
+    payment_method: mainPayMethod,
     is_contingency: isContingency,
   });
+
+  // Auto-save XML no Storage após autorização (obrigação legal: 5 anos)
+  if (isAuthorized && accessKey) {
+    try {
+      const xmlToken = await getNuvemFiscalToken();
+      const xmlBaseUrl = getApiBaseUrl();
+      const xmlResp = await fetch(`${xmlBaseUrl}/nfce/${accessKey}/xml`, {
+        headers: { Authorization: `Bearer ${xmlToken}`, Accept: "application/xml" },
+      });
+      if (xmlResp.ok) {
+        const xmlContent = await xmlResp.text();
+        const safeKey = accessKey.slice(-8);
+        const xmlPath = `${company_id}/xmls/nfce/nfce_${numero}_${safeKey}.xml`;
+        await supabase.storage.from("company-backups").upload(xmlPath, new TextEncoder().encode(xmlContent), {
+          upsert: true,
+          contentType: "application/xml",
+        });
+        console.log(`[emit-nfce] XML salvo automaticamente: ${xmlPath}`);
+      }
+    } catch (xmlErr: any) {
+      console.warn(`[emit-nfce] Falha ao salvar XML automaticamente: ${xmlErr.message}`);
+    }
+  }
 
   console.log(`[emit-nfce] NFC-e #${numero} → Status: ${finalStatus} | Chave: ${accessKey?.substring(0, 20)}...`);
 
