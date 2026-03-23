@@ -1172,11 +1172,11 @@ Deno.serve(async (req) => {
       case "cancel":
         return await handleCancel(supabase, body, userId);
       case "download_pdf":
-        return await handleDownloadPdf(body);
+        return await handleDownloadPdf(supabase, body, userId);
       case "download_xml":
-        return await handleDownloadXml(body);
+        return await handleDownloadXml(supabase, body, userId);
       case "inutilize":
-        return await handleInutilize(supabase, body);
+        return await handleInutilize(supabase, body, userId);
       case "backup_xmls":
         return await handleBackupXmls(supabase, body);
       default:
