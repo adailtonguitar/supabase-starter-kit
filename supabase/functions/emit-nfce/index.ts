@@ -451,6 +451,8 @@ async function handleEmit(supabase: any, body: any) {
   // Pagamento — suporte a múltiplas formas (split payment)
   const troco = form.change || 0;
   const detPag: any[] = [];
+  // tPag no escopo externo para uso no insert de rejeição
+  const mainTpag = form.payment_method || "01";
 
   if (form.payments && Array.isArray(form.payments) && form.payments.length > 0) {
     // Múltiplas formas de pagamento
@@ -462,9 +464,8 @@ async function handleEmit(supabase: any, body: any) {
     }
   } else {
     // Fallback: forma única
-    const tPag = form.payment_method || "01";
     const vPag = form.payment_value || vNF;
-    detPag.push({ tPag, vPag: Math.round(vPag * 100) / 100 });
+    detPag.push({ tPag: mainTpag, vPag: Math.round(vPag * 100) / 100 });
   }
 
   const pagBlock: any = { detPag };
