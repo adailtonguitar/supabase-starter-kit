@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { sanitizeHtml } from "@/lib/sanitize";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -108,7 +109,7 @@ export function AdminBulkEmail() {
               </DialogHeader>
               <div className="border rounded-lg p-4 bg-muted/30">
                 <p className="text-sm font-semibold mb-2">Assunto: {subject || "(vazio)"}</p>
-                <div dangerouslySetInnerHTML={{ __html: buildHtml(body) }} />
+                <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(buildHtml(body)) }} />
               </div>
             </DialogContent>
           </Dialog>
