@@ -6,10 +6,22 @@ CREATE OR REPLACE FUNCTION public.mark_financial_entry_paid_atomic(
   p_entry_id uuid,
   p_paid_amount numeric,
   p_payment_method text,
-  p_performed_by uuid
+  p_performed_by uuid,
+  p_idempotency_key uuid DEFAULT NULL
 )
 RETURNS jsonb
 LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_uid uuid;
+  v_entry record;
+  v_session record;
+  v_method text;
+  v_payment_field text;
+  v_movement_id uuid;
+  v_session_id uuid := null;
 SECURITY DEFINER
 SET search_path = public
 AS $$
@@ -25,6 +37,18 @@ BEGIN
   v_uid := auth.uid();
   IF v_uid IS NULL THEN
     RETURN jsonb_build_object('success', false, 'error', 'Unauthorized');
+  END IF;
+
+  -- Idempotência: se a mesma chave já processou, retornar sucesso sem duplicar
+  IF p_idempotency_key IS NOT NULL THEN
+    IF EXISTS (
+      SELECT 1 FROM action_logs
+      WHERE company_id = p_company_id
+        AND action = 'mark_paid_idempotent'
+        AND details LIKE '%' || p_idempotency_key::text || '%'
+    ) THEN
+      RETURN jsonb_build_object('success', true, 'idempotent_hit', true, 'entry_id', p_entry_id);
+    END IF;
   END IF;
 
   IF NOT EXISTS (
@@ -133,6 +157,13 @@ BEGIN
       )
       USING p_paid_amount, v_session.id;
     END IF;
+  END IF;
+
+  -- Registrar idempotency key para prevenir duplicidade
+  IF p_idempotency_key IS NOT NULL THEN
+    INSERT INTO action_logs (company_id, user_id, action, module, details)
+    VALUES (p_company_id, v_uid, 'mark_paid_idempotent', 'financeiro',
+            jsonb_build_object('entry_id', p_entry_id, 'idempotency_key', p_idempotency_key, 'amount', p_paid_amount)::text);
   END IF;
 
   RETURN jsonb_build_object(

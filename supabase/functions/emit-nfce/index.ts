@@ -288,6 +288,60 @@ async function handleEmit(supabase: any, body: any) {
     return jsonResponse({ error: "Configuração fiscal NFC-e não encontrada. Acesse Fiscal > Configuração." }, 400);
   }
 
+  // Validação obrigatória de IE (Inscrição Estadual)
+  const ieClean = (company.ie || company.state_registration || "").replace(/\D/g, "");
+  if (!ieClean || ieClean.length < 2) {
+    return jsonResponse({
+      error: "Inscrição Estadual (IE) não configurada. Cadastre a IE da empresa em Configurações > Empresa antes de emitir documentos fiscais.",
+    }, 400);
+  }
+
+  // Alerta de certificado A1 próximo do vencimento
+  if (config.certificate_expiry) {
+    const expiryDate = new Date(config.certificate_expiry);
+    const daysUntilExpiry = Math.floor((expiryDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+    if (daysUntilExpiry <= 0) {
+      return jsonResponse({
+        error: `Certificado digital A1 EXPIRADO em ${expiryDate.toLocaleDateString("pt-BR")}. Renove o certificado antes de emitir.`,
+        _cert_diag: { expired: true, days: daysUntilExpiry },
+      }, 400);
+    }
+    if (daysUntilExpiry <= 30) {
+      console.warn(`[emit-nfce] ⚠️ Certificado A1 expira em ${daysUntilExpiry} dias (${expiryDate.toLocaleDateString("pt-BR")})`);
+      // Criar notificação proativa se <= 15 dias
+      if (daysUntilExpiry <= 15) {
+        const alertTitle = daysUntilExpiry <= 7
+          ? `🚨 Certificado expira em ${daysUntilExpiry} dia(s)!`
+          : `⚠️ Certificado A1 expira em ${daysUntilExpiry} dias`;
+        // Evitar spam: só notificar 1x por dia
+        const { data: existing } = await supabase
+          .from("notifications")
+          .select("id")
+          .eq("company_id", company_id)
+          .eq("title", alertTitle)
+          .gte("created_at", new Date(Date.now() - 20 * 60 * 60 * 1000).toISOString())
+          .maybeSingle();
+        if (!existing) {
+          const { data: admins } = await supabase
+            .from("company_users")
+            .select("user_id")
+            .eq("company_id", company_id)
+            .eq("is_active", true)
+            .in("role", ["admin", "gerente"]);
+          for (const admin of (admins || [])) {
+            await supabase.from("notifications").insert({
+              company_id,
+              user_id: admin.user_id,
+              title: alertTitle,
+              message: `Seu certificado digital A1 expira em ${expiryDate.toLocaleDateString("pt-BR")}. Renove-o para evitar interrupção na emissão fiscal.`,
+              type: "warning",
+            });
+          }
+        }
+      }
+    }
+  }
+
   // CRT e regime
   const crt = form.crt || company.crt || 1;
   const isSimples = crt === 1 || crt === 2;
