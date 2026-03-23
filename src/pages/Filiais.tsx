@@ -167,7 +167,7 @@ export default function Filiais() {
 
                   if (!access) {
                     // Auto-link user to child branch they own
-                    const { error: linkErr } = await supabase.rpc("link_user_to_company" as any, {
+                    const { error: linkErr } = await supabase.rpc("link_user_to_company", {
                       p_company_id: b.id,
                       p_user_id: user!.id,
                       p_role: "admin",
