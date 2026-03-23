@@ -2566,7 +2566,7 @@ export type Database = {
         Returns: number
       }
       invalidate_session: {
-        Args: { p_session_id: string; p_user_id: string }
+        Args: { p_session_token: string }
         Returns: Json
       }
       create_onboarding_company: {
