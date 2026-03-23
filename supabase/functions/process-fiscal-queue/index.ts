@@ -54,6 +54,24 @@ Deno.serve(async (req) => {
     const saleId = queueItem.sale_id;
     const companyId = queueItem.company_id;
     const attempts = (queueItem.attempts || 0) + 1;
+    const MAX_RETRIES = 10;
+
+    // Dead-letter: mover para erro definitivo após máximo de tentativas
+    if (attempts > MAX_RETRIES) {
+      await Promise.all([
+        supabase.from("fiscal_queue")
+          .update({ status: "dead_letter", last_error: `Excedeu ${MAX_RETRIES} tentativas`, updated_at: new Date().toISOString() })
+          .eq("id", queueId),
+        supabase.from("sales")
+          .update({ status: "erro_fiscal" })
+          .eq("id", saleId)
+          .eq("company_id", companyId),
+      ]);
+      return new Response(
+        JSON.stringify({ success: false, dead_letter: true, sale_id: saleId, error: `Excedeu ${MAX_RETRIES} tentativas` }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     // 3️⃣ Marcar como processing
     await supabase
