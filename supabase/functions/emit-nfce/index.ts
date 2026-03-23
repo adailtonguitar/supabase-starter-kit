@@ -352,24 +352,31 @@ async function handleEmit(supabase: any, body: any) {
     if (PIS.PISAliq) totalVPIS += PIS.PISAliq.vPIS;
     if (COFINS.COFINSAliq) totalVCOFINS += COFINS.COFINSAliq.vCOFINS;
 
+    const prodBlock: any = {
+      cProd: item.product_id || String(i + 1),
+      cEAN: "SEM GTIN",
+      xProd: item.name,
+      NCM: ncm,
+      CFOP: cfop,
+      uCom: item.unit || "UN",
+      qCom: qty,
+      vUnCom: unitPrice,
+      vProd,
+      cEANTrib: "SEM GTIN",
+      uTrib: item.unit || "UN",
+      qTrib: qty,
+      vUnTrib: unitPrice,
+      indTot: 1,
+    };
+
+    // CEST — obrigatório para ST e alguns NCMs
+    if (item.cest) {
+      prodBlock.CEST = String(item.cest).replace(/\D/g, "");
+    }
+
     const det: any = {
       nItem: i + 1,
-      prod: {
-        cProd: item.product_id || String(i + 1),
-        cEAN: "SEM GTIN",
-        xProd: item.name,
-        NCM: ncm,
-        CFOP: cfop,
-        uCom: item.unit || "UN",
-        qCom: qty,
-        vUnCom: unitPrice,
-        vProd,
-        cEANTrib: "SEM GTIN",
-        uTrib: item.unit || "UN",
-        qTrib: qty,
-        vUnTrib: unitPrice,
-        indTot: 1,
-      },
+      prod: prodBlock,
       imposto: {
         ICMS: icmsBlock,
         PIS,
