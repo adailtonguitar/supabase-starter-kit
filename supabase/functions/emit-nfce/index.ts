@@ -661,7 +661,7 @@ async function handleEmit(supabase: any, body: any) {
       environment: ambiente,
       customer_name: form.customer_name || null,
       customer_cpf_cnpj: form.customer_doc || null,
-      payment_method: tPag,
+      payment_method: mainTpag,
       access_key: rejAccessKey,
       protocol_number: rejProtocol,
       rejection_reason: rejCode ? `[${rejCode}] ${rejReason}` : rejReason,
