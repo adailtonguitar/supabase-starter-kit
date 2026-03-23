@@ -105,8 +105,8 @@ function buildIcmsBlock(item: any, isSimples: boolean) {
   if (isSimples) {
     // Simples Nacional → CSOSN
     if (CSOSN_ST.has(cst)) {
-      // ST no Simples
-      const mva = item.mva || 0;
+      // ST no Simples — MVA default 40% quando não configurado (evitar vBCST = vProd)
+      const mva = item.mva != null && item.mva > 0 ? item.mva : 40;
       const bcST = vProd * (1 + mva / 100);
       const icmsST = bcST * (aliqIcms / 100);
       return {
