@@ -105,3 +105,6 @@ verify_jwt = false
 
 [functions.auto-fetch-dfe]
 verify_jwt = false
+
+[functions.daily-reconciliation]
+verify_jwt = false
