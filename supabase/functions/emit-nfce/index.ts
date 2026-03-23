@@ -891,10 +891,23 @@ async function handleCancel(supabase: any, body: any, callerUserId?: string | nu
   return jsonResponse({ success: true, data });
 }
 
-// ─── Download PDF ───
-async function handleDownloadPdf(body: any) {
-  const { access_key, doc_type } = body;
+// ─── Download PDF (com validação cross-tenant) ───
+async function handleDownloadPdf(supabase: any, body: any, callerUserId?: string | null) {
+  const { access_key, doc_type, company_id } = body;
   if (!access_key) return jsonResponse({ error: "Chave de acesso obrigatória" }, 400);
+
+  // Validação cross-tenant
+  if (callerUserId && company_id) {
+    const { data: docOwner } = await supabase
+      .from("fiscal_documents")
+      .select("id")
+      .eq("access_key", access_key)
+      .eq("company_id", company_id)
+      .maybeSingle();
+    if (!docOwner) {
+      return jsonResponse({ success: false, error: "Documento não pertence a esta empresa" }, 403);
+    }
+  }
 
   const token = await getNuvemFiscalToken();
   const baseUrl = getApiBaseUrl();
@@ -919,10 +932,23 @@ async function handleDownloadPdf(body: any) {
   return jsonResponse({ success: true, pdf_base64: base64 });
 }
 
-// ─── Download XML ───
-async function handleDownloadXml(body: any) {
-  const { access_key, doc_type } = body;
+// ─── Download XML (com validação cross-tenant) ───
+async function handleDownloadXml(supabase: any, body: any, callerUserId?: string | null) {
+  const { access_key, doc_type, company_id } = body;
   if (!access_key) return jsonResponse({ error: "Chave de acesso obrigatória" }, 400);
+
+  // Validação cross-tenant
+  if (callerUserId && company_id) {
+    const { data: docOwner } = await supabase
+      .from("fiscal_documents")
+      .select("id")
+      .eq("access_key", access_key)
+      .eq("company_id", company_id)
+      .maybeSingle();
+    if (!docOwner) {
+      return jsonResponse({ success: false, error: "Documento não pertence a esta empresa" }, 403);
+    }
+  }
 
   const token = await getNuvemFiscalToken();
   const baseUrl = getApiBaseUrl();
