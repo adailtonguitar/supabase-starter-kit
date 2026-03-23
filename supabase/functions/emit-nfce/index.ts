@@ -846,8 +846,42 @@ async function handleCancel(supabase: any, body: any, callerUserId?: string | nu
     return jsonResponse({ success: false, error: data?.mensagem || "Erro ao cancelar" });
   }
 
-  // Atualizar status no banco
-  if (access_key) {
+  // Atualizar status no banco e reverter venda via cancel_sale_atomic
+  if (access_key && company_id) {
+    // Buscar sale_id vinculado ao documento
+    const { data: fiscalDoc } = await supabase
+      .from("fiscal_documents")
+      .select("id, sale_id")
+      .eq("access_key", access_key)
+      .eq("company_id", company_id)
+      .maybeSingle();
+
+    // Atualizar documento fiscal
+    await supabase
+      .from("fiscal_documents")
+      .update({ status: "cancelada" })
+      .eq("access_key", access_key)
+      .eq("company_id", company_id);
+
+    // Se há venda vinculada, reverter estoque e financeiro atomicamente
+    if (fiscalDoc?.sale_id) {
+      try {
+        const { data: cancelResult, error: cancelErr } = await supabase.rpc("cancel_sale_atomic", {
+          p_sale_id: fiscalDoc.sale_id,
+          p_company_id: company_id,
+          p_reason: `Cancelamento fiscal: ${justificativa}`,
+          p_performed_by: callerUserId || null,
+        });
+        if (cancelErr) {
+          console.warn(`[emit-nfce] cancel_sale_atomic falhou para sale ${fiscalDoc.sale_id}:`, cancelErr.message);
+        } else {
+          console.log(`[emit-nfce] Venda ${fiscalDoc.sale_id} revertida (estoque + financeiro) após cancelamento fiscal`);
+        }
+      } catch (revertErr: any) {
+        console.warn(`[emit-nfce] Erro ao reverter venda:`, revertErr.message);
+      }
+    }
+  } else if (access_key) {
     await supabase
       .from("fiscal_documents")
       .update({ status: "cancelada" })
