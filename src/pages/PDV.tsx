@@ -794,7 +794,7 @@ export default function PDV() {
         const savedItems = [...pdv.cartItems];
         const savedTotal = pdv.total;
         const savedClient = selectedClient;
-        const result = await pdv.finalizeSale(paymentResults, { skipFiscal: skipFiscalEmission });
+        const result = await pdv.finalizeSale(paymentResults, { skipFiscal: skipFiscalEmission, maxDiscountPercent });
         playSaleCompleteSound();
         setReceipt({
           items: savedItems, total: savedTotal,
@@ -856,7 +856,7 @@ export default function PDV() {
       }];
       const savedItems = [...pdv.cartItems];
       const savedTotal = total;
-      const result = await pdv.finalizeSale(paymentResults, { skipFiscal: skipFiscalEmission });
+      const result = await pdv.finalizeSale(paymentResults, { skipFiscal: skipFiscalEmission, maxDiscountPercent });
       playSaleCompleteSound();
 
       // ── Fix: Update sale status and financial entries ──

@@ -626,7 +626,7 @@ export function usePDV() {
     }
   }, [processFiscalEmission]);
 
-  const finalizeSale = useCallback(async (payments: PaymentResult[], options?: { skipFiscal?: boolean }) => {
+  const finalizeSale = useCallback(async (payments: PaymentResult[], options?: { skipFiscal?: boolean; maxDiscountPercent?: number }) => {
     // ── Guard contra double-click (ref + state) ──
     if (finalizingRef.current) {
       toast.warning("Venda já em processamento, aguarde...", { duration: 1200 });
@@ -841,6 +841,25 @@ export function usePDV() {
 
       // ── CONTINGENCY FALLBACK ──
       // Online sale failed, entering contingency mode
+
+      // ── Validate discount limits before accepting offline sale ──
+      const maxDisc = options?.maxDiscountPercent ?? 5; // Default to "caixa" limit
+      if (globalDiscountPercent > maxDisc) {
+        toast.error(`🚫 Desconto global de ${globalDiscountPercent}% excede o limite de ${maxDisc}% para seu perfil.`, { duration: 6000 });
+        finalizingRef.current = false;
+        setFinalizingSale(false);
+        throw new Error("DISCOUNT_BLOCKED");
+      }
+      for (const [itemId, disc] of Object.entries(itemDiscounts)) {
+        if (disc > maxDisc) {
+          const itemName = cartItems.find(i => i.id === itemId)?.name || itemId;
+          toast.error(`🚫 Desconto de ${disc}% no item "${itemName}" excede o limite de ${maxDisc}%.`, { duration: 6000 });
+          finalizingRef.current = false;
+          setFinalizingSale(false);
+          throw new Error("DISCOUNT_BLOCKED");
+        }
+      }
+
       setContingencyMode(true);
 
       // Get user_id for contingency — use cached value when offline
@@ -858,7 +877,8 @@ export function usePDV() {
 
       const saleItems: FinalizeSaleItemInput[] = cartItems.map((item) => {
         const manualDiscountRaw = itemDiscounts[item.id] || 0;
-        const manualDiscount = Number.isFinite(manualDiscountRaw) ? manualDiscountRaw : 0;
+        // Clamp discount to max allowed (defense in depth)
+        const manualDiscount = Math.min(Number.isFinite(manualDiscountRaw) ? manualDiscountRaw : 0, maxDisc);
         const effectivePrice = item.price;
         const priceAfterManual = effectivePrice * (1 - manualDiscount / 100);
         const itemSubtotal = priceAfterManual * item.quantity;
