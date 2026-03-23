@@ -9,14 +9,6 @@
 CREATE INDEX IF NOT EXISTS idx_fiscal_documents_company_status
   ON fiscal_documents (company_id, status);
 
-CREATE INDEX IF NOT EXISTS idx_fiscal_documents_sale_id
-  ON fiscal_documents (sale_id)
-  WHERE sale_id IS NOT NULL;
-
-CREATE INDEX IF NOT EXISTS idx_fiscal_documents_access_key
-  ON fiscal_documents (access_key)
-  WHERE access_key IS NOT NULL;
-
 CREATE INDEX IF NOT EXISTS idx_fiscal_documents_created_at
   ON fiscal_documents (company_id, created_at DESC);
 
