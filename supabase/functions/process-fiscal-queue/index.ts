@@ -54,6 +54,24 @@ Deno.serve(async (req) => {
     const saleId = queueItem.sale_id;
     const companyId = queueItem.company_id;
     const attempts = (queueItem.attempts || 0) + 1;
+    const MAX_RETRIES = 10;
+
+    // Dead-letter: mover para erro definitivo após máximo de tentativas
+    if (attempts > MAX_RETRIES) {
+      await Promise.all([
+        supabase.from("fiscal_queue")
+          .update({ status: "dead_letter", last_error: `Excedeu ${MAX_RETRIES} tentativas`, updated_at: new Date().toISOString() })
+          .eq("id", queueId),
+        supabase.from("sales")
+          .update({ status: "erro_fiscal" })
+          .eq("id", saleId)
+          .eq("company_id", companyId),
+      ]);
+      return new Response(
+        JSON.stringify({ success: false, dead_letter: true, sale_id: saleId, error: `Excedeu ${MAX_RETRIES} tentativas` }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     // 3️⃣ Marcar como processing
     await supabase
@@ -210,6 +228,18 @@ Deno.serve(async (req) => {
       };
     });
 
+    // Build payments array for multi-payment support
+    const paymentMethodMap: Record<string, string> = {
+      dinheiro: "01", credito: "03", debito: "04", pix: "17", voucher: "05",
+    };
+
+    const fiscalPayments = payments.length > 0
+      ? payments.map((p: any) => ({
+          tPag: paymentMethodMap[p.method] || "99",
+          vPag: p.amount || p.value || 0,
+        }))
+      : [{ tPag: "99", vPag: sale.total }];
+
     // 6️⃣ Chamar emissão fiscal
     const { data: fiscalData, error: fiscalErr } = await supabase.functions.invoke(
       "emit-nfce",
@@ -222,6 +252,7 @@ Deno.serve(async (req) => {
           form: {
             nat_op: "VENDA DE MERCADORIA",
             crt,
+            payments: fiscalPayments,
             payment_method: paymentMethodMap[payments[0]?.method] || "99",
             payment_value: sale.total,
             change: payments[0]?.change_amount || 0,

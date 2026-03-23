@@ -352,24 +352,31 @@ async function handleEmit(supabase: any, body: any) {
     if (PIS.PISAliq) totalVPIS += PIS.PISAliq.vPIS;
     if (COFINS.COFINSAliq) totalVCOFINS += COFINS.COFINSAliq.vCOFINS;
 
+    const prodBlock: any = {
+      cProd: item.product_id || String(i + 1),
+      cEAN: "SEM GTIN",
+      xProd: item.name,
+      NCM: ncm,
+      CFOP: cfop,
+      uCom: item.unit || "UN",
+      qCom: qty,
+      vUnCom: unitPrice,
+      vProd,
+      cEANTrib: "SEM GTIN",
+      uTrib: item.unit || "UN",
+      qTrib: qty,
+      vUnTrib: unitPrice,
+      indTot: 1,
+    };
+
+    // CEST — obrigatório para ST e alguns NCMs
+    if (item.cest) {
+      prodBlock.CEST = String(item.cest).replace(/\D/g, "");
+    }
+
     const det: any = {
       nItem: i + 1,
-      prod: {
-        cProd: item.product_id || String(i + 1),
-        cEAN: "SEM GTIN",
-        xProd: item.name,
-        NCM: ncm,
-        CFOP: cfop,
-        uCom: item.unit || "UN",
-        qCom: qty,
-        vUnCom: unitPrice,
-        vProd,
-        cEANTrib: "SEM GTIN",
-        uTrib: item.unit || "UN",
-        qTrib: qty,
-        vUnTrib: unitPrice,
-        indTot: 1,
-      },
+      prod: prodBlock,
       imposto: {
         ICMS: icmsBlock,
         PIS,
@@ -387,12 +394,25 @@ async function handleEmit(supabase: any, body: any) {
   // Valor total da NF
   const vNF = Math.round((totalVProd - totalVDesc + totalVST) * 100) / 100;
 
-  // Pagamento
-  const tPag = form.payment_method || "01";
-  const vPag = form.payment_value || vNF;
+  // Pagamento — suporte a múltiplas formas (split payment)
   const troco = form.change || 0;
+  const detPag: any[] = [];
 
-  const detPag: any[] = [{ tPag, vPag: Math.round(vPag * 100) / 100 }];
+  if (form.payments && Array.isArray(form.payments) && form.payments.length > 0) {
+    // Múltiplas formas de pagamento
+    for (const p of form.payments) {
+      detPag.push({
+        tPag: p.tPag || p.method || "99",
+        vPag: Math.round((p.vPag || p.value || 0) * 100) / 100,
+      });
+    }
+  } else {
+    // Fallback: forma única
+    const tPag = form.payment_method || "01";
+    const vPag = form.payment_value || vNF;
+    detPag.push({ tPag, vPag: Math.round(vPag * 100) / 100 });
+  }
+
   const pagBlock: any = { detPag };
   if (troco > 0) {
     pagBlock.vTroco = Math.round(troco * 100) / 100;
@@ -613,6 +633,7 @@ async function handleEmit(supabase: any, body: any) {
   else finalStatus = "pendente";
 
   // Salvar documento fiscal
+  const mainPayMethod = detPag[0]?.tPag || "99";
   await supabase.from("fiscal_documents").insert({
     company_id,
     sale_id: sale_id || null,
@@ -626,9 +647,32 @@ async function handleEmit(supabase: any, body: any) {
     environment: ambiente,
     customer_name: form.customer_name || null,
     customer_cpf_cnpj: form.customer_doc || null,
-    payment_method: tPag,
+    payment_method: mainPayMethod,
     is_contingency: isContingency,
   });
+
+  // Auto-save XML no Storage após autorização (obrigação legal: 5 anos)
+  if (isAuthorized && accessKey) {
+    try {
+      const xmlToken = await getNuvemFiscalToken();
+      const xmlBaseUrl = getApiBaseUrl();
+      const xmlResp = await fetch(`${xmlBaseUrl}/nfce/${accessKey}/xml`, {
+        headers: { Authorization: `Bearer ${xmlToken}`, Accept: "application/xml" },
+      });
+      if (xmlResp.ok) {
+        const xmlContent = await xmlResp.text();
+        const safeKey = accessKey.slice(-8);
+        const xmlPath = `${company_id}/xmls/nfce/nfce_${numero}_${safeKey}.xml`;
+        await supabase.storage.from("company-backups").upload(xmlPath, new TextEncoder().encode(xmlContent), {
+          upsert: true,
+          contentType: "application/xml",
+        });
+        console.log(`[emit-nfce] XML salvo automaticamente: ${xmlPath}`);
+      }
+    } catch (xmlErr: any) {
+      console.warn(`[emit-nfce] Falha ao salvar XML automaticamente: ${xmlErr.message}`);
+    }
+  }
 
   console.log(`[emit-nfce] NFC-e #${numero} → Status: ${finalStatus} | Chave: ${accessKey?.substring(0, 20)}...`);
 
@@ -641,10 +685,32 @@ async function handleEmit(supabase: any, body: any) {
   });
 }
 
-// ─── Consultar status ───
-async function handleConsultStatus(body: any) {
-  const { access_key, doc_type } = body;
+// ─── Consultar status (com validação cross-tenant) ───
+async function handleConsultStatus(supabase: any, body: any, callerUserId?: string | null) {
+  const { access_key, doc_type, company_id } = body;
   if (!access_key) return jsonResponse({ error: "Chave de acesso obrigatória" }, 400);
+
+  // Validação cross-tenant: verificar que o documento pertence à empresa do caller
+  if (callerUserId && company_id) {
+    const { data: docOwner } = await supabase
+      .from("fiscal_documents")
+      .select("id")
+      .eq("access_key", access_key)
+      .eq("company_id", company_id)
+      .maybeSingle();
+
+    // Se existe no banco mas não pertence a esta empresa, bloquear
+    if (!docOwner) {
+      const { data: anyDoc } = await supabase
+        .from("fiscal_documents")
+        .select("id")
+        .eq("access_key", access_key)
+        .maybeSingle();
+      if (anyDoc) {
+        return jsonResponse({ success: false, error: "Documento não pertence a esta empresa" }, 403);
+      }
+    }
+  }
 
   const token = await getNuvemFiscalToken();
   const baseUrl = getApiBaseUrl();
@@ -664,16 +730,12 @@ async function handleConsultStatus(body: any) {
   const isAuth = status.includes("autoriz") || status.includes("aprovad") || String(data.codigo_status) === "100";
 
   // Auto-reconciliar no banco se autorizada
-  if (isAuth && body.company_id) {
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
-
+  if (isAuth && company_id) {
     await supabase
       .from("fiscal_documents")
       .update({ status: "autorizada", access_key: data.chave || access_key, protocol_number: data.protocolo || null })
-      .eq("access_key", access_key);
+      .eq("access_key", access_key)
+      .eq("company_id", company_id);
   }
 
   return jsonResponse({
@@ -685,11 +747,27 @@ async function handleConsultStatus(body: any) {
   });
 }
 
-// ─── Cancelar documento ───
-async function handleCancel(supabase: any, body: any) {
-  const { access_key, justificativa, doc_type, doc_id } = body;
+// ─── Cancelar documento (RBAC: apenas admin/gerente) ───
+async function handleCancel(supabase: any, body: any, callerUserId?: string | null) {
+  const { access_key, justificativa, doc_type, doc_id, company_id } = body;
   if (!justificativa || justificativa.length < 15) {
     return jsonResponse({ error: "Justificativa deve ter no mínimo 15 caracteres" }, 400);
+  }
+
+  // RBAC: exigir perfil admin ou gerente para cancelamento
+  if (callerUserId && company_id) {
+    const { data: userRole } = await supabase
+      .from("company_users")
+      .select("role")
+      .eq("user_id", callerUserId)
+      .eq("company_id", company_id)
+      .eq("is_active", true)
+      .maybeSingle();
+
+    const allowedRoles = ["admin", "gerente"];
+    if (!userRole || !allowedRoles.includes(userRole.role)) {
+      return jsonResponse({ success: false, error: "Apenas administradores e gerentes podem cancelar documentos fiscais" }, 403);
+    }
   }
 
   const token = await getNuvemFiscalToken();
@@ -773,8 +851,8 @@ async function handleDownloadXml(body: any) {
   return jsonResponse({ success: true, xml });
 }
 
-// ─── Inutilizar numeração ───
-async function handleInutilize(body: any) {
+// ─── Inutilizar numeração (com persistência) ───
+async function handleInutilize(supabase: any, body: any) {
   const { company_id, doc_type, serie, numero_inicial, numero_final, justificativa } = body;
   if (!justificativa || justificativa.length < 15) {
     return jsonResponse({ error: "Justificativa deve ter no mínimo 15 caracteres" }, 400);
@@ -802,6 +880,24 @@ async function handleInutilize(body: any) {
   const data = await resp.json();
   if (!resp.ok) {
     return jsonResponse({ success: false, error: data?.mensagem || "Erro na inutilização" });
+  }
+
+  // Persistir inutilização na tabela fiscal_documents
+  if (company_id) {
+    const ambiente = Deno.env.get("NUVEM_FISCAL_SANDBOX") === "true" ? "homologacao" : "producao";
+    for (let num = numero_inicial; num <= numero_final; num++) {
+      await supabase.from("fiscal_documents").insert({
+        company_id,
+        doc_type: doc_type || "nfce",
+        number: num,
+        serie: serie || 1,
+        status: "inutilizada",
+        environment: ambiente,
+        rejection_reason: justificativa,
+        is_contingency: false,
+        total_value: 0,
+      });
+    }
   }
 
   return jsonResponse({ success: true, data });
@@ -941,15 +1037,15 @@ Deno.serve(async (req) => {
       case "emit":
         return await handleEmit(supabase, body);
       case "consult_status":
-        return await handleConsultStatus(body);
+        return await handleConsultStatus(supabase, body, userId);
       case "cancel":
-        return await handleCancel(supabase, body);
+        return await handleCancel(supabase, body, userId);
       case "download_pdf":
         return await handleDownloadPdf(body);
       case "download_xml":
         return await handleDownloadXml(body);
       case "inutilize":
-        return await handleInutilize(body);
+        return await handleInutilize(supabase, body);
       case "backup_xmls":
         return await handleBackupXmls(supabase, body);
       default:
