@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/utils";
-import { logAction, newPdvTraceId } from "@/services/ActionLogger";
+import { logAction, newPdvTraceId, buildDiff } from "@/services/ActionLogger";
 import { ReturnReceipt } from "./ReturnReceipt";
 import { FiscalReturnHandler } from "./FiscalReturnHandler";
 
