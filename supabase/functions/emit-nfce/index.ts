@@ -1037,15 +1037,15 @@ Deno.serve(async (req) => {
       case "emit":
         return await handleEmit(supabase, body);
       case "consult_status":
-        return await handleConsultStatus(body);
+        return await handleConsultStatus(supabase, body, userId);
       case "cancel":
-        return await handleCancel(supabase, body);
+        return await handleCancel(supabase, body, userId);
       case "download_pdf":
         return await handleDownloadPdf(body);
       case "download_xml":
         return await handleDownloadXml(body);
       case "inutilize":
-        return await handleInutilize(body);
+        return await handleInutilize(supabase, body);
       case "backup_xmls":
         return await handleBackupXmls(supabase, body);
       default:
