@@ -906,11 +906,27 @@ async function handleDownloadXml(body: any) {
   return jsonResponse({ success: true, xml });
 }
 
-// ─── Inutilizar numeração (com persistência) ───
-async function handleInutilize(supabase: any, body: any) {
+// ─── Inutilizar numeração (RBAC: apenas admin/gerente) ───
+async function handleInutilize(supabase: any, body: any, callerUserId?: string | null) {
   const { company_id, doc_type, serie, numero_inicial, numero_final, justificativa } = body;
   if (!justificativa || justificativa.length < 15) {
     return jsonResponse({ error: "Justificativa deve ter no mínimo 15 caracteres" }, 400);
+  }
+
+  // RBAC: exigir perfil admin ou gerente
+  if (callerUserId && company_id) {
+    const { data: userRole } = await supabase
+      .from("company_users")
+      .select("role")
+      .eq("user_id", callerUserId)
+      .eq("company_id", company_id)
+      .eq("is_active", true)
+      .maybeSingle();
+
+    const allowedRoles = ["admin", "gerente"];
+    if (!userRole || !allowedRoles.includes(userRole.role)) {
+      return jsonResponse({ success: false, error: "Apenas administradores e gerentes podem inutilizar numeração fiscal" }, 403);
+    }
   }
 
   const token = await getNuvemFiscalToken();
