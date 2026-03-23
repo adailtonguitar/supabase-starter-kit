@@ -159,6 +159,13 @@ BEGIN
     END IF;
   END IF;
 
+  -- Registrar idempotency key para prevenir duplicidade
+  IF p_idempotency_key IS NOT NULL THEN
+    INSERT INTO action_logs (company_id, user_id, action, module, details)
+    VALUES (p_company_id, v_uid, 'mark_paid_idempotent', 'financeiro',
+            jsonb_build_object('entry_id', p_entry_id, 'idempotency_key', p_idempotency_key, 'amount', p_paid_amount)::text);
+  END IF;
+
   RETURN jsonb_build_object(
     'success', true,
     'entry_id', p_entry_id,
