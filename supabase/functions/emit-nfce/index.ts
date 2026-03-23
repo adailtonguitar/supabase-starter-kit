@@ -685,11 +685,27 @@ async function handleConsultStatus(body: any) {
   });
 }
 
-// ─── Cancelar documento ───
-async function handleCancel(supabase: any, body: any) {
-  const { access_key, justificativa, doc_type, doc_id } = body;
+// ─── Cancelar documento (RBAC: apenas admin/gerente) ───
+async function handleCancel(supabase: any, body: any, callerUserId?: string | null) {
+  const { access_key, justificativa, doc_type, doc_id, company_id } = body;
   if (!justificativa || justificativa.length < 15) {
     return jsonResponse({ error: "Justificativa deve ter no mínimo 15 caracteres" }, 400);
+  }
+
+  // RBAC: exigir perfil admin ou gerente para cancelamento
+  if (callerUserId && company_id) {
+    const { data: userRole } = await supabase
+      .from("company_users")
+      .select("role")
+      .eq("user_id", callerUserId)
+      .eq("company_id", company_id)
+      .eq("is_active", true)
+      .maybeSingle();
+
+    const allowedRoles = ["admin", "gerente"];
+    if (!userRole || !allowedRoles.includes(userRole.role)) {
+      return jsonResponse({ success: false, error: "Apenas administradores e gerentes podem cancelar documentos fiscais" }, 403);
+    }
   }
 
   const token = await getNuvemFiscalToken();
