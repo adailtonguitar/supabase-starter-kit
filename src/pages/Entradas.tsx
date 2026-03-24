@@ -5,8 +5,9 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
   Package, Pencil, Trash2, Info, FileDown, Filter,
-  ChevronDown, Loader2, FileText, CheckCircle2,
+  ChevronDown, Loader2, FileText, CheckCircle2, RotateCcw,
 } from "lucide-react";
+import ReversalDialog from "@/components/entradas/ReversalDialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -30,7 +31,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 const PAGE_SIZES = [5, 10, 25, 50];
 
 export default function Entradas() {
-  const { entries, isLoading, finalizeEntry, deleteEntry } = usePurchaseEntries();
+  const { entries, isLoading, finalizeEntry, deleteEntry, reverseEntry, isReversing } = usePurchaseEntries();
   const navigate = useNavigate();
   const [pageSize, setPageSize] = useState(10);
   const [currentPage, setCurrentPage] = useState(0);
@@ -85,6 +86,7 @@ export default function Entradas() {
                   <SelectItem value="todos">Todos</SelectItem>
                   <SelectItem value="pendente">Pendente</SelectItem>
                   <SelectItem value="finalizado">Finalizado</SelectItem>
+                  <SelectItem value="estornado">Estornado</SelectItem>
                 </SelectContent>
               </Select>
             </CardContent>
@@ -158,25 +160,18 @@ export default function Entradas() {
                             <Pencil className="w-3.5 h-3.5" />
                           </Button>
 
-                          {(entry.status || "pendente") === "finalizado" ? (
-                            <Button
-                              size="icon"
-                              variant="outline"
-                              className="h-8 w-8 opacity-40 cursor-not-allowed"
-                              title="Entradas finalizadas não podem ser excluídas"
-                              disabled
-                            >
+                          {(entry.status || "pendente") === "estornado" ? (
+                            <Button size="icon" variant="outline" className="h-8 w-8 opacity-40 cursor-not-allowed" disabled title="Entrada estornada">
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </Button>
+                          ) : (entry.status || "pendente") === "finalizado" ? (
+                            <Button size="icon" variant="outline" className="h-8 w-8 opacity-40 cursor-not-allowed" disabled title="Entradas finalizadas não podem ser excluídas">
                               <Trash2 className="w-3.5 h-3.5" />
                             </Button>
                           ) : (
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
-                                <Button
-                                  size="icon"
-                                  variant="outline"
-                                  className="h-8 w-8 bg-destructive/10 text-destructive hover:bg-destructive/20"
-                                  title="Excluir"
-                                >
+                                <Button size="icon" variant="outline" className="h-8 w-8 bg-destructive/10 text-destructive hover:bg-destructive/20" title="Excluir">
                                   <Trash2 className="w-3.5 h-3.5" />
                                 </Button>
                               </AlertDialogTrigger>
@@ -189,12 +184,19 @@ export default function Entradas() {
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
                                   <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                  <AlertDialogAction onClick={() => deleteEntry(entry.id)}>
-                                    Confirmar
-                                  </AlertDialogAction>
+                                  <AlertDialogAction onClick={() => deleteEntry(entry.id)}>Confirmar</AlertDialogAction>
                                 </AlertDialogFooter>
                               </AlertDialogContent>
                             </AlertDialog>
+                          )}
+
+                          {(entry.status || "pendente") === "finalizado" && (
+                            <ReversalDialog
+                              entryId={entry.id}
+                              supplierName={entry.supplier_name}
+                              onConfirm={reverseEntry}
+                              isLoading={isReversing}
+                            />
                           )}
 
                           <Button
@@ -232,7 +234,12 @@ export default function Entradas() {
                       </TableCell>
                       <TableCell className="text-center">
                         <div className="flex flex-col items-center gap-1">
-                          {(entry.status || "pendente") === "finalizado" ? (
+                          {(entry.status || "pendente") === "estornado" ? (
+                            <Badge variant="destructive" className="text-xs">
+                              <RotateCcw className="w-3 h-3 mr-1" />
+                              Estornado
+                            </Badge>
+                          ) : (entry.status || "pendente") === "finalizado" ? (
                             <Badge variant="default" className="bg-green-600 hover:bg-green-700 text-xs">
                               <CheckCircle2 className="w-3 h-3 mr-1" />
                               Finalizado
