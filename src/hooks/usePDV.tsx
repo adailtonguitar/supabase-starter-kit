@@ -167,7 +167,7 @@ export function usePDV() {
         p_sold_by: userId || null,
         p_idempotency_key: idempotencyKey,
       });
-      if (!rpcFinalize.success) throw new Error((rpcFinalize as any).error);
+      if (!rpcFinalize.success) throw new Error(rpcFinalize.error || "Erro na transação");
       const result = rpcFinalize.data;
       if (!result.success) {
         const err = result.error || "Erro desconhecido na transação";
