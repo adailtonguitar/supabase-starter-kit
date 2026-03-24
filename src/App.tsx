@@ -13,6 +13,7 @@ import { LocalDBProvider } from "@/components/providers/LocalDBProvider";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { UpdateNoticeModal } from "@/components/UpdateNoticeModal";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { HelmetProvider } from "react-helmet-async";
 import { useSessionControl } from "@/hooks/useSessionControl";
 import { ScrollToTop } from "@/components/ScrollToTop";
 import { OnboardingWizard } from "@/components/onboarding/OnboardingWizard";
@@ -227,6 +228,7 @@ function AppRoutes() {
 
 const App = () => (
   <ErrorBoundary>
+    <HelmetProvider>
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <Toaster />
@@ -249,6 +251,7 @@ const App = () => (
         </BrowserRouter>
       </TooltipProvider>
     </QueryClientProvider>
+    </HelmetProvider>
   </ErrorBoundary>
 );
 
