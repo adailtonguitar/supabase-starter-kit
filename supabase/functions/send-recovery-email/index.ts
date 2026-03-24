@@ -21,6 +21,23 @@ Deno.serve(async (req) => {
       );
     }
 
+    // IP-based rate limiting: max 5 recovery emails per 5 minutes
+    const clientIp = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    const rlKey = `recovery:${clientIp}:${email}`;
+    const now = Date.now();
+    const rlEntry = recoveryRateMap.get(rlKey);
+    if (rlEntry && now < rlEntry.resetAt && rlEntry.count >= 5) {
+      return new Response(
+        JSON.stringify({ error: "Muitas tentativas. Aguarde alguns minutos." }),
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    if (!rlEntry || now >= rlEntry.resetAt) {
+      recoveryRateMap.set(rlKey, { count: 1, resetAt: now + 300_000 });
+    } else {
+      rlEntry.count++;
+    }
+
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
