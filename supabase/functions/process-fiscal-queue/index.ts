@@ -184,8 +184,13 @@ Deno.serve(async (req) => {
     const crt = (company as any)?.crt || 1;
     const isSimples = crt === 1 || crt === 2;
     const defaultCst = isSimples ? "102" : "00";
-    const defaultPisCofins = isSimples ? "49" : "01"; // 🟠 CORREÇÃO #5: PIS/COFINS por regime
+    const defaultPisCofins = isSimples ? "49" : "01";
     const payments = (sale.payments as any[]) || [];
+
+    // Mapa de métodos de pagamento → tPag SEFAZ
+    const paymentMethodMap: Record<string, string> = {
+      dinheiro: "01", credito: "03", debito: "04", pix: "17", voucher: "05",
+    };
 
     // 🔴 CRÍTICO: Verificar NCM de todos os itens antes de emitir
     const itemsWithoutNcm = items.filter((item: any) => {

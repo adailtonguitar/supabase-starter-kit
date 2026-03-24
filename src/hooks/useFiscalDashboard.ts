@@ -35,13 +35,13 @@ export function useFiscalDashboard() {
     queryFn: async (): Promise<FiscalMetrics> => {
       if (!companyId) return { emittedToday: 0, pending: 0, processing: 0, errors: 0, criticalErrors: false };
 
-      type EmittedDocRow = { id: string; sale_id: string | null; access_key: string | null };
+      type EmittedDocRow = { id: string; access_key: string | null };
       type QueueStatusRow = { sale_id: string | null; status: string; attempts: number | null };
 
       const [emittedDocsRes, queueEntriesRes] = await Promise.all([
         supabase
           .from("fiscal_documents")
-          .select("id, sale_id, access_key")
+          .select("id, access_key")
           .eq("company_id", companyId)
           .eq("doc_type", "nfce")
           .eq("status", "autorizada")
@@ -55,7 +55,7 @@ export function useFiscalDashboard() {
       ]);
 
       const emittedToday = new Set(
-        (emittedDocsRes.data || []).map((row: EmittedDocRow) => row.sale_id || row.access_key || row.id)
+        (emittedDocsRes.data || []).map((row: EmittedDocRow) => row.access_key || row.id)
       ).size;
 
       const latestQueueBySale = new Map<string, { status: string; attempts: number }>();
