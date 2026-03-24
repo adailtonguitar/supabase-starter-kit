@@ -42,7 +42,7 @@ export function useLocalProducts() {
       // Offline or fetch failed: read from IndexedDB
       const cached = await cacheGet<LocalProduct[]>("products", companyId);
       if (cached) {
-        console.log(`[useLocalProducts] Serving ${cached.data.length} products from cache (stale: ${cached.stale})`);
+        // console.log(`[useLocalProducts] Serving ${cached.data.length} products from cache (stale: ${cached.stale})`);
         return cached.data;
       }
 

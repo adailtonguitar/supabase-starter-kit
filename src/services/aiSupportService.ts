@@ -574,7 +574,7 @@ export async function getResponse(
 
   // Step 2: High-confidence local match → return instantly (no API call)
   if (localResult && localResult.score >= HIGH_CONFIDENCE_THRESHOLD) {
-    console.log(`[Assistente] Resposta local (score ${localResult.score})`);
+    // console.log(`[Assistente] Resposta local (score ${localResult.score})`);
     return localResult.answer;
   }
 
@@ -617,7 +617,7 @@ export async function getResponse(
         try {
           const data = await res.json();
           if (data?.answer && typeof data.answer === "string") {
-            console.log("[Assistente] Resposta Gemini");
+            // console.log("[Assistente] Resposta Gemini");
             return data.answer;
           }
         } catch {
@@ -633,7 +633,7 @@ export async function getResponse(
 
   // Step 4: Gemini failed or offline → use local match (even low confidence)
   if (localResult) {
-    console.log(`[Assistente] Fallback local (score ${localResult.score})`);
+    // console.log(`[Assistente] Fallback local (score ${localResult.score})`);
     if (localResult.score < 50) {
       return localResult.answer + `\n\n---\n\n💡 Se essa resposta não resolveu, fale com nosso [**suporte humano via WhatsApp**](${WHATSAPP_SUPPORT_URL}) ou clique em **"Suporte Humano"** acima.`;
     }

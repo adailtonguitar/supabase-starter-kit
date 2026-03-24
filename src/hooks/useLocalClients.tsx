@@ -65,7 +65,7 @@ export function useLocalClients() {
       // Offline or fetch failed: read from IndexedDB
       const cached = await cacheGet<LocalClient[]>("clients", companyId);
       if (cached) {
-        console.log(`[useLocalClients] Serving ${cached.data.length} clients from cache (stale: ${cached.stale})`);
+        // console.log(`[useLocalClients] Serving ${cached.data.length} clients from cache (stale: ${cached.stale})`);
         return cached.data;
       }
 

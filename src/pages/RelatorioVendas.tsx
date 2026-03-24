@@ -64,7 +64,7 @@ export default function RelatorioVendas() {
         return [];
       }
       
-      console.log("[RelatorioVendas] Fetching sales for company:", companyId, "from:", dateRange.from, "to:", dateRange.to);
+      // console.log("[RelatorioVendas] Fetching sales for company:", companyId, "from:", dateRange.from, "to:", dateRange.to);
       
       // Fetch sales from the sales table (source of truth)
       const { data: salesData, error: salesError } = await supabase
@@ -79,7 +79,7 @@ export default function RelatorioVendas() {
         console.error("[RelatorioVendas] Sales query error:", salesError);
         throw salesError;
       }
-      console.log("[RelatorioVendas] Sales found:", salesData?.length || 0);
+      // console.log("[RelatorioVendas] Sales found:", salesData?.length || 0);
       if (!salesData || salesData.length === 0) return [];
 
       type SaleDbRow = {

@@ -182,7 +182,7 @@ export default function Auth() {
     }
     setLoading(true);
     try {
-      console.log("[Auth] Sending recovery email via edge function to:", forgotEmail);
+      // console.log("[Auth] Sending recovery email via edge function to:", forgotEmail);
       const { data, error } = await supabase.functions.invoke("send-recovery-email", {
         body: { email: forgotEmail, redirectTo: `${window.location.origin}/reset-password` },
       });

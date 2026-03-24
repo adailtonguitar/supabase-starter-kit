@@ -96,6 +96,6 @@ export function initErrorTracker() {
     void trackError({
       action: "manual_test",
       error: new Error("Teste manual de erro do sistema"),
-    }).then(() => console.log("[ErrorTracker] Test error sent!"));
+    }).then(() => // console.log("[ErrorTracker] Test error sent!"));
   };
 }
