@@ -6,6 +6,8 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
+const recoveryRateMap = new Map<string, { count: number; resetAt: number }>();
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -19,6 +21,23 @@ Deno.serve(async (req) => {
         JSON.stringify({ error: "E-mail é obrigatório" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
+    }
+
+    // IP-based rate limiting: max 5 recovery emails per 5 minutes
+    const clientIp = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    const rlKey = `recovery:${clientIp}:${email}`;
+    const now = Date.now();
+    const rlEntry = recoveryRateMap.get(rlKey);
+    if (rlEntry && now < rlEntry.resetAt && rlEntry.count >= 5) {
+      return new Response(
+        JSON.stringify({ error: "Muitas tentativas. Aguarde alguns minutos." }),
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    if (!rlEntry || now >= rlEntry.resetAt) {
+      recoveryRateMap.set(rlKey, { count: 1, resetAt: now + 300_000 });
+    } else {
+      rlEntry.count++;
     }
 
     const supabaseAdmin = createClient(

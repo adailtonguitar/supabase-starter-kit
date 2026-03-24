@@ -47,7 +47,19 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "company_id required" }), { status: 400, headers: corsHeaders });
     }
 
-    // Verify super_admin
+    // Rate limiting: max 3 backups per 10 minutes per company
+    const { data: allowed } = await adminClient.rpc("check_rate_limit", {
+      p_company_id: company_id,
+      p_fn_name: "export-backup",
+      p_max_calls: 3,
+      p_window_sec: 600,
+    });
+    if (allowed === false) {
+      return new Response(JSON.stringify({ error: "Limite de backups excedido. Aguarde 10 minutos." }), {
+        status: 429, headers: corsHeaders,
+      });
+    }
+
     const adminClient = createClient(supabaseUrl, serviceKey);
     const { data: roleData } = await adminClient
       .from("admin_roles")

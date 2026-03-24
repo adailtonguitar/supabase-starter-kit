@@ -67,6 +67,19 @@ Deno.serve(async (req) => {
 
     if (!company_id) throw new Error("company_id é obrigatório");
 
+    // Rate limiting: max 20 DFe requests per minute per company
+    const { data: allowed } = await supabase.rpc("check_rate_limit", {
+      p_company_id: company_id,
+      p_fn_name: "fetch-dfe",
+      p_max_calls: 20,
+      p_window_sec: 60,
+    });
+    if (allowed === false) {
+      return new Response(JSON.stringify({ error: "Limite de consultas DFe excedido. Aguarde 1 minuto." }), {
+        status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // Get company CNPJ
     const { data: company, error: compErr } = await supabase
       .from("companies")

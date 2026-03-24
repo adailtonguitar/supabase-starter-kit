@@ -197,7 +197,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
   useEffect(() => { checkSubscription(); const interval = setInterval(checkSubscription, 15 * 60_000); return () => clearInterval(interval); }, [checkSubscription]); // 15 min (was 5)
 
   const createCheckout = useCallback(async (planKey: string) => {
-    console.log("[createCheckout] Starting checkout for plan:", planKey);
+    // console.log("[createCheckout] Starting checkout for plan:", planKey);
 
     const tryInvoke = async (functionName: "create-checkout-v2" | "create-checkout") => {
       const { data, error } = await supabase.functions.invoke(functionName, { body: { planKey } });

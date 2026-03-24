@@ -487,6 +487,9 @@ async function callGemini(messages: Array<{role: string; content: string}>): Pro
   throw new Error("All Gemini models failed");
 }
 
+// ── In-memory rate limiting ──
+const aiSupportRateMap = new Map<string, { count: number; resetAt: number }>();
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -514,6 +517,21 @@ Deno.serve(async (req) => {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    // Rate limiting: max 10 messages per minute per user
+    const rlKey = user.id;
+    const now = Date.now();
+    const rlEntry = aiSupportRateMap.get(rlKey);
+    if (rlEntry && now < rlEntry.resetAt && rlEntry.count >= 10) {
+      return new Response(JSON.stringify({ error: "Limite de mensagens excedido. Aguarde 1 minuto." }), {
+        status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    if (!rlEntry || now >= rlEntry.resetAt) {
+      aiSupportRateMap.set(rlKey, { count: 1, resetAt: now + 60_000 });
+    } else {
+      rlEntry.count++;
     }
 
     const { messages } = await req.json();

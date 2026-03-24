@@ -1951,7 +1951,7 @@ export default function PDV() {
         <CashRegister
           terminalId={terminalId}
           onClose={async () => {
-            console.log("[PDV] CashRegister onClose called");
+            // console.log("[PDV] CashRegister onClose called");
             selfClosingRef.current = false;
             cashRegisterDismissedRef.current = true;
             setShowCashRegister(false);

@@ -90,7 +90,7 @@ export class CircuitBreaker {
   reset() {
     this.state = "CLOSED";
     this.failures = 0;
-    console.log(`[CircuitBreaker:${this.name}] Manually reset to CLOSED`);
+    // console.log(`[CircuitBreaker:${this.name}] Manually reset to CLOSED`);
   }
 }
 

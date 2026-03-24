@@ -172,7 +172,7 @@ export async function buildContingencyPayload(params: {
       });
 
       payload.signed_xml = await signNfceXml(unsignedXml, params.companyId);
-      console.log("[Contingency] XML assinado localmente com sucesso");
+      // console.log("[Contingency] XML assinado localmente com sucesso");
     }
   } catch (err) {
     console.warn("[Contingency] Falha ao assinar XML localmente:", err);

@@ -126,7 +126,7 @@ export function useCompany(): CompanyData {
     }
 
     if (!navigator.onLine && cached?.companyId) {
-      console.log("[useCompany] Offline — using cached company data");
+      // console.log("[useCompany] Offline — using cached company data");
       setCompanyId(cached.companyId);
       setFields({ ...nullFields, ...cached });
       setLoading(false);
