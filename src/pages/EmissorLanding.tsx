@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
+import { SEOHead } from "@/components/SEOHead";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
@@ -36,7 +37,25 @@ export default function EmissorLanding() {
 
   return (
     <div className="landing-animated h-screen overflow-y-auto overflow-x-hidden bg-background text-foreground scroll-smooth">
-      {/* Nav */}
+      <SEOHead
+        title="Emissor NF-e Online"
+        description="Emita NF-e modelo 55 de forma simples e rápida. Sistema completo de emissão de Nota Fiscal Eletrônica na nuvem, sem instalação. Certificado A1 e A3. R$99,90/mês."
+        path="/emissor"
+        jsonLd={{
+          "@context": "https://schema.org",
+          "@type": "SoftwareApplication",
+          "name": "AnthoSystem Emissor NF-e",
+          "applicationCategory": "BusinessApplication",
+          "operatingSystem": "Web",
+          "description": "Emissor de NF-e modelo 55 completo na nuvem.",
+          "url": "https://anthosystem.com.br/emissor",
+          "offers": {
+            "@type": "Offer",
+            "price": "99.90",
+            "priceCurrency": "BRL"
+          }
+        }}
+      />
       <nav className="sticky top-0 z-50 backdrop-blur-2xl bg-background/70 border-b border-border/50">
         <div className="max-w-7xl mx-auto flex items-center justify-between px-6 h-16">
           <Link to="/" className="flex items-center gap-2">
