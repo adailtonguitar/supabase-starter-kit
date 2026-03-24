@@ -69,6 +69,8 @@ export function LandingHero() {
               Sistema #1 para comércios e varejo
             </div>
 
+            <p className="text-sm font-semibold text-primary uppercase tracking-widest mb-2">AnthoSystem — Seu ERP completo para varejo</p>
+
             <h1 className="font-display text-4xl sm:text-5xl xl:text-6xl font-extrabold tracking-tight leading-[1.1]">
               Gestão completa
               <br />
