@@ -47,7 +47,8 @@ function buildCredentials(creds: ProviderCredentials): Record<string, unknown> {
   return base;
 }
 
-function normalizeResult(provider: TEFProvider, data: Record<string, unknown>): TEFGatewayResult {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function normalizeResult(provider: TEFProvider, data: Record<string, any>): TEFGatewayResult {
   switch (provider) {
     case "cielo": {
       const payment = data?.Payment || data?.payment || {};
@@ -57,20 +58,22 @@ function normalizeResult(provider: TEFProvider, data: Record<string, unknown>): 
     }
     case "rede": {
       const approved = (data?.returnCode || data?.returncode) === "00";
-      return { approved, transactionId: data?.tid, nsu: data?.nsu, authCode: data?.authorizationCode, cardBrand: data?.brand, status: approved ? "approved" : "denied", rawData: data };
+      return { approved, transactionId: String(data?.tid ?? ""), nsu: String(data?.nsu ?? ""), authCode: String(data?.authorizationCode ?? ""), cardBrand: String(data?.brand ?? ""), status: approved ? "approved" : "denied", rawData: data };
     }
     case "pagseguro": {
-      const charge = (data?.charges || [])[0] || {};
+      const charges = Array.isArray(data?.charges) ? data.charges : [];
+      const charge = charges[0] || {};
       const chargeStatus = charge?.status || data?.status;
       const approved = chargeStatus === "PAID" || chargeStatus === "AUTHORIZED";
-      return { approved, transactionId: data?.id, nsu: charge?.payment_response?.reference, authCode: charge?.payment_response?.code, status: approved ? "approved" : chargeStatus, rawData: data };
+      return { approved, transactionId: String(data?.id ?? ""), nsu: String(charge?.payment_response?.reference ?? ""), authCode: String(charge?.payment_response?.code ?? ""), status: approved ? "approved" : String(chargeStatus ?? "unknown"), rawData: data };
     }
     case "stone": {
-      const charge = (data?.charges || [])[0] || {};
+      const charges = Array.isArray(data?.charges) ? data.charges : [];
+      const charge = charges[0] || {};
       const lastTransaction = charge?.last_transaction || {};
       const chargeStatus = charge?.status || data?.status;
       const approved = chargeStatus === "paid" || chargeStatus === "captured";
-      return { approved, transactionId: data?.id, nsu: lastTransaction?.acquirer_nsu, authCode: lastTransaction?.acquirer_auth_code, cardBrand: lastTransaction?.card?.brand, cardLastDigits: lastTransaction?.card?.last_four_digits, status: approved ? "approved" : chargeStatus, rawData: data };
+      return { approved, transactionId: String(data?.id ?? ""), nsu: String(lastTransaction?.acquirer_nsu ?? ""), authCode: String(lastTransaction?.acquirer_auth_code ?? ""), cardBrand: String(lastTransaction?.card?.brand ?? ""), cardLastDigits: String(lastTransaction?.card?.last_four_digits ?? ""), status: approved ? "approved" : String(chargeStatus ?? "unknown"), rawData: data };
     }
     default: return { approved: false, errorMessage: "Provedor desconhecido" };
   }
