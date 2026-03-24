@@ -6,6 +6,8 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const diagRateMap = new Map<string, { count: number; resetAt: number }>();
+
 const SYSTEM_PROMPT = `Consultor financeiro de PMEs. Responda APENAS com a estrutura solicitada, sem nenhum texto antes ou depois.`;
 
 async function callGemini(apiKey: string, systemPrompt: string, userPrompt: string): Promise<{ content: string | null; error: string | null; status: number }> {
