@@ -186,9 +186,6 @@ Deno.serve(async (req) => {
     const defaultCst = isSimples ? "102" : "00";
     const defaultPisCofins = isSimples ? "49" : "01"; // 🟠 CORREÇÃO #5: PIS/COFINS por regime
     const payments = (sale.payments as any[]) || [];
-    const paymentMethodMap: Record<string, string> = {
-      dinheiro: "01", credito: "03", debito: "04", pix: "17", voucher: "05",
-    };
 
     // 🔴 CRÍTICO: Verificar NCM de todos os itens antes de emitir
     const itemsWithoutNcm = items.filter((item: any) => {
