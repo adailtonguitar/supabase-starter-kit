@@ -22,13 +22,13 @@ Deno.serve(async (req) => {
 
     // 1️⃣ Resetar itens presos em "processing" há mais de 5 minutos
     const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
-    const stuckQuery = supabase
+    let stuckQuery = supabase
       .from("fiscal_queue")
       .update({ status: "pending" })
       .eq("status", "processing")
       .lt("updated_at", fiveMinAgo);
 
-    if (companyFilter) stuckQuery.eq("company_id", companyFilter);
+    if (companyFilter) stuckQuery = stuckQuery.eq("company_id", companyFilter);
     await stuckQuery;
 
     // 2️⃣ Buscar próximo item pendente

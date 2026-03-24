@@ -563,7 +563,7 @@ async function handleEmit(supabase: any, body: any) {
       det: detItems,
       total: {
         ICMSTot: {
-          vBC: Math.round(totalVICMS > 0 ? totalVProd : 0) * 100 / 100 || 0,
+          vBC: Math.round((totalVICMS > 0 ? totalVProd : 0) * 100) / 100,
           vICMS: Math.round(totalVICMS * 100) / 100,
           vICMSDeson: 0,
           vFCP: 0,
@@ -677,7 +677,7 @@ async function handleEmit(supabase: any, body: any) {
   const accessKey = nfData.chave || nfData.chave_acesso || nfData.access_key || "";
   const protocolNumber = nfData.protocolo || nfData.numero_protocolo || "";
 
-  const isAuthorized = statusStr.includes("autoriz") || statusStr.includes("aprovad") || cStatStr === "100" || (accessKey.length === 44 && statusStr !== "rejeitada");
+  const isAuthorized = statusStr.includes("autoriz") || statusStr.includes("aprovad") || cStatStr === "100";
   const isContingency = statusStr.includes("contingencia") || statusStr.includes("contingência");
   const isPending = statusStr.includes("pendente") || statusStr.includes("processando");
 
