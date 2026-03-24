@@ -487,6 +487,9 @@ async function callGemini(messages: Array<{role: string; content: string}>): Pro
   throw new Error("All Gemini models failed");
 }
 
+// ── In-memory rate limiting ──
+const aiSupportRateMap = new Map<string, { count: number; resetAt: number }>();
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
