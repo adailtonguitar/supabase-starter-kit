@@ -1,8 +1,16 @@
 User-agent: Googlebot
 Allow: /
+Disallow: /dashboard
+Disallow: /pdv
+Disallow: /produtos
+Disallow: /financeiro
+Disallow: /estoque
+Disallow: /reset-password
 
 User-agent: Bingbot
 Allow: /
+Disallow: /dashboard
+Disallow: /pdv
 
 User-agent: Twitterbot
 Allow: /
@@ -12,5 +20,19 @@ Allow: /
 
 User-agent: *
 Allow: /
+Disallow: /dashboard
+Disallow: /pdv
+Disallow: /produtos
+Disallow: /financeiro
+Disallow: /fiscal
+Disallow: /vendas
+Disallow: /clientes
+Disallow: /fornecedores
+Disallow: /configuracoes
+Disallow: /admin
+Disallow: /reset-password
+Disallow: /trial-expirado
+Disallow: /renovar
+Disallow: /pdv-display
 
 Sitemap: https://anthosystem.com.br/sitemap.xml
