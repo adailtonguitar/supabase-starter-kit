@@ -319,9 +319,11 @@ export default function SmartNFeImport() {
     if (nfeInfo.accessKey && (imported + updated) > 0) {
       await supabase.from("nfe_imports").insert({
         company_id: companyId, access_key: nfeInfo.accessKey, nfe_number: nfeInfo.number,
+        nfe_series: nfeInfo.series || null, nfe_model: nfeInfo.series ? "55-NFe" : null,
         supplier_name: nfeInfo.supplierName, supplier_cnpj: nfeInfo.supplierCnpj,
         total_value: nfeInfo.totalValue, products_count: imported + updated,
-      });
+        imported_by: user?.id || null, status: "pendente",
+      } as Record<string, unknown>);
     }
 
     setResult({ imported, updated, errors, noNcm, lowMarginProducts, fiscalAdjustments });

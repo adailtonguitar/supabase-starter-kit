@@ -160,6 +160,7 @@ const navItems: NavEntry[] = [
       { icon: FilePen, label: "Emitir NF-e", path: "/fiscal/nfe" },
       { icon: FileSearch, label: "Consulta DFe", path: "/consulta-dfe" },
       { icon: Sparkles, label: "Importação NF-e", path: "/importacao-nfe" },
+      { icon: FileDown, label: "Entradas", path: "/entradas" },
       { icon: Shield, label: "Config. Fiscal", path: "/fiscal/config" },
       { icon: Scan, label: "Auditoria Fiscal", path: "/fiscal/auditoria" },
       { icon: ArrowRightLeft, label: "Comparar XML", path: "/fiscal/comparar-xml" },
