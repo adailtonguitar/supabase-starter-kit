@@ -2627,7 +2627,16 @@ export type Database = {
       check_rate_limit: {
         Args: {
           p_company_id: string
-          p_action: string
+          p_fn_name: string
+          p_max_calls: number
+          p_window_sec?: number
+        }
+        Returns: boolean
+      }
+      has_role: {
+        Args: {
+          _user_id: string
+          _role: string
         }
         Returns: boolean
       }
