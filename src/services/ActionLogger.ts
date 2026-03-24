@@ -24,8 +24,8 @@ export type ActionModule =
 
 export interface DiffEntry {
   field: string;
-  from: any;
-  to: any;
+  from: unknown;
+  to: unknown;
 }
 
 /**
@@ -71,7 +71,7 @@ interface LogActionParams {
  * Build a diff array by comparing two objects.
  * Only includes fields that actually changed.
  */
-export function buildDiff(before: Record<string, any>, after: Record<string, any>, fields?: string[]): DiffEntry[] {
+export function buildDiff(before: Record<string, unknown>, after: Record<string, unknown>, fields?: string[]): DiffEntry[] {
   const keys = fields || [...new Set([...Object.keys(before), ...Object.keys(after)])];
   const changes: DiffEntry[] = [];
   for (const key of keys) {
@@ -90,7 +90,7 @@ function getSessionMeta(): Record<string, string> {
     return {
       user_agent: navigator.userAgent || "",
       language: navigator.language || "",
-      platform: (navigator as any).userAgentData?.platform || navigator.platform || "",
+      platform: (navigator as { userAgentData?: { platform?: string } }).userAgentData?.platform || navigator.platform || "",
       screen: `${screen.width}x${screen.height}`,
     };
   } catch {

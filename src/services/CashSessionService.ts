@@ -146,7 +146,7 @@ export class CashSessionService {
         p_description: params.description || null,
       });
       if (rpcError) { if (isNetworkError(rpcError)) return moveOffline(); throw new Error(`Erro na movimentação: ${rpcError.message}`); }
-      const result = rpcResult as any;
+      const result = rpcResult as { success: boolean; error?: string; movement_id?: string } | null;
       if (result && !result.success) throw new Error(result.error || "Erro na movimentação");
       logAction({ companyId: params.companyId, userId: params.userId, action: params.type === "sangria" ? "Sangria registrada" : "Suprimento registrado", module: "caixa", details: `R$ ${params.amount} - ${params.description || ""}` });
       return { id: result?.movement_id || `mv_${Date.now()}`, ...params };

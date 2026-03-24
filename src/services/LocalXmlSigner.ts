@@ -84,8 +84,8 @@ export async function storeCertificateA1(
     });
 
     return { success: true, subject, expiresAt };
-  } catch (err: any) {
-    const msg = err?.message || String(err);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
     if (msg.includes("Invalid password") || msg.includes("PKCS#12")) {
       return { success: false, error: "Senha do certificado incorreta." };
     }
@@ -102,10 +102,10 @@ export async function getStoredCertificateA1(companyId: string): Promise<{
 } | null> {
   try {
     const db = await openDB();
-    const record = await new Promise<any>((resolve) => {
+    const record = await new Promise<{ data?: { pfxBase64: string; password: string; subject?: string; expiresAt?: string } } | null>((resolve) => {
       const tx = db.transaction(CERT_STORE, "readonly");
       const req = tx.objectStore(CERT_STORE).get(`${CERT_KEY}:${companyId}`);
-      req.onsuccess = () => resolve(req.result);
+      req.onsuccess = () => resolve(req.result as { data?: { pfxBase64: string; password: string; subject?: string; expiresAt?: string } } | null);
       req.onerror = () => resolve(null);
     });
     return record?.data ?? null;
@@ -124,10 +124,10 @@ export async function hasCertificateA1(companyId: string): Promise<boolean> {
 /** Load certificate from IndexedDB and return parsed key + cert */
 async function loadCertificate(companyId: string) {
   const db = await openDB();
-  const record = await new Promise<any>((resolve, reject) => {
+  const record = await new Promise<{ data?: { pfxBase64: string; password: string } } | null>((resolve, reject) => {
     const tx = db.transaction(CERT_STORE, "readonly");
     const req = tx.objectStore(CERT_STORE).get(`${CERT_KEY}:${companyId}`);
-    req.onsuccess = () => resolve(req.result);
+    req.onsuccess = () => resolve(req.result as { data?: { pfxBase64: string; password: string } } | null);
     req.onerror = () => reject(req.error);
   });
 

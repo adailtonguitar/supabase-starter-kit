@@ -47,7 +47,7 @@ function buildCredentials(creds: ProviderCredentials): Record<string, unknown> {
   return base;
 }
 
-function normalizeResult(provider: TEFProvider, data: any): TEFGatewayResult {
+function normalizeResult(provider: TEFProvider, data: Record<string, unknown>): TEFGatewayResult {
   switch (provider) {
     case "cielo": {
       const payment = data?.Payment || data?.payment || {};
@@ -106,14 +106,14 @@ export class TEFGatewayService {
         } catch {}
       }
       return { approved: false, transactionId, errorMessage: "Tempo esgotado aguardando processamento" };
-    } catch (err: any) {
+    } catch (err: unknown) {
       onStatusChange?.("Erro na transação");
-      return { approved: false, errorMessage: err.message || "Erro ao processar pagamento" };
+      return { approved: false, errorMessage: err instanceof Error ? err.message : "Erro ao processar pagamento" };
     }
   }
 
   static async cancelTransaction(params: { credentials: ProviderCredentials; transactionId: string; chargeId?: string; amount: number }): Promise<{ success: boolean; errorMessage?: string }> {
     try { await callGateway({ ...buildCredentials(params.credentials), action: "cancel", transactionId: params.transactionId, chargeId: params.chargeId, amount: params.amount }); return { success: true }; }
-    catch (err: any) { return { success: false, errorMessage: err.message }; }
+    catch (err: unknown) { return { success: false, errorMessage: err instanceof Error ? err.message : "Erro ao cancelar" }; }
   }
 }

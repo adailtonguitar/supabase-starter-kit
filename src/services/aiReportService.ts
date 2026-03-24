@@ -41,11 +41,9 @@ export async function generateAIReport(
   if (error) {
     // Handle ReadableStream error responses
     let errorMessage = error.message || "Erro ao gerar relatório";
-    if (error instanceof Response || (error as any)?.body) {
+    if (error instanceof Response) {
       try {
-        const errData = typeof (error as any).json === "function" 
-          ? await (error as any).json() 
-          : error;
+        const errData = await error.json() as { error?: string };
         errorMessage = errData?.error || errorMessage;
       } catch { /* use default message */ }
     }
