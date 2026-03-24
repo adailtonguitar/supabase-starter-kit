@@ -226,10 +226,6 @@ Deno.serve(async (req) => {
     });
 
     // Build payments array for multi-payment support
-    const paymentMethodMap: Record<string, string> = {
-      dinheiro: "01", credito: "03", debito: "04", pix: "17", voucher: "05",
-    };
-
     const fiscalPayments = payments.length > 0
       ? payments.map((p: any) => ({
           tPag: paymentMethodMap[p.method] || "99",
