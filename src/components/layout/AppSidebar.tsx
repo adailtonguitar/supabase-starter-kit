@@ -381,7 +381,7 @@ export function AppSidebar({ mobileOpen, onMobileClose }: AppSidebarProps) {
                     </div>
                     <div className="flex flex-col">
                       <span className="text-sm font-bold text-sidebar-foreground tracking-tight leading-tight">AnthoSystem</span>
-                      <span className="text-[10px] text-muted-foreground/70 font-medium">Gestão Inteligente</span>
+                      <span className="text-[10px] text-muted-foreground/70 font-medium">Seu ERP completo para varejo</span>
                     </div>
                   </div>
                   <button onClick={onMobileClose} className="p-2 rounded-lg text-sidebar-foreground hover:bg-sidebar-accent transition-colors">
