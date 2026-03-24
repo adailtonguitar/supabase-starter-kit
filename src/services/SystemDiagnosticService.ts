@@ -18,6 +18,12 @@ export interface DiagnosticReport {
   failed: number;
 }
 
+interface RpcAtomicResult {
+  success: boolean;
+  sale_id?: string;
+  error?: string;
+}
+
 type ProgressCallback = (results: TestResult[]) => void;
 
 const TEST_PREFIX = "__DIAG_TEST__";
@@ -57,14 +63,14 @@ export class SystemDiagnosticService {
         status: "pass",
         duration: Math.round(performance.now() - start),
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(`[DIAG] ${group} > ${name} FAILED:`, err);
       this.addResult({
         group,
         name,
         status: "fail",
         duration: Math.round(performance.now() - start),
-        error: err?.message || String(err),
+        error: err instanceof Error ? err.message : String(err),
       });
     }
   }
@@ -72,7 +78,6 @@ export class SystemDiagnosticService {
   async runAll(): Promise<DiagnosticReport> {
     this.results = [];
 
-    // Define all test groups
     const groups = [
       () => this.testAuth(),
       () => this.testProducts(),
@@ -86,7 +91,6 @@ export class SystemDiagnosticService {
       await group();
     }
 
-    // Cleanup
     await this.cleanup();
 
     const report: DiagnosticReport = {
@@ -139,7 +143,7 @@ export class SystemDiagnosticService {
           stock_quantity: 50,
           is_active: true,
           is_demo: true,
-        } as any)
+        })
         .select("id")
         .single();
       if (error) throw error;
@@ -182,7 +186,6 @@ export class SystemDiagnosticService {
       if (error) throw error;
     });
 
-    // Hard cleanup at end
     if (testProductId) {
       await supabase.from("products").delete().eq("id", testProductId);
     }
@@ -192,7 +195,6 @@ export class SystemDiagnosticService {
   private async testStock() {
     let testProductId: string | null = null;
 
-    // Create a product for stock tests
     const { data: prod } = await supabase
       .from("products")
       .insert({
@@ -204,7 +206,7 @@ export class SystemDiagnosticService {
         stock_quantity: 100,
         is_active: true,
         is_demo: true,
-      } as any)
+      })
       .select("id")
       .single();
     testProductId = prod?.id || null;
@@ -230,7 +232,7 @@ export class SystemDiagnosticService {
       const prevQty = Number(before?.stock_quantity ?? 100);
       const newQty = prevQty + 20;
 
-      const { error } = await supabase.from("stock_movements" as any).insert({
+      const { error } = await supabase.from("stock_movements").insert({
         company_id: this.companyId,
         product_id: testProductId,
         type: "entrada",
@@ -263,7 +265,7 @@ export class SystemDiagnosticService {
       const prevQty = Number(before?.stock_quantity ?? 120);
       const newQty = prevQty - 30;
 
-      const { error } = await supabase.from("stock_movements" as any).insert({
+      const { error } = await supabase.from("stock_movements").insert({
         company_id: this.companyId,
         product_id: testProductId,
         type: "saida",
@@ -287,7 +289,6 @@ export class SystemDiagnosticService {
 
     await this.runTest("Estoque", "Impedir estoque negativo", async () => {
       if (!testProductId) throw new Error("Produto de teste não criado");
-      // Try to withdraw more than available — should not result in negative
       const { data } = await supabase
         .from("products")
         .select("stock_quantity")
@@ -297,9 +298,8 @@ export class SystemDiagnosticService {
       if (qty < 0) throw new Error(`Estoque negativo detectado: ${qty}`);
     });
 
-    // Cleanup
     if (testProductId) {
-      await (supabase.from("stock_movements").delete() as any).eq("product_id", testProductId).eq("reason", TEST_PREFIX);
+      await supabase.from("stock_movements").delete().eq("product_id", testProductId).eq("reason", TEST_PREFIX);
       await supabase.from("products").delete().eq("id", testProductId);
     }
   }
@@ -309,7 +309,6 @@ export class SystemDiagnosticService {
     let testProductId: string | null = null;
     let testSaleId: string | null = null;
 
-    // Create product for sale
     const { data: prod } = await supabase
       .from("products")
       .insert({
@@ -321,7 +320,7 @@ export class SystemDiagnosticService {
         stock_quantity: 200,
         is_active: true,
         is_demo: true,
-      } as any)
+      })
       .select("id, name, price, cost_price")
       .single();
     testProductId = prod?.id || null;
@@ -353,9 +352,9 @@ export class SystemDiagnosticService {
         p_sold_by: this.userId,
       });
       if (error) throw error;
-      const result = rpcResult as any;
+      const result = rpcResult as RpcAtomicResult | null;
       if (!result?.success) throw new Error(result?.error || "RPC falhou");
-      testSaleId = result.sale_id;
+      testSaleId = result.sale_id || null;
     });
 
     await this.runTest("Vendas", "Verificar venda no histórico", async () => {
@@ -380,14 +379,13 @@ export class SystemDiagnosticService {
       if (data?.total !== expectedTotal) throw new Error(`Total esperado ${expectedTotal}, obteve ${data?.total}`);
     });
 
-    // Cleanup — restore stock and delete test data
+    // Cleanup
     if (testSaleId) {
       await supabase.from("sale_items").delete().eq("sale_id", testSaleId);
-      await (supabase.from("financial_entries").delete() as any).eq("sale_id", testSaleId);
+      await supabase.from("financial_entries").delete().eq("reference", testSaleId);
       await supabase.from("sales").delete().eq("id", testSaleId);
     }
     if (testProductId) {
-      // Restore stock before deleting
       await supabase.from("products").delete().eq("id", testProductId);
     }
   }
@@ -425,7 +423,6 @@ export class SystemDiagnosticService {
       if (data?.amount !== 99.99) throw new Error(`Valor incorreto: ${data?.amount}`);
     });
 
-    // Cleanup
     if (entryId) {
       await supabase.from("financial_entries").delete().eq("id", entryId);
     }
@@ -438,17 +435,16 @@ export class SystemDiagnosticService {
       startOfMonth.setDate(1);
       startOfMonth.setHours(0, 0, 0, 0);
 
-      const { error, count } = await supabase
+      const { error } = await supabase
         .from("sales")
         .select("id", { count: "exact", head: true })
         .eq("company_id", this.companyId)
         .gte("created_at", startOfMonth.toISOString());
       if (error) throw error;
-      // Just verify the query works; count can be 0
     });
 
     await this.runTest("Relatórios", "Consultar produtos ativos", async () => {
-      const { error, count } = await supabase
+      const { error } = await supabase
         .from("products")
         .select("id", { count: "exact", head: true })
         .eq("company_id", this.companyId)
@@ -478,21 +474,18 @@ export class SystemDiagnosticService {
   // ─── CLEANUP ───
   private async cleanup() {
     try {
-      // Delete any leftover test products
       await supabase
         .from("products")
         .delete()
         .eq("company_id", this.companyId)
         .like("name", `${TEST_PREFIX}%`);
 
-      // Delete test stock movements
-      await (supabase
+      await supabase
         .from("stock_movements")
-        .delete() as any)
+        .delete()
         .eq("company_id", this.companyId)
         .eq("reason", TEST_PREFIX);
 
-      // Delete test financial entries
       await supabase
         .from("financial_entries")
         .delete()

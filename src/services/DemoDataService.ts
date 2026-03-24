@@ -47,6 +47,12 @@ const DEMO_EXPENSES = [
   { description: "Reposição de estoque — Distribuidora Brasil", category: "Fornecedores", amount: 4800.00 },
 ];
 
+interface RpcAtomicResult {
+  success: boolean;
+  sale_id?: string;
+  error?: string;
+}
+
 function randomInt(min: number, max: number) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
@@ -82,7 +88,6 @@ export class DemoDataService {
   }
 
   static async seedDemoData(companyId: string, userId: string): Promise<{ products: number; clients: number; sales: number; suppliers: number; expenses: number }> {
-    // Check if already seeded (DB-level check to avoid duplicates)
     const { data: existingProducts } = await supabase
       .from("products")
       .select("id")
@@ -91,7 +96,6 @@ export class DemoDataService {
 
     if (existingProducts && existingProducts.length > 0) {
       DemoDataService.markSeeded(companyId);
-      // Return -1 to signal "already seeded" vs "failed"
       return { products: -1, clients: -1, sales: -1, suppliers: -1, expenses: -1 };
     }
 
@@ -109,13 +113,11 @@ export class DemoDataService {
       is_demo: true,
     }));
 
-    // console.log("[DemoData] Inserting", productRows.length, "products for company", companyId);
     const { data: insertedProducts, error: pErr } = await supabase
       .from("products")
-      .insert(productRows as any)
+      .insert(productRows)
       .select("id, name, price, cost_price, stock_quantity");
 
-    // console.log("[DemoData] Insert result:", { insertedProducts: insertedProducts?.length, error: pErr });
     if (pErr) throw new Error(`Erro ao criar produtos demo: ${pErr.message}`);
 
     // 2) Insert clients
@@ -128,7 +130,7 @@ export class DemoDataService {
       is_demo: true,
     }));
 
-    const { error: cErr } = await supabase.from("clients").insert(clientRows as any);
+    const { error: cErr } = await supabase.from("clients").insert(clientRows);
     if (cErr) throw new Error(`Erro ao criar clientes demo: ${cErr.message}`);
 
     // 3) Insert suppliers
@@ -142,7 +144,7 @@ export class DemoDataService {
       phone: s.phone,
     }));
 
-    const { error: sErr } = await supabase.from("suppliers").insert(supplierRows as any);
+    const { error: sErr } = await supabase.from("suppliers").insert(supplierRows);
     if (sErr) console.warn("Erro ao criar fornecedores demo (não crítico):", sErr.message);
 
     // 4) Generate 30 sales distributed over the last 30 days
@@ -151,7 +153,7 @@ export class DemoDataService {
     const methods = ["dinheiro", "debito", "credito", "pix"];
 
     for (let i = 0; i < 30; i++) {
-      const dayOffset = randomInt(0, 29); // Random day in last 30 days
+      const dayOffset = randomInt(0, 29);
       const saleDate = daysAgo(dayOffset);
       const itemCount = randomInt(1, 5);
       const selectedProducts = randomItems(products, Math.min(itemCount, products.length));
@@ -175,34 +177,32 @@ export class DemoDataService {
         p_company_id: companyId,
         p_terminal_id: "DEMO",
         p_session_id: null,
-        p_items: items as any,
+        p_items: items,
         p_subtotal: subtotal,
         p_discount_pct: 0,
         p_discount_val: 0,
         p_total: subtotal,
-        p_payments: [{ method, amount: subtotal, approved: true }] as any,
+        p_payments: [{ method, amount: subtotal, approved: true }],
         p_sold_by: userId,
       });
 
-      const res = result as any;
-      if (res?.success) {
-        // Update sale date to distribute over 30 days + mark as demo
+      const res = result as RpcAtomicResult | null;
+      if (res?.success && res.sale_id) {
         await supabase.from("sales").update({
           is_demo: true,
           created_at: saleDate.toISOString(),
-        } as any).eq("id", res.sale_id);
+        }).eq("id", res.sale_id);
 
-        // Also update related financial entry date
         await supabase.from("financial_entries").update({
           due_date: saleDate.toISOString().split("T")[0],
           paid_date: saleDate.toISOString().split("T")[0],
-        } as any).eq("reference", res.sale_id);
+        }).eq("reference", res.sale_id);
 
         salesCount++;
       }
     }
 
-    // 5) Insert expense entries distributed over last 30 days
+    // 5) Insert expense entries
     const expenseRows = DEMO_EXPENSES.map((e, idx) => {
       const expDate = daysAgo(randomInt(1, 28));
       return {
@@ -212,7 +212,7 @@ export class DemoDataService {
         category: e.category,
         amount: e.amount,
         due_date: expDate.toISOString().split("T")[0],
-        paid_date: idx < 3 ? expDate.toISOString().split("T")[0] : null, // 3 paid, 2 pending
+        paid_date: idx < 3 ? expDate.toISOString().split("T")[0] : null,
         paid_amount: idx < 3 ? e.amount : null,
         payment_method: idx < 3 ? (idx === 0 ? "pix" : "boleto") : null,
         status: idx < 3 ? "pago" : "pendente",
@@ -220,14 +220,14 @@ export class DemoDataService {
       };
     });
 
-    const { error: fErr } = await supabase.from("financial_entries").insert(expenseRows as any);
+    const { error: fErr } = await supabase.from("financial_entries").insert(expenseRows);
     if (fErr) console.warn("Erro ao criar despesas demo (não crítico):", fErr.message);
 
     // Restore stock for demo sales
     for (const p of products) {
       await supabase
         .from("products")
-        .update({ stock_quantity: DEMO_PRODUCTS.find(dp => dp.name === p.name)?.stock || p.stock_quantity } as any)
+        .update({ stock_quantity: DEMO_PRODUCTS.find(dp => dp.name === p.name)?.stock || p.stock_quantity })
         .eq("id", p.id);
     }
 
@@ -237,35 +237,29 @@ export class DemoDataService {
   }
 
   static async clearDemoData(companyId: string): Promise<void> {
-    // Delete demo sales + sale_items
-    const { data: demoSales } = await (supabase
+    const { data: demoSales } = await supabase
       .from("sales")
       .select("id")
-      .eq("company_id", companyId) as any)
+      .eq("company_id", companyId)
       .eq("is_demo", true);
 
     if (demoSales && demoSales.length > 0) {
-      const saleIds = demoSales.map((s: any) => s.id);
+      const saleIds = demoSales.map((s: { id: string }) => s.id);
       for (const sid of saleIds) {
         await supabase.from("sale_items").delete().eq("sale_id", sid);
-        await (supabase.from("financial_entries").delete() as any).eq("reference", sid);
+        await supabase.from("financial_entries").delete().eq("reference", sid);
         await supabase.from("sales").delete().eq("id", sid);
       }
     }
 
-    // Delete demo products
-    await (supabase.from("products").delete() as any).eq("company_id", companyId).eq("is_demo", true);
+    await supabase.from("products").delete().eq("company_id", companyId).eq("is_demo", true);
+    await supabase.from("clients").delete().eq("company_id", companyId).eq("is_demo", true);
 
-    // Delete demo clients
-    await (supabase.from("clients").delete() as any).eq("company_id", companyId).eq("is_demo", true);
-
-    // Clear seeded flag
     try { localStorage.removeItem(`${DEMO_SEEDED_KEY}_${companyId}`); } catch {}
   }
 
-  /** Reset ALL data from a demo company (not just is_demo flagged) */
+  /** Reset ALL data from a demo company */
   static async resetAllData(companyId: string): Promise<void> {
-    // 1) Delete all sales + items + financial entries
     const { data: allSales } = await supabase
       .from("sales")
       .select("id")
@@ -274,27 +268,17 @@ export class DemoDataService {
     if (allSales && allSales.length > 0) {
       for (const sale of allSales) {
         await supabase.from("sale_items").delete().eq("sale_id", sale.id);
-        await (supabase.from("financial_entries").delete() as any).eq("reference", sale.id);
+        await supabase.from("financial_entries").delete().eq("reference", sale.id);
       }
       await supabase.from("sales").delete().eq("company_id", companyId);
     }
 
-    // 2) Delete remaining financial entries
     await supabase.from("financial_entries").delete().eq("company_id", companyId);
-
-    // 3) Delete all stock movements
-    await (supabase.from("stock_movements").delete() as any).eq("company_id", companyId);
-
-    // 4) Delete all products
+    await supabase.from("stock_movements").delete().eq("company_id", companyId);
     await supabase.from("products").delete().eq("company_id", companyId);
-
-    // 5) Delete all clients
     await supabase.from("clients").delete().eq("company_id", companyId);
-
-    // 6) Delete all suppliers
     await supabase.from("suppliers").delete().eq("company_id", companyId);
 
-    // Clear seeded flag
     try { localStorage.removeItem(`${DEMO_SEEDED_KEY}_${companyId}`); } catch {}
   }
 }
