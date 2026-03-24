@@ -166,7 +166,7 @@ export function useMarkAsPaid() {
         p_payment_method: payment_method ?? "dinheiro",
         p_performed_by: user.id,
       });
-      if (!rpc.success) throw new Error(rpc.error || "Erro na RPC");
+      if (!rpc.success) throw new Error(rpc.error);
       const result = rpc.data || {};
       if (!result.success) {
         throw new Error(result.error || "Falha ao registrar pagamento");
