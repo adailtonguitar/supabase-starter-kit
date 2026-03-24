@@ -299,9 +299,18 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log(
-      `[generate-ai-report] company=${company_id} period=${start_date} to ${end_date}`
-    );
+    // Rate limiting: max 3 reports per minute per company
+    const { data: allowed } = await supabase.rpc("check_rate_limit", {
+      p_company_id: company_id,
+      p_fn_name: "generate-ai-report",
+      p_max_calls: 3,
+      p_window_sec: 60,
+    });
+    if (allowed === false) {
+      return new Response(JSON.stringify({ error: "Limite de relatórios excedido. Aguarde 1 minuto." }), {
+        status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     // Fetch real data in parallel
     const [salesRes, productsRes, clientsRes, financialRes] =

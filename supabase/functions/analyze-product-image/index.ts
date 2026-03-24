@@ -87,6 +87,24 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Rate limiting: max 10 analyses per minute per company
+    if (company_id) {
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const sbAdmin = createClient(supabaseUrl, serviceRoleKey);
+      const { data: allowed } = await sbAdmin.rpc("check_rate_limit", {
+        p_company_id: company_id,
+        p_fn_name: "analyze-product-image",
+        p_max_calls: 10,
+        p_window_sec: 60,
+      });
+      if (allowed === false) {
+        return new Response(JSON.stringify({ error: "Limite de análises excedido. Aguarde 1 minuto." }), {
+          status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
     const GEMINI_KEY = Deno.env.get("GOOGLE_GEMINI_KEY");
     if (!GEMINI_KEY) {
       return new Response(JSON.stringify({ error: "GOOGLE_GEMINI_KEY not configured" }), {

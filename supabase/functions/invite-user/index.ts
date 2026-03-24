@@ -24,6 +24,19 @@ Deno.serve(async (req) => {
     const { email, role, company_id } = await req.json();
     if (!email || !company_id) throw new Error("Email e empresa são obrigatórios");
 
+    // Rate limiting: max 10 invites per minute per company
+    const { data: allowed } = await supabaseAdmin.rpc("check_rate_limit", {
+      p_company_id: company_id,
+      p_fn_name: "invite-user",
+      p_max_calls: 10,
+      p_window_sec: 60,
+    });
+    if (allowed === false) {
+      return new Response(JSON.stringify({ error: "Limite de convites excedido. Aguarde 1 minuto." }), {
+        status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // Verify caller belongs to the company as admin
     const { data: callerRole } = await supabaseAdmin
       .from("company_users")
