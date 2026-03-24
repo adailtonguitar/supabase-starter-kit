@@ -519,6 +519,21 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Rate limiting: max 10 messages per minute per user
+    const rlKey = user.id;
+    const now = Date.now();
+    const rlEntry = aiSupportRateMap.get(rlKey);
+    if (rlEntry && now < rlEntry.resetAt && rlEntry.count >= 10) {
+      return new Response(JSON.stringify({ error: "Limite de mensagens excedido. Aguarde 1 minuto." }), {
+        status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    if (!rlEntry || now >= rlEntry.resetAt) {
+      aiSupportRateMap.set(rlKey, { count: 1, resetAt: now + 60_000 });
+    } else {
+      rlEntry.count++;
+    }
+
     const { messages } = await req.json();
     if (!messages || !Array.isArray(messages)) {
       return new Response(JSON.stringify({ error: "messages array required" }), {
