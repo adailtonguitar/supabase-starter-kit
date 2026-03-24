@@ -16,7 +16,7 @@ async function callGemini(apiKey: string, systemPrompt: string, userPrompt: stri
   
   for (const model of models) {
     const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-    console.log(`[diagnostico] Tentando modelo: ${model}...`);
+    // console.log(`[diagnostico] Tentando modelo: ${model}...`);
     const startTime = Date.now();
 
     try {
@@ -32,7 +32,7 @@ async function callGemini(apiKey: string, systemPrompt: string, userPrompt: stri
       });
 
       const elapsed = Date.now() - startTime;
-      console.log(`[diagnostico] ${model} respondeu em ${elapsed}ms — status: ${resp.status}`);
+      // console.log(`[diagnostico] ${model} respondeu em ${elapsed}ms — status: ${resp.status}`);
 
       if (resp.status === 429) {
         const errText = await resp.text();
@@ -65,7 +65,7 @@ async function callGemini(apiKey: string, systemPrompt: string, userPrompt: stri
         return { content: null, error: `Resposta vazia do ${model}.`, status: 200 };
       }
 
-      console.log(`[diagnostico] Sucesso com ${model}! (${content.length} chars)`);
+      // console.log(`[diagnostico] Sucesso com ${model}! (${content.length} chars)`);
       return { content, error: null, status: 200 };
     } catch (err: any) {
       console.error(`[diagnostico] Erro de rede no ${model}:`, err?.message);
@@ -81,7 +81,7 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  console.log("[diagnostico] ========== NOVA REQUISIÇÃO ==========");
+  // console.log("[diagnostico] ========== NOVA REQUISIÇÃO ==========");
 
   try {
     const GEMINI_KEY = Deno.env.get("GOOGLE_GEMINI_KEY");
@@ -146,7 +146,7 @@ Deno.serve(async (req) => {
 
     const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
 
-    console.log("[diagnostico] Buscando dados financeiros...");
+    // console.log("[diagnostico] Buscando dados financeiros...");
     const { data: financeiro, error: fetchError } = await supabaseAdmin
       .from("financeiro_mensal")
       .select("receita, despesas, lucro, inadimplencia, clientes_ativos, percentual_maior_cliente")
@@ -170,7 +170,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log("[diagnostico] Dados encontrados. Receita:", financeiro.receita, "Despesas:", financeiro.despesas);
+    // console.log("[diagnostico] Dados encontrados. Receita:", financeiro.receita, "Despesas:", financeiro.despesas);
 
     const userPrompt = `Dados financeiros de ${mes_referencia}:
 - Receita: R$ ${Number(financeiro.receita).toFixed(2)}
@@ -214,15 +214,15 @@ IMPORTANTE: Não ultrapasse 500 palavras no total.`;
     }
 
     // Salvar diagnóstico
-    console.log("[diagnostico] Salvando no banco...");
+    // console.log("[diagnostico] Salvando no banco...");
     const { error: insertError } = await supabaseAdmin
       .from("diagnosticos_financeiros")
       .insert({ user_id: userId, mes_referencia, conteudo: result.content, created_at: new Date().toISOString() });
 
     if (insertError) console.error("[diagnostico] Erro ao salvar:", insertError.message);
-    else console.log("[diagnostico] Salvo com sucesso!");
+    else // console.log("[diagnostico] Salvo com sucesso!");
 
-    console.log("[diagnostico] ========== REQUISIÇÃO CONCLUÍDA ==========");
+    // console.log("[diagnostico] ========== REQUISIÇÃO CONCLUÍDA ==========");
 
     return new Response(
       JSON.stringify({ diagnostico: result.content, mes_referencia, salvo: !insertError }),
