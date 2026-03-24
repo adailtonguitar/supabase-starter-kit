@@ -51,13 +51,13 @@ export function useDFe() {
           return { documents: [], total: 0 };
         }
 
-        const response = (data ?? {}) as any;
+        const response = (data ?? {}) as { success?: boolean; error?: string; data?: { data?: Record<string, unknown>[]; "@count"?: number } };
         if (!response?.success) {
           toast.error(response?.error || "Erro ao buscar documentos");
           return { documents: [], total: 0 };
         }
 
-        const docs = (response.data?.data || []).map((d: any) => ({
+        const docs = (response.data?.data || []).map((d: Record<string, unknown>) => ({
           id: d.id,
           chave: d.chave || d.chNFe || "",
           tipo_documento: d.tipo_documento || d.schema || "NF-e",
