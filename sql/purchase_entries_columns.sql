@@ -3,7 +3,10 @@ ALTER TABLE nfe_imports
   ADD COLUMN IF NOT EXISTS nfe_series text,
   ADD COLUMN IF NOT EXISTS nfe_model text DEFAULT '55-NFe',
   ADD COLUMN IF NOT EXISTS entry_number serial,
-  ADD COLUMN IF NOT EXISTS status text DEFAULT 'pendente' CHECK (status IN ('pendente', 'finalizado'));
+  ADD COLUMN IF NOT EXISTS status text DEFAULT 'pendente' CHECK (status IN ('pendente', 'finalizado', 'estornado')),
+  ADD COLUMN IF NOT EXISTS reversal_reason text,
+  ADD COLUMN IF NOT EXISTS reversed_at timestamptz,
+  ADD COLUMN IF NOT EXISTS reversed_by uuid REFERENCES auth.users(id);
 
 -- Índice para consulta rápida de entradas por empresa
 CREATE INDEX IF NOT EXISTS idx_nfe_imports_company_status ON nfe_imports(company_id, status);
