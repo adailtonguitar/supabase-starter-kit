@@ -116,10 +116,24 @@ Deno.serve(async (req) => {
     }
 
     const userId = claimsData.user.id;
-    console.log("[diagnostico] Usuário autenticado:", userId);
+
+    // Rate limiting: max 5 diagnostics per minute per user
+    const rlKey = `diag:${userId}`;
+    const now = Date.now();
+    const rlEntry = diagRateMap.get(rlKey);
+    if (rlEntry && now < rlEntry.resetAt && rlEntry.count >= 5) {
+      return new Response(
+        JSON.stringify({ error: "Limite de diagnósticos excedido. Aguarde 1 minuto." }),
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    if (!rlEntry || now >= rlEntry.resetAt) {
+      diagRateMap.set(rlKey, { count: 1, resetAt: now + 60_000 });
+    } else {
+      rlEntry.count++;
+    }
 
     const { mes_referencia } = await req.json();
-    console.log("[diagnostico] Mês solicitado:", mes_referencia);
 
     if (!mes_referencia) {
       return new Response(
