@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useReadAudit } from "@/hooks/useReadAudit";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
@@ -22,6 +23,7 @@ const COOLDOWN_MS = 60_000;
 
 export default function DiagnosticoFinanceiro() {
   const { user } = useAuth();
+  useReadAudit({ module: "financeiro", resource: "Diagnóstico Financeiro" });
   const [mesReferencia, setMesReferencia] = useState(getCurrentMonth());
   const [diagnostico, setDiagnostico] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
