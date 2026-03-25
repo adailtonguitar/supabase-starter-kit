@@ -1,5 +1,7 @@
 const ALLOWED_ORIGINS = [
   "https://anthosystemcombr.lovable.app",
+  "https://anthosystem.com.br",
+  "https://www.anthosystem.com.br",
   "https://id-preview--d4ab3861-f98c-4c08-a556-30aa884845a3.lovable.app",
 ];
 
