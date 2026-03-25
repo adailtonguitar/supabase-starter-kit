@@ -99,7 +99,7 @@ const nullFields: Omit<CachedCompany, 'companyId'> = {
 };
 
 export function useCompany(): CompanyData {
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const cached = getCachedCompany();
   const [companyId, setCompanyId] = useState<string | null>(cached?.companyId ?? null);
   const [fields, setFields] = useState<Omit<CachedCompany, 'companyId'>>(cached ? { ...nullFields, ...cached } : nullFields);
