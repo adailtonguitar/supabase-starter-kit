@@ -118,7 +118,7 @@ export function useCompany(): CompanyData {
     retryCount.current = 0;
     if (retryTimer.current) clearTimeout(retryTimer.current);
 
-    if (!user) {
+    if (!user || !session) {
       setCompanyId(null);
       setFields(nullFields);
       setLoading(false);
