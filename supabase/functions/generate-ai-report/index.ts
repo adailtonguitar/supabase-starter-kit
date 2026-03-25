@@ -299,6 +299,22 @@ Deno.serve(async (req) => {
       );
     }
 
+    // ── Validação de pertencimento à empresa (anti-IDOR) ──
+    const { data: membership } = await supabase
+      .from("company_users")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("company_id", company_id)
+      .eq("is_active", true)
+      .maybeSingle();
+
+    if (!membership) {
+      return new Response(
+        JSON.stringify({ error: "Acesso negado a esta empresa" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // Rate limiting: max 3 reports per minute per company
     const { data: allowed } = await supabase.rpc("check_rate_limit", {
       p_company_id: company_id,

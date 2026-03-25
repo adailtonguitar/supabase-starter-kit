@@ -14,7 +14,7 @@ Deno.serve(async (req) => {
   try {
     // This is a PUBLIC webhook — no auth required, but we validate with MP
     const body = await req.json();
-    console.log("[payment-webhook] Received:", JSON.stringify(body));
+    console.log("[payment-webhook] Received:", JSON.stringify({ type: body.type || body.topic, id: body.data?.id || body.id }));
 
     // Mercado Pago sends different notification types
     const topic = body.type || body.topic;

@@ -47,6 +47,8 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "company_id required" }), { status: 400, headers: corsHeaders });
     }
 
+    const adminClient = createClient(supabaseUrl, serviceKey);
+
     // Rate limiting: max 3 backups per 10 minutes per company
     const { data: allowed } = await adminClient.rpc("check_rate_limit", {
       p_company_id: company_id,
@@ -59,8 +61,6 @@ Deno.serve(async (req) => {
         status: 429, headers: corsHeaders,
       });
     }
-
-    const adminClient = createClient(supabaseUrl, serviceKey);
     const { data: roleData } = await adminClient
       .from("admin_roles")
       .select("role")
