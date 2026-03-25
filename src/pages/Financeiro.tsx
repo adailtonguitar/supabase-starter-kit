@@ -1,4 +1,5 @@
 import { useState, type ComponentType } from "react";
+import { useReadAudit } from "@/hooks/useReadAudit";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
@@ -38,6 +39,7 @@ const categoryLabels: Record<string, string> = {
 };
 
 export default function Financeiro() {
+  useReadAudit({ module: "financeiro", resource: "Painel Financeiro" });
   const now = new Date();
   const [month, setMonth] = useState(format(now, "yyyy-MM"));
   const [tab, setTab] = useState("all");

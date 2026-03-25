@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { useReadAudit } from "@/hooks/useReadAudit";
 import { useQuery } from "@tanstack/react-query";
 import { BarChart3, Calendar, Download, TrendingUp, TrendingDown, DollarSign, Package, Printer } from "lucide-react";
 import { motion } from "framer-motion";
@@ -38,6 +39,7 @@ interface ProductProfit {
 
 export default function RelatorioVendas() {
   const { companyId } = useCompany();
+  useReadAudit({ module: "vendas", resource: "Relatório de Vendas" });
   const [preset, setPreset] = useState<DatePreset>("mes");
   const [startDate, setStartDate] = useState(format(startOfMonth(new Date()), "yyyy-MM-dd"));
   const [endDate, setEndDate] = useState(format(new Date(), "yyyy-MM-dd"));

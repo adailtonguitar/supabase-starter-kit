@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { useReadAudit } from "@/hooks/useReadAudit";
 import { FileText, RefreshCw, RotateCcw, Loader2, Send, BarChart3, DollarSign, TrendingDown, TrendingUp } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { motion } from "framer-motion";
@@ -37,6 +38,7 @@ const paymentLabels: Record<string, string> = {
 
 export default function Vendas() {
   const { data: sales = [], isLoading, error, refetch } = useSales(100);
+  useReadAudit({ module: "vendas", resource: "Histórico de Vendas" });
   const { config } = useTEFConfig();
   
   const [refundingSaleId, setRefundingSaleId] = useState<string | null>(null);

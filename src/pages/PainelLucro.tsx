@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useReadAudit } from "@/hooks/useReadAudit";
 import { TrendingUp, TrendingDown, DollarSign, Calculator, BarChart3, AlertTriangle } from "lucide-react";
 import { motion } from "framer-motion";
 import { useProfitAnalytics } from "@/hooks/useProfitAnalytics";
@@ -39,6 +40,7 @@ function PriceSimulator() {
 
 export default function PainelLucro() {
   const [period, setPeriod] = useState<"current" | "last">("current");
+  useReadAudit({ module: "financeiro", resource: "Painel de Lucro" });
   const dateFrom = period === "current" ? startOfMonth(new Date()) : startOfMonth(subMonths(new Date(), 1));
   const dateTo = period === "current" ? endOfMonth(new Date()) : endOfMonth(subMonths(new Date(), 1));
   const { data, isLoading } = useProfitAnalytics(dateFrom, dateTo);

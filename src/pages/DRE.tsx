@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { useReadAudit } from "@/hooks/useReadAudit";
 import { format, parseISO, startOfMonth, endOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { motion } from "framer-motion";
@@ -26,6 +27,7 @@ interface DRELine {
 
 export default function DRE() {
   const now = new Date();
+  useReadAudit({ module: "financeiro", resource: "DRE" });
   const [month, setMonth] = useState(format(now, "yyyy-MM"));
   const { companyId } = useCompany();
 
