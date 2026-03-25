@@ -547,7 +547,23 @@ Deno.serve(async (req) => {
 
     const { report_type, company_id } = await req.json();
     if (!company_id) {
-      return new Response(JSON.stringify({ error: "company_id required" }), { status: 400, headers: corsHeaders });
+      return new Response(JSON.stringify({ error: "company_id required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    // Verify user belongs to the requested company (prevent IDOR)
+    const { data: membership, error: memberErr } = await supabase
+      .from("company_users")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("company_id", company_id)
+      .eq("is_active", true)
+      .limit(1)
+      .maybeSingle();
+
+    if (memberErr || !membership) {
+      return new Response(JSON.stringify({ error: "Acesso negado a esta empresa." }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     // Rate limiting: máx 3 relatórios por minuto por empresa
