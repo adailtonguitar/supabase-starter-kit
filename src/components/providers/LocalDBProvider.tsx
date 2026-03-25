@@ -76,7 +76,7 @@ export function LocalDBProvider({ children }: { children: ReactNode }) {
       if (intervalRef.current) clearInterval(intervalRef.current);
       window.removeEventListener("online", onOnline);
     };
-  }, [companyId, user]);
+  }, [companyId, user, session]);
 
   return <>{children}</>;
 }
