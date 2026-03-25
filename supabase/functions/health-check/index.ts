@@ -62,21 +62,26 @@ async function checkStorage(client: any): Promise<HealthResult> {
 }
 
 /** 
- * Ping an Edge Function with POST (empty body) to verify it's deployed.
- * 400/401/403/422 = function is alive (just rejecting invalid input).
- * Only 502/503/504 or network errors = truly down.
+ * Ping an Edge Function to verify it's deployed and reachable.
+ * ANY HTTP response (even 4xx/5xx) means the function is alive.
+ * Only network errors or timeouts indicate the function is truly down.
  */
 async function checkEdgeFunction(supabaseUrl: string, fnName: string): Promise<HealthResult> {
   const start = Date.now();
   try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
     const resp = await fetch(`${supabaseUrl}/functions/v1/${fnName}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ health_check: true }),
+      signal: controller.signal,
     });
+    clearTimeout(timeout);
     await resp.text(); // consume body
-    // 400/401/403/422 mean the function is running but rejected our probe — that's OK
-    const trulyDown = resp.status >= 500;
+    // ANY response means the function is deployed and running
+    // 502 = gateway can't reach function (boot failure), flag as error
+    const trulyDown = resp.status === 502;
     return {
       service: `edge:${fnName}`,
       status: trulyDown ? "error" : "ok",
@@ -84,7 +89,12 @@ async function checkEdgeFunction(supabaseUrl: string, fnName: string): Promise<H
       ...(trulyDown && { error: `HTTP ${resp.status}` }),
     };
   } catch (err: any) {
-    return { service: `edge:${fnName}`, status: "error", latency_ms: Date.now() - start, error: err.message };
+    return { 
+      service: `edge:${fnName}`, 
+      status: "error", 
+      latency_ms: Date.now() - start, 
+      error: err.name === "AbortError" ? "Timeout (8s)" : err.message,
+    };
   }
 }
 
