@@ -1,10 +1,4 @@
-import { createClient } from "npm:@supabase/supabase-js@2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
+import { corsHeaders, createServiceClient, jsonResponse, requireCompanyMembership, requireUser } from "../_shared/auth.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -12,44 +6,23 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return new Response(JSON.stringify({ error: "Não autorizado" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const adminClient = createClient(supabaseUrl, serviceRoleKey);
-
-    const token = authHeader.replace("Bearer ", "");
-    const { data: { user }, error: userErr } = await adminClient.auth.getUser(token);
-    if (userErr || !user) {
-      return new Response(JSON.stringify({ error: "Não autorizado" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    const auth = await requireUser(req);
+    if (!auth.ok) return auth.response;
 
     const body = await req.json();
     const { year, month, company_id } = body;
 
     if (!year || !month) {
-      return new Response(JSON.stringify({ error: "Ano e mês são obrigatórios" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return jsonResponse({ error: "Ano e mês são obrigatórios" }, 400);
     }
 
     // Get company_id from body or from user's company
     let companyId = company_id;
     if (!companyId) {
-      const { data: cu } = await adminClient
+      const { data: cu } = await createServiceClient()
         .from("company_users")
         .select("company_id")
-        .eq("user_id", user.id)
+        .eq("user_id", auth.userId)
         .eq("is_active", true)
         .limit(1)
         .maybeSingle();
@@ -57,43 +30,25 @@ Deno.serve(async (req) => {
     }
 
     if (!companyId) {
-      return new Response(JSON.stringify({ error: "Empresa não encontrada" }), {
-        status: 404,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return jsonResponse({ error: "Empresa não encontrada" }, 404);
     }
 
-    // Verify user belongs to company
-    const { data: membership } = await adminClient
-      .from("company_users")
-      .select("id")
-      .eq("user_id", user.id)
-      .eq("company_id", companyId)
-      .eq("is_active", true)
-      .maybeSingle();
-
-    if (!membership) {
-      return new Response(JSON.stringify({ error: "Acesso negado a esta empresa" }), {
-        status: 403,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    const membership = await requireCompanyMembership({
+      supabase: auth.supabase,
+      userId: auth.userId,
+      companyId: String(companyId),
+    });
+    if (!membership.ok) return membership.response;
 
     // Load company data
-    const { data: company } = await adminClient
+    const supabase = createServiceClient();
+    const { data: company } = await supabase
       .from("companies")
       .select("*")
       .eq("id", companyId)
       .single();
 
-    if (!company) {
-      return new Response(JSON.stringify({ error: "Empresa não encontrada" }), {
-        status: 404,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const supabase = adminClient;
+    if (!company) return jsonResponse({ error: "Empresa não encontrada" }, 404);
 
     // Load fiscal documents for the period
     const startDate = `${year}-${String(month).padStart(2, "0")}-01`;
@@ -202,22 +157,13 @@ Deno.serve(async (req) => {
       console.error("Upload error:", uploadErr);
     }
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        period,
-        docs_count: fiscalDocs.length,
-        file_path: filePath,
-        lines_count: lines.length,
-      }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    return jsonResponse(
+      { success: true, period, docs_count: fiscalDocs.length, file_path: filePath, lines_count: lines.length },
+      200
     );
   } catch (err: unknown) {
     console.error("generate-sped error:", err);
     const message = err instanceof Error ? err.message : "Erro interno";
-    return new Response(JSON.stringify({ success: false, error: message }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return jsonResponse({ success: false, error: message }, 500);
   }
 });

@@ -11,20 +11,7 @@
  * - Dados completos do emitente (IE, CRT, endereço)
  */
 
-import { createClient } from "npm:@supabase/supabase-js@2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
-
-function jsonResponse(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
-}
+import { corsHeaders, createServiceClient, jsonResponse, requireCompanyMembership, requireUser } from "../_shared/auth.ts";
 
 // ─── Nuvem Fiscal Auth ───
 async function getNuvemFiscalToken(): Promise<string> {
@@ -859,13 +846,28 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
-
     const body = await req.json();
     const action = body.action || "emit";
+
+    // Auth + tenant check for all actions that touch company data
+    const isAuthRequired = ["emit", "cancel", "backup_xmls"].includes(action) || Boolean(body.company_id);
+    if (isAuthRequired) {
+      const auth = await requireUser(req);
+      if (!auth.ok) return auth.response;
+
+      const companyId = String(body.company_id || "");
+      if (companyId) {
+        const membership = await requireCompanyMembership({
+          supabase: auth.supabase,
+          userId: auth.userId,
+          companyId,
+        });
+        if (!membership.ok) return membership.response;
+      }
+    }
+
+    // Service client (used only after auth+tenant validation above)
+    const supabase = createServiceClient();
 
     switch (action) {
       case "emit":

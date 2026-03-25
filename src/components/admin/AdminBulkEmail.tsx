@@ -9,6 +9,7 @@ import { Mail, Send, Loader2, Eye } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { logAction } from "@/services/ActionLogger";
 import { useAuth } from "@/hooks/useAuth";
+import { sanitizeHtml } from "@/lib/sanitize";
 
 export function AdminBulkEmail() {
   const { user } = useAuth();
@@ -108,7 +109,7 @@ export function AdminBulkEmail() {
               </DialogHeader>
               <div className="border rounded-lg p-4 bg-muted/30">
                 <p className="text-sm font-semibold mb-2">Assunto: {subject || "(vazio)"}</p>
-                <div dangerouslySetInnerHTML={{ __html: buildHtml(body) }} />
+                <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(buildHtml(body)) }} />
               </div>
             </DialogContent>
           </Dialog>

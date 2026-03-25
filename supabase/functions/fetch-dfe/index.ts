@@ -1,10 +1,4 @@
-import { createClient } from "npm:@supabase/supabase-js@2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
+import { corsHeaders, jsonResponse, requireCompanyMembership, requireUser } from "../_shared/auth.ts";
 
 async function getNuvemFiscalToken(): Promise<string> {
   const clientId = Deno.env.get("NUVEM_FISCAL_CLIENT_ID");
@@ -32,36 +26,24 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return new Response(JSON.stringify({ error: "Não autorizado" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
-
-    const token = authHeader.replace("Bearer ", "");
-    const { data: userData, error: userErr } = await supabase.auth.getUser(token);
-    if (userErr || !userData?.user) {
-      return new Response(JSON.stringify({ error: "Não autorizado" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    const auth = await requireUser(req);
+    if (!auth.ok) return auth.response;
 
     const body = await req.json();
     const { action, company_id, document_id } = body;
 
     if (!company_id) throw new Error("company_id é obrigatório");
 
+    // Tenant check: user must belong to this company
+    const membership = await requireCompanyMembership({
+      supabase: auth.supabase,
+      userId: auth.userId,
+      companyId: String(company_id),
+    });
+    if (!membership.ok) return membership.response;
+
     // Get company CNPJ
-    const { data: company, error: compErr } = await supabase
+    const { data: company, error: compErr } = await auth.supabase
       .from("companies")
       .select("cnpj, name")
       .eq("id", company_id)
@@ -157,9 +139,6 @@ Deno.serve(async (req) => {
     }
 
     // 200 + success:false: o cliente já trata; evita POST vermelho no DevTools para falhas esperadas
-    return new Response(JSON.stringify({ success: false, error: userMessage }), {
-      status: 200,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return jsonResponse({ success: false, error: userMessage }, 200);
   }
 });
