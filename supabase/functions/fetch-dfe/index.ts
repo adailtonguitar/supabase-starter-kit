@@ -156,9 +156,10 @@ Deno.serve(async (req) => {
         "O Certificado Digital da empresa está inválido ou expirado. Acesse Configurações Fiscais e faça upload de um certificado A1 (.pfx) válido.";
     }
 
-    return new Response(
-      JSON.stringify({ success: false, error: userMessage }),
-      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    // 200 + success:false: o cliente já trata; evita POST vermelho no DevTools para falhas esperadas
+    return new Response(JSON.stringify({ success: false, error: userMessage }), {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 });

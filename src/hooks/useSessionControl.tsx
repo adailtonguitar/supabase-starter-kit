@@ -38,6 +38,8 @@ export function useSessionControl() {
   const { isSuperAdmin } = useAdminRole();
   const isDemoRef = useRef(false);
   const registeredRef = useRef(false);
+  /** JWT do usuário para RPC no fechamento da aba (Bearer anon → 401 no PostgREST) */
+  const accessTokenRef = useRef<string | null>(null);
 
   const registerSession = useCallback(async () => {
     if (!user || !companyId || registeredRef.current) return;
@@ -139,6 +141,23 @@ export function useSessionControl() {
     }
   }, [user, companyId, registerSession]);
 
+  // Mantém JWT atualizado para invalidate_session no beforeunload (fetch keepalive não pode usar só anon)
+  useEffect(() => {
+    const sync = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      accessTokenRef.current = session?.access_token ?? null;
+    };
+    void sync();
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      accessTokenRef.current = session?.access_token ?? null;
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
   // Single interval for heartbeat + validation (merged to avoid duplicate RPC calls)
   useEffect(() => {
     if (!user || !companyId) return;
@@ -150,30 +169,25 @@ export function useSessionControl() {
     return () => clearInterval(interval);
   }, [user, companyId, validateSession]);
 
-  // Cleanup on tab close
+  // Cleanup on tab close (usa JWT do usuário; Bearer anon causa 401 em /rpc/invalidate_session)
   useEffect(() => {
     const handleUnload = () => {
-      const token = getStoredToken();
-      if (token) {
-        // Use sendBeacon with proper headers via Blob for reliability on tab close
-        const url = `${import.meta.env.VITE_SUPABASE_URL || ""}/rest/v1/rpc/invalidate_session`;
-        const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || "";
-        const blob = new Blob(
-          [JSON.stringify({ p_session_token: token })],
-          { type: "application/json" }
-        );
-        // sendBeacon doesn't support custom headers, use fetch with keepalive instead
-        fetch(url, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "apikey": anonKey,
-            "Authorization": `Bearer ${anonKey}`,
-          },
-          body: JSON.stringify({ p_session_token: token }),
-          keepalive: true,
-        }).catch(() => {});
-      }
+      const sessionToken = getStoredToken();
+      const accessToken = accessTokenRef.current;
+      if (!sessionToken || !accessToken) return;
+
+      const url = `${import.meta.env.VITE_SUPABASE_URL || ""}/rest/v1/rpc/invalidate_session`;
+      const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || "";
+      fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: anonKey,
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({ p_session_token: sessionToken }),
+        keepalive: true,
+      }).catch(() => {});
     };
 
     window.addEventListener("beforeunload", handleUnload);
