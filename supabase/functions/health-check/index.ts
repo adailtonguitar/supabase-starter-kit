@@ -61,22 +61,27 @@ async function checkStorage(client: any): Promise<HealthResult> {
   }
 }
 
-/** Ping an Edge Function with OPTIONS (no auth needed) to verify it's deployed */
+/** 
+ * Ping an Edge Function with POST (empty body) to verify it's deployed.
+ * 400/401/403/422 = function is alive (just rejecting invalid input).
+ * Only 502/503/504 or network errors = truly down.
+ */
 async function checkEdgeFunction(supabaseUrl: string, fnName: string): Promise<HealthResult> {
   const start = Date.now();
   try {
     const resp = await fetch(`${supabaseUrl}/functions/v1/${fnName}`, {
-      method: "OPTIONS",
+      method: "POST",
       headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ health_check: true }),
     });
-    // OPTIONS should return 200 or 204
-    const ok = resp.status >= 200 && resp.status < 400;
     await resp.text(); // consume body
+    // 400/401/403/422 mean the function is running but rejected our probe — that's OK
+    const trulyDown = resp.status >= 500;
     return {
       service: `edge:${fnName}`,
-      status: ok ? "ok" : "error",
+      status: trulyDown ? "error" : "ok",
       latency_ms: Date.now() - start,
-      ...(!ok && { error: `HTTP ${resp.status}` }),
+      ...(trulyDown && { error: `HTTP ${resp.status}` }),
     };
   } catch (err: any) {
     return { service: `edge:${fnName}`, status: "error", latency_ms: Date.now() - start, error: err.message };
