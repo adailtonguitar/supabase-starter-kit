@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { useReadAudit } from "@/hooks/useReadAudit";
 import { useQuery } from "@tanstack/react-query";
 import { BarChart3, Calendar, Download, TrendingUp, TrendingDown, DollarSign, Package, Printer } from "lucide-react";
 import { motion } from "framer-motion";
@@ -38,6 +39,7 @@ interface ProductProfit {
 
 export default function RelatorioVendas() {
   const { companyId } = useCompany();
+  useReadAudit({ module: "vendas", resource: "Relatório de Vendas" });
   const [preset, setPreset] = useState<DatePreset>("mes");
   const [startDate, setStartDate] = useState(format(startOfMonth(new Date()), "yyyy-MM-dd"));
   const [endDate, setEndDate] = useState(format(new Date(), "yyyy-MM-dd"));
@@ -64,7 +66,7 @@ export default function RelatorioVendas() {
         return [];
       }
       
-      console.log("[RelatorioVendas] Fetching sales for company:", companyId, "from:", dateRange.from, "to:", dateRange.to);
+      // console.log("[RelatorioVendas] Fetching sales for company:", companyId, "from:", dateRange.from, "to:", dateRange.to);
       
       // Fetch sales from the sales table (source of truth)
       const { data: salesData, error: salesError } = await supabase
@@ -79,7 +81,7 @@ export default function RelatorioVendas() {
         console.error("[RelatorioVendas] Sales query error:", salesError);
         throw salesError;
       }
-      console.log("[RelatorioVendas] Sales found:", salesData?.length || 0);
+      // console.log("[RelatorioVendas] Sales found:", salesData?.length || 0);
       if (!salesData || salesData.length === 0) return [];
 
       type SaleDbRow = {

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useReadAudit } from "@/hooks/useReadAudit";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
@@ -22,6 +23,7 @@ const COOLDOWN_MS = 60_000;
 
 export default function DiagnosticoFinanceiro() {
   const { user } = useAuth();
+  useReadAudit({ module: "financeiro", resource: "Diagnóstico Financeiro" });
   const [mesReferencia, setMesReferencia] = useState(getCurrentMonth());
   const [diagnostico, setDiagnostico] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -82,8 +84,8 @@ export default function DiagnosticoFinanceiro() {
     setErrorMsg(null);
 
     try {
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "https://fsvxpxziotklbxkivyug.supabase.co";
-      const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZzdnhweHppb3RrbGJ4a2l2eXVnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE3ODU5NTMsImV4cCI6MjA4NzM2MTk1M30.8I3ABsRZBZuE1IpK_g9z3PdRUd9Omt_F5qNx0Pgqvyo";
+      const supabaseUrl = "https://fsvxpxziotklbxkivyug.supabase.co";
+      const anonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZzdnhweHppb3RrbGJ4a2l2eXVnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE3ODU5NTMsImV4cCI6MjA4NzM2MTk1M30.8I3ABsRZBZuE1IpK_g9z3PdRUd9Omt_F5qNx0Pgqvyo";
 
       const session = await supabase.auth.getSession();
       const accessToken = session?.data?.session?.access_token || anonKey;

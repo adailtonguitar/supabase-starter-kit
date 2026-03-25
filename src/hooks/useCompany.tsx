@@ -99,7 +99,7 @@ const nullFields: Omit<CachedCompany, 'companyId'> = {
 };
 
 export function useCompany(): CompanyData {
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const cached = getCachedCompany();
   const [companyId, setCompanyId] = useState<string | null>(cached?.companyId ?? null);
   const [fields, setFields] = useState<Omit<CachedCompany, 'companyId'>>(cached ? { ...nullFields, ...cached } : nullFields);
@@ -118,7 +118,7 @@ export function useCompany(): CompanyData {
     retryCount.current = 0;
     if (retryTimer.current) clearTimeout(retryTimer.current);
 
-    if (!user) {
+    if (!user || !session) {
       setCompanyId(null);
       setFields(nullFields);
       setLoading(false);
@@ -126,7 +126,7 @@ export function useCompany(): CompanyData {
     }
 
     if (!navigator.onLine && cached?.companyId) {
-      console.log("[useCompany] Offline — using cached company data");
+      // console.log("[useCompany] Offline — using cached company data");
       setCompanyId(cached.companyId);
       setFields({ ...nullFields, ...cached });
       setLoading(false);
@@ -189,7 +189,7 @@ export function useCompany(): CompanyData {
 
     fetchCompany();
     return () => { cancelled = true; if (retryTimer.current) clearTimeout(retryTimer.current); };
-  }, [user]);
+  }, [user, session]);
 
   const switchCompany = useCallback((newCompanyId: string) => {
     if (!user) return;

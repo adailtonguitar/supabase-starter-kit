@@ -48,9 +48,9 @@ function getApiBaseUrl(): string {
 
 // ─── Numeração segura (atômica via RPC com FOR UPDATE) ───
 async function getNextNumberSafe(supabase: ReturnType<typeof createClient>, configId: string): Promise<number> {
-  const { data, error } = await supabase.rpc("next_fiscal_number", {
+  const { data, error } = await supabase.rpc("next_fiscal_number" as any, {
     p_config_id: configId,
-  });
+  } as any);
 
   if (error) {
     console.error("[emit-nfce] Erro na numeração atômica:", error.message);
@@ -92,8 +92,8 @@ function buildIcmsBlock(item: any, isSimples: boolean) {
   if (isSimples) {
     // Simples Nacional → CSOSN
     if (CSOSN_ST.has(cst)) {
-      // ST no Simples
-      const mva = item.mva || 0;
+      // ST no Simples — MVA default 40% quando não configurado (evitar vBCST = vProd)
+      const mva = item.mva != null && item.mva > 0 ? item.mva : 40;
       const bcST = vProd * (1 + mva / 100);
       const icmsST = bcST * (aliqIcms / 100);
       return {
@@ -127,7 +127,7 @@ function buildIcmsBlock(item: any, isSimples: boolean) {
 
   // Regime Normal → CST ICMS
   if (CST_ST.has(cst)) {
-    const mva = item.mva || 0;
+    const mva = item.mva != null && item.mva > 0 ? item.mva : 40;
     const vBC = vProd;
     const vICMS = vBC * (aliqIcms / 100);
     const bcST = vProd * (1 + mva / 100);
@@ -220,6 +220,19 @@ async function handleEmit(supabase: any, body: any) {
     return jsonResponse({ error: "Dados incompletos: sale_id e form são obrigatórios" }, 400);
   }
 
+  // Rate limiting: máx 5 emissões por minuto por empresa
+  if (company_id) {
+    const { data: allowed } = await supabase.rpc("check_rate_limit", {
+      p_company_id: company_id,
+      p_fn_name: "emit-nfce",
+      p_max_calls: 5,
+      p_window_sec: 60,
+    });
+    if (allowed === false) {
+      return jsonResponse({ error: "Limite de emissões excedido. Aguarde 1 minuto." }, 429);
+    }
+  }
+
   // Anti-duplicação
   const isDuplicate = await checkDuplicate(supabase, sale_id);
   if (isDuplicate) {
@@ -260,6 +273,60 @@ async function handleEmit(supabase: any, body: any) {
   }
   if (!config) {
     return jsonResponse({ error: "Configuração fiscal NFC-e não encontrada. Acesse Fiscal > Configuração." }, 400);
+  }
+
+  // Validação obrigatória de IE (Inscrição Estadual)
+  const ieClean = (company.ie || company.state_registration || "").replace(/\D/g, "");
+  if (!ieClean || ieClean.length < 2) {
+    return jsonResponse({
+      error: "Inscrição Estadual (IE) não configurada. Cadastre a IE da empresa em Configurações > Empresa antes de emitir documentos fiscais.",
+    }, 400);
+  }
+
+  // Alerta de certificado A1 próximo do vencimento
+  if (config.certificate_expiry) {
+    const expiryDate = new Date(config.certificate_expiry);
+    const daysUntilExpiry = Math.floor((expiryDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+    if (daysUntilExpiry <= 0) {
+      return jsonResponse({
+        error: `Certificado digital A1 EXPIRADO em ${expiryDate.toLocaleDateString("pt-BR")}. Renove o certificado antes de emitir.`,
+        _cert_diag: { expired: true, days: daysUntilExpiry },
+      }, 400);
+    }
+    if (daysUntilExpiry <= 30) {
+      console.warn(`[emit-nfce] ⚠️ Certificado A1 expira em ${daysUntilExpiry} dias (${expiryDate.toLocaleDateString("pt-BR")})`);
+      // Criar notificação proativa se <= 15 dias
+      if (daysUntilExpiry <= 15) {
+        const alertTitle = daysUntilExpiry <= 7
+          ? `🚨 Certificado expira em ${daysUntilExpiry} dia(s)!`
+          : `⚠️ Certificado A1 expira em ${daysUntilExpiry} dias`;
+        // Evitar spam: só notificar 1x por dia
+        const { data: existing } = await supabase
+          .from("notifications")
+          .select("id")
+          .eq("company_id", company_id)
+          .eq("title", alertTitle)
+          .gte("created_at", new Date(Date.now() - 20 * 60 * 60 * 1000).toISOString())
+          .maybeSingle();
+        if (!existing) {
+          const { data: admins } = await supabase
+            .from("company_users")
+            .select("user_id")
+            .eq("company_id", company_id)
+            .eq("is_active", true)
+            .in("role", ["admin", "gerente"]);
+          for (const admin of (admins || [])) {
+            await supabase.from("notifications").insert({
+              company_id,
+              user_id: admin.user_id,
+              title: alertTitle,
+              message: `Seu certificado digital A1 expira em ${expiryDate.toLocaleDateString("pt-BR")}. Renove-o para evitar interrupção na emissão fiscal.`,
+              type: "warning",
+            });
+          }
+        }
+      }
+    }
   }
 
   // CRT e regime
@@ -326,24 +393,31 @@ async function handleEmit(supabase: any, body: any) {
     if (PIS.PISAliq) totalVPIS += PIS.PISAliq.vPIS;
     if (COFINS.COFINSAliq) totalVCOFINS += COFINS.COFINSAliq.vCOFINS;
 
+    const prodBlock: any = {
+      cProd: item.product_id || String(i + 1),
+      cEAN: "SEM GTIN",
+      xProd: item.name,
+      NCM: ncm,
+      CFOP: cfop,
+      uCom: item.unit || "UN",
+      qCom: qty,
+      vUnCom: unitPrice,
+      vProd,
+      cEANTrib: "SEM GTIN",
+      uTrib: item.unit || "UN",
+      qTrib: qty,
+      vUnTrib: unitPrice,
+      indTot: 1,
+    };
+
+    // CEST — obrigatório para ST e alguns NCMs
+    if (item.cest) {
+      prodBlock.CEST = String(item.cest).replace(/\D/g, "");
+    }
+
     const det: any = {
       nItem: i + 1,
-      prod: {
-        cProd: item.product_id || String(i + 1),
-        cEAN: "SEM GTIN",
-        xProd: item.name,
-        NCM: ncm,
-        CFOP: cfop,
-        uCom: item.unit || "UN",
-        qCom: qty,
-        vUnCom: unitPrice,
-        vProd,
-        cEANTrib: "SEM GTIN",
-        uTrib: item.unit || "UN",
-        qTrib: qty,
-        vUnTrib: unitPrice,
-        indTot: 1,
-      },
+      prod: prodBlock,
       imposto: {
         ICMS: icmsBlock,
         PIS,
@@ -361,12 +435,26 @@ async function handleEmit(supabase: any, body: any) {
   // Valor total da NF
   const vNF = Math.round((totalVProd - totalVDesc + totalVST) * 100) / 100;
 
-  // Pagamento
-  const tPag = form.payment_method || "01";
-  const vPag = form.payment_value || vNF;
+  // Pagamento — suporte a múltiplas formas (split payment)
   const troco = form.change || 0;
+  const detPag: any[] = [];
+  // tPag no escopo externo para uso no insert de rejeição
+  const mainTpag = form.payment_method || "01";
 
-  const detPag: any[] = [{ tPag, vPag: Math.round(vPag * 100) / 100 }];
+  if (form.payments && Array.isArray(form.payments) && form.payments.length > 0) {
+    // Múltiplas formas de pagamento
+    for (const p of form.payments) {
+      detPag.push({
+        tPag: p.tPag || p.method || "99",
+        vPag: Math.round((p.vPag || p.value || 0) * 100) / 100,
+      });
+    }
+  } else {
+    // Fallback: forma única
+    const vPag = form.payment_value || vNF;
+    detPag.push({ tPag: mainTpag, vPag: Math.round(vPag * 100) / 100 });
+  }
+
   const pagBlock: any = { detPag };
   if (troco > 0) {
     pagBlock.vTroco = Math.round(troco * 100) / 100;
@@ -462,7 +550,7 @@ async function handleEmit(supabase: any, body: any) {
       det: detItems,
       total: {
         ICMSTot: {
-          vBC: Math.round(totalVICMS > 0 ? totalVProd : 0) * 100 / 100 || 0,
+          vBC: Math.round((totalVICMS > 0 ? totalVProd : 0) * 100) / 100,
           vICMS: Math.round(totalVICMS * 100) / 100,
           vICMSDeson: 0,
           vFCP: 0,
@@ -560,7 +648,7 @@ async function handleEmit(supabase: any, body: any) {
       environment: ambiente,
       customer_name: form.customer_name || null,
       customer_cpf_cnpj: form.customer_doc || null,
-      payment_method: tPag,
+      payment_method: mainTpag,
       access_key: rejAccessKey,
       protocol_number: rejProtocol,
       rejection_reason: rejCode ? `[${rejCode}] ${rejReason}` : rejReason,
@@ -576,7 +664,7 @@ async function handleEmit(supabase: any, body: any) {
   const accessKey = nfData.chave || nfData.chave_acesso || nfData.access_key || "";
   const protocolNumber = nfData.protocolo || nfData.numero_protocolo || "";
 
-  const isAuthorized = statusStr.includes("autoriz") || statusStr.includes("aprovad") || cStatStr === "100" || (accessKey.length === 44 && statusStr !== "rejeitada");
+  const isAuthorized = statusStr.includes("autoriz") || statusStr.includes("aprovad") || cStatStr === "100";
   const isContingency = statusStr.includes("contingencia") || statusStr.includes("contingência");
   const isPending = statusStr.includes("pendente") || statusStr.includes("processando");
 
@@ -587,6 +675,7 @@ async function handleEmit(supabase: any, body: any) {
   else finalStatus = "pendente";
 
   // Salvar documento fiscal
+  const mainPayMethod = detPag[0]?.tPag || "99";
   await supabase.from("fiscal_documents").insert({
     company_id,
     sale_id: sale_id || null,
@@ -600,9 +689,32 @@ async function handleEmit(supabase: any, body: any) {
     environment: ambiente,
     customer_name: form.customer_name || null,
     customer_cpf_cnpj: form.customer_doc || null,
-    payment_method: tPag,
+    payment_method: mainPayMethod,
     is_contingency: isContingency,
   });
+
+  // Auto-save XML no Storage após autorização (obrigação legal: 5 anos)
+  if (isAuthorized && accessKey) {
+    try {
+      const xmlToken = await getNuvemFiscalToken();
+      const xmlBaseUrl = getApiBaseUrl();
+      const xmlResp = await fetch(`${xmlBaseUrl}/nfce/${accessKey}/xml`, {
+        headers: { Authorization: `Bearer ${xmlToken}`, Accept: "application/xml" },
+      });
+      if (xmlResp.ok) {
+        const xmlContent = await xmlResp.text();
+        const safeKey = accessKey.slice(-8);
+        const xmlPath = `${company_id}/xmls/nfce/nfce_${numero}_${safeKey}.xml`;
+        await supabase.storage.from("company-backups").upload(xmlPath, new TextEncoder().encode(xmlContent), {
+          upsert: true,
+          contentType: "application/xml",
+        });
+        console.log(`[emit-nfce] XML salvo automaticamente: ${xmlPath}`);
+      }
+    } catch (xmlErr: any) {
+      console.warn(`[emit-nfce] Falha ao salvar XML automaticamente: ${xmlErr.message}`);
+    }
+  }
 
   console.log(`[emit-nfce] NFC-e #${numero} → Status: ${finalStatus} | Chave: ${accessKey?.substring(0, 20)}...`);
 
@@ -615,10 +727,32 @@ async function handleEmit(supabase: any, body: any) {
   });
 }
 
-// ─── Consultar status ───
-async function handleConsultStatus(body: any) {
-  const { access_key, doc_type } = body;
+// ─── Consultar status (com validação cross-tenant) ───
+async function handleConsultStatus(supabase: any, body: any, callerUserId?: string | null) {
+  const { access_key, doc_type, company_id } = body;
   if (!access_key) return jsonResponse({ error: "Chave de acesso obrigatória" }, 400);
+
+  // Validação cross-tenant: verificar que o documento pertence à empresa do caller
+  if (callerUserId && company_id) {
+    const { data: docOwner } = await supabase
+      .from("fiscal_documents")
+      .select("id")
+      .eq("access_key", access_key)
+      .eq("company_id", company_id)
+      .maybeSingle();
+
+    // Se existe no banco mas não pertence a esta empresa, bloquear
+    if (!docOwner) {
+      const { data: anyDoc } = await supabase
+        .from("fiscal_documents")
+        .select("id")
+        .eq("access_key", access_key)
+        .maybeSingle();
+      if (anyDoc) {
+        return jsonResponse({ success: false, error: "Documento não pertence a esta empresa" }, 403);
+      }
+    }
+  }
 
   const token = await getNuvemFiscalToken();
   const baseUrl = getApiBaseUrl();
@@ -638,16 +772,12 @@ async function handleConsultStatus(body: any) {
   const isAuth = status.includes("autoriz") || status.includes("aprovad") || String(data.codigo_status) === "100";
 
   // Auto-reconciliar no banco se autorizada
-  if (isAuth && body.company_id) {
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
-
+  if (isAuth && company_id) {
     await supabase
       .from("fiscal_documents")
       .update({ status: "autorizada", access_key: data.chave || access_key, protocol_number: data.protocolo || null })
-      .eq("access_key", access_key);
+      .eq("access_key", access_key)
+      .eq("company_id", company_id);
   }
 
   return jsonResponse({
@@ -659,11 +789,27 @@ async function handleConsultStatus(body: any) {
   });
 }
 
-// ─── Cancelar documento ───
-async function handleCancel(supabase: any, body: any) {
-  const { access_key, justificativa, doc_type, doc_id } = body;
+// ─── Cancelar documento (RBAC: apenas admin/gerente) ───
+async function handleCancel(supabase: any, body: any, callerUserId?: string | null) {
+  const { access_key, justificativa, doc_type, doc_id, company_id } = body;
   if (!justificativa || justificativa.length < 15) {
     return jsonResponse({ error: "Justificativa deve ter no mínimo 15 caracteres" }, 400);
+  }
+
+  // RBAC: exigir perfil admin ou gerente para cancelamento
+  if (callerUserId && company_id) {
+    const { data: userRole } = await supabase
+      .from("company_users")
+      .select("role")
+      .eq("user_id", callerUserId)
+      .eq("company_id", company_id)
+      .eq("is_active", true)
+      .maybeSingle();
+
+    const allowedRoles = ["admin", "gerente"];
+    if (!userRole || !allowedRoles.includes(userRole.role)) {
+      return jsonResponse({ success: false, error: "Apenas administradores e gerentes podem cancelar documentos fiscais" }, 403);
+    }
   }
 
   const token = await getNuvemFiscalToken();
@@ -687,8 +833,42 @@ async function handleCancel(supabase: any, body: any) {
     return jsonResponse({ success: false, error: data?.mensagem || "Erro ao cancelar" });
   }
 
-  // Atualizar status no banco
-  if (access_key) {
+  // Atualizar status no banco e reverter venda via cancel_sale_atomic
+  if (access_key && company_id) {
+    // Buscar sale_id vinculado ao documento
+    const { data: fiscalDoc } = await supabase
+      .from("fiscal_documents")
+      .select("id, sale_id")
+      .eq("access_key", access_key)
+      .eq("company_id", company_id)
+      .maybeSingle();
+
+    // Atualizar documento fiscal
+    await supabase
+      .from("fiscal_documents")
+      .update({ status: "cancelada" })
+      .eq("access_key", access_key)
+      .eq("company_id", company_id);
+
+    // Se há venda vinculada, reverter estoque e financeiro atomicamente
+    if (fiscalDoc?.sale_id) {
+      try {
+        const { data: cancelResult, error: cancelErr } = await supabase.rpc("cancel_sale_atomic", {
+          p_sale_id: fiscalDoc.sale_id,
+          p_company_id: company_id,
+          p_reason: `Cancelamento fiscal: ${justificativa}`,
+          p_performed_by: callerUserId || null,
+        });
+        if (cancelErr) {
+          console.warn(`[emit-nfce] cancel_sale_atomic falhou para sale ${fiscalDoc.sale_id}:`, cancelErr.message);
+        } else {
+          console.log(`[emit-nfce] Venda ${fiscalDoc.sale_id} revertida (estoque + financeiro) após cancelamento fiscal`);
+        }
+      } catch (revertErr: any) {
+        console.warn(`[emit-nfce] Erro ao reverter venda:`, revertErr.message);
+      }
+    }
+  } else if (access_key) {
     await supabase
       .from("fiscal_documents")
       .update({ status: "cancelada" })
@@ -698,10 +878,23 @@ async function handleCancel(supabase: any, body: any) {
   return jsonResponse({ success: true, data });
 }
 
-// ─── Download PDF ───
-async function handleDownloadPdf(body: any) {
-  const { access_key, doc_type } = body;
+// ─── Download PDF (com validação cross-tenant) ───
+async function handleDownloadPdf(supabase: any, body: any, callerUserId?: string | null) {
+  const { access_key, doc_type, company_id } = body;
   if (!access_key) return jsonResponse({ error: "Chave de acesso obrigatória" }, 400);
+
+  // Validação cross-tenant
+  if (callerUserId && company_id) {
+    const { data: docOwner } = await supabase
+      .from("fiscal_documents")
+      .select("id")
+      .eq("access_key", access_key)
+      .eq("company_id", company_id)
+      .maybeSingle();
+    if (!docOwner) {
+      return jsonResponse({ success: false, error: "Documento não pertence a esta empresa" }, 403);
+    }
+  }
 
   const token = await getNuvemFiscalToken();
   const baseUrl = getApiBaseUrl();
@@ -726,10 +919,23 @@ async function handleDownloadPdf(body: any) {
   return jsonResponse({ success: true, pdf_base64: base64 });
 }
 
-// ─── Download XML ───
-async function handleDownloadXml(body: any) {
-  const { access_key, doc_type } = body;
+// ─── Download XML (com validação cross-tenant) ───
+async function handleDownloadXml(supabase: any, body: any, callerUserId?: string | null) {
+  const { access_key, doc_type, company_id } = body;
   if (!access_key) return jsonResponse({ error: "Chave de acesso obrigatória" }, 400);
+
+  // Validação cross-tenant
+  if (callerUserId && company_id) {
+    const { data: docOwner } = await supabase
+      .from("fiscal_documents")
+      .select("id")
+      .eq("access_key", access_key)
+      .eq("company_id", company_id)
+      .maybeSingle();
+    if (!docOwner) {
+      return jsonResponse({ success: false, error: "Documento não pertence a esta empresa" }, 403);
+    }
+  }
 
   const token = await getNuvemFiscalToken();
   const baseUrl = getApiBaseUrl();
@@ -747,11 +953,27 @@ async function handleDownloadXml(body: any) {
   return jsonResponse({ success: true, xml });
 }
 
-// ─── Inutilizar numeração ───
-async function handleInutilize(body: any) {
+// ─── Inutilizar numeração (RBAC: apenas admin/gerente) ───
+async function handleInutilize(supabase: any, body: any, callerUserId?: string | null) {
   const { company_id, doc_type, serie, numero_inicial, numero_final, justificativa } = body;
   if (!justificativa || justificativa.length < 15) {
     return jsonResponse({ error: "Justificativa deve ter no mínimo 15 caracteres" }, 400);
+  }
+
+  // RBAC: exigir perfil admin ou gerente
+  if (callerUserId && company_id) {
+    const { data: userRole } = await supabase
+      .from("company_users")
+      .select("role")
+      .eq("user_id", callerUserId)
+      .eq("company_id", company_id)
+      .eq("is_active", true)
+      .maybeSingle();
+
+    const allowedRoles = ["admin", "gerente"];
+    if (!userRole || !allowedRoles.includes(userRole.role)) {
+      return jsonResponse({ success: false, error: "Apenas administradores e gerentes podem inutilizar numeração fiscal" }, 403);
+    }
   }
 
   const token = await getNuvemFiscalToken();
@@ -776,6 +998,24 @@ async function handleInutilize(body: any) {
   const data = await resp.json();
   if (!resp.ok) {
     return jsonResponse({ success: false, error: data?.mensagem || "Erro na inutilização" });
+  }
+
+  // Persistir inutilização na tabela fiscal_documents
+  if (company_id) {
+    const ambiente = Deno.env.get("NUVEM_FISCAL_SANDBOX") === "true" ? "homologacao" : "producao";
+    for (let num = numero_inicial; num <= numero_final; num++) {
+      await supabase.from("fiscal_documents").insert({
+        company_id,
+        doc_type: doc_type || "nfce",
+        number: num,
+        serie: serie || 1,
+        status: "inutilizada",
+        environment: ambiente,
+        rejection_reason: justificativa,
+        is_contingency: false,
+        total_value: 0,
+      });
+    }
   }
 
   return jsonResponse({ success: true, data });
@@ -837,12 +1077,48 @@ function getUfCode(uf: string): number {
 }
 
 // ════════════════════════════════════════════════
+// AUTH HELPER — validates JWT for external calls
+// ════════════════════════════════════════════════
+
+async function validateCaller(req: Request): Promise<{ userId: string | null; isServiceCall: boolean }> {
+  const authHeader = req.headers.get("Authorization");
+  if (!authHeader?.startsWith("Bearer ")) {
+    return { userId: null, isServiceCall: false };
+  }
+
+  const token = authHeader.replace("Bearer ", "");
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+  // If the token IS the service_role_key itself, it's an internal call (e.g. process-fiscal-queue)
+  if (token === serviceRoleKey) {
+    return { userId: null, isServiceCall: true };
+  }
+
+  // Validate user JWT via getClaims
+  const userClient = createClient(supabaseUrl, anonKey, {
+    global: { headers: { Authorization: authHeader } },
+  });
+
+  try {
+    const { data, error } = await userClient.auth.getClaims(token);
+    if (error || !data?.claims?.sub) {
+      return { userId: null, isServiceCall: false };
+    }
+    return { userId: data.claims.sub as string, isServiceCall: false };
+  } catch {
+    return { userId: null, isServiceCall: false };
+  }
+}
+
+// ════════════════════════════════════════════════
 // MAIN HANDLER
 // ════════════════════════════════════════════════
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { headers: getCorsHeaders(req) });
   }
 
   try {
@@ -873,15 +1149,15 @@ Deno.serve(async (req) => {
       case "emit":
         return await handleEmit(supabase, body);
       case "consult_status":
-        return await handleConsultStatus(body);
+        return await handleConsultStatus(supabase, body, userId);
       case "cancel":
-        return await handleCancel(supabase, body);
+        return await handleCancel(supabase, body, userId);
       case "download_pdf":
-        return await handleDownloadPdf(body);
+        return await handleDownloadPdf(supabase, body, userId);
       case "download_xml":
-        return await handleDownloadXml(body);
+        return await handleDownloadXml(supabase, body, userId);
       case "inutilize":
-        return await handleInutilize(body);
+        return await handleInutilize(supabase, body, userId);
       case "backup_xmls":
         return await handleBackupXmls(supabase, body);
       default:

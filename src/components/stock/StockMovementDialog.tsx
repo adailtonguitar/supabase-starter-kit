@@ -20,6 +20,7 @@ export function StockMovementDialog({ open, onOpenChange, product, onSuccess }: 
   const [type, setType] = useState<"entrada" | "saida">("entrada");
   const [quantity, setQuantity] = useState("");
   const [reason, setReason] = useState("");
+  const [acquisitionType, setAcquisitionType] = useState<"cnpj" | "cpf">("cnpj");
   const qtyRef = useRef<HTMLInputElement>(null);
 
   // Reset fields when dialog opens
@@ -28,6 +29,7 @@ export function StockMovementDialog({ open, onOpenChange, product, onSuccess }: 
       setQuantity("");
       setReason("");
       setType("entrada");
+      setAcquisitionType("cnpj");
     }
   }, [open]);
 
@@ -51,6 +53,7 @@ export function StockMovementDialog({ open, onOpenChange, product, onSuccess }: 
         type,
         quantity: qty,
         reason: reason || (type === "entrada" ? "Entrada manual" : "Saída manual"),
+        acquisition_type: type === "entrada" ? acquisitionType : null,
       });
       setQuantity("");
       setReason("");
@@ -99,6 +102,26 @@ export function StockMovementDialog({ open, onOpenChange, product, onSuccess }: 
               </SelectContent>
             </Select>
           </div>
+
+          {type === "entrada" && (
+            <div className="space-y-2">
+              <Label>Origem fiscal</Label>
+              <Select value={acquisitionType} onValueChange={(v) => setAcquisitionType(v as "cnpj" | "cpf")}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="cnpj">📄 Com Nota Fiscal (CNPJ)</SelectItem>
+                  <SelectItem value="cpf">🧾 Sem Nota / CPF</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-[11px] text-muted-foreground">
+                {acquisitionType === "cnpj"
+                  ? "Produtos com lastro fiscal — elegíveis para NFC-e"
+                  : "Produtos sem nota de entrada — não elegíveis para NFC-e"}
+              </p>
+            </div>
+          )}
 
           <div className="space-y-2">
             <Label>Quantidade</Label>

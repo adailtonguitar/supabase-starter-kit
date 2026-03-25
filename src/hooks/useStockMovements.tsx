@@ -92,6 +92,7 @@ export function useCreateStockMovement() {
       unit_cost?: number;
       reason?: string;
       reference?: string;
+      acquisition_type?: "cnpj" | "cpf" | null;
     }) => {
       if (!companyId || !user) throw new Error("Sem permissão");
 
@@ -123,20 +124,25 @@ export function useCreateStockMovement() {
           newStock = previous;
       }
 
+      const insertData: Record<string, unknown> = {
+        company_id: companyId,
+        product_id: movement.product_id,
+        type: movement.type,
+        quantity: movement.type === "ajuste" ? Math.abs(movement.quantity - previous) : movement.quantity,
+        previous_stock: previous,
+        new_stock: newStock,
+        unit_cost: movement.unit_cost,
+        reason: movement.reason,
+        reference: movement.reference,
+        performed_by: user.id,
+      };
+      if (movement.acquisition_type) {
+        insertData.acquisition_type = movement.acquisition_type;
+      }
+
       const { data, error } = await supabase
         .from("stock_movements")
-        .insert({
-          company_id: companyId,
-          product_id: movement.product_id,
-          type: movement.type,
-          quantity: movement.type === "ajuste" ? Math.abs(movement.quantity - previous) : movement.quantity,
-          previous_stock: previous,
-          new_stock: newStock,
-          unit_cost: movement.unit_cost,
-          reason: movement.reason,
-          reference: movement.reference,
-          performed_by: user.id,
-        })
+        .insert(insertData)
         .select()
         .single();
       if (error) throw error;

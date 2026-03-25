@@ -36,7 +36,7 @@ export function useCreateProductCategory() {
       if (!companyId) throw new Error("Empresa não encontrada");
       const { data, error } = await supabase.from("product_categories").insert({ ...c, company_id: companyId }).select().single();
       if (error) throw error;
-      logAction({ companyId, userId: user?.id, action: "Categoria criada", module: "produtos", details: c.name });
+      logAction({ companyId, userId: user?.id, action: "Categoria criada", module: "produtos", details: c.name as string });
       return data;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["product_categories"] }); toast.success("Categoria criada"); },

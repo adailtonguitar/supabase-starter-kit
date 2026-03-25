@@ -1,4 +1,5 @@
 import { useState, type ComponentType } from "react";
+import { useReadAudit } from "@/hooks/useReadAudit";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
@@ -17,6 +18,7 @@ const PAYMENT_LABELS: Record<string, string> = {
 
 export default function LucroDiario() {
   const { companyId } = useCompany();
+  useReadAudit({ module: "financeiro", resource: "Lucro Diário" });
   const [date, setDate] = useState(new Date());
   const dateStr = format(date, "yyyy-MM-dd");
 

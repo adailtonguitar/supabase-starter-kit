@@ -22,7 +22,7 @@ async function getNuvemFiscalToken(): Promise<string> {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+    return new Response("ok", { headers: getCorsHeaders(req) });
   }
 
   try {
@@ -60,15 +60,87 @@ Deno.serve(async (req) => {
       "Content-Type": "application/json",
     };
 
+    const isSandbox = Deno.env.get("NUVEM_FISCAL_SANDBOX") === "true";
+    const apiBase = isSandbox
+      ? "https://api.sandbox.nuvemfiscal.com.br"
+      : "https://api.nuvemfiscal.com.br";
+    const ambiente = isSandbox ? "homologacao" : "producao";
+
+    // ─── Auto-configure DistNFe if needed ───
+    async function ensureDistNfeConfig() {
+      try {
+        const checkRes = await fetch(`${apiBase}/empresas/${cnpj}/distnfe`, {
+          method: "GET",
+          headers: nfHeaders,
+        });
+        if (checkRes.ok) {
+          console.log("DistNFe already configured for", cnpj);
+          await checkRes.text();
+          return;
+        }
+        console.log("DistNFe not configured, status:", checkRes.status);
+        await checkRes.text();
+      } catch (e) {
+        console.log("DistNFe check failed:", e);
+      }
+
+      const payloads = [
+        {
+          distribuicao_automatica: true,
+          distribuicao_intervalo_horas: 1,
+          ciencia_automatica: true,
+          ambiente,
+        },
+        { ambiente },
+      ];
+
+      let lastError = "";
+
+      for (const configBody of payloads) {
+        console.log("Trying PUT distnfe with body:", JSON.stringify(configBody));
+        const configRes = await fetch(`${apiBase}/empresas/${cnpj}/distnfe`, {
+          method: "PUT",
+          headers: nfHeaders,
+          body: JSON.stringify(configBody),
+        });
+        const configText = await configRes.text();
+        console.log("PUT distnfe response:", configRes.status, configText);
+
+        if (configRes.ok) {
+          return;
+        }
+
+        lastError = configText;
+      }
+
+      // Non-blocking: log but don't throw - the API might work without explicit config
+      console.warn("DistNFe config failed, proceeding anyway. Last error:", lastError);
+    }
+
     // ─── ACTION: distribute ───
     if (action === "distribute") {
-      const res = await fetch("https://api.nuvemfiscal.com.br/distribuicao/nfe", {
+      await ensureDistNfeConfig();
+
+      // Get last NSU from DB using integer format expected by Nuvem Fiscal
+      const { data: lastDoc } = await supabaseAdmin
+        .from("notas_recebidas")
+        .select("nsu")
+        .eq("company_id", company_id)
+        .order("nsu", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      const normalizedLastNsu = Number(String(lastDoc?.nsu ?? 0).replace(/\D/g, "") || 0);
+
+      const res = await fetch(`${apiBase}/distribuicao/nfe`, {
         method: "POST",
         headers: nfHeaders,
         body: JSON.stringify({
           cpf_cnpj: cnpj,
-          ambiente: "producao",
+          ambiente,
           tipo_consulta: "dist-nsu",
+          dist_nsu: normalizedLastNsu,
+          ignorar_tempo_espera: true,
         }),
       });
 
@@ -78,28 +150,132 @@ Deno.serve(async (req) => {
       }
 
       return new Response(JSON.stringify({ success: true, data }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
       });
     }
 
     // ─── ACTION: list ───
     if (action === "list") {
-      const url = new URL("https://api.nuvemfiscal.com.br/distribuicao/nfe/documentos");
+      // First try to return from local DB
+      const { data: localDocs } = await supabase
+        .from("notas_recebidas")
+        .select("*")
+        .eq("company_id", company_id)
+        .order("created_at", { ascending: false })
+        .limit(100);
+
+      if (localDocs && localDocs.length > 0) {
+        return new Response(JSON.stringify({
+          success: true,
+          source: "local",
+          data: {
+            data: localDocs.map((d: any) => ({
+              id: d.id,
+              chave: d.chave_nfe,
+              tipo_documento: d.schema_tipo || "NF-e",
+              numero: d.numero_nfe || 0,
+              serie: d.serie || 0,
+              data_emissao: d.data_emissao || "",
+              valor_total: d.valor_total || 0,
+              cnpj_emitente: d.cnpj_emitente || "",
+              nome_emitente: d.nome_emitente || "",
+              situacao: d.situacao || "resumo",
+              nsu: d.nsu || 0,
+              schema: d.schema_tipo || "",
+              nuvem_fiscal_id: d.nuvem_fiscal_id,
+              status_manifestacao: d.status_manifestacao,
+              importado: d.importado,
+            })),
+            "@count": localDocs.length,
+          },
+        }), {
+          headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
+        });
+      }
+
+      // Fallback: fetch from Nuvem Fiscal API
+      await ensureDistNfeConfig();
+      const url = new URL(`${apiBase}/distribuicao/nfe/documentos`);
       url.searchParams.set("cpf_cnpj", cnpj);
-      url.searchParams.set("ambiente", "producao");
+      url.searchParams.set("ambiente", ambiente);
       url.searchParams.set("$top", "50");
       url.searchParams.set("$skip", "0");
       url.searchParams.set("$inlinecount", "true");
 
       const res = await fetch(url.toString(), { method: "GET", headers: nfHeaders });
-
       const data = await res.json();
       if (!res.ok) {
         throw new Error(data?.error?.message || JSON.stringify(data) || `Erro ${res.status}`);
       }
 
+      // Persist docs to local DB
+      const docs = data?.data || [];
+      for (const d of docs) {
+        const chave = d.chave || d.chNFe;
+        if (!chave) continue;
+        await supabaseAdmin.from("notas_recebidas").upsert({
+          company_id,
+          chave_nfe: chave,
+          nsu: d.nsu || 0,
+          cnpj_emitente: d.cnpj_emitente || "",
+          nome_emitente: d.nome_emitente || "",
+          data_emissao: d.data_emissao || d.dh_emissao || null,
+          valor_total: d.valor_total || d.vNF || 0,
+          numero_nfe: d.numero || 0,
+          serie: d.serie || 0,
+          schema_tipo: d.schema || d.tipo_documento || "NF-e",
+          situacao: d.situacao || "resumo",
+          nuvem_fiscal_id: d.id || null,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: "company_id,chave_nfe" });
+      }
+
+      return new Response(JSON.stringify({ success: true, source: "api", data }), {
+        headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
+      });
+    }
+
+    // ─── ACTION: manifest (ciência da operação) ───
+    if (action === "manifest") {
+      if (!document_id) throw new Error("document_id (chave NFe) é obrigatório");
+
+      const tipoEvento = body.tipo_evento || "ciencia";
+      const eventoMap: Record<string, string> = {
+        ciencia: "ciencia",
+        confirmacao: "confirmacao",
+        desconhecimento: "desconhecimento",
+        nao_realizada: "nao_realizada",
+      };
+      const evento = eventoMap[tipoEvento] || "ciencia";
+
+      const res = await fetch(
+        `${apiBase}/distribuicao/nfe/documentos/${document_id}/manifestacao`,
+        {
+          method: "POST",
+          headers: nfHeaders,
+          body: JSON.stringify({
+            tipo_evento: evento,
+            justificativa: body.justificativa || undefined,
+          }),
+        }
+      );
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.error?.message || JSON.stringify(data) || `Erro ${res.status} na manifestação`);
+      }
+
+      // Update local record
+      if (body.chave_nfe) {
+        await supabaseAdmin.from("notas_recebidas").update({
+          status_manifestacao: evento === "ciencia" ? "ciencia" : evento,
+          situacao: evento === "ciencia" ? "manifesto" : "completo",
+          updated_at: new Date().toISOString(),
+        }).eq("company_id", company_id).eq("chave_nfe", body.chave_nfe);
+      }
+
       return new Response(JSON.stringify({ success: true, data }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
       });
     }
 
@@ -108,7 +284,7 @@ Deno.serve(async (req) => {
       if (!document_id) throw new Error("document_id é obrigatório");
 
       const res = await fetch(
-        `https://api.nuvemfiscal.com.br/distribuicao/nfe/documentos/${document_id}/xml`,
+        `${apiBase}/distribuicao/nfe/documentos/${document_id}/xml`,
         { method: "GET", headers: { ...nfHeaders, Accept: "application/xml" } }
       );
 
@@ -118,8 +294,16 @@ Deno.serve(async (req) => {
       }
 
       const xml = await res.text();
+
+      // Save XML to local record and mark as completo
+      await supabaseAdmin.from("notas_recebidas").update({
+        xml_completo: xml,
+        situacao: "completo",
+        updated_at: new Date().toISOString(),
+      }).eq("company_id", company_id).eq("nuvem_fiscal_id", document_id);
+
       return new Response(JSON.stringify({ success: true, xml }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
       });
     }
 
@@ -127,7 +311,6 @@ Deno.serve(async (req) => {
   } catch (err: any) {
     let userMessage = err.message || "Erro desconhecido";
 
-    // Traduz erros técnicos da Nuvem Fiscal em mensagens amigáveis
     if (userMessage.includes("precisa estar cadastrado previamente")) {
       userMessage =
         "Sua empresa ainda não está cadastrada no serviço fiscal. Para usar a Consulta DF-e, acesse Configurações Fiscais, preencha os dados da empresa e faça upload do Certificado Digital A1 (.pfx).";

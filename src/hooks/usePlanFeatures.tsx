@@ -115,7 +115,7 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
       // If there's a plan record but it's starter and trial is still active, override to Pro
       type CompanyPlanRow = {
         plan?: string;
-        status?: SubscriptionState["status"];
+        status?: PlanFeatures["status"];
         max_users?: number;
         fiscal_enabled?: boolean;
         advanced_reports_enabled?: boolean;

@@ -19,7 +19,7 @@ async function syncProducts(companyId: string) {
     if (error) throw error;
     if (data) {
       await cacheSet("products", companyId, data);
-      console.log(`[LocalDB] Cached ${data.length} products`);
+      // console.log(`[LocalDB] Cached ${data.length} products`);
     }
   } catch (err) {
     console.warn("[LocalDB] Failed to sync products:", err);
@@ -37,7 +37,7 @@ async function syncClients(companyId: string) {
     if (error) throw error;
     if (data) {
       await cacheSet("clients", companyId, data);
-      console.log(`[LocalDB] Cached ${data.length} clients`);
+      // console.log(`[LocalDB] Cached ${data.length} clients`);
     }
   } catch (err) {
     console.warn("[LocalDB] Failed to sync clients:", err);
@@ -46,11 +46,12 @@ async function syncClients(companyId: string) {
 
 export function LocalDBProvider({ children }: { children: ReactNode }) {
   const { companyId } = useCompany();
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const intervalRef = useRef<ReturnType<typeof setInterval>>();
 
   useEffect(() => {
-    if (!companyId || !user) return;
+    // Require a real session (not just cached user) to avoid 401s
+    if (!companyId || !user || !session) return;
 
     // Initial sync
     const doSync = () => {
@@ -66,7 +67,7 @@ export function LocalDBProvider({ children }: { children: ReactNode }) {
 
     // Also sync when coming back online
     const onOnline = () => {
-      console.log("[LocalDB] Back online — refreshing cache");
+      // console.log("[LocalDB] Back online — refreshing cache");
       doSync();
     };
     window.addEventListener("online", onOnline);
@@ -75,7 +76,7 @@ export function LocalDBProvider({ children }: { children: ReactNode }) {
       if (intervalRef.current) clearInterval(intervalRef.current);
       window.removeEventListener("online", onOnline);
     };
-  }, [companyId, user]);
+  }, [companyId, user, session]);
 
   return <>{children}</>;
 }

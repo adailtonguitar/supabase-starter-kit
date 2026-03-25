@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/utils";
-import { logAction, newPdvTraceId } from "@/services/ActionLogger";
+import { logAction, newPdvTraceId, buildDiff } from "@/services/ActionLogger";
 import { ReturnReceipt } from "./ReturnReceipt";
 import { FiscalReturnHandler } from "./FiscalReturnHandler";
 
@@ -185,13 +185,38 @@ export function PDVReturnExchangeDialog({ open, onClose }: PDVReturnExchangeProp
       const rpcResult = result as { success: boolean; error?: string };
       if (!rpcResult.success) throw new Error(rpcResult.error || "Erro desconhecido");
 
-      // Complementary frontend log with session metadata (browser, screen, platform)
+      // Audit before/after: registrar estado completo da venda antes do cancelamento
+      const beforeState = {
+        sale_id: foundSale.id,
+        status: foundSale.status,
+        total: foundSale.total,
+        items: foundSale.items.map(i => ({
+          product_id: i.product_id,
+          product_name: i.product_name,
+          quantity: i.quantity,
+          unit_price: i.unit_price,
+        })),
+      };
+
+      const afterState = {
+        sale_id: foundSale.id,
+        status: "cancelled",
+        total: foundSale.total,
+        refund_amount: totalRefund,
+        returned_items: returnItems,
+      };
+
+      // Complementary frontend log with before/after diff and session metadata
       logAction({
         companyId,
         userId: user?.id || null,
-        action: "sale_return_session_meta",
+        action: "sale_return_with_audit",
         module: "vendas",
         details: `Devolução PDV - Venda #${foundSale.id.substring(0, 8)} - Estorno ${formatCurrency(totalRefund)}`,
+        diff: buildDiff(
+          { status: beforeState.status, total: beforeState.total, items_count: beforeState.items.length },
+          { status: afterState.status, total: afterState.total, refund: afterState.refund_amount, returned_items: afterState.returned_items.length }
+        ),
         correlation: {
           trace_id: pdvTraceId,
           company_id: companyId,

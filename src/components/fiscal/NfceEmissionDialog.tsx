@@ -7,6 +7,7 @@ import { NfceCustomerStep } from "./NfceCustomerStep";
 import { NfcePaymentStep } from "./NfcePaymentStep";
 import { NfceSuccessStep } from "./NfceSuccessStep";
 import { NfceErrorStep } from "./NfceErrorStep";
+import { FiscalStockWarningDialog, type FiscalStockItem } from "./FiscalStockWarningDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
 import { formatCurrency } from "@/lib/utils";
@@ -50,6 +51,7 @@ interface NfceItem {
   pisCst: string;
   cofinsCst: string;
   icmsAliquota: number;
+  product_id?: string;
 }
 
 interface NfceFormData {
@@ -108,6 +110,9 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
   const [ncmSearchText, setNcmSearchText] = useState("");
   const [productSearchText, setProductSearchText] = useState("");
   const [showProductSearch, setShowProductSearch] = useState(false);
+  const [fiscalWarningOpen, setFiscalWarningOpen] = useState(false);
+  const [fiscalStockItems, setFiscalStockItems] = useState<FiscalStockItem[]>([]);
+  const [fiscalCheckPassed, setFiscalCheckPassed] = useState(false);
 
   const ncmFiltered = useMemo(() => {
     const q = ncmSearchText.trim().toLowerCase();
@@ -213,6 +218,7 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
         pisCst: (item.pis_cst as string) || "49",
         cofinsCst: (item.cofins_cst as string) || "49",
         icmsAliquota: (item.icms_aliquota as number) || 0,
+        product_id: (item.product_id as string) || (item.id as string) || undefined,
       };
     });
 
@@ -303,6 +309,51 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
       setActiveTab("payment");
       return;
     }
+
+    // ── VALIDAÇÃO DE LASTRO FISCAL (acquisition_type) ──
+    if (!fiscalCheckPassed) {
+      const productIds = form.items.map((it) => it.product_id).filter(Boolean) as string[];
+      if (productIds.length > 0 && companyId) {
+        try {
+          // Sum CNPJ stock per product from stock_movements
+          const { data: cnpjMovements } = await supabase
+            .from("stock_movements")
+            .select("product_id, quantity, type")
+            .eq("company_id", companyId)
+            .eq("acquisition_type", "cnpj")
+            .in("product_id", productIds);
+
+          const cnpjStockMap: Record<string, number> = {};
+          for (const m of (cnpjMovements ?? []) as Array<{ product_id: string; quantity: number; type: string }>) {
+            if (!cnpjStockMap[m.product_id]) cnpjStockMap[m.product_id] = 0;
+            if (m.type === "entrada" || m.type === "devolucao") {
+              cnpjStockMap[m.product_id] += m.quantity;
+            } else if (m.type === "saida" || m.type === "venda") {
+              cnpjStockMap[m.product_id] -= m.quantity;
+            }
+          }
+
+          const fiscalItems: FiscalStockItem[] = form.items
+            .filter((it) => it.product_id)
+            .map((it) => ({
+              name: it.name,
+              quantity: it.qty,
+              cnpjStock: Math.max(0, cnpjStockMap[it.product_id!] ?? 0),
+              hasSufficientFiscalStock: (cnpjStockMap[it.product_id!] ?? 0) >= it.qty,
+            }));
+
+          const hasIssues = fiscalItems.some((fi) => !fi.hasSufficientFiscalStock);
+          if (hasIssues) {
+            setFiscalStockItems(fiscalItems);
+            setFiscalWarningOpen(true);
+            return; // Stop - user will choose action in the dialog
+          }
+        } catch (err) {
+          console.warn("[NfceEmission] Fiscal stock check failed, proceeding:", err);
+        }
+      }
+    }
+    setFiscalCheckPassed(false); // Reset for next emission
 
     // ── VALIDAÇÃO CRUZADA CST × CRT ──
     const validationErrors: Record<number, string[]> = {};
@@ -893,6 +944,28 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
           />
         )}
       </div>
+
+      <FiscalStockWarningDialog
+        open={fiscalWarningOpen}
+        onOpenChange={setFiscalWarningOpen}
+        items={fiscalStockItems}
+        onEmitAll={() => {
+          setFiscalWarningOpen(false);
+          setFiscalCheckPassed(true);
+          setTimeout(() => handleEmit(), 50);
+        }}
+        onEmitOnlyFiscal={() => {
+          // Remove items without fiscal backing
+          const okNames = new Set(fiscalStockItems.filter(i => i.hasSufficientFiscalStock).map(i => i.name));
+          setForm(prev => ({ ...prev, items: prev.items.filter(it => okNames.has(it.name)) }));
+          setFiscalWarningOpen(false);
+          setFiscalCheckPassed(true);
+          toast.info("Itens sem lastro fiscal foram removidos. Clique em Emitir novamente.");
+        }}
+        onCancel={() => {
+          setFiscalWarningOpen(false);
+        }}
+      />
     </div>
   );
 }

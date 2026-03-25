@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from "react";
-import { Search, Save, PackagePlus, PackageMinus, DollarSign, X, ArrowUpDown, Percent } from "lucide-react";
+import { Search, Save, PackagePlus, PackageMinus, DollarSign, X, ArrowUpDown, Percent, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -52,6 +52,7 @@ export function BatchMovementMode({ products, onClose }: Props) {
   const [priceEntries, setPriceEntries] = useState<Record<string, PriceEntry>>({});
   const [saving, setSaving] = useState(false);
   const [globalMargin, setGlobalMargin] = useState<string>("");
+  const [batchAcquisitionType, setBatchAcquisitionType] = useState<"cnpj" | "cpf">("cnpj");
 
   const applyGlobalMargin = useCallback(() => {
     const margin = parseFloat(globalMargin);
@@ -144,6 +145,7 @@ export function BatchMovementMode({ products, onClose }: Props) {
           quantity: entry.quantity,
           unit_cost: type === "entrada" ? entry.unit_cost : undefined,
           reference: entry.reference,
+          acquisition_type: type === "entrada" ? batchAcquisitionType : null,
         });
         success++;
       } catch {
@@ -268,6 +270,33 @@ export function BatchMovementMode({ products, onClose }: Props) {
           </TabsTrigger>
         </TabsList>
       </Tabs>
+
+      {/* Batch acquisition type selector for entrada tab */}
+      {tab === "entrada" && (
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 p-3 bg-muted/50 rounded-xl border border-border">
+          <div className="flex items-center gap-2 text-sm text-foreground font-medium">
+            <FileText className="w-4 h-4 text-primary" />
+            Origem fiscal do lote:
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setBatchAcquisitionType("cnpj")}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${batchAcquisitionType === "cnpj" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/80"}`}
+            >
+              📄 Com Nota (CNPJ)
+            </button>
+            <button
+              onClick={() => setBatchAcquisitionType("cpf")}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${batchAcquisitionType === "cpf" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/80"}`}
+            >
+              🧾 Sem Nota (CPF)
+            </button>
+          </div>
+          <span className="text-[10px] text-muted-foreground">
+            {batchAcquisitionType === "cnpj" ? "Elegível para emissão de NFC-e" : "Não elegível para NFC-e"}
+          </span>
+        </div>
+      )}
 
       <div className="relative max-w-md">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />

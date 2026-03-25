@@ -14,7 +14,7 @@ import {
   BadgeDollarSign, Bell, Stethoscope, Scan, FileDown, FilePen, FileSearch, Cog,
   Network, Smartphone, LifeBuoy, Boxes, BarChart, Calculator, Armchair, Wrench, Eye,
   Ruler, Camera, Box, Navigation, Move, Brain as BrainIcon, User as UserIcon, RotateCcw, Calendar,
-  Bot,
+  Bot, Sparkles,
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
@@ -159,6 +159,8 @@ const navItems: NavEntry[] = [
       { icon: Receipt, label: "Documentos", path: "/fiscal" },
       { icon: FilePen, label: "Emitir NF-e", path: "/fiscal/nfe" },
       { icon: FileSearch, label: "Consulta DFe", path: "/consulta-dfe" },
+      { icon: Sparkles, label: "Importação NF-e", path: "/importacao-nfe" },
+      { icon: FileDown, label: "Entradas", path: "/entradas" },
       { icon: Shield, label: "Config. Fiscal", path: "/fiscal/config" },
       { icon: Scan, label: "Auditoria Fiscal", path: "/fiscal/auditoria" },
       { icon: ArrowRightLeft, label: "Comparar XML", path: "/fiscal/comparar-xml" },
@@ -379,7 +381,7 @@ export function AppSidebar({ mobileOpen, onMobileClose }: AppSidebarProps) {
                     </div>
                     <div className="flex flex-col">
                       <span className="text-sm font-bold text-sidebar-foreground tracking-tight leading-tight">AnthoSystem</span>
-                      <span className="text-[10px] text-muted-foreground/70 font-medium">Gestão Inteligente</span>
+                      <span className="text-[10px] text-muted-foreground/70 font-medium">Seu ERP completo para varejo</span>
                     </div>
                   </div>
                   <button onClick={onMobileClose} className="p-2 rounded-lg text-sidebar-foreground hover:bg-sidebar-accent transition-colors">

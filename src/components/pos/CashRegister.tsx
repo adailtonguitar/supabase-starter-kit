@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { DollarSign, Lock, Unlock, ArrowDownCircle, ArrowUpCircle, Banknote, CreditCard, QrCode, X, Loader2, Clock, ShoppingCart, Wallet, TrendingUp, ChevronRight, Printer, HandCoins } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { CashSessionService } from "@/services";
-import { supabase } from "@/integrations/supabase/client";
+import { SUPABASE_URL, supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useCompany } from "@/hooks/useCompany";
 import { toast } from "sonner";
@@ -17,7 +17,7 @@ async function canReachServer(): Promise<boolean> {
   try {
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), 1000);
-    await fetch(`${import.meta.env.VITE_SUPABASE_URL || ""}/rest/v1/`, { method: "HEAD", signal: ctrl.signal, cache: "no-store", mode: "no-cors" });
+    await fetch(`${SUPABASE_URL}/rest/v1/`, { method: "HEAD", signal: ctrl.signal, cache: "no-store", mode: "no-cors" });
     clearTimeout(t);
     return true;
   } catch { return false; }
@@ -57,7 +57,7 @@ export function CashRegister({ onClose, terminalId = "01", preventClose = false,
   const { user } = useAuth();
   const { companyId, companyName } = useCompany();
   const [view, setView] = useState<CashView>("status");
-  const [closedSnapshot, setClosedSnapshot] = useState<Record<string, unknown> | null>(null);
+  const [closedSnapshot, setClosedSnapshot] = useState<Record<string, any> | null>(null);
   const [session, setSession] = useState<CashSessionRecord | null>(initialSession ?? null);
   const [loading, setLoading] = useState(!skipInitialLoad);
   const [submitting, setSubmitting] = useState(false);
@@ -168,7 +168,7 @@ export function CashRegister({ onClose, terminalId = "01", preventClose = false,
     finally { setSubmitting(false); }
   };
 
-  const handlePrintClosing = useCallback((snapshot?: Record<string, unknown> | null) => {
+  const handlePrintClosing = useCallback((snapshot?: Record<string, any> | null) => {
     const s = snapshot || closedSnapshot;
     const now = new Date();
     const pOpenBalance = s?.openBalance ?? openBalance;

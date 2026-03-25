@@ -47,6 +47,12 @@ export interface IntegrityIssue {
   details?: string;
 }
 
+interface RpcAtomicResult {
+  success: boolean;
+  sale_id?: string;
+  error?: string;
+}
+
 type ProgressCallback = (tests: TestCase[], report?: Partial<TestExecutionReport>) => void;
 
 const TEST_PREFIX = "__ANTHO_TEST__";
@@ -86,8 +92,8 @@ export class AnthoTestEngine {
     try {
       await fn();
       this.addTest({ layer, group, name, status: "pass", duration: Math.round(performance.now() - start) });
-    } catch (err: any) {
-      const msg = err?.message || String(err);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
       const isWarn = msg.includes("aviso:") || msg.includes("warning:");
       this.addTest({
         layer, group, name,
@@ -103,16 +109,10 @@ export class AnthoTestEngine {
     this.cancelled = false;
     const startedAt = new Date().toISOString();
 
-    // Layer 1: API Tests
     await this.runAPITests();
-    // Layer 2: Database Tests
     await this.runDatabaseTests();
-    // Layer 3: Interface Simulation Tests
     await this.runInterfaceTests();
-    // Layer 4: Full Flow Tests
     await this.runFlowTests();
-
-    // Cleanup
     await this.cleanup();
 
     const finishedAt = new Date().toISOString();
@@ -127,14 +127,8 @@ export class AnthoTestEngine {
 
     const report: TestExecutionReport = {
       id: `exec-${Date.now()}`,
-      startedAt,
-      finishedAt,
-      totalTests: total,
-      passed,
-      failed,
-      warnings,
-      skipped,
-      duration,
+      startedAt, finishedAt, totalTests: total,
+      passed, failed, warnings, skipped, duration,
       coveragePercent: total > 0 ? Math.round((passed / (total - skipped || 1)) * 100) : 0,
       tests: [...this.tests],
       systemHealth: health,
@@ -146,7 +140,6 @@ export class AnthoTestEngine {
 
   // ─── LAYER 1: API TESTS ───
   private async runAPITests() {
-    // Auth endpoints
     await this.runTest("api", "Autenticação", "Sessão ativa", async () => {
       const { data } = await supabase.auth.getSession();
       if (!data.session) throw new Error("Sem sessão ativa");
@@ -162,7 +155,6 @@ export class AnthoTestEngine {
       if (exp && exp * 1000 < Date.now()) throw new Error("Token expirado");
     });
 
-    // Company access
     await this.runTest("api", "Empresa", "Acesso à empresa", async () => {
       const { data, error } = await supabase.from("companies").select("id, name").eq("id", this.companyId).maybeSingle();
       if (error) throw error;
@@ -173,10 +165,9 @@ export class AnthoTestEngine {
       if (error) throw error;
     });
 
-    // Products API
     await this.runTest("api", "Produtos", "Listar produtos", async () => {
       const start = performance.now();
-      const { error, count } = await supabase.from("products").select("id", { count: "exact", head: true }).eq("company_id", this.companyId);
+      const { error } = await supabase.from("products").select("id", { count: "exact", head: true }).eq("company_id", this.companyId);
       if (error) throw error;
       if (performance.now() - start > 3000) throw new Error("aviso: Consulta lenta (>3s)");
     });
@@ -189,7 +180,6 @@ export class AnthoTestEngine {
       if (error) throw error;
     });
 
-    // Clients API
     await this.runTest("api", "Clientes", "Listar clientes", async () => {
       const { error } = await supabase.from("clients").select("id, name, phone").eq("company_id", this.companyId).limit(10);
       if (error) throw error;
@@ -199,7 +189,6 @@ export class AnthoTestEngine {
       if (error) throw error;
     });
 
-    // Sales API
     await this.runTest("api", "Vendas", "Listar vendas recentes", async () => {
       const { error } = await supabase.from("sales").select("id, total, status, created_at").eq("company_id", this.companyId).order("created_at", { ascending: false }).limit(10);
       if (error) throw error;
@@ -210,59 +199,51 @@ export class AnthoTestEngine {
       if (error) throw error;
     });
 
-    // Financial API
     await this.runTest("api", "Financeiro", "Listar lançamentos", async () => {
       const { error } = await supabase.from("financial_entries").select("id, amount, type, status").eq("company_id", this.companyId).limit(10);
       if (error) throw error;
     });
 
-    // Stock API
     await this.runTest("api", "Estoque", "Consultar movimentações", async () => {
-      const { error } = await supabase.from("stock_movements" as any).select("id, type, quantity").eq("company_id", this.companyId).limit(10);
+      const { error } = await supabase.from("stock_movements").select("id, type, quantity").eq("company_id", this.companyId).limit(10);
       if (error) throw error;
     });
 
-    // Categories API
     await this.runTest("api", "Categorias", "Listar categorias", async () => {
       const { error } = await supabase.from("product_categories").select("id, name").eq("company_id", this.companyId).limit(10);
       if (error) throw error;
     });
 
-    // Edge Functions
     await this.runTest("api", "Edge Functions", "Health Check", async () => {
       try {
         const { error } = await supabase.functions.invoke("health-check");
         if (error) throw new Error("aviso: Edge Function indisponível — " + (error.message || "sem resposta"));
-      } catch (e: any) {
-        if (e?.message?.startsWith("aviso:")) throw e;
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : String(e);
+        if (msg.startsWith("aviso:")) throw e;
         throw new Error("aviso: Edge Function não acessível no ambiente atual");
       }
     });
 
-    // Storage
     await this.runTest("api", "Storage", "Acesso ao bucket", async () => {
       try {
         const { error } = await supabase.storage.from("company-assets").list("", { limit: 1 });
         if (error) throw new Error("aviso: Bucket não acessível — " + (error.message || "sem permissão"));
-      } catch (e: any) {
-        if (e?.message?.startsWith("aviso:")) throw e;
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : String(e);
+        if (msg.startsWith("aviso:")) throw e;
         throw new Error("aviso: Storage não acessível no ambiente atual");
       }
     });
 
-    // Cash sessions
     await this.runTest("api", "Caixa", "Listar sessões", async () => {
       const { error } = await supabase.from("cash_sessions").select("id, status").eq("company_id", this.companyId).limit(5);
       if (error) throw error;
     });
-
-    // Suppliers
     await this.runTest("api", "Fornecedores", "Listar fornecedores", async () => {
       const { error } = await supabase.from("suppliers").select("id, name").eq("company_id", this.companyId).limit(5);
       if (error) throw error;
     });
-
-    // Employees
     await this.runTest("api", "Funcionários", "Listar funcionários", async () => {
       const { error } = await supabase.from("employees").select("id, name").eq("company_id", this.companyId).limit(5);
       if (error) throw error;
@@ -275,12 +256,11 @@ export class AnthoTestEngine {
     let testClientId: string | null = null;
     let testEntryId: string | null = null;
 
-    // Product CRUD
     await this.runTest("database", "Produtos", "Criar produto de teste", async () => {
       const { data, error } = await supabase.from("products").insert({
         company_id: this.companyId, name: `${TEST_PREFIX} DB Test`, sku: `${TEST_PREFIX}-DB-${Date.now()}`,
         price: 10, cost_price: 5, stock_quantity: 100, is_active: true, is_demo: true,
-      } as any).select("id").single();
+      }).select("id").single();
       if (error) throw error;
       testProductId = data.id;
     });
@@ -306,7 +286,6 @@ export class AnthoTestEngine {
       if (error) throw error;
     });
 
-    // Client CRUD
     await this.runTest("database", "Clientes", "Criar cliente de teste", async () => {
       const { data, error } = await supabase.from("clients").insert({
         company_id: this.companyId, name: `${TEST_PREFIX} Cliente Teste`, phone: "00000000000",
@@ -322,7 +301,6 @@ export class AnthoTestEngine {
       if (!data.name.includes(TEST_PREFIX)) throw new Error("Nome incorreto");
     });
 
-    // Financial CRUD
     await this.runTest("database", "Financeiro", "Criar lançamento", async () => {
       const { data, error } = await supabase.from("financial_entries").insert({
         company_id: this.companyId, type: "receber", description: `${TEST_PREFIX} Receita`,
@@ -339,10 +317,9 @@ export class AnthoTestEngine {
       if (data.amount !== 99.99) throw new Error(`Valor incorreto: ${data.amount}`);
     });
 
-    // Stock movement
     await this.runTest("database", "Estoque", "Registrar entrada", async () => {
       if (!testProductId) throw new Error("Produto não criado");
-      const { error } = await supabase.from("stock_movements" as any).insert({
+      const { error } = await supabase.from("stock_movements").insert({
         company_id: this.companyId, product_id: testProductId, type: "entrada",
         quantity: 50, previous_stock: 100, new_stock: 150, reason: TEST_PREFIX, performed_by: this.userId,
       });
@@ -351,21 +328,20 @@ export class AnthoTestEngine {
 
     await this.runTest("database", "Estoque", "Registrar saída", async () => {
       if (!testProductId) throw new Error("Produto não criado");
-      const { error } = await supabase.from("stock_movements" as any).insert({
+      const { error } = await supabase.from("stock_movements").insert({
         company_id: this.companyId, product_id: testProductId, type: "saida",
         quantity: 20, previous_stock: 150, new_stock: 130, reason: TEST_PREFIX, performed_by: this.userId,
       });
       if (error) throw error;
     });
 
-    // Integrity checks
     await this.runTest("database", "Integridade", "Sem produtos com preço negativo", async () => {
-      const { data } = await supabase.from("products").select("id", { count: "exact", head: true }).eq("company_id", this.companyId).lt("price", 0);
-      if (data && (data as any) > 0) throw new Error("Produtos com preço negativo encontrados");
+      const { count } = await supabase.from("products").select("id", { count: "exact", head: true }).eq("company_id", this.companyId).lt("price", 0);
+      if (count && count > 0) throw new Error("Produtos com preço negativo encontrados");
     });
 
     await this.runTest("database", "Integridade", "Sem estoque negativo", async () => {
-      const { data, count } = await supabase.from("products").select("id", { count: "exact", head: true }).eq("company_id", this.companyId).lt("stock_quantity", 0);
+      const { count } = await supabase.from("products").select("id", { count: "exact", head: true }).eq("company_id", this.companyId).lt("stock_quantity", 0);
       if (count && count > 0) throw new Error(`${count} produtos com estoque negativo`);
     });
 
@@ -384,10 +360,8 @@ export class AnthoTestEngine {
       if (count && count > 0) throw new Error(`aviso: ${count} lançamentos com valor ≤ 0`);
     });
 
-    // Relationships
     await this.runTest("database", "Relacionamentos", "Itens de venda com produto válido", async () => {
       try {
-        // Get recent sale IDs for this company first, then check their items
         const { data: recentSales } = await supabase.from("sales").select("id")
           .eq("company_id", this.companyId).order("created_at", { ascending: false }).limit(10);
         if (recentSales && recentSales.length > 0) {
@@ -400,8 +374,8 @@ export class AnthoTestEngine {
             }
           }
         }
-      } catch (e: any) {
-        throw new Error("aviso: Verificação de relacionamentos limitada — " + (e?.message || String(e)));
+      } catch (e: unknown) {
+        throw new Error("aviso: Verificação de relacionamentos limitada — " + (e instanceof Error ? e.message : String(e)));
       }
     });
 
@@ -409,15 +383,13 @@ export class AnthoTestEngine {
     if (testEntryId) await supabase.from("financial_entries").delete().eq("id", testEntryId);
     if (testClientId) await supabase.from("clients").delete().eq("id", testClientId);
     if (testProductId) {
-      await (supabase.from("stock_movements").delete() as any).eq("product_id", testProductId).eq("reason", TEST_PREFIX);
+      await supabase.from("stock_movements").delete().eq("product_id", testProductId).eq("reason", TEST_PREFIX);
       await supabase.from("products").delete().eq("id", testProductId);
     }
   }
 
   // ─── LAYER 3: INTERFACE SIMULATION TESTS ───
   private async runInterfaceTests() {
-    // These simulate what a user would experience by testing the data/hooks behind UI components
-
     await this.runTest("interface", "Dashboard", "Carregar estatísticas", async () => {
       const today = new Date().toISOString().split("T")[0];
       const { error } = await supabase.from("sales").select("total").eq("company_id", this.companyId).gte("created_at", today);
@@ -427,15 +399,12 @@ export class AnthoTestEngine {
     await this.runTest("interface", "Dashboard", "Top produtos", async () => {
       const { error } = await supabase.from("sale_items").select("product_name, quantity")
         .eq("company_id", this.companyId).limit(20);
-      if (error) {
-        // sale_items may not have company_id or RLS may restrict — treat as warning
-        throw new Error("aviso: Consulta de top produtos limitada — " + error.message);
-      }
+      if (error) throw new Error("aviso: Consulta de top produtos limitada — " + error.message);
     });
 
     await this.runTest("interface", "PDV", "Carregar grade de produtos", async () => {
       const start = performance.now();
-      const { data, error } = await supabase.from("products").select("id, name, price, stock_quantity, barcode, image_url")
+      const { error } = await supabase.from("products").select("id, name, price, stock_quantity, barcode, image_url")
         .eq("company_id", this.companyId).eq("is_active", true).order("name").limit(100);
       if (error) throw error;
       if (performance.now() - start > 2000) throw new Error("aviso: Grade de produtos lenta (>2s)");
@@ -485,10 +454,9 @@ export class AnthoTestEngine {
     });
 
     await this.runTest("interface", "Navegação", "Menus disponíveis", async () => {
-      const { data, error } = await supabase.from("company_users").select("role, permissions")
+      const { error } = await supabase.from("company_users").select("role, permissions")
         .eq("company_id", this.companyId).eq("user_id", this.userId).maybeSingle();
       if (error) throw new Error("aviso: Permissões não acessíveis — " + error.message);
-      // It's ok if data is null (owner may not be in company_users)
     });
   }
 
@@ -498,18 +466,16 @@ export class AnthoTestEngine {
     let flowSaleId: string | null = null;
     let flowClientId: string | null = null;
 
-    // Create test product for flow
     await this.runTest("flow", "Fluxo Completo", "1. Cadastrar produto", async () => {
       const { data, error } = await supabase.from("products").insert({
         company_id: this.companyId, name: `${TEST_PREFIX} Flow Product`,
         sku: `${TEST_PREFIX}-FLOW-${Date.now()}`, price: 25, cost_price: 12,
         stock_quantity: 500, is_active: true, is_demo: true,
-      } as any).select("id, name, price, cost_price").single();
+      }).select("id, name, price, cost_price").single();
       if (error) throw error;
       flowProductId = data.id;
     });
 
-    // Create test client
     await this.runTest("flow", "Fluxo Completo", "2. Cadastrar cliente", async () => {
       const { data, error } = await supabase.from("clients").insert({
         company_id: this.companyId, name: `${TEST_PREFIX} Flow Client`, phone: "11999990000",
@@ -518,7 +484,6 @@ export class AnthoTestEngine {
       flowClientId = data.id;
     });
 
-    // Create sale via RPC
     await this.runTest("flow", "Fluxo Completo", "3. Registrar venda (RPC atômica)", async () => {
       if (!flowProductId) throw new Error("Produto não criado");
       const items = [{
@@ -532,12 +497,11 @@ export class AnthoTestEngine {
         p_payments: [{ method: "dinheiro", amount: 75 }], p_sold_by: this.userId,
       });
       if (error) throw error;
-      const result = data as any;
+      const result = data as RpcAtomicResult | null;
       if (!result?.success) throw new Error(result?.error || "RPC falhou");
-      flowSaleId = result.sale_id;
+      flowSaleId = result.sale_id || null;
     });
 
-    // Verify sale
     await this.runTest("flow", "Fluxo Completo", "4. Verificar venda no histórico", async () => {
       if (!flowSaleId) throw new Error("Venda não registrada");
       const { data, error } = await supabase.from("sales").select("id, total, status").eq("id", flowSaleId).single();
@@ -545,22 +509,18 @@ export class AnthoTestEngine {
       if (data.total !== 75) throw new Error(`Total incorreto: ${data.total}`);
     });
 
-    // Verify stock decreased
     await this.runTest("flow", "Fluxo Completo", "5. Verificar baixa de estoque", async () => {
       if (!flowProductId) throw new Error("Produto não criado");
       const { data } = await supabase.from("products").select("stock_quantity").eq("id", flowProductId).single();
       if (data?.stock_quantity !== 497) throw new Error(`Estoque esperado 497, obteve ${data?.stock_quantity}`);
     });
 
-    // Verify financial entry was created
     await this.runTest("flow", "Fluxo Completo", "6. Verificar lançamento financeiro", async () => {
       if (!flowSaleId) throw new Error("Venda não registrada");
       const { data } = await supabase.from("financial_entries").select("id, amount").eq("reference", flowSaleId).maybeSingle();
-      // Some setups may not auto-create financial entries from sales
       if (!data) throw new Error("aviso: Lançamento financeiro automático não encontrado");
     });
 
-    // Multi-payment flow test
     await this.runTest("flow", "Pagamento", "Venda com múltiplos pagamentos", async () => {
       if (!flowProductId) throw new Error("Produto não criado");
       const items = [{
@@ -575,26 +535,23 @@ export class AnthoTestEngine {
         p_sold_by: this.userId,
       });
       if (error) throw error;
-      const result = data as any;
+      const result = data as RpcAtomicResult | null;
       if (!result?.success) throw new Error(result?.error || "Multi-pagamento falhou");
-      // Cleanup this extra sale
       if (result.sale_id) {
         await supabase.from("sale_items").delete().eq("sale_id", result.sale_id);
         await supabase.from("financial_entries").delete().eq("reference", result.sale_id);
         await supabase.from("sales").delete().eq("id", result.sale_id);
-        // Restore stock
         await supabase.from("products").update({ stock_quantity: 495 }).eq("id", flowProductId);
       }
     });
 
-    // Discount flow test
     await this.runTest("flow", "Desconto", "Venda com desconto percentual", async () => {
       if (!flowProductId) throw new Error("Produto não criado");
       const items = [{
         product_id: flowProductId, product_name: `${TEST_PREFIX} Flow Product`,
         quantity: 1, unit_price: 25, cost_price: 12, subtotal: 25,
       }];
-      const discountVal = 2.5; // 10%
+      const discountVal = 2.5;
       const { data, error } = await supabase.rpc("finalize_sale_atomic", {
         p_company_id: this.companyId, p_terminal_id: "ANTHO_TEST",
         p_session_id: null, p_items: items, p_subtotal: 25,
@@ -602,9 +559,8 @@ export class AnthoTestEngine {
         p_payments: [{ method: "dinheiro", amount: 22.5 }], p_sold_by: this.userId,
       });
       if (error) throw error;
-      const result = data as any;
+      const result = data as RpcAtomicResult | null;
       if (!result?.success) throw new Error(result?.error || "Desconto falhou");
-      // Cleanup
       if (result.sale_id) {
         await supabase.from("sale_items").delete().eq("sale_id", result.sale_id);
         await supabase.from("financial_entries").delete().eq("reference", result.sale_id);
@@ -621,7 +577,7 @@ export class AnthoTestEngine {
     }
     if (flowClientId) await supabase.from("clients").delete().eq("id", flowClientId);
     if (flowProductId) {
-      await (supabase.from("stock_movements").delete() as any).eq("product_id", flowProductId).eq("reason", TEST_PREFIX);
+      await supabase.from("stock_movements").delete().eq("product_id", flowProductId).eq("reason", TEST_PREFIX);
       await supabase.from("products").delete().eq("id", flowProductId);
     }
   }
@@ -630,7 +586,6 @@ export class AnthoTestEngine {
   async runIntegrityAudit(): Promise<IntegrityIssue[]> {
     const issues: IntegrityIssue[] = [];
 
-    // Negative stock
     const { data: negStock } = await supabase.from("products").select("id, name, stock_quantity")
       .eq("company_id", this.companyId).lt("stock_quantity", 0);
     if (negStock && negStock.length > 0) {
@@ -642,7 +597,6 @@ export class AnthoTestEngine {
       }
     }
 
-    // Sales without items (considerando fallback legado no campo JSON items)
     const formatBRL = (value: unknown) =>
       Number(value || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
@@ -663,15 +617,15 @@ export class AnthoTestEngine {
         .select("sale_id")
         .in("sale_id", saleIds);
 
-      const saleIdsWithItems = new Set((saleItems || []).map((item: any) => item.sale_id));
+      const saleIdsWithItems = new Set((saleItems || []).map((item: { sale_id: string }) => item.sale_id));
 
-      for (const sale of salesToCheck as any[]) {
+      for (const sale of salesToCheck) {
         if (saleIdsWithItems.has(sale.id)) continue;
 
         let hasLegacyJsonItems = false;
         if (sale.items) {
           try {
-            const parsed = Array.isArray(sale.items) ? sale.items : JSON.parse(sale.items);
+            const parsed = Array.isArray(sale.items) ? sale.items : JSON.parse(String(sale.items));
             hasLegacyJsonItems = Array.isArray(parsed) && parsed.length > 0;
           } catch {
             hasLegacyJsonItems = false;
@@ -689,7 +643,6 @@ export class AnthoTestEngine {
       }
     }
 
-    // Financial entries with no reference
     const { count: orphanEntries } = await supabase.from("financial_entries")
       .select("id", { count: "exact", head: true })
       .eq("company_id", this.companyId).is("reference", null).eq("status", "pendente");
@@ -700,7 +653,6 @@ export class AnthoTestEngine {
       });
     }
 
-    // Products without price
     const { count: noPrice } = await supabase.from("products").select("id", { count: "exact", head: true })
       .eq("company_id", this.companyId).eq("is_active", true).or("price.is.null,price.eq.0");
     if (noPrice && noPrice > 0) {
@@ -738,7 +690,7 @@ export class AnthoTestEngine {
   private async cleanup() {
     try {
       await supabase.from("products").delete().eq("company_id", this.companyId).like("name", `${TEST_PREFIX}%`);
-      await (supabase.from("stock_movements").delete() as any).eq("company_id", this.companyId).eq("reason", TEST_PREFIX);
+      await supabase.from("stock_movements").delete().eq("company_id", this.companyId).eq("reason", TEST_PREFIX);
       await supabase.from("financial_entries").delete().eq("company_id", this.companyId).like("description", `${TEST_PREFIX}%`);
       await supabase.from("clients").delete().eq("company_id", this.companyId).like("name", `${TEST_PREFIX}%`);
     } catch { /* non-critical */ }

@@ -1,9 +1,20 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
+const ALLOWED_ORIGINS = [
+  "https://anthosystemcombr.lovable.app",
+  "https://anthosystem.com.br",
+  "https://www.anthosystem.com.br",
+  "https://id-preview--d4ab3861-f98c-4c08-a556-30aa884845a3.lovable.app",
+];
+
+function getCorsHeaders(req: Request) {
+  const origin = req.headers.get("Origin") || "";
+  const allowedOrigin = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
+  return {
+    "Access-Control-Allow-Origin": allowedOrigin,
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+  };
+}
 
 // Insert order: parents first, children last
 // Delete order is reversed automatically
@@ -42,13 +53,13 @@ const DEPENDENT_TABLES_DELETE = [
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { headers: getCorsHeaders(req) });
   }
 
   try {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: corsHeaders });
+      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: getCorsHeaders(req) });
     }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -61,7 +72,7 @@ Deno.serve(async (req) => {
     const token = authHeader.replace("Bearer ", "");
     const { data: claimsData, error: claimsError } = await userClient.auth.getClaims(token);
     if (claimsError || !claimsData?.claims) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: corsHeaders });
+      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: getCorsHeaders(req) });
     }
     const userId = claimsData.claims.sub as string;
 
@@ -74,7 +85,7 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (!roleData) {
-      return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403, headers: corsHeaders });
+      return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403, headers: getCorsHeaders(req) });
     }
 
     const body = await req.json();
@@ -82,7 +93,7 @@ Deno.serve(async (req) => {
 
     if (!company_id || !backup_data || !confirm_company_name) {
       return new Response(JSON.stringify({ error: "company_id, backup_data and confirm_company_name are required" }), {
-        status: 400, headers: corsHeaders,
+        status: 400, headers: getCorsHeaders(req),
       });
     }
 
@@ -93,12 +104,12 @@ Deno.serve(async (req) => {
       .single();
 
     if (!company) {
-      return new Response(JSON.stringify({ error: "Company not found" }), { status: 404, headers: corsHeaders });
+      return new Response(JSON.stringify({ error: "Company not found" }), { status: 404, headers: getCorsHeaders(req) });
     }
 
     if (company.name.toLowerCase().trim() !== confirm_company_name.toLowerCase().trim()) {
       return new Response(JSON.stringify({ error: "Company name confirmation does not match" }), {
-        status: 400, headers: corsHeaders,
+        status: 400, headers: getCorsHeaders(req),
       });
     }
 
@@ -133,9 +144,8 @@ Deno.serve(async (req) => {
             .eq("company_id", company_id);
           results.push({ table: dep.table, phase: "dep-delete", count: count || 0, error: error?.message });
         }
-      } catch (e) {
-        // Table may not exist — skip silently
-        results.push({ table: dep.table, phase: "dep-delete", count: 0, error: e.message });
+      } catch (e: unknown) {
+        results.push({ table: dep.table, phase: "dep-delete", count: 0, error: e instanceof Error ? e.message : "unknown" });
       }
     }
 
@@ -148,8 +158,8 @@ Deno.serve(async (req) => {
           .delete({ count: "exact" })
           .eq("company_id", company_id);
         results.push({ table, phase: "delete", count: count || 0, error: error?.message });
-      } catch (e) {
-        results.push({ table, phase: "delete", count: 0, error: e.message });
+      } catch (e: unknown) {
+        results.push({ table, phase: "delete", count: 0, error: e instanceof Error ? e.message : "unknown" });
       }
     }
 
@@ -176,8 +186,8 @@ Deno.serve(async (req) => {
           }
         }
         results.push({ table, phase: "insert", count: totalInserted });
-      } catch (e) {
-        results.push({ table, phase: "insert", count: 0, error: e.message });
+      } catch (e: unknown) {
+        results.push({ table, phase: "insert", count: 0, error: e instanceof Error ? e.message : "unknown" });
       }
     }
 
@@ -197,8 +207,8 @@ Deno.serve(async (req) => {
           }
         }
         results.push({ table: "sale_items", phase: "insert", count: totalInserted });
-      } catch (e) {
-        results.push({ table: "sale_items", phase: "insert", count: 0, error: e.message });
+      } catch (e: unknown) {
+        results.push({ table: "sale_items", phase: "insert", count: 0, error: e instanceof Error ? e.message : "unknown" });
       }
     }
 
@@ -211,12 +221,13 @@ Deno.serve(async (req) => {
       restored_at: new Date().toISOString(),
       results,
     }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
     });
-  } catch (err) {
+  } catch (err: unknown) {
     console.error("import-backup error:", err);
-    return new Response(JSON.stringify({ error: err.message || "Internal error" }), {
-      status: 500, headers: corsHeaders,
+    const message = err instanceof Error ? err.message : "Internal error";
+    return new Response(JSON.stringify({ error: message }), {
+      status: 500, headers: getCorsHeaders(req),
     });
   }
 });

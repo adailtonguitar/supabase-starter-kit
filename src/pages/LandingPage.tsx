@@ -1,6 +1,7 @@
 import { lazy, Suspense } from "react";
 import { LandingNav } from "@/components/landing/LandingNav";
 import { LandingHero } from "@/components/landing/LandingHero";
+import { SEOHead } from "@/components/SEOHead";
 
 // Lazy load all below-the-fold sections
 const LandingFeatures = lazy(() => import("@/components/landing/LandingFeatures").then(m => ({ default: m.LandingFeatures })));
@@ -34,6 +35,28 @@ export default function LandingPage() {
         Pular para o conteúdo principal
       </a>
       <LandingNav />
+      <SEOHead
+        title="Sistema para Comércio e Varejo"
+        description="Sistema de gestão completo para comércios e varejo. PDV rápido com leitor e balança, emissão de NFC-e e NF-e, controle de estoque com lotes e validade, financeiro integrado. Funciona offline. Teste grátis 15 dias."
+        path="/"
+        jsonLd={{
+          "@context": "https://schema.org",
+          "@type": "SoftwareApplication",
+          "name": "AnthoSystem",
+          "applicationCategory": "BusinessApplication",
+          "operatingSystem": "Web",
+          "description": "Sistema de gestão completo para comércios e varejo. PDV, estoque, fiscal e financeiro integrados.",
+          "url": "https://anthosystem.com.br",
+          "offers": {
+            "@type": "AggregateOffer",
+            "lowPrice": "0",
+            "highPrice": "399.90",
+            "priceCurrency": "BRL",
+            "offerCount": "4"
+          },
+          "author": { "@type": "Organization", "name": "AnthoSystem" }
+        }}
+      />
       <main id="main-content" role="main">
       <LandingHero />
       <Suspense fallback={<SectionFallback />}>

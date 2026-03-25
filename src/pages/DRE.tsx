@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { useReadAudit } from "@/hooks/useReadAudit";
 import { format, parseISO, startOfMonth, endOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { motion } from "framer-motion";
@@ -26,6 +27,7 @@ interface DRELine {
 
 export default function DRE() {
   const now = new Date();
+  useReadAudit({ module: "financeiro", resource: "DRE" });
   const [month, setMonth] = useState(format(now, "yyyy-MM"));
   const { companyId } = useCompany();
 
@@ -44,11 +46,11 @@ export default function DRE() {
         console.warn("[DRE] No companyId");
         return [];
       }
-      console.log("[DRE] Fetching sales for month:", month, "companyId:", companyId);
+      // console.log("[DRE] Fetching sales for month:", month, "companyId:", companyId);
       const monthDate = parseISO(`${month}-01`);
       const from = startOfMonth(monthDate);
       const to = endOfMonth(monthDate);
-      console.log("[DRE] Date range:", from.toISOString(), "to", to.toISOString());
+      // console.log("[DRE] Date range:", from.toISOString(), "to", to.toISOString());
       const { data, error } = await supabase
         .from("sales")
         .select("id, total, created_at")
@@ -60,7 +62,7 @@ export default function DRE() {
         console.error("[DRE] sales error:", error);
         throw error;
       }
-      console.log("[DRE] Sales found:", data?.length, data);
+      // console.log("[DRE] Sales found:", data?.length, data);
       type SaleRow = { total: number | null };
       return ((data || []) as SaleRow[]).map((s) => ({ total_value: s.total }));
     },

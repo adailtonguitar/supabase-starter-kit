@@ -92,7 +92,7 @@ export function EmissorOnboardingWizard({ onComplete }: Props) {
 
     setSaving(true);
     try {
-      const { data, error } = await supabase.rpc("create_onboarding_company" as any, {
+      const { data, error } = await supabase.rpc("create_onboarding_company", {
         p_name: companyName.trim(),
         p_cnpj: cnpj.replace(/\D/g, ""),
         p_phone: phone.trim() || null,

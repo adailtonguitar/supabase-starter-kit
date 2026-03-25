@@ -1,4 +1,5 @@
 import { useState, type ComponentType } from "react";
+import { useReadAudit } from "@/hooks/useReadAudit";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
@@ -38,6 +39,7 @@ const categoryLabels: Record<string, string> = {
 };
 
 export default function Financeiro() {
+  useReadAudit({ module: "financeiro", resource: "Painel Financeiro" });
   const now = new Date();
   const [month, setMonth] = useState(format(now, "yyyy-MM"));
   const [tab, setTab] = useState("all");
@@ -371,7 +373,7 @@ export default function Financeiro() {
                 )}
                 <div>
                   <label className="text-xs font-medium text-foreground mb-1 block">Forma de pagamento</label>
-                  <Select value={payMethod} onValueChange={setPayMethod}>
+                  <Select value={payMethod} onValueChange={(v) => setPayMethod(v as any)}>
                     <SelectTrigger className="w-full">
                       <SelectValue />
                     </SelectTrigger>

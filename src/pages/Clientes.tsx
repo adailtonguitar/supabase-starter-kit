@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { useReadAudit } from "@/hooks/useReadAudit";
 import { motion } from "framer-motion";
 import { Users, Upload, User, Phone, Mail, MapPin, CreditCard, AlertTriangle, Search, Plus, Pencil, Trash2, X } from "lucide-react";
 import { CurrencyInput } from "@/components/ui/currency-input";
@@ -44,6 +45,7 @@ const baseFields: FieldConfig[] = [
 ];
 
 export default function Clientes() {
+  useReadAudit({ module: "clientes", resource: "Lista de Clientes (CPF/CNPJ)" });
   const { data = [], isLoading } = useClients();
   const create = useCreateClient();
   const update = useUpdateClient();

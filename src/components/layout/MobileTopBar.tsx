@@ -32,7 +32,7 @@ export const MobileTopBar = memo(function MobileTopBar() {
         <img src={anthoLogo} alt="AnthoSystem" className="h-7 w-auto" />
         <div className="flex flex-col leading-none">
           <span className="text-sm font-bold text-foreground">AnthoSystem</span>
-          <span className="text-[9px] text-muted-foreground">v{APP_VERSION}</span>
+          <span className="text-[9px] text-muted-foreground">Seu ERP completo para varejo</span>
         </div>
       </Link>
 

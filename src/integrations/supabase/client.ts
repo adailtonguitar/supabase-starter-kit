@@ -1,15 +1,14 @@
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "./database.types";
 
-// 🔐 ENV
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
-
-if (!SUPABASE_URL) throw new Error("VITE_SUPABASE_URL não definida");
-if (!SUPABASE_ANON_KEY) throw new Error("VITE_SUPABASE_ANON_KEY não definida");
+// 🔐 Public keys (anon key is safe to expose — RLS protects data)
+// Fix: do not depend on build-time env injection here, because a stale/invalid
+// build secret can override the correct public key in production.
+export const SUPABASE_URL = "https://fsvxpxziotklbxkivyug.supabase.co";
+export const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZzdnhweHppb3RrbGJ4a2l2eXVnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE3ODU5NTMsImV4cCI6MjA4NzM2MTk1M30.8I3ABsRZBZuE1IpK_g9z3PdRUd9Omt_F5qNx0Pgqvyo";
 
 // 🚀 CLIENT
-export const supabase = createClient<Database>(
+export const supabase = createClient<any>(
   SUPABASE_URL,
   SUPABASE_ANON_KEY,
   {

@@ -1,7 +1,7 @@
 import { corsHeaders, createServiceClient, jsonResponse, requireUser } from "../_shared/auth.ts";
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  if (req.method === "OPTIONS") return new Response("ok", { headers: getCorsHeaders(req) });
 
   try {
     const { company_name, cnpj, email, password, full_name, self_service } = await req.json();

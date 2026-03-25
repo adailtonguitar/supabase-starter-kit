@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef } from "react";
+import { useReadAudit } from "@/hooks/useReadAudit";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useCompany } from "@/hooks/useCompany";
@@ -10,6 +11,7 @@ const COOLDOWN_MS = 30_000;
 
 export default function RelatoriosIA() {
   const { companyId } = useCompany();
+  useReadAudit({ module: "financeiro", resource: "Relatório IA" });
   const [insight, setInsight] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);

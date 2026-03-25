@@ -1,10 +1,22 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
+const ALLOWED_ORIGINS = [
+  "https://anthosystemcombr.lovable.app",
+  "https://anthosystem.com.br",
+  "https://www.anthosystem.com.br",
+  "https://id-preview--d4ab3861-f98c-4c08-a556-30aa884845a3.lovable.app",
+];
+
+function getCorsHeaders(req: Request) {
+  const origin = req.headers.get("Origin") || "";
+  const allowedOrigin = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
+  return {
+    "Access-Control-Allow-Origin": allowedOrigin,
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+  };
+}
+
+const diagRateMap = new Map<string, { count: number; resetAt: number }>();
 
 const SYSTEM_PROMPT = `Consultor financeiro de PMEs. Responda APENAS com a estrutura solicitada, sem nenhum texto antes ou depois.`;
 
@@ -14,7 +26,7 @@ async function callGemini(apiKey: string, systemPrompt: string, userPrompt: stri
   
   for (const model of models) {
     const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-    console.log(`[diagnostico] Tentando modelo: ${model}...`);
+    // console.log(`[diagnostico] Tentando modelo: ${model}...`);
     const startTime = Date.now();
 
     try {
@@ -30,7 +42,7 @@ async function callGemini(apiKey: string, systemPrompt: string, userPrompt: stri
       });
 
       const elapsed = Date.now() - startTime;
-      console.log(`[diagnostico] ${model} respondeu em ${elapsed}ms — status: ${resp.status}`);
+      // console.log(`[diagnostico] ${model} respondeu em ${elapsed}ms — status: ${resp.status}`);
 
       if (resp.status === 429) {
         const errText = await resp.text();
@@ -63,7 +75,7 @@ async function callGemini(apiKey: string, systemPrompt: string, userPrompt: stri
         return { content: null, error: `Resposta vazia do ${model}.`, status: 200 };
       }
 
-      console.log(`[diagnostico] Sucesso com ${model}! (${content.length} chars)`);
+      // console.log(`[diagnostico] Sucesso com ${model}! (${content.length} chars)`);
       return { content, error: null, status: 200 };
     } catch (err: any) {
       console.error(`[diagnostico] Erro de rede no ${model}:`, err?.message);
@@ -76,10 +88,10 @@ async function callGemini(apiKey: string, systemPrompt: string, userPrompt: stri
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { headers: getCorsHeaders(req) });
   }
 
-  console.log("[diagnostico] ========== NOVA REQUISIÇÃO ==========");
+  // console.log("[diagnostico] ========== NOVA REQUISIÇÃO ==========");
 
   try {
     const GEMINI_KEY = Deno.env.get("GOOGLE_GEMINI_KEY");
@@ -87,7 +99,7 @@ Deno.serve(async (req) => {
       console.error("[diagnostico] GOOGLE_GEMINI_KEY não encontrada");
       return new Response(
         JSON.stringify({ error: "GOOGLE_GEMINI_KEY não configurada. Configure no Supabase Dashboard > Edge Functions > Secrets." }),
-        { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 503, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } }
       );
     }
 
@@ -95,7 +107,7 @@ Deno.serve(async (req) => {
     if (!authHeader?.startsWith("Bearer ")) {
       return new Response(
         JSON.stringify({ error: "Não autorizado." }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 401, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } }
       );
     }
 
@@ -111,26 +123,57 @@ Deno.serve(async (req) => {
     if (claimsError || !claimsData?.user) {
       return new Response(
         JSON.stringify({ error: "Token inválido." }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 401, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } }
       );
     }
 
     const userId = claimsData.user.id;
-    console.log("[diagnostico] Usuário autenticado:", userId);
 
-    const { mes_referencia } = await req.json();
-    console.log("[diagnostico] Mês solicitado:", mes_referencia);
+    // Rate limiting: max 5 diagnostics per minute per user
+    const rlKey = `diag:${userId}`;
+    const now = Date.now();
+    const rlEntry = diagRateMap.get(rlKey);
+    if (rlEntry && now < rlEntry.resetAt && rlEntry.count >= 5) {
+      return new Response(
+        JSON.stringify({ error: "Limite de diagnósticos excedido. Aguarde 1 minuto." }),
+        { status: 429, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } }
+      );
+    }
+    if (!rlEntry || now >= rlEntry.resetAt) {
+      diagRateMap.set(rlKey, { count: 1, resetAt: now + 60_000 });
+    } else {
+      rlEntry.count++;
+    }
+
+    const { mes_referencia, company_id } = await req.json();
 
     if (!mes_referencia) {
       return new Response(
         JSON.stringify({ error: "mes_referencia é obrigatório (formato: YYYY-MM)." }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 400, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } }
       );
     }
 
     const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
 
-    console.log("[diagnostico] Buscando dados financeiros...");
+    // ── Validação de pertencimento à empresa (anti-IDOR) ──
+    if (company_id) {
+      const { data: membership } = await supabaseAdmin
+        .from("company_users")
+        .select("id")
+        .eq("user_id", userId)
+        .eq("company_id", company_id)
+        .eq("is_active", true)
+        .maybeSingle();
+
+      if (!membership) {
+        return new Response(
+          JSON.stringify({ error: "Acesso negado a esta empresa." }),
+          { status: 403, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } }
+        );
+      }
+    }
+
     const { data: financeiro, error: fetchError } = await supabaseAdmin
       .from("financeiro_mensal")
       .select("receita, despesas, lucro, inadimplencia, clientes_ativos, percentual_maior_cliente")
@@ -142,7 +185,7 @@ Deno.serve(async (req) => {
       console.error("[diagnostico] Erro no banco:", fetchError.message);
       return new Response(
         JSON.stringify({ error: "Erro ao buscar dados financeiros." }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 500, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } }
       );
     }
 
@@ -150,11 +193,11 @@ Deno.serve(async (req) => {
       console.warn("[diagnostico] Nenhum dado encontrado para", mes_referencia);
       return new Response(
         JSON.stringify({ error: `Nenhum dado financeiro encontrado para ${mes_referencia}.` }),
-        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 404, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } }
       );
     }
 
-    console.log("[diagnostico] Dados encontrados. Receita:", financeiro.receita, "Despesas:", financeiro.despesas);
+    // console.log("[diagnostico] Dados encontrados. Receita:", financeiro.receita, "Despesas:", financeiro.despesas);
 
     const userPrompt = `Dados financeiros de ${mes_referencia}:
 - Receita: R$ ${Number(financeiro.receita).toFixed(2)}
@@ -193,30 +236,30 @@ IMPORTANTE: Não ultrapasse 500 palavras no total.`;
       console.error("[diagnostico] Falha final:", result.error);
       return new Response(
         JSON.stringify({ error: result.error }),
-        { status: result.status === 429 ? 429 : 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: result.status === 429 ? 429 : 502, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } }
       );
     }
 
     // Salvar diagnóstico
-    console.log("[diagnostico] Salvando no banco...");
+    // console.log("[diagnostico] Salvando no banco...");
     const { error: insertError } = await supabaseAdmin
       .from("diagnosticos_financeiros")
       .insert({ user_id: userId, mes_referencia, conteudo: result.content, created_at: new Date().toISOString() });
 
     if (insertError) console.error("[diagnostico] Erro ao salvar:", insertError.message);
-    else console.log("[diagnostico] Salvo com sucesso!");
+    else // console.log("[diagnostico] Salvo com sucesso!");
 
-    console.log("[diagnostico] ========== REQUISIÇÃO CONCLUÍDA ==========");
+    // console.log("[diagnostico] ========== REQUISIÇÃO CONCLUÍDA ==========");
 
     return new Response(
       JSON.stringify({ diagnostico: result.content, mes_referencia, salvo: !insertError }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } }
     );
   } catch (err: any) {
     console.error("[diagnostico] Erro fatal:", err?.message || err);
     return new Response(
       JSON.stringify({ error: "Erro interno na edge function." }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: 500, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } }
     );
   }
 });

@@ -13,6 +13,7 @@ import { LocalDBProvider } from "@/components/providers/LocalDBProvider";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { UpdateNoticeModal } from "@/components/UpdateNoticeModal";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { HelmetProvider } from "react-helmet-async";
 import { useSessionControl } from "@/hooks/useSessionControl";
 import { ScrollToTop } from "@/components/ScrollToTop";
 import { OnboardingWizard } from "@/components/onboarding/OnboardingWizard";
@@ -152,8 +153,9 @@ function EmissorGuard({ children }: { children: React.ReactNode }) {
 }
 
 function LandingRedirectWrapper() {
-  const { user, loading } = useAuth();
-  if (!loading && user) return <Navigate to="/dashboard" replace />;
+  const { user, session, loading } = useAuth();
+  // Only redirect if we have a real session, not just a cached user
+  if (!loading && user && session) return <Navigate to="/dashboard" replace />;
   return <LandingPage />;
 }
 
@@ -162,7 +164,6 @@ function AppRoutes() {
 
   return (
     <Suspense fallback={<PageSpinner />}>
-      <UpdateNoticeModal />
       <Routes>
         <Route path="/" element={<LandingRedirectWrapper />} />
         <Route
@@ -228,6 +229,7 @@ function AppRoutes() {
 
 const App = () => (
   <ErrorBoundary>
+    <HelmetProvider>
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <Toaster />
@@ -250,6 +252,7 @@ const App = () => (
         </BrowserRouter>
       </TooltipProvider>
     </QueryClientProvider>
+    </HelmetProvider>
   </ErrorBoundary>
 );
 

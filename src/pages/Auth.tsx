@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { SEOHead } from "@/components/SEOHead";
 import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Mail, Lock, ArrowRight, KeyRound, Eye, EyeOff, Play, ShieldAlert } from "lucide-react";
@@ -182,7 +183,7 @@ export default function Auth() {
     }
     setLoading(true);
     try {
-      console.log("[Auth] Sending recovery email via edge function to:", forgotEmail);
+      // console.log("[Auth] Sending recovery email via edge function to:", forgotEmail);
       const { data, error } = await supabase.functions.invoke("send-recovery-email", {
         body: { email: forgotEmail, redirectTo: `${window.location.origin}/reset-password` },
       });
@@ -371,6 +372,7 @@ export default function Auth() {
 
   return (
     <div className="fixed inset-0 overflow-y-auto flex flex-col items-center bg-background p-4 py-8 min-h-screen">
+      <SEOHead title="Entrar" description="Acesse sua conta AnthoSystem. Sistema de gestão para comércio e varejo com PDV, estoque e fiscal." path="/auth" />
       <div className="flex-1" />
 
       <motion.div

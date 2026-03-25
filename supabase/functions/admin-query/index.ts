@@ -1,9 +1,20 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
+const ALLOWED_ORIGINS = [
+  "https://anthosystemcombr.lovable.app",
+  "https://anthosystem.com.br",
+  "https://www.anthosystem.com.br",
+  "https://id-preview--d4ab3861-f98c-4c08-a556-30aa884845a3.lovable.app",
+];
+
+function getCorsHeaders(req: Request) {
+  const origin = req.headers.get("Origin") || "";
+  const allowedOrigin = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
+  return {
+    "Access-Control-Allow-Origin": allowedOrigin,
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+  };
+}
 
 // Allowed tables for admin queries (whitelist for safety)
 const ALLOWED_TABLES = [
@@ -25,13 +36,13 @@ const ALLOWED_TABLES = [
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { headers: getCorsHeaders(req) });
   }
 
   try {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: corsHeaders });
+      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: getCorsHeaders(req) });
     }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -45,7 +56,7 @@ Deno.serve(async (req) => {
     const token = authHeader.replace("Bearer ", "");
     const { data: claimsData, error: claimsError } = await userClient.auth.getClaims(token);
     if (claimsError || !claimsData?.claims) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: corsHeaders });
+      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: getCorsHeaders(req) });
     }
     const userId = claimsData.claims.sub as string;
 
@@ -59,14 +70,14 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (!roleData) {
-      return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403, headers: corsHeaders });
+      return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403, headers: getCorsHeaders(req) });
     }
 
     const body = await req.json();
     const { table, select = "*", filters = [], order, limit = 300, count_only = false } = body;
 
     if (!table || !ALLOWED_TABLES.includes(table)) {
-      return new Response(JSON.stringify({ error: "Invalid table" }), { status: 400, headers: corsHeaders });
+      return new Response(JSON.stringify({ error: "Invalid table" }), { status: 400, headers: getCorsHeaders(req) });
     }
 
     if (count_only) {
@@ -75,11 +86,11 @@ Deno.serve(async (req) => {
         .select(select, { count: "exact", head: true });
       if (error) throw error;
       return new Response(JSON.stringify({ count }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
       });
     }
 
-    let query = adminClient.from(table).select(select);
+    let query: any = adminClient.from(table).select(select);
 
     // Apply filters
     for (const f of filters) {
@@ -102,13 +113,14 @@ Deno.serve(async (req) => {
     if (error) throw error;
 
     return new Response(JSON.stringify({ data }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
     });
-  } catch (err) {
+  } catch (err: unknown) {
     console.error("admin-query error:", err);
-    return new Response(JSON.stringify({ error: err.message || "Internal error" }), {
+    const message = err instanceof Error ? err.message : "Internal error";
+    return new Response(JSON.stringify({ error: message }), {
       status: 500,
-      headers: corsHeaders,
+      headers: getCorsHeaders(req),
     });
   }
 });

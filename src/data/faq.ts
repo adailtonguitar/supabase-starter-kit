@@ -36,4 +36,16 @@ export const faqItems: FAQItem[] = [
     question: "Como configurar múltiplas lojas?",
     answer: "Acesse Filiais no menu lateral e clique em 'Nova Filial'. Cada filial tem CNPJ, estoque e caixa independentes.",
   },
+  {
+    question: "O que é origem fiscal do estoque (CNPJ vs CPF)?",
+    answer: "É a classificação de cada entrada de estoque conforme a compra foi feita com nota fiscal (CNPJ) ou sem nota (CPF). Isso permite que o sistema valide automaticamente se os produtos têm lastro fiscal na hora de emitir NFC-e.",
+  },
+  {
+    question: "O que acontece se eu tentar emitir NFC-e de um produto comprado sem nota?",
+    answer: "O sistema mostra um alerta informando quais itens não têm lastro fiscal. Você pode escolher emitir mesmo assim, emitir apenas dos itens com lastro, ou cancelar. A venda nunca é bloqueada.",
+  },
+  {
+    question: "Como classificar uma entrada em lote com origem fiscal?",
+    answer: "No modo Movimentação em Lote, na aba Entrada, selecione 'Com Nota (CNPJ)' ou 'Sem Nota (CPF)' no seletor de origem fiscal antes de salvar. A classificação se aplica a todos os itens do lote.",
+  },
 ];

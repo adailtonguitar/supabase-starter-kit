@@ -1,9 +1,20 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
+const ALLOWED_ORIGINS = [
+  "https://anthosystemcombr.lovable.app",
+  "https://anthosystem.com.br",
+  "https://www.anthosystem.com.br",
+  "https://id-preview--d4ab3861-f98c-4c08-a556-30aa884845a3.lovable.app",
+];
+
+function getCorsHeaders(req: Request) {
+  const origin = req.headers.get("Origin") || "";
+  const allowedOrigin = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
+  return {
+    "Access-Control-Allow-Origin": allowedOrigin,
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+  };
+}
 
 async function callGeminiVision(apiKey: string, contents: any[]): Promise<{ data: any | null; error: string | null; status: number }> {
   const models = ["gemini-2.5-flash-lite", "gemini-2.0-flash-lite", "gemini-2.0-flash", "gemini-1.5-flash"];
@@ -50,7 +61,7 @@ async function callGeminiVision(apiKey: string, contents: any[]): Promise<{ data
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { headers: getCorsHeaders(req) });
   }
 
   try {
@@ -59,7 +70,7 @@ Deno.serve(async (req) => {
     if (!authHeader?.startsWith("Bearer ")) {
       return new Response(JSON.stringify({ error: "Não autorizado" }), {
         status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
       });
     }
 
@@ -74,7 +85,7 @@ Deno.serve(async (req) => {
     if (claimsError || !claimsData?.claims) {
       return new Response(JSON.stringify({ error: "Token inválido" }), {
         status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
       });
     }
 
@@ -83,15 +94,33 @@ Deno.serve(async (req) => {
     if (!image_base64) {
       return new Response(JSON.stringify({ error: "image_base64 required" }), {
         status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
       });
+    }
+
+    // Rate limiting: max 10 analyses per minute per company
+    if (company_id) {
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const sbAdmin = createClient(supabaseUrl, serviceRoleKey);
+      const { data: allowed } = await sbAdmin.rpc("check_rate_limit", {
+        p_company_id: company_id,
+        p_fn_name: "analyze-product-image",
+        p_max_calls: 10,
+        p_window_sec: 60,
+      });
+      if (allowed === false) {
+        return new Response(JSON.stringify({ error: "Limite de análises excedido. Aguarde 1 minuto." }), {
+          status: 429, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
+        });
+      }
     }
 
     const GEMINI_KEY = Deno.env.get("GOOGLE_GEMINI_KEY");
     if (!GEMINI_KEY) {
       return new Response(JSON.stringify({ error: "GOOGLE_GEMINI_KEY not configured" }), {
         status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
       });
     }
 
@@ -167,7 +196,7 @@ ${categoriesHint}
     if (!result.data) {
       return new Response(JSON.stringify({ error: result.error }), {
         status: result.status === 429 ? 429 : 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
       });
     }
 
@@ -177,7 +206,7 @@ ${categoriesHint}
       console.error("[analyze-product-image] No content from Gemini");
       return new Response(JSON.stringify({ error: "IA não retornou resultado" }), {
         status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
       });
     }
 
@@ -194,20 +223,20 @@ ${categoriesHint}
       console.error("[analyze-product-image] JSON parse error:", rawText.substring(0, 300));
       return new Response(JSON.stringify({ error: "Erro ao interpretar resposta da IA", raw: rawText.substring(0, 200) }), {
         status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
       });
     }
 
     console.log("[analyze-product-image] Success:", parsed.name, "confidence:", parsed.confidence);
 
     return new Response(JSON.stringify({ success: true, product: parsed }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
     });
   } catch (err: any) {
     console.error("[analyze-product-image] Error:", err?.message);
     return new Response(JSON.stringify({ error: err?.message || "Erro interno" }), {
       status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
     });
   }
 });
