@@ -189,7 +189,7 @@ export function useCompany(): CompanyData {
 
     fetchCompany();
     return () => { cancelled = true; if (retryTimer.current) clearTimeout(retryTimer.current); };
-  }, [user]);
+  }, [user, session]);
 
   const switchCompany = useCallback((newCompanyId: string) => {
     if (!user) return;
