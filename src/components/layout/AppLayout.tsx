@@ -9,7 +9,9 @@ import { OnlineStatusIndicator } from "./OnlineStatusIndicator";
 import { SyncStatusPanel } from "./SyncStatusPanel";
 import { AppHeader } from "./AppHeader";
 import { PWAInstallPrompt } from "./PWAInstallPrompt";
+import { IdleWarningDialog } from "./IdleWarningDialog";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useIdleTimeout } from "@/hooks/useIdleTimeout";
 
 interface AppLayoutProps {
   children: React.ReactNode;
