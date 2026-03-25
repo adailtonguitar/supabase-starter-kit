@@ -145,7 +145,7 @@ Deno.serve(async (req) => {
       rlEntry.count++;
     }
 
-    const { mes_referencia } = await req.json();
+    const { mes_referencia, company_id } = await req.json();
 
     if (!mes_referencia) {
       return new Response(
@@ -156,7 +156,24 @@ Deno.serve(async (req) => {
 
     const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
 
-    // console.log("[diagnostico] Buscando dados financeiros...");
+    // ── Validação de pertencimento à empresa (anti-IDOR) ──
+    if (company_id) {
+      const { data: membership } = await supabaseAdmin
+        .from("company_users")
+        .select("id")
+        .eq("user_id", userId)
+        .eq("company_id", company_id)
+        .eq("is_active", true)
+        .maybeSingle();
+
+      if (!membership) {
+        return new Response(
+          JSON.stringify({ error: "Acesso negado a esta empresa." }),
+          { status: 403, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } }
+        );
+      }
+    }
+
     const { data: financeiro, error: fetchError } = await supabaseAdmin
       .from("financeiro_mensal")
       .select("receita, despesas, lucro, inadimplencia, clientes_ativos, percentual_maior_cliente")
