@@ -46,11 +46,12 @@ async function syncClients(companyId: string) {
 
 export function LocalDBProvider({ children }: { children: ReactNode }) {
   const { companyId } = useCompany();
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const intervalRef = useRef<ReturnType<typeof setInterval>>();
 
   useEffect(() => {
-    if (!companyId || !user) return;
+    // Require a real session (not just cached user) to avoid 401s
+    if (!companyId || !user || !session) return;
 
     // Initial sync
     const doSync = () => {
@@ -75,7 +76,7 @@ export function LocalDBProvider({ children }: { children: ReactNode }) {
       if (intervalRef.current) clearInterval(intervalRef.current);
       window.removeEventListener("online", onOnline);
     };
-  }, [companyId, user]);
+  }, [companyId, user, session]);
 
   return <>{children}</>;
 }
