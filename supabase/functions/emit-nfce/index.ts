@@ -11,30 +11,7 @@
  * - Dados completos do emitente (IE, CRT, endereço)
  */
 
-import { createClient } from "npm:@supabase/supabase-js@2";
-
-const ALLOWED_ORIGINS = [
-  "https://anthosystemcombr.lovable.app",
-  "https://anthosystem.com.br",
-  "https://www.anthosystem.com.br",
-  "https://id-preview--d4ab3861-f98c-4c08-a556-30aa884845a3.lovable.app",
-];
-
-function getCorsHeaders(req: Request) {
-  const origin = req.headers.get("Origin") || "";
-  const allowedOrigin = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
-  return {
-    "Access-Control-Allow-Origin": allowedOrigin,
-    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-  };
-}
-
-function jsonResponse(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
-  });
-}
+import { corsHeaders, createServiceClient, jsonResponse, requireCompanyMembership, requireUser } from "../_shared/auth.ts";
 
 // ─── Nuvem Fiscal Auth ───
 async function getNuvemFiscalToken(): Promise<string> {
@@ -1145,34 +1122,28 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // ── Auth: require valid JWT or internal service call ──
-    const { userId, isServiceCall } = await validateCaller(req);
-    if (!userId && !isServiceCall) {
-      return jsonResponse({ error: "Não autorizado" }, 401);
-    }
-
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
-
     const body = await req.json();
     const action = body.action || "emit";
 
-    // ── For user calls, verify they belong to the company ──
-    if (userId && body.company_id) {
-      const { data: access } = await supabase
-        .from("company_users")
-        .select("id")
-        .eq("user_id", userId)
-        .eq("company_id", body.company_id)
-        .eq("is_active", true)
-        .maybeSingle();
+    // Auth + tenant check for all actions that touch company data
+    const isAuthRequired = ["emit", "cancel", "backup_xmls"].includes(action) || Boolean(body.company_id);
+    if (isAuthRequired) {
+      const auth = await requireUser(req);
+      if (!auth.ok) return auth.response;
 
-      if (!access) {
-        return jsonResponse({ error: "Sem permissão para esta empresa" }, 403);
+      const companyId = String(body.company_id || "");
+      if (companyId) {
+        const membership = await requireCompanyMembership({
+          supabase: auth.supabase,
+          userId: auth.userId,
+          companyId,
+        });
+        if (!membership.ok) return membership.response;
       }
     }
+
+    // Service client (used only after auth+tenant validation above)
+    const supabase = createServiceClient();
 
     switch (action) {
       case "emit":

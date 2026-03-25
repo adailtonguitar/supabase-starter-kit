@@ -218,3 +218,6 @@ BEGIN
   RETURN v_count;
 END;
 $$;
+
+-- Permissão explícita (invalidate_session no fechamento da aba; sem GRANT pode retornar 401)
+GRANT EXECUTE ON FUNCTION public.invalidate_session(TEXT) TO authenticated, anon;

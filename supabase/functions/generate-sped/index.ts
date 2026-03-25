@@ -1,69 +1,27 @@
-import { createClient } from "npm:@supabase/supabase-js@2";
-
-const ALLOWED_ORIGINS = [
-  "https://anthosystemcombr.lovable.app",
-  "https://anthosystem.com.br",
-  "https://www.anthosystem.com.br",
-  "https://id-preview--d4ab3861-f98c-4c08-a556-30aa884845a3.lovable.app",
-];
-
-function getCorsHeaders(req: Request) {
-  const origin = req.headers.get("Origin") || "";
-  const allowedOrigin = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
-  return {
-    "Access-Control-Allow-Origin": allowedOrigin,
-    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-  };
-}
+import { corsHeaders, createServiceClient, jsonResponse, requireCompanyMembership, requireUser } from "../_shared/auth.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: getCorsHeaders(req) });
+    return new Response("ok", { headers: corsHeaders });
   }
 
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return new Response(JSON.stringify({ error: "Não autorizado" }), {
-        status: 401,
-        headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
-      });
-    }
-
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const adminClient = createClient(supabaseUrl, serviceRoleKey);
-
-    const token = authHeader.replace("Bearer ", "");
-    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const userClient = createClient(supabaseUrl, anonKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
-    const { data: claimsData, error: claimsErr } = await userClient.auth.getClaims(token);
-    if (claimsErr || !claimsData?.claims?.sub) {
-      return new Response(JSON.stringify({ error: "Não autorizado" }), {
-        status: 401,
-        headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
-      });
-    }
-    const user = { id: claimsData.claims.sub as string };
+    const auth = await requireUser(req);
+    if (!auth.ok) return auth.response;
 
     const body = await req.json();
     const { year, month, company_id } = body;
 
     if (!year || !month) {
-      return new Response(JSON.stringify({ error: "Ano e mês são obrigatórios" }), {
-        status: 400,
-        headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
-      });
+      return jsonResponse({ error: "Ano e mês são obrigatórios" }, 400);
     }
 
     let companyId = company_id;
     if (!companyId) {
-      const { data: cu } = await adminClient
+      const { data: cu } = await createServiceClient()
         .from("company_users")
         .select("company_id")
-        .eq("user_id", user.id)
+        .eq("user_id", auth.userId)
         .eq("is_active", true)
         .limit(1)
         .maybeSingle();
@@ -71,41 +29,26 @@ Deno.serve(async (req) => {
     }
 
     if (!companyId) {
-      return new Response(JSON.stringify({ error: "Empresa não encontrada" }), {
-        status: 404,
-        headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
-      });
+      return jsonResponse({ error: "Empresa não encontrada" }, 404);
     }
 
-    const { data: membership } = await adminClient
-      .from("company_users")
-      .select("id")
-      .eq("user_id", user.id)
-      .eq("company_id", companyId)
-      .eq("is_active", true)
-      .maybeSingle();
+    const membership = await requireCompanyMembership({
+      supabase: auth.supabase,
+      userId: auth.userId,
+      companyId: String(companyId),
+    });
+    if (!membership.ok) return membership.response;
 
-    if (!membership) {
-      return new Response(JSON.stringify({ error: "Acesso negado a esta empresa" }), {
-        status: 403,
-        headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
-      });
-    }
-
-    const { data: company } = await adminClient
+    // Load company data
+    const supabase = createServiceClient();
+    const { data: company } = await supabase
       .from("companies")
       .select("*")
       .eq("id", companyId)
       .single();
 
-    if (!company) {
-      return new Response(JSON.stringify({ error: "Empresa não encontrada" }), {
-        status: 404,
-        headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
-      });
-    }
+    if (!company) return jsonResponse({ error: "Empresa não encontrada" }, 404);
 
-    const supabase = adminClient;
     const startDate = `${year}-${String(month).padStart(2, "0")}-01`;
     const endMonth = month === 12 ? 1 : month + 1;
     const endYear = month === 12 ? year + 1 : year;
@@ -212,9 +155,9 @@ Deno.serve(async (req) => {
 
         lines.push(
           `|C170|${idx + 1}|${item.product_id}|${item.product_name || ""}|${ncm}|` +
-          `${formatDecimal(qty)}|${item.unit || "UN"}|${formatDecimal(vProd)}|${formatDecimal(discountValue)}|` +
-          `0|${cfop}|${origem}${cst}|${formatDecimal(vProdLiq)}|${formatDecimal(aliq)}|${formatDecimal(vICMS)}|` +
-          `0,00|0,00|0,00|0,00|0,00|0,00|0,00|`
+            `${formatDecimal(qty)}|${item.unit || "UN"}|${formatDecimal(vProd)}|${formatDecimal(discountValue)}|` +
+            `0|${cfop}|${origem}${cst}|${formatDecimal(vProdLiq)}|${formatDecimal(aliq)}|${formatDecimal(vICMS)}|` +
+            `0,00|0,00|0,00|0,00|0,00|0,00|0,00|`
         );
         cLineCount++;
       });
@@ -273,24 +216,21 @@ Deno.serve(async (req) => {
       console.error("Upload error:", uploadErr);
     }
 
-    return new Response(
-      JSON.stringify({
+    return jsonResponse(
+      {
         success: true,
         period,
         docs_count: fiscalDocs.length,
         items_count: allSaleItems.length,
         file_path: filePath,
         lines_count: lines.length,
-      }),
-      { status: 200, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } }
+      },
+      200
     );
   } catch (err: unknown) {
     console.error("generate-sped error:", err);
     const message = err instanceof Error ? err.message : "Erro interno";
-    return new Response(JSON.stringify({ success: false, error: message }), {
-      status: 500,
-      headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
-    });
+    return jsonResponse({ success: false, error: message }, 500);
   }
 });
 

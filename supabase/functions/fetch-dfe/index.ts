@@ -1,20 +1,4 @@
-import { createClient } from "npm:@supabase/supabase-js@2";
-
-const ALLOWED_ORIGINS = [
-  "https://anthosystemcombr.lovable.app",
-  "https://anthosystem.com.br",
-  "https://www.anthosystem.com.br",
-  "https://id-preview--d4ab3861-f98c-4c08-a556-30aa884845a3.lovable.app",
-];
-
-function getCorsHeaders(req: Request) {
-  const origin = req.headers.get("Origin") || "";
-  const allowedOrigin = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
-  return {
-    "Access-Control-Allow-Origin": allowedOrigin,
-    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-  };
-}
+import { corsHeaders, jsonResponse, requireCompanyMembership, requireUser } from "../_shared/auth.ts";
 
 async function getNuvemFiscalToken(): Promise<string> {
   const clientId = Deno.env.get("NUVEM_FISCAL_CLIENT_ID");
@@ -42,56 +26,24 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return new Response(JSON.stringify({ error: "Não autorizado" }), {
-        status: 401,
-        headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
-      });
-    }
-
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
-
-    // Service role client for DB writes (bypasses RLS)
-    const supabaseAdmin = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
-
-    const token = authHeader.replace("Bearer ", "");
-    const { data: claimsData, error: claimsErr } = await supabase.auth.getClaims(token);
-    if (claimsErr || !claimsData?.claims?.sub) {
-      return new Response(JSON.stringify({ error: "Não autorizado" }), {
-        status: 401,
-        headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
-      });
-    }
-    const userId = claimsData.claims.sub as string;
+    const auth = await requireUser(req);
+    if (!auth.ok) return auth.response;
 
     const body = await req.json();
     const { action, company_id, document_id } = body;
 
     if (!company_id) throw new Error("company_id é obrigatório");
 
-    // Rate limiting: max 20 DFe requests per minute per company
-    const { data: allowed } = await supabase.rpc("check_rate_limit", {
-      p_company_id: company_id,
-      p_fn_name: "fetch-dfe",
-      p_max_calls: 20,
-      p_window_sec: 60,
+    // Tenant check: user must belong to this company
+    const membership = await requireCompanyMembership({
+      supabase: auth.supabase,
+      userId: auth.userId,
+      companyId: String(company_id),
     });
-    if (allowed === false) {
-      return new Response(JSON.stringify({ error: "Limite de consultas DFe excedido. Aguarde 1 minuto." }), {
-        status: 429, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
-      });
-    }
+    if (!membership.ok) return membership.response;
 
     // Get company CNPJ
-    const { data: company, error: compErr } = await supabase
+    const { data: company, error: compErr } = await auth.supabase
       .from("companies")
       .select("cnpj, name")
       .eq("id", company_id)
@@ -369,9 +321,7 @@ Deno.serve(async (req) => {
         "O Certificado Digital da empresa está inválido ou expirado. Acesse Configurações Fiscais e faça upload de um certificado A1 (.pfx) válido.";
     }
 
-    return new Response(
-      JSON.stringify({ success: false, error: userMessage }),
-      { status: 400, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } }
-    );
+    // 200 + success:false: o cliente já trata; evita POST vermelho no DevTools para falhas esperadas
+    return jsonResponse({ success: false, error: userMessage }, 200);
   }
 });

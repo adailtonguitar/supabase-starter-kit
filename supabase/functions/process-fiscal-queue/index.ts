@@ -1,24 +1,29 @@
-import { createClient } from "npm:@supabase/supabase-js@2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
+import { corsHeaders, createServiceClient, jsonResponse, requireCompanyMembership, requireUser } from "../_shared/auth.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
 
-  const supabase = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-  );
-
   try {
+    // Only authenticated users can trigger queue processing (prevents public abuse)
+    const auth = await requireUser(req);
+    if (!auth.ok) return auth.response;
+
     const body = await req.json().catch(() => ({}));
     const companyFilter = body.company_id;
+
+    if (companyFilter) {
+      const membership = await requireCompanyMembership({
+        supabase: auth.supabase,
+        userId: auth.userId,
+        companyId: String(companyFilter),
+      });
+      if (!membership.ok) return membership.response;
+    }
+
+    // Service client is allowed after auth+tenant validation
+    const supabase = createServiceClient();
 
     // 1️⃣ Resetar itens presos em "processing" há mais de 5 minutos
     const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
@@ -43,12 +48,7 @@ Deno.serve(async (req) => {
     pendingQuery = pendingQuery.maybeSingle();
     const { data: queueItem } = await pendingQuery;
 
-    if (!queueItem) {
-      return new Response(
-        JSON.stringify({ success: true, message: "Nenhum item pendente" }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+    if (!queueItem) return jsonResponse({ success: true, message: "Nenhum item pendente" }, 200);
 
     const queueId = queueItem.id;
     const saleId = queueItem.sale_id;

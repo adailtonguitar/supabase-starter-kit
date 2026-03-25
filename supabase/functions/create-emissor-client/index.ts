@@ -1,52 +1,30 @@
-import { createClient } from "npm:@supabase/supabase-js@2";
-
-const ALLOWED_ORIGINS = [
-  "https://anthosystemcombr.lovable.app",
-  "https://anthosystem.com.br",
-  "https://www.anthosystem.com.br",
-  "https://id-preview--d4ab3861-f98c-4c08-a556-30aa884845a3.lovable.app",
-];
-
-function getCorsHeaders(req: Request) {
-  const origin = req.headers.get("Origin") || "";
-  const allowedOrigin = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
-  return {
-    "Access-Control-Allow-Origin": allowedOrigin,
-    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-  };
-}
+import { corsHeaders, createServiceClient, jsonResponse, requireUser } from "../_shared/auth.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: getCorsHeaders(req) });
 
   try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
-
     const { company_name, cnpj, email, password, full_name, self_service } = await req.json();
 
-    // Always verify caller is authenticated
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) throw new Error("Não autorizado");
-    const token = authHeader.replace("Bearer ", "");
-    const { data: { user: caller }, error: authErr } = await supabaseAdmin.auth.getUser(token);
-    if (authErr || !caller) throw new Error("Sessão inválida");
+    const auth = await requireUser(req);
+    if (!auth.ok) return auth.response;
+
+    const supabaseAdmin = createServiceClient();
 
     // If NOT self-service, verify caller is super_admin
     if (!self_service) {
       const { data: adminRole } = await supabaseAdmin
         .from("admin_roles").select("role")
-        .eq("user_id", caller.id).maybeSingle();
+        .eq("user_id", auth.userId).maybeSingle();
       if (adminRole?.role !== "super_admin") {
-        throw new Error("Apenas super admins podem criar clientes emissor");
+        return jsonResponse({ error: "Apenas super admins podem criar clientes emissor" }, 403);
       }
     }
 
-    if (!company_name?.trim()) throw new Error("Nome da empresa é obrigatório");
-    if (!email?.trim()) throw new Error("E-mail é obrigatório");
-    if (!password || password.length < 6) throw new Error("Senha deve ter pelo menos 6 caracteres");
-    if (self_service && !full_name?.trim()) throw new Error("Nome é obrigatório");
+    if (!company_name?.trim()) return jsonResponse({ error: "Nome da empresa é obrigatório" }, 400);
+    if (!email?.trim()) return jsonResponse({ error: "E-mail é obrigatório" }, 400);
+    if (!password || password.length < 6) return jsonResponse({ error: "Senha deve ter pelo menos 6 caracteres" }, 400);
+    if (self_service && !full_name?.trim()) return jsonResponse({ error: "Nome é obrigatório" }, 400);
 
     // 1. Create company
     const { data: company, error: companyErr } = await supabaseAdmin
@@ -110,19 +88,17 @@ Deno.serve(async (req) => {
     }, { onConflict: "company_id" });
     if (planErr) throw new Error("Erro ao definir plano: " + planErr.message);
 
-    return new Response(JSON.stringify({
-      success: true,
-      companyId: company.id,
-      userId,
-      isNewUser,
-      message: `Cliente emissor criado com sucesso! E-mail: ${email}`,
-    }), {
-      headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
-    });
+    return jsonResponse(
+      {
+        success: true,
+        companyId: company.id,
+        userId,
+        isNewUser,
+        message: `Cliente emissor criado com sucesso! E-mail: ${email}`,
+      },
+      200
+    );
   } catch (err: any) {
-    return new Response(JSON.stringify({ error: err.message }), {
-      status: 400,
-      headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
-    });
+    return jsonResponse({ error: err?.message || "Erro" }, 400);
   }
 });

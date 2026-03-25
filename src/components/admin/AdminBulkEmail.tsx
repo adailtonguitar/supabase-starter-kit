@@ -10,6 +10,7 @@ import { Mail, Send, Loader2, Eye } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { logAction } from "@/services/ActionLogger";
 import { useAuth } from "@/hooks/useAuth";
+import { sanitizeHtml } from "@/lib/sanitize";
 
 export function AdminBulkEmail() {
   const { user } = useAuth();
