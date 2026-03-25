@@ -21,6 +21,7 @@ import { usePlanFeatures } from "@/hooks/usePlanFeatures";
 import { useAdminRole } from "@/hooks/useAdminRole";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { OnboardingChecklist } from "@/components/onboarding/OnboardingChecklist";
 
 const DASHBOARD_SUMMARY_STORAGE_KEY = "as_dashboard_owner_summary";
 
@@ -378,6 +379,13 @@ export default function Dashboard() {
             pendingReceivables={stats.pendingReceivables}
             pendingReceivablesCount={stats.pendingReceivablesCount}
           />
+        </motion.div>
+      )}
+
+      {/* ─── Onboarding Checklist ─── */}
+      {!ownerSummary && (
+        <motion.div variants={item}>
+          <OnboardingChecklist />
         </motion.div>
       )}
 
