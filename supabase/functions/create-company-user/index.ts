@@ -35,11 +35,12 @@ Deno.serve(async (req) => {
       throw new Error("Apenas administradores podem cadastrar usuarios");
     }
 
-    // Check if user already exists (by email, without loading all users)
+    // Check if user already exists by email
     let existingUser: any = null;
     try {
-      const { data: userByEmail } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1 } as any);
-      existingUser = userByEmail?.users?.[0] || null;
+      // Fetch all users and filter by email to find exact match
+      const { data: usersData } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
+      existingUser = usersData?.users?.find((u: any) => u.email?.toLowerCase() === email.toLowerCase()) || null;
     } catch {
       existingUser = null;
     }
