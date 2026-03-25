@@ -27,7 +27,7 @@ export function IdleWarningDialog({ open, secondsLeft, onContinue, onLogout }: I
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle className="flex items-center gap-2">
-            <Clock className="h-5 w-5 text-orange-500" />
+            <Clock className="h-5 w-5 text-destructive" />
             Sessão expirando
           </AlertDialogTitle>
           <AlertDialogDescription>
