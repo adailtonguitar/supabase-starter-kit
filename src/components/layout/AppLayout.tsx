@@ -9,7 +9,9 @@ import { OnlineStatusIndicator } from "./OnlineStatusIndicator";
 import { SyncStatusPanel } from "./SyncStatusPanel";
 import { AppHeader } from "./AppHeader";
 import { PWAInstallPrompt } from "./PWAInstallPrompt";
+import { IdleWarningDialog } from "./IdleWarningDialog";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useIdleTimeout } from "@/hooks/useIdleTimeout";
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -18,9 +20,11 @@ interface AppLayoutProps {
 export const AppLayout = memo(function AppLayout({ children }: AppLayoutProps) {
   const isMobile = useIsMobile();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { showWarning, secondsLeft, dismissWarning, doLogout } = useIdleTimeout();
 
   return (
     <div className="flex h-full w-full">
+      <IdleWarningDialog open={showWarning} secondsLeft={secondsLeft} onContinue={dismissWarning} onLogout={doLogout} />
       <AppSidebar mobileOpen={mobileOpen} onMobileClose={() => setMobileOpen(false)} />
       <div className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden">
         <UpdateNoticeModal />
