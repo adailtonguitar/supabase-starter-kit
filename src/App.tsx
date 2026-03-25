@@ -153,8 +153,9 @@ function EmissorGuard({ children }: { children: React.ReactNode }) {
 }
 
 function LandingRedirectWrapper() {
-  const { user, loading } = useAuth();
-  if (!loading && user) return <Navigate to="/dashboard" replace />;
+  const { user, session, loading } = useAuth();
+  // Only redirect if we have a real session, not just a cached user
+  if (!loading && user && session) return <Navigate to="/dashboard" replace />;
   return <LandingPage />;
 }
 
