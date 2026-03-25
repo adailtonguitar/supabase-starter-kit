@@ -61,6 +61,37 @@ async function checkStorage(client: any): Promise<HealthResult> {
   }
 }
 
+/** Ping an Edge Function with OPTIONS (no auth needed) to verify it's deployed */
+async function checkEdgeFunction(supabaseUrl: string, fnName: string): Promise<HealthResult> {
+  const start = Date.now();
+  try {
+    const resp = await fetch(`${supabaseUrl}/functions/v1/${fnName}`, {
+      method: "OPTIONS",
+      headers: { "Content-Type": "application/json" },
+    });
+    // OPTIONS should return 200 or 204
+    const ok = resp.status >= 200 && resp.status < 400;
+    await resp.text(); // consume body
+    return {
+      service: `edge:${fnName}`,
+      status: ok ? "ok" : "error",
+      latency_ms: Date.now() - start,
+      ...(!ok && { error: `HTTP ${resp.status}` }),
+    };
+  } catch (err: any) {
+    return { service: `edge:${fnName}`, status: "error", latency_ms: Date.now() - start, error: err.message };
+  }
+}
+
+const CRITICAL_FUNCTIONS = [
+  "check-subscription",
+  "emit-nfce",
+  "create-checkout",
+  "payment-webhook",
+  "ai-support",
+  "generate-ai-report",
+];
+
 async function sendAlert(resendKey: string, alertEmail: string, failedServices: HealthResult[]) {
   const rows = failedServices
     .map(
@@ -116,19 +147,20 @@ Deno.serve(async (req) => {
     const alertEmail = Deno.env.get("ALERT_EMAIL") || "adailtonguitar@gmail.com";
     const client = createClient(supabaseUrl, serviceRoleKey);
 
-    // Run all checks in parallel
-    const [db, auth, storage] = await Promise.all([
+    // Run infrastructure + Edge Function checks in parallel
+    const [db, auth, storage, ...edgeResults] = await Promise.all([
       checkDatabase(client),
       checkAuth(client),
       checkStorage(client),
+      ...CRITICAL_FUNCTIONS.map((fn) => checkEdgeFunction(supabaseUrl, fn)),
     ]);
 
-    const checks = [db, auth, storage];
+    const checks = [db, auth, storage, ...edgeResults];
     const failedServices = checks.filter((c) => c.status === "error");
     const allOk = failedServices.length === 0;
     const totalLatency = Date.now() - startTotal;
 
-    // Log to uptime_logs table (create if not exists handled gracefully)
+    // Log to uptime_logs table
     try {
       await client.from("uptime_logs").insert({
         status: allOk ? "ok" : "degraded",
@@ -137,10 +169,25 @@ Deno.serve(async (req) => {
         failed_services: failedServices.map((f) => f.service),
       });
     } catch {
-      // Table might not exist yet, that's fine
+      // Table might not exist yet
     }
 
-    // Send alert if any service is down
+    // Log failures to system_errors for admin visibility
+    if (!allOk) {
+      try {
+        for (const failed of failedServices) {
+          await client.from("system_errors").insert({
+            error_type: "health_check_failure",
+            message: `${failed.service}: ${failed.error || "Falha"}`,
+            metadata: JSON.stringify({ latency_ms: failed.latency_ms, timestamp: new Date().toISOString() }),
+          });
+        }
+      } catch {
+        // system_errors table might not exist
+      }
+    }
+
+    // Send alert email if any service is down
     if (!allOk && resendKey) {
       try {
         await sendAlert(resendKey, alertEmail, failedServices);
@@ -154,6 +201,9 @@ Deno.serve(async (req) => {
         status: allOk ? "healthy" : "degraded",
         timestamp: new Date().toISOString(),
         total_latency_ms: totalLatency,
+        services_checked: checks.length,
+        services_ok: checks.filter((c) => c.status === "ok").length,
+        services_failed: failedServices.length,
         checks,
       }),
       {
