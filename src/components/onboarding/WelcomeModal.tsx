@@ -3,8 +3,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, Play, Sparkles } from "lucide-react";
 import { useOnboardingChecklist } from "@/hooks/useOnboardingChecklist";
 
-// Welcome video URL — replace with hosted URL of the Remotion-rendered video
-const WELCOME_VIDEO_URL = "";
+// Welcome video URL — upload antho-welcome-audio.mp4 to Supabase Storage bucket "assets"
+const WELCOME_VIDEO_URL = "https://fsvxpxziotklbxkivyug.supabase.co/storage/v1/object/public/assets/antho-welcome-audio.mp4";
 
 export function WelcomeModal() {
   const { welcomeSeen, markWelcomeSeen } = useOnboardingChecklist();
