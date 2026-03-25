@@ -43,7 +43,11 @@ export async function trackError(opts: {
     lastErrorTime = now;
 
     // Skip common non-actionable errors
-    if (message.includes("ResizeObserver") || message.includes("Loading chunk")) return;
+    if (
+      message.includes("ResizeObserver") ||
+      message.includes("Loading chunk") ||
+      message.includes("requested version") && message.includes("existing version")
+    ) return;
 
     const { browser, device } = getDeviceInfo();
     const page = opts.page || window.location.pathname;
