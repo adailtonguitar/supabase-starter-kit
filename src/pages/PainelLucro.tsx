@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useReadAudit } from "@/hooks/useReadAudit";
 import { TrendingUp, TrendingDown, DollarSign, Calculator, BarChart3, AlertTriangle } from "lucide-react";
 import { motion } from "framer-motion";
 import { useProfitAnalytics } from "@/hooks/useProfitAnalytics";

@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { useReadAudit } from "@/hooks/useReadAudit";
 import { FileText, RefreshCw, RotateCcw, Loader2, Send, BarChart3, DollarSign, TrendingDown, TrendingUp } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { motion } from "framer-motion";

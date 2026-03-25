@@ -1,4 +1,5 @@
 import { useState, type ComponentType } from "react";
+import { useReadAudit } from "@/hooks/useReadAudit";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {

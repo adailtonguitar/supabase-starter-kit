@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { useReadAudit } from "@/hooks/useReadAudit";
 import { useQuery } from "@tanstack/react-query";
 import { BarChart3, Calendar, Download, TrendingUp, TrendingDown, DollarSign, Package, Printer } from "lucide-react";
 import { motion } from "framer-motion";
