@@ -103,10 +103,21 @@ async function checkEdgeFunction(supabaseUrl: string, fnName: string): Promise<H
 async function checkAppErrors(client: any): Promise<{ count: number; topErrors: string[] }> {
   try {
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+
+    // Filter out known non-actionable errors (IndexedDB version conflicts, ResizeObserver, chunk loading)
+    const NON_ACTIONABLE = [
+      "requested version",
+      "ResizeObserver",
+      "Loading chunk",
+    ];
+
     const { data, count } = await client
       .from("system_errors")
       .select("error_message", { count: "exact" })
       .gte("created_at", oneHourAgo)
+      .not("error_message", "ilike", "%requested version%")
+      .not("error_message", "ilike", "%ResizeObserver%")
+      .not("error_message", "ilike", "%Loading chunk%")
       .order("created_at", { ascending: false })
       .limit(5);
 
