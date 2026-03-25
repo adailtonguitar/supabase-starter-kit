@@ -40,6 +40,7 @@ function PriceSimulator() {
 
 export default function PainelLucro() {
   const [period, setPeriod] = useState<"current" | "last">("current");
+  useReadAudit({ module: "financeiro", resource: "Painel de Lucro" });
   const dateFrom = period === "current" ? startOfMonth(new Date()) : startOfMonth(subMonths(new Date(), 1));
   const dateTo = period === "current" ? endOfMonth(new Date()) : endOfMonth(subMonths(new Date(), 1));
   const { data, isLoading } = useProfitAnalytics(dateFrom, dateTo);

@@ -39,6 +39,7 @@ interface ProductProfit {
 
 export default function RelatorioVendas() {
   const { companyId } = useCompany();
+  useReadAudit({ module: "vendas", resource: "Relatório de Vendas" });
   const [preset, setPreset] = useState<DatePreset>("mes");
   const [startDate, setStartDate] = useState(format(startOfMonth(new Date()), "yyyy-MM-dd"));
   const [endDate, setEndDate] = useState(format(new Date(), "yyyy-MM-dd"));

@@ -27,6 +27,7 @@ interface DRELine {
 
 export default function DRE() {
   const now = new Date();
+  useReadAudit({ module: "financeiro", resource: "DRE" });
   const [month, setMonth] = useState(format(now, "yyyy-MM"));
   const { companyId } = useCompany();
 

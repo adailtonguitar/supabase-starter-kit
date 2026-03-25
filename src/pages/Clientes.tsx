@@ -45,6 +45,7 @@ const baseFields: FieldConfig[] = [
 ];
 
 export default function Clientes() {
+  useReadAudit({ module: "clientes", resource: "Lista de Clientes (CPF/CNPJ)" });
   const { data = [], isLoading } = useClients();
   const create = useCreateClient();
   const update = useUpdateClient();

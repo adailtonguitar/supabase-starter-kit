@@ -39,6 +39,7 @@ const categoryLabels: Record<string, string> = {
 };
 
 export default function Financeiro() {
+  useReadAudit({ module: "financeiro", resource: "Painel Financeiro" });
   const now = new Date();
   const [month, setMonth] = useState(format(now, "yyyy-MM"));
   const [tab, setTab] = useState("all");
