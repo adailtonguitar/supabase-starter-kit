@@ -753,12 +753,34 @@ async function handleEmitFromSale(supabase: any, body: any) {
     .single();
   if (saleErr || !sale) return jsonResponse({ error: "Venda não encontrada" }, 404);
 
+  // 1) Load sale_items without relying on implicit foreign table joins (can break if relationship name differs)
   const { data: items, error: itemsErr } = await supabase
     .from("sale_items")
-    .select("*, products(ncm, cfop, csosn, cst_icms, cst_pis, cst_cofins, aliq_icms, origem, mva)")
+    .select("product_id, product_name, name, quantity, unit_price, discount_percent, unit, ncm, cfop, cest, cst, csosn, origem")
     .eq("sale_id", saleId);
-  if (itemsErr) return jsonResponse({ error: "Falha ao carregar itens da venda" }, 500);
+  if (itemsErr) {
+    console.error("[emit-nfce] Falha ao carregar sale_items:", itemsErr.message);
+    return jsonResponse({ error: "Falha ao carregar itens da venda" }, 500);
+  }
   if (!items?.length) return jsonResponse({ error: "Itens da venda não encontrados" }, 400);
+
+  // 2) Load product fiscal fields in a second query
+  const productIds = Array.from(new Set(items.map((it: Record<string, unknown>) => String(it.product_id || "")).filter(Boolean)));
+  const productsById = new Map<string, Record<string, unknown>>();
+  if (productIds.length > 0) {
+    const { data: products, error: prodErr } = await supabase
+      .from("products")
+      .select("id, ncm, cfop, csosn, cst_icms, cst_pis, cst_cofins, aliq_icms, origem, mva, cest")
+      .in("id", productIds);
+    if (prodErr) {
+      console.error("[emit-nfce] Falha ao carregar products:", prodErr.message);
+      // Not fatal: we can still emit with item-level fields/defaults
+    } else {
+      for (const p of (products || []) as Record<string, unknown>[]) {
+        if (p?.id) productsById.set(String(p.id), p);
+      }
+    }
+  }
 
   // Buscar CRT via companies (ou default)
   const { data: company } = await supabase
@@ -780,7 +802,8 @@ async function handleEmitFromSale(supabase: any, body: any) {
   const change = Number(payments[0]?.change_amount ?? 0);
 
   const fiscalItems = items.map((item: Record<string, unknown>) => {
-    const product = (item.products || {}) as Record<string, unknown>;
+    const pid = String(item.product_id || "");
+    const product = pid ? (productsById.get(pid) || {}) : {};
     const qty = Number(item.quantity ?? 1);
     const unitPrice = Number(item.unit_price ?? 0);
     const discountPercent = Number(item.discount_percent ?? 0);
@@ -800,6 +823,7 @@ async function handleEmitFromSale(supabase: any, body: any) {
       cofins_cst: (product.cst_cofins as string) || defaultPisCofins,
       icms_aliquota: (product.aliq_icms as number) || 0,
       mva: (product.mva as number) || undefined,
+      cest: (product.cest as string) || (item.cest as string) || undefined,
     };
   });
 
