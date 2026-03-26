@@ -33,6 +33,8 @@ export class FiscalEmissionService {
       });
 
       if (error) return { error: error.message };
+      // Keep backward compatibility with callers that expect `pdf_base64` at top-level
+      if (data && typeof data === "object") return { success: true, ...(data as Record<string, unknown>) };
       return { success: true, data };
     } catch (err: unknown) {
       return { error: getErrorMessage(err) };

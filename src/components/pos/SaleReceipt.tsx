@@ -421,37 +421,69 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
 
     setFetchingFiscal(true);
     const printWindow = window.open("", "_blank", "width=320,height=700");
+    if (!printWindow) {
+      setFetchingFiscal(false);
+      toast.error("Pop-up bloqueado. Permita pop-ups para imprimir o cupom fiscal.", { duration: 6000 });
+      return;
+    }
 
     Promise.resolve(
       supabase
-        .from("fiscal_documents")
-        .select("number, access_key, serie, status")
-        .eq("sale_id", saleId)
-        .order("created_at", { ascending: false })
-        .limit(1)
+        .from("sales")
+        .select("company_id, nfce_number, status")
+        .eq("id", saleId)
         .maybeSingle()
     ).then(({ data: fiscalDoc }) => {
-        setFetchingFiscal(false);
-        const doc = fiscalDoc as any;
-        const isSimulated = doc?.status === "simulado";
-        const isAuthorized = doc?.status === "autorizada";
+        const saleRow = fiscalDoc as any;
+        const companyId = saleRow?.company_id as string | undefined;
+        const nfceNumRaw = saleRow?.nfce_number as string | undefined;
 
-        if (doc?.number && (isAuthorized || isSimulated)) {
-          const foundNumber = isSimulated ? `SIM-${String(doc.number)}` : String(doc.number);
-          const foundKey = doc.access_key || undefined;
-          const foundSerie = doc.serie || undefined;
-          setNfceNumber(foundNumber);
-          setAccessKey(foundKey);
-          setSerie(foundSerie);
-          if (printWindow) printWindow.close();
-          printFiscalCupom(foundNumber, foundKey, foundSerie);
-        } else {
-          if (printWindow) printWindow.close();
-          toast.info("A NFC-e desta venda ainda não foi autorizada. O cupom fiscal só libera após autorização real.", { duration: 6000 });
+        const numDigits = (nfceNumRaw || "").replace(/[^0-9]/g, "");
+        const num = numDigits ? Number(numDigits) : NaN;
+        if (!companyId || !Number.isFinite(num) || num <= 0) {
+          setFetchingFiscal(false);
+          printWindow.close();
+          toast.info("NFC-e ainda não disponível para esta venda. Aguarde alguns segundos e tente novamente.", { duration: 6000 });
+          return;
         }
+
+        supabase
+          .from("fiscal_documents")
+          .select("number, access_key, serie, status")
+          .eq("company_id", companyId)
+          .eq("doc_type", "nfce")
+          .eq("number", num)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle()
+          .then(({ data: docRow }) => {
+            setFetchingFiscal(false);
+            const doc = docRow as any;
+            const isSimulated = doc?.status === "simulado";
+            const isAuthorized = doc?.status === "autorizada";
+
+            if (doc?.number && (isAuthorized || isSimulated)) {
+              const foundNumber = isSimulated ? `SIM-${String(doc.number)}` : String(doc.number);
+              const foundKey = doc.access_key || undefined;
+              const foundSerie = doc.serie || undefined;
+              setNfceNumber(foundNumber);
+              setAccessKey(foundKey);
+              setSerie(foundSerie);
+              printWindow.close();
+              printFiscalCupom(foundNumber, foundKey, foundSerie);
+            } else {
+              printWindow.close();
+              toast.info("A NFC-e desta venda ainda não foi autorizada. O cupom fiscal só libera após autorização real.", { duration: 6000 });
+            }
+          })
+          .catch(() => {
+            setFetchingFiscal(false);
+            printWindow.close();
+            toast.error("Erro ao buscar dados fiscais.", { duration: 3000 });
+          });
       }).catch(() => {
         setFetchingFiscal(false);
-        if (printWindow) printWindow.close();
+        printWindow.close();
         toast.error("Erro ao buscar dados fiscais.", { duration: 3000 });
       });
   }, [nfceNumber, accessKey, serie, saleId, printFiscalCupom]);
