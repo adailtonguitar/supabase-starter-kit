@@ -12,6 +12,7 @@
  */
 
 import { corsHeaders, createServiceClient, jsonResponse, requireCompanyMembership, requireUser } from "../_shared/auth.ts";
+import { createClient } from "npm:@supabase/supabase-js@2";
 
 // ─── Nuvem Fiscal Auth ───
 async function getNuvemFiscalToken(): Promise<string> {
@@ -44,6 +45,16 @@ function getApiBaseUrl(): string {
   return isSandbox
     ? "https://api.sandbox.nuvemfiscal.com.br"
     : "https://api.nuvemfiscal.com.br";
+}
+
+// Nuvem Fiscal/SEFAZ valida alguns campos textuais com regex baseada em Latin-1.
+// Então normalizamos: remove quebras de linha/tabs, cola espaços e remove caracteres fora de [0x21..0xFF] (mais espaço).
+function sanitizeSefazText(value: unknown, fallback: string): string {
+  const raw = typeof value === "string" ? value : "";
+  let s = raw.replace(/[\r\n\t]+/g, " ").replace(/\s+/g, " ").trim();
+  s = s.replace(/[^\x21-\xFF ]/g, ""); // keep only allowed characters
+  if (!s) return fallback;
+  return s;
 }
 
 // ─── Numeração segura (atômica via RPC com FOR UPDATE) ───
@@ -191,19 +202,28 @@ function buildIcmsBlock(item: any, isSimples: boolean) {
 function buildPisCofins(pisCst: string, cofinsCst: string, vProd: number) {
   const pis: any = {};
   const cofins: any = {};
+  const ntCst = new Set(["04", "05", "06", "07", "08", "09"]);
 
   // PIS
   if (["01", "02"].includes(pisCst)) {
     pis.PISAliq = { CST: pisCst, vBC: Math.round(vProd * 100) / 100, pPIS: 0.65, vPIS: Math.round(vProd * 0.0065 * 100) / 100 };
+  } else if (ntCst.has(pisCst)) {
+    pis.PISNT = { CST: pisCst };
   } else {
-    pis.PISNT = { CST: pisCst || "49" };
+    // CST 49 and other "outras operações" must use PISOutr group.
+    const cst = pisCst || "49";
+    pis.PISOutr = { CST: cst, vBC: 0, pPIS: 0, vPIS: 0 };
   }
 
   // COFINS
   if (["01", "02"].includes(cofinsCst)) {
     cofins.COFINSAliq = { CST: cofinsCst, vBC: Math.round(vProd * 100) / 100, pCOFINS: 3.0, vCOFINS: Math.round(vProd * 0.03 * 100) / 100 };
+  } else if (ntCst.has(cofinsCst)) {
+    cofins.COFINSNT = { CST: cofinsCst };
   } else {
-    cofins.COFINSNT = { CST: cofinsCst || "49" };
+    // CST 49 and other "outras operações" must use COFINSOutr group.
+    const cst = cofinsCst || "49";
+    cofins.COFINSOutr = { CST: cst, vBC: 0, pCOFINS: 0, vCOFINS: 0 };
   }
 
   return { PIS: pis, COFINS: cofins };
@@ -476,10 +496,10 @@ async function handleEmit(supabase: any, body: any) {
 
   // Emitente
   const cnpjClean = (company.cnpj || "").replace(/\D/g, "");
-  const ieClean = (company.ie || company.state_registration || "").replace(/\D/g, "");
+  const ieEmitClean = (company.ie || company.state_registration || "").replace(/\D/g, "");
 
   // ── Item 5: Validar código IBGE antes de prosseguir ──
-  const ibgeCode = company.ibge_code || company.city_code || "";
+  const ibgeCode = company.ibge_code || company.city_code || company.address_ibge_code || "";
   const ibgeClean = String(ibgeCode).replace(/\D/g, "");
   if (!ibgeClean || ibgeClean.length < 7 || ibgeClean === "0000000") {
     return jsonResponse({
@@ -489,21 +509,21 @@ async function handleEmit(supabase: any, body: any) {
 
   const emit: Record<string, unknown> = {
     CNPJ: cnpjClean,
-    xNome: company.name || company.trade_name,
+    xNome: sanitizeSefazText(company.name || company.trade_name, "EMITENTE"),
     CRT: crt,
   };
 
-  if (ieClean) emit.IE = ieClean;
+  if (ieEmitClean) emit.IE = ieEmitClean;
 
   // Endereço do emitente
   if (company.street || company.address) {
     emit.enderEmit = {
-      xLgr: company.street || company.address || "Rua não informada",
+      xLgr: sanitizeSefazText(company.street || company.address || "Rua não informada", "Rua não informada"),
       nro: company.number || company.address_number || "S/N",
-      xBairro: company.neighborhood || "Centro",
+      xBairro: sanitizeSefazText(company.neighborhood || "Centro", "Centro"),
       cMun: ibgeClean,
-      xMun: company.city || "Não informada",
-      UF: company.state || "MA",
+      xMun: sanitizeSefazText(company.city || "Não informada", "Não informada"),
+      UF: sanitizeSefazText(company.state || "MA", "MA"),
       CEP: (company.zip_code || company.cep || "00000000").replace(/\D/g, ""),
       cPais: "1058",
       xPais: "Brasil",
@@ -545,9 +565,11 @@ async function handleEmit(supabase: any, body: any) {
         indFinal: 1, // consumidor final
         indPres: 1, // operação presencial
         procEmi: 0, // emissão por aplicativo do contribuinte
+        verProc: "AnthoSystem 1.0",
       },
       emit,
       det: detItems,
+      transp: { modFrete: 9 },
       total: {
         ICMSTot: {
           vBC: Math.round((totalVICMS > 0 ? totalVProd : 0) * 100) / 100,
@@ -578,36 +600,10 @@ async function handleEmit(supabase: any, body: any) {
   if (dest) payload.infNFe.dest = dest;
   if (Object.keys(infAdic).length > 0) payload.infNFe.infAdic = infAdic;
 
-  // CSC / Token para NFC-e
-  if (config.csc_id && config.csc_token) {
-    payload.infNFe.ide.cIdToken = config.csc_id;
-    payload.infNFe.ide.csc = config.csc_token;
-  }
+  // Nuvem Fiscal validates `infNFe.ide` strictly against SEFAZ schema.
+  // CSC fields are not valid ide properties and must not be injected here.
 
-  // Certificado digital — Item 19: Validar formato .pfx antes de usar
-  if (config.certificate_base64 || config.certificate_path) {
-    if (config.certificate_base64) {
-      try {
-        const raw = Uint8Array.from(atob(config.certificate_base64), c => c.charCodeAt(0));
-        // PFX/PKCS#12 files start with ASN.1 SEQUENCE tag (0x30) followed by length byte(s)
-        if (raw.length < 4 || raw[0] !== 0x30) {
-          return jsonResponse({
-            success: false,
-            error: "O arquivo enviado não é um certificado .pfx válido. Envie um certificado digital no formato PKCS#12 (.pfx ou .p12).",
-          }, 400);
-        }
-      } catch (decodeErr) {
-        return jsonResponse({
-          success: false,
-          error: "Certificado digital com codificação base64 inválida. Reenvie o arquivo .pfx em Fiscal > Configuração.",
-        }, 400);
-      }
-    }
-    payload.certificado = {
-      base64: config.certificate_base64 || undefined,
-      senha: config.certificate_password_hash ? undefined : config.certificate_password,
-    };
-  }
+  // Do not send certificate in the issue payload; Nuvem Fiscal rejects unknown fields.
 
   console.log(`[emit-nfce] Emitindo NFC-e #${numero} | Empresa: ${cnpjClean} | CRT: ${crt} | Ambiente: ${ambiente} | Itens: ${items.length} | Total: ${vNF}`);
 
@@ -627,7 +623,24 @@ async function handleEmit(supabase: any, body: any) {
   const nfData = await nfResp.json();
 
   if (!nfResp.ok) {
-    const errMsg = nfData?.mensagem || nfData?.error?.message || nfData?.message || JSON.stringify(nfData);
+    const baseErrMsg = nfData?.mensagem || nfData?.error?.message || nfData?.message || JSON.stringify(nfData);
+    const validationList = [
+      ...(Array.isArray(nfData?.errors) ? nfData.errors : []),
+      ...(Array.isArray(nfData?.violations) ? nfData.violations : []),
+      ...(Array.isArray(nfData?.details) ? nfData.details : []),
+    ];
+    const firstValidation = validationList[0];
+    const fieldPath = firstValidation?.propertyPath || firstValidation?.field || firstValidation?.path || "";
+    const fieldMessage = firstValidation?.message || firstValidation?.error || firstValidation?.reason || "";
+    const validationHint = fieldPath && fieldMessage
+      ? `${fieldPath}: ${fieldMessage}`
+      : (fieldMessage || "");
+    const rawHint = !validationHint && String(baseErrMsg).toLowerCase().includes("validation failed")
+      ? `payload: ${JSON.stringify(nfData).slice(0, 700)}`
+      : "";
+    const errMsg = validationHint
+      ? `${baseErrMsg} — ${validationHint}`
+      : (rawHint ? `${baseErrMsg} — ${rawHint}` : baseErrMsg);
     console.error(`[emit-nfce] Erro Nuvem Fiscal [${nfResp.status}]:`, errMsg);
 
     // ── Item 11: Extract rejection protocol and access key from SEFAZ response ──
@@ -676,7 +689,7 @@ async function handleEmit(supabase: any, body: any) {
 
   // Salvar documento fiscal
   const mainPayMethod = detPag[0]?.tPag || "99";
-  await supabase.from("fiscal_documents").insert({
+  const insertRes = await supabase.from("fiscal_documents").insert({
     company_id,
     sale_id: sale_id || null,
     doc_type: "nfce",
@@ -692,6 +705,10 @@ async function handleEmit(supabase: any, body: any) {
     payment_method: mainPayMethod,
     is_contingency: isContingency,
   });
+  if (insertRes.error) {
+    console.error("[emit-nfce] Falha ao registrar fiscal_documents:", insertRes.error.message);
+    return jsonResponse({ success: false, error: "Falha ao registrar documento fiscal no banco" }, 500);
+  }
 
   // Auto-save XML no Storage após autorização (obrigação legal: 5 anos)
   if (isAuthorized && accessKey) {
@@ -1118,7 +1135,7 @@ async function validateCaller(req: Request): Promise<{ userId: string | null; is
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: getCorsHeaders(req) });
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
@@ -1141,6 +1158,9 @@ Deno.serve(async (req) => {
         if (!membership.ok) return membership.response;
       }
     }
+
+    // Caller identity for read/download actions
+    const { userId } = await validateCaller(req);
 
     // Service client (used only after auth+tenant validation above)
     const supabase = createServiceClient();
