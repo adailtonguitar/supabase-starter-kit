@@ -476,6 +476,17 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
           customer_name: form.customerName || null,
         });
 
+        // Atualizar status no fluxo de vendas/queue (evita ficar "Processando" no PDV)
+        try {
+          await Promise.allSettled([
+            supabase.from("sales").update({ status: "emitida" }).eq("id", sale.id),
+            supabase.from("fiscal_queue")
+              .update({ status: "done", processed_at: new Date().toISOString(), last_error: null })
+              .eq("sale_id", sale.id)
+              .eq("company_id", companyId),
+          ]);
+        } catch { /* ignore */ }
+
         setStep("success");
         logAction({ companyId: companyId!, action: "NFC-e emitida (simulação)", module: "fiscal", details: `Venda ${sale?.id?.slice(0, 8)} - ${formatCurrency(sale?.total || 0)}` });
         toast.success("✅ Simulação concluída! (modo teste — sem envio à SEFAZ)", {
@@ -534,10 +545,34 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
         else if (rej?.field === "customer") setActiveTab("customer");
         else if (rej?.field === "payment") setActiveTab("payment");
       } else if (data?.success && (data?.status === "autorizada" || data?.status === "contingencia")) {
+        try {
+          await Promise.allSettled([
+            supabase.from("sales").update({ status: "emitida" }).eq("id", sale.id),
+            supabase.from("fiscal_queue")
+              .update({ status: "done", processed_at: new Date().toISOString(), last_error: null })
+              .eq("sale_id", sale.id)
+              .eq("company_id", companyId),
+          ]);
+        } catch { /* ignore */ }
+
         setStep("success");
         toast.success("NFC-e emitida com sucesso!");
         onSuccess?.();
       } else if (data?.success) {
+        try {
+          await Promise.allSettled([
+            supabase.from("sales").update({ status: "emitida" }).eq("id", sale.id),
+            supabase.from("fiscal_queue")
+              .update({
+                status: "pending",
+                processed_at: null,
+                last_error: "Documento enviado ao provedor e aguardando autorização da SEFAZ.",
+              })
+              .eq("sale_id", sale.id)
+              .eq("company_id", companyId),
+          ]);
+        } catch { /* ignore */ }
+
         // Pending/processing status — still a success, just not yet authorized
         setStep("success");
         toast.success("NFC-e enviada! Aguardando autorização da SEFAZ.", { duration: 5000 });

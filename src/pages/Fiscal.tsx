@@ -45,7 +45,7 @@ interface SaveXmlResultData {
 }
 
 type DocType = "nfce" | "nfe" | "sat";
-type DocStatus = "pendente" | "autorizada" | "cancelada" | "rejeitada" | "contingencia" | "inutilizada";
+type DocStatus = "pendente" | "autorizada" | "cancelada" | "rejeitada" | "contingencia" | "inutilizada" | "simulado";
 
 interface FiscalDoc {
   id: string;
@@ -70,6 +70,7 @@ const statusConfig: Record<DocStatus, { icon: React.ElementType; label: string; 
   rejeitada: { icon: Ban, label: "Rejeitada", className: "bg-destructive/10 text-destructive" },
   contingencia: { icon: AlertTriangle, label: "Contingência", className: "bg-warning/10 text-warning" },
   inutilizada: { icon: RotateCcw, label: "Inutilizada", className: "bg-muted text-muted-foreground" },
+  simulado: { icon: FileText, label: "Simulada", className: "bg-muted text-muted-foreground" },
 };
 
 const typeLabels: Record<DocType, string> = { nfce: "NFC-e", nfe: "NF-e", sat: "SAT" };
