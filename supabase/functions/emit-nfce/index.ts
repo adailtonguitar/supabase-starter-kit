@@ -737,6 +737,87 @@ async function handleEmit(supabase: any, body: any) {
   });
 }
 
+// Emissão a partir de uma venda já gravada (resolve falhas de RLS/timing no frontend).
+async function handleEmitFromSale(supabase: any, body: any) {
+  const { sale_id, company_id, config_id } = body as { sale_id?: unknown; company_id?: unknown; config_id?: unknown };
+  const saleId = String(sale_id || "");
+  const companyId = String(company_id || "");
+  if (!saleId || !companyId) {
+    return jsonResponse({ error: "Dados incompletos: sale_id e company_id são obrigatórios" }, 400);
+  }
+
+  const { data: sale, error: saleErr } = await supabase
+    .from("sales")
+    .select("total, payments")
+    .eq("id", saleId)
+    .single();
+  if (saleErr || !sale) return jsonResponse({ error: "Venda não encontrada" }, 404);
+
+  const { data: items, error: itemsErr } = await supabase
+    .from("sale_items")
+    .select("*, products(ncm, cfop, csosn, cst_icms, cst_pis, cst_cofins, aliq_icms, origem, mva)")
+    .eq("sale_id", saleId);
+  if (itemsErr) return jsonResponse({ error: "Falha ao carregar itens da venda" }, 500);
+  if (!items?.length) return jsonResponse({ error: "Itens da venda não encontrados" }, 400);
+
+  // Buscar CRT via companies (ou default)
+  const { data: company } = await supabase
+    .from("companies")
+    .select("crt")
+    .eq("id", companyId)
+    .maybeSingle();
+
+  const crt = Number((company as Record<string, unknown> | null)?.crt ?? 1);
+  const isSimples = crt === 1 || crt === 2;
+  const defaultCst = isSimples ? "102" : "00";
+  const defaultPisCofins = isSimples ? "49" : "01";
+
+  const payments = Array.isArray((sale as Record<string, unknown>).payments) ? ((sale as Record<string, unknown>).payments as Record<string, unknown>[]) : [];
+  const paymentMethodMap: Record<string, string> = {
+    dinheiro: "01", credito: "03", debito: "04", pix: "17", voucher: "05",
+  };
+  const mainPay = paymentMethodMap[(payments[0]?.method as string) ?? ""] || "99";
+  const change = Number(payments[0]?.change_amount ?? 0);
+
+  const fiscalItems = items.map((item: Record<string, unknown>) => {
+    const product = (item.products || {}) as Record<string, unknown>;
+    const qty = Number(item.quantity ?? 1);
+    const unitPrice = Number(item.unit_price ?? 0);
+    const discountPercent = Number(item.discount_percent ?? 0);
+    const discountValue = (discountPercent / 100) * unitPrice * qty;
+    return {
+      product_id: item.product_id,
+      name: (item.product_name || item.name) as string,
+      ncm: (product.ncm as string) || (item.ncm as string) || "",
+      cfop: (product.cfop as string) || "5102",
+      cst: (isSimples ? product.csosn : product.cst_icms) as string || defaultCst,
+      origem: (product.origem as string) || "0",
+      unit: (item.unit as string) || "UN",
+      qty,
+      unit_price: unitPrice,
+      discount: Math.round(discountValue * 100) / 100,
+      pis_cst: (product.cst_pis as string) || defaultPisCofins,
+      cofins_cst: (product.cst_cofins as string) || defaultPisCofins,
+      icms_aliquota: (product.aliq_icms as number) || 0,
+      mva: (product.mva as number) || undefined,
+    };
+  });
+
+  return await handleEmit(supabase, {
+    sale_id: saleId,
+    company_id: companyId,
+    config_id: config_id ? String(config_id) : null,
+    form: {
+      nat_op: "VENDA DE MERCADORIA",
+      crt,
+      payment_method: mainPay,
+      payment_value: Number((sale as Record<string, unknown>).total ?? (sale as Record<string, unknown>).total_value ?? 0),
+      change,
+      items: fiscalItems,
+    },
+  });
+}
+
 // ─── Consultar status (com validação cross-tenant) ───
 async function handleConsultStatus(supabase: any, body: any, callerUserId?: string | null) {
   const { access_key, doc_type, company_id } = body;
@@ -1145,6 +1226,8 @@ Deno.serve(async (req) => {
     switch (action) {
       case "emit":
         return await handleEmit(supabase, body);
+      case "emit_from_sale":
+        return await handleEmitFromSale(supabase, body);
       case "consult_status":
         return await handleConsultStatus(supabase, body, userId);
       case "cancel":
