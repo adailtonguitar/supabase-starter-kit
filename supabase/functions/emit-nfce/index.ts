@@ -1031,15 +1031,30 @@ async function handleDownloadPdf(supabase: any, body: any, callerUserId?: string
   const { access_key, doc_type, company_id } = body;
   if (!access_key) return jsonResponse({ error: "Chave de acesso obrigatória" }, 400);
 
-  // Validação cross-tenant
-  if (callerUserId && company_id) {
-    const { data: docOwner } = await supabase
-      .from("fiscal_documents")
+  // Validação cross-tenant + descoberta de company_id quando o frontend não envia.
+  let effectiveCompanyId: string | null = company_id ? String(company_id) : null;
+  if (callerUserId) {
+    if (!effectiveCompanyId) {
+      const { data: docRow } = await supabase
+        .from("fiscal_documents")
+        .select("company_id")
+        .eq("access_key", access_key)
+        .maybeSingle();
+      effectiveCompanyId = docRow?.company_id ? String(docRow.company_id) : null;
+    }
+
+    if (!effectiveCompanyId) {
+      return jsonResponse({ success: false, error: "Documento não encontrado" }, 404);
+    }
+
+    const { data: membership } = await supabase
+      .from("company_users")
       .select("id")
-      .eq("access_key", access_key)
-      .eq("company_id", company_id)
+      .eq("user_id", callerUserId)
+      .eq("company_id", effectiveCompanyId)
+      .eq("is_active", true)
       .maybeSingle();
-    if (!docOwner) {
+    if (!membership) {
       return jsonResponse({ success: false, error: "Documento não pertence a esta empresa" }, 403);
     }
   }
@@ -1054,11 +1069,11 @@ async function handleDownloadPdf(supabase: any, body: any, callerUserId?: string
 
   // A Nuvem Fiscal usa `id` (gerado pela API) nos endpoints de PDF/XML.
   // Se recebemos uma chave de acesso (44 dígitos), resolvemos primeiro o `id` via listagem.
-  if (isAccessKey && company_id) {
+  if (isAccessKey && effectiveCompanyId) {
     const { data: company } = await supabase
       .from("companies")
       .select("cnpj")
-      .eq("id", String(company_id))
+      .eq("id", String(effectiveCompanyId))
       .maybeSingle();
 
     const cpfCnpj = onlyDigits(company?.cnpj);
@@ -1106,15 +1121,30 @@ async function handleDownloadXml(supabase: any, body: any, callerUserId?: string
   const { access_key, doc_type, company_id } = body;
   if (!access_key) return jsonResponse({ error: "Chave de acesso obrigatória" }, 400);
 
-  // Validação cross-tenant
-  if (callerUserId && company_id) {
-    const { data: docOwner } = await supabase
-      .from("fiscal_documents")
+  // Validação cross-tenant + descoberta de company_id quando o frontend não envia.
+  let effectiveCompanyId: string | null = company_id ? String(company_id) : null;
+  if (callerUserId) {
+    if (!effectiveCompanyId) {
+      const { data: docRow } = await supabase
+        .from("fiscal_documents")
+        .select("company_id")
+        .eq("access_key", access_key)
+        .maybeSingle();
+      effectiveCompanyId = docRow?.company_id ? String(docRow.company_id) : null;
+    }
+
+    if (!effectiveCompanyId) {
+      return jsonResponse({ success: false, error: "Documento não encontrado" }, 404);
+    }
+
+    const { data: membership } = await supabase
+      .from("company_users")
       .select("id")
-      .eq("access_key", access_key)
-      .eq("company_id", company_id)
+      .eq("user_id", callerUserId)
+      .eq("company_id", effectiveCompanyId)
+      .eq("is_active", true)
       .maybeSingle();
-    if (!docOwner) {
+    if (!membership) {
       return jsonResponse({ success: false, error: "Documento não pertence a esta empresa" }, 403);
     }
   }
@@ -1127,11 +1157,11 @@ async function handleDownloadXml(supabase: any, body: any, callerUserId?: string
   const isAccessKey = keyDigits.length === 44;
   let docIdOrKey: string = isAccessKey ? keyDigits : String(access_key);
 
-  if (isAccessKey && company_id) {
+  if (isAccessKey && effectiveCompanyId) {
     const { data: company } = await supabase
       .from("companies")
       .select("cnpj")
-      .eq("id", String(company_id))
+      .eq("id", String(effectiveCompanyId))
       .maybeSingle();
 
     const cpfCnpj = onlyDigits(company?.cnpj);
