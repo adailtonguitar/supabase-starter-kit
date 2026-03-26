@@ -47,6 +47,10 @@ function getApiBaseUrl(): string {
     : "https://api.nuvemfiscal.com.br";
 }
 
+function onlyDigits(v: unknown): string {
+  return String(v ?? "").replace(/[^0-9]/g, "");
+}
+
 // Nuvem Fiscal/SEFAZ valida alguns campos textuais com regex baseada em Latin-1.
 // Então normalizamos: remove quebras de linha/tabs, cola espaços e remove caracteres fora de [0x21..0xFF] (mais espaço).
 function sanitizeSefazText(value: unknown, fallback: string): string {
@@ -55,6 +59,31 @@ function sanitizeSefazText(value: unknown, fallback: string): string {
   s = s.replace(/[^\x21-\xFF ]/g, ""); // keep only allowed characters
   if (!s) return fallback;
   return s;
+}
+
+async function resolveNuvemFiscalDocId(params: {
+  token: string;
+  baseUrl: string;
+  endpoint: "nfce" | "nfe";
+  ambiente: "homologacao" | "producao";
+  cpfCnpj: string;
+  chave: string;
+}): Promise<string | null> {
+  const url = new URL(`${params.baseUrl}/${params.endpoint}`);
+  url.searchParams.set("$top", "1");
+  url.searchParams.set("$skip", "0");
+  url.searchParams.set("ambiente", params.ambiente);
+  url.searchParams.set("cpf_cnpj", params.cpfCnpj);
+  url.searchParams.set("chave", params.chave);
+
+  const resp = await fetch(url.toString(), {
+    headers: { Authorization: `Bearer ${params.token}` },
+  });
+  if (!resp.ok) return null;
+  const data = await resp.json().catch(() => null) as any;
+  const first = Array.isArray(data?.data) ? data.data[0] : null;
+  const id = first?.id;
+  return typeof id === "string" && id ? id : null;
 }
 
 // ─── Numeração segura (atômica via RPC com FOR UPDATE) ───
@@ -1002,15 +1031,30 @@ async function handleDownloadPdf(supabase: any, body: any, callerUserId?: string
   const { access_key, doc_type, company_id } = body;
   if (!access_key) return jsonResponse({ error: "Chave de acesso obrigatória" }, 400);
 
-  // Validação cross-tenant
-  if (callerUserId && company_id) {
-    const { data: docOwner } = await supabase
-      .from("fiscal_documents")
+  // Validação cross-tenant + descoberta de company_id quando o frontend não envia.
+  let effectiveCompanyId: string | null = company_id ? String(company_id) : null;
+  if (callerUserId) {
+    if (!effectiveCompanyId) {
+      const { data: docRow } = await supabase
+        .from("fiscal_documents")
+        .select("company_id")
+        .eq("access_key", access_key)
+        .maybeSingle();
+      effectiveCompanyId = docRow?.company_id ? String(docRow.company_id) : null;
+    }
+
+    if (!effectiveCompanyId) {
+      return jsonResponse({ success: false, error: "Documento não encontrado" }, 404);
+    }
+
+    const { data: membership } = await supabase
+      .from("company_users")
       .select("id")
-      .eq("access_key", access_key)
-      .eq("company_id", company_id)
+      .eq("user_id", callerUserId)
+      .eq("company_id", effectiveCompanyId)
+      .eq("is_active", true)
       .maybeSingle();
-    if (!docOwner) {
+    if (!membership) {
       return jsonResponse({ success: false, error: "Documento não pertence a esta empresa" }, 403);
     }
   }
@@ -1019,12 +1063,55 @@ async function handleDownloadPdf(supabase: any, body: any, callerUserId?: string
   const baseUrl = getApiBaseUrl();
   const endpoint = doc_type === "nfe" ? "nfe" : "nfce";
 
-  const resp = await fetch(`${baseUrl}/${endpoint}/${access_key}/pdf`, {
+  const keyDigits = onlyDigits(access_key);
+  const isAccessKey = keyDigits.length === 44;
+  let docIdOrKey: string = isAccessKey ? keyDigits : String(access_key);
+
+  // A Nuvem Fiscal usa `id` (gerado pela API) nos endpoints de PDF/XML.
+  // Se recebemos uma chave de acesso (44 dígitos), resolvemos primeiro o `id` via listagem.
+  if (isAccessKey && effectiveCompanyId) {
+    const { data: company } = await supabase
+      .from("companies")
+      .select("cnpj")
+      .eq("id", String(effectiveCompanyId))
+      .maybeSingle();
+
+    const cpfCnpj = onlyDigits(company?.cnpj);
+    const ambiente: "homologacao" | "producao" =
+      Deno.env.get("NUVEM_FISCAL_SANDBOX") === "true" ? "homologacao" : "producao";
+
+    if (cpfCnpj.length >= 11) {
+      const resolved = await resolveNuvemFiscalDocId({
+        token,
+        baseUrl,
+        endpoint,
+        ambiente,
+        cpfCnpj,
+        chave: keyDigits,
+      });
+      if (resolved) docIdOrKey = resolved;
+    }
+  }
+
+  const pdfUrl = new URL(`${baseUrl}/${endpoint}/${docIdOrKey}/pdf`);
+  // Match the default DANFCE layout used in "Fiscal > Documentos":
+  // keep width/margins, but avoid `qrcode_lateral` which can render blank QR area in some templates.
+  if (endpoint === "nfce") {
+    pdfUrl.searchParams.set("largura", "80");
+    pdfUrl.searchParams.set("resumido", "false");
+    pdfUrl.searchParams.set("margem", "2");
+  }
+
+  const resp = await fetch(pdfUrl.toString(), {
     headers: { Authorization: `Bearer ${token}`, Accept: "application/pdf" },
   });
 
   if (!resp.ok) {
-    return jsonResponse({ success: false, error: "PDF não encontrado na Nuvem Fiscal" });
+    // Mensagem mais útil para o usuário (e ainda segura).
+    const status = resp.status;
+    if (status === 404) return jsonResponse({ success: false, error: "PDF não encontrado na Nuvem Fiscal" }, 404);
+    if (status === 409) return jsonResponse({ success: false, error: "PDF ainda não disponível. Tente novamente em alguns segundos." }, 409);
+    return jsonResponse({ success: false, error: "Falha ao obter PDF na Nuvem Fiscal" }, 502);
   }
 
   const arrayBuf = await resp.arrayBuffer();
@@ -1043,15 +1130,30 @@ async function handleDownloadXml(supabase: any, body: any, callerUserId?: string
   const { access_key, doc_type, company_id } = body;
   if (!access_key) return jsonResponse({ error: "Chave de acesso obrigatória" }, 400);
 
-  // Validação cross-tenant
-  if (callerUserId && company_id) {
-    const { data: docOwner } = await supabase
-      .from("fiscal_documents")
+  // Validação cross-tenant + descoberta de company_id quando o frontend não envia.
+  let effectiveCompanyId: string | null = company_id ? String(company_id) : null;
+  if (callerUserId) {
+    if (!effectiveCompanyId) {
+      const { data: docRow } = await supabase
+        .from("fiscal_documents")
+        .select("company_id")
+        .eq("access_key", access_key)
+        .maybeSingle();
+      effectiveCompanyId = docRow?.company_id ? String(docRow.company_id) : null;
+    }
+
+    if (!effectiveCompanyId) {
+      return jsonResponse({ success: false, error: "Documento não encontrado" }, 404);
+    }
+
+    const { data: membership } = await supabase
+      .from("company_users")
       .select("id")
-      .eq("access_key", access_key)
-      .eq("company_id", company_id)
+      .eq("user_id", callerUserId)
+      .eq("company_id", effectiveCompanyId)
+      .eq("is_active", true)
       .maybeSingle();
-    if (!docOwner) {
+    if (!membership) {
       return jsonResponse({ success: false, error: "Documento não pertence a esta empresa" }, 403);
     }
   }
@@ -1060,7 +1162,35 @@ async function handleDownloadXml(supabase: any, body: any, callerUserId?: string
   const baseUrl = getApiBaseUrl();
   const endpoint = doc_type === "nfe" ? "nfe" : "nfce";
 
-  const resp = await fetch(`${baseUrl}/${endpoint}/${access_key}/xml`, {
+  const keyDigits = onlyDigits(access_key);
+  const isAccessKey = keyDigits.length === 44;
+  let docIdOrKey: string = isAccessKey ? keyDigits : String(access_key);
+
+  if (isAccessKey && effectiveCompanyId) {
+    const { data: company } = await supabase
+      .from("companies")
+      .select("cnpj")
+      .eq("id", String(effectiveCompanyId))
+      .maybeSingle();
+
+    const cpfCnpj = onlyDigits(company?.cnpj);
+    const ambiente: "homologacao" | "producao" =
+      Deno.env.get("NUVEM_FISCAL_SANDBOX") === "true" ? "homologacao" : "producao";
+
+    if (cpfCnpj.length >= 11) {
+      const resolved = await resolveNuvemFiscalDocId({
+        token,
+        baseUrl,
+        endpoint,
+        ambiente,
+        cpfCnpj,
+        chave: keyDigits,
+      });
+      if (resolved) docIdOrKey = resolved;
+    }
+  }
+
+  const resp = await fetch(`${baseUrl}/${endpoint}/${docIdOrKey}/xml`, {
     headers: { Authorization: `Bearer ${token}`, Accept: "application/xml" },
   });
 
