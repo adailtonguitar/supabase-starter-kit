@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { logAction } from "@/services/ActionLogger";
+import { normalizeCompanyLogoForFiscal } from "@/lib/company-logo-fiscal";
 
 interface CompanyForm {
   name: string;
@@ -144,18 +145,23 @@ const Empresas = () => {
     if (!guardFileUpload(file)) return;
     setUploading(true);
     try {
-      const ext = file.name.split(".").pop();
-      const path = `logos/${companyId}.${ext}`;
-      const { error: upErr } = await supabase.storage.from("company-assets").upload(path, file, { upsert: true });
+      const optimized = await normalizeCompanyLogoForFiscal(file);
+      const path = `logos/${companyId}.jpg`;
+      const { error: upErr } = await supabase.storage.from("company-assets").upload(path, optimized, {
+        upsert: true,
+        contentType: "image/jpeg",
+      });
       if (upErr) throw upErr;
       const { data: urlData } = supabase.storage.from("company-assets").getPublicUrl(path);
       const url = urlData.publicUrl + "?t=" + Date.now();
       await supabase.from("companies").update({ logo_url: url } as any).eq("id", companyId);
       logAction({ companyId: companyId!, userId: user?.id, action: "Logo da empresa atualizado", module: "configuracoes" });
       setLogoUrl(url);
-      toast.success("Logo atualizado!");
+      toast.success("Logo atualizado e otimizado para cupom fiscal (máx. 200 KB).");
     } catch (err: any) {
       toast.error("Erro no upload: " + (err.message || "Erro desconhecido"));
+    } finally {
+      e.target.value = "";
     }
     setUploading(false);
   };
@@ -208,6 +214,9 @@ const Empresas = () => {
             </span>
           </label>
         </div>
+        <p className="text-xs text-muted-foreground max-w-xl">
+          O arquivo é convertido automaticamente para JPEG (até 200 KB e largura máxima ~512 px), padrão exigido para impressão no DANFE/cupom fiscal.
+        </p>
       </div>
 
       {/* Dados Gerais */}
