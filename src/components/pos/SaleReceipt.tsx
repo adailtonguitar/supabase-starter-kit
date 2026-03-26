@@ -73,6 +73,10 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
   };
 
   const changeAmount = payments?.find(p => p.changeAmount > 0)?.changeAmount || 0;
+  const toNumber = (v: unknown, fallback = 0) => {
+    const n = typeof v === "number" ? v : Number(v);
+    return Number.isFinite(n) ? n : fallback;
+  };
 
   const handlePrint = useCallback(() => {
     // Filter out DIAG_TEST products
@@ -87,10 +91,10 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
     const discountedItems: any[] = [];
 
     const itemsHtml = printableItems.map((item: any) => {
-      const qty = item.quantity || 1;
-      const unitPrice = item.price || 0;
+      const qty = toNumber(item.quantity, 1);
+      const unitPrice = toNumber(item.price, 0);
       const totalItem = qty * unitPrice;
-      const discount = item.discount || 0;
+      const discount = toNumber(item.discount, 0);
       subtotal += totalItem;
       totalDiscount += discount;
       if (discount > 0) discountedItems.push(item);
@@ -129,10 +133,13 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
     const changeHtml = changeAmount > 0 ? `<div class="row bold"><span>Troco</span><span>${escapeHtml(formatCurrency(changeAmount))}</span></div>` : "";
 
     const now = escapeHtml(new Date().toLocaleString("pt-BR"));
-    const qtyTotal = printableItems.reduce((s: number, i: any) => s + (i.quantity || 1), 0);
+    const qtyTotal = printableItems.reduce((s: number, i: any) => s + toNumber(i.quantity, 1), 0);
 
     const printWindow = window.open("", "_blank", "width=320,height=600");
-    if (!printWindow) return;
+    if (!printWindow) {
+      toast.error("Pop-up bloqueado. Permita pop-ups para imprimir.", { duration: 6000 });
+      return;
+    }
 
     printWindow.document.write(`
       <html>
@@ -205,12 +212,15 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
   }, [items, total, payments, changeAmount, companyName, companyCnpj, companyIe, companyPhone, companyAddress, logoUrl, saleId, slogan]);
 
   const printFiscalCupom = useCallback((fiscalNumber: string, fiscalAccessKey?: string, fiscalSerie?: string) => {
-    const currentNfceNumber = fiscalNumber;
+    const currentNfceNumber = String(fiscalNumber || "");
     const currentAccessKey = fiscalAccessKey;
     const currentSerie = fiscalSerie;
 
     // Detect simulation/homologação from prefix or prop
-    const isSimulation = currentNfceNumber.startsWith("SIM-") || currentNfceNumber.startsWith("TESTE-") || currentNfceNumber.startsWith("DEMO-");
+    const isSimulation =
+      currentNfceNumber.startsWith("SIM-") ||
+      currentNfceNumber.startsWith("TESTE-") ||
+      currentNfceNumber.startsWith("DEMO-");
     const isHomolog = isHomologacao ?? isSimulation;
 
     // Clean number: remove prefixes for display
@@ -227,11 +237,11 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
     });
 
     const itemsHtml = printableItems.map((item: any, idx: number) => {
-      const qty = item.quantity || 1;
-      const unitPrice = item.price || 0;
+      const qty = toNumber(item.quantity, 1);
+      const unitPrice = toNumber(item.price, 0);
       const totalItem = qty * unitPrice;
-      const unit = item.unit || "UN";
-      const discount = item.discount || 0;
+      const unit = String(item.unit || "UN");
+      const discount = toNumber(item.discount, 0);
       subtotal += totalItem;
       totalDiscount += discount;
       return `<div class="item-desc">${escapeHtml(String(idx + 1).padStart(3, "0"))} ${escapeHtml(item.name)}</div>
@@ -244,7 +254,7 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
 
     const changeHtml = changeAmount > 0 ? `<div class="row bold"><span>Troco</span><span>${escapeHtml(formatCurrency(changeAmount))}</span></div>` : "";
     const now = escapeHtml(new Date().toLocaleString("pt-BR"));
-    const qtyTotal = printableItems.reduce((s: number, i: any) => s + (i.quantity || 1), 0);
+    const qtyTotal = printableItems.reduce((s: number, i: any) => s + toNumber(i.quantity, 1), 0);
 
     const formattedKey = currentAccessKey ? escapeHtml(currentAccessKey.replace(/(\d{4})(?=\d)/g, "$1 ")) : "";
 
