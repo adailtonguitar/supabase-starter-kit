@@ -3,6 +3,7 @@ import { useCallback, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { escapeAttr, escapeHtml, safeUrl } from "@/lib/sanitize";
+import { FiscalEmissionService } from "@/services/FiscalEmissionService";
 
 // Map UF → SEFAZ NFC-e consultation URL
 const SEFAZ_NFCE_URLS: Record<string, string> = {
@@ -76,6 +77,24 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
   const toNumber = (v: unknown, fallback = 0) => {
     const n = typeof v === "number" ? v : Number(v);
     return Number.isFinite(n) ? n : fallback;
+  };
+  const openPdfBase64 = (pdfBase64: string) => {
+    const byteCharacters = atob(pdfBase64);
+    const byteNumbers = new Array(byteCharacters.length);
+    for (let i = 0; i < byteCharacters.length; i++) {
+      byteNumbers[i] = byteCharacters.charCodeAt(i);
+    }
+    const byteArray = new Uint8Array(byteNumbers);
+    const blob = new Blob([byteArray], { type: "application/pdf" });
+    const url = URL.createObjectURL(blob);
+    const w = window.open(url, "_blank");
+    if (!w) {
+      toast.error("Pop-up bloqueado. Permita pop-ups para abrir o DANFE.", { duration: 6000 });
+      URL.revokeObjectURL(url);
+      return;
+    }
+    // Keep the URL alive for a bit; the tab will load it.
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
   };
 
   const handlePrint = useCallback(() => {
@@ -420,6 +439,30 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
 
     // Só imprime direto se já houver uma NFC-e realmente imprimível
     if (nfceNumber && (accessKey || isSimulatedCurrent)) {
+      // Se temos chave de acesso real, prefira sempre o PDF oficial (inclui QRCode e layout SEFAZ).
+      if (accessKey && !isSimulatedCurrent) {
+        setFetchingFiscal(true);
+        FiscalEmissionService.downloadPdf(accessKey, "nfce")
+          .then((result: any) => {
+            setFetchingFiscal(false);
+            const pdfBase64 = result?.pdf_base64 || result?.base64;
+            if (pdfBase64) {
+              openPdfBase64(String(pdfBase64));
+              return;
+            }
+            toast.error(`Erro da Nuvem Fiscal: ${result?.error || "Não foi possível obter o PDF."}`, { duration: 6000 });
+            // Fallback: imprime o template HTML local
+            printFiscalCupom(nfceNumber, accessKey, serie);
+          })
+          .catch(() => {
+            setFetchingFiscal(false);
+            toast.error("Erro ao baixar o PDF fiscal. Usando impressão simplificada.", { duration: 6000 });
+            printFiscalCupom(nfceNumber, accessKey, serie);
+          });
+        return;
+      }
+
+      // Simulação/sem chave: imprimir template local
       printFiscalCupom(nfceNumber, accessKey, serie);
       return;
     }
@@ -480,7 +523,25 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
               setAccessKey(foundKey);
               setSerie(foundSerie);
               printWindow.close();
-              printFiscalCupom(foundNumber, foundKey, foundSerie);
+              // Prefer official PDF when authorized and access key exists.
+              if (!isSimulated && foundKey) {
+                FiscalEmissionService.downloadPdf(String(foundKey), "nfce")
+                  .then((result: any) => {
+                    const pdfBase64 = result?.pdf_base64 || result?.base64;
+                    if (pdfBase64) {
+                      openPdfBase64(String(pdfBase64));
+                      return;
+                    }
+                    toast.error(`Erro da Nuvem Fiscal: ${result?.error || "Não foi possível obter o PDF."}`, { duration: 6000 });
+                    printFiscalCupom(foundNumber, foundKey, foundSerie);
+                  })
+                  .catch(() => {
+                    toast.error("Erro ao baixar o PDF fiscal. Usando impressão simplificada.", { duration: 6000 });
+                    printFiscalCupom(foundNumber, foundKey, foundSerie);
+                  });
+              } else {
+                printFiscalCupom(foundNumber, foundKey, foundSerie);
+              }
             } else {
               printWindow.close();
               toast.info("A NFC-e desta venda ainda não foi autorizada. O cupom fiscal só libera após autorização real.", { duration: 6000 });
