@@ -96,57 +96,13 @@ export function usePDVFiscal(companyId: string | null) {
     await supabase.from("sales").update({ status: "pendente_fiscal" }).eq("id", saleId);
     if (queueId) await supabase.from("fiscal_queue").update({ status: "processing", attempts: 1 }).eq("id", queueId);
 
-    const { data: saleItems } = await supabase
-      .from("sale_items")
-      .select("*, products(ncm, cfop, csosn, cst_icms, cst_pis, cst_cofins, aliq_icms, origem, mva)")
-      .eq("sale_id", saleId);
-    if (!saleItems?.length) throw new Error("Itens da venda não encontrados");
-
-    const { data: sale } = await supabase.from("sales").select("total, payments").eq("id", saleId).single();
-    if (!sale) throw new Error("Venda não encontrada");
-
-    const crt = resolvedCrt;
-    const isSimples = crt === 1 || crt === 2;
-    const defaultCst = isSimples ? "102" : "00";
-    const defaultPisCofins = isSimples ? "49" : "01";
-    const payments = Array.isArray(sale.payments) ? sale.payments as Record<string, unknown>[] : [];
-    const paymentMethodMap: Record<string, string> = {
-      dinheiro: "01", credito: "03", debito: "04", pix: "17", voucher: "05",
-    };
-
-    const fiscalItems = saleItems.map((item: Record<string, unknown>) => {
-      const product = (item.products || {}) as Record<string, unknown>;
-      const discountValue = ((item.discount_percent as number) || 0) / 100 * (item.unit_price as number) * (item.quantity as number);
-      return {
-        product_id: item.product_id,
-        name: (item.product_name || item.name) as string,
-        ncm: (product.ncm as string) || (item.ncm as string) || "",
-        cfop: (product.cfop as string) || "5102",
-        cst: (isSimples ? product.csosn : product.cst_icms) as string || defaultCst,
-        origem: (product.origem as string) || "0",
-        unit: (item.unit as string) || "UN",
-        qty: item.quantity as number,
-        unit_price: item.unit_price as number,
-        discount: Math.round(discountValue * 100) / 100,
-        pis_cst: (product.cst_pis as string) || defaultPisCofins,
-        cofins_cst: (product.cst_cofins as string) || defaultPisCofins,
-        icms_aliquota: (product.aliq_icms as number) || 0,
-        mva: (product.mva as number) || undefined,
-      };
-    });
-
     const { data: fiscalData, error: fiscalErr } = await fiscalCircuitBreaker.call(() =>
       supabase.functions.invoke("emit-nfce", {
         body: {
-          action: "emit", sale_id: saleId, company_id: companyId, config_id: fiscalConfig?.id,
-          certificate_base64: certB64 || null, certificate_password: certPwd || null,
-          form: {
-            nat_op: "VENDA DE MERCADORIA", crt,
-            payment_method: paymentMethodMap[(payments[0]?.method as string) ?? ""] || "99",
-            payment_value: sale.total,
-            change: Number(payments[0]?.change_amount ?? 0),
-            items: fiscalItems,
-          },
+          action: "emit_from_sale",
+          sale_id: saleId,
+          company_id: companyId,
+          config_id: fiscalConfig?.id,
         },
       })
     );
