@@ -20,6 +20,7 @@ import { Check, Search, Upload, X, Package, AlertTriangle, ShieldAlert, Info, Ca
 import { BarcodeCameraScanner } from "./BarcodeCameraScanner";
 import { NCM_TABLE } from "@/lib/ncm-table";
 import { validateNcm, detectNcmDuplicates, getNcmDescription, isValidNcmFormat, type NcmIssue } from "@/lib/ncm-validator";
+import { lookupNcmBackend } from "@/lib/ncm-backend";
 import { isTypicalStNcm } from "@/lib/icms-st-engine";
 import { useProducts } from "@/hooks/useProducts";
 import { useSuppliers } from "@/hooks/useSuppliers";
@@ -99,6 +100,9 @@ export const ProductFormDialog = forwardRef<HTMLDivElement, Props>(function Prod
   const [imagePreview, setImagePreview] = useState<string | null>((product as any)?.image_url || null);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [ncmIssues, setNcmIssues] = useState<{ errors: NcmIssue[]; warnings: NcmIssue[] }>({ errors: [], warnings: [] });
+  const [ncmBackend, setNcmBackend] = useState<{ status: "idle" | "loading" | "found" | "not_found"; description?: string }>({ status: "idle" });
+  const ncmLookupTimer = useRef<ReturnType<typeof setTimeout>>();
+  const ncmLookupSeq = useRef(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const aiFileInputRef = useRef<HTMLInputElement>(null);
   const [analyzingImage, setAnalyzingImage] = useState(false);
@@ -126,6 +130,7 @@ export const ProductFormDialog = forwardRef<HTMLDivElement, Props>(function Prod
   const runNcmValidation = (ncmValue: string) => {
     if (!ncmValue || ncmValue.trim().length === 0) {
       setNcmIssues({ errors: [], warnings: [] });
+      setNcmBackend({ status: "idle" });
       return;
     }
     const result = validateNcm(ncmValue);
@@ -145,6 +150,39 @@ export const ProductFormDialog = forwardRef<HTMLDivElement, Props>(function Prod
       });
     }
 
+    // Backend lookup (official table) - replaces the local "unknown NCM" heuristic.
+    if (ncmLookupTimer.current) clearTimeout(ncmLookupTimer.current);
+    if (isValidNcmFormat(ncmValue)) {
+      setNcmBackend({ status: "loading" });
+      const seq = ++ncmLookupSeq.current;
+      ncmLookupTimer.current = setTimeout(async () => {
+        const out = await lookupNcmBackend(ncmValue);
+        if (seq !== ncmLookupSeq.current) return; // stale
+
+        const baseWarnings = result.warnings.filter((w) => w.type !== "unknown");
+        if (out.found) {
+          setNcmBackend({ status: "found", description: out.row.description });
+          setNcmIssues({
+            errors: result.errors,
+            warnings: [...baseWarnings, ...duplicates, ...stWarnings],
+          });
+        } else {
+          setNcmBackend({ status: "not_found" });
+          setNcmIssues({
+            errors: result.errors,
+            warnings: [
+              ...baseWarnings,
+              { type: "unknown", message: `NCM "${ncmValue.trim().replace(/[^0-9]/g, "")}" não encontrado na tabela oficial. Verifique se o código está correto.` },
+              ...duplicates,
+              ...stWarnings,
+            ],
+          });
+        }
+      }, 350);
+      return;
+    }
+
+    setNcmBackend({ status: "idle" });
     setNcmIssues({
       errors: result.errors,
       warnings: [...result.warnings, ...duplicates, ...stWarnings],
@@ -655,10 +693,16 @@ export const ProductFormDialog = forwardRef<HTMLDivElement, Props>(function Prod
                         ))}
                       </div>
                     )}
-                    {field.value && ncmIssues.errors.length === 0 && ncmIssues.warnings.length === 0 && isValidNcmFormat(field.value) && (
+                    {field.value && isValidNcmFormat(field.value) && ncmIssues.errors.length === 0 && ncmIssues.warnings.length === 0 && (
                       <div className="mt-1 flex items-center gap-1.5 text-xs text-success">
                         <Check className="w-3.5 h-3.5" />
-                        <span>{getNcmDescription(field.value) || "NCM válido"}</span>
+                        <span>{ncmBackend.status === "found" ? (ncmBackend.description || "NCM válido") : (getNcmDescription(field.value) || "NCM válido")}</span>
+                      </div>
+                    )}
+                    {field.value && isValidNcmFormat(field.value) && ncmBackend.status === "loading" && (
+                      <div className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <span>Consultando tabela oficial...</span>
                       </div>
                     )}
                     <FormMessage />
