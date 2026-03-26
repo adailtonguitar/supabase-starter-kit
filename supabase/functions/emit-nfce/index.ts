@@ -61,6 +61,62 @@ function sanitizeSefazText(value: unknown, fallback: string): string {
   return s;
 }
 
+/** Extrai bucket + path de URLs públicas do Supabase Storage (`/object/public/{bucket}/...`). */
+function parseSupabasePublicStoragePath(logoUrl: string): { bucket: string; path: string } | null {
+  try {
+    const clean = logoUrl.split("?")[0];
+    const u = new URL(clean);
+    const marker = "/storage/v1/object/public/";
+    const idx = u.pathname.indexOf(marker);
+    if (idx === -1) return null;
+    const rest = u.pathname.slice(idx + marker.length);
+    const slash = rest.indexOf("/");
+    if (slash < 1) return null;
+    const bucket = rest.slice(0, slash);
+    const path = decodeURIComponent(rest.slice(slash + 1));
+    if (!bucket || !path) return null;
+    return { bucket, path };
+  } catch {
+    return null;
+  }
+}
+
+/** Baixa bytes do logo: preferindo Storage com service role (funciona com bucket privado). */
+async function loadCompanyLogoBytes(
+  supabase: any,
+  logoUrl: string,
+): Promise<{ buf: ArrayBuffer; mime: string } | null> {
+  const parsed = parseSupabasePublicStoragePath(logoUrl);
+  if (parsed) {
+    const { data, error } = await supabase.storage.from(parsed.bucket).download(parsed.path);
+    if (!error && data) {
+      const buf = await data.arrayBuffer();
+      const mime = (data as Blob).type || "";
+      return { buf, mime: mime || "application/octet-stream" };
+    }
+    console.warn("[emit-nfce] Storage download do logo falhou, tentando HTTP:", error?.message);
+  }
+
+  const imgRes = await fetch(logoUrl.split("?")[0], { redirect: "follow" });
+  if (!imgRes.ok) {
+    console.warn("[emit-nfce] Não foi possível baixar logo_url:", imgRes.status);
+    return null;
+  }
+  const buf = await imgRes.arrayBuffer();
+  const mime = imgRes.headers.get("content-type") || "";
+  return { buf, mime };
+}
+
+function inferLogoMime(mime: string, logoUrl: string): "image/png" | "image/jpeg" | null {
+  const m = mime.toLowerCase();
+  const u = logoUrl.toLowerCase();
+  if (m.includes("jpeg") || m.includes("jpg") || u.includes(".jpg") || u.includes(".jpeg")) return "image/jpeg";
+  if (m.includes("png") || u.includes(".png")) return "image/png";
+  // JPEG padrão após otimização no app (company-logo-fiscal)
+  if (m.includes("octet-stream") && u.includes(".jpg")) return "image/jpeg";
+  return null;
+}
+
 /** Envia o logo salvo no app (`companies.logo_url`) para a Nuvem Fiscal, para o DANFE usar `logotipo=true` sem cadastro manual no painel. */
 async function syncAppLogoToNuvemFiscal(
   supabase: any,
@@ -79,33 +135,25 @@ async function syncAppLogoToNuvemFiscal(
   if (!logoUrl || cnpj.length !== 14) return;
 
   try {
-    const imgRes = await fetch(logoUrl, { redirect: "follow" });
-    if (!imgRes.ok) {
-      console.warn("[emit-nfce] Não foi possível baixar logo_url da empresa:", imgRes.status);
-      return;
-    }
-    const buf = await imgRes.arrayBuffer();
+    const loaded = await loadCompanyLogoBytes(supabase, logoUrl);
+    if (!loaded) return;
+
+    let { buf } = loaded;
     if (buf.byteLength > 200 * 1024) {
-      console.warn("[emit-nfce] Logo acima de 200KB; Nuvem Fiscal aceita no máx. 200KB. Comprima para PNG/JPEG.");
+      console.warn("[emit-nfce] Logo acima de 200KB; Nuvem Fiscal aceita no máx. 200KB.");
       return;
     }
 
-    const ct = (imgRes.headers.get("content-type") || "").toLowerCase();
-    let mime = "image/png";
-    if (ct.includes("jpeg") || ct.includes("jpg")) mime = "image/jpeg";
-    else if (ct.includes("png")) mime = "image/png";
-    else if (!ct.includes("png") && !ct.includes("jpeg") && !ct.includes("jpg")) {
-      // Heurística pela URL
-      if (logoUrl.toLowerCase().includes(".jpg") || logoUrl.toLowerCase().includes(".jpeg")) mime = "image/jpeg";
-      else if (logoUrl.toLowerCase().includes(".png")) mime = "image/png";
-      else {
-        console.warn("[emit-nfce] Logo deve ser PNG ou JPEG para a Nuvem Fiscal. Tipo recebido:", ct || "desconhecido");
-        return;
-      }
+    let mime = inferLogoMime(loaded.mime, logoUrl);
+    if (!mime && logoUrl.toLowerCase().includes(".jpg")) mime = "image/jpeg";
+    if (!mime) {
+      console.warn("[emit-nfce] Logo deve ser PNG ou JPEG. Content-Type:", loaded.mime);
+      return;
     }
 
     const ext = mime === "image/jpeg" ? "jpg" : "png";
     const form = new FormData();
+    // OpenAPI: campo do multipart = "Input" (nome exato)
     form.append("Input", new Blob([buf], { type: mime }), `logo.${ext}`);
 
     const putRes = await fetch(`${baseUrl}/empresas/${cnpj}/logotipo`, {
@@ -116,7 +164,9 @@ async function syncAppLogoToNuvemFiscal(
 
     if (!putRes.ok) {
       const errText = await putRes.text();
-      console.warn("[emit-nfce] Falha ao sincronizar logotipo com Nuvem Fiscal:", putRes.status, errText.slice(0, 300));
+      console.warn("[emit-nfce] Falha ao sincronizar logotipo com Nuvem Fiscal:", putRes.status, errText.slice(0, 400));
+    } else {
+      console.log("[emit-nfce] Logotipo sincronizado com Nuvem Fiscal para CNPJ", cnpj);
     }
   } catch (e) {
     console.warn("[emit-nfce] Erro ao sincronizar logotipo:", e);
