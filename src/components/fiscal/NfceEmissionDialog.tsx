@@ -461,10 +461,9 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
           console.warn("[NfceEmission] RPC next_fiscal_number failed, using fallback");
         }
         
-        // Registra como simulação no banco
-        await supabase.from("fiscal_documents").insert({
+        // Registra como simulação no banco (schema de `fiscal_documents` não tem `sale_id`)
+        const { error: insertErr } = await supabase.from("fiscal_documents").insert({
           company_id: companyId,
-          sale_id: sale.id,
           doc_type: "nfce",
           status: "simulado",
           access_key: fakeChave,
@@ -473,8 +472,18 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
           serie: nfceConfig.serie,
           number: simNumber,
           total_value: form.paymentValue,
+          payment_method: form.paymentMethod,
           customer_name: form.customerName || null,
+          customer_cpf_cnpj: form.customerDoc || null,
+          is_contingency: false,
         });
+
+        if (insertErr) {
+          setStep("error");
+          setErrorMsg(insertErr.message || "Falha ao registrar documento fiscal simulado.");
+          setEmitting(false);
+          return;
+        }
 
         // Atualizar status no fluxo de vendas/queue (evita ficar "Processando" no PDV)
         try {
