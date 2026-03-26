@@ -1093,7 +1093,17 @@ async function handleDownloadPdf(supabase: any, body: any, callerUserId?: string
     }
   }
 
-  const resp = await fetch(`${baseUrl}/${endpoint}/${docIdOrKey}/pdf`, {
+  const pdfUrl = new URL(`${baseUrl}/${endpoint}/${docIdOrKey}/pdf`);
+  // For NFC-e, request a DANFE layout that reliably includes QRCode (as in Fiscal > Documentos).
+  // These are Nuvem Fiscal query params for PDF rendering.
+  if (endpoint === "nfce") {
+    pdfUrl.searchParams.set("largura", "80");
+    pdfUrl.searchParams.set("resumido", "false");
+    pdfUrl.searchParams.set("qrcode_lateral", "true");
+    pdfUrl.searchParams.set("margem", "2");
+  }
+
+  const resp = await fetch(pdfUrl.toString(), {
     headers: { Authorization: `Bearer ${token}`, Accept: "application/pdf" },
   });
 
