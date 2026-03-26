@@ -1100,6 +1100,8 @@ async function handleDownloadPdf(supabase: any, body: any, callerUserId?: string
     pdfUrl.searchParams.set("largura", "80");
     pdfUrl.searchParams.set("resumido", "false");
     pdfUrl.searchParams.set("margem", "2");
+    // Inclui logotipo cadastrado na empresa na Nuvem Fiscal (empresas/{cnpj}/logotipo).
+    pdfUrl.searchParams.set("logotipo", "true");
   }
 
   const resp = await fetch(pdfUrl.toString(), {
