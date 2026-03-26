@@ -703,6 +703,23 @@ async function handleEmit(supabase: any, body: any) {
     return jsonResponse({ success: false, error: "Falha ao registrar documento fiscal no banco" }, 500);
   }
 
+  // Reconciliar venda (PDV) — evita ficar "Pendente NFC-e" após autorização
+  try {
+    if (sale_id) {
+      const saleUpdate: Record<string, unknown> =
+        finalStatus === "autorizada"
+          ? { status: "emitida", nfce_number: String(numero) }
+          : { status: "pendente_fiscal" };
+      await supabase
+        .from("sales")
+        .update(saleUpdate)
+        .eq("id", String(sale_id))
+        .eq("company_id", String(company_id));
+    }
+  } catch (e) {
+    console.warn("[emit-nfce] Falha ao atualizar sales após emissão");
+  }
+
   // Auto-save XML no Storage após autorização (obrigação legal: 5 anos)
   if (isAuthorized && accessKey) {
     try {
@@ -756,8 +773,10 @@ async function handleEmitFromSale(supabase: any, body: any) {
   // 1) Load sale_items without relying on implicit foreign table joins (can break if relationship name differs)
   const { data: items, error: itemsErr } = await supabase
     .from("sale_items")
-    .select("product_id, product_name, name, quantity, unit_price, discount_percent, unit, ncm, cfop, cest, cst, csosn, origem")
-    .eq("sale_id", saleId);
+    // Columns confirmed in your DB: product_id, product_name, quantity, unit_price, discount_percent, sale_id, company_id
+    .select("product_id, product_name, quantity, unit_price, discount_percent")
+    .eq("sale_id", saleId)
+    .eq("company_id", companyId);
   if (itemsErr) {
     console.error("[emit-nfce] Falha ao carregar sale_items:", itemsErr.message);
     return jsonResponse({ error: "Falha ao carregar itens da venda" }, 500);
@@ -770,7 +789,8 @@ async function handleEmitFromSale(supabase: any, body: any) {
   if (productIds.length > 0) {
     const { data: products, error: prodErr } = await supabase
       .from("products")
-      .select("id, ncm, cfop, csosn, cst_icms, cst_pis, cst_cofins, aliq_icms, origem, mva, cest")
+      // Use `*` to avoid schema mismatch breaking emission
+      .select("*")
       .in("id", productIds);
     if (prodErr) {
       console.error("[emit-nfce] Falha ao carregar products:", prodErr.message);
@@ -810,12 +830,12 @@ async function handleEmitFromSale(supabase: any, body: any) {
     const discountValue = (discountPercent / 100) * unitPrice * qty;
     return {
       product_id: item.product_id,
-      name: (item.product_name || item.name) as string,
-      ncm: (product.ncm as string) || (item.ncm as string) || "",
+      name: (item.product_name || "Item") as string,
+      ncm: (product.ncm as string) || "",
       cfop: (product.cfop as string) || "5102",
       cst: (isSimples ? product.csosn : product.cst_icms) as string || defaultCst,
       origem: (product.origem as string) || "0",
-      unit: (item.unit as string) || "UN",
+      unit: "UN",
       qty,
       unit_price: unitPrice,
       discount: Math.round(discountValue * 100) / 100,
@@ -823,7 +843,7 @@ async function handleEmitFromSale(supabase: any, body: any) {
       cofins_cst: (product.cst_cofins as string) || defaultPisCofins,
       icms_aliquota: (product.aliq_icms as number) || 0,
       mva: (product.mva as number) || undefined,
-      cest: (product.cest as string) || (item.cest as string) || undefined,
+      cest: (product.cest as string) || undefined,
     };
   });
 

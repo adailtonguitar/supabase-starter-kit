@@ -143,6 +143,13 @@ export function usePDVFiscal(companyId: string | null) {
         .eq("id", queueId);
     }
 
+    // Mesmo sem queueId, reconciliar status da venda
+    try {
+      if (fiscalStatus === "autorizada") {
+        await supabase.from("sales").update({ status: "emitida" }).eq("id", saleId).eq("company_id", companyId);
+      }
+    } catch { /* ignore */ }
+
     return {
       nfceNumber: resolvedNumber,
       fiscalDocId: fiscalData.fiscal_doc_id || fiscalData.nuvem_fiscal_id || fiscalData.id,
