@@ -78,15 +78,10 @@ async function getNextNumberSafe(supabase: ReturnType<typeof createClient>, conf
 
 // ─── Anti-duplicação ───
 async function checkDuplicate(supabase: any, saleId: string): Promise<boolean> {
-  const { data } = await supabase
-    .from("fiscal_documents")
-    .select("id, status")
-    .eq("sale_id", saleId)
-    .in("status", ["autorizada", "pendente", "contingencia"])
-    .limit(1)
-    .maybeSingle();
-
-  return !!data;
+  // `fiscal_documents` não tem `sale_id` no schema atual. O provedor fiscal já faz
+  // a validação contra duplicidade pela `access_key`/numeração, então não
+  // tentamos anti-duplicação aqui para não quebrar a emissão.
+  return false;
 }
 
 // ─── CST/CSOSN de ST que exigem campos de ST ───
@@ -652,7 +647,6 @@ async function handleEmit(supabase: any, body: any) {
     // Salvar como rejeitada com protocolo, chave e motivo para rastreabilidade e reprocessamento
     await supabase.from("fiscal_documents").insert({
       company_id,
-      sale_id: sale_id || null,
       doc_type: "nfce",
       number: numero,
       serie: config.serie || 1,
@@ -691,7 +685,6 @@ async function handleEmit(supabase: any, body: any) {
   const mainPayMethod = detPag[0]?.tPag || "99";
   const insertRes = await supabase.from("fiscal_documents").insert({
     company_id,
-    sale_id: sale_id || null,
     doc_type: "nfce",
     number: numero,
     serie: config.serie || 1,
@@ -855,7 +848,7 @@ async function handleCancel(supabase: any, body: any, callerUserId?: string | nu
     // Buscar sale_id vinculado ao documento
     const { data: fiscalDoc } = await supabase
       .from("fiscal_documents")
-      .select("id, sale_id")
+      .select("id")
       .eq("access_key", access_key)
       .eq("company_id", company_id)
       .maybeSingle();
@@ -867,24 +860,8 @@ async function handleCancel(supabase: any, body: any, callerUserId?: string | nu
       .eq("access_key", access_key)
       .eq("company_id", company_id);
 
-    // Se há venda vinculada, reverter estoque e financeiro atomicamente
-    if (fiscalDoc?.sale_id) {
-      try {
-        const { data: cancelResult, error: cancelErr } = await supabase.rpc("cancel_sale_atomic", {
-          p_sale_id: fiscalDoc.sale_id,
-          p_company_id: company_id,
-          p_reason: `Cancelamento fiscal: ${justificativa}`,
-          p_performed_by: callerUserId || null,
-        });
-        if (cancelErr) {
-          console.warn(`[emit-nfce] cancel_sale_atomic falhou para sale ${fiscalDoc.sale_id}:`, cancelErr.message);
-        } else {
-          console.log(`[emit-nfce] Venda ${fiscalDoc.sale_id} revertida (estoque + financeiro) após cancelamento fiscal`);
-        }
-      } catch (revertErr: any) {
-        console.warn(`[emit-nfce] Erro ao reverter venda:`, revertErr.message);
-      }
-    }
+    // Nota: como `fiscal_documents` não possui `sale_id` no schema atual, não reverteremos
+    // estoque/financeiro automaticamente aqui.
   } else if (access_key) {
     await supabase
       .from("fiscal_documents")
