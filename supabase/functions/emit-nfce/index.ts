@@ -61,6 +61,68 @@ function sanitizeSefazText(value: unknown, fallback: string): string {
   return s;
 }
 
+/** Envia o logo salvo no app (`companies.logo_url`) para a Nuvem Fiscal, para o DANFE usar `logotipo=true` sem cadastro manual no painel. */
+async function syncAppLogoToNuvemFiscal(
+  supabase: any,
+  companyId: string,
+  token: string,
+  baseUrl: string,
+): Promise<void> {
+  const { data: company } = await supabase
+    .from("companies")
+    .select("cnpj, logo_url")
+    .eq("id", String(companyId))
+    .maybeSingle();
+
+  const logoUrl = company?.logo_url ? String(company.logo_url).trim() : "";
+  const cnpj = onlyDigits(company?.cnpj);
+  if (!logoUrl || cnpj.length !== 14) return;
+
+  try {
+    const imgRes = await fetch(logoUrl, { redirect: "follow" });
+    if (!imgRes.ok) {
+      console.warn("[emit-nfce] Não foi possível baixar logo_url da empresa:", imgRes.status);
+      return;
+    }
+    const buf = await imgRes.arrayBuffer();
+    if (buf.byteLength > 200 * 1024) {
+      console.warn("[emit-nfce] Logo acima de 200KB; Nuvem Fiscal aceita no máx. 200KB. Comprima para PNG/JPEG.");
+      return;
+    }
+
+    const ct = (imgRes.headers.get("content-type") || "").toLowerCase();
+    let mime = "image/png";
+    if (ct.includes("jpeg") || ct.includes("jpg")) mime = "image/jpeg";
+    else if (ct.includes("png")) mime = "image/png";
+    else if (!ct.includes("png") && !ct.includes("jpeg") && !ct.includes("jpg")) {
+      // Heurística pela URL
+      if (logoUrl.toLowerCase().includes(".jpg") || logoUrl.toLowerCase().includes(".jpeg")) mime = "image/jpeg";
+      else if (logoUrl.toLowerCase().includes(".png")) mime = "image/png";
+      else {
+        console.warn("[emit-nfce] Logo deve ser PNG ou JPEG para a Nuvem Fiscal. Tipo recebido:", ct || "desconhecido");
+        return;
+      }
+    }
+
+    const ext = mime === "image/jpeg" ? "jpg" : "png";
+    const form = new FormData();
+    form.append("Input", new Blob([buf], { type: mime }), `logo.${ext}`);
+
+    const putRes = await fetch(`${baseUrl}/empresas/${cnpj}/logotipo`, {
+      method: "PUT",
+      headers: { Authorization: `Bearer ${token}` },
+      body: form,
+    });
+
+    if (!putRes.ok) {
+      const errText = await putRes.text();
+      console.warn("[emit-nfce] Falha ao sincronizar logotipo com Nuvem Fiscal:", putRes.status, errText.slice(0, 300));
+    }
+  } catch (e) {
+    console.warn("[emit-nfce] Erro ao sincronizar logotipo:", e);
+  }
+}
+
 async function resolveNuvemFiscalDocId(params: {
   token: string;
   baseUrl: string;
@@ -1093,6 +1155,11 @@ async function handleDownloadPdf(supabase: any, body: any, callerUserId?: string
     }
   }
 
+  // Logo do app → Nuvem Fiscal (automático), para `logotipo=true` no PDF.
+  if (endpoint === "nfce" && effectiveCompanyId) {
+    await syncAppLogoToNuvemFiscal(supabase, effectiveCompanyId, token, baseUrl);
+  }
+
   const pdfUrl = new URL(`${baseUrl}/${endpoint}/${docIdOrKey}/pdf`);
   // Match the default DANFCE layout used in "Fiscal > Documentos":
   // keep width/margins, but avoid `qrcode_lateral` which can render blank QR area in some templates.
@@ -1100,6 +1167,8 @@ async function handleDownloadPdf(supabase: any, body: any, callerUserId?: string
     pdfUrl.searchParams.set("largura", "80");
     pdfUrl.searchParams.set("resumido", "false");
     pdfUrl.searchParams.set("margem", "2");
+    // Inclui logotipo cadastrado na empresa na Nuvem Fiscal (empresas/{cnpj}/logotipo).
+    pdfUrl.searchParams.set("logotipo", "true");
   }
 
   const resp = await fetch(pdfUrl.toString(), {
