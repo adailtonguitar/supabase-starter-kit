@@ -1094,12 +1094,11 @@ async function handleDownloadPdf(supabase: any, body: any, callerUserId?: string
   }
 
   const pdfUrl = new URL(`${baseUrl}/${endpoint}/${docIdOrKey}/pdf`);
-  // For NFC-e, request a DANFE layout that reliably includes QRCode (as in Fiscal > Documentos).
-  // These are Nuvem Fiscal query params for PDF rendering.
+  // Match the default DANFCE layout used in "Fiscal > Documentos":
+  // keep width/margins, but avoid `qrcode_lateral` which can render blank QR area in some templates.
   if (endpoint === "nfce") {
     pdfUrl.searchParams.set("largura", "80");
     pdfUrl.searchParams.set("resumido", "false");
-    pdfUrl.searchParams.set("qrcode_lateral", "true");
     pdfUrl.searchParams.set("margem", "2");
   }
 
