@@ -1,5 +1,5 @@
 import { AlertTriangle, Printer, FileText, Receipt, Loader2 } from "lucide-react";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { escapeAttr, escapeHtml, safeUrl } from "@/lib/sanitize";
@@ -96,6 +96,58 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
     // Keep the URL alive for a bit; the tab will load it.
     setTimeout(() => URL.revokeObjectURL(url), 60_000);
   };
+
+  // Background: acompanha emissão por sale_id sem travar o caixa.
+  useEffect(() => {
+    let cancelled = false;
+    const shouldTrack = !!saleId && !accessKey && !(nfceNumber && /^(SIM-|TESTE-|DEMO-|CONT-)/.test(String(nfceNumber)));
+    if (!shouldTrack) return;
+
+    const started = Date.now();
+    const MAX_WAIT_MS = 60_000;
+    const delays = [1200, 1500, 2000, 2500, 3000, 4000, 5000, 6000, 8000, 10_000];
+
+    (async () => {
+      try {
+        const { data: saleRow } = await supabase
+          .from("sales")
+          .select("company_id")
+          .eq("id", saleId)
+          .maybeSingle();
+        const cid = (saleRow as any)?.company_id as string | undefined;
+        if (!cid) return;
+
+        for (let i = 0; i < delays.length && Date.now() - started < MAX_WAIT_MS; i++) {
+          if (cancelled) return;
+          const { data: docRow } = await supabase
+            .from("fiscal_documents")
+            .select("number, access_key, serie, status")
+            .eq("company_id", cid)
+            .eq("sale_id", saleId)
+            .eq("doc_type", "nfce")
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          const doc = docRow as any;
+          if (doc?.status === "autorizada" && doc?.access_key) {
+            if (cancelled) return;
+            setAccessKey(doc.access_key);
+            if (doc.serie) setSerie(doc.serie);
+            if (doc.number) setNfceNumber(String(doc.number));
+            toast.success("✅ NFC-e autorizada. Cupom fiscal disponível.", { duration: 5000 });
+            return;
+          }
+          await new Promise((r) => setTimeout(r, delays[i]));
+        }
+      } catch {
+        // ignore
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [saleId, accessKey, nfceNumber]);
 
   const handlePrint = useCallback(() => {
     // Filter out DIAG_TEST products
