@@ -233,22 +233,33 @@ export function usePDV() {
             toast.success("✅ Simulação concluída! (modo teste — sem envio à SEFAZ)", { description: `NFC-e simulada: ${nfceNumber}`, duration: 6000 });
           } else {
             const queueId = await enqueueFiscal(saleId);
-            try {
-              // Mesmo fluxo para todas as formas de pagamento: `emit_from_sale` no browser (JWT do operador).
-              // O caminho antigo só para dinheiro; PIX/cartão usavam só `process-fiscal-queue` em background e ficavam pendentes.
-              const fiscalResult = await processFiscalEmission(saleId, queueId || undefined);
-              fiscalDocId = fiscalResult.fiscalDocId || undefined;
-              accessKey = fiscalResult.accessKey || accessKey;
-              serie = fiscalResult.serie || serie;
-              if (fiscalResult.status === "autorizada") {
-                nfceNumber = fiscalResult.nfceNumber || "";
-                toast.success("✅ NFC-e emitida com sucesso!", { description: `Número: ${nfceNumber}`, duration: 5000 });
-              } else {
-                toast.info("🕒 NFC-e enviada e aguardando autorização.", { duration: 6000 });
-              }
-            } catch (fiscalErr: unknown) {
-              const errMsg = await getFunctionErrorMessage(fiscalErr, "Erro desconhecido na emissão fiscal");
-              toast.error(`⚠️ Emissão fiscal falhou: ${errMsg}`, { description: "A venda foi registrada. Reprocesse depois em Fiscal > Documentos.", duration: 10000 });
+
+            if (queueId) {
+              toast.info("🕒 Venda concluída. NFC-e enviada para processamento.", { duration: 5000 });
+
+              void processFiscalEmission(saleId, queueId)
+                .then((fiscalResult) => {
+                  if (fiscalResult.status === "autorizada") {
+                    toast.success("✅ NFC-e emitida com sucesso!", {
+                      description: fiscalResult.nfceNumber ? `Número: ${fiscalResult.nfceNumber}` : undefined,
+                      duration: 5000,
+                    });
+                  } else {
+                    toast.info("🕒 NFC-e enviada e aguardando autorização.", { duration: 6000 });
+                  }
+                })
+                .catch(async (fiscalErr: unknown) => {
+                  const errMsg = await getFunctionErrorMessage(fiscalErr, "Erro desconhecido na emissão fiscal");
+                  toast.error(`⚠️ Emissão fiscal falhou: ${errMsg}`, {
+                    description: "A venda foi registrada. Reprocesse depois em Fiscal > Documentos.",
+                    duration: 10000,
+                  });
+                });
+            } else {
+              toast.warning("Venda concluída, mas a NFC-e não foi enfileirada.", {
+                description: "Verifique Fiscal > Documentos para reprocessar a emissão.",
+                duration: 8000,
+              });
             }
           }
         } catch (fiscalOuter: unknown) {
