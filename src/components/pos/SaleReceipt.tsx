@@ -487,6 +487,24 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
   }, [items, total, payments, changeAmount, companyName, companyCnpj, companyIe, companyPhone, companyAddress, companyUf, logoUrl, saleId, customerCpf, protocolNumber, protocolDate, isHomologacao, tributosAprox]);
 
   const handlePrintFiscal = useCallback(() => {
+    if (fetchingFiscal) return;
+    // Hard stop: nunca deixar o botão preso em "Buscando..."
+    let finished = false;
+    const forceTimeoutMs = 25_000;
+    const forceTimer = window.setTimeout(() => {
+      if (finished) return;
+      finished = true;
+      setFetchingFiscal(false);
+      toast.info("NFC-e ainda em processamento. O cupom ficará disponível em instantes no Histórico/Fiscal.", { duration: 7000 });
+    }, forceTimeoutMs);
+
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      window.clearTimeout(forceTimer);
+      setFetchingFiscal(false);
+    };
+
     const isSimulatedCurrent = !!nfceNumber && /^(SIM-|TESTE-|DEMO-|CONT-)/.test(nfceNumber);
 
     // Só imprime direto se já houver uma NFC-e realmente imprimível
@@ -496,7 +514,7 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
         setFetchingFiscal(true);
         FiscalEmissionService.downloadPdf(accessKey, "nfce")
           .then((result: any) => {
-            setFetchingFiscal(false);
+            finish();
             const pdfBase64 = result?.pdf_base64 || result?.base64;
             if (pdfBase64) {
               openPdfBase64(String(pdfBase64));
@@ -507,7 +525,7 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
             printFiscalCupom(nfceNumber, accessKey, serie);
           })
           .catch(() => {
-            setFetchingFiscal(false);
+            finish();
             toast.error("Erro ao baixar o PDF fiscal. Usando impressão simplificada.", { duration: 6000 });
             printFiscalCupom(nfceNumber, accessKey, serie);
           });
@@ -553,13 +571,13 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
       poll()
         .then((authorized) => {
           if (!authorized) {
-            setFetchingFiscal(false);
+            finish();
             toast.info("NFC-e enviada e ainda aguardando autorização. Aguarde mais um pouco e clique em Cupom Fiscal novamente.", { duration: 7000 });
             return;
           }
           return FiscalEmissionService.downloadPdf(String(accessKey), "nfce")
             .then((result: any) => {
-              setFetchingFiscal(false);
+              finish();
               const pdfBase64 = result?.pdf_base64 || result?.base64;
               if (pdfBase64) {
                 openPdfBase64(String(pdfBase64));
@@ -568,12 +586,12 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
               toast.error(`Erro da Nuvem Fiscal: ${result?.error || "Não foi possível obter o PDF."}`, { duration: 6000 });
             })
             .catch(() => {
-              setFetchingFiscal(false);
+              finish();
               toast.error("Erro ao baixar o PDF fiscal. Tente novamente.", { duration: 6000 });
             });
         })
         .catch(() => {
-          setFetchingFiscal(false);
+          finish();
           toast.error("Falha ao consultar autorização da NFC-e. Tente novamente.", { duration: 6000 });
         });
       return;
@@ -624,7 +642,7 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
     waitForDocBySaleId()
       .then((doc: any | null) => {
         if (!doc) {
-          setFetchingFiscal(false);
+          finish();
           toast.info("NFC-e enviada e ainda aguardando autorização. Aguarde mais um pouco e clique em Cupom Fiscal novamente.", { duration: 7000 });
           return;
         }
@@ -640,7 +658,7 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
         if (!isSimulated && foundKey) {
           return FiscalEmissionService.downloadPdf(String(foundKey), "nfce")
             .then((result: any) => {
-              setFetchingFiscal(false);
+              finish();
               const pdfBase64 = result?.pdf_base64 || result?.base64;
               if (pdfBase64) {
                 openPdfBase64(String(pdfBase64));
@@ -649,17 +667,17 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
               toast.error(`Erro da Nuvem Fiscal: ${result?.error || "Não foi possível obter o PDF."}`, { duration: 6000 });
             })
             .catch(() => {
-              setFetchingFiscal(false);
+              finish();
               toast.error("Erro ao baixar o PDF fiscal. Tente novamente.", { duration: 6000 });
             });
         }
 
         // Simulação: imprime template local
-        setFetchingFiscal(false);
+        finish();
         if (foundNumber) printFiscalCupom(foundNumber, foundKey, foundSerie);
       })
       .catch(() => {
-        setFetchingFiscal(false);
+        finish();
         toast.error("Falha ao localizar a NFC-e desta venda. Tente novamente.", { duration: 6000 });
       });
     return;
