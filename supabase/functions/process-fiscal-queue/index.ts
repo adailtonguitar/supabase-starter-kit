@@ -134,7 +134,9 @@ Deno.serve(async (req) => {
       supabase.from("companies").select("crt").eq("id", companyId).maybeSingle(),
     ]);
 
-    for (let attempt = 0; attempt < 12; attempt++) {
+    // Backoff crescente: ~10s total (vs 4.8s anterior) para cobrir race condition de PIX/cartão
+    const saleRetryDelays = [300, 400, 500, 600, 700, 800, 1000, 1200, 1500, 2000, 2500];
+    for (let attempt = 0; attempt < saleRetryDelays.length; attempt++) {
       const saleRes = await supabase
         .from("sales")
         .select("*")
@@ -175,7 +177,8 @@ Deno.serve(async (req) => {
       }
 
       if (sale && items.length > 0) break;
-      if (attempt < 11) await sleep(400);
+      console.log(`[process-fiscal-queue] Attempt ${attempt + 1}/${saleRetryDelays.length}: sale=${!!sale}, items=${items.length}, sale_id=${saleId}, queue_id=${queueId}`);
+      if (attempt < saleRetryDelays.length - 1) await sleep(saleRetryDelays[attempt]);
     }
 
     if (!sale || !items?.length) {

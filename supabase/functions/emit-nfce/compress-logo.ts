@@ -4,7 +4,7 @@
  */
 
 import { Buffer } from "node:buffer";
-import { decode as decodeJpeg, encode as encodeJpeg } from "npm:jpeg-js@0.4.4";
+import { decode as decodeJpeg, encode as encodeJpeg } from "https://esm.sh/jpeg-js@0.4.4";
 import { PNG } from "https://esm.sh/pngjs@7.0.0";
 
 const MAX_BYTES = 200 * 1024;
