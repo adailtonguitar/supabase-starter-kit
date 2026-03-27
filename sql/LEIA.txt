@@ -1,0 +1,14 @@
+O que rodar no Supabase (SQL Editor)
+=====================================
+
+1) EXECUTAR_NO_SUPABASE.sql
+   - Migrations oficiais do repositório (recomendado em produção).
+   - Conteúdo igual a supabase/migrations/*.sql na ordem correta.
+
+2) TODOS_SCRIPTS_CONCATENADOS.sql
+   - Junta todos os outros .sql desta pasta (scripts manuais/históricos).
+   - Pode falhar se já tiver sido aplicado, ou por ordem de dependência.
+   - Use só se souber o que precisa; não substitui (1).
+
+3) supabase/migrations/
+   - Fonte das migrations; o CLI "supabase db push" aplica estes arquivos.
