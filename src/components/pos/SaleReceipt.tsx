@@ -690,12 +690,13 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
       return;
     }
 
-    supabase
-      .from("sales")
-      .select("company_id, nfce_number, status")
-      .eq("id", saleId)
-      .maybeSingle()
-      .then(({ data: fiscalDoc }) => {
+    Promise.resolve(
+      supabase
+        .from("sales")
+        .select("company_id, nfce_number, status")
+        .eq("id", saleId)
+        .maybeSingle()
+    ).then(({ data: fiscalDoc }) => {
         const saleRow = fiscalDoc as any;
         const companyId = saleRow?.company_id as string | undefined;
         const nfceNumRaw = saleRow?.nfce_number as string | undefined;
@@ -709,16 +710,17 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
           return;
         }
 
-        supabase
-          .from("fiscal_documents")
-          .select("number, access_key, serie, status")
-          .eq("company_id", companyId)
-          .eq("doc_type", "nfce")
-          .eq("number", num)
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle()
-          .then(({ data: docRow }) => {
+        Promise.resolve(
+          supabase
+            .from("fiscal_documents")
+            .select("number, access_key, serie, status")
+            .eq("company_id", companyId)
+            .eq("doc_type", "nfce")
+            .eq("number", num)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle()
+        ).then(({ data: docRow }) => {
             setFetchingFiscal(false);
             const doc = docRow as any;
             const isSimulated = doc?.status === "simulado";
@@ -732,7 +734,6 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
               setAccessKey(foundKey);
               setSerie(foundSerie);
               printWindow.close();
-              // Prefer official PDF when authorized and access key exists.
               if (!isSimulated && foundKey) {
                 FiscalEmissionService.downloadPdf(String(foundKey), "nfce")
                   .then((result: any) => {
@@ -755,8 +756,7 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
               printWindow.close();
               toast.info("A NFC-e desta venda ainda não foi autorizada. O cupom fiscal só libera após autorização real.", { duration: 6000 });
             }
-          })
-          .catch(() => {
+          }).catch(() => {
             setFetchingFiscal(false);
             printWindow.close();
             toast.error("Erro ao buscar dados fiscais.", { duration: 3000 });
