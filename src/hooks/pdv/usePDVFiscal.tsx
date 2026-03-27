@@ -11,6 +11,10 @@ import { FiscalEmissionService } from "@/services/FiscalEmissionService";
 import { getFiscalConfig } from "@/lib/fiscal-config-lookup";
 import type { FiscalConsultResult } from "@/integrations/supabase/fiscal.types";
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 function normalizeFiscalMessage(message: unknown): string {
   return String(message ?? "")
     .normalize("NFD")
@@ -28,6 +32,72 @@ function isVisibilityPendingMessage(message: unknown): boolean {
 }
 
 export function usePDVFiscal(companyId: string | null) {
+  const readLatestFiscalState = useCallback(async (saleId: string) => {
+    if (!companyId) return null;
+
+    const { data: doc } = await supabase
+      .from("fiscal_documents")
+      .select("id, status, number, access_key, serie")
+      .eq("company_id", companyId)
+      .eq("sale_id", saleId)
+      .eq("doc_type", "nfce")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const row = doc as {
+      id?: string | null;
+      status?: string | null;
+      number?: string | number | null;
+      access_key?: string | null;
+      serie?: string | number | null;
+    } | null;
+
+    if (!row) return null;
+
+    return {
+      fiscalDocId: row.id || null,
+      status: String(row.status || "pendente").toLowerCase(),
+      nfceNumber: row.number != null ? String(row.number) : "",
+      accessKey: String(row.access_key || ""),
+      serie: row.serie != null ? String(row.serie) : "",
+    };
+  }, [companyId]);
+
+  const waitForQueueResolution = useCallback(async (saleId: string, queueId?: string) => {
+    if (!companyId) return null;
+
+    const delays = [1200, 1500, 1800, 2200, 2600, 3000, 3500, 4000, 4500, 5000];
+
+    for (const delay of delays) {
+      await sleep(delay);
+
+      const latestDoc = await readLatestFiscalState(saleId);
+      if (latestDoc?.status === "autorizada") {
+        return latestDoc;
+      }
+
+      const { data, error } = await supabase.functions.invoke("process-fiscal-queue", {
+        body: { company_id: companyId, sale_id: saleId, queue_id: queueId },
+      });
+
+      if (error) continue;
+
+      const response = data as {
+        success?: boolean;
+        pending?: boolean;
+        error?: string;
+      } | null;
+
+      if (response?.success && response.pending !== true) {
+        const resolvedDoc = await readLatestFiscalState(saleId);
+        if (resolvedDoc) return resolvedDoc;
+      }
+    }
+
+    return readLatestFiscalState(saleId);
+  }, [companyId, readLatestFiscalState]);
+
   const enqueueFiscal = useCallback(async (saleId: string): Promise<string | null> => {
     if (!companyId) return null;
     try {
@@ -144,6 +214,16 @@ export function usePDVFiscal(companyId: string | null) {
           .update({ status: "pending", processed_at: null, last_error: pendingMessage })
           .eq("id", queueId);
       }
+      const resolvedDoc = await waitForQueueResolution(saleId, queueId);
+      if (resolvedDoc?.status === "autorizada") {
+        return {
+          nfceNumber: resolvedDoc.nfceNumber,
+          fiscalDocId: resolvedDoc.fiscalDocId,
+          accessKey: resolvedDoc.accessKey,
+          serie: resolvedDoc.serie,
+          status: "autorizada" as const,
+        };
+      }
       return { nfceNumber: "", fiscalDocId: null, accessKey: "", serie: "", status: "pendente" as const };
     }
 
@@ -157,6 +237,16 @@ export function usePDVFiscal(companyId: string | null) {
         await supabase.from("fiscal_queue")
           .update({ status: "pending", processed_at: null, last_error: "Venda ainda em propagação; reprocessar emissão." })
           .eq("id", queueId);
+        const resolvedDoc = await waitForQueueResolution(saleId, queueId);
+        if (resolvedDoc?.status === "autorizada") {
+          return {
+            nfceNumber: resolvedDoc.nfceNumber,
+            fiscalDocId: resolvedDoc.fiscalDocId,
+            accessKey: resolvedDoc.accessKey,
+            serie: resolvedDoc.serie,
+            status: "autorizada" as const,
+          };
+        }
         return { nfceNumber: "", fiscalDocId: null, accessKey: "", serie: "", status: "pendente" as const };
       }
       if (queueId) await supabase.from("fiscal_queue").update({ status: "error", last_error: errorMsg }).eq("id", queueId);
@@ -250,7 +340,7 @@ export function usePDVFiscal(companyId: string | null) {
       serie: fiscalData.serie || "",
       status: fiscalStatus,
     };
-  }, [companyId]);
+  }, [companyId, waitForQueueResolution]);
 
   const reprocessFiscal = useCallback(async (saleId: string) => {
     try {

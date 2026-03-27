@@ -246,8 +246,9 @@ IMPORTANTE: Não ultrapasse 500 palavras no total.`;
       .from("diagnosticos_financeiros")
       .insert({ user_id: userId, mes_referencia, conteudo: result.content, created_at: new Date().toISOString() });
 
-    if (insertError) console.error("[diagnostico] Erro ao salvar:", insertError.message);
-    else // console.log("[diagnostico] Salvo com sucesso!");
+      if (insertError) {
+        console.error("[diagnostico] Erro ao salvar:", insertError.message);
+      }
 
     // console.log("[diagnostico] ========== REQUISIÇÃO CONCLUÍDA ==========");
 

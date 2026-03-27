@@ -89,7 +89,7 @@ Deno.serve(async (req) => {
     }
 
     // Service client is allowed after auth+tenant validation
-    const supabase = createServiceClient();
+    const supabase: any = createServiceClient();
 
     // 1️⃣ Resetar itens presos em "processing" há mais de 5 minutos
     const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
@@ -421,7 +421,7 @@ Deno.serve(async (req) => {
 
     const fiscalStatus = fiscalData?.status || "pendente";
     if (fiscalStatus !== "autorizada") {
-      const pendingMsg = fiscalData?.error || "NFC-e enviada e aguardando autorização";
+      const pendingMsg = String(fiscalData?.error || "NFC-e enviada e aguardando autorização");
       console.log(`[process-fiscal-queue] provider pending: sale_id=${saleId}, queue_id=${queueId}, attempts=${attempts}, reason=${pendingMsg}`);
       await Promise.all([
         supabase.from("fiscal_queue")

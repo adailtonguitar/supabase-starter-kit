@@ -160,7 +160,7 @@ Deno.serve(async (req) => {
 
     return new Response(JSON.stringify(result, null, 2), {
       headers: {
-        ...corsHeaders,
+        ...getCorsHeaders(req),
         "Content-Type": "application/json",
         "Content-Disposition": `attachment; filename="backup-${company_id}.json"`,
       },
