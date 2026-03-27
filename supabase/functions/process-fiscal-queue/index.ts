@@ -1,4 +1,9 @@
 import { corsHeaders, createServiceClient, jsonResponse, requireCompanyMembership, requireUser } from "../_shared/auth.ts";
+import {
+  getPrimaryPaymentMethod,
+  mapPdvMethodToTPag,
+  parseSalePaymentsJson,
+} from "../_shared/sale-payments.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -230,13 +235,18 @@ Deno.serve(async (req) => {
       };
     });
 
-    // Build payments array for multi-payment support
-    const fiscalPayments = payments.length > 0
-      ? payments.map((p: any) => ({
-          tPag: paymentMethodMap[p.method] || "99",
-          vPag: p.amount || p.value || 0,
-        }))
-      : [{ tPag: "99", vPag: sale.total }];
+    const primary = paymentRows[0];
+    const mainPayTpag = mapPdvMethodToTPag(getPrimaryPaymentMethod(primary));
+    const fiscalPayments = paymentRows.length > 0
+      ? paymentRows.map((row: Record<string, unknown>) => {
+        const m = getPrimaryPaymentMethod(row);
+        const amt = Number(row.amount ?? row.value ?? saleTotal);
+        return {
+          tPag: mapPdvMethodToTPag(m),
+          vPag: Math.round((Number.isFinite(amt) ? amt : saleTotal) * 100) / 100,
+        };
+      })
+      : [{ tPag: mainPayTpag !== "99" ? mainPayTpag : "01", vPag: Math.round(saleTotal * 100) / 100 }];
 
     // 6️⃣ Chamar emissão fiscal
     const { data: fiscalData, error: fiscalErr } = await supabase.functions.invoke(
@@ -251,9 +261,9 @@ Deno.serve(async (req) => {
             nat_op: "VENDA DE MERCADORIA",
             crt,
             payments: fiscalPayments,
-            payment_method: paymentMethodMap[payments[0]?.method] || "99",
-            payment_value: sale.total,
-            change: payments[0]?.change_amount || 0,
+            payment_method: mainPayTpag,
+            payment_value: saleTotal,
+            change: Number(primary?.change_amount ?? primary?.changeAmount ?? 0) || 0,
             items: fiscalItems,
           },
         },

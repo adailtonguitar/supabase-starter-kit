@@ -12,7 +12,14 @@
  */
 
 import { corsHeaders, createServiceClient, jsonResponse, requireCompanyMembership, requireUser } from "../_shared/auth.ts";
+import {
+  getPaymentChange,
+  getPrimaryPaymentMethod,
+  mapPdvMethodToTPag,
+  parseSalePaymentsJson,
+} from "../_shared/sale-payments.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { compressLogoForNuvemFiscal } from "./compress-logo.ts";
 
 // ─── Nuvem Fiscal Auth ───
 async function getNuvemFiscalToken(): Promise<string> {
@@ -47,6 +54,10 @@ function getApiBaseUrl(): string {
     : "https://api.nuvemfiscal.com.br";
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 function onlyDigits(v: unknown): string {
   return String(v ?? "").replace(/[^0-9]/g, "");
 }
@@ -59,6 +70,62 @@ function sanitizeSefazText(value: unknown, fallback: string): string {
   s = s.replace(/[^\x21-\xFF ]/g, ""); // keep only allowed characters
   if (!s) return fallback;
   return s;
+}
+
+/** Extrai bucket + path de URLs públicas do Supabase Storage (`/object/public/{bucket}/...`). */
+function parseSupabasePublicStoragePath(logoUrl: string): { bucket: string; path: string } | null {
+  try {
+    const clean = logoUrl.split("?")[0];
+    const u = new URL(clean);
+    const marker = "/storage/v1/object/public/";
+    const idx = u.pathname.indexOf(marker);
+    if (idx === -1) return null;
+    const rest = u.pathname.slice(idx + marker.length);
+    const slash = rest.indexOf("/");
+    if (slash < 1) return null;
+    const bucket = rest.slice(0, slash);
+    const path = decodeURIComponent(rest.slice(slash + 1));
+    if (!bucket || !path) return null;
+    return { bucket, path };
+  } catch {
+    return null;
+  }
+}
+
+/** Baixa bytes do logo: preferindo Storage com service role (funciona com bucket privado). */
+async function loadCompanyLogoBytes(
+  supabase: any,
+  logoUrl: string,
+): Promise<{ buf: ArrayBuffer; mime: string } | null> {
+  const parsed = parseSupabasePublicStoragePath(logoUrl);
+  if (parsed) {
+    const { data, error } = await supabase.storage.from(parsed.bucket).download(parsed.path);
+    if (!error && data) {
+      const buf = await data.arrayBuffer();
+      const mime = (data as Blob).type || "";
+      return { buf, mime: mime || "application/octet-stream" };
+    }
+    console.warn("[emit-nfce] Storage download do logo falhou, tentando HTTP:", error?.message);
+  }
+
+  const imgRes = await fetch(logoUrl.split("?")[0], { redirect: "follow" });
+  if (!imgRes.ok) {
+    console.warn("[emit-nfce] Não foi possível baixar logo_url:", imgRes.status);
+    return null;
+  }
+  const buf = await imgRes.arrayBuffer();
+  const mime = imgRes.headers.get("content-type") || "";
+  return { buf, mime };
+}
+
+function inferLogoMime(mime: string, logoUrl: string): "image/png" | "image/jpeg" | null {
+  const m = mime.toLowerCase();
+  const u = logoUrl.toLowerCase();
+  if (m.includes("jpeg") || m.includes("jpg") || u.includes(".jpg") || u.includes(".jpeg")) return "image/jpeg";
+  if (m.includes("png") || u.includes(".png")) return "image/png";
+  // JPEG padrão após otimização no app (company-logo-fiscal)
+  if (m.includes("octet-stream") && u.includes(".jpg")) return "image/jpeg";
+  return null;
 }
 
 /** Envia o logo salvo no app (`companies.logo_url`) para a Nuvem Fiscal, para o DANFE usar `logotipo=true` sem cadastro manual no painel. */
@@ -79,44 +146,41 @@ async function syncAppLogoToNuvemFiscal(
   if (!logoUrl || cnpj.length !== 14) return;
 
   try {
-    const imgRes = await fetch(logoUrl, { redirect: "follow" });
-    if (!imgRes.ok) {
-      console.warn("[emit-nfce] Não foi possível baixar logo_url da empresa:", imgRes.status);
-      return;
-    }
-    const buf = await imgRes.arrayBuffer();
+    const loaded = await loadCompanyLogoBytes(supabase, logoUrl);
+    if (!loaded) return;
+
+    let { buf } = loaded;
+    let mime = inferLogoMime(loaded.mime, logoUrl);
     if (buf.byteLength > 200 * 1024) {
-      console.warn("[emit-nfce] Logo acima de 200KB; Nuvem Fiscal aceita no máx. 200KB. Comprima para PNG/JPEG.");
+      const compressed = compressLogoForNuvemFiscal(buf);
+      if (!compressed) return;
+      buf = compressed;
+      mime = "image/jpeg";
+    }
+
+    if (!mime && logoUrl.toLowerCase().includes(".jpg")) mime = "image/jpeg";
+    if (!mime) {
+      console.warn("[emit-nfce] Logo deve ser PNG ou JPEG. Content-Type:", loaded.mime);
       return;
     }
 
-    const ct = (imgRes.headers.get("content-type") || "").toLowerCase();
-    let mime = "image/png";
-    if (ct.includes("jpeg") || ct.includes("jpg")) mime = "image/jpeg";
-    else if (ct.includes("png")) mime = "image/png";
-    else if (!ct.includes("png") && !ct.includes("jpeg") && !ct.includes("jpg")) {
-      // Heurística pela URL
-      if (logoUrl.toLowerCase().includes(".jpg") || logoUrl.toLowerCase().includes(".jpeg")) mime = "image/jpeg";
-      else if (logoUrl.toLowerCase().includes(".png")) mime = "image/png";
-      else {
-        console.warn("[emit-nfce] Logo deve ser PNG ou JPEG para a Nuvem Fiscal. Tipo recebido:", ct || "desconhecido");
-        return;
-      }
-    }
-
-    const ext = mime === "image/jpeg" ? "jpg" : "png";
-    const form = new FormData();
-    form.append("Input", new Blob([buf], { type: mime }), `logo.${ext}`);
-
+    // Nuvem Fiscal: corpo = bytes da imagem (não multipart). Ver suporte:
+    // https://suporte.nuvemfiscal.com.br/t/enviar-logotipo-empresa-content-type-nao-aceita/1024
+    const body = new Uint8Array(buf);
     const putRes = await fetch(`${baseUrl}/empresas/${cnpj}/logotipo`, {
       method: "PUT",
-      headers: { Authorization: `Bearer ${token}` },
-      body: form,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": mime,
+      },
+      body,
     });
 
     if (!putRes.ok) {
       const errText = await putRes.text();
-      console.warn("[emit-nfce] Falha ao sincronizar logotipo com Nuvem Fiscal:", putRes.status, errText.slice(0, 300));
+      console.warn("[emit-nfce] Falha ao sincronizar logotipo com Nuvem Fiscal:", putRes.status, errText.slice(0, 400));
+    } else {
+      console.log("[emit-nfce] Logotipo sincronizado com Nuvem Fiscal para CNPJ", cnpj);
     }
   } catch (e) {
     console.warn("[emit-nfce] Erro ao sincronizar logotipo:", e);
@@ -811,6 +875,15 @@ async function handleEmit(supabase: any, body: any) {
     console.warn("[emit-nfce] Falha ao atualizar sales após emissão");
   }
 
+  // Envia logotipo do app para a Nuvem Fiscal assim que a nota autoriza (antes de qualquer download de PDF).
+  if (isAuthorized) {
+    try {
+      await syncAppLogoToNuvemFiscal(supabase, String(company_id), token, baseUrl);
+    } catch (e) {
+      console.warn("[emit-nfce] sync logotipo após autorização:", e);
+    }
+  }
+
   // Auto-save XML no Storage após autorização (obrigação legal: 5 anos)
   if (isAuthorized && accessKey) {
     try {
@@ -854,11 +927,21 @@ async function handleEmitFromSale(supabase: any, body: any) {
     return jsonResponse({ error: "Dados incompletos: sale_id e company_id são obrigatórios" }, 400);
   }
 
-  const { data: sale, error: saleErr } = await supabase
-    .from("sales")
-    .select("total, payments")
-    .eq("id", saleId)
-    .single();
+  // Em cenários de alta concorrência, a venda pode levar alguns ms para ficar visível após a RPC.
+  // Fazemos retry curto para evitar falha falsa de "Venda não encontrada".
+  let sale: any = null;
+  let saleErr: any = null;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const res = await supabase
+      .from("sales")
+      .select("total, total_value, payments, payment_method")
+      .eq("id", saleId)
+      .maybeSingle();
+    sale = res.data;
+    saleErr = res.error;
+    if (sale) break;
+    if (attempt < 4) await sleep(250);
+  }
   if (saleErr || !sale) return jsonResponse({ error: "Venda não encontrada" }, 404);
 
   // 1) Load sale_items without relying on implicit foreign table joins (can break if relationship name differs)
@@ -905,12 +988,28 @@ async function handleEmitFromSale(supabase: any, body: any) {
   const defaultCst = isSimples ? "102" : "00";
   const defaultPisCofins = isSimples ? "49" : "01";
 
-  const payments = Array.isArray((sale as Record<string, unknown>).payments) ? ((sale as Record<string, unknown>).payments as Record<string, unknown>[]) : [];
-  const paymentMethodMap: Record<string, string> = {
-    dinheiro: "01", credito: "03", debito: "04", pix: "17", voucher: "05",
-  };
-  const mainPay = paymentMethodMap[(payments[0]?.method as string) ?? ""] || "99";
-  const change = Number(payments[0]?.change_amount ?? 0);
+  const saleRow = sale as Record<string, unknown>;
+  const saleTotal = Number(saleRow.total ?? saleRow.total_value ?? 0);
+  let paymentRows = parseSalePaymentsJson(saleRow.payments);
+  if (paymentRows.length === 0) {
+    const pm = saleRow.payment_method;
+    if (typeof pm === "string" && pm.trim()) {
+      paymentRows = [{ method: pm.trim(), amount: saleTotal, change_amount: 0 }];
+    }
+  }
+  const primary = paymentRows[0];
+  const mainPay = mapPdvMethodToTPag(getPrimaryPaymentMethod(primary));
+  const change = getPaymentChange(primary);
+  const fiscalPayments = paymentRows.length > 0
+    ? paymentRows.map((row) => {
+      const m = getPrimaryPaymentMethod(row);
+      const amt = Number(row.amount ?? row.value ?? saleTotal);
+      return {
+        tPag: mapPdvMethodToTPag(m),
+        vPag: Math.round((Number.isFinite(amt) ? amt : saleTotal) * 100) / 100,
+      };
+    })
+    : [{ tPag: mainPay !== "99" ? mainPay : "01", vPag: Math.round(saleTotal * 100) / 100 }];
 
   const fiscalItems = items.map((item: Record<string, unknown>) => {
     const pid = String(item.product_id || "");
@@ -945,8 +1044,9 @@ async function handleEmitFromSale(supabase: any, body: any) {
     form: {
       nat_op: "VENDA DE MERCADORIA",
       crt,
+      payments: fiscalPayments,
       payment_method: mainPay,
-      payment_value: Number((sale as Record<string, unknown>).total ?? (sale as Record<string, unknown>).total_value ?? 0),
+      payment_value: saleTotal,
       change,
       items: fiscalItems,
     },
@@ -1169,10 +1269,15 @@ async function handleDownloadPdf(supabase: any, body: any, callerUserId?: string
     pdfUrl.searchParams.set("margem", "2");
     // Inclui logotipo cadastrado na empresa na Nuvem Fiscal (empresas/{cnpj}/logotipo).
     pdfUrl.searchParams.set("logotipo", "true");
+    pdfUrl.searchParams.set("nome_fantasia", "true");
   }
 
   const resp = await fetch(pdfUrl.toString(), {
-    headers: { Authorization: `Bearer ${token}`, Accept: "application/pdf" },
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/pdf",
+      "Cache-Control": "no-cache",
+    },
   });
 
   if (!resp.ok) {
