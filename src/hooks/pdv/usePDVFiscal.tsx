@@ -139,18 +139,33 @@ export function usePDVFiscal(companyId: string | null) {
     let fiscalStatus = fiscalData.status || "pendente";
     let resolvedNumber = fiscalData.nfce_number || fiscalData.numero || fiscalData.number || "";
 
-    if (fiscalStatus !== "autorizada" && fiscalData.access_key) {
-      try {
-        await new Promise((resolve) => setTimeout(resolve, 3000));
-        const consulted = await FiscalEmissionService.consultStatus({
-          accessKey: fiscalData.access_key, docType: "nfce", companyId,
-        });
-        const consultResult = consulted as FiscalConsultResult;
-        if (consultResult?.success && consultResult?.status === "autorizada") {
-          fiscalStatus = "autorizada";
-          resolvedNumber = String(consultResult?.number || resolvedNumber);
+    // Para UX do PDV: aguardar um pouco pela autorização (PIX/cartão costuma levar alguns segundos).
+    // Evita “NFC-e ainda não disponível…”.
+    if (fiscalStatus !== "autorizada") {
+      const accessKey = String(fiscalData.access_key || "");
+      if (accessKey) {
+        const started = Date.now();
+        const MAX_WAIT_MS = 18_000; // ~18s (equilíbrio entre UX e travar caixa)
+        const DELAYS = [1500, 2000, 2500, 3000, 3500, 4000]; // total ~16.5s
+        for (let i = 0; i < DELAYS.length && Date.now() - started < MAX_WAIT_MS; i++) {
+          try {
+            await new Promise((resolve) => setTimeout(resolve, DELAYS[i]));
+            const consulted = await FiscalEmissionService.consultStatus({
+              accessKey,
+              docType: "nfce",
+              companyId,
+            });
+            const consultResult = consulted as FiscalConsultResult;
+            if (consultResult?.success && consultResult?.status === "autorizada") {
+              fiscalStatus = "autorizada";
+              resolvedNumber = String(consultResult?.number || resolvedNumber);
+              break;
+            }
+          } catch {
+            // ignore and keep polling a bit
+          }
         }
-      } catch {}
+      }
     }
 
     if (queueId) {
