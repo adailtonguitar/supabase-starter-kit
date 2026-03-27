@@ -55,7 +55,7 @@ Deno.serve(async (req) => {
       .from("fiscal_queue")
       .update({ status: "pending" })
       .eq("status", "processing")
-      .lt("updated_at", fiveMinAgo);
+      .lt("created_at", fiveMinAgo);
 
     if (companyFilter) stuckQuery = stuckQuery.eq("company_id", companyFilter);
     await stuckQuery;
@@ -87,7 +87,7 @@ Deno.serve(async (req) => {
     if (attempts > MAX_RETRIES) {
       await Promise.all([
         supabase.from("fiscal_queue")
-          .update({ status: "dead_letter", last_error: `Excedeu ${MAX_RETRIES} tentativas`, updated_at: new Date().toISOString() })
+          .update({ status: "dead_letter", last_error: `Excedeu ${MAX_RETRIES} tentativas` })
           .eq("id", queueId),
         supabase.from("sales")
           .update({ status: "erro_fiscal" })
@@ -103,7 +103,7 @@ Deno.serve(async (req) => {
     // 3️⃣ Marcar como processing (se já estiver processing, só atualiza attempts/updated_at)
     await supabase
       .from("fiscal_queue")
-      .update({ status: "processing", attempts, updated_at: new Date().toISOString() })
+      .update({ status: "processing", attempts })
       .eq("id", queueId);
 
     // 4️⃣ Buscar config fiscal com fallback (NFC-e -> NF-e)
@@ -173,7 +173,7 @@ Deno.serve(async (req) => {
       // Some databases/paths may have sale_items.company_id null; prefer strict filter but fallback to sale_id only.
       const itemsStrict = await supabase
         .from("sale_items")
-        .select("*, products(ncm, cfop, csosn, cst_icms, cst_pis, cst_cofins, aliq_icms, origem, mva)")
+        .select("*, products(ncm, cfop, csosn, cst_icms, cst_pis, cst_cofins, aliq_icms, origem)")
         .eq("sale_id", saleId)
         .eq("company_id", companyId);
 
@@ -183,7 +183,7 @@ Deno.serve(async (req) => {
       if (!items.length) {
         const itemsLoose = await supabase
           .from("sale_items")
-          .select("*, products(ncm, cfop, csosn, cst_icms, cst_pis, cst_cofins, aliq_icms, origem, mva)")
+          .select("*, products(ncm, cfop, csosn, cst_icms, cst_pis, cst_cofins, aliq_icms, origem)")
           .eq("sale_id", saleId);
         items = (itemsLoose.data as any[]) || [];
         lastItemsErr = itemsLoose.error ?? lastItemsErr;
