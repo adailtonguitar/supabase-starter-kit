@@ -11,6 +11,22 @@ import { FiscalEmissionService } from "@/services/FiscalEmissionService";
 import { getFiscalConfig } from "@/lib/fiscal-config-lookup";
 import type { FiscalConsultResult } from "@/integrations/supabase/fiscal.types";
 
+function normalizeFiscalMessage(message: unknown): string {
+  return String(message ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+function isVisibilityPendingMessage(message: unknown): boolean {
+  const normalized = normalizeFiscalMessage(message);
+  return normalized.includes("venda nao encontrada")
+    || normalized.includes("itens da venda nao encontrados")
+    || normalized.includes("venda/itens ainda em persistencia")
+    || normalized.includes("persistencia da venda/itens")
+    || normalized.includes("ainda em persistencia");
+}
+
 export function usePDVFiscal(companyId: string | null) {
   const enqueueFiscal = useCallback(async (saleId: string): Promise<string | null> => {
     if (!companyId) return null;
@@ -114,10 +130,20 @@ export function usePDVFiscal(companyId: string | null) {
       fiscalData = res.data;
       fiscalErr = res.error;
 
-      const msg = String(fiscalData?.error || fiscalErr?.message || "");
-      const shouldRetry = msg.toLowerCase().includes("venda não encontrada") || msg.toLowerCase().includes("venda nao encontrada");
+      const msg = fiscalData?.error || fiscalData?.message || fiscalErr?.message || "";
+      const shouldRetry = isVisibilityPendingMessage(msg);
       if (!shouldRetry) break;
       if (attempt < 7) await new Promise((r) => setTimeout(r, 500));
+    }
+
+    if (fiscalData?.success && fiscalData?.pending) {
+      const pendingMessage = String(fiscalData?.message || fiscalData?.error || "Venda ainda em propagação; reprocessar emissão.");
+      if (queueId) {
+        await supabase.from("fiscal_queue")
+          .update({ status: "pending", processed_at: null, last_error: pendingMessage })
+          .eq("id", queueId);
+      }
+      return { nfceNumber: "", fiscalDocId: null, accessKey: "", serie: "", status: "pendente" as const };
     }
 
     if (fiscalErr || !fiscalData?.success) {
@@ -125,8 +151,8 @@ export function usePDVFiscal(companyId: string | null) {
       const parsedErrorMessage = fiscalErr ? await getFunctionErrorMessage(fiscalErr, fallbackMessage) : fallbackMessage;
       const rejDetail = fiscalData?.rejection_reason || fiscalData?.details?.error?.message || "";
       const errorMsg = rejDetail && !parsedErrorMessage.includes(rejDetail) ? `${parsedErrorMessage} — ${rejDetail}` : parsedErrorMessage;
-      const isNotFoundTiming = errorMsg.toLowerCase().includes("venda não encontrada") || errorMsg.toLowerCase().includes("venda nao encontrada");
-      if (queueId && isNotFoundTiming) {
+      const isTransientVisibility = isVisibilityPendingMessage(errorMsg);
+      if (queueId && isTransientVisibility) {
         await supabase.from("fiscal_queue")
           .update({ status: "pending", processed_at: null, last_error: "Venda ainda em propagação; reprocessar emissão." })
           .eq("id", queueId);

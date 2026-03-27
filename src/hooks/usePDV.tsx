@@ -50,6 +50,23 @@ function isConnectivityError(err: unknown): boolean {
   );
 }
 
+function normalizeFiscalMessage(message: unknown): string {
+  return String(message ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+function isPendingFiscalResponse(response: Record<string, unknown> | null | undefined): boolean {
+  if (!response) return false;
+  if (response.pending === true) return true;
+  const normalized = normalizeFiscalMessage(response.message || response.error);
+  return normalized.includes("aguardando autorização")
+    || normalized.includes("aguardando autorizacao")
+    || normalized.includes("ainda em persistencia")
+    || normalized.includes("reprocessando em instantes");
+}
+
 export function usePDV() {
   const { companyId } = useCompany();
   const { queueOperation, stats: syncStats, syncing: syncingSales } = useSync();
@@ -267,19 +284,18 @@ export function usePDV() {
                         console.warn(`[PDV] Fiscal queue kick error (attempt ${i + 1}):`, kickErr.message);
                       }
                       const resp = data as Record<string, unknown> | null;
-                      // If processor reports pending=false (or no pending flag), we can stop.
-                      if (resp?.success === true && !resp?.pending) {
+                      if (resp?.success === true && !isPendingFiscalResponse(resp)) {
                         console.log(`[PDV] Fiscal queue resolved for sale ${saleId} after ${Date.now() - started}ms`);
                         break;
                       }
-                      if (resp?.success === false && !resp?.pending) {
+                      if (resp?.success === false && !isPendingFiscalResponse(resp)) {
                         console.error(`[PDV] Fiscal queue definitive error for sale ${saleId}:`, resp?.error);
                         // Update queue error for visibility
                         if (queueId) {
-                          supabase.from("fiscal_queue")
+                          await supabase.from("fiscal_queue")
                             .update({ last_error: String(resp?.error || "Erro desconhecido no processamento fiscal") })
                             .eq("id", queueId)
-                            .then(() => {});
+;
                         }
                         break;
                       }
