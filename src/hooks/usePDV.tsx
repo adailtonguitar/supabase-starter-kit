@@ -258,15 +258,33 @@ export function usePDV() {
 
                 (async () => {
                   const started = Date.now();
-                  const MAX_WAIT_MS = 30_000;
-                  const delays = [800, 1200, 1500, 2000, 2500, 3000, 4000, 5000, 6000];
+                  const MAX_WAIT_MS = 35_000;
+                  const delays = [600, 800, 1000, 1500, 2000, 2500, 3000, 3500, 4000, 5000, 6000];
                   for (let i = 0; i < delays.length && Date.now() - started < MAX_WAIT_MS; i++) {
                     try {
-                      const { data } = await kick();
+                      const { data, error: kickErr } = await kick();
+                      if (kickErr) {
+                        console.warn(`[PDV] Fiscal queue kick error (attempt ${i + 1}):`, kickErr.message);
+                      }
+                      const resp = data as Record<string, unknown> | null;
                       // If processor reports pending=false (or no pending flag), we can stop.
-                      if (data && (data as any).success === true && !(data as any).pending) break;
-                    } catch {
-                      // ignore and try again
+                      if (resp?.success === true && !resp?.pending) {
+                        console.log(`[PDV] Fiscal queue resolved for sale ${saleId} after ${Date.now() - started}ms`);
+                        break;
+                      }
+                      if (resp?.success === false && !resp?.pending) {
+                        console.error(`[PDV] Fiscal queue definitive error for sale ${saleId}:`, resp?.error);
+                        // Update queue error for visibility
+                        if (queueId) {
+                          supabase.from("fiscal_queue")
+                            .update({ last_error: String(resp?.error || "Erro desconhecido no processamento fiscal") })
+                            .eq("id", queueId)
+                            .then(() => {});
+                        }
+                        break;
+                      }
+                    } catch (err: unknown) {
+                      console.warn(`[PDV] Fiscal queue kick exception (attempt ${i + 1}):`, err instanceof Error ? err.message : err);
                     }
                     await new Promise((r) => setTimeout(r, delays[i]));
                   }
