@@ -235,26 +235,37 @@ export function usePDV() {
             const queueId = await enqueueFiscal(saleId);
 
             if (queueId) {
-              toast.info("🕒 Venda concluída. NFC-e enviada para processamento.", { duration: 5000 });
+              // Aguarda até ~12s pela emissão; se não concluir, a venda fecha e a NFC-e segue em background.
+              const FISCAL_TIMEOUT_MS = 12_000;
+              let fiscalSettled = false;
 
-              void processFiscalEmission(saleId, queueId)
-                .then((fiscalResult) => {
+              try {
+                const fiscalResult = await Promise.race([
+                  processFiscalEmission(saleId, queueId).then((r) => { fiscalSettled = true; return r; }),
+                  new Promise<null>((resolve) => setTimeout(() => resolve(null), FISCAL_TIMEOUT_MS)),
+                ]);
+
+                if (fiscalResult && fiscalSettled) {
+                  fiscalDocId = fiscalResult.fiscalDocId || undefined;
+                  accessKey = fiscalResult.accessKey || accessKey;
+                  serie = fiscalResult.serie || serie;
                   if (fiscalResult.status === "autorizada") {
-                    toast.success("✅ NFC-e emitida com sucesso!", {
-                      description: fiscalResult.nfceNumber ? `Número: ${fiscalResult.nfceNumber}` : undefined,
-                      duration: 5000,
-                    });
+                    nfceNumber = fiscalResult.nfceNumber || "";
+                    toast.success("✅ NFC-e emitida com sucesso!", { description: `Número: ${nfceNumber}`, duration: 5000 });
                   } else {
                     toast.info("🕒 NFC-e enviada e aguardando autorização.", { duration: 6000 });
                   }
-                })
-                .catch(async (fiscalErr: unknown) => {
-                  const errMsg = await getFunctionErrorMessage(fiscalErr, "Erro desconhecido na emissão fiscal");
-                  toast.error(`⚠️ Emissão fiscal falhou: ${errMsg}`, {
-                    description: "A venda foi registrada. Reprocesse depois em Fiscal > Documentos.",
-                    duration: 10000,
-                  });
+                } else {
+                  // Timeout — emissão continua em background
+                  toast.info("🕒 Venda concluída. NFC-e em processamento.", { description: "O cupom será atualizado automaticamente.", duration: 6000 });
+                }
+              } catch (fiscalErr: unknown) {
+                const errMsg = await getFunctionErrorMessage(fiscalErr, "Erro desconhecido na emissão fiscal");
+                toast.error(`⚠️ Emissão fiscal falhou: ${errMsg}`, {
+                  description: "A venda foi registrada. Reprocesse depois em Fiscal > Documentos.",
+                  duration: 10000,
                 });
+              }
             } else {
               toast.warning("Venda concluída, mas a NFC-e não foi enfileirada.", {
                 description: "Verifique Fiscal > Documentos para reprocessar a emissão.",
