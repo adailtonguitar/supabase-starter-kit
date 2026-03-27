@@ -861,6 +861,15 @@ async function handleEmit(supabase: any, body: any) {
     console.warn("[emit-nfce] Falha ao atualizar sales após emissão");
   }
 
+  // Envia logotipo do app para a Nuvem Fiscal assim que a nota autoriza (antes de qualquer download de PDF).
+  if (isAuthorized) {
+    try {
+      await syncAppLogoToNuvemFiscal(supabase, String(company_id), token, baseUrl);
+    } catch (e) {
+      console.warn("[emit-nfce] sync logotipo após autorização:", e);
+    }
+  }
+
   // Auto-save XML no Storage após autorização (obrigação legal: 5 anos)
   if (isAuthorized && accessKey) {
     try {
@@ -1219,10 +1228,15 @@ async function handleDownloadPdf(supabase: any, body: any, callerUserId?: string
     pdfUrl.searchParams.set("margem", "2");
     // Inclui logotipo cadastrado na empresa na Nuvem Fiscal (empresas/{cnpj}/logotipo).
     pdfUrl.searchParams.set("logotipo", "true");
+    pdfUrl.searchParams.set("nome_fantasia", "true");
   }
 
   const resp = await fetch(pdfUrl.toString(), {
-    headers: { Authorization: `Bearer ${token}`, Accept: "application/pdf" },
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/pdf",
+      "Cache-Control": "no-cache",
+    },
   });
 
   if (!resp.ok) {
