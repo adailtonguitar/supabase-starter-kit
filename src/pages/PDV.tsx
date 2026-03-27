@@ -57,7 +57,13 @@ export default function PDV() {
   const [quoteNotes, setQuoteNotes] = useState("");
   const [showTEF, setShowTEF] = useState(false);
   const [tefDefaultMethod, setTefDefaultMethod] = useState<string | null>(null);
-  const [skipFiscalEmission, setSkipFiscalEmission] = useState(!canUseFiscal);
+  /** Evita `useState(!canUseFiscal)` no 1º render: plano ainda carrega → false → pula NFC-e para sempre. */
+  const [fiscalSkipUserOverride, setFiscalSkipUserOverride] = useState<boolean | null>(null);
+  const skipFiscalEmission = useMemo(() => {
+    if (!canUseFiscal) return true;
+    if (fiscalSkipUserOverride !== null) return fiscalSkipUserOverride;
+    return false;
+  }, [canUseFiscal, fiscalSkipUserOverride]);
   const [showCashRegister, setShowCashRegister] = useState(false);
   const [receipt, setReceipt] = useState<{
     items: typeof pdv.cartItems;
@@ -724,7 +730,7 @@ export default function PDV() {
         cartItems={pdv.cartItems}
         canUseFiscal={canUseFiscal}
         skipFiscalEmission={skipFiscalEmission}
-        onSkipFiscalChange={setSkipFiscalEmission}
+        onSkipFiscalChange={setFiscalSkipUserOverride}
         onDirectPayment={handleDirectPayment}
         onCheckout={() => handleCheckout()}
         onClearCart={() => pdv.clearCart()}
