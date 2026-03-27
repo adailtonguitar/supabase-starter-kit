@@ -937,7 +937,8 @@ async function handleEmitFromSale(supabase: any, body: any) {
   // Retry mais longo para evitar falso negativo no PDV (principalmente PIX/cartão).
   let sale: any = null;
   let saleErr: any = null;
-  for (let attempt = 0; attempt < 12; attempt++) {
+  const saleDelays = [200, 300, 400, 500, 600, 700, 800, 1000, 1200, 1500, 1800, 2000, 2500, 3000];
+  for (let attempt = 0; attempt < saleDelays.length; attempt++) {
     const res = await supabase
       .from("sales")
       .select("total, total_value, payments, payment_method")
@@ -947,14 +948,18 @@ async function handleEmitFromSale(supabase: any, body: any) {
     sale = res.data;
     saleErr = res.error;
     if (sale) break;
-    if (attempt < 11) await sleep(500);
+    if (attempt < saleDelays.length - 1) await sleep(saleDelays[attempt]);
   }
-  if (saleErr || !sale) return jsonResponse({ error: "Venda não encontrada" }, 404);
+  if (saleErr || !sale) {
+    console.warn(`[emit-nfce] Venda não encontrada após ${saleDelays.length} tentativas: sale_id=${saleId}, company_id=${companyId}, err=${saleErr?.message || "null"}`);
+    // Retornar 200 com pending=true para que o frontend reconheça como erro de visibilidade e tente de novo
+    return jsonResponse({ success: true, pending: true, error: "Venda não encontrada", sale_id: saleId }, 200);
+  }
 
   // 1) Load sale_items without relying on implicit foreign table joins (can break if relationship name differs)
   let items: any[] | null = null;
   let itemsErr: any = null;
-  for (let attempt = 0; attempt < 12; attempt++) {
+  for (let attempt = 0; attempt < saleDelays.length; attempt++) {
     const res = await supabase
       .from("sale_items")
       // Columns confirmed in your DB: product_id, product_name, quantity, unit_price, discount_percent, sale_id, company_id
@@ -964,13 +969,16 @@ async function handleEmitFromSale(supabase: any, body: any) {
     items = res.data as any[] | null;
     itemsErr = res.error;
     if (Array.isArray(items) && items.length > 0) break;
-    if (attempt < 11) await sleep(500);
+    if (attempt < saleDelays.length - 1) await sleep(saleDelays[attempt]);
   }
   if (itemsErr) {
     console.error("[emit-nfce] Falha ao carregar sale_items:", itemsErr.message);
-    return jsonResponse({ error: "Falha ao carregar itens da venda" }, 500);
+    return jsonResponse({ success: true, pending: true, error: "Itens da venda não encontrados", sale_id: saleId }, 200);
   }
-  if (!items?.length) return jsonResponse({ error: "Itens da venda não encontrados" }, 400);
+  if (!items?.length) {
+    console.warn(`[emit-nfce] Itens não encontrados após ${saleDelays.length} tentativas: sale_id=${saleId}`);
+    return jsonResponse({ success: true, pending: true, error: "Itens da venda não encontrados", sale_id: saleId }, 200);
+  }
 
   // 2) Load product fiscal fields in a second query
   const productIds = Array.from(new Set(items.map((it: Record<string, unknown>) => String(it.product_id || "")).filter(Boolean)));
