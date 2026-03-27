@@ -5,6 +5,10 @@ import {
   parseSalePaymentsJson,
 } from "../_shared/sale-payments.ts";
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -116,15 +120,38 @@ Deno.serve(async (req) => {
     }
 
     // 5️⃣ Buscar dados da venda e itens (incluindo dados fiscais do produto)
-    const [{ data: sale }, { data: items }, { data: company }] = await Promise.all([
-      supabase.from("sales").select("*").eq("id", saleId).single(),
-      supabase.from("sale_items").select("*, products(ncm, cfop, csosn, cst_icms, cst_pis, cst_cofins, aliq_icms, origem, mva)").eq("sale_id", saleId),
+    // Em alguns cenários (principalmente logo após finalizar a venda no PDV), pode haver delay curto
+    // até a venda/itens ficarem visíveis via API. Fazemos retry curto para evitar falso negativo.
+    let sale: any = null;
+    let items: any[] = [];
+    let lastSaleErr: any = null;
+    let lastItemsErr: any = null;
+    const [{ data: company }] = await Promise.all([
       supabase.from("companies").select("crt").eq("id", companyId).maybeSingle(),
     ]);
 
+    for (let attempt = 0; attempt < 12; attempt++) {
+      const [saleRes, itemsRes] = await Promise.all([
+        supabase.from("sales").select("*").eq("id", saleId).eq("company_id", companyId).maybeSingle(),
+        supabase
+          .from("sale_items")
+          .select("*, products(ncm, cfop, csosn, cst_icms, cst_pis, cst_cofins, aliq_icms, origem, mva)")
+          .eq("sale_id", saleId)
+          .eq("company_id", companyId),
+      ]);
+      sale = saleRes.data;
+      items = (itemsRes.data as any[]) || [];
+      lastSaleErr = saleRes.error;
+      lastItemsErr = itemsRes.error;
+
+      if (sale && items.length > 0) break;
+      if (attempt < 11) await sleep(400);
+    }
+
     if (!sale || !items?.length) {
+      const errDetail = lastSaleErr?.message || lastItemsErr?.message || "Venda ou itens não encontrados";
       await supabase.from("fiscal_queue")
-        .update({ status: "error", last_error: "Venda ou itens não encontrados" })
+        .update({ status: "pending", last_error: `Aguardando persistência da venda/itens. ${errDetail}` })
         .eq("id", queueId);
       return new Response(
         JSON.stringify({ success: false, error: "Venda ou itens não encontrados", sale_id: saleId }),
