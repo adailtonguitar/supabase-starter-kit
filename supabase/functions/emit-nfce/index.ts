@@ -390,12 +390,12 @@ async function handleEmit(supabase: any, body: any) {
     return jsonResponse({ error: "Dados incompletos: sale_id e form são obrigatórios" }, 400);
   }
 
-  // Rate limiting: máx 5 emissões por minuto por empresa
+  // Rate limiting: protege Nuvem Fiscal / RPC; fila + PDV + reemissões podem gerar várias tentativas no mesmo minuto.
   if (company_id) {
     const { data: allowed } = await supabase.rpc("check_rate_limit", {
       p_company_id: company_id,
       p_fn_name: "emit-nfce",
-      p_max_calls: 5,
+      p_max_calls: 30,
       p_window_sec: 60,
     });
     if (allowed === false) {

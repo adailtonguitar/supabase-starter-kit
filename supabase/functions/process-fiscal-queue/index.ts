@@ -22,6 +22,48 @@ function visibilityPendingResponse(saleId: string, queueId: string, reason: stri
   );
 }
 
+/**
+ * Chama `emit-nfce` com o JWT do usuário final.
+ * `supabase.functions.invoke` no client com service role costuma enviar Authorization = service role,
+ * e o `emit-nfce` falha em requireUser — daí 401 / non-2xx e fila em erro.
+ */
+async function invokeEmitNfceWithUserJwt(
+  userBearerHeader: string,
+  body: Record<string, unknown>,
+): Promise<{ data: Record<string, unknown> | null; error: { message: string } | null; status: number }> {
+  const base = Deno.env.get("SUPABASE_URL")?.replace(/\/$/, "") ?? "";
+  const anon = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
+  if (!base || !anon) {
+    return { data: null, error: { message: "SUPABASE_URL ou SUPABASE_ANON_KEY não configurados" }, status: 0 };
+  }
+  const url = `${base}/functions/v1/emit-nfce`;
+  const resp = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: userBearerHeader,
+      apikey: anon,
+    },
+    body: JSON.stringify(body),
+  });
+  const text = await resp.text();
+  let payload: Record<string, unknown> | null = null;
+  try {
+    payload = text ? (JSON.parse(text) as Record<string, unknown>) : null;
+  } catch {
+    return { data: null, error: { message: text || `Resposta inválida (HTTP ${resp.status})` }, status: resp.status };
+  }
+  if (!resp.ok) {
+    const msg =
+      (payload?.error != null ? String(payload.error) : null) ||
+      (payload?.message != null ? String(payload.message) : null) ||
+      text ||
+      `HTTP ${resp.status}`;
+    return { data: payload, error: { message: msg }, status: resp.status };
+  }
+  return { data: payload, error: null, status: resp.status };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -100,7 +142,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 3️⃣ Marcar como processing (se já estiver processing, só atualiza attempts/updated_at)
+    // 3️⃣ Marcar como processing (se já estiver processing, só atualiza attempts)
     await supabase
       .from("fiscal_queue")
       .update({ status: "processing", attempts })
@@ -199,7 +241,7 @@ Deno.serve(async (req) => {
       const pendingReason = `Venda/itens ainda em persistência. Reprocessando em instantes. Motivo: ${errDetail}`;
       console.log(`[process-fiscal-queue] pending visibility: sale_id=${saleId}, queue_id=${queueId}, attempts=${attempts}, reason=${errDetail}`);
       await supabase.from("fiscal_queue")
-        .update({ status: "pending", last_error: pendingReason, updated_at: new Date().toISOString() })
+        .update({ status: "pending", last_error: pendingReason })
         .eq("id", queueId);
       return visibilityPendingResponse(saleId, queueId, pendingReason);
     }
@@ -232,16 +274,14 @@ Deno.serve(async (req) => {
     }
 
     if ((latestDoc as any)?.access_key) {
-      const { data: consultedData, error: consultError } = await supabase.functions.invoke("emit-nfce", {
-        body: {
-          action: "consult_status",
-          access_key: (latestDoc as any).access_key,
-          doc_type: "nfce",
-          company_id: companyId,
-        },
+      const { data: consultedData, error: consultError } = await invokeEmitNfceWithUserJwt(auth.authHeader, {
+        action: "consult_status",
+        access_key: (latestDoc as any).access_key,
+        doc_type: "nfce",
+        company_id: companyId,
       });
 
-      if (!consultError && consultedData?.success && consultedData?.status === "autorizada") {
+      if (!consultError && consultedData && consultedData.success === true && consultedData.status === "autorizada") {
         await Promise.all([
           supabase.from("sales")
             .update({ status: "autorizada", access_key: consultedData.access_key || (latestDoc as any).access_key || null, number: consultedData.number || (latestDoc as any).number || null })
@@ -323,30 +363,47 @@ Deno.serve(async (req) => {
       })
       : [{ tPag: mainPayTpag !== "99" ? mainPayTpag : "01", vPag: Math.round(saleTotal * 100) / 100 }];
 
-    // 6️⃣ Chamar emissão fiscal
-    const { data: fiscalData, error: fiscalErr } = await supabase.functions.invoke(
-      "emit-nfce",
-      {
-        body: {
-          action: "emit",
-          sale_id: saleId,
-          company_id: companyId,
-          config_id: fiscalConfig.id,
-          form: {
-            nat_op: "VENDA DE MERCADORIA",
-            crt,
-            payments: fiscalPayments,
-            payment_method: mainPayTpag,
-            payment_value: saleTotal,
-            change: Number(primary?.change_amount ?? primary?.changeAmount ?? 0) || 0,
-            items: fiscalItems,
-          },
-        },
-      }
-    );
+    // 6️⃣ Chamar emissão fiscal (fetch + JWT do usuário — ver doc em invokeEmitNfceWithUserJwt)
+    const { data: fiscalData, error: fiscalErr, status: emitHttpStatus } = await invokeEmitNfceWithUserJwt(auth.authHeader, {
+      action: "emit",
+      sale_id: saleId,
+      company_id: companyId,
+      config_id: fiscalConfig.id,
+      form: {
+        nat_op: "VENDA DE MERCADORIA",
+        crt,
+        payments: fiscalPayments,
+        payment_method: mainPayTpag,
+        payment_value: saleTotal,
+        change: Number(primary?.change_amount ?? primary?.changeAmount ?? 0) || 0,
+        items: fiscalItems,
+      },
+    });
+
+    const rateLimited =
+      emitHttpStatus === 429 ||
+      String(fiscalErr?.message || fiscalData?.error || "").toLowerCase().includes("limite de emissões");
+    if (rateLimited) {
+      const pendingMsg =
+        "Limite de emissões neste minuto (tente de novo em instantes ou aguarde o reprocessamento automático da fila).";
+      console.log(`[process-fiscal-queue] rate limited (429): sale_id=${saleId}, queue_id=${queueId}`);
+      await Promise.all([
+        supabase.from("fiscal_queue")
+          .update({ status: "pending", last_error: pendingMsg, processed_at: null })
+          .eq("id", queueId),
+        supabase.from("sales")
+          .update({ status: "pendente_fiscal" })
+          .eq("id", saleId)
+          .eq("company_id", companyId),
+      ]);
+      return visibilityPendingResponse(saleId, queueId, pendingMsg);
+    }
 
     if (fiscalErr || !fiscalData?.success) {
-      const errMsg = fiscalData?.error || fiscalErr?.message || "Falha na emissão";
+      const errMsg =
+        (fiscalData?.error != null ? String(fiscalData.error) : null) ||
+        fiscalErr?.message ||
+        "Falha na emissão";
       await Promise.all([
         supabase.from("fiscal_queue")
           .update({ status: "error", last_error: errMsg })
@@ -368,7 +425,7 @@ Deno.serve(async (req) => {
       console.log(`[process-fiscal-queue] provider pending: sale_id=${saleId}, queue_id=${queueId}, attempts=${attempts}, reason=${pendingMsg}`);
       await Promise.all([
         supabase.from("fiscal_queue")
-          .update({ status: "pending", last_error: pendingMsg, processed_at: null, updated_at: new Date().toISOString() })
+          .update({ status: "pending", last_error: pendingMsg, processed_at: null })
           .eq("id", queueId),
         supabase.from("sales")
           .update({ status: "pendente_fiscal" })

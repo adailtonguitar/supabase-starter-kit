@@ -1,5 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { getFunctionErrorMessage } from "@/lib/get-function-error-message";
 import { useCompany } from "./useCompany";
 import { toast } from "sonner";
 import { useState, useMemo } from "react";
@@ -140,8 +141,8 @@ export function useFiscalDashboard() {
       queryClient.invalidateQueries({ queryKey: ["fiscal-queue-map"] });
       queryClient.invalidateQueries({ queryKey: ["sales"] });
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : String(e);
-      toast.error(msg || "Erro ao processar fila fiscal");
+      const msg = await getFunctionErrorMessage(e, "Erro ao processar fila fiscal");
+      toast.error(msg);
     } finally {
       setIsProcessing(false);
     }

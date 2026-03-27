@@ -50,23 +50,6 @@ function isConnectivityError(err: unknown): boolean {
   );
 }
 
-function normalizeFiscalMessage(message: unknown): string {
-  return String(message ?? "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase();
-}
-
-function isPendingFiscalResponse(response: Record<string, unknown> | null | undefined): boolean {
-  if (!response) return false;
-  if (response.pending === true) return true;
-  const normalized = normalizeFiscalMessage(response.message || response.error);
-  return normalized.includes("aguardando autorização")
-    || normalized.includes("aguardando autorizacao")
-    || normalized.includes("ainda em persistencia")
-    || normalized.includes("reprocessando em instantes");
-}
-
 export function usePDV() {
   const { companyId } = useCompany();
   const { queueOperation, stats: syncStats, syncing: syncingSales } = useSync();
@@ -248,63 +231,17 @@ export function usePDV() {
           } else {
             const queueId = await enqueueFiscal(saleId);
             try {
-              const mainMethod = String(payments?.[0]?.method || "").toLowerCase();
-              const shouldWaitInline = mainMethod === "dinheiro";
-
-              if (shouldWaitInline) {
-                const fiscalResult = await processFiscalEmission(saleId, queueId || undefined);
-                fiscalDocId = fiscalResult.fiscalDocId || undefined;
-                accessKey = fiscalResult.accessKey || accessKey;
-                serie = fiscalResult.serie || serie;
-                if (fiscalResult.status === "autorizada") {
-                  nfceNumber = fiscalResult.nfceNumber || "";
-                  toast.success("✅ NFC-e emitida com sucesso!", { description: `Número: ${nfceNumber}`, duration: 5000 });
-                } else {
-                  toast.info("🕒 NFC-e enviada e aguardando autorização.", { duration: 6000 });
-                }
+              // Mesmo fluxo para todas as formas de pagamento: `emit_from_sale` no browser (JWT do operador).
+              // O caminho antigo só para dinheiro; PIX/cartão usavam só `process-fiscal-queue` em background e ficavam pendentes.
+              const fiscalResult = await processFiscalEmission(saleId, queueId || undefined);
+              fiscalDocId = fiscalResult.fiscalDocId || undefined;
+              accessKey = fiscalResult.accessKey || accessKey;
+              serie = fiscalResult.serie || serie;
+              if (fiscalResult.status === "autorizada") {
+                nfceNumber = fiscalResult.nfceNumber || "";
+                toast.success("✅ NFC-e emitida com sucesso!", { description: `Número: ${nfceNumber}`, duration: 5000 });
               } else {
-                // PIX/cartão: NÃO bloquear o caixa. Em vez de chamar `emit_from_sale` direto,
-                // dispare o processador da fila (mesmo fluxo do "Histórico > Emitir").
-                toast.info("🕒 NFC-e será emitida em segundo plano (PIX/cartão). Você pode seguir atendendo.", { duration: 7000 });
-                // Kick the queue processor for THIS sale and keep retrying briefly (handles transient DB visibility).
-                // This mirrors the manual "Histórico > Emitir" behavior but without requiring user action.
-                const kick = () =>
-                  supabase.functions.invoke("process-fiscal-queue", {
-                    body: { company_id: companyId, sale_id: saleId, queue_id: queueId || undefined },
-                  });
-
-                (async () => {
-                  const started = Date.now();
-                  const MAX_WAIT_MS = 35_000;
-                  const delays = [600, 800, 1000, 1500, 2000, 2500, 3000, 3500, 4000, 5000, 6000];
-                  for (let i = 0; i < delays.length && Date.now() - started < MAX_WAIT_MS; i++) {
-                    try {
-                      const { data, error: kickErr } = await kick();
-                      if (kickErr) {
-                        console.warn(`[PDV] Fiscal queue kick error (attempt ${i + 1}):`, kickErr.message);
-                      }
-                      const resp = data as Record<string, unknown> | null;
-                      if (resp?.success === true && !isPendingFiscalResponse(resp)) {
-                        console.log(`[PDV] Fiscal queue resolved for sale ${saleId} after ${Date.now() - started}ms`);
-                        break;
-                      }
-                      if (resp?.success === false && !isPendingFiscalResponse(resp)) {
-                        console.error(`[PDV] Fiscal queue definitive error for sale ${saleId}:`, resp?.error);
-                        // Update queue error for visibility
-                        if (queueId) {
-                          await supabase.from("fiscal_queue")
-                            .update({ last_error: String(resp?.error || "Erro desconhecido no processamento fiscal") })
-                            .eq("id", queueId)
-;
-                        }
-                        break;
-                      }
-                    } catch (err: unknown) {
-                      console.warn(`[PDV] Fiscal queue kick exception (attempt ${i + 1}):`, err instanceof Error ? err.message : err);
-                    }
-                    await new Promise((r) => setTimeout(r, delays[i]));
-                  }
-                })();
+                toast.info("🕒 NFC-e enviada e aguardando autorização.", { duration: 6000 });
               }
             } catch (fiscalErr: unknown) {
               const errMsg = await getFunctionErrorMessage(fiscalErr, "Erro desconhecido na emissão fiscal");
