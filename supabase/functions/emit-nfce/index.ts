@@ -12,6 +12,12 @@
  */
 
 import { corsHeaders, createServiceClient, jsonResponse, requireCompanyMembership, requireUser } from "../_shared/auth.ts";
+import {
+  getPaymentChange,
+  getPrimaryPaymentMethod,
+  mapPdvMethodToTPag,
+  parseSalePaymentsJson,
+} from "../_shared/sale-payments.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { compressLogoForNuvemFiscal } from "./compress-logo.ts";
 
@@ -919,7 +925,7 @@ async function handleEmitFromSale(supabase: any, body: any) {
 
   const { data: sale, error: saleErr } = await supabase
     .from("sales")
-    .select("total, payments")
+    .select("total, total_value, payments, payment_method")
     .eq("id", saleId)
     .single();
   if (saleErr || !sale) return jsonResponse({ error: "Venda não encontrada" }, 404);
@@ -968,12 +974,28 @@ async function handleEmitFromSale(supabase: any, body: any) {
   const defaultCst = isSimples ? "102" : "00";
   const defaultPisCofins = isSimples ? "49" : "01";
 
-  const payments = Array.isArray((sale as Record<string, unknown>).payments) ? ((sale as Record<string, unknown>).payments as Record<string, unknown>[]) : [];
-  const paymentMethodMap: Record<string, string> = {
-    dinheiro: "01", credito: "03", debito: "04", pix: "17", voucher: "05",
-  };
-  const mainPay = paymentMethodMap[(payments[0]?.method as string) ?? ""] || "99";
-  const change = Number(payments[0]?.change_amount ?? 0);
+  const saleRow = sale as Record<string, unknown>;
+  const saleTotal = Number(saleRow.total ?? saleRow.total_value ?? 0);
+  let paymentRows = parseSalePaymentsJson(saleRow.payments);
+  if (paymentRows.length === 0) {
+    const pm = saleRow.payment_method;
+    if (typeof pm === "string" && pm.trim()) {
+      paymentRows = [{ method: pm.trim(), amount: saleTotal, change_amount: 0 }];
+    }
+  }
+  const primary = paymentRows[0];
+  const mainPay = mapPdvMethodToTPag(getPrimaryPaymentMethod(primary));
+  const change = getPaymentChange(primary);
+  const fiscalPayments = paymentRows.length > 0
+    ? paymentRows.map((row) => {
+      const m = getPrimaryPaymentMethod(row);
+      const amt = Number(row.amount ?? row.value ?? saleTotal);
+      return {
+        tPag: mapPdvMethodToTPag(m),
+        vPag: Math.round((Number.isFinite(amt) ? amt : saleTotal) * 100) / 100,
+      };
+    })
+    : [{ tPag: mainPay !== "99" ? mainPay : "01", vPag: Math.round(saleTotal * 100) / 100 }];
 
   const fiscalItems = items.map((item: Record<string, unknown>) => {
     const pid = String(item.product_id || "");
@@ -1008,8 +1030,9 @@ async function handleEmitFromSale(supabase: any, body: any) {
     form: {
       nat_op: "VENDA DE MERCADORIA",
       crt,
+      payments: fiscalPayments,
       payment_method: mainPay,
-      payment_value: Number((sale as Record<string, unknown>).total ?? (sale as Record<string, unknown>).total_value ?? 0),
+      payment_value: saleTotal,
       change,
       items: fiscalItems,
     },

@@ -246,7 +246,11 @@ export function usePDV() {
               toast.error(`⚠️ Emissão fiscal falhou: ${errMsg}`, { description: "A venda foi registrada. Reprocesse depois em Fiscal > Documentos.", duration: 10000 });
             }
           }
-        } catch {}
+        } catch (fiscalOuter: unknown) {
+          console.error("[PDV] Falha antes/durante enfileiramento fiscal:", fiscalOuter);
+          const msg = fiscalOuter instanceof Error ? fiscalOuter.message : String(fiscalOuter);
+          toast.error(`⚠️ NFC-e não iniciada: ${msg}`, { description: "A venda foi registrada. Verifique Fiscal > Documentos ou tente reprocessar.", duration: 8000 });
+        }
       }
 
       return { saleId, nfceNumber, fiscalDocId, isContingency: false, accessKey, serie };
