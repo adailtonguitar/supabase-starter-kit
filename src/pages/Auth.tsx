@@ -29,6 +29,24 @@ function translateAuthError(msg: string): string {
   return msg;
 }
 
+/** Evita botão "Processando..." infinito se o Supabase não responder (rede, SW, bloqueio). */
+function withTimeout<T>(promise: Promise<T>, ms: number, timeoutMessage: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error(timeoutMessage)), ms);
+    promise
+      .then((v) => {
+        clearTimeout(t);
+        resolve(v);
+      })
+      .catch((e) => {
+        clearTimeout(t);
+        reject(e);
+      });
+  });
+}
+
+const SIGN_IN_TIMEOUT_MS = 35_000;
+
 export default function Auth() {
   const [email, setEmail] = useState(() => localStorage.getItem("remember-email") || "");
   const [password, setPassword] = useState("");
@@ -269,7 +287,11 @@ export default function Auth() {
         localStorage.removeItem("remember-email");
       }
       sessionStorage.removeItem("needs-password-setup");
-      const { data: signInData, error } = await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password });
+      const { error } = await withTimeout(
+        supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password }),
+        SIGN_IN_TIMEOUT_MS,
+        "Tempo esgotado ao conectar. Verifique sua internet, desative VPN/extensões ou tente outra rede.",
+      );
       if (error) throw error;
 
       // Success — reset attempts
