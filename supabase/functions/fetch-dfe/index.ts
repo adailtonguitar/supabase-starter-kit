@@ -1,4 +1,4 @@
-import { corsHeaders, jsonResponse, requireCompanyMembership, requireUser } from "../_shared/auth.ts";
+import { createServiceClient, getCorsHeaders, requireCompanyMembership, requireUser } from "../_shared/auth.ts";
 
 async function getNuvemFiscalToken(): Promise<string> {
   const clientId = Deno.env.get("NUVEM_FISCAL_CLIENT_ID");
@@ -29,7 +29,7 @@ Deno.serve(async (req) => {
     const auth = await requireUser(req);
     if (!auth.ok) return auth.response;
 
-    const body = await req.json();
+    const body = await req.json().catch(() => ({}));
     const { action, company_id, document_id } = body;
 
     if (!company_id) throw new Error("company_id é obrigatório");
@@ -42,12 +42,16 @@ Deno.serve(async (req) => {
     });
     if (!membership.ok) return membership.response;
 
+    const supabaseAdmin = createServiceClient() as any;
+    const supabase = auth.supabase as any;
+
     // Get company CNPJ
-    const { data: company, error: compErr } = await auth.supabase
+    const { data: companyRow, error: compErr } = await supabase
       .from("companies")
       .select("cnpj, name")
       .eq("id", company_id)
       .single();
+    const company = companyRow as { cnpj?: string; name?: string } | null;
 
     if (compErr || !company?.cnpj) {
       throw new Error("Empresa não encontrada ou CNPJ não cadastrado");
@@ -308,8 +312,8 @@ Deno.serve(async (req) => {
     }
 
     throw new Error(`Ação desconhecida: ${action}`);
-  } catch (err: any) {
-    let userMessage = err.message || "Erro desconhecido";
+  } catch (err: unknown) {
+    let userMessage = err instanceof Error ? err.message : "Erro desconhecido";
 
     if (userMessage.includes("precisa estar cadastrado previamente")) {
       userMessage =
