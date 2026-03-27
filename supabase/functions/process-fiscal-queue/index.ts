@@ -9,6 +9,19 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function visibilityPendingResponse(saleId: string, queueId: string, reason: string) {
+  return new Response(
+    JSON.stringify({
+      success: true,
+      pending: true,
+      sale_id: saleId,
+      queue_id: queueId,
+      message: reason,
+    }),
+    { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+  );
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -177,25 +190,18 @@ Deno.serve(async (req) => {
       }
 
       if (sale && items.length > 0) break;
-      console.log(`[process-fiscal-queue] Attempt ${attempt + 1}/${saleRetryDelays.length}: sale=${!!sale}, items=${items.length}, sale_id=${saleId}, queue_id=${queueId}`);
+      console.log(`[process-fiscal-queue] Attempt ${attempt + 1}/${saleRetryDelays.length}: sale=${!!sale}, items=${items.length}, sale_id=${saleId}, queue_id=${queueId}, attempts=${attempts}`);
       if (attempt < saleRetryDelays.length - 1) await sleep(saleRetryDelays[attempt]);
     }
 
     if (!sale || !items?.length) {
       const errDetail = lastSaleErr?.message || lastItemsErr?.message || "Venda ou itens não encontrados";
+      const pendingReason = `Venda/itens ainda em persistência. Reprocessando em instantes. Motivo: ${errDetail}`;
+      console.log(`[process-fiscal-queue] pending visibility: sale_id=${saleId}, queue_id=${queueId}, attempts=${attempts}, reason=${errDetail}`);
       await supabase.from("fiscal_queue")
-        .update({ status: "pending", last_error: `Aguardando persistência da venda/itens. ${errDetail}` })
+        .update({ status: "pending", last_error: pendingReason, updated_at: new Date().toISOString() })
         .eq("id", queueId);
-      // IMPORTANTE: isso é transitório; não devolva como erro para não travar o PDV.
-      return new Response(
-        JSON.stringify({
-          success: true,
-          pending: true,
-          message: "Venda/itens ainda em persistência. Reprocessando em instantes.",
-          sale_id: saleId,
-        }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return visibilityPendingResponse(saleId, queueId, pendingReason);
     }
 
     const { data: latestDoc } = await supabase
@@ -359,19 +365,17 @@ Deno.serve(async (req) => {
     const fiscalStatus = fiscalData?.status || "pendente";
     if (fiscalStatus !== "autorizada") {
       const pendingMsg = fiscalData?.error || "NFC-e enviada e aguardando autorização";
+      console.log(`[process-fiscal-queue] provider pending: sale_id=${saleId}, queue_id=${queueId}, attempts=${attempts}, reason=${pendingMsg}`);
       await Promise.all([
         supabase.from("fiscal_queue")
-          .update({ status: "pending", last_error: pendingMsg, processed_at: null })
+          .update({ status: "pending", last_error: pendingMsg, processed_at: null, updated_at: new Date().toISOString() })
           .eq("id", queueId),
         supabase.from("sales")
           .update({ status: "pendente_fiscal" })
           .eq("id", saleId)
           .eq("company_id", companyId),
       ]);
-      return new Response(
-        JSON.stringify({ success: true, pending: true, message: pendingMsg, sale_id: saleId }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return visibilityPendingResponse(saleId, queueId, pendingMsg);
     }
 
     // 7️⃣ Sucesso real
