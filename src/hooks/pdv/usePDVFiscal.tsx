@@ -100,7 +100,7 @@ export function usePDVFiscal(companyId: string | null) {
     // Retry específico para evitar erro falso de "Venda não encontrada" (comum em PIX/cartão por timing).
     let fiscalData: any = null;
     let fiscalErr: any = null;
-    for (let attempt = 0; attempt < 4; attempt++) {
+    for (let attempt = 0; attempt < 8; attempt++) {
       const res = await fiscalCircuitBreaker.call(() =>
         supabase.functions.invoke("emit-nfce", {
           body: {
@@ -117,7 +117,7 @@ export function usePDVFiscal(companyId: string | null) {
       const msg = String(fiscalData?.error || fiscalErr?.message || "");
       const shouldRetry = msg.toLowerCase().includes("venda não encontrada") || msg.toLowerCase().includes("venda nao encontrada");
       if (!shouldRetry) break;
-      if (attempt < 3) await new Promise((r) => setTimeout(r, 350));
+      if (attempt < 7) await new Promise((r) => setTimeout(r, 500));
     }
 
     if (fiscalErr || !fiscalData?.success) {
@@ -125,6 +125,13 @@ export function usePDVFiscal(companyId: string | null) {
       const parsedErrorMessage = fiscalErr ? await getFunctionErrorMessage(fiscalErr, fallbackMessage) : fallbackMessage;
       const rejDetail = fiscalData?.rejection_reason || fiscalData?.details?.error?.message || "";
       const errorMsg = rejDetail && !parsedErrorMessage.includes(rejDetail) ? `${parsedErrorMessage} — ${rejDetail}` : parsedErrorMessage;
+      const isNotFoundTiming = errorMsg.toLowerCase().includes("venda não encontrada") || errorMsg.toLowerCase().includes("venda nao encontrada");
+      if (queueId && isNotFoundTiming) {
+        await supabase.from("fiscal_queue")
+          .update({ status: "pending", processed_at: null, last_error: "Venda ainda em propagação; reprocessar emissão." })
+          .eq("id", queueId);
+        return { nfceNumber: "", fiscalDocId: null, accessKey: "", serie: "", status: "pendente" as const };
+      }
       if (queueId) await supabase.from("fiscal_queue").update({ status: "error", last_error: errorMsg }).eq("id", queueId);
       throw new Error(errorMsg);
     }
