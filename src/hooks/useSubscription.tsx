@@ -77,8 +77,24 @@ function calcDaysUntilExpiry(subscriptionEnd: string): number | null {
 }
 
 const SUB_CACHE_KEY = "as_cached_subscription";
+/** Edge `check-subscription` pode levar 10–30s no cold start; isso travava o login no ProtectedRoute. */
+const CHECK_SUBSCRIPTION_INVOKE_MS = 6_000;
+
 function cacheSubState(s: SubscriptionState) { try { localStorage.setItem(SUB_CACHE_KEY, JSON.stringify(s)); } catch { /* */ } }
 function getCachedSubState(): SubscriptionState | null { try { const raw = localStorage.getItem(SUB_CACHE_KEY); if (raw) return JSON.parse(raw); } catch { /* */ } return null; }
+
+async function invokeCheckSubscriptionWithTimeout(): Promise<
+  Awaited<ReturnType<typeof supabase.functions.invoke<Record<string, unknown>>>>
+> {
+  const invoke = supabase.functions.invoke("check-subscription");
+  const timeout = new Promise<{ data: null; error: { message: string } }>((resolve) =>
+    setTimeout(
+      () => resolve({ data: null, error: { message: "check-subscription timeout (fallback DB)" } }),
+      CHECK_SUBSCRIPTION_INVOKE_MS,
+    ),
+  );
+  return Promise.race([invoke, timeout]);
+}
 
 export function SubscriptionProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
@@ -91,10 +107,6 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
     if (!user) { setState({ ...defaultState, loading: false }); return; }
     if (!navigator.onLine) { const cached = getCachedSubState(); setState(cached ? { ...cached, loading: false } : { ...defaultState, loading: false }); return; }
 
-    let createdAt = user.created_at;
-    try { const cuResult = await supabase.from("company_users").select("created_at").eq("user_id", user.id).eq("is_active", true).limit(1).single(); if (cuResult.data?.created_at) createdAt = cuResult.data.created_at; } catch { /* */ }
-
-    // Try edge function first, fall back to direct DB query
     type EdgeSubscriptionPayload = {
       subscribed?: boolean;
       plan_key?: string | null;
@@ -105,9 +117,15 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
       block_reason?: string | null;
     };
 
+    // Paralelo: data de trial + edge (com timeout) — evita somar dois tempos em série.
+    let createdAt = user.created_at;
     let data: EdgeSubscriptionPayload | null = null;
     try {
-      const response = await supabase.functions.invoke("check-subscription");
+      const [cuResult, response] = await Promise.all([
+        supabase.from("company_users").select("created_at").eq("user_id", user.id).eq("is_active", true).limit(1).single(),
+        invokeCheckSubscriptionWithTimeout(),
+      ]);
+      if (cuResult.data?.created_at) createdAt = cuResult.data.created_at;
       if (
         !response.error &&
         response.data &&
@@ -117,7 +135,10 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
         data = response.data as EdgeSubscriptionPayload;
       }
     } catch {
-      // Silently fall through to DB fallback
+      try {
+        const cuResult = await supabase.from("company_users").select("created_at").eq("user_id", user.id).eq("is_active", true).limit(1).single();
+        if (cuResult.data?.created_at) createdAt = cuResult.data.created_at;
+      } catch { /* */ }
     }
 
     if (!data) {

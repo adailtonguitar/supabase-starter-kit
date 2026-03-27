@@ -156,7 +156,8 @@ export function useCompany(): CompanyData {
           if (cuError || !cuData?.company_id) {
             if (retryCount.current < 3) {
               retryCount.current++;
-              retryTimer.current = setTimeout(() => { if (!cancelled) fetchCompany(); }, retryCount.current * 1500);
+              // Antes: 1.5s, 3s, 4.5s — somava muito ao tempo pós-login
+              retryTimer.current = setTimeout(() => { if (!cancelled) fetchCompany(); }, Math.min(400 * retryCount.current, 1200));
               return;
             }
             setCompanyId(null);
@@ -178,7 +179,7 @@ export function useCompany(): CompanyData {
         console.error("[useCompany] Failed to fetch company:", err);
         if (!cancelled && retryCount.current < 3) {
           retryCount.current++;
-          retryTimer.current = setTimeout(() => { if (!cancelled) fetchCompany(); }, retryCount.current * 1500);
+          retryTimer.current = setTimeout(() => { if (!cancelled) fetchCompany(); }, Math.min(400 * retryCount.current, 1200));
           return;
         }
         if (!navigator.onLine && cached?.companyId) setCompanyId(cached.companyId);

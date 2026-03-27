@@ -163,33 +163,57 @@ export function usePDVFiscal(companyId: string | null) {
     }
 
     let fiscalStatus = fiscalData.status || "pendente";
-    let resolvedNumber = fiscalData.nfce_number || fiscalData.numero || fiscalData.number || "";
+    let resolvedNumber = String(fiscalData.nfce_number || fiscalData.numero || fiscalData.number || "");
+    let accessKeyDigits = String(fiscalData.access_key || "").replace(/\D/g, "");
 
-    // Para UX do PDV: aguardar um pouco pela autorização (PIX/cartão costuma levar alguns segundos).
-    // Evita “NFC-e ainda não disponível…”.
-    if (fiscalStatus !== "autorizada") {
-      const accessKey = String(fiscalData.access_key || "");
-      if (accessKey) {
-        const started = Date.now();
-        const MAX_WAIT_MS = 18_000; // ~18s (equilíbrio entre UX e travar caixa)
-        const DELAYS = [1500, 2000, 2500, 3000, 3500, 4000]; // total ~16.5s
-        for (let i = 0; i < DELAYS.length && Date.now() - started < MAX_WAIT_MS; i++) {
-          try {
-            await new Promise((resolve) => setTimeout(resolve, DELAYS[i]));
-            const consulted = await FiscalEmissionService.consultStatus({
-              accessKey,
-              docType: "nfce",
-              companyId,
-            });
-            const consultResult = consulted as FiscalConsultResult;
-            if (consultResult?.success && consultResult?.status === "autorizada") {
-              fiscalStatus = "autorizada";
-              resolvedNumber = String(consultResult?.number || resolvedNumber);
-              break;
-            }
-          } catch {
-            // ignore and keep polling a bit
+    // Nuvem às vezes devolve "pendente" sem chave no JSON; o registro em `fiscal_documents` já tem número/chave.
+    const nfNum = Number(fiscalData.number ?? fiscalData.nfce_number ?? fiscalData.numero);
+    if (accessKeyDigits.length !== 44 && Number.isFinite(nfNum) && companyId) {
+      for (let i = 0; i < 10; i++) {
+        if (i > 0) await new Promise((r) => setTimeout(r, 400));
+        const { data: doc } = await supabase
+          .from("fiscal_documents")
+          .select("access_key, status, number")
+          .eq("company_id", companyId)
+          .eq("doc_type", "nfce")
+          .eq("number", nfNum)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        const row = doc as { access_key?: string | null; status?: string | null; number?: number | null } | null;
+        const k = String(row?.access_key || "").replace(/\D/g, "");
+        if (k.length === 44) {
+          accessKeyDigits = k;
+          if (String(row?.status || "").toLowerCase() === "autorizada") {
+            fiscalStatus = "autorizada";
+            if (row?.number != null) resolvedNumber = String(row.number);
           }
+          break;
+        }
+      }
+    }
+
+    // SEFAZ pode levar 30–60s em horário de pico; antes parávamos em ~18s → "Pendente NFC-e" injusto vs. Histórico.
+    if (fiscalStatus !== "autorizada" && accessKeyDigits.length === 44) {
+      const started = Date.now();
+      const MAX_WAIT_MS = 60_000;
+      const DELAYS_MS = [2000, 2500, 3000, 3500, 4000, 4500, 5000, 5500, 6000, 6500, 7000];
+      for (let i = 0; i < DELAYS_MS.length && Date.now() - started < MAX_WAIT_MS; i++) {
+        try {
+          await new Promise((resolve) => setTimeout(resolve, DELAYS_MS[i]));
+          const consulted = await FiscalEmissionService.consultStatus({
+            accessKey: accessKeyDigits,
+            docType: "nfce",
+            companyId: companyId ?? undefined,
+          });
+          const consultResult = consulted as FiscalConsultResult;
+          if (consultResult?.success && consultResult?.status === "autorizada") {
+            fiscalStatus = "autorizada";
+            resolvedNumber = String(consultResult?.number || resolvedNumber);
+            break;
+          }
+        } catch {
+          /* continua tentando */
         }
       }
     }
@@ -214,7 +238,7 @@ export function usePDVFiscal(companyId: string | null) {
     return {
       nfceNumber: resolvedNumber,
       fiscalDocId: fiscalData.fiscal_doc_id || fiscalData.nuvem_fiscal_id || fiscalData.id,
-      accessKey: fiscalData.access_key || "",
+      accessKey: accessKeyDigits.length === 44 ? accessKeyDigits : String(fiscalData.access_key || ""),
       serie: fiscalData.serie || "",
       status: fiscalStatus,
     };
