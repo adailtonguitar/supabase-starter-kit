@@ -17,6 +17,8 @@ Deno.serve(async (req) => {
 
     const body = await req.json().catch(() => ({}));
     const companyFilter = body.company_id;
+    const saleFilter = body.sale_id;
+    const queueFilter = body.queue_id;
 
     if (companyFilter) {
       const membership = await requireCompanyMembership({
@@ -45,12 +47,11 @@ Deno.serve(async (req) => {
     let pendingQuery: any = supabase
       .from("fiscal_queue")
       .select("*")
-      .eq("status", "pending")
-      .order("created_at", { ascending: true })
-      .limit(1);
-
+      .eq("status", "pending");
     if (companyFilter) pendingQuery = pendingQuery.eq("company_id", companyFilter);
-    pendingQuery = pendingQuery.maybeSingle();
+    if (queueFilter) pendingQuery = pendingQuery.eq("id", String(queueFilter));
+    if (saleFilter) pendingQuery = pendingQuery.eq("sale_id", String(saleFilter));
+    pendingQuery = pendingQuery.order("created_at", { ascending: true }).limit(1).maybeSingle();
     const { data: queueItem } = await pendingQuery;
 
     if (!queueItem) return jsonResponse({ success: true, message: "Nenhum item pendente" }, 200);
