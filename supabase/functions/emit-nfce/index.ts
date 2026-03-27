@@ -154,15 +154,16 @@ async function syncAppLogoToNuvemFiscal(
       return;
     }
 
-    const ext = mime === "image/jpeg" ? "jpg" : "png";
-    const form = new FormData();
-    // OpenAPI: campo do multipart = "Input" (nome exato)
-    form.append("Input", new Blob([buf], { type: mime }), `logo.${ext}`);
-
+    // Nuvem Fiscal: corpo = bytes da imagem (não multipart). Ver suporte:
+    // https://suporte.nuvemfiscal.com.br/t/enviar-logotipo-empresa-content-type-nao-aceita/1024
+    const body = new Uint8Array(buf);
     const putRes = await fetch(`${baseUrl}/empresas/${cnpj}/logotipo`, {
       method: "PUT",
-      headers: { Authorization: `Bearer ${token}` },
-      body: form,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": mime,
+      },
+      body,
     });
 
     if (!putRes.ok) {
