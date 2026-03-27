@@ -54,6 +54,10 @@ function getApiBaseUrl(): string {
     : "https://api.nuvemfiscal.com.br";
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 function onlyDigits(v: unknown): string {
   return String(v ?? "").replace(/[^0-9]/g, "");
 }
@@ -923,11 +927,21 @@ async function handleEmitFromSale(supabase: any, body: any) {
     return jsonResponse({ error: "Dados incompletos: sale_id e company_id são obrigatórios" }, 400);
   }
 
-  const { data: sale, error: saleErr } = await supabase
-    .from("sales")
-    .select("total, total_value, payments, payment_method")
-    .eq("id", saleId)
-    .single();
+  // Em cenários de alta concorrência, a venda pode levar alguns ms para ficar visível após a RPC.
+  // Fazemos retry curto para evitar falha falsa de "Venda não encontrada".
+  let sale: any = null;
+  let saleErr: any = null;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const res = await supabase
+      .from("sales")
+      .select("total, total_value, payments, payment_method")
+      .eq("id", saleId)
+      .maybeSingle();
+    sale = res.data;
+    saleErr = res.error;
+    if (sale) break;
+    if (attempt < 4) await sleep(250);
+  }
   if (saleErr || !sale) return jsonResponse({ error: "Venda não encontrada" }, 404);
 
   // 1) Load sale_items without relying on implicit foreign table joins (can break if relationship name differs)
