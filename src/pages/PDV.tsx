@@ -519,6 +519,7 @@ export default function PDV() {
         setReceipt({
           items: savedItems, total: savedTotal, payments: tefResults, nfceNumber: result.nfceNumber,
           accessKey: result.accessKey, serie: result.serie, isContingency: result.isContingency,
+          isHomologacao: result.isHomologacao,
           saleId: result.saleId, customerCpf: savedClient?.cpf || undefined,
           itemNotes: { ...itemNotes }, promoMatches: { ...pdv.promoMatches },
         });
@@ -611,7 +612,7 @@ export default function PDV() {
         }
       }
 
-      setReceipt({ items: savedItems, total: savedTotal, payments: [{ method: "prazo", approved: true, amount: savedTotal }], nfceNumber: result.nfceNumber, accessKey: result.accessKey, serie: result.serie, isContingency: result.isContingency, saleId: result.saleId, promoMatches: { ...pdv.promoMatches } });
+      setReceipt({ items: savedItems, total: savedTotal, payments: [{ method: "prazo", approved: true, amount: savedTotal }], nfceNumber: result.nfceNumber, accessKey: result.accessKey, serie: result.serie, isContingency: result.isContingency, isHomologacao: result.isHomologacao, saleId: result.saleId, promoMatches: { ...pdv.promoMatches } });
       setFiadoReceipt({ clientName: client.name, cpf: client.cpf, total: savedTotal, items: savedItems.map(i => ({ name: i.name, qty: i.quantity, price: i.price })), companyName: companyName || undefined, companyCnpj: cnpj || undefined, companyPhone: phone || undefined, storeSlogan: slogan || undefined, mode: isSignal ? "sinal" : mode, installments, saleNumber, downPayment: isSignal ? downPaymentAmount : undefined });
       const modeLabel = isSignal ? `com sinal de ${formatCurrency(downPaymentAmount)}` : mode === "fiado" ? "fiado" : `parcelado ${installments}x`;
       if (companyId) { const logUserId = (await supabase.auth.getUser()).data?.user?.id; logAction({ companyId, userId: logUserId, action: "Venda a prazo registrada", module: "vendas", details: `Cliente: ${client.name} | ${modeLabel} | ${formatCurrency(savedTotal)}` }); }

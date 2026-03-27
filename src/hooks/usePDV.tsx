@@ -202,10 +202,13 @@ export function usePDV() {
       let fiscalDocId: string | undefined;
       let accessKey = "";
       let serie = "";
+      /** Cupom PDV: alinha com fiscal_configs.environment (evita "homologação" em produção). */
+      let isHomologacaoReceipt: boolean | undefined = undefined;
 
       if (!options?.skipFiscal) {
         try {
           const { config: simConfig, isHomologacao: isSimHomolog, hasCert: simHasCert } = await getFiscalConfig(companyId, "nfce");
+          isHomologacaoReceipt = isSimHomolog;
           const isSimulation = simConfig && isSimHomolog && !simHasCert;
 
           if (isSimulation && simConfig) {
@@ -255,7 +258,7 @@ export function usePDV() {
         }
       }
 
-      return { saleId, nfceNumber, fiscalDocId, isContingency: false, accessKey, serie };
+      return { saleId, nfceNumber, fiscalDocId, isContingency: false, accessKey, serie, isHomologacao: isHomologacaoReceipt };
     } catch (onlineErr: unknown) {
       if (onlineErr instanceof Error && onlineErr.message === "DISCOUNT_BLOCKED") throw onlineErr;
       if (!isConnectivityError(onlineErr)) {

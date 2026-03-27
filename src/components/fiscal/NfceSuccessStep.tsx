@@ -117,7 +117,7 @@ export function NfceSuccessStep({
         <div class="qr-label">Consulte pelo QR Code</div>
       </div>
       <div class="footer">
-        <div>Ambiente: Homologação - Sem valor fiscal</div>
+        <div>${fiscalEnvironment === "homologacao" ? "Ambiente: Homologação — sem valor fiscal" : "Ambiente: Produção"}</div>
         <div>${new Date().toLocaleString("pt-BR")}</div>
       </div>
       <div class="cut-line">✂ --------------------------------- ✂</div>
