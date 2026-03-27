@@ -96,16 +96,29 @@ export function usePDVFiscal(companyId: string | null) {
     await supabase.from("sales").update({ status: "pendente_fiscal" }).eq("id", saleId);
     if (queueId) await supabase.from("fiscal_queue").update({ status: "processing", attempts: 1 }).eq("id", queueId);
 
-    const { data: fiscalData, error: fiscalErr } = await fiscalCircuitBreaker.call(() =>
-      supabase.functions.invoke("emit-nfce", {
-        body: {
-          action: "emit_from_sale",
-          sale_id: saleId,
-          company_id: companyId,
-          config_id: fiscalConfig?.id,
-        },
-      })
-    );
+    // A venda pode levar alguns ms para ficar visível após a RPC `finalize_sale_atomic`.
+    // Retry específico para evitar erro falso de "Venda não encontrada" (comum em PIX/cartão por timing).
+    let fiscalData: any = null;
+    let fiscalErr: any = null;
+    for (let attempt = 0; attempt < 4; attempt++) {
+      const res = await fiscalCircuitBreaker.call(() =>
+        supabase.functions.invoke("emit-nfce", {
+          body: {
+            action: "emit_from_sale",
+            sale_id: saleId,
+            company_id: companyId,
+            config_id: fiscalConfig?.id,
+          },
+        })
+      );
+      fiscalData = res.data;
+      fiscalErr = res.error;
+
+      const msg = String(fiscalData?.error || fiscalErr?.message || "");
+      const shouldRetry = msg.toLowerCase().includes("venda não encontrada") || msg.toLowerCase().includes("venda nao encontrada");
+      if (!shouldRetry) break;
+      if (attempt < 3) await new Promise((r) => setTimeout(r, 350));
+    }
 
     if (fiscalErr || !fiscalData?.success) {
       const fallbackMessage = fiscalData?.error || "Falha na emissão";
