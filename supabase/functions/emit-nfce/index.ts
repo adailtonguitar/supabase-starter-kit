@@ -927,30 +927,39 @@ async function handleEmitFromSale(supabase: any, body: any) {
     return jsonResponse({ error: "Dados incompletos: sale_id e company_id são obrigatórios" }, 400);
   }
 
-  // Em cenários de alta concorrência, a venda pode levar alguns ms para ficar visível após a RPC.
-  // Fazemos retry curto para evitar falha falsa de "Venda não encontrada".
+  // Em cenários de alta concorrência, venda/itens podem levar alguns ms para ficar visíveis após a RPC.
+  // Retry mais longo para evitar falso negativo no PDV (principalmente PIX/cartão).
   let sale: any = null;
   let saleErr: any = null;
-  for (let attempt = 0; attempt < 5; attempt++) {
+  for (let attempt = 0; attempt < 12; attempt++) {
     const res = await supabase
       .from("sales")
       .select("total, total_value, payments, payment_method")
       .eq("id", saleId)
+      .eq("company_id", companyId)
       .maybeSingle();
     sale = res.data;
     saleErr = res.error;
     if (sale) break;
-    if (attempt < 4) await sleep(250);
+    if (attempt < 11) await sleep(500);
   }
   if (saleErr || !sale) return jsonResponse({ error: "Venda não encontrada" }, 404);
 
   // 1) Load sale_items without relying on implicit foreign table joins (can break if relationship name differs)
-  const { data: items, error: itemsErr } = await supabase
-    .from("sale_items")
-    // Columns confirmed in your DB: product_id, product_name, quantity, unit_price, discount_percent, sale_id, company_id
-    .select("product_id, product_name, quantity, unit_price, discount_percent")
-    .eq("sale_id", saleId)
-    .eq("company_id", companyId);
+  let items: any[] | null = null;
+  let itemsErr: any = null;
+  for (let attempt = 0; attempt < 12; attempt++) {
+    const res = await supabase
+      .from("sale_items")
+      // Columns confirmed in your DB: product_id, product_name, quantity, unit_price, discount_percent, sale_id, company_id
+      .select("product_id, product_name, quantity, unit_price, discount_percent")
+      .eq("sale_id", saleId)
+      .eq("company_id", companyId);
+    items = res.data as any[] | null;
+    itemsErr = res.error;
+    if (Array.isArray(items) && items.length > 0) break;
+    if (attempt < 11) await sleep(500);
+  }
   if (itemsErr) {
     console.error("[emit-nfce] Falha ao carregar sale_items:", itemsErr.message);
     return jsonResponse({ error: "Falha ao carregar itens da venda" }, 500);
