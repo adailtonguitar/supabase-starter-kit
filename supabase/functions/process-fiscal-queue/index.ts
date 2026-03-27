@@ -218,12 +218,14 @@ Deno.serve(async (req) => {
     const isSimples = crt === 1 || crt === 2;
     const defaultCst = isSimples ? "102" : "00";
     const defaultPisCofins = isSimples ? "49" : "01";
-    const payments = (sale.payments as any[]) || [];
-
-    // Mapa de métodos de pagamento → tPag SEFAZ
-    const paymentMethodMap: Record<string, string> = {
-      dinheiro: "01", credito: "03", debito: "04", pix: "17", voucher: "05",
-    };
+    const saleTotal = Number((sale as any).total ?? (sale as any).total_value ?? 0);
+    let paymentRows = parseSalePaymentsJson((sale as any).payments);
+    if (paymentRows.length === 0) {
+      const pm = (sale as any).payment_method;
+      if (typeof pm === "string" && pm.trim()) {
+        paymentRows = [{ method: pm.trim(), amount: saleTotal, change_amount: 0 }];
+      }
+    }
 
     // 🔴 CRÍTICO: Verificar NCM de todos os itens antes de emitir
     const itemsWithoutNcm = items.filter((item: any) => {
@@ -263,7 +265,7 @@ Deno.serve(async (req) => {
       };
     });
 
-    const primary = paymentRows[0];
+    const primary = paymentRows[0] as Record<string, unknown> | undefined;
     const mainPayTpag = mapPdvMethodToTPag(getPrimaryPaymentMethod(primary));
     const fiscalPayments = paymentRows.length > 0
       ? paymentRows.map((row: Record<string, unknown>) => {
