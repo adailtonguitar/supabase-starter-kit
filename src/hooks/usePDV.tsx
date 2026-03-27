@@ -246,17 +246,15 @@ export function usePDV() {
                   toast.info("🕒 NFC-e enviada e aguardando autorização.", { duration: 6000 });
                 }
               } else {
-                // PIX/cartão: emite em segundo plano para não travar o caixa.
-                toast.info("🕒 NFC-e em emissão (PIX/cartão). Você pode seguir atendendo; o cupom ficará disponível em instantes.", { duration: 7000 });
-                processFiscalEmission(saleId, queueId || undefined)
-                  .then((fiscalResult) => {
-                    if (fiscalResult?.status === "autorizada") {
-                      toast.success("✅ NFC-e autorizada!", { description: `Venda #${saleId.substring(0, 8)}`, duration: 5000 });
-                    }
-                  })
-                  .catch(() => {
-                    // Sem toast aqui para não poluir o caixa; ficará para reprocesso/Histórico.
-                  });
+                // PIX/cartão: NÃO bloquear o caixa. Em vez de chamar `emit_from_sale` direto,
+                // dispare o processador da fila (mesmo fluxo do "Histórico > Emitir").
+                toast.info("🕒 NFC-e será emitida em segundo plano (PIX/cartão). Você pode seguir atendendo.", { duration: 7000 });
+                // Kick the queue processor once (it processes the oldest pending item, optionally filtered by company_id)
+                supabase.functions.invoke("process-fiscal-queue", { body: { company_id: companyId } }).catch(() => {});
+                // Safety kick after a short delay (covers transient timing)
+                setTimeout(() => {
+                  supabase.functions.invoke("process-fiscal-queue", { body: { company_id: companyId } }).catch(() => {});
+                }, 2500);
               }
             } catch (fiscalErr: unknown) {
               const errMsg = await getFunctionErrorMessage(fiscalErr, "Erro desconhecido na emissão fiscal");
