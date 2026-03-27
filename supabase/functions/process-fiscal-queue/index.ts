@@ -131,18 +131,44 @@ Deno.serve(async (req) => {
     ]);
 
     for (let attempt = 0; attempt < 12; attempt++) {
-      const [saleRes, itemsRes] = await Promise.all([
-        supabase.from("sales").select("*").eq("id", saleId).eq("company_id", companyId).maybeSingle(),
-        supabase
+      const saleRes = await supabase
+        .from("sales")
+        .select("*")
+        .eq("id", saleId)
+        .maybeSingle();
+
+      sale = saleRes.data;
+      lastSaleErr = saleRes.error;
+
+      // Validate tenant match using the sale row itself.
+      if (sale && String((sale as any).company_id || "") !== String(companyId)) {
+        await supabase.from("fiscal_queue")
+          .update({ status: "error", last_error: "Venda não pertence à empresa deste processamento." })
+          .eq("id", queueId);
+        return new Response(
+          JSON.stringify({ success: false, error: "Venda não pertence à empresa", sale_id: saleId }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Some databases/paths may have sale_items.company_id null; prefer strict filter but fallback to sale_id only.
+      const itemsStrict = await supabase
+        .from("sale_items")
+        .select("*, products(ncm, cfop, csosn, cst_icms, cst_pis, cst_cofins, aliq_icms, origem, mva)")
+        .eq("sale_id", saleId)
+        .eq("company_id", companyId);
+
+      items = (itemsStrict.data as any[]) || [];
+      lastItemsErr = itemsStrict.error;
+
+      if (!items.length) {
+        const itemsLoose = await supabase
           .from("sale_items")
           .select("*, products(ncm, cfop, csosn, cst_icms, cst_pis, cst_cofins, aliq_icms, origem, mva)")
-          .eq("sale_id", saleId)
-          .eq("company_id", companyId),
-      ]);
-      sale = saleRes.data;
-      items = (itemsRes.data as any[]) || [];
-      lastSaleErr = saleRes.error;
-      lastItemsErr = itemsRes.error;
+          .eq("sale_id", saleId);
+        items = (itemsLoose.data as any[]) || [];
+        lastItemsErr = itemsLoose.error ?? lastItemsErr;
+      }
 
       if (sale && items.length > 0) break;
       if (attempt < 11) await sleep(400);
