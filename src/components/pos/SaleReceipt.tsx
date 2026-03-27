@@ -467,6 +467,66 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
       return;
     }
 
+    // Se já temos a chave, mas ainda não temos o número/estado local,
+    // o caso típico é: NFC-e enviada e aguardando autorização.
+    // Para UX do PDV: aguardar automaticamente a autorização e abrir o PDF assim que liberar.
+    if (accessKey && !isSimulatedCurrent) {
+      setFetchingFiscal(true);
+      const started = Date.now();
+      const MAX_WAIT_MS = 60_000;
+      const poll = async (): Promise<boolean> => {
+        // Backoff leve
+        const delays = [1500, 2000, 2500, 3000, 4000, 5000, 6000, 8000, 10_000];
+        for (let i = 0; i < delays.length && Date.now() - started < MAX_WAIT_MS; i++) {
+          try {
+            const consulted = await FiscalEmissionService.consultStatus({
+              accessKey: String(accessKey),
+              docType: "nfce",
+              companyId: undefined, // consultStatus já resolve pelo backend; companyId opcional aqui
+            } as any);
+            const status = String((consulted as any)?.status || "").toLowerCase();
+            if ((consulted as any)?.success && status === "autorizada") {
+              const num = (consulted as any)?.number;
+              if (num) setNfceNumber(String(num));
+              return true;
+            }
+          } catch {
+            // ignore and keep polling
+          }
+          await new Promise((r) => setTimeout(r, delays[i]));
+        }
+        return false;
+      };
+
+      poll()
+        .then((authorized) => {
+          if (!authorized) {
+            setFetchingFiscal(false);
+            toast.info("NFC-e enviada e ainda aguardando autorização. Aguarde mais um pouco e clique em Cupom Fiscal novamente.", { duration: 7000 });
+            return;
+          }
+          return FiscalEmissionService.downloadPdf(String(accessKey), "nfce")
+            .then((result: any) => {
+              setFetchingFiscal(false);
+              const pdfBase64 = result?.pdf_base64 || result?.base64;
+              if (pdfBase64) {
+                openPdfBase64(String(pdfBase64));
+                return;
+              }
+              toast.error(`Erro da Nuvem Fiscal: ${result?.error || "Não foi possível obter o PDF."}`, { duration: 6000 });
+            })
+            .catch(() => {
+              setFetchingFiscal(false);
+              toast.error("Erro ao baixar o PDF fiscal. Tente novamente.", { duration: 6000 });
+            });
+        })
+        .catch(() => {
+          setFetchingFiscal(false);
+          toast.error("Falha ao consultar autorização da NFC-e. Tente novamente.", { duration: 6000 });
+        });
+      return;
+    }
+
     if (!saleId) {
       toast.info("NFC-e ainda não disponível para esta venda.", { duration: 5000 });
       return;
