@@ -1,4 +1,4 @@
-import { createServiceClient, getCorsHeaders, requireCompanyMembership, requireUser } from "../_shared/auth.ts";
+import { createServiceClient, getCorsHeaders, jsonResponse, requireCompanyMembership, requireUser } from "../_shared/auth.ts";
 
 async function getNuvemFiscalToken(): Promise<string> {
   const clientId = Deno.env.get("NUVEM_FISCAL_CLIENT_ID");
