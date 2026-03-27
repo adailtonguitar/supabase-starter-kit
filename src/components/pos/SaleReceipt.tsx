@@ -690,13 +690,12 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
       return;
     }
 
-    Promise.resolve(
-      supabase
-        .from("sales")
-        .select("company_id, nfce_number, status")
-        .eq("id", saleId)
-        .maybeSingle()
-    ).then(({ data: fiscalDoc }) => {
+    supabase
+      .from("sales")
+      .select("company_id, nfce_number, status")
+      .eq("id", saleId)
+      .maybeSingle()
+      .then(({ data: fiscalDoc }) => {
         const saleRow = fiscalDoc as any;
         const companyId = saleRow?.company_id as string | undefined;
         const nfceNumRaw = saleRow?.nfce_number as string | undefined;
