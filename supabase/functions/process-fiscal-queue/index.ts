@@ -47,11 +47,15 @@ Deno.serve(async (req) => {
     if (companyFilter) stuckQuery = stuckQuery.eq("company_id", companyFilter);
     await stuckQuery;
 
-    // 2️⃣ Buscar próximo item pendente
+    // 2️⃣ Buscar próximo item
+    // - Sem filtros: pega o mais antigo em pending
+    // - Com queue_id/sale_id: permite também status=processing (idempotência) para não "travar" até o reset de 5 min
+    const hasSpecificTarget = Boolean(queueFilter || saleFilter);
     let pendingQuery: any = supabase
       .from("fiscal_queue")
-      .select("*")
-      .eq("status", "pending");
+      .select("*");
+    if (!hasSpecificTarget) pendingQuery = pendingQuery.eq("status", "pending");
+    else pendingQuery = pendingQuery.in("status", ["pending", "processing"]);
     if (companyFilter) pendingQuery = pendingQuery.eq("company_id", companyFilter);
     if (queueFilter) pendingQuery = pendingQuery.eq("id", String(queueFilter));
     if (saleFilter) pendingQuery = pendingQuery.eq("sale_id", String(saleFilter));
@@ -83,7 +87,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 3️⃣ Marcar como processing
+    // 3️⃣ Marcar como processing (se já estiver processing, só atualiza attempts/updated_at)
     await supabase
       .from("fiscal_queue")
       .update({ status: "processing", attempts, updated_at: new Date().toISOString() })
