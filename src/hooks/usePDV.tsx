@@ -249,12 +249,28 @@ export function usePDV() {
                 // PIX/cartão: NÃO bloquear o caixa. Em vez de chamar `emit_from_sale` direto,
                 // dispare o processador da fila (mesmo fluxo do "Histórico > Emitir").
                 toast.info("🕒 NFC-e será emitida em segundo plano (PIX/cartão). Você pode seguir atendendo.", { duration: 7000 });
-                // Kick the queue processor for THIS sale (matches "Histórico > Emitir", but without depending on timing/ordering)
-                supabase.functions.invoke("process-fiscal-queue", { body: { company_id: companyId, sale_id: saleId, queue_id: queueId || undefined } }).catch(() => {});
-                // Safety kick after a short delay (covers transient timing)
-                setTimeout(() => {
-                  supabase.functions.invoke("process-fiscal-queue", { body: { company_id: companyId, sale_id: saleId, queue_id: queueId || undefined } }).catch(() => {});
-                }, 2500);
+                // Kick the queue processor for THIS sale and keep retrying briefly (handles transient DB visibility).
+                // This mirrors the manual "Histórico > Emitir" behavior but without requiring user action.
+                const kick = () =>
+                  supabase.functions.invoke("process-fiscal-queue", {
+                    body: { company_id: companyId, sale_id: saleId, queue_id: queueId || undefined },
+                  });
+
+                (async () => {
+                  const started = Date.now();
+                  const MAX_WAIT_MS = 30_000;
+                  const delays = [800, 1200, 1500, 2000, 2500, 3000, 4000, 5000, 6000];
+                  for (let i = 0; i < delays.length && Date.now() - started < MAX_WAIT_MS; i++) {
+                    try {
+                      const { data } = await kick();
+                      // If processor reports pending=false (or no pending flag), we can stop.
+                      if (data && (data as any).success === true && !(data as any).pending) break;
+                    } catch {
+                      // ignore and try again
+                    }
+                    await new Promise((r) => setTimeout(r, delays[i]));
+                  }
+                })();
               }
             } catch (fiscalErr: unknown) {
               const errMsg = await getFunctionErrorMessage(fiscalErr, "Erro desconhecido na emissão fiscal");
