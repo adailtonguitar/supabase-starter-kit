@@ -532,6 +532,86 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
       return;
     }
 
+    // Sem chave/número ainda (muito comum em PIX/cartão): aguardar a criação/autorizar do fiscal_documents pelo sale_id.
+    // Isso evita depender de sales.nfce_number (que pode demorar a ser preenchido) e elimina o "tente novamente".
+    setFetchingFiscal(true);
+    const started = Date.now();
+    const MAX_WAIT_MS = 60_000;
+    const delays = [1200, 1500, 2000, 2500, 3000, 4000, 5000, 6000, 8000, 10_000];
+
+    const waitForDocBySaleId = async () => {
+      // 1) Descobre company_id da venda
+      const { data: saleRow } = await supabase
+        .from("sales")
+        .select("company_id")
+        .eq("id", saleId)
+        .maybeSingle();
+      const cid = (saleRow as any)?.company_id as string | undefined;
+      if (!cid) return null;
+
+      // 2) Poll do último fiscal_document dessa venda
+      for (let i = 0; i < delays.length && Date.now() - started < MAX_WAIT_MS; i++) {
+        const { data: docRow } = await supabase
+          .from("fiscal_documents")
+          .select("number, access_key, serie, status")
+          .eq("company_id", cid)
+          .eq("sale_id", saleId)
+          .eq("doc_type", "nfce")
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        const doc = docRow as any;
+        if (doc?.status === "autorizada" && doc?.access_key) return doc;
+        if (doc?.status === "simulado" && doc?.number) return doc;
+        await new Promise((r) => setTimeout(r, delays[i]));
+      }
+      return null;
+    };
+
+    waitForDocBySaleId()
+      .then((doc: any | null) => {
+        if (!doc) {
+          setFetchingFiscal(false);
+          toast.info("NFC-e enviada e ainda aguardando autorização. Aguarde mais um pouco e clique em Cupom Fiscal novamente.", { duration: 7000 });
+          return;
+        }
+
+        const isSimulated = doc?.status === "simulado";
+        const foundNumber = isSimulated ? `SIM-${String(doc.number)}` : String(doc.number || "");
+        const foundKey = doc?.access_key || undefined;
+        const foundSerie = doc?.serie || undefined;
+        if (foundNumber) setNfceNumber(foundNumber);
+        if (foundKey) setAccessKey(foundKey);
+        if (foundSerie) setSerie(foundSerie);
+
+        if (!isSimulated && foundKey) {
+          return FiscalEmissionService.downloadPdf(String(foundKey), "nfce")
+            .then((result: any) => {
+              setFetchingFiscal(false);
+              const pdfBase64 = result?.pdf_base64 || result?.base64;
+              if (pdfBase64) {
+                openPdfBase64(String(pdfBase64));
+                return;
+              }
+              toast.error(`Erro da Nuvem Fiscal: ${result?.error || "Não foi possível obter o PDF."}`, { duration: 6000 });
+            })
+            .catch(() => {
+              setFetchingFiscal(false);
+              toast.error("Erro ao baixar o PDF fiscal. Tente novamente.", { duration: 6000 });
+            });
+        }
+
+        // Simulação: imprime template local
+        setFetchingFiscal(false);
+        if (foundNumber) printFiscalCupom(foundNumber, foundKey, foundSerie);
+      })
+      .catch(() => {
+        setFetchingFiscal(false);
+        toast.error("Falha ao localizar a NFC-e desta venda. Tente novamente.", { duration: 6000 });
+      });
+    return;
+
     setFetchingFiscal(true);
     const printWindow = window.open("", "_blank", "width=320,height=700");
     if (!printWindow) {
