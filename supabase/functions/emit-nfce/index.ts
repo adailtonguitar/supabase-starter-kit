@@ -13,6 +13,7 @@
 
 import { corsHeaders, createServiceClient, jsonResponse, requireCompanyMembership, requireUser } from "../_shared/auth.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { compressLogoForNuvemFiscal } from "./compress-logo.ts";
 
 // ─── Nuvem Fiscal Auth ───
 async function getNuvemFiscalToken(): Promise<string> {
@@ -139,12 +140,14 @@ async function syncAppLogoToNuvemFiscal(
     if (!loaded) return;
 
     let { buf } = loaded;
+    let mime = inferLogoMime(loaded.mime, logoUrl);
     if (buf.byteLength > 200 * 1024) {
-      console.warn("[emit-nfce] Logo acima de 200KB; Nuvem Fiscal aceita no máx. 200KB.");
-      return;
+      const compressed = compressLogoForNuvemFiscal(buf);
+      if (!compressed) return;
+      buf = compressed;
+      mime = "image/jpeg";
     }
 
-    let mime = inferLogoMime(loaded.mime, logoUrl);
     if (!mime && logoUrl.toLowerCase().includes(".jpg")) mime = "image/jpeg";
     if (!mime) {
       console.warn("[emit-nfce] Logo deve ser PNG ou JPEG. Content-Type:", loaded.mime);
