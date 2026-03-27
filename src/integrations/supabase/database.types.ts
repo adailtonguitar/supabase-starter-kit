@@ -1456,6 +1456,7 @@ export type Database = {
         Row: {
           id: string
           company_id: string
+          sale_id: string | null
           doc_type: string
           number: number | null
           serie: number | null
@@ -1487,6 +1488,7 @@ export type Database = {
         Insert: {
           id?: string
           company_id: string
+          sale_id?: string | null
           doc_type: string
           number?: number | null
           serie?: number | null
@@ -1518,6 +1520,7 @@ export type Database = {
         Update: {
           id?: string
           company_id?: string
+          sale_id?: string | null
           doc_type?: string
           number?: number | null
           serie?: number | null

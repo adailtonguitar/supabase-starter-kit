@@ -109,7 +109,8 @@ export function usePDVFiscal(companyId: string | null) {
       } catch {}
     }
 
-    await supabase.from("sales").update({ status: "pendente_fiscal" }).eq("id", saleId);
+    // Não marcar pendente_fiscal antes do emit: se a função falhar, a venda ficaria presa como pendente.
+    // O `handleEmit` na edge já define pendente_fiscal ou emitida conforme o retorno da SEFAZ.
     if (queueId) await supabase.from("fiscal_queue").update({ status: "processing", attempts: 1 }).eq("id", queueId);
 
     // A venda pode levar alguns ms para ficar visível após a RPC `finalize_sale_atomic`.
@@ -162,6 +163,13 @@ export function usePDVFiscal(companyId: string | null) {
       throw new Error(errorMsg);
     }
 
+    // Reconcilia com a fila (consulta SEFAZ/Nuvem quando o documento tem sale_id — migration fiscal_documents.sale_id).
+    if (companyId) {
+      void supabase.functions
+        .invoke("process-fiscal-queue", { body: { company_id: companyId, sale_id: saleId } })
+        .catch(() => {});
+    }
+
     let fiscalStatus = fiscalData.status || "pendente";
     let resolvedNumber = String(fiscalData.nfce_number || fiscalData.numero || fiscalData.number || "");
     let accessKeyDigits = String(fiscalData.access_key || "").replace(/\D/g, "");
@@ -169,8 +177,8 @@ export function usePDVFiscal(companyId: string | null) {
     // Nuvem às vezes devolve "pendente" sem chave no JSON; o registro em `fiscal_documents` já tem número/chave.
     const nfNum = Number(fiscalData.number ?? fiscalData.nfce_number ?? fiscalData.numero);
     if (accessKeyDigits.length !== 44 && Number.isFinite(nfNum) && companyId) {
-      for (let i = 0; i < 10; i++) {
-        if (i > 0) await new Promise((r) => setTimeout(r, 400));
+      for (let i = 0; i < 45; i++) {
+        if (i > 0) await new Promise((r) => setTimeout(r, 1500));
         const { data: doc } = await supabase
           .from("fiscal_documents")
           .select("access_key, status, number")

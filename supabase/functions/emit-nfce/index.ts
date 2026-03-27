@@ -800,7 +800,7 @@ async function handleEmit(supabase: any, body: any) {
     const rejCode = nfData?.codigo_status || nfData?.cStat || null;
 
     // Salvar como rejeitada com protocolo, chave e motivo para rastreabilidade e reprocessamento
-    await supabase.from("fiscal_documents").insert({
+    const rejRow: Record<string, unknown> = {
       company_id,
       doc_type: "nfce",
       number: numero,
@@ -815,7 +815,9 @@ async function handleEmit(supabase: any, body: any) {
       protocol_number: rejProtocol,
       rejection_reason: rejCode ? `[${rejCode}] ${rejReason}` : rejReason,
       is_contingency: false,
-    });
+    };
+    if (sale_id) rejRow.sale_id = String(sale_id);
+    await supabase.from("fiscal_documents").insert(rejRow);
 
     return jsonResponse({ success: false, error: errMsg, rejection_reason: rejReason, details: nfData }, 400);
   }
@@ -838,7 +840,7 @@ async function handleEmit(supabase: any, body: any) {
 
   // Salvar documento fiscal
   const mainPayMethod = detPag[0]?.tPag || "99";
-  const insertRes = await supabase.from("fiscal_documents").insert({
+  const insertRow: Record<string, unknown> = {
     company_id,
     doc_type: "nfce",
     number: numero,
@@ -852,7 +854,11 @@ async function handleEmit(supabase: any, body: any) {
     customer_cpf_cnpj: form.customer_doc || null,
     payment_method: mainPayMethod,
     is_contingency: isContingency,
-  });
+  };
+  // Obrigatório para process-fiscal-queue consultar/reconciliar sem segunda emissão.
+  if (sale_id) insertRow.sale_id = String(sale_id);
+
+  const insertRes = await supabase.from("fiscal_documents").insert(insertRow);
   if (insertRes.error) {
     console.error("[emit-nfce] Falha ao registrar fiscal_documents:", insertRes.error.message);
     return jsonResponse({ success: false, error: "Falha ao registrar documento fiscal no banco" }, 500);
