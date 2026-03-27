@@ -231,15 +231,32 @@ export function usePDV() {
           } else {
             const queueId = await enqueueFiscal(saleId);
             try {
-              const fiscalResult = await processFiscalEmission(saleId, queueId || undefined);
-              fiscalDocId = fiscalResult.fiscalDocId || undefined;
-              accessKey = fiscalResult.accessKey || accessKey;
-              serie = fiscalResult.serie || serie;
-              if (fiscalResult.status === "autorizada") {
-                nfceNumber = fiscalResult.nfceNumber || "";
-                toast.success("✅ NFC-e emitida com sucesso!", { description: `Número: ${nfceNumber}`, duration: 5000 });
+              const mainMethod = String(payments?.[0]?.method || "").toLowerCase();
+              const shouldWaitInline = mainMethod === "dinheiro";
+
+              if (shouldWaitInline) {
+                const fiscalResult = await processFiscalEmission(saleId, queueId || undefined);
+                fiscalDocId = fiscalResult.fiscalDocId || undefined;
+                accessKey = fiscalResult.accessKey || accessKey;
+                serie = fiscalResult.serie || serie;
+                if (fiscalResult.status === "autorizada") {
+                  nfceNumber = fiscalResult.nfceNumber || "";
+                  toast.success("✅ NFC-e emitida com sucesso!", { description: `Número: ${nfceNumber}`, duration: 5000 });
+                } else {
+                  toast.info("🕒 NFC-e enviada e aguardando autorização.", { duration: 6000 });
+                }
               } else {
-                toast.info("🕒 NFC-e enviada e aguardando autorização.", { duration: 6000 });
+                // PIX/cartão: emite em segundo plano para não travar o caixa.
+                toast.info("🕒 NFC-e em emissão (PIX/cartão). Você pode seguir atendendo; o cupom ficará disponível em instantes.", { duration: 7000 });
+                processFiscalEmission(saleId, queueId || undefined)
+                  .then((fiscalResult) => {
+                    if (fiscalResult?.status === "autorizada") {
+                      toast.success("✅ NFC-e autorizada!", { description: `Venda #${saleId.substring(0, 8)}`, duration: 5000 });
+                    }
+                  })
+                  .catch(() => {
+                    // Sem toast aqui para não poluir o caixa; ficará para reprocesso/Histórico.
+                  });
               }
             } catch (fiscalErr: unknown) {
               const errMsg = await getFunctionErrorMessage(fiscalErr, "Erro desconhecido na emissão fiscal");
