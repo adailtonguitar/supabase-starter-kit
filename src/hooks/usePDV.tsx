@@ -249,11 +249,11 @@ export function usePDV() {
                 // PIX/cartão: NÃO bloquear o caixa. Em vez de chamar `emit_from_sale` direto,
                 // dispare o processador da fila (mesmo fluxo do "Histórico > Emitir").
                 toast.info("🕒 NFC-e será emitida em segundo plano (PIX/cartão). Você pode seguir atendendo.", { duration: 7000 });
-                // Kick the queue processor once (it processes the oldest pending item, optionally filtered by company_id)
-                supabase.functions.invoke("process-fiscal-queue", { body: { company_id: companyId } }).catch(() => {});
+                // Kick the queue processor for THIS sale (matches "Histórico > Emitir", but without depending on timing/ordering)
+                supabase.functions.invoke("process-fiscal-queue", { body: { company_id: companyId, sale_id: saleId, queue_id: queueId || undefined } }).catch(() => {});
                 // Safety kick after a short delay (covers transient timing)
                 setTimeout(() => {
-                  supabase.functions.invoke("process-fiscal-queue", { body: { company_id: companyId } }).catch(() => {});
+                  supabase.functions.invoke("process-fiscal-queue", { body: { company_id: companyId, sale_id: saleId, queue_id: queueId || undefined } }).catch(() => {});
                 }, 2500);
               }
             } catch (fiscalErr: unknown) {
