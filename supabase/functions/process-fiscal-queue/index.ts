@@ -153,8 +153,14 @@ Deno.serve(async (req) => {
       await supabase.from("fiscal_queue")
         .update({ status: "pending", last_error: `Aguardando persistência da venda/itens. ${errDetail}` })
         .eq("id", queueId);
+      // IMPORTANTE: isso é transitório; não devolva como erro para não travar o PDV.
       return new Response(
-        JSON.stringify({ success: false, error: "Venda ou itens não encontrados", sale_id: saleId }),
+        JSON.stringify({
+          success: true,
+          pending: true,
+          message: "Venda/itens ainda em persistência. Reprocessando em instantes.",
+          sale_id: saleId,
+        }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
