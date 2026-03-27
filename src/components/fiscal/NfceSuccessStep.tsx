@@ -24,6 +24,8 @@ interface PaymentOption {
 
 interface NfceSuccessStepProps {
   saleId?: string;
+  /** Ambiente da NFC-e conforme fiscal_configs (não hardcoded). */
+  fiscalEnvironment?: "homologacao" | "producao";
   items: NfceItem[];
   paymentValue: number;
   paymentMethod: string;
@@ -36,6 +38,7 @@ interface NfceSuccessStepProps {
 
 export function NfceSuccessStep({
   saleId,
+  fiscalEnvironment = "producao",
   items,
   paymentValue,
   paymentMethod,
@@ -45,6 +48,11 @@ export function NfceSuccessStep({
   paymentOptions,
   onClose,
 }: NfceSuccessStepProps) {
+  const ambienteLabel =
+    fiscalEnvironment === "homologacao"
+      ? "Ambiente: Homologação — sem valor fiscal"
+      : "Ambiente: Produção";
+
   const handlePrint = () => {
     const cupom = document.getElementById("nfce-cupom");
     if (!cupom) return;
@@ -187,7 +195,7 @@ export function NfceSuccessStep({
         </div>
 
         <div className="text-center text-[9px] text-gray-500 pt-1">
-          <p>Ambiente: Homologação - Sem valor fiscal</p>
+          <p>{ambienteLabel}</p>
           <p className="mt-0.5">{new Date().toLocaleString("pt-BR")}</p>
         </div>
       </div>

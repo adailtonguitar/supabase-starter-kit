@@ -99,6 +99,7 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
   const plan = usePlanFeatures();
   const { data: allProducts = [] } = useProducts();
   const [emitting, setEmitting] = useState(false);
+  const [successFiscalEnvironment, setSuccessFiscalEnvironment] = useState<"homologacao" | "producao">("producao");
   const [step, setStep] = useState<"edit" | "success" | "error">("edit");
   const [errorMsg, setErrorMsg] = useState("");
   const [rejection, setRejection] = useState<SefazRejection | null>(null);
@@ -188,6 +189,7 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
   useEffect(() => {
     if (!open || !sale) return;
     setStep("edit");
+    setSuccessFiscalEnvironment("producao");
     setActiveTab("items");
 
     let parsedItems: Array<Record<string, unknown>> = [];
@@ -438,6 +440,8 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
         setEmitting(false);
         return;
       }
+
+      setSuccessFiscalEnvironment(nfceConfig.environment === "homologacao" ? "homologacao" : "producao");
 
       const isHomologacao = nfceConfig.environment === "homologacao";
       const hasCert = !!(nfceConfig.certificate_path || (nfceConfig as Record<string, unknown>).a3_thumbprint);
@@ -968,6 +972,7 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
         {step === "success" && (
           <NfceSuccessStep
             saleId={sale?.id}
+            fiscalEnvironment={successFiscalEnvironment}
             items={form.items}
             paymentValue={form.paymentValue}
             paymentMethod={form.paymentMethod}

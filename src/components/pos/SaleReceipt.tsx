@@ -66,6 +66,8 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
   const [accessKey, setAccessKey] = useState(initialAccessKey);
   const [serie, setSerie] = useState(initialSerie);
   const [fetchingFiscal, setFetchingFiscal] = useState(false);
+  /** Ambiente real gravado em fiscal_documents (evita cupom "homologação" com nota em produção). */
+  const [resolvedDocEnvironment, setResolvedDocEnvironment] = useState<"homologacao" | "producao" | null>(null);
   const formatCurrency = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 
   const methodLabel = (m: string) => {
@@ -96,6 +98,47 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
     // Keep the URL alive for a bit; the tab will load it.
     setTimeout(() => URL.revokeObjectURL(url), 60_000);
   };
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!saleId) {
+      setResolvedDocEnvironment(null);
+      return;
+    }
+    const keyDigits = String(initialAccessKey || "").replace(/\D/g, "");
+    (async () => {
+      const { data: bySale } = await supabase
+        .from("fiscal_documents")
+        .select("environment")
+        .eq("sale_id", saleId)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (cancelled) return;
+      const row = bySale as { environment?: string } | null;
+      if (row?.environment) {
+        setResolvedDocEnvironment(String(row.environment).toLowerCase() === "producao" ? "producao" : "homologacao");
+        return;
+      }
+      if (keyDigits.length === 44) {
+        const { data: byKey } = await supabase
+          .from("fiscal_documents")
+          .select("environment")
+          .eq("access_key", keyDigits)
+          .maybeSingle();
+        if (cancelled) return;
+        const r2 = byKey as { environment?: string } | null;
+        if (r2?.environment) {
+          setResolvedDocEnvironment(String(r2.environment).toLowerCase() === "producao" ? "producao" : "homologacao");
+          return;
+        }
+      }
+      setResolvedDocEnvironment(null);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [saleId, initialAccessKey]);
 
   // Background: acompanha emissão por sale_id sem travar o caixa.
   useEffect(() => {
@@ -292,7 +335,10 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
       currentNfceNumber.startsWith("SIM-") ||
       currentNfceNumber.startsWith("TESTE-") ||
       currentNfceNumber.startsWith("DEMO-");
-    const isHomolog = isHomologacao ?? isSimulation;
+    const isHomolog =
+      resolvedDocEnvironment !== null
+        ? resolvedDocEnvironment === "homologacao"
+        : isHomologacao === true || isSimulation;
 
     // Clean number: remove prefixes for display
     const cleanNumber = currentNfceNumber.replace(/^(SIM-|TESTE-|DEMO-|CONT-)/, "");
@@ -484,7 +530,7 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
       </html>
     `);
     printWindow.document.close();
-  }, [items, total, payments, changeAmount, companyName, companyCnpj, companyIe, companyPhone, companyAddress, companyUf, logoUrl, saleId, customerCpf, protocolNumber, protocolDate, isHomologacao, tributosAprox]);
+  }, [items, total, payments, changeAmount, companyName, companyCnpj, companyIe, companyPhone, companyAddress, companyUf, logoUrl, saleId, customerCpf, protocolNumber, protocolDate, isHomologacao, tributosAprox, resolvedDocEnvironment]);
 
   const handlePrintFiscal = useCallback(() => {
     if (fetchingFiscal) return;
