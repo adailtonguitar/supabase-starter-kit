@@ -407,9 +407,15 @@ export default function PDV() {
       lastAddedTimerRef.current = setTimeout(() => setLastAddedItem(null), 3000);
       // Fiscal validation warning on add
       if (canUseFiscal && !skipFiscalEmission) {
+        const gaps: string[] = [];
         const ncm = (product.ncm || "").replace(/\D/g, "");
-        if (!ncm || ncm.length !== 8 || ncm === "00000000") {
-          toast.warning(`⚠️ "${product.name}" está sem NCM válido. Corrija antes de finalizar.`, { duration: 4000, id: `fiscal-warn-${product.id}` });
+        if (!ncm || ncm.length !== 8 || ncm === "00000000") gaps.push("NCM");
+        const cfop = (product.cfop || "").trim();
+        if (!cfop || cfop.length !== 4) gaps.push("CFOP");
+        if (!(product.cst_icms || "").trim() && !(product.csosn || "").trim()) gaps.push("CST/CSOSN");
+        if (product.origem === undefined || product.origem === null) gaps.push("Origem");
+        if (gaps.length > 0) {
+          toast.warning(`⚠️ "${product.name}" — dados fiscais incompletos: ${gaps.join(", ")}`, { duration: 4000, id: `fiscal-warn-${product.id}` });
         }
       }
     }
