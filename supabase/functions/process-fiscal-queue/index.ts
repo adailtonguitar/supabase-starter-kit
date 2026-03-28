@@ -310,6 +310,21 @@ async function processOneItem(
         consultedData.number || (latestDoc as any).number,
       );
     }
+
+    // ⚠️ CRITICAL FIX: Se já existe documento com access_key, NUNCA re-emitir.
+    // Re-emissão cria numeração duplicada e loop infinito (PIX/cartão demoram
+    // milissegundos a mais na SEFAZ, retornando "pendente" antes de autorizar).
+    // Apenas aguardar o próximo ciclo de consulta.
+    const consultStatus = String(consultedData?.status || "pendente").toLowerCase();
+    const consultErrMsg = consultError?.message || String(consultedData?.error || "");
+
+    if (consultStatus === "rejeitada" || consultStatus === "cancelada" || consultStatus === "denegada") {
+      return markPermanentError(`[SEFAZ consulta] ${consultErrMsg || consultStatus}`);
+    }
+
+    // Documento existe na SEFAZ mas ainda pendente → aguardar, NÃO re-emitir
+    const waitMsg = `Documento já enviado (chave: ${String((latestDoc as any).access_key).slice(-8)}), aguardando autorização SEFAZ`;
+    return markTechnicalRetry(waitMsg);
   }
 
   // Montar dados fiscais
