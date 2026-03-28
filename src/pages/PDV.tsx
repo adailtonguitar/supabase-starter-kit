@@ -718,6 +718,7 @@ export default function PDV() {
           companyName={companyName}
           logoUrl={logoUrl}
           slogan={slogan}
+          fiscalInvalidItems={fiscalValidation.invalidItems}
         />
         <PDVTotalsSidebar
           cartItems={pdv.cartItems}
@@ -973,6 +974,40 @@ export default function PDV() {
       <PDVHoldRecallDialog open={showHoldRecall} onClose={() => setShowHoldRecall(false)} onRecall={handleRecallSale} />
       <PDVReturnExchangeDialog open={showReturnExchange} onClose={() => setShowReturnExchange(false)} />
       <PDVItemNotesDialog open={!!editingItemNoteId} itemName={pdv.cartItems.find(i => i.id === editingItemNoteId)?.name || ""} currentNote={editingItemNoteId ? itemNotes[editingItemNoteId] || "" : ""} onSave={(note) => { if (editingItemNoteId) setItemNote(editingItemNoteId, note); }} onClose={() => setEditingItemNoteId(null)} />
+
+      {/* Fiscal validation errors dialog */}
+      <AlertDialog open={showFiscalErrors} onOpenChange={setShowFiscalErrors}>
+        <AlertDialogContent className="max-w-lg">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertTriangle className="w-5 h-5" />
+              Produtos com dados fiscais incompletos
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3 mt-2">
+                <p className="text-sm text-muted-foreground">Corrija os produtos abaixo antes de finalizar a venda:</p>
+                <div className="max-h-60 overflow-y-auto space-y-2">
+                  {fiscalValidation.issues.map((issue, idx) => (
+                    <div key={idx} className="flex items-start gap-2 p-2 rounded-lg bg-destructive/10 border border-destructive/20">
+                      <AlertTriangle className="w-4 h-4 text-destructive mt-0.5 flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-bold text-foreground">{issue.productName}</p>
+                        <p className="text-xs text-muted-foreground">{issue.field}: {issue.message}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+            <AlertDialogCancel>Fechar</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { setShowFiscalErrors(false); navigate("/produtos"); }} className="bg-primary text-primary-foreground">
+              Ir para Cadastro de Produtos
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Exit confirmation */}
       <AlertDialog open={showExitConfirm} onOpenChange={setShowExitConfirm}>
