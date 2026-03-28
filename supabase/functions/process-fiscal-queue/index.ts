@@ -144,9 +144,13 @@ async function processOneItem(
   // Dead-letter check
   if (attempts > MAX_RETRIES) {
     const now = new Date().toISOString();
+    const previousError = String(queueItem.last_error || "").trim();
+    const deadLetterMessage = previousError
+      ? `${previousError} | Excedeu ${MAX_RETRIES} tentativas`
+      : `Excedeu ${MAX_RETRIES} tentativas`;
     await Promise.all([
       supabase.from("fiscal_queue")
-        .update({ status: "dead_letter", last_error: `Excedeu ${MAX_RETRIES} tentativas`, finished_at: now, updated_at: now })
+        .update({ status: "dead_letter", last_error: deadLetterMessage, finished_at: now, updated_at: now })
         .eq("id", queueId),
       supabase.from("sales")
         .update({ status: "erro_fiscal" })
