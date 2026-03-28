@@ -966,7 +966,11 @@ async function handleInutilize(supabase: any, body: any, callerUserId?: string |
   }, 10000);
 
   const data = await parseResponseJsonSafe(resp, "inutilização");
-  if (!resp.ok) return jsonResponse({ success: false, error: data?.mensagem || "Erro na inutilização" });
+  if (!resp.ok) {
+    const msg = data?.mensagem || data?.message || data?.error || JSON.stringify(data) || "Erro na inutilização";
+    console.error("[emit-nfce] Nuvem Fiscal inutilização erro:", resp.status, msg);
+    return jsonResponse({ success: false, error: `Erro SEFAZ: ${msg}` });
+  }
 
   if (company_id) {
     const ambiente = Deno.env.get("NUVEM_FISCAL_SANDBOX") === "true" ? "homologacao" : "producao";
@@ -985,17 +989,20 @@ async function handleInutilize(supabase: any, body: any, callerUserId?: string |
       });
     }
 
-    const { error: insertError } = await supabase
-      .from("fiscal_documents")
-      .upsert(rows, { onConflict: "company_id,doc_type,serie,number" });
-
-    if (insertError) {
-      console.error("[emit-nfce] erro ao persistir inutilização", insertError);
-      return jsonResponse({
-        success: false,
-        error: "Inutilização enviada, mas falhou ao atualizar o histórico local",
-        details: insertError.message,
-      }, 500);
+    // Insert each row individually, ignoring duplicates (no unique constraint exists)
+    let insertErrors = 0;
+    for (const row of rows) {
+      const { error: insertError } = await supabase
+        .from("fiscal_documents")
+        .insert(row);
+      if (insertError) {
+        // Duplicate or other error — log but don't fail the whole operation
+        console.warn("[emit-nfce] insert inutilização row error:", insertError.message);
+        insertErrors++;
+      }
+    }
+    if (insertErrors > 0) {
+      console.warn(`[emit-nfce] ${insertErrors}/${rows.length} rows failed to insert (possibly duplicates)`);
     }
   }
 
