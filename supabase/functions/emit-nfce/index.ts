@@ -849,7 +849,6 @@ async function handleConsultStatus(supabase: any, body: any, callerUserId?: stri
     const docUpdate: Record<string, unknown> = {
       status: normalizedStatus,
       access_key: data.chave || access_key,
-      nuvem_fiscal_id: data.id || docRef,
       protocol_number: data.protocolo || null,
     };
     if (providerReason && normalizedStatus === "rejeitada") {
