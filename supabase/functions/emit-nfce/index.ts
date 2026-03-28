@@ -18,18 +18,17 @@ import {
 } from "../_shared/sale-payments.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-// ─── safeFetch: timeout sem setTimeout ───
+// ─── safeFetch: AbortController + timeout (compatível com Supabase Edge Runtime) ───
 async function safeFetch(url: string, options: RequestInit = {}, timeout = 8000): Promise<Response> {
-  const timeoutSignal = AbortSignal.timeout(timeout);
-  const signal = options.signal
-    ? AbortSignal.any([options.signal, timeoutSignal])
-    : timeoutSignal;
-
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeout);
   try {
-    const response = await fetch(url, { ...options, signal });
+    const response = await fetch(url, { ...options, signal: controller.signal });
+    clearTimeout(id);
     return response;
   } catch (error: any) {
-    if (timeoutSignal.aborted || error?.name === "TimeoutError" || error?.name === "AbortError") {
+    clearTimeout(id);
+    if (error.name === "AbortError") {
       throw new Error(`Request timeout após ${timeout}ms: ${url.split("?")[0]}`);
     }
     throw error;
