@@ -158,6 +158,55 @@ async function resolveNuvemFiscalDocId(params: {
   return typeof id === "string" && id ? id : null;
 }
 
+async function resolveProviderDocRef(params: {
+  supabase: ReturnType<typeof createServiceClient>;
+  token: string;
+  baseUrl: string;
+  endpoint: "nfce" | "nfe";
+  companyId?: string | null;
+  accessKey: string;
+}): Promise<string> {
+  const keyDigits = onlyDigits(params.accessKey);
+  const isAccessKey = keyDigits.length === 44;
+  if (!isAccessKey) return String(params.accessKey);
+
+  if (params.companyId) {
+    const { data: docRow } = await params.supabase
+      .from("fiscal_documents")
+      .select("nuvem_fiscal_id")
+      .eq("company_id", String(params.companyId))
+      .eq("access_key", keyDigits)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const docId = String((docRow as { nuvem_fiscal_id?: string | null } | null)?.nuvem_fiscal_id || "").trim();
+    if (docId) return docId;
+
+    const { data: company } = await params.supabase
+      .from("companies")
+      .select("cnpj")
+      .eq("id", String(params.companyId))
+      .maybeSingle();
+
+    const cpfCnpj = onlyDigits(company?.cnpj);
+    const ambiente: "homologacao" | "producao" = Deno.env.get("NUVEM_FISCAL_SANDBOX") === "true" ? "homologacao" : "producao";
+    if (cpfCnpj.length >= 11) {
+      const resolved = await resolveNuvemFiscalDocId({
+        token: params.token,
+        baseUrl: params.baseUrl,
+        endpoint: params.endpoint,
+        ambiente,
+        cpfCnpj,
+        chave: keyDigits,
+      });
+      if (resolved) return resolved;
+    }
+  }
+
+  return keyDigits;
+}
+
 // ─── Numeração segura (atômica via RPC) ───
 async function getNextNumberSafe(supabase: ReturnType<typeof createClient>, configId: string): Promise<number> {
   const { data, error } = await supabase.rpc("next_fiscal_number" as any, {
@@ -578,6 +627,7 @@ async function handleEmit(supabase: any, body: any) {
   const statusStr = (nfData.status || "").toLowerCase();
   const cStatStr = String(nfData.codigo_status || nfData.cStat || "");
   const accessKey = nfData.chave || nfData.chave_acesso || nfData.access_key || "";
+  const nuvemFiscalId = nfData.id || nfData.nuvem_fiscal_id || nfData.document_id || nfData.documento_id || null;
   const protocolNumber = nfData.protocolo || nfData.numero_protocolo || "";
 
   const isAuthorized = statusStr.includes("autoriz") || statusStr.includes("aprovad") || cStatStr === "100";
@@ -599,6 +649,7 @@ async function handleEmit(supabase: any, body: any) {
     customer_name: form.customer_name || null, customer_cpf_cnpj: form.customer_doc || null,
     payment_method: mainPayMethod, is_contingency: isContingency,
   };
+  if (nuvemFiscalId) insertRow.nuvem_fiscal_id = String(nuvemFiscalId);
   if (sale_id) insertRow.sale_id = String(sale_id);
 
   const insertRes = await supabase.from("fiscal_documents").insert(insertRow);
@@ -762,7 +813,16 @@ async function handleConsultStatus(supabase: any, body: any, callerUserId?: stri
   const baseUrl = getApiBaseUrl();
   const endpoint = doc_type === "nfe" ? "nfe" : "nfce";
 
-  const resp = await safeFetch(`${baseUrl}/${endpoint}/${access_key}`, {
+  const docRef = await resolveProviderDocRef({
+    supabase,
+    token,
+    baseUrl,
+    endpoint,
+    companyId: company_id ? String(company_id) : null,
+    accessKey: String(access_key),
+  });
+
+  const resp = await safeFetch(`${baseUrl}/${endpoint}/${docRef}`, {
     headers: { Authorization: `Bearer ${token}` },
   }, 8000);
 
@@ -785,6 +845,7 @@ async function handleConsultStatus(supabase: any, body: any, callerUserId?: stri
     const docUpdate: Record<string, unknown> = {
       status: normalizedStatus,
       access_key: data.chave || access_key,
+      nuvem_fiscal_id: data.id || docRef,
       protocol_number: data.protocolo || null,
     };
     if (providerReason && normalizedStatus === "rejeitada") {
@@ -898,20 +959,14 @@ async function handleDownloadPdf(supabase: any, body: any, callerUserId?: string
   const baseUrl = getApiBaseUrl();
   const endpoint = doc_type === "nfe" ? "nfe" : "nfce";
 
-  const keyDigits = onlyDigits(access_key);
-  const isAccessKey = keyDigits.length === 44;
-  let docIdOrKey: string = isAccessKey ? keyDigits : String(access_key);
-
-  if (isAccessKey && effectiveCompanyId) {
-    const { data: company } = await supabase.from("companies").select("cnpj")
-      .eq("id", String(effectiveCompanyId)).maybeSingle();
-    const cpfCnpj = onlyDigits(company?.cnpj);
-    const ambiente: "homologacao" | "producao" = Deno.env.get("NUVEM_FISCAL_SANDBOX") === "true" ? "homologacao" : "producao";
-    if (cpfCnpj.length >= 11) {
-      const resolved = await resolveNuvemFiscalDocId({ token, baseUrl, endpoint, ambiente, cpfCnpj, chave: keyDigits });
-      if (resolved) docIdOrKey = resolved;
-    }
-  }
+  const docIdOrKey = await resolveProviderDocRef({
+    supabase,
+    token,
+    baseUrl,
+    endpoint,
+    companyId: effectiveCompanyId,
+    accessKey: String(access_key),
+  });
 
   const pdfUrl = new URL(`${baseUrl}/${endpoint}/${docIdOrKey}/pdf`);
   if (endpoint === "nfce") {
@@ -967,20 +1022,14 @@ async function handleDownloadXml(supabase: any, body: any, callerUserId?: string
   const baseUrl = getApiBaseUrl();
   const endpoint = doc_type === "nfe" ? "nfe" : "nfce";
 
-  const keyDigits = onlyDigits(access_key);
-  const isAccessKey = keyDigits.length === 44;
-  let docIdOrKey: string = isAccessKey ? keyDigits : String(access_key);
-
-  if (isAccessKey && effectiveCompanyId) {
-    const { data: company } = await supabase.from("companies").select("cnpj")
-      .eq("id", String(effectiveCompanyId)).maybeSingle();
-    const cpfCnpj = onlyDigits(company?.cnpj);
-    const ambiente: "homologacao" | "producao" = Deno.env.get("NUVEM_FISCAL_SANDBOX") === "true" ? "homologacao" : "producao";
-    if (cpfCnpj.length >= 11) {
-      const resolved = await resolveNuvemFiscalDocId({ token, baseUrl, endpoint, ambiente, cpfCnpj, chave: keyDigits });
-      if (resolved) docIdOrKey = resolved;
-    }
-  }
+  const docIdOrKey = await resolveProviderDocRef({
+    supabase,
+    token,
+    baseUrl,
+    endpoint,
+    companyId: effectiveCompanyId,
+    accessKey: String(access_key),
+  });
 
   const resp = await safeFetch(`${baseUrl}/${endpoint}/${docIdOrKey}/xml`, {
     headers: { Authorization: `Bearer ${token}`, Accept: "application/xml" },
