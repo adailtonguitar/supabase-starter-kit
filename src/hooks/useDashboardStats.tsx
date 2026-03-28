@@ -94,7 +94,7 @@ export function useDashboardStats() {
         totalProductsResult, totalClientsResult, fiadoResult,
       ] = await Promise.all([
         // Single query: all sales from 14 days ago (covers today, yesterday, 7d, prev period, month)
-        supabase.from("sales").select("total, created_at, status").eq("company_id", companyId).gte("created_at", fourteenDaysAgo + "T00:00:00").or("status.is.null,status.neq.cancelled").order("created_at", { ascending: true }),
+        supabase.from("sales").select("total, created_at, status").eq("company_id", companyId).gte("created_at", fourteenDaysAgo + "T00:00:00").in("status", ["completed", "finalizada"]).order("created_at", { ascending: true }),
         supabase.from("sales").select("id, sale_number, payments, total, status").eq("company_id", companyId).order("created_at", { ascending: false }).limit(5),
         supabase.from("products").select("id, stock_quantity, min_stock").eq("company_id", companyId).eq("is_active", true),
         supabase.from("fiscal_configs").select("id").eq("company_id", companyId).eq("is_active", true).limit(1),
