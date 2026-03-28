@@ -236,7 +236,7 @@ export function usePDV() {
 
             if (queueId) {
               // Aguarda até ~12s pela emissão; se não concluir, a venda fecha e a NFC-e segue em background.
-              const FISCAL_TIMEOUT_MS = 12_000;
+              const FISCAL_TIMEOUT_MS = 25_000;
               let fiscalSettled = false;
 
               try {

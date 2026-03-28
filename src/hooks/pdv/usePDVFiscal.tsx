@@ -185,9 +185,14 @@ export function usePDVFiscal(companyId: string | null) {
 
     // A venda pode levar alguns ms para ficar visível após a RPC `finalize_sale_atomic`.
     // Retry específico para evitar erro falso de "Venda não encontrada" (comum em PIX/cartão por timing).
+    // Aguardar propagação da venda no banco antes do primeiro emit (evita "venda não encontrada")
+    await sleep(1200);
+
     let fiscalData: any = null;
     let fiscalErr: any = null;
-    for (let attempt = 0; attempt < 10; attempt++) {
+    for (let attempt = 0; attempt < 4; attempt++) {
+      if (attempt > 0) await sleep(1500 + attempt * 500);
+
       const res = await fiscalCircuitBreaker.call(() =>
         supabase.functions.invoke("emit-nfce", {
           body: {
@@ -201,18 +206,12 @@ export function usePDVFiscal(companyId: string | null) {
       fiscalData = res.data;
       fiscalErr = res.error;
 
-      // supabase.functions.invoke retorna error genérico ("Edge function returned 4xx") para non-2xx.
-      // Precisamos checar AMBOS fiscalData e fiscalErr para detectar visibilidade pendente.
       const dataMsg = fiscalData?.error || fiscalData?.message || "";
       const errMsg = fiscalErr?.message || fiscalErr?.context?.body || "";
       const msg = dataMsg || errMsg;
       const shouldRetry = isVisibilityPendingMessage(msg);
-      // Também tratar pending explícito do edge function
       const isPendingResponse = fiscalData?.success === true && fiscalData?.pending === true;
       if (!shouldRetry && !isPendingResponse) break;
-      // Backoff progressivo: 600ms → 3s
-      const delay = Math.min(600 + attempt * 300, 3000);
-      if (attempt < 9) await new Promise((r) => setTimeout(r, delay));
     }
 
     if (fiscalData?.success && fiscalData?.pending) {
