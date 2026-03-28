@@ -189,8 +189,9 @@ Deno.serve(async (req) => {
       supabase.from("companies").select("crt").eq("id", companyId).maybeSingle(),
     ]);
 
-    // Backoff crescente: ~10s total (vs 4.8s anterior) para cobrir race condition de PIX/cartão
-    const saleRetryDelays = [300, 400, 500, 600, 700, 800, 1000, 1200, 1500, 2000, 2500];
+    // Backoff exponencial para cobrir a persistência da venda logo após o fechamento do PDV.
+    const saleRetryDelays = [2000, 5000, 10000, 20000, 20000];
+    console.log(`[process-fiscal-queue] iniciando leitura da venda: sale_id=${saleId}, queue_id=${queueId}, attempts=${attempts}`);
     for (let attempt = 0; attempt < saleRetryDelays.length; attempt++) {
       const saleRes = await supabase
         .from("sales")
@@ -201,7 +202,6 @@ Deno.serve(async (req) => {
       sale = saleRes.data;
       lastSaleErr = saleRes.error;
 
-      // Validate tenant match using the sale row itself.
       if (sale && String((sale as any).company_id || "") !== String(companyId)) {
         await supabase.from("fiscal_queue")
           .update({ status: "error", last_error: "Venda não pertence à empresa deste processamento." })
@@ -212,7 +212,6 @@ Deno.serve(async (req) => {
         );
       }
 
-      // Some databases/paths may have sale_items.company_id null; prefer strict filter but fallback to sale_id only.
       const itemsStrict = await supabase
         .from("sale_items")
         .select("*, products(ncm, cfop, csosn, cst_icms, cst_pis, cst_cofins, aliq_icms, origem)")
@@ -232,7 +231,7 @@ Deno.serve(async (req) => {
       }
 
       if (sale && items.length > 0) break;
-      console.log(`[process-fiscal-queue] Attempt ${attempt + 1}/${saleRetryDelays.length}: sale=${!!sale}, items=${items.length}, sale_id=${saleId}, queue_id=${queueId}, attempts=${attempts}`);
+      console.log(`[process-fiscal-queue] tentativa ${attempt + 1}/${saleRetryDelays.length}: sale=${!!sale}, items=${items.length}, sale_id=${saleId}, queue_id=${queueId}, attempts=${attempts}`);
       if (attempt < saleRetryDelays.length - 1) await sleep(saleRetryDelays[attempt]);
     }
 

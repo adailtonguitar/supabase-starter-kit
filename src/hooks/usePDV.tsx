@@ -253,7 +253,10 @@ export function usePDV() {
                     nfceNumber = fiscalResult.nfceNumber || "";
                     toast.success("✅ NFC-e emitida com sucesso!", { description: `Número: ${nfceNumber}`, duration: 5000 });
                   } else {
-                    toast.info("🕒 NFC-e enviada e aguardando autorização.", { duration: 6000 });
+                    toast.info("🕒 NFC-e enfileirada e em processamento.", {
+                      description: "A autorização será confirmada automaticamente sem precisar ir ao Histórico.",
+                      duration: 6000,
+                    });
                   }
                 } else {
                   // Timeout — emissão continua em background
