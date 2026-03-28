@@ -347,7 +347,15 @@ async function processOneItem(
     // milissegundos a mais na SEFAZ, retornando "pendente" antes de autorizar).
     // Apenas aguardar o próximo ciclo de consulta.
     const consultStatus = String(consultedData?.status || "pendente").toLowerCase();
-    const consultErrMsg = consultError?.message || String(consultedData?.error || "");
+    const consultErrMsg = [
+      consultError?.message,
+      consultedData?.rejection_reason,
+      consultedData?.details?.motivo,
+      consultedData?.details?.xMotivo,
+      consultedData?.details?.mensagem,
+      consultedData?.details?.message,
+      consultedData?.error,
+    ].map((value) => String(value || "").trim()).find(Boolean) || "";
 
     if (consultStatus === "rejeitada" || consultStatus === "cancelada" || consultStatus === "denegada") {
       return markPermanentError(`[SEFAZ consulta] ${consultErrMsg || consultStatus}`);
