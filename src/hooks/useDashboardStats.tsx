@@ -118,6 +118,7 @@ export function useDashboardStats() {
       const todayPrefix = today;
       const todaySales = allSales.filter((s) => (s.created_at || "").startsWith(todayPrefix));
       console.log(`[Dashboard] Vendas hoje: ${todaySales.length} registros, total: R$ ${todaySales.reduce((s, v) => s + Number(v.total ?? 0), 0).toFixed(2)}`, todaySales.map(s => ({ total: s.total, status: s.status, created_at: s.created_at })));
+      const yesterdayPrefix = yesterday;
       const yesterdaySales = allSales.filter((s) => {
         const d = (s.created_at || "").split("T")[0];
         return d === yesterdayPrefix;
