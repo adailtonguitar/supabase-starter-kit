@@ -5,7 +5,7 @@ import { useAuth } from "./useAuth";
 const COMPANY_CACHE_KEY = "as_cached_company";
 const SELECTED_COMPANY_KEY = "as_selected_company";
 
-const COMPANY_SELECT = "name, logo_url, slogan, pix_key, pix_key_type, pix_city, address_city, address_street, address_number, address_neighborhood, address_state, cnpj, ie, phone";
+const COMPANY_SELECT = "name, logo_url, slogan, pix_key, pix_key_type, pix_city, address_city, address_street, address_number, address_neighborhood, address_state, cnpj, ie, phone, tax_regime";
 
 interface CachedCompany {
   companyId: string;
@@ -23,6 +23,7 @@ interface CachedCompany {
   addressNeighborhood: string | null;
   addressCity: string | null;
   addressState: string | null;
+  taxRegime: string | null;
 }
 
 type CompanyRow = {
@@ -40,6 +41,7 @@ type CompanyRow = {
   cnpj?: string | null;
   ie?: string | null;
   phone?: string | null;
+  tax_regime?: string | null;
 };
 
 function cacheCompany(data: CachedCompany) {
