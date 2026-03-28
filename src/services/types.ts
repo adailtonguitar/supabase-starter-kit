@@ -28,7 +28,7 @@ export interface Sale {
 }
 
 export interface PaymentResult {
-  method: "dinheiro" | "debito" | "credito" | "pix" | "voucher" | "outros" | "prazo";
+  method: "dinheiro" | "debito" | "credito" | "pix" | "voucher" | "outros" | "prazo" | "multi";
   approved: boolean;
   amount: number;
   nsu?: string;
@@ -53,6 +53,17 @@ export interface FinalizeSaleItemInput {
   unit_price: number;
   discount_percent: number;
   subtotal: number;
+  ncm?: string;
+  cfop?: string;
+  csosn?: string;
+  cst_icms?: string;
+  origem?: number;
+  cst_pis?: string;
+  cst_cofins?: string;
+  aliq_icms?: number;
+  cest?: string;
+  mva?: number;
+  unit?: string;
 }
 
 export interface FinalizeSalePaymentInput {

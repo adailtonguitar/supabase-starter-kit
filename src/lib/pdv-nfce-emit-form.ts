@@ -22,7 +22,6 @@ const PDV_METHOD_TO_TPAG: Record<string, string> = {
   voucher: "05",
   outros: "99",
   prazo: "99",
-  multi: "99",
 };
 
 export function mapPdvMethodToTPag(method: string | undefined | null): string {

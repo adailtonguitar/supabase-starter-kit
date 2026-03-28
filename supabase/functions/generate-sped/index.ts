@@ -25,7 +25,7 @@ Deno.serve(async (req) => {
         .eq("is_active", true)
         .limit(1)
         .maybeSingle();
-      companyId = cu?.company_id;
+      companyId = (cu as { company_id?: string | null } | null)?.company_id;
     }
 
     if (!companyId) {
@@ -47,7 +47,8 @@ Deno.serve(async (req) => {
       .eq("id", companyId)
       .single();
 
-    if (!company) return jsonResponse({ error: "Empresa não encontrada" }, 404);
+    const companyRow = company as Record<string, any> | null;
+    if (!companyRow) return jsonResponse({ error: "Empresa não encontrada" }, 404);
 
     const startDate = `${year}-${String(month).padStart(2, "0")}-01`;
     const endMonth = month === 12 ? 1 : month + 1;
@@ -78,19 +79,19 @@ Deno.serve(async (req) => {
 
     const period = `${String(month).padStart(2, "0")}/${year}`;
     const lines: string[] = [];
-    const cnpj = (company.cnpj || "").replace(/\D/g, "");
-    const ie = (company.state_registration || company.ie || "").replace(/\D/g, "");
-    const uf = company.address_state || company.state || "";
-    const codMun = company.address_city_code || company.ibge_code || company.city_code || "";
+    const cnpj = (companyRow.cnpj || "").replace(/\D/g, "");
+    const ie = (companyRow.state_registration || companyRow.ie || "").replace(/\D/g, "");
+    const uf = companyRow.address_state || companyRow.state || "";
+    const codMun = companyRow.address_city_code || companyRow.ibge_code || companyRow.city_code || "";
     const dtIni = `01${String(month).padStart(2, "0")}${year}`;
     const lastDay = new Date(year, month, 0).getDate();
     const dtFin = `${lastDay}${String(month).padStart(2, "0")}${year}`;
-    const crt = company.crt || 1;
+    const crt = companyRow.crt || 1;
 
     // ═══ Bloco 0 — Abertura ═══
-    lines.push(`|0000|017|0|${dtIni}|${dtFin}|${company.name || ""}|${cnpj}|${uf}|${ie}|||${codMun}|||A|1|`);
+    lines.push(`|0000|017|0|${dtIni}|${dtFin}|${companyRow.name || ""}|${cnpj}|${uf}|${ie}|||${codMun}|||A|1|`);
     lines.push(`|0001|0|`);
-    lines.push(`|0005|${company.trade_name || company.name || ""}|${(company.zip_code || company.address_zip || "").replace(/\D/g, "")}|${company.street || company.address_street || ""}|${company.number || company.address_number || ""}|${company.complement || company.address_complement || ""}|${company.neighborhood || company.address_neighborhood || ""}||||`);
+    lines.push(`|0005|${companyRow.trade_name || companyRow.name || ""}|${(companyRow.zip_code || companyRow.address_zip || "").replace(/\D/g, "")}|${companyRow.street || companyRow.address_street || ""}|${companyRow.number || companyRow.address_number || ""}|${companyRow.complement || companyRow.address_complement || ""}|${companyRow.neighborhood || companyRow.address_neighborhood || ""}||||`);
     lines.push(`|0100|||||||||||||||||`);
 
     // Registro 0200 — Produtos utilizados no período

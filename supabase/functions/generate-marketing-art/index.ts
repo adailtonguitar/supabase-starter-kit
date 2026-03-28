@@ -134,9 +134,17 @@ Deno.serve(async (req) => {
   }
 });
 
-function jsonRes(body: Record<string, unknown>, status = 200) {
+function jsonRes(body: Record<string, unknown>, status = 200, req?: Request) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
+    headers: {
+      ...(req
+        ? getCorsHeaders(req)
+        : {
+            "Access-Control-Allow-Origin": ALLOWED_ORIGINS[0],
+            "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+          }),
+      "Content-Type": "application/json",
+    },
   });
 }
