@@ -9,6 +9,11 @@ export interface SaleItem {
   unit_price: number;
   subtotal: number;
   discount_percent?: number;
+  ncm?: string;
+  cfop?: string;
+  csosn?: string;
+  cst_icms?: string;
+  unit?: string;
 }
 
 export interface Sale {
@@ -19,9 +24,44 @@ export interface Sale {
   status: string;
   created_at: string;
   items: SaleItem[];
+  items_json?: unknown;
   customer_name?: string;
+  customer_doc?: string;
   access_key?: string;
   company_id: string;
+}
+
+function parseRawSaleItems(raw: unknown): SaleItem[] {
+  try {
+    const parsed = Array.isArray(raw)
+      ? raw
+      : typeof raw === "string"
+        ? JSON.parse(raw)
+        : raw && typeof raw === "object" && "items" in (raw as Record<string, unknown>)
+          ? (raw as Record<string, unknown>).items
+          : [];
+
+    if (!Array.isArray(parsed)) return [];
+
+    return parsed.map((item) => {
+      const row = item as Record<string, unknown>;
+      return {
+        product_id: String(row.product_id ?? row.id ?? ""),
+        product_name: String(row.product_name ?? row.name ?? "Produto"),
+        quantity: Number(row.quantity ?? row.qty ?? 1),
+        unit_price: Number(row.unit_price ?? row.price ?? 0),
+        subtotal: Number(row.subtotal ?? ((Number(row.quantity ?? row.qty ?? 1) * Number(row.unit_price ?? row.price ?? 0)))),
+        discount_percent: Number(row.discount_percent ?? 0),
+        ncm: typeof row.ncm === "string" ? row.ncm : undefined,
+        cfop: typeof row.cfop === "string" ? row.cfop : undefined,
+        csosn: typeof row.csosn === "string" ? row.csosn : undefined,
+        cst_icms: typeof row.cst_icms === "string" ? row.cst_icms : typeof row.cst === "string" ? row.cst : undefined,
+        unit: typeof row.unit === "string" ? row.unit : undefined,
+      };
+    });
+  } catch {
+    return [];
+  }
 }
 
 export function useSales(limit = 50) {
@@ -47,6 +87,7 @@ export function useSales(limit = 50) {
         id: string;
         sale_number?: number | null;
         number?: number | null;
+        items?: unknown;
         payment_method?: string | null;
         payments?: unknown;
         total?: number | null;
@@ -55,6 +96,8 @@ export function useSales(limit = 50) {
         created_at: string;
         client_name?: string | null;
         customer_name?: string | null;
+        customer_doc?: string | null;
+        customer_cpf?: string | null;
         counterpart?: string | null;
         access_key?: string | null;
         company_id: string;
@@ -100,14 +143,17 @@ export function useSales(limit = 50) {
       });
 
       return sales.map((row) => ({
+        const rawItems = parseRawSaleItems(row.items);
         id: row.id,
         number: row.sale_number ?? row.number ?? undefined,
         payment_method: row.payment_method || extractPaymentMethod(row.payments),
         total_value: Number(row.total ?? row.total_value ?? 0),
         status: row.status || "completed",
         created_at: row.created_at,
-        items: itemsBySale[row.id] || [],
+        items: rawItems.length > 0 ? rawItems : (itemsBySale[row.id] || []),
+        items_json: row.items,
         customer_name: row.client_name ?? row.customer_name ?? row.counterpart ?? undefined,
+        customer_doc: row.customer_doc ?? row.customer_cpf ?? undefined,
         access_key: row.access_key ?? undefined,
         company_id: row.company_id,
       })) as Sale[];
