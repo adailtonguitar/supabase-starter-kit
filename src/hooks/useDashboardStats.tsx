@@ -94,7 +94,7 @@ export function useDashboardStats() {
         totalProductsResult, totalClientsResult, fiadoResult,
       ] = await Promise.all([
         // Single query: all sales from 14 days ago (covers today, yesterday, 7d, prev period, month)
-        supabase.from("sales").select("total, created_at").eq("company_id", companyId).gte("created_at", fourteenDaysAgo + "T00:00:00").or("status.is.null,status.neq.cancelled").order("created_at", { ascending: true }),
+        supabase.from("sales").select("total, created_at, status").eq("company_id", companyId).gte("created_at", fourteenDaysAgo + "T00:00:00").or("status.is.null,status.neq.cancelled").order("created_at", { ascending: true }),
         supabase.from("sales").select("id, sale_number, payments, total, status").eq("company_id", companyId).order("created_at", { ascending: false }).limit(5),
         supabase.from("products").select("id, stock_quantity, min_stock").eq("company_id", companyId).eq("is_active", true),
         supabase.from("fiscal_configs").select("id").eq("company_id", companyId).eq("is_active", true).limit(1),
@@ -110,11 +110,15 @@ export function useDashboardStats() {
       type MonthAllSaleRow = {
         created_at?: string | null;
         total?: number | null;
+        status?: string | null;
       };
       const allSales = (monthAllSalesResult.data ?? []) as MonthAllSaleRow[];
+
+      // Debug: log today's sales to identify duplicates/test data
       const todayPrefix = today;
-      const yesterdayPrefix = yesterday;
       const todaySales = allSales.filter((s) => (s.created_at || "").startsWith(todayPrefix));
+      console.log(`[Dashboard] Vendas hoje: ${todaySales.length} registros, total: R$ ${todaySales.reduce((s, v) => s + Number(v.total ?? 0), 0).toFixed(2)}`, todaySales.map(s => ({ total: s.total, status: s.status, created_at: s.created_at })));
+      const yesterdayPrefix = yesterday;
       const yesterdaySales = allSales.filter((s) => {
         const d = (s.created_at || "").split("T")[0];
         return d === yesterdayPrefix;
