@@ -144,47 +144,60 @@ export default function Fiscal() {
     if (selectedDoc.status !== "pendente" && selectedDoc.status !== "rejeitada") return;
 
     const fetchQueueInfo = async () => {
-      // Try by sale_id first
-      if (selectedDoc.sale_id) {
-        const { data } = await supabase
+      try {
+        // Try by sale_id first
+        const saleId = selectedDoc.sale_id || await (async () => {
+          const { data: saleRow } = await supabase
+            .from("sales")
+            .select("id")
+            .eq("company_id", companyId)
+            .eq("nfce_number", String(selectedDoc.number || ""))
+            .limit(1)
+            .maybeSingle();
+          return (saleRow as { id: string } | null)?.id || null;
+        })();
+
+        if (!saleId) return;
+
+        // Query without last_error first (column may not exist yet)
+        const { data, error } = await supabase
           .from("fiscal_queue")
-          .select("status, last_error, attempts")
+          .select("status, attempts")
           .eq("company_id", companyId)
-          .eq("sale_id", selectedDoc.sale_id)
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        if (data) {
-          const row = data as { status?: string; last_error?: string; attempts?: number };
-          setQueueError(row.last_error || null);
-          setQueueStatus(row.status || null);
-          setQueueAttempts(row.attempts ?? null);
-          return;
-        }
-      }
-      // Fallback: search by number match in fiscal_queue via sales table
-      const { data: saleRow } = await supabase
-        .from("sales")
-        .select("id")
-        .eq("company_id", companyId)
-        .eq("nfce_number", String(selectedDoc.number || ""))
-        .limit(1)
-        .maybeSingle();
-      if (saleRow) {
-        const saleId = (saleRow as { id: string }).id;
-        const { data: qRow } = await supabase
-          .from("fiscal_queue")
-          .select("status, last_error, attempts")
           .eq("sale_id", saleId)
           .order("created_at", { ascending: false })
           .limit(1)
           .maybeSingle();
-        if (qRow) {
-          const row = qRow as { status?: string; last_error?: string; attempts?: number };
-          setQueueError(row.last_error || null);
-          setQueueStatus(row.status || null);
-          setQueueAttempts(row.attempts ?? null);
+
+        if (error) {
+          console.warn("[Fiscal] Erro ao buscar fila fiscal:", error.message);
+          return;
         }
+        if (!data) return;
+
+        const row = data as { status?: string; attempts?: number };
+        setQueueStatus(row.status || null);
+        setQueueAttempts(row.attempts ?? null);
+
+        // Try fetching last_error separately (column might not exist)
+        const { data: errData } = await supabase
+          .from("fiscal_queue")
+          .select("last_error")
+          .eq("company_id", companyId)
+          .eq("sale_id", saleId)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle()
+          .then(res => {
+            if (res.error) return { data: null };
+            return res;
+          });
+
+        if (errData) {
+          setQueueError((errData as { last_error?: string }).last_error || null);
+        }
+      } catch (e) {
+        console.warn("[Fiscal] Erro ao buscar info da fila:", e);
       }
     };
     fetchQueueInfo();
