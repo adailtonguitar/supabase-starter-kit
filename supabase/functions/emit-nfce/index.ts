@@ -246,6 +246,25 @@ async function resolveProviderDocRef(params: {
 }
 
 // ─── Numeração segura (atômica via RPC) ───
+
+// ─── Enriquecer entrada de pagamento com dados obrigatórios SEFAZ (Rejeição 391) ───
+function enrichPaymentEntry(entry: any, tPag: string, source: any) {
+  const tp = String(tPag).trim();
+  // Cartão crédito (03) ou débito (04): obrigatório informar grupo card
+  if (tp === "03" || tp === "04") {
+    entry.card = {
+      tpIntegra: source?.tpIntegra ?? source?.card?.tpIntegra ?? 2,
+      ...(source?.cnpj_credenciadora || source?.card?.CNPJ
+        ? { CNPJ: onlyDigits(source.cnpj_credenciadora || source.card?.CNPJ) }
+        : {}),
+      tBand: source?.tBand ?? source?.card?.tBand ?? "99",
+      cAut: source?.cAut ?? source?.card?.cAut ?? source?.nsu ?? "000000",
+    };
+  }
+  // PIX (17) e outros: sem grupo card adicional na NFC-e modelo 65
+}
+
+// ─── Numeração segura (atômica via RPC) ───
 async function getNextNumberSafe(supabase: ReturnType<typeof createClient>, configId: string): Promise<number> {
   const { data, error } = await supabase.rpc("next_fiscal_number" as any, {
     p_config_id: configId,
@@ -507,10 +526,15 @@ async function handleEmit(supabase: any, body: any) {
 
   if (form.payments && Array.isArray(form.payments) && form.payments.length > 0) {
     for (const p of form.payments) {
-      detPag.push({ tPag: p.tPag || p.method || "99", vPag: Math.round((p.vPag || p.value || 0) * 100) / 100 });
+      const tp = p.tPag || p.method || "99";
+      const entry: any = { tPag: tp, vPag: Math.round((p.vPag || p.value || 0) * 100) / 100 };
+      enrichPaymentEntry(entry, tp, p);
+      detPag.push(entry);
     }
   } else {
-    detPag.push({ tPag: mainTpag, vPag: Math.round((form.payment_value || vNF) * 100) / 100 });
+    const entry: any = { tPag: mainTpag, vPag: Math.round((form.payment_value || vNF) * 100) / 100 };
+    enrichPaymentEntry(entry, mainTpag, form);
+    detPag.push(entry);
   }
 
   const pagBlock: any = { detPag };
@@ -792,7 +816,10 @@ async function handleEmitFromSale(supabase: any, body: any) {
     ? paymentRows.map((row) => {
       const m = getPrimaryPaymentMethod(row);
       const amt = Number(row.amount ?? row.value ?? saleTotal);
-      return { tPag: mapPdvMethodToTPag(m), vPag: Math.round((Number.isFinite(amt) ? amt : saleTotal) * 100) / 100 };
+      const tp = mapPdvMethodToTPag(m);
+      const entry: any = { tPag: tp, vPag: Math.round((Number.isFinite(amt) ? amt : saleTotal) * 100) / 100 };
+      enrichPaymentEntry(entry, tp, row);
+      return entry;
     })
     : [{ tPag: mainPay !== "99" ? mainPay : "01", vPag: Math.round(saleTotal * 100) / 100 }];
 
