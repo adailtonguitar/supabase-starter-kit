@@ -40,7 +40,7 @@ function fiscalSnapshotByProductId(itemsJson: unknown): Map<string, Record<strin
 // ── Classificação de erro: SEFAZ (permanente) vs técnico (retry) ──
 const SEFAZ_REJECTION_PATTERNS = [
   /rejeic[aã]o/i,
-  /cStat[:\s]*[2-9]\d{2}/i,       // códigos SEFAZ 200+ (exceto 100=autorizada)
+  /cStat[:\s]*[2-9]\d{2}/i,
   /ncm.*inv[aá]lid/i,
   /cfop.*inv[aá]lid/i,
   /cnpj.*inv[aá]lid/i,
@@ -56,16 +56,11 @@ function isSefazPermanentError(msg: string): boolean {
   return SEFAZ_REJECTION_PATTERNS.some((re) => re.test(msg));
 }
 
-// ── Backoff progressivo: itens recentes demais são pulados ──
-function shouldBackoff(attempts: number, createdAt: string): boolean {
-  // attempt 1 → 0s (processa imediato), 2 → 30s, 3 → 60s, 4 → 120s, 5+ → 180s
-  const backoffSeconds = [0, 0, 30, 60, 120, 180][Math.min(attempts, 5)];
-  if (backoffSeconds === 0) return false;
-  const createdMs = new Date(createdAt).getTime();
-  const elapsed = (Date.now() - createdMs) / 1000;
-  // Usa o tempo desde a criação como proxy; para retries, o updated_at seria melhor
-  // mas created_at é suficiente para evitar loops rápidos
-  return elapsed < backoffSeconds;
+// ── Backoff progressivo: calcula next_retry_at baseado no número de attempts ──
+function computeNextRetryAt(attempts: number): string {
+  // attempt 1→30s, 2→60s, 3→120s, 4→240s, 5+→300s (cap 5min)
+  const backoffMs = [30, 60, 120, 240, 300][Math.min(attempts - 1, 4)] * 1000;
+  return new Date(Date.now() + backoffMs).toISOString();
 }
 
 async function invokeEmitNfceWithUserJwt(
@@ -106,10 +101,31 @@ async function invokeEmitNfceWithUserJwt(
 }
 
 // ── Resultado de processamento individual ──
-type ItemResult = { queueId: string; saleId: string; outcome: "done" | "pending" | "error" | "dead_letter" | "skipped_backoff"; detail?: string };
+type ItemResult = {
+  queueId: string;
+  saleId: string;
+  outcome: "done" | "pending" | "error" | "dead_letter" | "skipped_locked";
+  detail?: string;
+  durationMs?: number;
+};
 
 const BATCH_SIZE = 10;
 const MAX_RETRIES = 10;
+
+// ── Optimistic lock: marca como processing apenas se status=pending ──
+async function tryLockItem(supabase: any, queueId: string, attempts: number): Promise<boolean> {
+  const now = new Date().toISOString();
+  const { data, error } = await supabase
+    .from("fiscal_queue")
+    .update({ status: "processing", attempts, started_at: now, updated_at: now })
+    .eq("id", queueId)
+    .eq("status", "pending")
+    .select("id")
+    .maybeSingle();
+
+  if (error || !data) return false;
+  return true;
+}
 
 // ── Processar um único item da fila ──
 async function processOneItem(
@@ -119,34 +135,83 @@ async function processOneItem(
   isServiceCall: boolean,
   serviceRoleKey: string,
 ): Promise<ItemResult> {
+  const itemStart = Date.now();
   const queueId = queueItem.id;
   const saleId = queueItem.sale_id;
   const companyId = queueItem.company_id;
   const attempts = (queueItem.attempts || 0) + 1;
 
-  // Backoff progressivo
-  if (shouldBackoff(attempts, queueItem.updated_at || queueItem.created_at)) {
-    return { queueId, saleId, outcome: "skipped_backoff", detail: `attempt=${attempts}, aguardando backoff` };
-  }
-
-  // Dead-letter
+  // Dead-letter check
   if (attempts > MAX_RETRIES) {
+    const now = new Date().toISOString();
     await Promise.all([
       supabase.from("fiscal_queue")
-        .update({ status: "dead_letter", last_error: `Excedeu ${MAX_RETRIES} tentativas` })
+        .update({ status: "dead_letter", last_error: `Excedeu ${MAX_RETRIES} tentativas`, finished_at: now, updated_at: now })
         .eq("id", queueId),
       supabase.from("sales")
         .update({ status: "erro_fiscal" })
         .eq("id", saleId)
         .eq("company_id", companyId),
     ]);
-    return { queueId, saleId, outcome: "dead_letter" };
+    return { queueId, saleId, outcome: "dead_letter", durationMs: Date.now() - itemStart };
   }
 
-  // Marcar como processing
-  await supabase.from("fiscal_queue")
-    .update({ status: "processing", attempts, updated_at: new Date().toISOString() })
-    .eq("id", queueId);
+  // Optimistic lock
+  const locked = await tryLockItem(supabase, queueId, attempts);
+  if (!locked) {
+    return { queueId, saleId, outcome: "skipped_locked", detail: "Já sendo processado por outra instância", durationMs: 0 };
+  }
+
+  // Helper para finalizar com erro técnico (retry)
+  const markTechnicalRetry = async (errMsg: string) => {
+    const now = new Date().toISOString();
+    await Promise.all([
+      supabase.from("fiscal_queue")
+        .update({
+          status: "pending",
+          last_error: `[técnico] ${errMsg}`,
+          next_retry_at: computeNextRetryAt(attempts),
+          finished_at: now,
+          updated_at: now,
+        })
+        .eq("id", queueId),
+      supabase.from("sales")
+        .update({ status: "pendente_fiscal" })
+        .eq("id", saleId)
+        .eq("company_id", companyId),
+    ]);
+    return { queueId, saleId, outcome: "pending" as const, detail: `[técnico retry] ${errMsg}`, durationMs: Date.now() - itemStart };
+  };
+
+  // Helper para finalizar com erro permanente
+  const markPermanentError = async (errMsg: string) => {
+    const now = new Date().toISOString();
+    await Promise.all([
+      supabase.from("fiscal_queue")
+        .update({ status: "error", last_error: `[SEFAZ] ${errMsg}`, finished_at: now, updated_at: now, next_retry_at: null })
+        .eq("id", queueId),
+      supabase.from("sales")
+        .update({ status: "erro_fiscal" })
+        .eq("id", saleId)
+        .eq("company_id", companyId),
+    ]);
+    return { queueId, saleId, outcome: "error" as const, detail: `[SEFAZ permanente] ${errMsg}`, durationMs: Date.now() - itemStart };
+  };
+
+  // Helper para sucesso
+  const markDone = async (accessKey?: string, number?: string | number) => {
+    const now = new Date().toISOString();
+    await Promise.all([
+      supabase.from("sales")
+        .update({ status: "autorizada", access_key: accessKey || null, number: number || null })
+        .eq("id", saleId)
+        .eq("company_id", companyId),
+      supabase.from("fiscal_queue")
+        .update({ status: "done", processed_at: now, finished_at: now, last_error: null, next_retry_at: null, updated_at: now })
+        .eq("id", queueId),
+    ]);
+    return { queueId, saleId, outcome: "done" as const, detail: "Autorizada", durationMs: Date.now() - itemStart };
+  };
 
   // Config fiscal
   const { data: configs, error: cfgErr } = await supabase
@@ -162,20 +227,10 @@ async function processOneItem(
     || null;
 
   if (cfgErr || !fiscalConfig) {
-    const reason = cfgErr?.message || "Nenhuma configuração fiscal encontrada";
-    await Promise.all([
-      supabase.from("fiscal_queue")
-        .update({ status: "error", last_error: reason })
-        .eq("id", queueId),
-      supabase.from("sales")
-        .update({ status: "pendente_fiscal" })
-        .eq("id", saleId)
-        .eq("company_id", companyId),
-    ]);
-    return { queueId, saleId, outcome: "error", detail: reason };
+    return markPermanentError(cfgErr?.message || "Nenhuma configuração fiscal encontrada");
   }
 
-  // Buscar venda + itens
+  // Buscar venda + itens + empresa
   const [{ data: company }, saleRes] = await Promise.all([
     supabase.from("companies").select("crt").eq("id", companyId).maybeSingle(),
     supabase.from("sales").select("*").eq("id", saleId).maybeSingle(),
@@ -184,10 +239,7 @@ async function processOneItem(
   const sale = saleRes.data;
 
   if (sale && String((sale as any).company_id || "") !== String(companyId)) {
-    await supabase.from("fiscal_queue")
-      .update({ status: "error", last_error: "Venda não pertence à empresa" })
-      .eq("id", queueId);
-    return { queueId, saleId, outcome: "error", detail: "Venda não pertence à empresa" };
+    return markPermanentError("Venda não pertence à empresa");
   }
 
   let items: any[] = [];
@@ -208,20 +260,19 @@ async function processOneItem(
     }
   }
 
+  // Fail-safe: dados não consistentes → pending + backoff
   if (!sale || !items.length) {
     const pendingMsg = !sale
       ? "Venda ainda não visível. Aguardando consistência."
       : "Itens da venda ainda não visíveis. Aguardando consistência.";
-    await Promise.all([
-      supabase.from("fiscal_queue")
-        .update({ status: "pending", last_error: pendingMsg, processed_at: null })
-        .eq("id", queueId),
-      supabase.from("sales")
-        .update({ status: "pendente_fiscal" })
-        .eq("id", saleId)
-        .eq("company_id", companyId),
-    ]);
-    return { queueId, saleId, outcome: "pending", detail: pendingMsg };
+    return markTechnicalRetry(pendingMsg);
+  }
+
+  // Verificar pagamentos existem
+  const payments = parseSalePaymentsJson((sale as any).payments);
+  const paymentMethod = (sale as any).payment_method;
+  if (!payments.length && !paymentMethod) {
+    return markTechnicalRetry("Pagamentos ainda não visíveis. Aguardando consistência.");
   }
 
   // Checar se já autorizada
@@ -236,16 +287,7 @@ async function processOneItem(
     .maybeSingle();
 
   if ((latestDoc as any)?.status === "autorizada") {
-    await Promise.all([
-      supabase.from("sales")
-        .update({ status: "autorizada", access_key: (latestDoc as any).access_key || null, number: (latestDoc as any).number || null })
-        .eq("id", saleId)
-        .eq("company_id", companyId),
-      supabase.from("fiscal_queue")
-        .update({ status: "done", processed_at: new Date().toISOString(), last_error: null })
-        .eq("id", queueId),
-    ]);
-    return { queueId, saleId, outcome: "done", detail: "Já autorizada" };
+    return markDone((latestDoc as any).access_key, (latestDoc as any).number);
   }
 
   // Consultar status se já tem access_key
@@ -259,16 +301,10 @@ async function processOneItem(
     });
 
     if (!consultError && consultedData?.success === true && consultedData.status === "autorizada") {
-      await Promise.all([
-        supabase.from("sales")
-          .update({ status: "autorizada", access_key: consultedData.access_key || (latestDoc as any).access_key || null, number: consultedData.number || (latestDoc as any).number || null })
-          .eq("id", saleId)
-          .eq("company_id", companyId),
-        supabase.from("fiscal_queue")
-          .update({ status: "done", processed_at: new Date().toISOString(), last_error: null })
-          .eq("id", queueId),
-      ]);
-      return { queueId, saleId, outcome: "done", detail: "Autorizada após consulta" };
+      return markDone(
+        String(consultedData.access_key || (latestDoc as any).access_key || ""),
+        consultedData.number || (latestDoc as any).number,
+      );
     }
   }
 
@@ -278,7 +314,7 @@ async function processOneItem(
   const defaultCst = isSimples ? "102" : "00";
   const defaultPisCofins = isSimples ? "49" : "01";
   const saleTotal = Number((sale as any).total ?? (sale as any).total_value ?? 0);
-  let paymentRows = parseSalePaymentsJson((sale as any).payments);
+  let paymentRows = payments;
   if (paymentRows.length === 0) {
     const pm = (sale as any).payment_method;
     if (typeof pm === "string" && pm.trim()) {
@@ -298,12 +334,7 @@ async function processOneItem(
   });
   if (itemsWithoutNcm.length > 0) {
     const names = itemsWithoutNcm.map((i: any) => i.product_name || i.name).join(", ");
-    const errMsg = `Produto(s) sem NCM válido: ${names}. Cadastre o NCM antes de emitir NFC-e.`;
-    // Erro de dados = permanente, não faz retry
-    await supabase.from("fiscal_queue")
-      .update({ status: "error", last_error: errMsg })
-      .eq("id", queueId);
-    return { queueId, saleId, outcome: "error", detail: errMsg };
+    return markPermanentError(`Produto(s) sem NCM válido: ${names}. Cadastre o NCM antes de emitir NFC-e.`);
   }
 
   const fiscalItems = items.map((item: any) => {
@@ -351,7 +382,7 @@ async function processOneItem(
     })
     : [{ tPag: mainPayTpag !== "99" ? mainPayTpag : "01", vPag: Math.round(saleTotal * 100) / 100 }];
 
-  // Emitir
+  // Emitir (sequencial — nunca paralelo para evitar flood no SEFAZ)
   const effectiveAuth = isServiceCall ? `Bearer ${serviceRoleKey}` : authHeader;
   const { data: fiscalData, error: fiscalErr, status: emitHttpStatus } = await invokeEmitNfceWithUserJwt(effectiveAuth, {
     action: "emit",
@@ -374,17 +405,7 @@ async function processOneItem(
     emitHttpStatus === 429 ||
     String(fiscalErr?.message || fiscalData?.error || "").toLowerCase().includes("limite de emissões");
   if (rateLimited) {
-    const pendingMsg = "Limite de emissões atingido, aguardando reprocessamento automático.";
-    await Promise.all([
-      supabase.from("fiscal_queue")
-        .update({ status: "pending", last_error: pendingMsg, processed_at: null })
-        .eq("id", queueId),
-      supabase.from("sales")
-        .update({ status: "pendente_fiscal" })
-        .eq("id", saleId)
-        .eq("company_id", companyId),
-    ]);
-    return { queueId, saleId, outcome: "pending", detail: pendingMsg };
+    return markTechnicalRetry("Limite de emissões atingido, aguardando reprocessamento automático.");
   }
 
   // Erro na emissão
@@ -394,75 +415,46 @@ async function processOneItem(
       fiscalErr?.message ||
       "Falha na emissão";
 
-    // ── Diferenciar erro SEFAZ permanente vs erro técnico ──
+    // Diferenciar erro SEFAZ permanente vs erro técnico
     if (isSefazPermanentError(errMsg)) {
-      // Erro SEFAZ = permanente, não retry
-      await Promise.all([
-        supabase.from("fiscal_queue")
-          .update({ status: "error", last_error: `[SEFAZ] ${errMsg}` })
-          .eq("id", queueId),
-        supabase.from("sales")
-          .update({ status: "erro_fiscal" })
-          .eq("id", saleId)
-          .eq("company_id", companyId),
-      ]);
-      return { queueId, saleId, outcome: "error", detail: `[SEFAZ permanente] ${errMsg}` };
+      return markPermanentError(errMsg);
     }
 
-    // Erro técnico = volta para pending para retry
+    // Erro técnico = retry com backoff
     if (attempts < MAX_RETRIES) {
-      await Promise.all([
-        supabase.from("fiscal_queue")
-          .update({ status: "pending", last_error: `[técnico] ${errMsg}`, processed_at: null })
-          .eq("id", queueId),
-        supabase.from("sales")
-          .update({ status: "pendente_fiscal" })
-          .eq("id", saleId)
-          .eq("company_id", companyId),
-      ]);
-      return { queueId, saleId, outcome: "pending", detail: `[técnico retry] ${errMsg}` };
+      return markTechnicalRetry(errMsg);
     }
 
     // Esgotou retries
-    await Promise.all([
-      supabase.from("fiscal_queue")
-        .update({ status: "error", last_error: errMsg })
-        .eq("id", queueId),
-      supabase.from("sales")
-        .update({ status: "erro_fiscal" })
-        .eq("id", saleId)
-        .eq("company_id", companyId),
-    ]);
-    return { queueId, saleId, outcome: "error", detail: errMsg };
+    return markPermanentError(errMsg);
   }
 
   // Pendente no provedor
   const fiscalStatus = fiscalData?.status || "pendente";
   if (fiscalStatus !== "autorizada") {
     const pendingMsg = String(fiscalData?.error || "NFC-e enviada, aguardando autorização");
+    const now = new Date().toISOString();
     await Promise.all([
       supabase.from("fiscal_queue")
-        .update({ status: "pending", last_error: pendingMsg, processed_at: null })
+        .update({
+          status: "pending",
+          last_error: pendingMsg,
+          processed_at: null,
+          next_retry_at: computeNextRetryAt(attempts),
+          finished_at: now,
+          updated_at: now,
+        })
         .eq("id", queueId),
       supabase.from("sales")
         .update({ status: "pendente_fiscal" })
         .eq("id", saleId)
         .eq("company_id", companyId),
     ]);
-    return { queueId, saleId, outcome: "pending", detail: pendingMsg };
+    return { queueId, saleId, outcome: "pending", detail: pendingMsg, durationMs: Date.now() - itemStart };
   }
 
   // ✅ Sucesso
-  await Promise.all([
-    supabase.from("sales")
-      .update({ status: "autorizada", access_key: fiscalData?.access_key || null, number: fiscalData?.number || null })
-      .eq("id", saleId)
-      .eq("company_id", companyId),
-    supabase.from("fiscal_queue")
-      .update({ status: "done", processed_at: new Date().toISOString(), last_error: null })
-      .eq("id", queueId),
-  ]);
-  return { queueId, saleId, outcome: "done", detail: "Autorizada" };
+  return markDone(String(fiscalData?.access_key || ""), fiscalData?.number);
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -472,6 +464,8 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
+
+  const execStart = Date.now();
 
   try {
     const authHeader = req.headers.get("Authorization") || "";
@@ -507,11 +501,12 @@ Deno.serve(async (req) => {
 
     // 1️⃣ Resetar itens presos em "processing" há mais de 5 minutos
     const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+    const now = new Date().toISOString();
     let stuckQuery = supabase
       .from("fiscal_queue")
-      .update({ status: "pending" })
+      .update({ status: "pending", updated_at: now })
       .eq("status", "processing")
-      .lt("created_at", fiveMinAgo);
+      .lt("started_at", fiveMinAgo);
     if (companyFilter) stuckQuery = stuckQuery.eq("company_id", companyFilter);
     await stuckQuery;
 
@@ -545,10 +540,12 @@ Deno.serve(async (req) => {
     }
 
     // ── Chamada batch (cron / service) → até BATCH_SIZE itens ──
+    // Respeita next_retry_at: só pega itens cujo backoff já expirou
     let batchQuery: any = supabase
       .from("fiscal_queue")
       .select("*")
-      .eq("status", "pending");
+      .eq("status", "pending")
+      .or(`next_retry_at.is.null,next_retry_at.lte.${now}`);
     if (companyFilter) batchQuery = batchQuery.eq("company_id", companyFilter);
     batchQuery = batchQuery.order("created_at", { ascending: true }).limit(BATCH_SIZE);
     const { data: queueItems } = await batchQuery;
@@ -557,16 +554,17 @@ Deno.serve(async (req) => {
       return jsonResponse({ success: true, message: "Nenhum item pendente", processed: 0 }, 200);
     }
 
+    // Processamento SEQUENCIAL dentro do batch (evita flood no SEFAZ)
     const results: ItemResult[] = [];
     for (const item of queueItems) {
       try {
         const r = await processOneItem(supabase, item, authHeader, isServiceCall, serviceRoleKey);
         results.push(r);
       } catch (err: any) {
-        results.push({ queueId: item.id, saleId: item.sale_id, outcome: "error", detail: err.message });
-        // Marcar como pending para retry na próxima execução
+        results.push({ queueId: item.id, saleId: item.sale_id, outcome: "error", detail: err.message, durationMs: 0 });
+        const errNow = new Date().toISOString();
         await supabase.from("fiscal_queue")
-          .update({ status: "pending", last_error: `[crash] ${err.message}` })
+          .update({ status: "pending", last_error: `[crash] ${err.message}`, next_retry_at: computeNextRetryAt(item.attempts || 1), updated_at: errNow })
           .eq("id", item.id);
       }
     }
@@ -575,18 +573,22 @@ Deno.serve(async (req) => {
     const pending = results.filter((r) => r.outcome === "pending").length;
     const errors = results.filter((r) => r.outcome === "error").length;
     const deadLetter = results.filter((r) => r.outcome === "dead_letter").length;
-    const skipped = results.filter((r) => r.outcome === "skipped_backoff").length;
+    const skipped = results.filter((r) => r.outcome === "skipped_locked").length;
+    const totalDurationMs = Date.now() - execStart;
+    const avgItemMs = results.length > 0 ? Math.round(results.reduce((s, r) => s + (r.durationMs || 0), 0) / results.length) : 0;
 
     console.log(
       `[process-fiscal-queue] ${new Date().toISOString()} BATCH COMPLETE: ` +
-      `total=${results.length}, done=${done}, pending=${pending}, errors=${errors}, dead_letter=${deadLetter}, skipped_backoff=${skipped}`,
+      `total=${results.length}, done=${done}, pending=${pending}, errors=${errors}, dead_letter=${deadLetter}, skipped=${skipped}, ` +
+      `total_duration=${totalDurationMs}ms, avg_item=${avgItemMs}ms`,
     );
 
     return new Response(
       JSON.stringify({
         success: true,
         processed: results.length,
-        summary: { done, pending, errors, dead_letter: deadLetter, skipped_backoff: skipped },
+        summary: { done, pending, errors, dead_letter: deadLetter, skipped_locked: skipped },
+        timing: { total_ms: totalDurationMs, avg_item_ms: avgItemMs },
         details: results,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
