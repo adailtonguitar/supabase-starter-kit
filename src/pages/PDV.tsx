@@ -47,7 +47,7 @@ import { usePDVFiscalValidation } from "@/hooks/pdv/usePDVFiscalValidation";
 export default function PDV() {
   const pdv = usePDV();
   const navigate = useNavigate();
-  const { companyName, companyId, logoUrl, slogan, pixKey, pixKeyType, pixCity, cnpj, ie, phone, addressStreet, addressNumber, addressNeighborhood, addressCity, addressState } = useCompany();
+  const { companyName, companyId, logoUrl, slogan, pixKey, pixKeyType, pixCity, cnpj, ie, phone, addressStreet, addressNumber, addressNeighborhood, addressCity, addressState, taxRegime } = useCompany();
   const { config: tefConfigData } = useTEFConfig();
   const { maxDiscountPercent } = usePermissions();
   const planFeatures = usePlanFeatures();
@@ -65,7 +65,7 @@ export default function PDV() {
     if (fiscalSkipUserOverride !== null) return fiscalSkipUserOverride;
     return false;
   }, [canUseFiscal, fiscalSkipUserOverride]);
-  const fiscalValidation = usePDVFiscalValidation(pdv.cartItems, canUseFiscal && !skipFiscalEmission);
+  const fiscalValidation = usePDVFiscalValidation(pdv.cartItems, canUseFiscal && !skipFiscalEmission, taxRegime);
   const [showFiscalErrors, setShowFiscalErrors] = useState(false);
   const [showCashRegister, setShowCashRegister] = useState(false);
   const [receipt, setReceipt] = useState<{
