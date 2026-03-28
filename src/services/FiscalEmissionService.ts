@@ -141,6 +141,12 @@ export class FiscalEmissionService {
       });
 
       if (error) return { success: false, error: error.message };
+      if (data && typeof data === "object" && "success" in data && data.success === false) {
+        const responseError = "error" in data && typeof data.error === "string"
+          ? data.error
+          : "Erro ao inutilizar numeração";
+        return { success: false, error: responseError, data };
+      }
       return { success: true, data };
     } catch (err: unknown) {
       return { success: false, error: getErrorMessage(err) };
