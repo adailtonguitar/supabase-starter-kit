@@ -61,6 +61,7 @@ interface FiscalDoc {
   created_at: string;
   is_contingency: boolean;
   environment: "homologacao" | "producao";
+  sale_id?: string | null;
 }
 
 const statusConfig: Record<DocStatus, { icon: React.ElementType; label: string; className: string }> = {
