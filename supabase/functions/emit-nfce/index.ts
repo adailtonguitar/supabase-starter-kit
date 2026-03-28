@@ -777,15 +777,60 @@ async function handleConsultStatus(supabase: any, body: any, callerUserId?: stri
   }
   const status = (data.status || "").toLowerCase();
   const isAuth = status.includes("autoriz") || status.includes("aprovad") || String(data.codigo_status) === "100";
+  const isDenied = status.includes("rejei") || status.includes("deneg") || ["110", "204", "301", "302", "539", "999"].includes(String(data.codigo_status || data.cStat || ""));
+  const normalizedStatus = isAuth ? "autorizada" : isDenied ? "rejeitada" : status || "pendente";
+  const providerReason = String(data.motivo || data.xMotivo || data.rejection_reason || data.mensagem || data.message || "").trim();
 
-  if (isAuth && company_id) {
+  if (company_id) {
+    const docUpdate: Record<string, unknown> = {
+      status: normalizedStatus,
+      access_key: data.chave || access_key,
+      protocol_number: data.protocolo || null,
+    };
+    if (providerReason && normalizedStatus === "rejeitada") {
+      docUpdate.rejection_reason = providerReason;
+    }
+
     await supabase.from("fiscal_documents")
-      .update({ status: "autorizada", access_key: data.chave || access_key, protocol_number: data.protocolo || null })
+      .update(docUpdate)
       .eq("access_key", access_key).eq("company_id", company_id);
+
+    const salesUpdate =
+      normalizedStatus === "autorizada"
+        ? { status: "emitida", access_key: data.chave || access_key }
+        : normalizedStatus === "rejeitada"
+          ? { status: "erro_fiscal" }
+          : { status: "pendente_fiscal" };
+
+    await supabase.from("sales")
+      .update(salesUpdate)
+      .eq("company_id", company_id)
+      .eq("access_key", access_key);
+
+    const queueUpdate: Record<string, unknown> = {
+      status: normalizedStatus === "autorizada" ? "done" : normalizedStatus === "rejeitada" ? "error" : "pending",
+      updated_at: new Date().toISOString(),
+      next_retry_at: normalizedStatus === "autorizada" || normalizedStatus === "rejeitada" ? null : undefined,
+      finished_at: normalizedStatus === "autorizada" || normalizedStatus === "rejeitada" ? new Date().toISOString() : undefined,
+    };
+    if (normalizedStatus === "autorizada") {
+      queueUpdate.last_error = null;
+    }
+    if (normalizedStatus === "rejeitada") {
+      queueUpdate.last_error = providerReason || "Rejeição confirmada no provedor fiscal";
+    }
+
+    const cleanQueueUpdate = Object.fromEntries(Object.entries(queueUpdate).filter(([, value]) => value !== undefined));
+
+    await supabase.from("fiscal_queue")
+      .update(cleanQueueUpdate)
+      .eq("company_id", company_id)
+      .in("status", ["pending", "processing", "error", "dead_letter"])
+      .or(`sale_id.in.(select id from sales where company_id.eq.${company_id} and access_key.eq.${access_key}),last_error.ilike.%${access_key.slice(-8)}%`);
   }
 
   return jsonResponse({
-    success: true, status: isAuth ? "autorizada" : status,
+    success: true, status: normalizedStatus,
     access_key: data.chave || access_key, number: data.numero, details: data,
   });
 }
@@ -1031,6 +1076,45 @@ async function handleInutilize(supabase: any, body: any, callerUserId?: string |
     }
     if (insertErrors > 0) {
       console.warn(`[emit-nfce] ${insertErrors}/${rows.length} rows failed to insert (possibly duplicates)`);
+    }
+
+    await supabase.from("fiscal_documents")
+      .update({ status: "inutilizada", rejection_reason: justificativa })
+      .eq("company_id", company_id)
+      .eq("doc_type", doc_type || "nfce")
+      .eq("serie", serie || 1)
+      .gte("number", numero_inicial)
+      .lte("number", numero_final)
+      .in("status", ["pendente", "rejeitada"]);
+
+    const { data: affectedSales } = await supabase.from("fiscal_documents")
+      .select("sale_id")
+      .eq("company_id", company_id)
+      .eq("doc_type", doc_type || "nfce")
+      .eq("serie", serie || 1)
+      .gte("number", numero_inicial)
+      .lte("number", numero_final)
+      .not("sale_id", "is", null);
+
+    const saleIds = Array.from(new Set((affectedSales || []).map((row: { sale_id?: string | null }) => String(row.sale_id || "")).filter(Boolean)));
+
+    if (saleIds.length > 0) {
+      await supabase.from("fiscal_queue")
+        .update({
+          status: "error",
+          last_error: `[inutilizada] Numeração inutilizada na SEFAZ: ${numero_inicial}-${numero_final}`,
+          next_retry_at: null,
+          finished_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq("company_id", company_id)
+        .in("sale_id", saleIds)
+        .in("status", ["pending", "processing", "error", "dead_letter"]);
+
+      await supabase.from("sales")
+        .update({ status: "erro_fiscal" })
+        .eq("company_id", company_id)
+        .in("id", saleIds);
     }
   }
 
