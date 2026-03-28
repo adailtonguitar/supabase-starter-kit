@@ -23,10 +23,10 @@ export function useGapDetection() {
       const detectedGaps: NumberingGap[] = [];
 
       for (const docType of ["nfce", "nfe"] as const) {
-        // Fetch all used numbers grouped by serie
+        // Fetch all fiscal numbers already consumed or officially inutilized grouped by serie
         const { data: docs } = await supabase
           .from("fiscal_documents")
-          .select("number, serie")
+          .select("number, serie, status")
           .eq("company_id", companyId)
           .eq("doc_type", docType)
           .not("number", "is", null)
@@ -37,6 +37,7 @@ export function useGapDetection() {
         // Group by serie
         const bySerie = new Map<number, number[]>();
         for (const d of docs) {
+          if (!d.number) continue;
           const s = d.serie ?? 1;
           const n = d.number as number;
           if (!bySerie.has(s)) bySerie.set(s, []);
