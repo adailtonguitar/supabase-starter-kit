@@ -174,6 +174,9 @@ export class FiscalEmissionService {
       });
 
       if (error) return { success: false, error: error.message };
+      if (data && typeof data === "object") {
+        return { success: true, ...(data as Record<string, unknown>) };
+      }
       return { success: true, data };
     } catch (err: unknown) {
       return { success: false, error: getErrorMessage(err) };
