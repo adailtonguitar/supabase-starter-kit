@@ -5,7 +5,7 @@ import { useAuth } from "./useAuth";
 const COMPANY_CACHE_KEY = "as_cached_company";
 const SELECTED_COMPANY_KEY = "as_selected_company";
 
-const COMPANY_SELECT = "name, logo_url, slogan, pix_key, pix_key_type, pix_city, address_city, address_street, address_number, address_neighborhood, address_state, cnpj, ie, phone";
+const COMPANY_SELECT = "name, logo_url, slogan, pix_key, pix_key_type, pix_city, address_city, address_street, address_number, address_neighborhood, address_state, cnpj, ie, phone, tax_regime";
 
 interface CachedCompany {
   companyId: string;
@@ -23,6 +23,7 @@ interface CachedCompany {
   addressNeighborhood: string | null;
   addressCity: string | null;
   addressState: string | null;
+  taxRegime: string | null;
 }
 
 type CompanyRow = {
@@ -40,6 +41,7 @@ type CompanyRow = {
   cnpj?: string | null;
   ie?: string | null;
   phone?: string | null;
+  tax_regime?: string | null;
 };
 
 function cacheCompany(data: CachedCompany) {
@@ -70,6 +72,7 @@ function extractCompanyFields(company: CompanyRow | null | undefined): Omit<Cach
     addressNeighborhood: company?.address_neighborhood ?? null,
     addressCity: company?.address_city ?? null,
     addressState: company?.address_state ?? null,
+    taxRegime: company?.tax_regime ?? null,
   };
 }
 
@@ -89,13 +92,14 @@ interface CompanyData {
   addressNeighborhood: string | null;
   addressCity: string | null;
   addressState: string | null;
+  taxRegime: string | null;
   loading: boolean;
   switchCompany: (companyId: string) => void;
 }
 
 const nullFields: Omit<CachedCompany, 'companyId'> = {
   companyName: null, logoUrl: null, slogan: null, pixKey: null, pixKeyType: null, pixCity: null,
-  cnpj: null, ie: null, phone: null, addressStreet: null, addressNumber: null, addressNeighborhood: null, addressCity: null, addressState: null,
+  cnpj: null, ie: null, phone: null, addressStreet: null, addressNumber: null, addressNeighborhood: null, addressCity: null, addressState: null, taxRegime: null,
 };
 
 export function useCompany(): CompanyData {
