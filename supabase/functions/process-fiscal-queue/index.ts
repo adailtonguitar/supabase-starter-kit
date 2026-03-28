@@ -127,6 +127,37 @@ async function tryLockItem(supabase: any, queueId: string, attempts: number): Pr
   return true;
 }
 
+async function deferPendingAuthorization(
+  supabase: any,
+  queueId: string,
+  saleId: string,
+  companyId: string,
+  message: string,
+  attempts: number,
+  itemStart: number,
+): Promise<ItemResult> {
+  const now = new Date().toISOString();
+  const safeAttempts = Math.max(0, attempts - 1);
+  await Promise.all([
+    supabase.from("fiscal_queue")
+      .update({
+        status: "pending",
+        attempts: safeAttempts,
+        last_error: message,
+        next_retry_at: computeNextRetryAt(Math.max(1, safeAttempts + 1)),
+        finished_at: now,
+        updated_at: now,
+      })
+      .eq("id", queueId),
+    supabase.from("sales")
+      .update({ status: "pendente_fiscal" })
+      .eq("id", saleId)
+      .eq("company_id", companyId),
+  ]);
+
+  return { queueId, saleId, outcome: "pending", detail: message, durationMs: Date.now() - itemStart };
+}
+
 // ── Processar um único item da fila ──
 async function processOneItem(
   supabase: any,
@@ -324,7 +355,7 @@ async function processOneItem(
 
     // Documento existe na SEFAZ mas ainda pendente → aguardar, NÃO re-emitir
     const waitMsg = `Documento já enviado (chave: ${String((latestDoc as any).access_key).slice(-8)}), aguardando autorização SEFAZ`;
-    return markTechnicalRetry(waitMsg);
+    return deferPendingAuthorization(supabase, queueId, saleId, companyId, waitMsg, attempts, itemStart);
   }
 
   // Montar dados fiscais
