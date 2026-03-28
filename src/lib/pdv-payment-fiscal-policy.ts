@@ -5,16 +5,11 @@ import type { PaymentResult } from "@/services/types";
  * e a visibilidade de `sale_items` para leitores da fila — evita enfileirar antes do `emit` direto.
  * Dinheiro (e demais) continua usando `fiscal_queue` para rastreio/reprocesso.
  */
-export function pdvPaymentsBypassFiscalQueue(payments: PaymentResult[]): boolean {
-  return payments.some(
-    (p) =>
-      p.method === "pix" ||
-      p.method === "debito" ||
-      p.method === "credito",
-  );
+export function pdvPaymentsBypassFiscalQueue(_payments: PaymentResult[]): boolean {
+  return false;
 }
 
 /** Aguarda replicação eventual após `finalize_sale_atomic` (best-effort). */
 export function pdvPostSaleVisibilityDelayMs(payments: PaymentResult[]): number {
-  return pdvPaymentsBypassFiscalQueue(payments) ? 1500 : 0;
+  return 2000;
 }
