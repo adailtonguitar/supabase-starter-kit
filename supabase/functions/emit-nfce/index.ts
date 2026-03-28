@@ -952,8 +952,7 @@ async function handleEmitFromSale(supabase: any, body: any) {
   }
   if (saleErr || !sale) {
     console.warn(`[emit-nfce] Venda não encontrada após ${saleDelays.length} tentativas: sale_id=${saleId}, company_id=${companyId}, err=${saleErr?.message || "null"}`);
-    // Retornar 200 com pending=true para que o frontend reconheça como erro de visibilidade e tente de novo
-    return jsonResponse({ success: true, pending: true, error: "Venda não encontrada", sale_id: saleId }, 200);
+    return jsonResponse({ success: false, status: "pending", pending: true, error: "Venda não encontrada", sale_id: saleId }, 200);
   }
 
   // 1) Load sale_items without relying on implicit foreign table joins (can break if relationship name differs)
@@ -973,11 +972,11 @@ async function handleEmitFromSale(supabase: any, body: any) {
   }
   if (itemsErr) {
     console.error("[emit-nfce] Falha ao carregar sale_items:", itemsErr.message);
-    return jsonResponse({ success: true, pending: true, error: "Itens da venda não encontrados", sale_id: saleId }, 200);
+    return jsonResponse({ success: false, status: "pending", pending: true, error: "Itens da venda não encontrados", sale_id: saleId }, 200);
   }
   if (!items?.length) {
     console.warn(`[emit-nfce] Itens não encontrados após ${saleDelays.length} tentativas: sale_id=${saleId}`);
-    return jsonResponse({ success: true, pending: true, error: "Itens da venda não encontrados", sale_id: saleId }, 200);
+    return jsonResponse({ success: false, status: "pending", pending: true, error: "Itens da venda não encontrados", sale_id: saleId }, 200);
   }
 
   // 2) Load product fiscal fields in a second query

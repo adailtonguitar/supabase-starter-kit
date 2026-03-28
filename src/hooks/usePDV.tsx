@@ -12,9 +12,7 @@ import type { FinalizeSaleItemInput, FinalizeSalePaymentInput, PaymentResult } f
 import { isScaleBarcode, parseScaleBarcode } from "@/lib/scale-barcode";
 import { logAction, newPdvTraceId } from "@/services/ActionLogger";
 import { CircuitBreakerOpenError } from "@/lib/circuit-breaker";
-import { getFunctionErrorMessage } from "@/lib/get-function-error-message";
 import { getFiscalConfig } from "@/lib/fiscal-config-lookup";
-import { pdvPaymentsBypassFiscalQueue, pdvPostSaleVisibilityDelayMs } from "@/lib/pdv-payment-fiscal-policy";
 
 import { usePDVProducts } from "@/hooks/pdv/usePDVProducts";
 import { usePDVSession } from "@/hooks/pdv/usePDVSession";
@@ -69,7 +67,7 @@ export function usePDV() {
   const { currentSession, loadingSession, sessionEverLoaded, reloadSession } = usePDVSession(companyId);
   const { activePromos } = usePDVPromotions(companyId);
   const cart = usePDVCart(activePromos);
-  const { enqueueFiscal, processFiscalEmission, reprocessFiscal } = usePDVFiscal(companyId);
+  const { enqueueFiscal, reprocessFiscal, startBackgroundFiscalProcessing } = usePDVFiscal(companyId);
 
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [trainingMode] = useState(false);
@@ -210,11 +208,6 @@ export function usePDV() {
 
       const saleId = result.sale_id!;
 
-      const postCommitDelayMs = pdvPostSaleVisibilityDelayMs(payments);
-      if (postCommitDelayMs > 0) {
-        await new Promise((r) => setTimeout(r, postCommitDelayMs));
-      }
-
       decrementLocalStock(cart.cartItems.map(c => ({ id: c.id, quantity: c.quantity })));
       const savedItems = [...cart.cartItems];
       cart.clearCart();
@@ -270,59 +263,18 @@ export function usePDV() {
             ]).catch(() => {});
             toast.success("✅ Simulação concluída! (modo teste — sem envio à SEFAZ)", { description: `NFC-e simulada: ${nfceNumber}`, duration: 6000 });
           } else {
-            const bypassQueue = pdvPaymentsBypassFiscalQueue(payments);
-            const queueId = bypassQueue ? undefined : ((await enqueueFiscal(saleId)) ?? undefined);
+            const queueId = (await enqueueFiscal(saleId)) ?? undefined;
 
-            if (!bypassQueue && queueId == null) {
+            if (queueId == null) {
               toast.warning("Venda concluída, mas a NFC-e não foi enfileirada.", {
                 description: "Verifique Fiscal > Documentos para reprocessar a emissão.",
                 duration: 8000,
               });
-            }
-
-            const FISCAL_TIMEOUT_MS = 130_000;
-            try {
-              const fiscalPromise = processFiscalEmission(saleId, queueId, {
-                saleItems,
-                payments,
-                total: saleTotalCaptured,
-                crt: fiscalCrt,
-                customerName: options?.fiscalCustomer?.name,
-                customerDoc: options?.fiscalCustomer?.doc,
-              });
-
-              const raced = await Promise.race([
-                fiscalPromise.then((r) => ({ done: true as const, r })),
-                new Promise<{ done: false }>((resolve) => setTimeout(() => resolve({ done: false }), FISCAL_TIMEOUT_MS)),
-              ]);
-
-              if (raced.done) {
-                const fiscalResult = raced.r;
-                fiscalDocId = fiscalResult.fiscalDocId || undefined;
-                accessKey = fiscalResult.accessKey || accessKey;
-                serie = fiscalResult.serie || serie;
-                if (fiscalResult.status === "autorizada") {
-                  nfceNumber = fiscalResult.nfceNumber || "";
-                  toast.success("✅ NFC-e emitida com sucesso!", { description: `Número: ${nfceNumber}`, duration: 5000 });
-                } else {
-                  toast.info("🕒 NFC-e enviada e aguardando autorização.", {
-                    description: bypassQueue
-                      ? "Consulte o Histórico de vendas se o cupom não atualizar."
-                      : "A autorização pode concluir em segundo plano; use o Histórico se necessário.",
-                    duration: 6000,
-                  });
-                }
-              } else {
-                toast.info("🕒 Venda concluída. NFC-e ainda em processamento.", {
-                  description: "A emissão continua em segundo plano. Verifique o Histórico se não atualizar.",
-                  duration: 6000,
-                });
-              }
-            } catch (fiscalErr: unknown) {
-              const errMsg = await getFunctionErrorMessage(fiscalErr, "Erro desconhecido na emissão fiscal");
-              toast.error(`⚠️ Emissão fiscal falhou: ${errMsg}`, {
-                description: "A venda foi registrada. Reprocesse depois em Fiscal > Documentos.",
-                duration: 10000,
+            } else {
+              startBackgroundFiscalProcessing(saleId, queueId);
+              toast.info("🕒 Venda concluída. NFC-e em processamento.", {
+                description: "A emissão foi enfileirada e seguirá em segundo plano sem travar o PDV.",
+                duration: 6000,
               });
             }
           }
@@ -437,7 +389,7 @@ export function usePDV() {
       finalizingRef.current = false;
       setFinalizingSale(false);
     }
-  }, [companyId, currentSession, cart, decrementLocalStock, queueOperation, enqueueFiscal, processFiscalEmission]);
+  }, [companyId, currentSession, cart, decrementLocalStock, queueOperation, enqueueFiscal, startBackgroundFiscalProcessing]);
 
   const repeatLastSale = useCallback(async () => {
     if (!companyId) { toast.info("Sem empresa"); return; }
