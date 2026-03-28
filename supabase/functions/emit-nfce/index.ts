@@ -150,6 +150,39 @@ function sanitizeSefazText(value: unknown, fallback: string): string {
   return s;
 }
 
+function extractConsultReason(data: Record<string, any>): string {
+  const candidates = [
+    data.motivo,
+    data.xMotivo,
+    data.rejection_reason,
+    data.mensagem,
+    data.message,
+    data.erro,
+    data.descricao,
+    data?.status_sefaz?.motivo,
+    data?.status_sefaz?.xMotivo,
+    data?.status_sefaz?.mensagem,
+    data?.status_sefaz?.message,
+    data?.erro?.mensagem,
+    data?.erro?.message,
+    data?.error?.mensagem,
+    data?.error?.message,
+  ];
+
+  for (const candidate of candidates) {
+    const value = String(candidate ?? "").trim();
+    if (value) return value;
+  }
+
+  return "";
+}
+
+function formatConsultReason(data: Record<string, any>, fallback: string): string {
+  const code = String(data.codigo_status || data.cStat || data.status_sefaz?.codigo || "").trim();
+  const reason = extractConsultReason(data) || fallback;
+  return code && !reason.includes(`[${code}]`) ? `[${code}] ${reason}` : reason;
+}
+
 async function resolveNuvemFiscalDocId(params: {
   token: string;
   baseUrl: string;
@@ -843,7 +876,7 @@ async function handleConsultStatus(supabase: any, body: any, callerUserId?: stri
   const isAuth = status.includes("autoriz") || status.includes("aprovad") || String(data.codigo_status) === "100";
   const isDenied = status.includes("rejei") || status.includes("deneg") || ["110", "204", "301", "302", "539", "999"].includes(String(data.codigo_status || data.cStat || ""));
   const normalizedStatus = isAuth ? "autorizada" : isDenied ? "rejeitada" : status || "pendente";
-  const providerReason = String(data.motivo || data.xMotivo || data.rejection_reason || data.mensagem || data.message || "").trim();
+  const providerReason = formatConsultReason(data, normalizedStatus === "rejeitada" ? "Rejeição confirmada no provedor fiscal" : "");
 
   if (company_id) {
     const docUpdate: Record<string, unknown> = {
@@ -895,7 +928,7 @@ async function handleConsultStatus(supabase: any, body: any, callerUserId?: stri
 
   return jsonResponse({
     success: true, status: normalizedStatus,
-    access_key: data.chave || access_key, number: data.numero, details: data,
+    access_key: data.chave || access_key, number: data.numero, rejection_reason: providerReason || undefined, details: data,
   });
 }
 

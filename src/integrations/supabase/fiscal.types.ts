@@ -49,6 +49,7 @@ export interface FiscalConsultResult {
   number?: number;
   access_key?: string;
   error?: string;
+  rejection_reason?: string;
   details?: Record<string, unknown>;
 }
 

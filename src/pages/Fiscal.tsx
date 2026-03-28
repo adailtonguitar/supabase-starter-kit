@@ -237,10 +237,14 @@ export default function Fiscal() {
       });
       await loadDocs();
 
+      const rejectionReason = result?.rejection_reason?.trim();
+
       if (newStatus === "autorizada") {
         toast.success("Status reconciliado com a Nuvem Fiscal: documento autorizado.");
+      } else if (newStatus === "rejeitada") {
+        toast.error(rejectionReason || "Documento rejeitado pela SEFAZ.");
       } else {
-        toast.info(`Status atual na Nuvem Fiscal: ${newStatus}`);
+        toast.info(rejectionReason ? `Status atual na Nuvem Fiscal: ${newStatus} — ${rejectionReason}` : `Status atual na Nuvem Fiscal: ${newStatus}`);
       }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Erro ao consultar status.";
