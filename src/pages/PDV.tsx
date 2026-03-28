@@ -502,41 +502,51 @@ export default function PDV() {
 
   const handleTEFComplete = async (tefResults: TEFResult[]) => {
     const allApproved = tefResults.every((r) => r.approved);
-    if (allApproved) {
-      if (finalizingSale) return;
-      try {
-        const paymentResults: PaymentResult[] = tefResults.map((r) => ({
-          method: r.method as PaymentResult["method"], approved: r.approved, amount: r.amount,
-          nsu: r.nsu, auth_code: r.authCode, card_brand: r.cardBrand,
-          card_last_digits: r.cardLastDigits, installments: r.installments,
-          change_amount: r.changeAmount, pix_tx_id: r.pixTxId,
-        }));
-        const savedItems = [...pdv.cartItems];
-        const savedTotal = pdv.total;
-        const savedClient = selectedClient;
-        const result = await pdv.finalizeSale(paymentResults, { skipFiscal: skipFiscalEmission, maxDiscountPercent });
-        playSaleCompleteSound();
-        setReceipt({
-          items: savedItems, total: savedTotal, payments: tefResults, nfceNumber: result.nfceNumber,
-          accessKey: result.accessKey, serie: result.serie, isContingency: result.isContingency,
-          isHomologacao: result.isHomologacao,
-          saleId: result.saleId, customerCpf: savedClient?.cpf || undefined,
-          itemNotes: { ...itemNotes }, promoMatches: { ...pdv.promoMatches },
-        });
-        setSelectedClient(null);
-        const newNum = saleNumber + 1; setSaleNumber(newNum); localStorage.setItem("pdv_sale_number", String(newNum));
-        checkLowStockAfterSale(savedItems);
-        if (pendingQuoteId) { updateQuoteStatus(pendingQuoteId, "convertido").catch(() => {}); setPendingQuoteId(null); }
-        if (loyaltyActive && savedClient?.id) {
-          const pts = await earnPoints(savedClient.id, savedTotal, result.fiscalDocId);
-          if (pts > 0) toast.info(`🎁 ${savedClient.name} ganhou ${pts} pontos de fidelidade!`, { duration: 2000 });
-        }
-      } catch (err: unknown) {
-        playErrorSound();
-        toast.error(`Erro ao finalizar venda: ${err instanceof Error ? err.message : "Erro"}`);
+
+    // ✅ Fecha o modal TEF IMEDIATAMENTE — não bloqueia mais a UI
+    setShowTEF(false);
+    setTefDefaultMethod(null);
+
+    if (!allApproved || finalizingSale) return;
+
+    // Captura estado antes de limpar
+    const savedItems = [...pdv.cartItems];
+    const savedTotal = pdv.total;
+    const savedClient = selectedClient;
+    const savedItemNotes = { ...itemNotes };
+    const savedPromoMatches = { ...pdv.promoMatches };
+
+    try {
+      const paymentResults: PaymentResult[] = tefResults.map((r) => ({
+        method: r.method as PaymentResult["method"], approved: r.approved, amount: r.amount,
+        nsu: r.nsu, auth_code: r.authCode, card_brand: r.cardBrand,
+        card_last_digits: r.cardLastDigits, installments: r.installments,
+        change_amount: r.changeAmount, pix_tx_id: r.pixTxId,
+      }));
+
+      toast.info("Finalizando venda e emitindo NFC-e...", { duration: 3000 });
+
+      const result = await pdv.finalizeSale(paymentResults, { skipFiscal: skipFiscalEmission, maxDiscountPercent });
+      playSaleCompleteSound();
+      setReceipt({
+        items: savedItems, total: savedTotal, payments: tefResults, nfceNumber: result.nfceNumber,
+        accessKey: result.accessKey, serie: result.serie, isContingency: result.isContingency,
+        isHomologacao: result.isHomologacao,
+        saleId: result.saleId, customerCpf: savedClient?.cpf || undefined,
+        itemNotes: savedItemNotes, promoMatches: savedPromoMatches,
+      });
+      setSelectedClient(null);
+      const newNum = saleNumber + 1; setSaleNumber(newNum); localStorage.setItem("pdv_sale_number", String(newNum));
+      checkLowStockAfterSale(savedItems);
+      if (pendingQuoteId) { updateQuoteStatus(pendingQuoteId, "convertido").catch(() => {}); setPendingQuoteId(null); }
+      if (loyaltyActive && savedClient?.id) {
+        const pts = await earnPoints(savedClient.id, savedTotal, result.fiscalDocId);
+        if (pts > 0) toast.info(`🎁 ${savedClient.name} ganhou ${pts} pontos de fidelidade!`, { duration: 2000 });
       }
+    } catch (err: unknown) {
+      playErrorSound();
+      toast.error(`Erro ao finalizar venda: ${err instanceof Error ? err.message : "Erro"}`);
     }
-    setShowTEF(false); setTefDefaultMethod(null);
   };
 
   const handlePrazoRequested = () => { setShowTEF(false); setTefDefaultMethod(null); setShowClientSelector(true); };
