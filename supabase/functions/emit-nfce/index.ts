@@ -188,18 +188,6 @@ async function resolveProviderDocRef(params: {
   if (!isAccessKey) return String(params.accessKey);
 
   if (params.companyId) {
-    const { data: docRow } = await params.supabase
-      .from("fiscal_documents")
-      .select("nuvem_fiscal_id")
-      .eq("company_id", String(params.companyId))
-      .eq("access_key", keyDigits)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    const docId = String((docRow as { nuvem_fiscal_id?: string | null } | null)?.nuvem_fiscal_id || "").trim();
-    if (docId) return docId;
-
     const { data: company } = await params.supabase
       .from("companies")
       .select("cnpj")
