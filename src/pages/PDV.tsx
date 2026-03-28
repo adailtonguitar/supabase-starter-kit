@@ -405,8 +405,15 @@ export default function PDV() {
       setLastAddedItem({ name: product.name, price: product.price, image_url: product.image_url });
       if (lastAddedTimerRef.current) clearTimeout(lastAddedTimerRef.current);
       lastAddedTimerRef.current = setTimeout(() => setLastAddedItem(null), 3000);
+      // Fiscal validation warning on add
+      if (canUseFiscal && !skipFiscalEmission) {
+        const ncm = (product.ncm || "").replace(/\D/g, "");
+        if (!ncm || ncm.length !== 8 || ncm === "00000000") {
+          toast.warning(`⚠️ "${product.name}" está sem NCM válido. Corrija antes de finalizar.`, { duration: 4000, id: `fiscal-warn-${product.id}` });
+        }
+      }
     }
-  }, [pdv]);
+  }, [pdv, canUseFiscal, skipFiscalEmission]);
 
   // ── Keyboard shortcuts ──
   useEffect(() => {
