@@ -152,6 +152,12 @@ export function PDVCartTable({
                             📝 {itemNotes[item.id]}
                           </span>
                         )}
+                        {fiscalInvalidItems?.[item.id] && (
+                          <span className="ml-1 flex items-center gap-0.5 text-[9px] text-destructive font-bold bg-destructive/10 rounded px-1 py-0.5" title={`Faltando: ${fiscalInvalidItems[item.id].join(", ")}`}>
+                            <AlertTriangle className="w-2.5 h-2.5" />
+                            {fiscalInvalidItems[item.id].join(", ")}
+                          </span>
+                        )}
                       </div>
                     </td>
                     <td className="px-1 py-1.5 text-center font-mono font-bold text-foreground text-[10px]">
