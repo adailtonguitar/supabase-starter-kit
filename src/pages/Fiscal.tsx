@@ -98,6 +98,9 @@ export default function Fiscal() {
   const [inutLoading, setInutLoading] = useState(false);
   const [backupLoading, setBackupLoading] = useState(false);
   const { gaps, loading: gapsLoading, refresh: refreshGaps } = useGapDetection();
+  const [queueError, setQueueError] = useState<string | null>(null);
+  const [queueStatus, setQueueStatus] = useState<string | null>(null);
+  const [queueAttempts, setQueueAttempts] = useState<number | null>(null);
 
   // ── Item 16: Pagination state ──
   const PAGE_SIZE = 50;
