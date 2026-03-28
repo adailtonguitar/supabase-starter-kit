@@ -58,6 +58,16 @@ async function parseResponseJsonSafe(resp: Response, label: string): Promise<any
   }
 }
 
+function extractProviderErrorMessage(data: any, status: number, fallback: string): string {
+  if (typeof data === "string" && data.trim()) return data;
+  if (data && typeof data === "object") {
+    const candidates = [data.mensagem, data.message, data.error, data.detail, data.title]
+      .filter((value) => typeof value === "string" && value.trim().length > 0);
+    if (candidates.length > 0) return String(candidates[0]);
+  }
+  return `${fallback} (status ${status})`;
+}
+
 // ─── safeFetch: AbortController + timeout (compatível com Supabase Edge Runtime) ───
 async function safeFetch(url: string, options: RequestInit = {}, timeout = 8000): Promise<Response> {
   const controller = new AbortController();
@@ -967,7 +977,7 @@ async function handleInutilize(supabase: any, body: any, callerUserId?: string |
 
   const data = await parseResponseJsonSafe(resp, "inutilização");
   if (!resp.ok) {
-    const msg = data?.mensagem || data?.message || data?.error || JSON.stringify(data) || "Erro na inutilização";
+    const msg = extractProviderErrorMessage(data, resp.status, "Erro na inutilização");
     console.error("[emit-nfce] Nuvem Fiscal inutilização erro:", resp.status, msg);
     return jsonResponse({ success: false, error: `Erro SEFAZ: ${msg}` });
   }
