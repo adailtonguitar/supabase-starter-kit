@@ -966,7 +966,7 @@ async function handleInutilize(supabase: any, body: any, callerUserId?: string |
   const baseUrl = getApiBaseUrl();
   const endpoint = doc_type === "nfe" ? "nfe" : "nfce";
 
-  const resp = await safeFetch(`${baseUrl}/${endpoint}/inutilizacao`, {
+  const resp = await safeFetch(`${baseUrl}/${endpoint}/inutilizacoes`, {
     method: "POST",
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
     body: JSON.stringify({
