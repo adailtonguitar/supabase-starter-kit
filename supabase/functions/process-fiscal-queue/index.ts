@@ -5,10 +5,6 @@ import {
   parseSalePaymentsJson,
 } from "../_shared/sale-payments.ts";
 
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
 function parseSaleItemsJsonb(raw: unknown): Array<Record<string, unknown>> {
   if (raw == null) return [];
   if (Array.isArray(raw)) return raw as Array<Record<string, unknown>>;
@@ -43,7 +39,8 @@ function fiscalSnapshotByProductId(itemsJson: unknown): Map<string, Record<strin
 function visibilityPendingResponse(saleId: string, queueId: string, reason: string) {
   return new Response(
     JSON.stringify({
-      success: true,
+      success: false,
+      status: "pending",
       pending: true,
       sale_id: saleId,
       queue_id: queueId,
@@ -209,9 +206,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 5️⃣ Buscar dados da venda e itens (incluindo dados fiscais do produto)
-    // Em alguns cenários (principalmente logo após finalizar a venda no PDV), pode haver delay curto
-    // até a venda/itens ficarem visíveis via API. Fazemos retry curto para evitar falso negativo.
+    // 5️⃣ Buscar dados da venda e itens apenas quando já estiverem consistentes.
     let sale: any = null;
     let items: any[] = [];
     let lastSaleErr: any = null;
@@ -220,79 +215,61 @@ Deno.serve(async (req) => {
       supabase.from("companies").select("crt").eq("id", companyId).maybeSingle(),
     ]);
 
-    // Backoff após commit: ao esgotar leituras, ERROR (evita pending infinito na fila).
-    const visibilityBackoffMs = [500, 1000, 2000, 5000, 10000, 20000];
-    const maxVisibilityReads = visibilityBackoffMs.length + 1;
+    console.log(`[process-fiscal-queue] ${new Date().toISOString()} validando consistência sale_id=${saleId} queue_id=${queueId} attempts=${attempts}`);
 
-    console.log(`[process-fiscal-queue] ${new Date().toISOString()} leitura venda/itens sale_id=${saleId} queue_id=${queueId} attempts=${attempts}`);
+    const saleRes = await supabase
+      .from("sales")
+      .select("*")
+      .eq("id", saleId)
+      .maybeSingle();
 
-    for (let read = 0; read < maxVisibilityReads; read++) {
-      const t0 = new Date().toISOString();
-      const saleRes = await supabase
-        .from("sales")
-        .select("*")
-        .eq("id", saleId)
-        .maybeSingle();
+    sale = saleRes.data;
+    lastSaleErr = saleRes.error;
 
-      sale = saleRes.data;
-      lastSaleErr = saleRes.error;
+    if (sale && String((sale as any).company_id || "") !== String(companyId)) {
+      await supabase.from("fiscal_queue")
+        .update({ status: "error", last_error: "Venda não pertence à empresa deste processamento." })
+        .eq("id", queueId);
+      return new Response(
+        JSON.stringify({ success: false, error: "Venda não pertence à empresa", sale_id: saleId }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
-      if (sale && String((sale as any).company_id || "") !== String(companyId)) {
-        await supabase.from("fiscal_queue")
-          .update({ status: "error", last_error: "Venda não pertence à empresa deste processamento." })
-          .eq("id", queueId);
-        return new Response(
-          JSON.stringify({ success: false, error: "Venda não pertence à empresa", sale_id: saleId }),
-          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
+    const itemsStrict = await supabase
+      .from("sale_items")
+      .select("*, products(ncm, cfop, csosn, cst_icms, cst_pis, cst_cofins, aliq_icms, origem)")
+      .eq("sale_id", saleId)
+      .eq("company_id", companyId);
 
-      const itemsStrict = await supabase
+    items = (itemsStrict.data as any[]) || [];
+    lastItemsErr = itemsStrict.error;
+
+    if (!items.length) {
+      const itemsLoose = await supabase
         .from("sale_items")
         .select("*, products(ncm, cfop, csosn, cst_icms, cst_pis, cst_cofins, aliq_icms, origem)")
-        .eq("sale_id", saleId)
-        .eq("company_id", companyId);
-
-      items = (itemsStrict.data as any[]) || [];
-      lastItemsErr = itemsStrict.error;
-
-      if (!items.length) {
-        const itemsLoose = await supabase
-          .from("sale_items")
-          .select("*, products(ncm, cfop, csosn, cst_icms, cst_pis, cst_cofins, aliq_icms, origem)")
-          .eq("sale_id", saleId);
-        items = (itemsLoose.data as any[]) || [];
-        lastItemsErr = itemsLoose.error ?? lastItemsErr;
-      }
-
-      if (sale && items.length > 0) {
-        console.log(
-          `[process-fiscal-queue] ${t0} visibility OK sale_id=${saleId} queue_id=${queueId} read=${read + 1}/${maxVisibilityReads} items=${items.length}`,
-        );
-        break;
-      }
-
-      console.log(
-        `[process-fiscal-queue] ${t0} visibility read ${read + 1}/${maxVisibilityReads} sale=${!!sale} items=${items.length} sale_id=${saleId} queue_id=${queueId} processor_attempt=${attempts}`,
-      );
-
-      if (read < visibilityBackoffMs.length) {
-        await sleep(visibilityBackoffMs[read]);
-      }
+        .eq("sale_id", saleId);
+      items = (itemsLoose.data as any[]) || [];
+      lastItemsErr = itemsLoose.error ?? lastItemsErr;
     }
 
     if (!sale || !items?.length) {
-      const errDetail = lastSaleErr?.message || lastItemsErr?.message || "Venda ou itens não encontrados";
-      const fatalMsg =
-        `Venda/itens não visíveis após ${maxVisibilityReads} leituras (backoff ${visibilityBackoffMs.join(",")}ms). ${errDetail}`;
-      console.error(`[process-fiscal-queue] ${new Date().toISOString()} VISIBILITY_ERROR queue=${queueId} sale=${saleId}: ${fatalMsg}`);
-      await supabase.from("fiscal_queue")
-        .update({ status: "error", last_error: fatalMsg })
-        .eq("id", queueId);
-      return new Response(
-        JSON.stringify({ success: false, error: fatalMsg, sale_id: saleId, queue_id: queueId }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
+      const pendingMsg = !sale
+        ? `Venda ainda não visível para emissão. ${lastSaleErr?.message || "Aguardando consistência da transação."}`
+        : `Itens da venda ainda não visíveis para emissão. ${lastItemsErr?.message || "Aguardando consistência da transação."}`;
+
+      await Promise.all([
+        supabase.from("fiscal_queue")
+          .update({ status: "pending", last_error: pendingMsg, processed_at: null })
+          .eq("id", queueId),
+        supabase.from("sales")
+          .update({ status: "pendente_fiscal" })
+          .eq("id", saleId)
+          .eq("company_id", companyId),
+      ]);
+
+      return visibilityPendingResponse(saleId, queueId, pendingMsg);
     }
 
     const { data: latestDoc } = await supabase
