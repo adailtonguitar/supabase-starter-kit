@@ -18,6 +18,46 @@ import {
 } from "../_shared/sale-payments.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
+function getRequiredEnv(name: string): string {
+  const value = Deno.env.get(name);
+  if (!value) {
+    throw new Error(`Server configuration error: Missing ${name}.`);
+  }
+  return value;
+}
+
+function getSupabaseRuntimeConfig() {
+  return {
+    supabaseUrl: getRequiredEnv("SUPABASE_URL"),
+    anonKey: getRequiredEnv("SUPABASE_ANON_KEY"),
+    serviceRoleKey: getRequiredEnv("SUPABASE_SERVICE_ROLE_KEY"),
+  };
+}
+
+async function parseRequestJsonSafe(req: Request): Promise<Record<string, any>> {
+  const raw = await req.text().catch(() => "");
+  if (!raw.trim()) return {};
+
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    throw new Error("JSON inválido no corpo da requisição");
+  }
+}
+
+async function parseResponseJsonSafe(resp: Response, label: string): Promise<any | null> {
+  const raw = await resp.text().catch(() => "");
+  if (!raw.trim()) return null;
+
+  try {
+    return JSON.parse(raw);
+  } catch {
+    console.error(`[emit-nfce] Resposta inválida em ${label}:`, raw.slice(0, 500));
+    throw new Error(`Resposta inválida de ${label}`);
+  }
+}
+
 // ─── safeFetch: AbortController + timeout (compatível com Supabase Edge Runtime) ───
 async function safeFetch(url: string, options: RequestInit = {}, timeout = 8000): Promise<Response> {
   const controller = new AbortController();
@@ -57,7 +97,10 @@ async function getNuvemFiscalToken(): Promise<string> {
     throw new Error(`Erro autenticação Nuvem Fiscal: ${errText}`);
   }
 
-  const data = await resp.json();
+  const data = await parseResponseJsonSafe(resp, "auth Nuvem Fiscal");
+  if (!data?.access_token) {
+    throw new Error("Token da Nuvem Fiscal não retornado");
+  }
   return data.access_token;
 }
 
@@ -483,7 +526,7 @@ async function handleEmit(supabase: any, body: any) {
     body: JSON.stringify(payload),
   }, 10000);
 
-  const nfData = await nfResp.json();
+  const nfData = await parseResponseJsonSafe(nfResp, "emissão NFC-e");
 
   console.log(`[emit-nfce] ◀ Resposta Nuvem Fiscal: status=${nfResp.status} | ${Date.now() - t0}ms`);
 
@@ -718,7 +761,10 @@ async function handleConsultStatus(supabase: any, body: any, callerUserId?: stri
     return jsonResponse({ success: false, error: `Erro ao consultar: ${errData}` });
   }
 
-  const data = await resp.json();
+  const data = await parseResponseJsonSafe(resp, "consulta de status");
+  if (!data) {
+    return jsonResponse({ success: false, error: "Resposta vazia ao consultar status" }, 502);
+  }
   const status = (data.status || "").toLowerCase();
   const isAuth = status.includes("autoriz") || status.includes("aprovad") || String(data.codigo_status) === "100";
 
@@ -759,7 +805,7 @@ async function handleCancel(supabase: any, body: any, callerUserId?: string | nu
     body: JSON.stringify({ justificativa }),
   }, 10000);
 
-  const data = await resp.json();
+  const data = await parseResponseJsonSafe(resp, "cancelamento");
   if (!resp.ok) {
     return jsonResponse({ success: false, error: data?.mensagem || "Erro ao cancelar" });
   }
@@ -919,7 +965,7 @@ async function handleInutilize(supabase: any, body: any, callerUserId?: string |
     }),
   }, 10000);
 
-  const data = await resp.json();
+  const data = await parseResponseJsonSafe(resp, "inutilização");
   if (!resp.ok) return jsonResponse({ success: false, error: data?.mensagem || "Erro na inutilização" });
 
   if (company_id) {
@@ -997,9 +1043,7 @@ async function validateCaller(req: Request): Promise<{ userId: string | null; is
   if (!authHeader?.startsWith("Bearer ")) return { userId: null, isServiceCall: false };
 
   const token = authHeader.replace("Bearer ", "");
-  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-  const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const { supabaseUrl, anonKey, serviceRoleKey } = getSupabaseRuntimeConfig();
 
   if (token === serviceRoleKey) return { userId: null, isServiceCall: true };
 
@@ -1026,7 +1070,8 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const body = await req.json();
+    getSupabaseRuntimeConfig();
+    const body = await parseRequestJsonSafe(req);
     const action = body.action || "emit";
 
     const isAuthRequired = ["emit", "cancel", "backup_xmls"].includes(action) || Boolean(body.company_id);
