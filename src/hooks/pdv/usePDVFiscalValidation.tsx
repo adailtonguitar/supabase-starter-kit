@@ -35,10 +35,35 @@ export function validateCartFiscal(items: CartItem[]): FiscalValidationResult {
     if (!isValidNcm(item.ncm)) {
       missing.push("NCM");
       issues.push({
-        productId: item.id,
-        productName: item.name,
-        field: "NCM",
+        productId: item.id, productName: item.name, field: "NCM",
         message: `NCM ausente ou inválido (necessário 8 dígitos, diferente de 00000000)`,
+      });
+    }
+
+    const cfop = (item.cfop || "").trim();
+    if (!cfop || cfop.length !== 4 || !/^\d{4}$/.test(cfop)) {
+      missing.push("CFOP");
+      issues.push({
+        productId: item.id, productName: item.name, field: "CFOP",
+        message: `CFOP ausente ou inválido (necessário 4 dígitos, ex: 5102)`,
+      });
+    }
+
+    const cst = (item.cst_icms || "").trim();
+    const csosn = (item.csosn || "").trim();
+    if (!cst && !csosn) {
+      missing.push("CST/CSOSN");
+      issues.push({
+        productId: item.id, productName: item.name, field: "CST/CSOSN",
+        message: `CST ICMS ou CSOSN ausente. Informe conforme o regime tributário da empresa`,
+      });
+    }
+
+    if (item.origem === undefined || item.origem === null) {
+      missing.push("Origem");
+      issues.push({
+        productId: item.id, productName: item.name, field: "Origem",
+        message: `Origem do produto ausente (0=Nacional, 1=Estrangeira importação direta, etc.)`,
       });
     }
 
