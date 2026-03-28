@@ -65,6 +65,8 @@ export default function PDV() {
     if (fiscalSkipUserOverride !== null) return fiscalSkipUserOverride;
     return false;
   }, [canUseFiscal, fiscalSkipUserOverride]);
+  const fiscalValidation = usePDVFiscalValidation(pdv.cartItems, canUseFiscal && !skipFiscalEmission);
+  const [showFiscalErrors, setShowFiscalErrors] = useState(false);
   const [showCashRegister, setShowCashRegister] = useState(false);
   const [receipt, setReceipt] = useState<{
     items: typeof pdv.cartItems;
