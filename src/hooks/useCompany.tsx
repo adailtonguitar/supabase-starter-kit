@@ -72,6 +72,7 @@ function extractCompanyFields(company: CompanyRow | null | undefined): Omit<Cach
     addressNeighborhood: company?.address_neighborhood ?? null,
     addressCity: company?.address_city ?? null,
     addressState: company?.address_state ?? null,
+    taxRegime: company?.tax_regime ?? null,
   };
 }
 
@@ -97,7 +98,7 @@ interface CompanyData {
 
 const nullFields: Omit<CachedCompany, 'companyId'> = {
   companyName: null, logoUrl: null, slogan: null, pixKey: null, pixKeyType: null, pixCity: null,
-  cnpj: null, ie: null, phone: null, addressStreet: null, addressNumber: null, addressNeighborhood: null, addressCity: null, addressState: null,
+  cnpj: null, ie: null, phone: null, addressStreet: null, addressNumber: null, addressNeighborhood: null, addressCity: null, addressState: null, taxRegime: null,
 };
 
 export function useCompany(): CompanyData {
