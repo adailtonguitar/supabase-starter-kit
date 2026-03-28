@@ -970,12 +970,32 @@ async function handleInutilize(supabase: any, body: any, callerUserId?: string |
 
   if (company_id) {
     const ambiente = Deno.env.get("NUVEM_FISCAL_SANDBOX") === "true" ? "homologacao" : "producao";
+    const rows = [];
     for (let num = numero_inicial; num <= numero_final; num++) {
-      await supabase.from("fiscal_documents").insert({
-        company_id, doc_type: doc_type || "nfce", number: num, serie: serie || 1,
-        status: "inutilizada", environment: ambiente, rejection_reason: justificativa,
-        is_contingency: false, total_value: 0,
+      rows.push({
+        company_id,
+        doc_type: doc_type || "nfce",
+        number: num,
+        serie: serie || 1,
+        status: "inutilizada",
+        environment: ambiente,
+        rejection_reason: justificativa,
+        is_contingency: false,
+        total_value: 0,
       });
+    }
+
+    const { error: insertError } = await supabase
+      .from("fiscal_documents")
+      .upsert(rows, { onConflict: "company_id,doc_type,serie,number" });
+
+    if (insertError) {
+      console.error("[emit-nfce] erro ao persistir inutilização", insertError);
+      return jsonResponse({
+        success: false,
+        error: "Inutilização enviada, mas falhou ao atualizar o histórico local",
+        details: insertError.message,
+      }, 500);
     }
   }
 
