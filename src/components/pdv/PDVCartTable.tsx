@@ -16,11 +16,13 @@ interface PDVCartTableProps {
   companyName: string | null;
   logoUrl: string | null;
   slogan: string | null;
+  fiscalInvalidItems?: Record<string, string[]>;
 }
 
 export function PDVCartTable({
   cartItems, products, itemDiscounts, promoMatches, itemNotes,
   selectedCartItemId, onSelectItem, companyName, logoUrl, slogan,
+  fiscalInvalidItems,
 }: PDVCartTableProps) {
   const tableEndRef = useRef<HTMLTableRowElement>(null);
 
