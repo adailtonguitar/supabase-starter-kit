@@ -246,24 +246,23 @@ async function handleEmit(supabase: any, body: any) {
     }
   }
 
-  // Buscar empresa
-  const { data: company, error: companyErr } = await supabase
-    .from("companies")
-    .select("*")
-    .eq("id", company_id)
-    .single();
+  // Buscar empresa + config fiscal em PARALELO (reduz latência ~50%)
+  const companyPromise = supabase.from("companies").select("*").eq("id", company_id).single();
+  const configPromise = config_id
+    ? supabase.from("fiscal_configs").select("*").eq("id", config_id).single()
+    : supabase.from("fiscal_configs").select("*")
+        .eq("company_id", company_id).eq("doc_type", "nfce").eq("is_active", true).limit(1).maybeSingle();
 
-  if (companyErr || !company) {
+  const [companyRes, configRes] = await Promise.all([companyPromise, configPromise]);
+
+  const company = companyRes.data;
+  if (companyRes.error || !company) {
     return jsonResponse({ error: "Empresa não encontrada" }, 404);
   }
 
-  // Buscar config fiscal
-  let config: any = null;
-  if (config_id) {
-    const { data } = await supabase.from("fiscal_configs").select("*").eq("id", config_id).single();
-    config = data;
-  }
-  if (!config) {
+  let config = configRes.data;
+  // Fallback: se config_id foi passado mas não encontrou, buscar por company_id
+  if (!config && config_id) {
     const { data } = await supabase.from("fiscal_configs").select("*")
       .eq("company_id", company_id).eq("doc_type", "nfce").eq("is_active", true).limit(1).maybeSingle();
     config = data;
@@ -592,54 +591,45 @@ async function handleEmitFromSale(supabase: any, body: any) {
     return jsonResponse({ error: "Dados incompletos: sale_id e company_id são obrigatórios" }, 400);
   }
 
-  // Retry com backoff curto (máx ~3s total, sem loops longos)
-  let sale: any = null;
-  let saleErr: any = null;
-  const delays = [150, 300, 500, 800, 1200];
-  for (let attempt = 0; attempt <= delays.length; attempt++) {
-    const res = await supabase.from("sales")
+  // Tentativa ÚNICA — sem retry com delay (a fila fiscal reprocessa automaticamente)
+  const [saleRes, itemsRes] = await Promise.all([
+    supabase.from("sales")
       .select("total, total_value, payments, payment_method")
-      .eq("id", saleId).eq("company_id", companyId).maybeSingle();
-    sale = res.data;
-    saleErr = res.error;
-    if (sale) break;
-    if (attempt < delays.length) await new Promise(r => setTimeout(r, delays[attempt]));
-  }
-  if (saleErr || !sale) {
+      .eq("id", saleId).eq("company_id", companyId).maybeSingle(),
+    supabase.from("sale_items")
+      .select("product_id, product_name, quantity, unit_price, discount_percent")
+      .eq("sale_id", saleId).eq("company_id", companyId),
+  ]);
+
+  const sale = saleRes.data;
+  if (saleRes.error || !sale) {
     console.warn(`[emit-nfce] Venda não encontrada: sale_id=${saleId}`);
     return jsonResponse({ success: false, status: "pending", pending: true, error: "Venda não encontrada", sale_id: saleId }, 200);
   }
 
-  // Buscar itens (retry curto)
-  let items: any[] | null = null;
-  let itemsErr: any = null;
-  for (let attempt = 0; attempt <= delays.length; attempt++) {
-    const res = await supabase.from("sale_items")
-      .select("product_id, product_name, quantity, unit_price, discount_percent")
-      .eq("sale_id", saleId).eq("company_id", companyId);
-    items = res.data as any[] | null;
-    itemsErr = res.error;
-    if (Array.isArray(items) && items.length > 0) break;
-    if (attempt < delays.length) await new Promise(r => setTimeout(r, delays[attempt]));
-  }
-  if (itemsErr) {
-    return jsonResponse({ success: false, error: `Erro ao buscar itens: ${itemsErr.message}` }, 500);
+  const items = itemsRes.data as any[] | null;
+  if (itemsRes.error) {
+    return jsonResponse({ success: false, error: `Erro ao buscar itens: ${itemsRes.error.message}` }, 500);
   }
   if (!items || items.length === 0) {
     return jsonResponse({ success: false, status: "pending", pending: true, error: "Itens da venda não encontrados", sale_id: saleId }, 200);
   }
 
-  // Buscar dados fiscais dos produtos
+  // Buscar dados fiscais dos produtos + CRT em PARALELO
   const productIds = items.map((it: any) => it.product_id).filter(Boolean);
-  const productsById = new Map<string, any>();
-  if (productIds.length > 0) {
-    const { data: products } = await supabase.from("products")
-      .select("id, ncm, cfop, cst_icms, csosn, cst_pis, cst_cofins, aliq_icms, origem, mva, cest")
-      .in("id", productIds);
-    for (const p of (products || [])) productsById.set(p.id, p);
-  }
+  const [productsRes, companyRes] = await Promise.all([
+    productIds.length > 0
+      ? supabase.from("products")
+          .select("id, ncm, cfop, cst_icms, csosn, cst_pis, cst_cofins, aliq_icms, origem, mva, cest")
+          .in("id", productIds)
+      : Promise.resolve({ data: [] }),
+    supabase.from("companies").select("crt").eq("id", companyId).maybeSingle(),
+  ]);
 
-  const { data: company } = await supabase.from("companies").select("crt").eq("id", companyId).maybeSingle();
+  const productsById = new Map<string, any>();
+  for (const p of (productsRes.data || [])) productsById.set(p.id, p);
+
+  const company = companyRes.data;
   const crt = Number((company as Record<string, unknown> | null)?.crt ?? 1);
   const isSimples = crt === 1 || crt === 2;
   const defaultCst = isSimples ? "102" : "00";
