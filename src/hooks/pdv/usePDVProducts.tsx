@@ -19,7 +19,7 @@ export function usePDVProducts(companyId: string | null) {
       if (navigator.onLine) {
         const { data, error } = await supabase
           .from("products")
-          .select("id, name, sku, barcode, price, cost_price, stock_quantity, unit, category, ncm, image_url, cfop, csosn, cst_icms, origem, cst_pis, cst_cofins, aliq_icms, cest, mva, reorder_point")
+          .select("*")
           .eq("company_id", companyId)
           .eq("is_active", true)
           .order("name");
