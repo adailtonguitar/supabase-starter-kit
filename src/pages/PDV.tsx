@@ -345,9 +345,14 @@ export default function PDV() {
     if (!pdv.currentSession) { toast.warning("Abra o caixa antes de finalizar uma venda", { duration: 1500 }); setShowCashRegister(true); return; }
     if (pdv.cartItems.length === 0) { toast.warning("Adicione itens ao carrinho primeiro", { duration: 1200 }); return; }
     if (finalizingSale) { toast.warning("Venda em processamento, aguarde...", { duration: 1200 }); return; }
+    if (!fiscalValidation.valid) {
+      playErrorSound();
+      setShowFiscalErrors(true);
+      return;
+    }
     setTefDefaultMethod(defaultMethod || null);
     setShowTEF(true);
-  }, [pdv.cartItems.length, pdv.currentSession, finalizingSale]);
+  }, [pdv.cartItems.length, pdv.currentSession, finalizingSale, fiscalValidation.valid]);
 
   const handleDirectPayment = useCallback((method: string) => {
     if (pdv.cartItems.length === 0) { toast.warning("Adicione itens ao carrinho primeiro", { duration: 1200 }); return; }
