@@ -16,11 +16,13 @@ interface PDVCartTableProps {
   companyName: string | null;
   logoUrl: string | null;
   slogan: string | null;
+  fiscalInvalidItems?: Record<string, string[]>;
 }
 
 export function PDVCartTable({
   cartItems, products, itemDiscounts, promoMatches, itemNotes,
   selectedCartItemId, onSelectItem, companyName, logoUrl, slogan,
+  fiscalInvalidItems,
 }: PDVCartTableProps) {
   const tableEndRef = useRef<HTMLTableRowElement>(null);
 
@@ -148,6 +150,12 @@ export function PDVCartTable({
                         {itemNotes[item.id] && (
                           <span className="ml-1 text-[9px] text-accent-foreground bg-accent/50 rounded px-1 truncate max-w-[80px]" title={itemNotes[item.id]}>
                             📝 {itemNotes[item.id]}
+                          </span>
+                        )}
+                        {fiscalInvalidItems?.[item.id] && (
+                          <span className="ml-1 flex items-center gap-0.5 text-[9px] text-destructive font-bold bg-destructive/10 rounded px-1 py-0.5" title={`Faltando: ${fiscalInvalidItems[item.id].join(", ")}`}>
+                            <AlertTriangle className="w-2.5 h-2.5" />
+                            {fiscalInvalidItems[item.id].join(", ")}
                           </span>
                         )}
                       </div>

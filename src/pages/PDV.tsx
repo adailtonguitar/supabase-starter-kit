@@ -42,6 +42,7 @@ import { assertNonNegativeMoney, ensureMoneyEquals, fromCents, roundMoney, split
 import type { FinancialEntryInsert } from "@/hooks/useFinancialEntries";
 import type { CashSessionRow } from "@/integrations/supabase/tables";
 import { AlertTriangle } from "lucide-react";
+import { usePDVFiscalValidation } from "@/hooks/pdv/usePDVFiscalValidation";
 
 export default function PDV() {
   const pdv = usePDV();
@@ -64,6 +65,8 @@ export default function PDV() {
     if (fiscalSkipUserOverride !== null) return fiscalSkipUserOverride;
     return false;
   }, [canUseFiscal, fiscalSkipUserOverride]);
+  const fiscalValidation = usePDVFiscalValidation(pdv.cartItems, canUseFiscal && !skipFiscalEmission);
+  const [showFiscalErrors, setShowFiscalErrors] = useState(false);
   const [showCashRegister, setShowCashRegister] = useState(false);
   const [receipt, setReceipt] = useState<{
     items: typeof pdv.cartItems;
@@ -342,9 +345,14 @@ export default function PDV() {
     if (!pdv.currentSession) { toast.warning("Abra o caixa antes de finalizar uma venda", { duration: 1500 }); setShowCashRegister(true); return; }
     if (pdv.cartItems.length === 0) { toast.warning("Adicione itens ao carrinho primeiro", { duration: 1200 }); return; }
     if (finalizingSale) { toast.warning("Venda em processamento, aguarde...", { duration: 1200 }); return; }
+    if (!fiscalValidation.valid) {
+      playErrorSound();
+      setShowFiscalErrors(true);
+      return;
+    }
     setTefDefaultMethod(defaultMethod || null);
     setShowTEF(true);
-  }, [pdv.cartItems.length, pdv.currentSession, finalizingSale]);
+  }, [pdv.cartItems.length, pdv.currentSession, finalizingSale, fiscalValidation.valid]);
 
   const handleDirectPayment = useCallback((method: string) => {
     if (pdv.cartItems.length === 0) { toast.warning("Adicione itens ao carrinho primeiro", { duration: 1200 }); return; }
@@ -397,8 +405,15 @@ export default function PDV() {
       setLastAddedItem({ name: product.name, price: product.price, image_url: product.image_url });
       if (lastAddedTimerRef.current) clearTimeout(lastAddedTimerRef.current);
       lastAddedTimerRef.current = setTimeout(() => setLastAddedItem(null), 3000);
+      // Fiscal validation warning on add
+      if (canUseFiscal && !skipFiscalEmission) {
+        const ncm = (product.ncm || "").replace(/\D/g, "");
+        if (!ncm || ncm.length !== 8 || ncm === "00000000") {
+          toast.warning(`⚠️ "${product.name}" está sem NCM válido. Corrija antes de finalizar.`, { duration: 4000, id: `fiscal-warn-${product.id}` });
+        }
+      }
     }
-  }, [pdv]);
+  }, [pdv, canUseFiscal, skipFiscalEmission]);
 
   // ── Keyboard shortcuts ──
   useEffect(() => {
@@ -710,6 +725,7 @@ export default function PDV() {
           companyName={companyName}
           logoUrl={logoUrl}
           slogan={slogan}
+          fiscalInvalidItems={fiscalValidation.invalidItems}
         />
         <PDVTotalsSidebar
           cartItems={pdv.cartItems}
@@ -965,6 +981,40 @@ export default function PDV() {
       <PDVHoldRecallDialog open={showHoldRecall} onClose={() => setShowHoldRecall(false)} onRecall={handleRecallSale} />
       <PDVReturnExchangeDialog open={showReturnExchange} onClose={() => setShowReturnExchange(false)} />
       <PDVItemNotesDialog open={!!editingItemNoteId} itemName={pdv.cartItems.find(i => i.id === editingItemNoteId)?.name || ""} currentNote={editingItemNoteId ? itemNotes[editingItemNoteId] || "" : ""} onSave={(note) => { if (editingItemNoteId) setItemNote(editingItemNoteId, note); }} onClose={() => setEditingItemNoteId(null)} />
+
+      {/* Fiscal validation errors dialog */}
+      <AlertDialog open={showFiscalErrors} onOpenChange={setShowFiscalErrors}>
+        <AlertDialogContent className="max-w-lg">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertTriangle className="w-5 h-5" />
+              Produtos com dados fiscais incompletos
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3 mt-2">
+                <p className="text-sm text-muted-foreground">Corrija os produtos abaixo antes de finalizar a venda:</p>
+                <div className="max-h-60 overflow-y-auto space-y-2">
+                  {fiscalValidation.issues.map((issue, idx) => (
+                    <div key={idx} className="flex items-start gap-2 p-2 rounded-lg bg-destructive/10 border border-destructive/20">
+                      <AlertTriangle className="w-4 h-4 text-destructive mt-0.5 flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-bold text-foreground">{issue.productName}</p>
+                        <p className="text-xs text-muted-foreground">{issue.field}: {issue.message}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+            <AlertDialogCancel>Fechar</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { setShowFiscalErrors(false); navigate("/produtos"); }} className="bg-primary text-primary-foreground">
+              Ir para Cadastro de Produtos
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Exit confirmation */}
       <AlertDialog open={showExitConfirm} onOpenChange={setShowExitConfirm}>
