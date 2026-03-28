@@ -185,9 +185,14 @@ export function usePDVFiscal(companyId: string | null) {
 
     // A venda pode levar alguns ms para ficar visível após a RPC `finalize_sale_atomic`.
     // Retry específico para evitar erro falso de "Venda não encontrada" (comum em PIX/cartão por timing).
+    // Aguardar propagação da venda no banco antes do primeiro emit (evita "venda não encontrada")
+    await sleep(1200);
+
     let fiscalData: any = null;
     let fiscalErr: any = null;
-    for (let attempt = 0; attempt < 10; attempt++) {
+    for (let attempt = 0; attempt < 4; attempt++) {
+      if (attempt > 0) await sleep(1500 + attempt * 500);
+
       const res = await fiscalCircuitBreaker.call(() =>
         supabase.functions.invoke("emit-nfce", {
           body: {
@@ -201,18 +206,12 @@ export function usePDVFiscal(companyId: string | null) {
       fiscalData = res.data;
       fiscalErr = res.error;
 
-      // supabase.functions.invoke retorna error genérico ("Edge function returned 4xx") para non-2xx.
-      // Precisamos checar AMBOS fiscalData e fiscalErr para detectar visibilidade pendente.
       const dataMsg = fiscalData?.error || fiscalData?.message || "";
       const errMsg = fiscalErr?.message || fiscalErr?.context?.body || "";
       const msg = dataMsg || errMsg;
       const shouldRetry = isVisibilityPendingMessage(msg);
-      // Também tratar pending explícito do edge function
       const isPendingResponse = fiscalData?.success === true && fiscalData?.pending === true;
       if (!shouldRetry && !isPendingResponse) break;
-      // Backoff progressivo: 600ms → 3s
-      const delay = Math.min(600 + attempt * 300, 3000);
-      if (attempt < 9) await new Promise((r) => setTimeout(r, delay));
     }
 
     if (fiscalData?.success && fiscalData?.pending) {
@@ -275,7 +274,7 @@ export function usePDVFiscal(companyId: string | null) {
     // Nuvem às vezes devolve "pendente" sem chave no JSON; o registro em `fiscal_documents` já tem número/chave.
     const nfNum = Number(fiscalData.number ?? fiscalData.nfce_number ?? fiscalData.numero);
     if (accessKeyDigits.length !== 44 && Number.isFinite(nfNum) && companyId) {
-      for (let i = 0; i < 45; i++) {
+      for (let i = 0; i < 8; i++) {
         if (i > 0) await new Promise((r) => setTimeout(r, 1500));
         const { data: doc } = await supabase
           .from("fiscal_documents")
@@ -299,14 +298,12 @@ export function usePDVFiscal(companyId: string | null) {
       }
     }
 
-    // SEFAZ pode levar 30–60s em horário de pico; antes parávamos em ~18s → "Pendente NFC-e" injusto vs. Histórico.
+    // Polling SEFAZ rápido — máximo ~15s para não travar o PDV (o timeout do usePDV protege)
     if (fiscalStatus !== "autorizada" && accessKeyDigits.length === 44) {
-      const started = Date.now();
-      const MAX_WAIT_MS = 60_000;
-      const DELAYS_MS = [2000, 2500, 3000, 3500, 4000, 4500, 5000, 5500, 6000, 6500, 7000];
-      for (let i = 0; i < DELAYS_MS.length && Date.now() - started < MAX_WAIT_MS; i++) {
+      const DELAYS_MS = [2000, 3000, 4000, 5000];
+      for (const d of DELAYS_MS) {
         try {
-          await new Promise((resolve) => setTimeout(resolve, DELAYS_MS[i]));
+          await new Promise((resolve) => setTimeout(resolve, d));
           const consulted = await FiscalEmissionService.consultStatus({
             accessKey: accessKeyDigits,
             docType: "nfce",
@@ -318,9 +315,7 @@ export function usePDVFiscal(companyId: string | null) {
             resolvedNumber = String(consultResult?.number || resolvedNumber);
             break;
           }
-        } catch {
-          /* continua tentando */
-        }
+        } catch { /* continua */ }
       }
     }
 
