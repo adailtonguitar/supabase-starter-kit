@@ -92,6 +92,7 @@ interface CompanyData {
   addressNeighborhood: string | null;
   addressCity: string | null;
   addressState: string | null;
+  taxRegime: string | null;
   loading: boolean;
   switchCompany: (companyId: string) => void;
 }
