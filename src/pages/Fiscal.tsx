@@ -61,6 +61,7 @@ interface FiscalDoc {
   created_at: string;
   is_contingency: boolean;
   environment: "homologacao" | "producao";
+  sale_id?: string | null;
 }
 
 const statusConfig: Record<DocStatus, { icon: React.ElementType; label: string; className: string }> = {
@@ -97,6 +98,9 @@ export default function Fiscal() {
   const [inutLoading, setInutLoading] = useState(false);
   const [backupLoading, setBackupLoading] = useState(false);
   const { gaps, loading: gapsLoading, refresh: refreshGaps } = useGapDetection();
+  const [queueError, setQueueError] = useState<string | null>(null);
+  const [queueStatus, setQueueStatus] = useState<string | null>(null);
+  const [queueAttempts, setQueueAttempts] = useState<number | null>(null);
 
   // ── Item 16: Pagination state ──
   const PAGE_SIZE = 50;
@@ -120,7 +124,7 @@ export default function Fiscal() {
 
     const { data, error } = await supabase
       .from("fiscal_documents")
-      .select("id, doc_type, number, serie, access_key, status, total_value, customer_name, customer_cpf_cnpj, payment_method, created_at, is_contingency, environment")
+      .select("id, doc_type, number, serie, access_key, status, total_value, customer_name, customer_cpf_cnpj, payment_method, created_at, is_contingency, environment, sale_id")
       .eq("company_id", companyId)
       .order("created_at", { ascending: false })
       .range(from, to);
@@ -130,6 +134,61 @@ export default function Fiscal() {
   }, [companyId, page]);
 
   useEffect(() => { loadDocs(); }, [loadDocs]);
+
+  // Fetch queue error details when a pending/rejected doc is selected
+  useEffect(() => {
+    setQueueError(null);
+    setQueueStatus(null);
+    setQueueAttempts(null);
+    if (!selectedDoc || !companyId) return;
+    if (selectedDoc.status !== "pendente" && selectedDoc.status !== "rejeitada") return;
+
+    const fetchQueueInfo = async () => {
+      // Try by sale_id first
+      if (selectedDoc.sale_id) {
+        const { data } = await supabase
+          .from("fiscal_queue")
+          .select("status, last_error, attempts")
+          .eq("company_id", companyId)
+          .eq("sale_id", selectedDoc.sale_id)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (data) {
+          const row = data as { status?: string; last_error?: string; attempts?: number };
+          setQueueError(row.last_error || null);
+          setQueueStatus(row.status || null);
+          setQueueAttempts(row.attempts ?? null);
+          return;
+        }
+      }
+      // Fallback: search by number match in fiscal_queue via sales table
+      const { data: saleRow } = await supabase
+        .from("sales")
+        .select("id")
+        .eq("company_id", companyId)
+        .eq("nfce_number", String(selectedDoc.number || ""))
+        .limit(1)
+        .maybeSingle();
+      if (saleRow) {
+        const saleId = (saleRow as { id: string }).id;
+        const { data: qRow } = await supabase
+          .from("fiscal_queue")
+          .select("status, last_error, attempts")
+          .eq("sale_id", saleId)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (qRow) {
+          const row = qRow as { status?: string; last_error?: string; attempts?: number };
+          setQueueError(row.last_error || null);
+          setQueueStatus(row.status || null);
+          setQueueAttempts(row.attempts ?? null);
+        }
+      }
+    };
+    fetchQueueInfo();
+  }, [selectedDoc, companyId]);
 
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
   const hasNextPage = page < totalPages - 1;
@@ -746,6 +805,24 @@ export default function Fiscal() {
                 <div className="flex items-center gap-2 p-3 rounded-lg bg-warning/10 text-warning text-xs">
                   <AlertTriangle className="w-4 h-4" />
                   Documento emitido em contingência
+                </div>
+              )}
+
+              {/* Queue error details for pending/failed docs */}
+              {(queueError || queueStatus) && (selectedDoc.status === "pendente" || selectedDoc.status === "rejeitada") && (
+                <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 space-y-1.5">
+                  <div className="flex items-start gap-2">
+                    <ShieldAlert className="w-4 h-4 text-destructive shrink-0 mt-0.5" />
+                    <div className="space-y-1 min-w-0">
+                      <p className="text-xs font-semibold text-destructive">
+                        Erro na Fila Fiscal {queueStatus ? `(${queueStatus})` : ""}
+                        {queueAttempts !== null && ` · ${queueAttempts} tentativa(s)`}
+                      </p>
+                      {queueError && (
+                        <p className="text-xs text-foreground break-all leading-relaxed">{queueError}</p>
+                      )}
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
