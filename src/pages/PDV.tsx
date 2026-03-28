@@ -42,6 +42,7 @@ import { assertNonNegativeMoney, ensureMoneyEquals, fromCents, roundMoney, split
 import type { FinancialEntryInsert } from "@/hooks/useFinancialEntries";
 import type { CashSessionRow } from "@/integrations/supabase/tables";
 import { AlertTriangle } from "lucide-react";
+import { usePDVFiscalValidation } from "@/hooks/pdv/usePDVFiscalValidation";
 
 export default function PDV() {
   const pdv = usePDV();
