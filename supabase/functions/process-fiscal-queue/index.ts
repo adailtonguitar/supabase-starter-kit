@@ -5,6 +5,24 @@ import {
   parseSalePaymentsJson,
 } from "../_shared/sale-payments.ts";
 
+function onlyDigits(v: unknown): string {
+  return String(v ?? "").replace(/[^0-9]/g, "");
+}
+
+function enrichPaymentEntry(entry: Record<string, unknown>, tPag: string, source: Record<string, unknown>) {
+  const tp = String(tPag || "").trim();
+  if (tp === "03" || tp === "04") {
+    entry.card = {
+      tpIntegra: source?.tpIntegra ?? 2,
+      ...(source?.cnpj_credenciadora
+        ? { CNPJ: onlyDigits(source.cnpj_credenciadora) }
+        : {}),
+      tBand: source?.tBand ?? "99",
+      cAut: source?.cAut ?? source?.nsu ?? "000000",
+    };
+  }
+}
+
 // ── helpers ────────────────────────────────────────────────────
 function parseSaleItemsJsonb(raw: unknown): Array<Record<string, unknown>> {
   if (raw == null) return [];
@@ -433,10 +451,13 @@ async function processOneItem(
     ? paymentRows.map((row: Record<string, unknown>) => {
       const m = getPrimaryPaymentMethod(row);
       const amt = Number(row.amount ?? row.value ?? saleTotal);
-      return {
-        tPag: mapPdvMethodToTPag(m),
+      const tPag = mapPdvMethodToTPag(m);
+      const entry: Record<string, unknown> = {
+        tPag,
         vPag: Math.round((Number.isFinite(amt) ? amt : saleTotal) * 100) / 100,
       };
+      enrichPaymentEntry(entry, tPag, row);
+      return entry;
     })
     : [{ tPag: mainPayTpag !== "99" ? mainPayTpag : "01", vPag: Math.round(saleTotal * 100) / 100 }];
 
