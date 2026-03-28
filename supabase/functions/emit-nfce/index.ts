@@ -125,6 +125,23 @@ function onlyDigits(v: unknown): string {
   return String(v ?? "").replace(/[^0-9]/g, "");
 }
 
+function mapTPagToLocalPaymentMethod(tPag: unknown): string {
+  switch (String(tPag ?? "").trim()) {
+    case "01":
+      return "dinheiro";
+    case "03":
+      return "credito";
+    case "04":
+      return "debito";
+    case "05":
+      return "prazo";
+    case "17":
+      return "pix";
+    default:
+      return "outros";
+  }
+}
+
 function sanitizeSefazText(value: unknown, fallback: string): string {
   const raw = typeof value === "string" ? value : "";
   let s = raw.replace(/[\r\n\t]+/g, " ").replace(/\s+/g, " ").trim();
@@ -614,7 +631,7 @@ async function handleEmit(supabase: any, body: any) {
       company_id, doc_type: "nfce", number: numero, serie: config.serie || 1,
       status: "rejeitada", total_value: vNF, environment: ambiente,
       customer_name: form.customer_name || null, customer_cpf_cnpj: form.customer_doc || null,
-      payment_method: mainTpag, access_key: rejAccessKey, protocol_number: rejProtocol,
+      payment_method: mapTPagToLocalPaymentMethod(mainTpag), access_key: rejAccessKey, protocol_number: rejProtocol,
       rejection_reason: rejCode ? `[${rejCode}] ${rejReason}` : rejReason, is_contingency: false,
     };
     if (sale_id) rejRow.sale_id = String(sale_id);
@@ -641,7 +658,7 @@ async function handleEmit(supabase: any, body: any) {
   else finalStatus = "pendente";
 
   // Salvar documento fiscal
-  const mainPayMethod = detPag[0]?.tPag || "99";
+  const mainPayMethod = mapTPagToLocalPaymentMethod(detPag[0]?.tPag || "99");
   const insertRow: Record<string, unknown> = {
     company_id, doc_type: "nfce", number: numero, serie: config.serie || 1,
     access_key: accessKey || null, protocol_number: protocolNumber || null,
