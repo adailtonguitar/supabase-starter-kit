@@ -44,7 +44,7 @@ export default function Vendas() {
   const [refundingSaleId, setRefundingSaleId] = useState<string | null>(null);
   const [emissionSale, setEmissionSale] = useState<Sale | null>(null);
   const [confirmRefund, setConfirmRefund] = useState<{ saleId: string; paymentId: string; amount: number } | null>(null);
-  const { metrics, isLoadingMetrics, queueMap, processQueue, isProcessing } = useFiscalDashboard();
+  const { metrics, isLoadingMetrics, queueMap, processQueue, isProcessing, deadLetterItems, recentErrors, retryItem } = useFiscalDashboard();
 
   const summaryStats = useMemo(() => {
     const activeSales = sales.filter(s => s.status !== "cancelada");
@@ -145,6 +145,9 @@ export default function Vendas() {
         isLoading={isLoadingMetrics}
         isProcessing={isProcessing}
         onProcessQueue={processQueue}
+        deadLetterItems={deadLetterItems}
+        recentErrors={recentErrors}
+        onRetryItem={retryItem}
       />
 
       {isLoading ? (
