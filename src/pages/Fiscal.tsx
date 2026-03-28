@@ -121,7 +121,7 @@ export default function Fiscal() {
 
     const { data, error } = await supabase
       .from("fiscal_documents")
-      .select("id, doc_type, number, serie, access_key, status, total_value, customer_name, customer_cpf_cnpj, payment_method, created_at, is_contingency, environment")
+      .select("id, doc_type, number, serie, access_key, status, total_value, customer_name, customer_cpf_cnpj, payment_method, created_at, is_contingency, environment, sale_id")
       .eq("company_id", companyId)
       .order("created_at", { ascending: false })
       .range(from, to);
