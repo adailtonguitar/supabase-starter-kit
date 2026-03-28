@@ -807,6 +807,24 @@ export default function Fiscal() {
                   Documento emitido em contingência
                 </div>
               )}
+
+              {/* Queue error details for pending/failed docs */}
+              {(queueError || queueStatus) && (selectedDoc.status === "pendente" || selectedDoc.status === "rejeitada") && (
+                <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 space-y-1.5">
+                  <div className="flex items-start gap-2">
+                    <ShieldAlert className="w-4 h-4 text-destructive shrink-0 mt-0.5" />
+                    <div className="space-y-1 min-w-0">
+                      <p className="text-xs font-semibold text-destructive">
+                        Erro na Fila Fiscal {queueStatus ? `(${queueStatus})` : ""}
+                        {queueAttempts !== null && ` · ${queueAttempts} tentativa(s)`}
+                      </p>
+                      {queueError && (
+                        <p className="text-xs text-foreground break-all leading-relaxed">{queueError}</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="flex gap-2 mt-6">
