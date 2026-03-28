@@ -18,17 +18,18 @@ import {
 } from "../_shared/sale-payments.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-// ─── safeFetch: AbortController com timeout ───
+// ─── safeFetch: timeout sem setTimeout ───
 async function safeFetch(url: string, options: RequestInit = {}, timeout = 8000): Promise<Response> {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeout);
+  const timeoutSignal = AbortSignal.timeout(timeout);
+  const signal = options.signal
+    ? AbortSignal.any([options.signal, timeoutSignal])
+    : timeoutSignal;
+
   try {
-    const response = await fetch(url, { ...options, signal: controller.signal });
-    clearTimeout(timeoutId);
+    const response = await fetch(url, { ...options, signal });
     return response;
   } catch (error: any) {
-    clearTimeout(timeoutId);
-    if (error.name === "AbortError") {
+    if (timeoutSignal.aborted || error?.name === "TimeoutError" || error?.name === "AbortError") {
       throw new Error(`Request timeout após ${timeout}ms: ${url.split("?")[0]}`);
     }
     throw error;
