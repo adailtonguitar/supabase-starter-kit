@@ -71,17 +71,60 @@ export function usePDVFiscal(companyId: string | null) {
   const processFiscalEmission = useCallback(async (saleId: string, queueId?: string, pdvEmit?: PdvNfceEmitContext) => {
     if (!companyId) throw new Error("Empresa não identificada");
 
-    if (queueId) {
+    if (queueId && !pdvEmit) {
+      const loadFinalFiscalState = async () => {
+        const [{ data: finalSale }, { data: finalDoc }] = await Promise.all([
+          supabase
+            .from("sales")
+            .select("status, access_key, nfce_number")
+            .eq("id", saleId)
+            .maybeSingle(),
+          supabase
+            .from("fiscal_documents")
+            .select("id, access_key, number, status, serie")
+            .eq("company_id", companyId)
+            .eq("sale_id", saleId)
+            .eq("doc_type", "nfce")
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle(),
+        ]);
+
+        const saleRow = finalSale as { status?: string | null; access_key?: string | null; nfce_number?: string | number | null } | null;
+        const docRow = finalDoc as { id?: string | null; access_key?: string | null; number?: string | number | null; status?: string | null; serie?: string | number | null } | null;
+        const finalStatus = String(docRow?.status || saleRow?.status || "pendente").toLowerCase();
+
+        return {
+          fiscalDocId: docRow?.id || null,
+          nfceNumber: String(docRow?.number || saleRow?.nfce_number || ""),
+          accessKey: String(docRow?.access_key || saleRow?.access_key || ""),
+          serie: String(docRow?.serie || ""),
+          status: finalStatus === "autorizada" ? "autorizada" : "pendente",
+        };
+      };
+
+      const triggerQueueProcessing = async () => {
+        const { error } = await supabase.functions.invoke("process-fiscal-queue", {
+          body: { company_id: companyId, sale_id: saleId, queue_id: queueId },
+        });
+
+        if (error) {
+          console.warn("[PDV Fiscal] Falha ao acionar process-fiscal-queue:", error.message);
+        }
+      };
+
       console.log(`[PDV Fiscal] ${new Date().toISOString()} aguardando fila fiscal queue=${queueId} sale_id=${saleId}`);
 
       const MAX_QUEUE_WAIT_MS = 120_000;
       const POLL_INTERVAL_MS = 1_000;
       const startedAt = Date.now();
 
+      await triggerQueueProcessing();
+
       while (Date.now() - startedAt < MAX_QUEUE_WAIT_MS) {
         const { data: queueRow, error: queueErr } = await supabase
           .from("fiscal_queue")
-          .select("status, last_error")
+          .select("status, last_error, attempts")
           .eq("id", queueId)
           .maybeSingle();
 
@@ -96,14 +139,23 @@ export function usePDVFiscal(companyId: string | null) {
           console.log(`[PDV Fiscal] ${new Date().toISOString()} queue=${queueId} status=${queueStatus}`);
         }
 
-        if (queueStatus === "done") break;
+        if (queueStatus === "done") {
+          return loadFinalFiscalState();
+        }
 
         if (queueStatus === "error" || queueStatus === "dead_letter") {
           throw new Error(queueError || `Fila fiscal falhou com status ${queueStatus}`);
         }
 
+        if (!queueStatus || queueStatus === "pending") {
+          await triggerQueueProcessing();
+        }
+
         await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
       }
+
+      console.warn(`[PDV Fiscal] ${new Date().toISOString()} timeout aguardando fila fiscal queue=${queueId} sale_id=${saleId}`);
+      return loadFinalFiscalState();
     }
 
     const { config: fiscalConfig, isHomologacao, hasCert } = await getFiscalConfig(companyId, "nfce");
@@ -166,42 +218,7 @@ export function usePDVFiscal(companyId: string | null) {
       }
     }
 
-    if (queueId) {
-      const { data: queueSnapshot } = await supabase
-        .from("fiscal_queue")
-        .select("status, last_error")
-        .eq("id", queueId)
-        .maybeSingle();
-
-      const queueStatus = String((queueSnapshot as { status?: string | null } | null)?.status || "").toLowerCase();
-      if (queueStatus === "done") {
-        const { data: finalDoc } = await supabase
-          .from("fiscal_documents")
-          .select("id, access_key, number, status, serie")
-          .eq("company_id", companyId)
-          .eq("sale_id", saleId)
-          .eq("doc_type", "nfce")
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-        const finalStatus = String((finalDoc as { status?: string | null } | null)?.status || "").toLowerCase();
-        return {
-          nfceNumber: String((finalDoc as { number?: string | number | null } | null)?.number || ""),
-          fiscalDocId: (finalDoc as { id?: string | null } | null)?.id || null,
-          accessKey: String((finalDoc as { access_key?: string | null } | null)?.access_key || ""),
-          serie: String((finalDoc as { serie?: string | number | null } | null)?.serie || ""),
-          status: finalStatus === "autorizada" ? "autorizada" : "pendente",
-        };
-      }
-
-      if (queueStatus === "error" || queueStatus === "dead_letter") {
-        const lastError = String((queueSnapshot as { last_error?: string | null } | null)?.last_error || "Falha na fila fiscal");
-        throw new Error(lastError);
-      }
-
-      await supabase.from("fiscal_queue").update({ status: "processing", attempts: 1 }).eq("id", queueId);
-    }
+    if (queueId) await supabase.from("fiscal_queue").update({ status: "processing", attempts: 1 }).eq("id", queueId);
 
     console.log(
       `[PDV Fiscal] ${ts()} start sale_id=${saleId} queue=${queueId ?? "bypass"} mode=${usePdvFormEmit ? "emit+form(PDV)" : "emit_from_sale"}`,
