@@ -135,6 +135,61 @@ export default function Fiscal() {
 
   useEffect(() => { loadDocs(); }, [loadDocs]);
 
+  // Fetch queue error details when a pending/rejected doc is selected
+  useEffect(() => {
+    setQueueError(null);
+    setQueueStatus(null);
+    setQueueAttempts(null);
+    if (!selectedDoc || !companyId) return;
+    if (selectedDoc.status !== "pendente" && selectedDoc.status !== "rejeitada") return;
+
+    const fetchQueueInfo = async () => {
+      // Try by sale_id first
+      if (selectedDoc.sale_id) {
+        const { data } = await supabase
+          .from("fiscal_queue")
+          .select("status, last_error, attempts")
+          .eq("company_id", companyId)
+          .eq("sale_id", selectedDoc.sale_id)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (data) {
+          const row = data as { status?: string; last_error?: string; attempts?: number };
+          setQueueError(row.last_error || null);
+          setQueueStatus(row.status || null);
+          setQueueAttempts(row.attempts ?? null);
+          return;
+        }
+      }
+      // Fallback: search by number match in fiscal_queue via sales table
+      const { data: saleRow } = await supabase
+        .from("sales")
+        .select("id")
+        .eq("company_id", companyId)
+        .eq("nfce_number", String(selectedDoc.number || ""))
+        .limit(1)
+        .maybeSingle();
+      if (saleRow) {
+        const saleId = (saleRow as { id: string }).id;
+        const { data: qRow } = await supabase
+          .from("fiscal_queue")
+          .select("status, last_error, attempts")
+          .eq("sale_id", saleId)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (qRow) {
+          const row = qRow as { status?: string; last_error?: string; attempts?: number };
+          setQueueError(row.last_error || null);
+          setQueueStatus(row.status || null);
+          setQueueAttempts(row.attempts ?? null);
+        }
+      }
+    };
+    fetchQueueInfo();
+  }, [selectedDoc, companyId]);
+
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
   const hasNextPage = page < totalPages - 1;
   const hasPrevPage = page > 0;
