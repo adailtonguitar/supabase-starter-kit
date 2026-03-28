@@ -142,21 +142,23 @@ export function useSales(limit = 50) {
         });
       });
 
-      return sales.map((row) => ({
+      return sales.map((row) => {
         const rawItems = parseRawSaleItems(row.items);
-        id: row.id,
-        number: row.sale_number ?? row.number ?? undefined,
-        payment_method: row.payment_method || extractPaymentMethod(row.payments),
-        total_value: Number(row.total ?? row.total_value ?? 0),
-        status: row.status || "completed",
-        created_at: row.created_at,
-        items: rawItems.length > 0 ? rawItems : (itemsBySale[row.id] || []),
-        items_json: row.items,
-        customer_name: row.client_name ?? row.customer_name ?? row.counterpart ?? undefined,
-        customer_doc: row.customer_doc ?? row.customer_cpf ?? undefined,
-        access_key: row.access_key ?? undefined,
-        company_id: row.company_id,
-      })) as Sale[];
+        return {
+          id: row.id,
+          number: row.sale_number ?? row.number ?? undefined,
+          payment_method: row.payment_method || extractPaymentMethod(row.payments),
+          total_value: Number(row.total ?? row.total_value ?? 0),
+          status: row.status || "completed",
+          created_at: row.created_at,
+          items: rawItems.length > 0 ? rawItems : (itemsBySale[row.id] || []),
+          items_json: row.items,
+          customer_name: row.client_name ?? row.customer_name ?? row.counterpart ?? undefined,
+          customer_doc: row.customer_doc ?? row.customer_cpf ?? undefined,
+          access_key: row.access_key ?? undefined,
+          company_id: row.company_id,
+        };
+      }) as Sale[];
     },
     enabled: !!companyId,
   });
