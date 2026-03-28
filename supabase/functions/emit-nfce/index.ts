@@ -966,12 +966,30 @@ async function handleInutilize(supabase: any, body: any, callerUserId?: string |
   const baseUrl = getApiBaseUrl();
   const endpoint = doc_type === "nfe" ? "nfe" : "nfce";
 
+  // Buscar CNPJ da empresa (campo obrigatório na API Nuvem Fiscal)
+  let cnpj = "";
+  if (company_id) {
+    const { data: company } = await supabase.from("companies").select("cnpj")
+      .eq("id", company_id).maybeSingle();
+    cnpj = onlyDigits(company?.cnpj);
+  }
+  if (!cnpj || cnpj.length < 11) {
+    return jsonResponse({ success: false, error: "CNPJ da empresa não encontrado. Verifique o cadastro." }, 400);
+  }
+
+  const ano = new Date().getFullYear() % 100; // 2 dígitos
+
   const resp = await safeFetch(`${baseUrl}/${endpoint}/inutilizacoes`, {
     method: "POST",
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
     body: JSON.stringify({
       ambiente: Deno.env.get("NUVEM_FISCAL_SANDBOX") === "true" ? "homologacao" : "producao",
-      serie, numero_inicial, numero_final, justificativa,
+      cnpj,
+      ano,
+      serie,
+      numero_inicial,
+      numero_final,
+      justificativa,
     }),
   }, 10000);
 
