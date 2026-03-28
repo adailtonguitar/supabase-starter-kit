@@ -98,19 +98,31 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Only authenticated users can trigger queue processing (prevents public abuse)
-    const auth = await requireUser(req);
-    if (!auth.ok) return auth.response;
+    // Allow service-role calls (cron) and authenticated user calls
+    const authHeader = req.headers.get("Authorization") || "";
+    const token = authHeader.replace("Bearer ", "");
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+    const isServiceCall = token === serviceRoleKey;
+
+    let authUserId: string | null = null;
+    let authSupabase: any = null;
+
+    if (!isServiceCall) {
+      const auth = await requireUser(req);
+      if (!auth.ok) return auth.response;
+      authUserId = auth.userId;
+      authSupabase = auth.supabase;
+    }
 
     const body = await req.json().catch(() => ({}));
     const companyFilter = body.company_id;
     const saleFilter = body.sale_id;
     const queueFilter = body.queue_id;
 
-    if (companyFilter) {
+    if (companyFilter && !isServiceCall && authUserId && authSupabase) {
       const membership = await requireCompanyMembership({
-        supabase: auth.supabase,
-        userId: auth.userId,
+        supabase: authSupabase,
+        userId: authUserId,
         companyId: String(companyFilter),
       });
       if (!membership.ok) return membership.response;
@@ -299,8 +311,9 @@ Deno.serve(async (req) => {
       );
     }
 
-    if ((latestDoc as any)?.access_key) {
-      const { data: consultedData, error: consultError } = await invokeEmitNfceWithUserJwt(auth.authHeader, {
+    if ((latestDoc as any)?.access_key && authHeader) {
+      const effectiveAuthHeader = isServiceCall ? `Bearer ${serviceRoleKey}` : authHeader;
+      const { data: consultedData, error: consultError } = await invokeEmitNfceWithUserJwt(effectiveAuthHeader, {
         action: "consult_status",
         access_key: (latestDoc as any).access_key,
         doc_type: "nfce",
@@ -406,7 +419,8 @@ Deno.serve(async (req) => {
       : [{ tPag: mainPayTpag !== "99" ? mainPayTpag : "01", vPag: Math.round(saleTotal * 100) / 100 }];
 
     // 6️⃣ Chamar emissão fiscal (fetch + JWT do usuário — ver doc em invokeEmitNfceWithUserJwt)
-    const { data: fiscalData, error: fiscalErr, status: emitHttpStatus } = await invokeEmitNfceWithUserJwt(auth.authHeader, {
+    const effectiveAuthHeader = isServiceCall ? `Bearer ${serviceRoleKey}` : authHeader;
+    const { data: fiscalData, error: fiscalErr, status: emitHttpStatus } = await invokeEmitNfceWithUserJwt(effectiveAuthHeader, {
       action: "emit",
       sale_id: saleId,
       company_id: companyId,
