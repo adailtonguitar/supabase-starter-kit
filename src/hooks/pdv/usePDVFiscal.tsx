@@ -1,19 +1,22 @@
 /**
  * usePDVFiscal — Fiscal emission, queue management and reprocessing.
  */
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback } from "react";
 import { supabase, safeRpc } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { fiscalCircuitBreaker } from "@/lib/circuit-breaker";
 import { getFunctionErrorMessage } from "@/lib/get-function-error-message";
 import { getStoredCertificateA1 } from "@/services/LocalXmlSigner";
+import { FiscalEmissionService } from "@/services/FiscalEmissionService";
 import { getFiscalConfig } from "@/lib/fiscal-config-lookup";
+import type { FiscalConsultResult } from "@/integrations/supabase/fiscal.types";
+import {
+  buildPdvNfceEmitForm,
+  validatePdvEmitFiscalLines,
+  type PdvNfceEmitContext,
+} from "@/lib/pdv-nfce-emit-form";
 
-const QUEUE_RETRY_DELAYS_MS = [2000, 5000, 10000, 20000] as const;
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
+export type { PdvNfceEmitContext };
 
 function normalizeFiscalMessage(message: unknown): string {
   return String(message ?? "")
@@ -32,154 +35,6 @@ function isVisibilityPendingMessage(message: unknown): boolean {
 }
 
 export function usePDVFiscal(companyId: string | null) {
-  const scheduledRetriesRef = useRef<Map<string, number[]>>(new Map());
-
-  const getRetryKey = useCallback((saleId: string) => `${companyId || "no-company"}:${saleId}`, [companyId]);
-
-  const clearScheduledRetries = useCallback((saleId: string) => {
-    const key = getRetryKey(saleId);
-    const timers = scheduledRetriesRef.current.get(key) || [];
-    timers.forEach((timerId) => window.clearTimeout(timerId));
-    scheduledRetriesRef.current.delete(key);
-  }, [getRetryKey]);
-
-  useEffect(() => {
-    return () => {
-      scheduledRetriesRef.current.forEach((timers) => timers.forEach((timerId) => window.clearTimeout(timerId)));
-      scheduledRetriesRef.current.clear();
-    };
-  }, []);
-
-  const readLatestFiscalState = useCallback(async (saleId: string) => {
-    if (!companyId) return null;
-
-    const { data: doc } = await supabase
-      .from("fiscal_documents")
-      .select("id, status, number, access_key, serie")
-      .eq("company_id", companyId)
-      .eq("sale_id", saleId)
-      .eq("doc_type", "nfce")
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    const row = doc as {
-      id?: string | null;
-      status?: string | null;
-      number?: string | number | null;
-      access_key?: string | null;
-      serie?: string | number | null;
-    } | null;
-
-    if (!row) return null;
-
-    return {
-      fiscalDocId: row.id || null,
-      status: String(row.status || "pendente").toLowerCase(),
-      nfceNumber: row.number != null ? String(row.number) : "",
-      accessKey: String(row.access_key || ""),
-      serie: row.serie != null ? String(row.serie) : "",
-    };
-  }, [companyId]);
-
-  const waitForQueueResolution = useCallback(async (saleId: string, queueId?: string) => {
-    if (!companyId) return null;
-
-    for (const delay of QUEUE_RETRY_DELAYS_MS) {
-      await sleep(delay);
-
-      const latestDoc = await readLatestFiscalState(saleId);
-      if (latestDoc?.status === "autorizada") {
-        console.info("[PDV:fiscal] Documento autorizado durante espera da fila", { saleId, queueId });
-        clearScheduledRetries(saleId);
-        return latestDoc;
-      }
-
-      console.info("[PDV:fiscal] Reprocessando fila fiscal", { saleId, queueId, delay });
-      const { data, error } = await supabase.functions.invoke("process-fiscal-queue", {
-        body: { company_id: companyId, sale_id: saleId, queue_id: queueId },
-      });
-
-      if (error) {
-        console.error("[PDV:fiscal] Falha ao processar fila", { saleId, queueId, error: error.message });
-        continue;
-      }
-
-      const response = data as {
-        success?: boolean;
-        pending?: boolean;
-        error?: string;
-        message?: string;
-      } | null;
-
-      if (response?.success && response.pending !== true) {
-        const resolvedDoc = await readLatestFiscalState(saleId);
-        if (resolvedDoc) {
-          clearScheduledRetries(saleId);
-          return resolvedDoc;
-        }
-      }
-    }
-
-    return readLatestFiscalState(saleId);
-  }, [clearScheduledRetries, companyId, readLatestFiscalState]);
-
-  const scheduleBackgroundFiscalRetries = useCallback((saleId: string, queueId?: string) => {
-    if (!companyId || !queueId) return;
-
-    const key = getRetryKey(saleId);
-    if (scheduledRetriesRef.current.has(key)) return;
-
-    const timers = QUEUE_RETRY_DELAYS_MS.map((delay, index) => window.setTimeout(async () => {
-      try {
-        const latestDoc = await readLatestFiscalState(saleId);
-        if (latestDoc?.status === "autorizada") {
-          clearScheduledRetries(saleId);
-          return;
-        }
-
-        console.info("[PDV:fiscal] Retry em background agendado", {
-          saleId,
-          queueId,
-          tentativa: index + 1,
-          delay,
-        });
-
-        const { data, error } = await supabase.functions.invoke("process-fiscal-queue", {
-          body: { company_id: companyId, sale_id: saleId, queue_id: queueId },
-        });
-
-        if (error) {
-          console.error("[PDV:fiscal] Retry em background falhou", {
-            saleId,
-            queueId,
-            tentativa: index + 1,
-            error: error.message,
-          });
-          return;
-        }
-
-        const response = data as { success?: boolean; pending?: boolean; error?: string } | null;
-        if (response?.success && response.pending !== true) {
-          const resolvedDoc = await readLatestFiscalState(saleId);
-          if (resolvedDoc?.status === "autorizada") {
-            console.info("[PDV:fiscal] Documento autorizado em background", { saleId, queueId });
-            clearScheduledRetries(saleId);
-          }
-        }
-      } catch (error: unknown) {
-        console.error("[PDV:fiscal] Exceção no retry em background", {
-          saleId,
-          queueId,
-          tentativa: index + 1,
-          error: error instanceof Error ? error.message : String(error),
-        });
-      }
-    }, delay));
-
-    scheduledRetriesRef.current.set(key, timers);
-  }, [clearScheduledRetries, companyId, getRetryKey, readLatestFiscalState]);
-
   const enqueueFiscal = useCallback(async (saleId: string): Promise<string | null> => {
     if (!companyId) return null;
     try {
@@ -213,10 +68,12 @@ export function usePDVFiscal(companyId: string | null) {
     }
   }, [companyId]);
 
-  const processFiscalEmission = useCallback(async (saleId: string, queueId?: string) => {
+  const processFiscalEmission = useCallback(async (saleId: string, queueId?: string, pdvEmit?: PdvNfceEmitContext) => {
     if (!companyId) throw new Error("Empresa não identificada");
 
     const { config: fiscalConfig, isHomologacao, hasCert } = await getFiscalConfig(companyId, "nfce");
+    const usePdvFormEmit = !!pdvEmit;
+    const ts = () => new Date().toISOString();
 
     if (isHomologacao && !hasCert) {
       const fakeChave = Array.from({ length: 44 }, () => Math.floor(Math.random() * 10)).join("");
@@ -225,7 +82,7 @@ export function usePDVFiscal(companyId: string | null) {
         const rpcNum = await safeRpc<number>("next_fiscal_number", { p_config_id: fiscalConfig!.id });
         if (rpcNum.success && typeof rpcNum.data === "number") simNumber = rpcNum.data;
       } catch {
-        console.warn("[PDV:fiscal] Falha ao obter numeração simulada, usando fallback");
+        console.warn("[PDV:fiscal] RPC next_fiscal_number (simulação) falhou, usando fallback");
       }
 
       try {
@@ -265,92 +122,187 @@ export function usePDVFiscal(companyId: string | null) {
 
     if (certB64 && certPwd) {
       try {
-        console.info("[PDV:fiscal] Enviando certificado A1 antes do processamento", { saleId, queueId });
+        console.info(`[PDV Fiscal] ${ts()} upload certificado A1`, { saleId, queueId: queueId ?? "bypass" });
         await supabase.functions.invoke("emit-nfce", {
           body: { action: "upload_certificate", company_id: companyId, certificate_base64: certB64, certificate_password: certPwd },
         });
-      } catch (error: unknown) {
-        console.warn("[PDV:fiscal] Falha ao pré-carregar certificado A1", error instanceof Error ? error.message : String(error));
+      } catch (e: unknown) {
+        console.warn("[PDV Fiscal] pré-upload certificado:", e instanceof Error ? e.message : e);
+      }
+    }
+
+    if (queueId) await supabase.from("fiscal_queue").update({ status: "processing", attempts: 1 }).eq("id", queueId);
+
+    console.log(
+      `[PDV Fiscal] ${ts()} start sale_id=${saleId} queue=${queueId ?? "bypass"} mode=${usePdvFormEmit ? "emit+form(PDV)" : "emit_from_sale"}`,
+    );
+
+    if (usePdvFormEmit) {
+      const vErr = validatePdvEmitFiscalLines(pdvEmit.saleItems, pdvEmit.crt);
+      if (vErr) {
+        if (queueId) await supabase.from("fiscal_queue").update({ status: "error", last_error: vErr }).eq("id", queueId);
+        throw new Error(vErr);
+      }
+    }
+
+    const maxAttempts = usePdvFormEmit ? 2 : 8;
+    let fiscalData: any = null;
+    let fiscalErr: any = null;
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      const body = usePdvFormEmit
+        ? {
+            sale_id: saleId,
+            company_id: companyId,
+            config_id: fiscalConfig?.id,
+            form: buildPdvNfceEmitForm({
+              crt: pdvEmit.crt,
+              saleItems: pdvEmit.saleItems,
+              payments: pdvEmit.payments,
+              total: pdvEmit.total,
+              customerName: pdvEmit.customerName,
+              customerDoc: pdvEmit.customerDoc,
+            }),
+          }
+        : {
+            action: "emit_from_sale",
+            sale_id: saleId,
+            company_id: companyId,
+            config_id: fiscalConfig?.id,
+          };
+
+      const res = await fiscalCircuitBreaker.call(() =>
+        supabase.functions.invoke("emit-nfce", { body })
+      );
+      fiscalData = res.data;
+      fiscalErr = res.error;
+      console.log(
+        `[PDV Fiscal] ${ts()} invoke attempt=${attempt + 1}/${maxAttempts} ok=${!fiscalErr && !!fiscalData?.success} err=${fiscalErr?.message ?? ""}`,
+      );
+
+      const msg = fiscalData?.error || fiscalData?.message || fiscalErr?.message || "";
+      const shouldRetry = !usePdvFormEmit && isVisibilityPendingMessage(msg);
+      if (!shouldRetry) break;
+      if (attempt < maxAttempts - 1) await new Promise((r) => setTimeout(r, 500));
+    }
+
+    if (fiscalData?.success && fiscalData?.pending) {
+      const pendingMessage = String(fiscalData?.message || fiscalData?.error || "Venda ainda em propagação; reprocessar emissão.");
+      if (queueId) {
+        await supabase.from("fiscal_queue")
+          .update({ status: "pending", processed_at: null, last_error: pendingMessage })
+          .eq("id", queueId);
+      }
+      return { nfceNumber: "", fiscalDocId: null, accessKey: "", serie: "", status: "pendente" as const };
+    }
+
+    if (fiscalErr || !fiscalData?.success) {
+      const fallbackMessage = fiscalData?.error || "Falha na emissão";
+      const parsedErrorMessage = fiscalErr ? await getFunctionErrorMessage(fiscalErr, fallbackMessage) : fallbackMessage;
+      const rejDetail = fiscalData?.rejection_reason || fiscalData?.details?.error?.message || "";
+      const errorMsg = rejDetail && !parsedErrorMessage.includes(rejDetail) ? `${parsedErrorMessage} — ${rejDetail}` : parsedErrorMessage;
+      const isTransientVisibility = isVisibilityPendingMessage(errorMsg);
+      if (queueId && isTransientVisibility) {
+        await supabase.from("fiscal_queue")
+          .update({ status: "pending", processed_at: null, last_error: "Venda ainda em propagação; reprocessar emissão." })
+          .eq("id", queueId);
+        return { nfceNumber: "", fiscalDocId: null, accessKey: "", serie: "", status: "pendente" as const };
+      }
+      if (queueId) await supabase.from("fiscal_queue").update({ status: "error", last_error: errorMsg }).eq("id", queueId);
+      throw new Error(errorMsg);
+    }
+
+    if (companyId && !usePdvFormEmit) {
+      void supabase.functions
+        .invoke("process-fiscal-queue", { body: { company_id: companyId, sale_id: saleId } })
+        .catch(() => {});
+    }
+
+    let fiscalStatus = fiscalData.status || "pendente";
+    let resolvedNumber = String(fiscalData.nfce_number || fiscalData.numero || fiscalData.number || "");
+    let accessKeyDigits = String(fiscalData.access_key || "").replace(/\D/g, "");
+
+    const nfNum = Number(fiscalData.number ?? fiscalData.nfce_number ?? fiscalData.numero);
+    if (accessKeyDigits.length !== 44 && Number.isFinite(nfNum) && companyId) {
+      for (let i = 0; i < 45; i++) {
+        if (i > 0) await new Promise((r) => setTimeout(r, 1500));
+        const { data: doc } = await supabase
+          .from("fiscal_documents")
+          .select("access_key, status, number")
+          .eq("company_id", companyId)
+          .eq("doc_type", "nfce")
+          .eq("number", nfNum)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        const row = doc as { access_key?: string | null; status?: string | null; number?: number | null } | null;
+        const k = String(row?.access_key || "").replace(/\D/g, "");
+        if (k.length === 44) {
+          accessKeyDigits = k;
+          if (String(row?.status || "").toLowerCase() === "autorizada") {
+            fiscalStatus = "autorizada";
+            if (row?.number != null) resolvedNumber = String(row.number);
+          }
+          break;
+        }
+      }
+    }
+
+    if (fiscalStatus !== "autorizada" && accessKeyDigits.length === 44) {
+      const started = Date.now();
+      const MAX_WAIT_MS = 60_000;
+      const DELAYS_MS = [2000, 2500, 3000, 3500, 4000, 4500, 5000, 5500, 6000, 6500, 7000];
+      for (let i = 0; i < DELAYS_MS.length && Date.now() - started < MAX_WAIT_MS; i++) {
+        try {
+          await new Promise((resolve) => setTimeout(resolve, DELAYS_MS[i]));
+          const consulted = await FiscalEmissionService.consultStatus({
+            accessKey: accessKeyDigits,
+            docType: "nfce",
+            companyId: companyId ?? undefined,
+          });
+          const consultResult = consulted as FiscalConsultResult;
+          if (consultResult?.success && consultResult?.status === "autorizada") {
+            fiscalStatus = "autorizada";
+            resolvedNumber = String(consultResult?.number || resolvedNumber);
+            break;
+          }
+        } catch {
+          /* continua */
+        }
       }
     }
 
     if (queueId) {
-      await supabase.from("fiscal_queue").update({ status: "processing", attempts: 1 }).eq("id", queueId);
+      await supabase.from("fiscal_queue")
+        .update(
+          fiscalStatus === "autorizada"
+            ? { status: "done", processed_at: new Date().toISOString(), last_error: null }
+            : { status: "pending", processed_at: null, last_error: "Documento enviado ao provedor e aguardando autorização da SEFAZ." }
+        )
+        .eq("id", queueId);
     }
 
-    console.info("[PDV:fiscal] Iniciando processamento via fila fiscal", { saleId, queueId, companyId });
-
-    const { data, error } = await fiscalCircuitBreaker.call(() =>
-      supabase.functions.invoke("process-fiscal-queue", {
-        body: { company_id: companyId, sale_id: saleId, queue_id: queueId },
-      })
-    );
-
-    if (error) {
-      const parsedErrorMessage = await getFunctionErrorMessage(error, "Falha ao processar fila fiscal");
-      console.error("[PDV:fiscal] process-fiscal-queue retornou erro", { saleId, queueId, error: parsedErrorMessage });
-      throw new Error(parsedErrorMessage);
-    }
-
-    const queueResponse = data as {
-      success?: boolean;
-      pending?: boolean;
-      error?: string;
-      message?: string;
-      dead_letter?: boolean;
-    } | null;
-
-    if (queueResponse?.success === false) {
-      const errorMsg = queueResponse.error || "Falha na emissão";
-      console.error("[PDV:fiscal] Fila fiscal retornou falha", { saleId, queueId, error: errorMsg });
-      throw new Error(errorMsg);
-    }
-
-    const latestDoc = await readLatestFiscalState(saleId);
-    if (latestDoc?.status === "autorizada") {
-      clearScheduledRetries(saleId);
-      return {
-        nfceNumber: latestDoc.nfceNumber,
-        fiscalDocId: latestDoc.fiscalDocId,
-        accessKey: latestDoc.accessKey,
-        serie: latestDoc.serie,
-        status: "autorizada" as const,
-      };
-    }
-
-    const pendingMessage = queueResponse?.message || queueResponse?.error || "Documento enfileirado e em processamento.";
-    const shouldStayPending = queueResponse?.pending === true || isVisibilityPendingMessage(pendingMessage) || !latestDoc;
-
-    if (shouldStayPending) {
-      console.info("[PDV:fiscal] Documento segue pendente; agendando retries", { saleId, queueId, reason: pendingMessage });
-      scheduleBackgroundFiscalRetries(saleId, queueId);
-      const resolvedDoc = await waitForQueueResolution(saleId, queueId);
-      if (resolvedDoc?.status === "autorizada") {
-        return {
-          nfceNumber: resolvedDoc.nfceNumber,
-          fiscalDocId: resolvedDoc.fiscalDocId,
-          accessKey: resolvedDoc.accessKey,
-          serie: resolvedDoc.serie,
-          status: "autorizada" as const,
-        };
+    try {
+      if (fiscalStatus === "autorizada") {
+        await supabase.from("sales").update({ status: "emitida" }).eq("id", saleId).eq("company_id", companyId);
       }
-      return { nfceNumber: latestDoc?.nfceNumber || "", fiscalDocId: latestDoc?.fiscalDocId || null, accessKey: latestDoc?.accessKey || "", serie: latestDoc?.serie || "", status: "pendente" as const };
-    }
+    } catch { /* ignore */ }
+
+    console.log(`[PDV Fiscal] ${ts()} done sale_id=${saleId} status=${fiscalStatus} queue=${queueId ?? "bypass"}`);
 
     return {
-      nfceNumber: latestDoc?.nfceNumber || "",
-      fiscalDocId: latestDoc?.fiscalDocId || null,
-      accessKey: latestDoc?.accessKey || "",
-      serie: latestDoc?.serie || "",
-      status: latestDoc?.status || "pendente",
+      nfceNumber: resolvedNumber,
+      fiscalDocId: fiscalData.fiscal_doc_id || fiscalData.nuvem_fiscal_id || fiscalData.id,
+      accessKey: accessKeyDigits.length === 44 ? accessKeyDigits : String(fiscalData.access_key || ""),
+      serie: fiscalData.serie || "",
+      status: fiscalStatus,
     };
-  }, [clearScheduledRetries, companyId, readLatestFiscalState, scheduleBackgroundFiscalRetries, waitForQueueResolution]);
+  }, [companyId]);
 
   const reprocessFiscal = useCallback(async (saleId: string) => {
     try {
       const result = await processFiscalEmission(saleId);
       if (result.status === "autorizada") toast.success("NFC-e emitida com sucesso!");
-      else toast.info("NFC-e enfileirada e em processamento.");
+      else toast.info("NFC-e enviada, mas ainda não autorizada.");
       return result;
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Erro desconhecido";

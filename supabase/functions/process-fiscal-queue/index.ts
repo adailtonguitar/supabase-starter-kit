@@ -9,6 +9,37 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function parseSaleItemsJsonb(raw: unknown): Array<Record<string, unknown>> {
+  if (raw == null) return [];
+  if (Array.isArray(raw)) return raw as Array<Record<string, unknown>>;
+  if (typeof raw === "string") {
+    try {
+      const p = JSON.parse(raw) as unknown;
+      return Array.isArray(p) ? (p as Array<Record<string, unknown>>) : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
+
+function firstNonEmptyStr(...vals: unknown[]): string {
+  for (const v of vals) {
+    const s = String(v ?? "").trim();
+    if (s) return s;
+  }
+  return "";
+}
+
+function fiscalSnapshotByProductId(itemsJson: unknown): Map<string, Record<string, unknown>> {
+  const map = new Map<string, Record<string, unknown>>();
+  for (const row of parseSaleItemsJsonb(itemsJson)) {
+    const pid = String(row.product_id ?? "").trim();
+    if (pid) map.set(pid, row);
+  }
+  return map;
+}
+
 function visibilityPendingResponse(saleId: string, queueId: string, reason: string) {
   return new Response(
     JSON.stringify({
@@ -123,13 +154,13 @@ Deno.serve(async (req) => {
     const saleId = queueItem.sale_id;
     const companyId = queueItem.company_id;
     const attempts = (queueItem.attempts || 0) + 1;
-    const MAX_RETRIES = 10;
+    const MAX_RETRIES = 5;
 
-    // Dead-letter: mover para erro definitivo após máximo de tentativas
+    // Dead-letter: evita loop infinito na fila
     if (attempts > MAX_RETRIES) {
       await Promise.all([
         supabase.from("fiscal_queue")
-          .update({ status: "dead_letter", last_error: `Excedeu ${MAX_RETRIES} tentativas` })
+          .update({ status: "dead_letter", last_error: `Excedeu ${MAX_RETRIES} processamentos na fila` })
           .eq("id", queueId),
         supabase.from("sales")
           .update({ status: "erro_fiscal" })
@@ -189,10 +220,14 @@ Deno.serve(async (req) => {
       supabase.from("companies").select("crt").eq("id", companyId).maybeSingle(),
     ]);
 
-    // Backoff exponencial para cobrir a persistência da venda logo após o fechamento do PDV.
-    const saleRetryDelays = [2000, 5000, 10000, 20000, 20000];
-    console.log(`[process-fiscal-queue] iniciando leitura da venda: sale_id=${saleId}, queue_id=${queueId}, attempts=${attempts}`);
-    for (let attempt = 0; attempt < saleRetryDelays.length; attempt++) {
+    // Backoff após commit: ao esgotar leituras, ERROR (evita pending infinito na fila).
+    const visibilityBackoffMs = [500, 1000, 2000, 5000, 10000, 20000];
+    const maxVisibilityReads = visibilityBackoffMs.length + 1;
+
+    console.log(`[process-fiscal-queue] ${new Date().toISOString()} leitura venda/itens sale_id=${saleId} queue_id=${queueId} attempts=${attempts}`);
+
+    for (let read = 0; read < maxVisibilityReads; read++) {
+      const t0 = new Date().toISOString();
       const saleRes = await supabase
         .from("sales")
         .select("*")
@@ -230,19 +265,34 @@ Deno.serve(async (req) => {
         lastItemsErr = itemsLoose.error ?? lastItemsErr;
       }
 
-      if (sale && items.length > 0) break;
-      console.log(`[process-fiscal-queue] tentativa ${attempt + 1}/${saleRetryDelays.length}: sale=${!!sale}, items=${items.length}, sale_id=${saleId}, queue_id=${queueId}, attempts=${attempts}`);
-      if (attempt < saleRetryDelays.length - 1) await sleep(saleRetryDelays[attempt]);
+      if (sale && items.length > 0) {
+        console.log(
+          `[process-fiscal-queue] ${t0} visibility OK sale_id=${saleId} queue_id=${queueId} read=${read + 1}/${maxVisibilityReads} items=${items.length}`,
+        );
+        break;
+      }
+
+      console.log(
+        `[process-fiscal-queue] ${t0} visibility read ${read + 1}/${maxVisibilityReads} sale=${!!sale} items=${items.length} sale_id=${saleId} queue_id=${queueId} processor_attempt=${attempts}`,
+      );
+
+      if (read < visibilityBackoffMs.length) {
+        await sleep(visibilityBackoffMs[read]);
+      }
     }
 
     if (!sale || !items?.length) {
       const errDetail = lastSaleErr?.message || lastItemsErr?.message || "Venda ou itens não encontrados";
-      const pendingReason = `Venda/itens ainda em persistência. Reprocessando em instantes. Motivo: ${errDetail}`;
-      console.log(`[process-fiscal-queue] pending visibility: sale_id=${saleId}, queue_id=${queueId}, attempts=${attempts}, reason=${errDetail}`);
+      const fatalMsg =
+        `Venda/itens não visíveis após ${maxVisibilityReads} leituras (backoff ${visibilityBackoffMs.join(",")}ms). ${errDetail}`;
+      console.error(`[process-fiscal-queue] ${new Date().toISOString()} VISIBILITY_ERROR queue=${queueId} sale=${saleId}: ${fatalMsg}`);
       await supabase.from("fiscal_queue")
-        .update({ status: "pending", last_error: pendingReason })
+        .update({ status: "error", last_error: fatalMsg })
         .eq("id", queueId);
-      return visibilityPendingResponse(saleId, queueId, pendingReason);
+      return new Response(
+        JSON.stringify({ success: false, error: fatalMsg, sale_id: saleId, queue_id: queueId }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
     }
 
     const { data: latestDoc } = await supabase
@@ -311,9 +361,14 @@ Deno.serve(async (req) => {
       }
     }
 
+    const snapByPid = fiscalSnapshotByProductId((sale as any).items);
+
     // 🔴 CRÍTICO: Verificar NCM de todos os itens antes de emitir
     const itemsWithoutNcm = items.filter((item: any) => {
-      const ncm = (item.products?.ncm || item.ncm || "").replace(/\D/g, "");
+      const pid = String(item.product_id || "");
+      const snap = pid ? snapByPid.get(pid) || {} : {};
+      const product = item.products || {};
+      const ncm = firstNonEmptyStr(product.ncm, snap.ncm, item.ncm).replace(/\D/g, "");
       return !ncm || ncm.length < 2 || ncm === "00000000";
     });
     if (itemsWithoutNcm.length > 0) {
@@ -330,22 +385,33 @@ Deno.serve(async (req) => {
 
     const fiscalItems = items.map((item: any) => {
       const product = item.products || {};
+      const pid = String(item.product_id || "");
+      const snap = pid ? snapByPid.get(pid) || {} : {};
       const discountValue = ((item.discount_percent || 0) / 100) * item.unit_price * item.quantity;
+      const cstProd = isSimples ? product.csosn : product.cst_icms;
+      const cstSnap = isSimples ? snap.csosn : snap.cst_icms;
+      const origStr = firstNonEmptyStr(
+        product.origem != null ? String(product.origem) : "",
+        product.origin != null ? String(product.origin) : "",
+        snap.origem != null ? String(snap.origem) : "",
+        snap.origin != null ? String(snap.origin) : "",
+      ) || "0";
       return {
         product_id: item.product_id,
         name: item.product_name || item.name,
-        ncm: product.ncm || item.ncm || "",
-        cfop: product.cfop || "5102", // 🟠 CORREÇÃO #4: CFOP dinâmico do produto
-        cst: (isSimples ? product.csosn : product.cst_icms) || defaultCst,
-        origem: product.origem || "0",
+        ncm: firstNonEmptyStr(product.ncm, snap.ncm, item.ncm),
+        cfop: firstNonEmptyStr(product.cfop, snap.cfop) || "5102",
+        cst: firstNonEmptyStr(cstProd, cstSnap) || defaultCst,
+        origem: origStr,
         unit: item.unit || "UN",
         qty: item.quantity,
         unit_price: item.unit_price,
         discount: Math.round(discountValue * 100) / 100, // 🔴 CORREÇÃO #3: sempre valor absoluto
-        pis_cst: product.cst_pis || defaultPisCofins,
-        cofins_cst: product.cst_cofins || defaultPisCofins,
-        icms_aliquota: product.aliq_icms || 0,
-        mva: product.mva || undefined,
+        pis_cst: firstNonEmptyStr(product.cst_pis, snap.cst_pis) || defaultPisCofins,
+        cofins_cst: firstNonEmptyStr(product.cst_cofins, snap.cst_cofins) || defaultPisCofins,
+        icms_aliquota: Number(product.aliq_icms ?? snap.aliq_icms ?? snap.icms_rate ?? 0) || 0,
+        mva: Number(product.mva) || Number(snap.mva) || undefined,
+        cest: firstNonEmptyStr(product.cest, snap.cest) || undefined,
       };
     });
 
@@ -385,7 +451,18 @@ Deno.serve(async (req) => {
     if (rateLimited) {
       const pendingMsg =
         "Limite de emissões neste minuto (tente de novo em instantes ou aguarde o reprocessamento automático da fila).";
-      console.log(`[process-fiscal-queue] rate limited (429): sale_id=${saleId}, queue_id=${queueId}`);
+      console.log(
+        `[process-fiscal-queue] ${new Date().toISOString()} rate_limited sale_id=${saleId} queue_id=${queueId} attempts=${attempts}`,
+      );
+      if (attempts >= MAX_RETRIES) {
+        await supabase.from("fiscal_queue")
+          .update({ status: "error", last_error: pendingMsg })
+          .eq("id", queueId);
+        return new Response(
+          JSON.stringify({ success: false, error: pendingMsg, sale_id: saleId, queue_id: queueId }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
       await Promise.all([
         supabase.from("fiscal_queue")
           .update({ status: "pending", last_error: pendingMsg, processed_at: null })
