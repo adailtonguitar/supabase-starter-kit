@@ -10,8 +10,7 @@ export function pdvPaymentsBypassFiscalQueue(payments: PaymentResult[]): boolean
     (p) =>
       p.method === "pix" ||
       p.method === "debito" ||
-      p.method === "credito" ||
-      p.method === "multi",
+      p.method === "credito",
   );
 }
 

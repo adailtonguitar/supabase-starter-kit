@@ -280,7 +280,7 @@ export function usePDV() {
               });
             }
 
-            const FISCAL_TIMEOUT_MS = 28_000;
+            const FISCAL_TIMEOUT_MS = 130_000;
             try {
               const fiscalPromise = processFiscalEmission(saleId, queueId, {
                 saleItems,
