@@ -1213,8 +1213,12 @@ Deno.serve(async (req) => {
     const body = await parseRequestJsonSafe(req);
     const action = body.action || "emit";
 
+    // Detectar chamadas do service_role (ex: process-fiscal-queue / cron)
+    const { userId, isServiceCall } = await validateCaller(req);
+
+    // Auth obrigatória para ações destrutivas — mas service_role pode chamar consult_status etc.
     const isAuthRequired = ["emit", "cancel", "backup_xmls"].includes(action) || Boolean(body.company_id);
-    if (isAuthRequired) {
+    if (isAuthRequired && !isServiceCall) {
       const auth = await requireUser(req);
       if (!auth.ok) return auth.response;
 
@@ -1224,8 +1228,6 @@ Deno.serve(async (req) => {
         if (!membership.ok) return membership.response;
       }
     }
-
-    const { userId } = await validateCaller(req);
     const supabase = createServiceClient();
 
     switch (action) {
