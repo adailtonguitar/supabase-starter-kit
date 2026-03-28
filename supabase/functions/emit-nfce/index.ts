@@ -250,16 +250,14 @@ async function resolveProviderDocRef(params: {
 // ─── Enriquecer entrada de pagamento com dados obrigatórios SEFAZ (Rejeição 391) ───
 function enrichPaymentEntry(entry: any, tPag: string, source: any) {
   const tp = String(tPag).trim();
-  // Cartão crédito (03) ou débito (04): obrigatório informar grupo card
+  // Cartão crédito (03) ou débito (04): provedor espera os campos no próprio detPag
   if (tp === "03" || tp === "04") {
-    entry.card = {
-      tpIntegra: source?.tpIntegra ?? source?.card?.tpIntegra ?? 2,
-      ...(source?.cnpj_credenciadora || source?.card?.CNPJ
-        ? { CNPJ: onlyDigits(source.cnpj_credenciadora || source.card?.CNPJ) }
-        : {}),
-      tBand: source?.tBand ?? source?.card?.tBand ?? "99",
-      cAut: source?.cAut ?? source?.card?.cAut ?? source?.nsu ?? "000000",
-    };
+    entry.tpIntegra = source?.tpIntegra ?? source?.card?.tpIntegra ?? 2;
+    if (source?.cnpj_credenciadora || source?.card?.CNPJ) {
+      entry.CNPJ = onlyDigits(source.cnpj_credenciadora || source.card?.CNPJ);
+    }
+    entry.tBand = source?.tBand ?? source?.card?.tBand ?? "99";
+    entry.cAut = source?.cAut ?? source?.card?.cAut ?? source?.nsu ?? "000000";
   }
   // PIX (17) e outros: sem grupo card adicional na NFC-e modelo 65
 }

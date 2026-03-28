@@ -12,14 +12,12 @@ function onlyDigits(v: unknown): string {
 function enrichPaymentEntry(entry: Record<string, unknown>, tPag: string, source: Record<string, unknown>) {
   const tp = String(tPag || "").trim();
   if (tp === "03" || tp === "04") {
-    entry.card = {
-      tpIntegra: source?.tpIntegra ?? 2,
-      ...(source?.cnpj_credenciadora
-        ? { CNPJ: onlyDigits(source.cnpj_credenciadora) }
-        : {}),
-      tBand: source?.tBand ?? "99",
-      cAut: source?.cAut ?? source?.nsu ?? "000000",
-    };
+    entry.tpIntegra = source?.tpIntegra ?? 2;
+    if (source?.cnpj_credenciadora) {
+      entry.CNPJ = onlyDigits(source.cnpj_credenciadora);
+    }
+    entry.tBand = source?.tBand ?? "99";
+    entry.cAut = source?.cAut ?? source?.nsu ?? "000000";
   }
 }
 
