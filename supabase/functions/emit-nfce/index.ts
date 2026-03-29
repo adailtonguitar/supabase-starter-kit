@@ -259,6 +259,11 @@ function enrichPaymentEntry(entry: any, tPag: string, source: any) {
   delete entry.tBand;
   delete entry.cAut;
 
+   if (tp === "17") {
+    entry.tPag = "17";
+    return;
+   }
+
   if (tp === "03" || tp === "04") {
     const envCnpj = onlyDigits(Deno.env.get("FISCAL_DEFAULT_CREDENCIADORA_CNPJ") || "");
     let cnpj = onlyDigits(
@@ -548,11 +553,13 @@ async function handleEmit(supabase: any, body: any) {
         tPag: tp,
         vPag: Math.round(((p as any).vPag || (p as any).value || 0) * 100) / 100,
       };
+      if (tp === "17") entry.tPag = "17";
       enrichPaymentEntry(entry, tp, p);
       detPag.push(entry);
     }
   } else {
     const entry: any = { tPag: mainTpag, vPag: Math.round((form.payment_value || vNF) * 100) / 100 };
+    if (mainTpag === "17") entry.tPag = "17";
     enrichPaymentEntry(entry, mainTpag, form);
     detPag.push(entry);
   }
@@ -836,7 +843,7 @@ async function handleEmitFromSale(supabase: any, body: any) {
     ? paymentRows.map((row: Record<string, unknown>) => {
       const amt = Number(row.amount ?? row.value ?? saleTotal);
       const tp = rowToTPagForNfce(row);
-      const entry: any = { tPag: tp, vPag: Math.round((Number.isFinite(amt) ? amt : saleTotal) * 100) / 100 };
+      const entry: any = { tPag: tp === "17" ? "17" : tp, vPag: Math.round((Number.isFinite(amt) ? amt : saleTotal) * 100) / 100 };
       enrichPaymentEntry(entry, tp, row);
       return entry;
     })
