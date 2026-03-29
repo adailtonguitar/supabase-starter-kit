@@ -148,6 +148,7 @@ export function useSales(limit = 50) {
           id: row.id,
           number: row.sale_number ?? row.number ?? undefined,
           payment_method: row.payment_method || extractPaymentMethod(row.payments),
+          payments: row.payments,
           total_value: Number(row.total ?? row.total_value ?? 0),
           status: row.status || "completed",
           created_at: row.created_at,
