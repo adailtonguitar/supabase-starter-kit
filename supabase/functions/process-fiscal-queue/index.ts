@@ -1,27 +1,14 @@
 import { corsHeaders, createServiceClient, jsonResponse, requireCompanyMembership, requireUser } from "../_shared/auth.ts";
 import {
   getPrimaryPaymentMethod,
-  mapPdvMethodToTPag,
   parseSalePaymentsJson,
+  rowToTPagForNfce,
 } from "../_shared/sale-payments.ts";
 
-function onlyDigits(v: unknown): string {
-  return String(v ?? "").replace(/[^0-9]/g, "");
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function enrichPaymentEntry(entry: Record<string, unknown>, tPag: string, source: Record<string, unknown>) {
-  const tp = String(tPag || "").trim();
-  if (tp === "03" || tp === "04") {
-    entry.tpIntegra = source?.tpIntegra ?? 2;
-    if (source?.cnpj_credenciadora) {
-      entry.CNPJ = onlyDigits(source.cnpj_credenciadora);
-    }
-    entry.tBand = source?.tBand ?? "99";
-    entry.cAut = source?.cAut ?? source?.nsu ?? "000000";
-  }
-}
-
-// ── helpers ────────────────────────────────────────────────────
 function parseSaleItemsJsonb(raw: unknown): Array<Record<string, unknown>> {
   if (raw == null) return [];
   if (Array.isArray(raw)) return raw as Array<Record<string, unknown>>;
@@ -53,34 +40,32 @@ function fiscalSnapshotByProductId(itemsJson: unknown): Map<string, Record<strin
   return map;
 }
 
-// ── Classificação de erro: SEFAZ (permanente) vs técnico (retry) ──
-const SEFAZ_REJECTION_PATTERNS = [
-  /rejeic[aã]o/i,
-  /cStat[:\s]*[2-9]\d{2}/i,
-  /ncm.*inv[aá]lid/i,
-  /cfop.*inv[aá]lid/i,
-  /cnpj.*inv[aá]lid/i,
-  /cpf.*inv[aá]lid/i,
-  /ie.*inv[aá]lid/i,
-  /duplicidade/i,
-  /nfc-?e.*j[aá].*autorizada/i,
-  /sem ncm/i,
-  /produto.*sem.*cadastro/i,
-];
-
-function isSefazPermanentError(msg: string): boolean {
-  return SEFAZ_REJECTION_PATTERNS.some((re) => re.test(msg));
+function visibilityPendingResponse(saleId: string, queueId: string, reason: string) {
+  return new Response(
+    JSON.stringify({
+      success: true,
+      pending: true,
+      sale_id: saleId,
+      queue_id: queueId,
+      message: reason,
+    }),
+    { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+  );
 }
 
-// ── Backoff progressivo: calcula next_retry_at baseado no número de attempts ──
-function computeNextRetryAt(attempts: number): string {
-  // attempt 1→30s, 2→60s, 3→120s, 4→240s, 5+→300s (cap 5min)
-  const backoffMs = [30, 60, 120, 240, 300][Math.min(attempts - 1, 4)] * 1000;
-  return new Date(Date.now() + backoffMs).toISOString();
+/**
+ * Chama `emit-nfce` com Authorization confiável.
+ * Usamos **service role** aqui (servidor→servidor): o JWT do usuário falha com frequência em Edge→Edge
+ * (getClaims / sessão), gerando **401**. A fila já validou `requireUser` + empresa antes de processar.
+ */
+function getEmitNfceInternalAuth(): string {
+  const sr = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")?.trim();
+  if (!sr) throw new Error("SUPABASE_SERVICE_ROLE_KEY ausente no ambiente da Edge Function");
+  return `Bearer ${sr}`;
 }
 
 async function invokeEmitNfceWithUserJwt(
-  userBearerHeader: string,
+  authorizationHeader: string,
   body: Record<string, unknown>,
 ): Promise<{ data: Record<string, unknown> | null; error: { message: string } | null; status: number }> {
   const base = Deno.env.get("SUPABASE_URL")?.replace(/\/$/, "") ?? "";
@@ -93,7 +78,7 @@ async function invokeEmitNfceWithUserJwt(
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: userBearerHeader,
+      Authorization: authorizationHeader,
       apikey: anon,
     },
     body: JSON.stringify(body),
@@ -116,564 +101,476 @@ async function invokeEmitNfceWithUserJwt(
   return { data: payload, error: null, status: resp.status };
 }
 
-// ── Resultado de processamento individual ──
-type ItemResult = {
-  queueId: string;
-  saleId: string;
-  outcome: "done" | "pending" | "error" | "dead_letter" | "skipped_locked";
-  detail?: string;
-  durationMs?: number;
-};
-
-const BATCH_SIZE = 10;
-const MAX_RETRIES = 10;
-
-// ── Optimistic lock: marca como processing apenas se status=pending ──
-async function tryLockItem(supabase: any, queueId: string, attempts: number): Promise<boolean> {
-  const now = new Date().toISOString();
-  const { data, error } = await supabase
-    .from("fiscal_queue")
-    .update({ status: "processing", attempts, started_at: now, updated_at: now })
-    .eq("id", queueId)
-    .eq("status", "pending")
-    .select("id")
-    .maybeSingle();
-
-  if (error || !data) return false;
-  return true;
-}
-
-async function deferPendingAuthorization(
-  supabase: any,
-  queueId: string,
-  saleId: string,
-  companyId: string,
-  message: string,
-  attempts: number,
-  itemStart: number,
-): Promise<ItemResult> {
-  const now = new Date().toISOString();
-  const safeAttempts = Math.max(0, attempts - 1);
-  await Promise.all([
-    supabase.from("fiscal_queue")
-      .update({
-        status: "pending",
-        attempts: safeAttempts,
-        last_error: message,
-        next_retry_at: computeNextRetryAt(Math.max(1, safeAttempts + 1)),
-        finished_at: now,
-        updated_at: now,
-      })
-      .eq("id", queueId),
-    supabase.from("sales")
-      .update({ status: "pendente_fiscal" })
-      .eq("id", saleId)
-      .eq("company_id", companyId),
-  ]);
-
-  return { queueId, saleId, outcome: "pending", detail: message, durationMs: Date.now() - itemStart };
-}
-
-// ── Processar um único item da fila ──
-async function processOneItem(
-  supabase: any,
-  queueItem: any,
-  authHeader: string,
-  isServiceCall: boolean,
-  serviceRoleKey: string,
-): Promise<ItemResult> {
-  const itemStart = Date.now();
-  const queueId = queueItem.id;
-  const saleId = queueItem.sale_id;
-  const companyId = queueItem.company_id;
-  const attempts = (queueItem.attempts || 0) + 1;
-
-  // Dead-letter check
-  if (attempts > MAX_RETRIES) {
-    const now = new Date().toISOString();
-    const previousError = String(queueItem.last_error || "").trim();
-    const deadLetterMessage = previousError
-      ? `${previousError} | Excedeu ${MAX_RETRIES} tentativas`
-      : `Excedeu ${MAX_RETRIES} tentativas`;
-    await Promise.all([
-      supabase.from("fiscal_queue")
-        .update({ status: "dead_letter", last_error: deadLetterMessage, finished_at: now, updated_at: now })
-        .eq("id", queueId),
-      supabase.from("sales")
-        .update({ status: "erro_fiscal" })
-        .eq("id", saleId)
-        .eq("company_id", companyId),
-    ]);
-    return { queueId, saleId, outcome: "dead_letter", durationMs: Date.now() - itemStart };
-  }
-
-  // Optimistic lock
-  const locked = await tryLockItem(supabase, queueId, attempts);
-  if (!locked) {
-    return { queueId, saleId, outcome: "skipped_locked", detail: "Já sendo processado por outra instância", durationMs: 0 };
-  }
-
-  // Helper para finalizar com erro técnico (retry)
-  const markTechnicalRetry = async (errMsg: string) => {
-    const now = new Date().toISOString();
-    await Promise.all([
-      supabase.from("fiscal_queue")
-        .update({
-          status: "pending",
-          last_error: `[técnico] ${errMsg}`,
-          next_retry_at: computeNextRetryAt(attempts),
-          finished_at: now,
-          updated_at: now,
-        })
-        .eq("id", queueId),
-      supabase.from("sales")
-        .update({ status: "pendente_fiscal" })
-        .eq("id", saleId)
-        .eq("company_id", companyId),
-    ]);
-    return { queueId, saleId, outcome: "pending" as const, detail: `[técnico retry] ${errMsg}`, durationMs: Date.now() - itemStart };
-  };
-
-  // Helper para finalizar com erro permanente
-  const markPermanentError = async (errMsg: string) => {
-    const now = new Date().toISOString();
-    await Promise.all([
-      supabase.from("fiscal_queue")
-        .update({ status: "error", last_error: `[SEFAZ] ${errMsg}`, finished_at: now, updated_at: now, next_retry_at: null })
-        .eq("id", queueId),
-      supabase.from("sales")
-        .update({ status: "erro_fiscal" })
-        .eq("id", saleId)
-        .eq("company_id", companyId),
-    ]);
-    return { queueId, saleId, outcome: "error" as const, detail: `[SEFAZ permanente] ${errMsg}`, durationMs: Date.now() - itemStart };
-  };
-
-  // Helper para sucesso
-  const markDone = async (accessKey?: string, number?: string | number) => {
-    const now = new Date().toISOString();
-    await Promise.all([
-      supabase.from("sales")
-        .update({ status: "autorizada", access_key: accessKey || null, number: number || null })
-        .eq("id", saleId)
-        .eq("company_id", companyId),
-      supabase.from("fiscal_queue")
-        .update({ status: "done", processed_at: now, finished_at: now, last_error: null, next_retry_at: null, updated_at: now })
-        .eq("id", queueId),
-    ]);
-    return { queueId, saleId, outcome: "done" as const, detail: "Autorizada", durationMs: Date.now() - itemStart };
-  };
-
-  // Config fiscal
-  const { data: configs, error: cfgErr } = await supabase
-    .from("fiscal_configs")
-    .select("id, doc_type, is_active")
-    .eq("company_id", companyId);
-
-  const fiscalConfig = configs?.find((c: any) => c.doc_type === "nfce" && c.is_active)
-    || configs?.find((c: any) => c.doc_type === "nfe" && c.is_active)
-    || configs?.find((c: any) => c.doc_type === "nfce")
-    || configs?.find((c: any) => c.doc_type === "nfe")
-    || configs?.[0]
-    || null;
-
-  if (cfgErr || !fiscalConfig) {
-    return markPermanentError(cfgErr?.message || "Nenhuma configuração fiscal encontrada");
-  }
-
-  // Buscar venda + itens + empresa
-  const [{ data: company }, saleRes] = await Promise.all([
-    supabase.from("companies").select("crt").eq("id", companyId).maybeSingle(),
-    supabase.from("sales").select("*").eq("id", saleId).maybeSingle(),
-  ]);
-
-  const sale = saleRes.data;
-
-  if (sale && String((sale as any).company_id || "") !== String(companyId)) {
-    return markPermanentError("Venda não pertence à empresa");
-  }
-
-  let items: any[] = [];
-  if (sale) {
-    const itemsRes = await supabase
-      .from("sale_items")
-      .select("*, products(ncm, cfop, csosn, cst_icms, cst_pis, cst_cofins, aliq_icms, origem)")
-      .eq("sale_id", saleId)
-      .eq("company_id", companyId);
-    items = (itemsRes.data as any[]) || [];
-
-    if (!items.length) {
-      const itemsLoose = await supabase
-        .from("sale_items")
-        .select("*, products(ncm, cfop, csosn, cst_icms, cst_pis, cst_cofins, aliq_icms, origem)")
-        .eq("sale_id", saleId);
-      items = (itemsLoose.data as any[]) || [];
-    }
-  }
-
-  // Fail-safe: dados não consistentes → pending + backoff
-  if (!sale || !items.length) {
-    const pendingMsg = !sale
-      ? "Venda ainda não visível. Aguardando consistência."
-      : "Itens da venda ainda não visíveis. Aguardando consistência.";
-    return markTechnicalRetry(pendingMsg);
-  }
-
-  // Verificar pagamentos existem
-  const payments = parseSalePaymentsJson((sale as any).payments);
-  const paymentMethod = (sale as any).payment_method;
-  if (!payments.length && !paymentMethod) {
-    return markTechnicalRetry("Pagamentos ainda não visíveis. Aguardando consistência.");
-  }
-
-  // Checar se já autorizada
-  const { data: latestDoc } = await supabase
-    .from("fiscal_documents")
-    .select("id, access_key, number, status")
-    .eq("company_id", companyId)
-    .eq("sale_id", saleId)
-    .eq("doc_type", "nfce")
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if ((latestDoc as any)?.status === "autorizada") {
-    return markDone((latestDoc as any).access_key, (latestDoc as any).number);
-  }
-
-  // Consultar status se já tem access_key
-  if ((latestDoc as any)?.access_key) {
-    const effectiveAuth = isServiceCall ? `Bearer ${serviceRoleKey}` : authHeader;
-    const { data: consultedData, error: consultError } = await invokeEmitNfceWithUserJwt(effectiveAuth, {
-      action: "consult_status",
-      access_key: (latestDoc as any).access_key,
-      doc_type: "nfce",
-      company_id: companyId,
-    });
-
-    if (!consultError && consultedData?.success === true && consultedData.status === "autorizada") {
-      return markDone(
-        String(consultedData.access_key || (latestDoc as any).access_key || ""),
-        consultedData.number || (latestDoc as any).number,
-      );
-    }
-
-    // ⚠️ CRITICAL FIX: Se já existe documento com access_key, NUNCA re-emitir.
-    // Re-emissão cria numeração duplicada e loop infinito (PIX/cartão demoram
-    // milissegundos a mais na SEFAZ, retornando "pendente" antes de autorizar).
-    // Apenas aguardar o próximo ciclo de consulta.
-    const consultStatus = String(consultedData?.status || "pendente").toLowerCase();
-    const consultErrMsg = [
-      consultError?.message,
-      consultedData?.rejection_reason,
-      consultedData?.details?.motivo,
-      consultedData?.details?.xMotivo,
-      consultedData?.details?.mensagem,
-      consultedData?.details?.message,
-      consultedData?.error,
-    ].map((value) => String(value || "").trim()).find(Boolean) || "";
-
-    if (consultStatus === "rejeitada" || consultStatus === "cancelada" || consultStatus === "denegada") {
-      return markPermanentError(`[SEFAZ consulta] ${consultErrMsg || consultStatus}`);
-    }
-
-    // Documento existe na SEFAZ mas ainda pendente → aguardar, NÃO re-emitir
-    const waitMsg = `Documento já enviado (chave: ${String((latestDoc as any).access_key).slice(-8)}), aguardando autorização SEFAZ`;
-    return deferPendingAuthorization(supabase, queueId, saleId, companyId, waitMsg, attempts, itemStart);
-  }
-
-  // Montar dados fiscais
-  const crt = (company as any)?.crt || 1;
-  const isSimples = crt === 1 || crt === 2;
-  const defaultCst = isSimples ? "102" : "00";
-  const defaultPisCofins = isSimples ? "49" : "01";
-  const saleTotal = Number((sale as any).total ?? (sale as any).total_value ?? 0);
-  let paymentRows = payments;
-  if (paymentRows.length === 0) {
-    const pm = (sale as any).payment_method;
-    if (typeof pm === "string" && pm.trim()) {
-      paymentRows = [{ method: pm.trim(), amount: saleTotal, change_amount: 0 }];
-    }
-  }
-
-  const snapByPid = fiscalSnapshotByProductId((sale as any).items);
-
-  // Validar NCM
-  const itemsWithoutNcm = items.filter((item: any) => {
-    const pid = String(item.product_id || "");
-    const snap = pid ? snapByPid.get(pid) || {} : {};
-    const product = item.products || {};
-    const ncm = firstNonEmptyStr(product.ncm, snap.ncm, item.ncm).replace(/\D/g, "");
-    return !ncm || ncm.length < 2 || ncm === "00000000";
-  });
-  if (itemsWithoutNcm.length > 0) {
-    const names = itemsWithoutNcm.map((i: any) => i.product_name || i.name).join(", ");
-    return markPermanentError(`Produto(s) sem NCM válido: ${names}. Cadastre o NCM antes de emitir NFC-e.`);
-  }
-
-  const fiscalItems = items.map((item: any) => {
-    const product = item.products || {};
-    const pid = String(item.product_id || "");
-    const snap = pid ? snapByPid.get(pid) || {} : {};
-    const discountValue = ((item.discount_percent || 0) / 100) * item.unit_price * item.quantity;
-    const cstProd = isSimples ? product.csosn : product.cst_icms;
-    const cstSnap = isSimples ? snap.csosn : snap.cst_icms;
-    const origStr = firstNonEmptyStr(
-      product.origem != null ? String(product.origem) : "",
-      product.origin != null ? String(product.origin) : "",
-      snap.origem != null ? String(snap.origem) : "",
-      snap.origin != null ? String(snap.origin) : "",
-    ) || "0";
-    return {
-      product_id: item.product_id,
-      name: item.product_name || item.name,
-      ncm: firstNonEmptyStr(product.ncm, snap.ncm, item.ncm),
-      cfop: firstNonEmptyStr(product.cfop, snap.cfop) || "5102",
-      cst: firstNonEmptyStr(cstProd, cstSnap) || defaultCst,
-      origem: origStr,
-      unit: item.unit || "UN",
-      qty: item.quantity,
-      unit_price: item.unit_price,
-      discount: Math.round(discountValue * 100) / 100,
-      pis_cst: firstNonEmptyStr(product.cst_pis, snap.cst_pis) || defaultPisCofins,
-      cofins_cst: firstNonEmptyStr(product.cst_cofins, snap.cst_cofins) || defaultPisCofins,
-      icms_aliquota: Number(product.aliq_icms ?? snap.aliq_icms ?? snap.icms_rate ?? 0) || 0,
-      mva: Number(product.mva) || Number(snap.mva) || undefined,
-      cest: firstNonEmptyStr(product.cest, snap.cest) || undefined,
-    };
-  });
-
-  const primary = paymentRows[0] as Record<string, unknown> | undefined;
-  const mainPayTpag = mapPdvMethodToTPag(getPrimaryPaymentMethod(primary));
-  const fiscalPayments = paymentRows.length > 0
-    ? paymentRows.map((row: Record<string, unknown>) => {
-      const m = getPrimaryPaymentMethod(row);
-      const amt = Number(row.amount ?? row.value ?? saleTotal);
-      const tPag = mapPdvMethodToTPag(m);
-      const entry: Record<string, unknown> = {
-        tPag,
-        vPag: Math.round((Number.isFinite(amt) ? amt : saleTotal) * 100) / 100,
-      };
-      enrichPaymentEntry(entry, tPag, row);
-      return entry;
-    })
-    : [{ tPag: mainPayTpag !== "99" ? mainPayTpag : "01", vPag: Math.round(saleTotal * 100) / 100 }];
-
-  // Emitir (sequencial — nunca paralelo para evitar flood no SEFAZ)
-  const effectiveAuth = isServiceCall ? `Bearer ${serviceRoleKey}` : authHeader;
-  const { data: fiscalData, error: fiscalErr, status: emitHttpStatus } = await invokeEmitNfceWithUserJwt(effectiveAuth, {
-    action: "emit",
-    sale_id: saleId,
-    company_id: companyId,
-    config_id: fiscalConfig.id,
-    form: {
-      nat_op: "VENDA DE MERCADORIA",
-      crt,
-      payments: fiscalPayments,
-      payment_method: mainPayTpag,
-      payment_value: saleTotal,
-      change: Number(primary?.change_amount ?? primary?.changeAmount ?? 0) || 0,
-      items: fiscalItems,
-    },
-  });
-
-  // Rate limited
-  const rateLimited =
-    emitHttpStatus === 429 ||
-    String(fiscalErr?.message || fiscalData?.error || "").toLowerCase().includes("limite de emissões");
-  if (rateLimited) {
-    return markTechnicalRetry("Limite de emissões atingido, aguardando reprocessamento automático.");
-  }
-
-  // Erro na emissão
-  if (fiscalErr || !fiscalData?.success) {
-    const errMsg =
-      (fiscalData?.error != null ? String(fiscalData.error) : null) ||
-      fiscalErr?.message ||
-      "Falha na emissão";
-
-    // Diferenciar erro SEFAZ permanente vs erro técnico
-    if (isSefazPermanentError(errMsg)) {
-      return markPermanentError(errMsg);
-    }
-
-    // Erro técnico = retry com backoff
-    if (attempts < MAX_RETRIES) {
-      return markTechnicalRetry(errMsg);
-    }
-
-    // Esgotou retries
-    return markPermanentError(errMsg);
-  }
-
-  // Pendente no provedor
-  const fiscalStatus = fiscalData?.status || "pendente";
-  if (fiscalStatus !== "autorizada") {
-    const pendingMsg = String(fiscalData?.error || "NFC-e enviada, aguardando autorização");
-    const now = new Date().toISOString();
-    await Promise.all([
-      supabase.from("fiscal_queue")
-        .update({
-          status: "pending",
-          last_error: pendingMsg,
-          processed_at: null,
-          next_retry_at: computeNextRetryAt(attempts),
-          finished_at: now,
-          updated_at: now,
-        })
-        .eq("id", queueId),
-      supabase.from("sales")
-        .update({ status: "pendente_fiscal" })
-        .eq("id", saleId)
-        .eq("company_id", companyId),
-    ]);
-    return { queueId, saleId, outcome: "pending", detail: pendingMsg, durationMs: Date.now() - itemStart };
-  }
-
-  // ✅ Sucesso
-  return markDone(String(fiscalData?.access_key || ""), fiscalData?.number);
-}
-
-// ══════════════════════════════════════════════════════════════
-// ── HANDLER PRINCIPAL ────────────────────────────────────────
-// ══════════════════════════════════════════════════════════════
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
 
-  const execStart = Date.now();
-
   try {
-    const authHeader = req.headers.get("Authorization") || "";
-    const token = authHeader.replace("Bearer ", "");
-    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
-    const isServiceCall = token === serviceRoleKey;
-
-    let authUserId: string | null = null;
-    let authSupabase: any = null;
-
-    if (!isServiceCall) {
-      const auth = await requireUser(req);
-      if (!auth.ok) return auth.response;
-      authUserId = auth.userId;
-      authSupabase = auth.supabase;
-    }
+    // Only authenticated users can trigger queue processing (prevents public abuse)
+    const auth = await requireUser(req);
+    if (!auth.ok) return auth.response;
 
     const body = await req.json().catch(() => ({}));
     const companyFilter = body.company_id;
     const saleFilter = body.sale_id;
     const queueFilter = body.queue_id;
 
-    if (companyFilter && !isServiceCall && authUserId && authSupabase) {
+    if (companyFilter) {
       const membership = await requireCompanyMembership({
-        supabase: authSupabase,
-        userId: authUserId,
+        supabase: auth.supabase,
+        userId: auth.userId,
         companyId: String(companyFilter),
       });
       if (!membership.ok) return membership.response;
     }
 
+    // Service client is allowed after auth+tenant validation
     const supabase: any = createServiceClient();
 
     // 1️⃣ Resetar itens presos em "processing" há mais de 5 minutos
     const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
-    const now = new Date().toISOString();
     let stuckQuery = supabase
       .from("fiscal_queue")
-      .update({ status: "pending", updated_at: now })
+      .update({ status: "pending" })
       .eq("status", "processing")
-      .lt("started_at", fiveMinAgo);
+      .lt("created_at", fiveMinAgo);
+
     if (companyFilter) stuckQuery = stuckQuery.eq("company_id", companyFilter);
     await stuckQuery;
 
-    // ── Chamada específica (PDV polling por sale_id/queue_id) → item único ──
+    // 2️⃣ Buscar próximo item
+    // - Sem filtros: pega o mais antigo em pending
+    // - Com queue_id/sale_id: permite também status=processing (idempotência) para não "travar" até o reset de 5 min
     const hasSpecificTarget = Boolean(queueFilter || saleFilter);
+    let pendingQuery: any = supabase
+      .from("fiscal_queue")
+      .select("*");
+    if (!hasSpecificTarget) pendingQuery = pendingQuery.eq("status", "pending");
+    else pendingQuery = pendingQuery.in("status", ["pending", "processing"]);
+    if (companyFilter) pendingQuery = pendingQuery.eq("company_id", companyFilter);
+    if (queueFilter) pendingQuery = pendingQuery.eq("id", String(queueFilter));
+    if (saleFilter) pendingQuery = pendingQuery.eq("sale_id", String(saleFilter));
+    pendingQuery = pendingQuery.order("created_at", { ascending: true }).limit(1).maybeSingle();
+    const { data: queueItem } = await pendingQuery;
 
-    if (hasSpecificTarget) {
-      let pendingQuery: any = supabase.from("fiscal_queue").select("*");
-      pendingQuery = pendingQuery.in("status", ["pending", "processing"]);
-      if (companyFilter) pendingQuery = pendingQuery.eq("company_id", companyFilter);
-      if (queueFilter) pendingQuery = pendingQuery.eq("id", String(queueFilter));
-      if (saleFilter) pendingQuery = pendingQuery.eq("sale_id", String(saleFilter));
-      pendingQuery = pendingQuery.order("created_at", { ascending: true }).limit(1).maybeSingle();
-      const { data: queueItem } = await pendingQuery;
+    if (!queueItem) return jsonResponse({ success: true, message: "Nenhum item pendente" }, 200);
 
-      if (!queueItem) return jsonResponse({ success: true, message: "Nenhum item pendente" }, 200);
+    const queueId = queueItem.id;
+    const saleId = queueItem.sale_id;
+    const companyId = queueItem.company_id;
+    const attempts = (queueItem.attempts || 0) + 1;
+    const MAX_RETRIES = 5;
 
-      const result = await processOneItem(supabase, queueItem, authHeader, isServiceCall, serviceRoleKey);
-      const success = result.outcome === "done";
+    // Dead-letter: evita loop infinito na fila
+    if (attempts > MAX_RETRIES) {
+      await Promise.all([
+        supabase.from("fiscal_queue")
+          .update({ status: "dead_letter", last_error: `Excedeu ${MAX_RETRIES} processamentos na fila` })
+          .eq("id", queueId),
+        supabase.from("sales")
+          .update({ status: "erro_fiscal" })
+          .eq("id", saleId)
+          .eq("company_id", companyId),
+      ]);
       return new Response(
-        JSON.stringify({
-          success,
-          status: result.outcome === "done" ? "autorizada" : result.outcome,
-          pending: result.outcome === "pending",
-          sale_id: result.saleId,
-          queue_id: result.queueId,
-          message: result.detail || "",
-        }),
+        JSON.stringify({ success: false, dead_letter: true, sale_id: saleId, error: `Excedeu ${MAX_RETRIES} tentativas` }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // 3️⃣ Marcar como processing (se já estiver processing, só atualiza attempts)
+    await supabase
+      .from("fiscal_queue")
+      .update({ status: "processing", attempts })
+      .eq("id", queueId);
+
+    // 4️⃣ Buscar config fiscal com fallback (NFC-e -> NF-e)
+    const { data: configs, error: cfgErr } = await supabase
+      .from("fiscal_configs")
+      .select("id, doc_type, is_active")
+      .eq("company_id", companyId);
+
+    const fiscalConfig = configs?.find((c: any) => c.doc_type === "nfce" && c.is_active)
+      || configs?.find((c: any) => c.doc_type === "nfe" && c.is_active)
+      || configs?.find((c: any) => c.doc_type === "nfce")
+      || configs?.find((c: any) => c.doc_type === "nfe")
+      || configs?.[0]
+      || null;
+
+    if (cfgErr || !fiscalConfig) {
+      const reason = cfgErr?.message || "Nenhuma configuração fiscal encontrada";
+      await Promise.all([
+        supabase.from("fiscal_queue")
+          .update({ status: "error", last_error: reason })
+          .eq("id", queueId),
+        supabase.from("sales")
+          .update({ status: "pendente_fiscal" })
+          .eq("id", saleId)
+          .eq("company_id", companyId),
+      ]);
+      return new Response(
+        JSON.stringify({ success: false, error: reason, sale_id: saleId }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // 5️⃣ Buscar dados da venda e itens (incluindo dados fiscais do produto)
+    // Em alguns cenários (principalmente logo após finalizar a venda no PDV), pode haver delay curto
+    // até a venda/itens ficarem visíveis via API. Fazemos retry curto para evitar falso negativo.
+    let sale: any = null;
+    let items: any[] = [];
+    let lastSaleErr: any = null;
+    let lastItemsErr: any = null;
+    const [{ data: company }] = await Promise.all([
+      supabase.from("companies").select("crt").eq("id", companyId).maybeSingle(),
+    ]);
+
+    // ✅ CORREÇÃO #2: Backoff mais inteligente para visibilidade
+    // Começa rápido (500ms) e aumenta gradualmente (até 60s total)
+    const visibilityBackoffMs = [500, 1000, 2000, 5000, 10000, 20000, 20000];
+    const maxVisibilityReads = visibilityBackoffMs.length + 1;
+    const totalVisibilityWaitMs = visibilityBackoffMs.reduce((a, b) => a + b, 0); // ~78s
+
+    console.log(
+      `[process-fiscal-queue] ${new Date().toISOString()} Iniciando processamento: ` +
+      `queue_id=${queueId}, sale_id=${saleId}, company_id=${companyId}, attempts=${attempts}/${MAX_RETRIES}. ` +
+      `Máximo tempo de espera por visibilidade: ${totalVisibilityWaitMs}ms (backoff: ${visibilityBackoffMs.join(",")}ms)`
+    );
+
+    for (let read = 0; read < maxVisibilityReads; read++) {
+      const t0 = new Date().toISOString();
+      const saleRes = await supabase
+        .from("sales")
+        .select("*")
+        .eq("id", saleId)
+        .maybeSingle();
+
+      sale = saleRes.data;
+      lastSaleErr = saleRes.error;
+
+      if (sale && String((sale as any).company_id || "") !== String(companyId)) {
+        console.error(`[process-fiscal-queue] ${t0} SECURITY_ERROR: Venda não pertence à empresa. sale_id=${saleId}, company_mismatch=true`);
+        await supabase.from("fiscal_queue")
+          .update({ status: "error", last_error: "Venda não pertence à empresa deste processamento." })
+          .eq("id", queueId);
+        return new Response(
+          JSON.stringify({ success: false, error: "Venda não pertence à empresa", sale_id: saleId }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const itemsStrict = await supabase
+        .from("sale_items")
+        .select("*, products(ncm, cfop, csosn, cst_icms, cst_pis, cst_cofins, aliq_icms, origem)")
+        .eq("sale_id", saleId)
+        .eq("company_id", companyId);
+
+      items = (itemsStrict.data as any[]) || [];
+      lastItemsErr = itemsStrict.error;
+
+      if (!items.length) {
+        const itemsLoose = await supabase
+          .from("sale_items")
+          .select("*, products(ncm, cfop, csosn, cst_icms, cst_pis, cst_cofins, aliq_icms, origem)")
+          .eq("sale_id", saleId);
+        items = (itemsLoose.data as any[]) || [];
+        lastItemsErr = itemsLoose.error ?? lastItemsErr;
+      }
+
+      if (sale && items.length > 0) {
+        console.log(
+          `[process-fiscal-queue] ${t0} ✅ visibility OK: sale_id=${saleId}, queue_id=${queueId}, ` +
+          `read=${read + 1}/${maxVisibilityReads}, items=${items.length}, attempts=${attempts}/${MAX_RETRIES}`
+        );
+        break;
+      }
+
+      console.log(
+        `[process-fiscal-queue] ${t0} ⏳ visibility read ${read + 1}/${maxVisibilityReads}: ` +
+        `sale=${!!sale}, items=${items.length}, sale_id=${saleId}, queue_id=${queueId}, attempts=${attempts}/${MAX_RETRIES}`
+      );
+
+      if (read < visibilityBackoffMs.length) {
+        const delayMs = visibilityBackoffMs[read];
+        console.log(`[process-fiscal-queue] Aguardando ${delayMs}ms antes da próxima leitura...`);
+        await sleep(delayMs);
+      }
+    }
+
+    if (!sale || !items?.length) {
+      const errDetail = lastSaleErr?.message || lastItemsErr?.message || "Venda ou itens não encontrados";
+      const fatalMsg =
+        `Venda/itens não visíveis após ${maxVisibilityReads} leituras (backoff ${visibilityBackoffMs.join(",")}ms, ${totalVisibilityWaitMs}ms total). ${errDetail}`;
+      console.error(`[process-fiscal-queue] ${new Date().toISOString()} ❌ VISIBILITY_ERROR: queue_id=${queueId}, sale_id=${saleId}, attempts=${attempts}: ${fatalMsg}`);
+      await supabase.from("fiscal_queue")
+        .update({ status: "error", last_error: fatalMsg })
+        .eq("id", queueId);
+      return new Response(
+        JSON.stringify({ success: false, error: fatalMsg, sale_id: saleId, queue_id: queueId }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
-    // ── Chamada batch (cron / service) → até BATCH_SIZE itens ──
-    // Respeita next_retry_at: só pega itens cujo backoff já expirou
-    let batchQuery: any = supabase
-      .from("fiscal_queue")
-      .select("*")
-      .eq("status", "pending")
-      .or(`next_retry_at.is.null,next_retry_at.lte.${now}`);
-    if (companyFilter) batchQuery = batchQuery.eq("company_id", companyFilter);
-    batchQuery = batchQuery.order("created_at", { ascending: true }).limit(BATCH_SIZE);
-    const { data: queueItems } = await batchQuery;
+    const { data: latestDoc } = await supabase
+      .from("fiscal_documents")
+      .select("id, access_key, number, status")
+      .eq("company_id", companyId)
+      .eq("sale_id", saleId)
+      .eq("doc_type", "nfce")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
-    if (!queueItems?.length) {
-      return jsonResponse({ success: true, message: "Nenhum item pendente", processed: 0 }, 200);
+    if ((latestDoc as any)?.status === "autorizada") {
+      console.log(`[process-fiscal-queue] ${new Date().toISOString()} ✅ Documento já autorizado: sale_id=${saleId}, access_key=${(latestDoc as any).access_key}`);
+      await Promise.all([
+        supabase.from("sales")
+          .update({ status: "autorizada", access_key: (latestDoc as any).access_key || null, number: (latestDoc as any).number || null })
+          .eq("id", saleId)
+          .eq("company_id", companyId),
+        supabase.from("fiscal_queue")
+          .update({ status: "done", processed_at: new Date().toISOString(), last_error: null })
+          .eq("id", queueId),
+      ]);
+
+      return new Response(
+        JSON.stringify({ success: true, skipped: true, sale_id: saleId, reason: "Documento já autorizado" }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
-    // Processamento SEQUENCIAL dentro do batch (evita flood no SEFAZ)
-    const results: ItemResult[] = [];
-    for (const item of queueItems) {
-      try {
-        const r = await processOneItem(supabase, item, authHeader, isServiceCall, serviceRoleKey);
-        results.push(r);
-      } catch (err: any) {
-        results.push({ queueId: item.id, saleId: item.sale_id, outcome: "error", detail: err.message, durationMs: 0 });
-        const errNow = new Date().toISOString();
-        await supabase.from("fiscal_queue")
-          .update({ status: "pending", last_error: `[crash] ${err.message}`, next_retry_at: computeNextRetryAt(item.attempts || 1), updated_at: errNow })
-          .eq("id", item.id);
+    if ((latestDoc as any)?.access_key) {
+      console.log(`[process-fiscal-queue] ${new Date().toISOString()} 🔍 Consultando status anterior: access_key=${(latestDoc as any).access_key}`);
+      const { data: consultedData, error: consultError } = await invokeEmitNfceWithUserJwt(getEmitNfceInternalAuth(), {
+        action: "consult_status",
+        access_key: (latestDoc as any).access_key,
+        doc_type: "nfce",
+        company_id: companyId,
+      });
+
+      if (!consultError && consultedData && consultedData.success === true && consultedData.status === "autorizada") {
+        console.log(`[process-fiscal-queue] ${new Date().toISOString()} ✅ Documento autorizado após consulta: sale_id=${saleId}`);
+        await Promise.all([
+          supabase.from("sales")
+            .update({ status: "autorizada", access_key: consultedData.access_key || (latestDoc as any).access_key || null, number: consultedData.number || (latestDoc as any).number || null })
+            .eq("id", saleId)
+            .eq("company_id", companyId),
+          supabase.from("fiscal_queue")
+            .update({ status: "done", processed_at: new Date().toISOString(), last_error: null })
+            .eq("id", queueId),
+        ]);
+
+        return new Response(
+          JSON.stringify({ success: true, skipped: true, sale_id: saleId, reason: "Documento autorizado após consulta" }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
       }
     }
 
-    const done = results.filter((r) => r.outcome === "done").length;
-    const pending = results.filter((r) => r.outcome === "pending").length;
-    const errors = results.filter((r) => r.outcome === "error").length;
-    const deadLetter = results.filter((r) => r.outcome === "dead_letter").length;
-    const skipped = results.filter((r) => r.outcome === "skipped_locked").length;
-    const totalDurationMs = Date.now() - execStart;
-    const avgItemMs = results.length > 0 ? Math.round(results.reduce((s, r) => s + (r.durationMs || 0), 0) / results.length) : 0;
+    const crt = (company as any)?.crt || 1;
+    const isSimples = crt === 1 || crt === 2;
+    const defaultCst = isSimples ? "102" : "00";
+    const defaultPisCofins = isSimples ? "49" : "01";
+    const saleTotal = Number((sale as any).total ?? (sale as any).total_value ?? 0);
+    let paymentRows = parseSalePaymentsJson((sale as any).payments);
+    if (paymentRows.length === 0) {
+      const pm = (sale as any).payment_method;
+      if (typeof pm === "string" && pm.trim()) {
+        paymentRows = [{ method: pm.trim(), amount: saleTotal, change_amount: 0 }];
+      }
+    }
 
-    console.log(
-      `[process-fiscal-queue] ${new Date().toISOString()} BATCH COMPLETE: ` +
-      `total=${results.length}, done=${done}, pending=${pending}, errors=${errors}, dead_letter=${deadLetter}, skipped=${skipped}, ` +
-      `total_duration=${totalDurationMs}ms, avg_item=${avgItemMs}ms`,
-    );
+    const snapByPid = fiscalSnapshotByProductId((sale as any).items);
+
+    // 🔴 CRÍTICO: Verificar NCM de todos os itens antes de emitir
+    const itemsWithoutNcm = items.filter((item: any) => {
+      const pid = String(item.product_id || "");
+      const snap = pid ? snapByPid.get(pid) || {} : {};
+      const product = item.products || {};
+      const ncm = firstNonEmptyStr(product.ncm, snap.ncm, item.ncm).replace(/\D/g, "");
+      return !ncm || ncm.length < 2 || ncm === "00000000";
+    });
+    if (itemsWithoutNcm.length > 0) {
+      const names = itemsWithoutNcm.map((i: any) => i.product_name || i.name).join(", ");
+      const errMsg = `Produto(s) sem NCM válido: ${names}. Cadastre o NCM antes de emitir NFC-e.`;
+      console.error(`[process-fiscal-queue] ${new Date().toISOString()} ❌ NCM_VALIDATION_ERROR: sale_id=${saleId}, items_without_ncm=${itemsWithoutNcm.length}`);
+      await supabase.from("fiscal_queue")
+        .update({ status: "error", last_error: errMsg })
+        .eq("id", queueId);
+      return new Response(
+        JSON.stringify({ success: false, error: errMsg, sale_id: saleId }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const fiscalItems = items.map((item: any) => {
+      const product = item.products || {};
+      const pid = String(item.product_id || "");
+      const snap = pid ? snapByPid.get(pid) || {} : {};
+      const discountValue = ((item.discount_percent || 0) / 100) * item.unit_price * item.quantity;
+      const cstProd = isSimples ? product.csosn : product.cst_icms;
+      const cstSnap = isSimples ? snap.csosn : snap.cst_icms;
+      const origStr = firstNonEmptyStr(
+        product.origem != null ? String(product.origem) : "",
+        product.origin != null ? String(product.origin) : "",
+        snap.origem != null ? String(snap.origem) : "",
+        snap.origin != null ? String(snap.origin) : "",
+      ) || "0";
+      return {
+        product_id: item.product_id,
+        name: item.product_name || item.name,
+        ncm: firstNonEmptyStr(product.ncm, snap.ncm, item.ncm),
+        cfop: firstNonEmptyStr(product.cfop, snap.cfop) || "5102",
+        cst: firstNonEmptyStr(cstProd, cstSnap) || defaultCst,
+        origem: origStr,
+        unit: item.unit || "UN",
+        qty: item.quantity,
+        unit_price: item.unit_price,
+        discount: Math.round(discountValue * 100) / 100, // 🔴 CORREÇÃO: sempre valor absoluto
+        pis_cst: firstNonEmptyStr(product.cst_pis, snap.cst_pis) || defaultPisCofins,
+        cofins_cst: firstNonEmptyStr(product.cst_cofins, snap.cst_cofins) || defaultPisCofins,
+        icms_aliquota: Number(product.aliq_icms ?? snap.aliq_icms ?? snap.icms_rate ?? 0) || 0,
+        mva: Number(product.mva) || Number(snap.mva) || undefined,
+        cest: firstNonEmptyStr(product.cest, snap.cest) || undefined,
+      };
+    });
+
+    const primary = paymentRows[0] as Record<string, unknown> | undefined;
+    const mainPayTpag = rowToTPagForNfce(primary);
+    const fiscalPayments = paymentRows.length > 0
+      ? paymentRows.map((row: Record<string, unknown>) => {
+        const amt = Number(row.amount ?? row.value ?? saleTotal);
+        return {
+          method: getPrimaryPaymentMethod(row),
+          tPag: rowToTPagForNfce(row),
+          vPag: Math.round((Number.isFinite(amt) ? amt : saleTotal) * 100) / 100,
+        };
+      })
+      : [{ tPag: mainPayTpag !== "99" ? mainPayTpag : "01", vPag: Math.round(saleTotal * 100) / 100 }];
+
+    // 6️⃣ Chamar emissão fiscal (service role → emit-nfce; usuário já validado acima)
+    console.log(`[process-fiscal-queue] ${new Date().toISOString()} 📤 Iniciando emissão fiscal: sale_id=${saleId}, queue_id=${queueId}, attempts=${attempts}/${MAX_RETRIES}`);
+    
+    const { data: fiscalData, error: fiscalErr, status: emitHttpStatus } = await invokeEmitNfceWithUserJwt(getEmitNfceInternalAuth(), {
+      action: "emit",
+      sale_id: saleId,
+      company_id: companyId,
+      config_id: fiscalConfig.id,
+      form: {
+        nat_op: "VENDA DE MERCADORIA",
+        crt,
+        payments: fiscalPayments,
+        payment_method: mainPayTpag,
+        payment_value: saleTotal,
+        change: Number(primary?.change_amount ?? primary?.changeAmount ?? 0) || 0,
+        items: fiscalItems,
+      },
+    });
+
+    const rateLimited =
+      emitHttpStatus === 429 ||
+      String(fiscalErr?.message || fiscalData?.error || "").toLowerCase().includes("limite de emissões");
+    if (rateLimited) {
+      const pendingMsg =
+        "Limite de emissões neste minuto (tente de novo em instantes ou aguarde o reprocessamento automático da fila).";
+      console.log(
+        `[process-fiscal-queue] ${new Date().toISOString()} ⏱️ RATE_LIMITED: sale_id=${saleId}, queue_id=${queueId}, attempts=${attempts}/${MAX_RETRIES}`
+      );
+      if (attempts >= MAX_RETRIES) {
+        console.error(`[process-fiscal-queue] ${new Date().toISOString()} ❌ RATE_LIMIT_MAX_RETRIES: sale_id=${saleId}, marking as ERROR`);
+        await supabase.from("fiscal_queue")
+          .update({ status: "error", last_error: pendingMsg })
+          .eq("id", queueId);
+        return new Response(
+          JSON.stringify({ success: false, error: pendingMsg, sale_id: saleId, queue_id: queueId }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+      await Promise.all([
+        supabase.from("fiscal_queue")
+          .update({ status: "pending", last_error: pendingMsg, processed_at: null })
+          .eq("id", queueId),
+        supabase.from("sales")
+          .update({ status: "pendente_fiscal" })
+          .eq("id", saleId)
+          .eq("company_id", companyId),
+      ]);
+      return visibilityPendingResponse(saleId, queueId, pendingMsg);
+    }
+
+    // ✅ CORREÇÃO #3: Se emit falhou, evitar loop infinito
+    if (fiscalErr || !fiscalData?.success) {
+      const errMsg =
+        (fiscalData?.error != null ? String(fiscalData.error) : null) ||
+        fiscalErr?.message ||
+        "Falha na emissão";
+      
+      // Se tentativas >= MAX_RETRIES, marcar como DEAD_LETTER (não pending/error)
+      const finalStatus = attempts >= MAX_RETRIES ? "dead_letter" : "error";
+      const userMsg = attempts >= MAX_RETRIES 
+        ? `Falha permanente após ${MAX_RETRIES} tentativas: ${errMsg}`
+        : errMsg;
+      
+      console.error(
+        `[process-fiscal-queue] ${new Date().toISOString()} ❌ EMIT_FAILED (status=${finalStatus}): ` +
+        `sale_id=${saleId}, queue_id=${queueId}, attempts=${attempts}/${MAX_RETRIES}, error=${errMsg}`
+      );
+      
+      await Promise.all([
+        supabase.from("fiscal_queue")
+          .update({ status: finalStatus, last_error: userMsg })
+          .eq("id", queueId),
+        supabase.from("sales")
+          .update({ status: finalStatus === "dead_letter" ? "erro_fiscal" : "pendente_fiscal" })
+          .eq("id", saleId)
+          .eq("company_id", companyId),
+      ]);
+      return new Response(
+        JSON.stringify({ success: false, error: userMsg, sale_id: saleId, dead_letter: finalStatus === "dead_letter" }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const fiscalStatus = fiscalData?.status || "pendente";
+    if (fiscalStatus !== "autorizada") {
+      const pendingMsg = String(fiscalData?.error || "NFC-e enviada e aguardando autorização");
+      console.log(
+        `[process-fiscal-queue] ${new Date().toISOString()} ⏳ PROVIDER_PENDING: ` +
+        `sale_id=${saleId}, queue_id=${queueId}, attempts=${attempts}/${MAX_RETRIES}, reason=${pendingMsg}`
+      );
+      await Promise.all([
+        supabase.from("fiscal_queue")
+          .update({ status: "pending", last_error: pendingMsg, processed_at: null })
+          .eq("id", queueId),
+        supabase.from("sales")
+          .update({ status: "pendente_fiscal" })
+          .eq("id", saleId)
+          .eq("company_id", companyId),
+      ]);
+      return visibilityPendingResponse(saleId, queueId, pendingMsg);
+    }
+
+    // 7️⃣ Sucesso real
+    console.log(`[process-fiscal-queue] ${new Date().toISOString()} ✅ SUCESSO: sale_id=${saleId}, queue_id=${queueId}, attempts=${attempts}/${MAX_RETRIES}`);
+    await Promise.all([
+      supabase.from("sales")
+        .update({ status: "autorizada", access_key: fiscalData?.access_key || null, number: fiscalData?.number || null })
+        .eq("id", saleId)
+        .eq("company_id", companyId),
+      supabase.from("fiscal_queue")
+        .update({ status: "done", processed_at: new Date().toISOString(), last_error: null })
+        .eq("id", queueId),
+    ]);
 
     return new Response(
-      JSON.stringify({
-        success: true,
-        processed: results.length,
-        summary: { done, pending, errors, dead_letter: deadLetter, skipped_locked: skipped },
-        timing: { total_ms: totalDurationMs, avg_item_ms: avgItemMs },
-        details: results,
-      }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      JSON.stringify({ success: true, sale_id: saleId }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err: any) {
-    console.error(`[process-fiscal-queue] FATAL: ${err.message}`);
+    console.error(`[process-fiscal-queue] FATAL: ${err?.message ?? err}`);
     return new Response(
-      JSON.stringify({ success: false, error: err.message }),
+      JSON.stringify({ success: false, error: String(err?.message ?? err) }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   }

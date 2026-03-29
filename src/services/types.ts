@@ -70,6 +70,8 @@ export interface FinalizeSalePaymentInput {
   method: PaymentResult["method"];
   amount: number;
   approved: boolean;
+  /** Preserva na venda para emissão fiscal (fila / tPag PIX). */
+  pix_tx_id?: string;
 }
 
 export interface StockMovementInput {

@@ -13,8 +13,9 @@ import { corsHeaders, createServiceClient, jsonResponse, requireCompanyMembershi
 import {
   getPaymentChange,
   getPrimaryPaymentMethod,
-  mapPdvMethodToTPag,
+  normalizePaymentTPag,
   parseSalePaymentsJson,
+  rowToTPagForNfce,
 } from "../_shared/sale-payments.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
@@ -247,19 +248,39 @@ async function resolveProviderDocRef(params: {
 
 // ─── Numeração segura (atômica via RPC) ───
 
-// ─── Enriquecer entrada de pagamento com dados obrigatórios SEFAZ (Rejeição 391) ───
+// ─── Enriquecer detPag: grupo `card` aninhado (layout NFe/NFC-e) — Rejeição 391 SEFAZ ───
+const FALLBACK_CREDENCIADORA_CNPJ = "00360305000104"; // Cielo (fallback se não houver env / venda)
+
 function enrichPaymentEntry(entry: any, tPag: string, source: any) {
   const tp = String(tPag).trim();
-  // Cartão crédito (03) ou débito (04): provedor espera os campos no próprio detPag
+  delete entry.card;
+  delete entry.tpIntegra;
+  delete entry.CNPJ;
+  delete entry.tBand;
+  delete entry.cAut;
+
   if (tp === "03" || tp === "04") {
-    entry.tpIntegra = source?.tpIntegra ?? source?.card?.tpIntegra ?? 2;
-    if (source?.cnpj_credenciadora || source?.card?.CNPJ) {
-      entry.CNPJ = onlyDigits(source.cnpj_credenciadora || source.card?.CNPJ);
-    }
-    entry.tBand = source?.tBand ?? source?.card?.tBand ?? "99";
-    entry.cAut = source?.cAut ?? source?.card?.cAut ?? source?.nsu ?? "000000";
+    const envCnpj = onlyDigits(Deno.env.get("FISCAL_DEFAULT_CREDENCIADORA_CNPJ") || "");
+    let cnpj = onlyDigits(
+      source?.cnpj_credenciadora || source?.card?.CNPJ || "",
+    );
+    if (cnpj.length !== 14) cnpj = envCnpj.length === 14 ? envCnpj : FALLBACK_CREDENCIADORA_CNPJ;
+    const tpIntegra = Number(source?.tpIntegra ?? source?.card?.tpIntegra ?? 2);
+    const tBandRaw = String(source?.tBand ?? source?.card?.tBand ?? "99").replace(/\D/g, "");
+    const tBand = tBandRaw.length >= 1 ? tBandRaw : "99";
+    let cAut = String(
+      source?.cAut ?? source?.card?.cAut ?? source?.auth_code ?? source?.nsu ?? "000000",
+    ).trim();
+    if (!cAut) cAut = "000000";
+    if (cAut.length > 20) cAut = cAut.slice(0, 20);
+
+    entry.card = {
+      tpIntegra: Number.isFinite(tpIntegra) ? tpIntegra : 2,
+      CNPJ: cnpj,
+      tBand,
+      cAut,
+    };
   }
-  // PIX (17) e outros: sem grupo card adicional na NFC-e modelo 65
 }
 
 // ─── Numeração segura (atômica via RPC) ───
@@ -520,12 +541,15 @@ async function handleEmit(supabase: any, body: any) {
   // Pagamento
   const troco = form.change || 0;
   const detPag: any[] = [];
-  const mainTpag = form.payment_method || "01";
+  const mainTpag = normalizePaymentTPag(form.payment_method ?? "01");
 
   if (form.payments && Array.isArray(form.payments) && form.payments.length > 0) {
     for (const p of form.payments) {
-      const tp = p.tPag || p.method || "99";
-      const entry: any = { tPag: tp, vPag: Math.round((p.vPag || p.value || 0) * 100) / 100 };
+      const tp = rowToTPagForNfce(p as Record<string, unknown>);
+      const entry: any = {
+        tPag: tp,
+        vPag: Math.round(((p as any).vPag || (p as any).value || 0) * 100) / 100,
+      };
       enrichPaymentEntry(entry, tp, p);
       detPag.push(entry);
     }
@@ -807,14 +831,13 @@ async function handleEmitFromSale(supabase: any, body: any) {
       paymentRows = [{ method: pm.trim(), amount: saleTotal, change_amount: 0 }];
     }
   }
-  const primary = paymentRows[0];
-  const mainPay = mapPdvMethodToTPag(getPrimaryPaymentMethod(primary));
+  const primary = paymentRows[0] as Record<string, unknown> | undefined;
+  const mainPay = rowToTPagForNfce(primary);
   const change = getPaymentChange(primary);
   const fiscalPayments = paymentRows.length > 0
-    ? paymentRows.map((row) => {
-      const m = getPrimaryPaymentMethod(row);
+    ? paymentRows.map((row: Record<string, unknown>) => {
       const amt = Number(row.amount ?? row.value ?? saleTotal);
-      const tp = mapPdvMethodToTPag(m);
+      const tp = rowToTPagForNfce(row);
       const entry: any = { tPag: tp, vPag: Math.round((Number.isFinite(amt) ? amt : saleTotal) * 100) / 100 };
       enrichPaymentEntry(entry, tp, row);
       return entry;
@@ -1321,6 +1344,10 @@ Deno.serve(async (req) => {
   try {
     getSupabaseRuntimeConfig();
     const body = await parseRequestJsonSafe(req);
+    // health-check Edge Function faz POST sem JWT — evita 401 a cada minuto nos logs
+    if (body.health_check === true) {
+      return jsonResponse({ ok: true, service: "emit-nfce" });
+    }
     const action = body.action || "emit";
 
     // Detectar chamadas do service_role (ex: process-fiscal-queue / cron)

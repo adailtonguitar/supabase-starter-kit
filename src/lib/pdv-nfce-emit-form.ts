@@ -92,6 +92,7 @@ export function buildPdvNfceEmitForm(params: {
   });
 
   const fiscalPayments = params.payments.map((p) => ({
+    method: p.method,
     tPag: mapPdvMethodToTPag(p.method),
     vPag: Math.round(p.amount * 100) / 100,
   }));
