@@ -847,8 +847,9 @@ async function handleEmitFromSale(supabase: any, body: any) {
     ? paymentRows.map((row: Record<string, unknown>) => {
       const amt = Number(row.amount ?? row.value ?? saleTotal);
       const tp = rowToTPagForNfce(row);
-      const entry: any = { tPag: tp === "17" ? "17" : tp, vPag: Math.round((Number.isFinite(amt) ? amt : saleTotal) * 100) / 100 };
+      const entry: any = { tPag: tp, vPag: Math.round((Number.isFinite(amt) ? amt : saleTotal) * 100) / 100 };
       enrichPaymentEntry(entry, tp, row);
+      console.log(`[emit-nfce] emit_from_sale detPag: method=${row.method}, rawTp=${tp}, hasCard=${!!entry.card}`, JSON.stringify(entry));
       return entry;
     })
     : [{ tPag: mainPay !== "99" ? mainPay : "01", vPag: Math.round(saleTotal * 100) / 100 }];
