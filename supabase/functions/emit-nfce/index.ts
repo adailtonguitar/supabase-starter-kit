@@ -248,42 +248,45 @@ async function resolveProviderDocRef(params: {
 
 // ─── Numeração segura (atômica via RPC) ───
 
-// ─── Enriquecer detPag: grupo `card` aninhado (layout NFe/NFC-e) — Rejeição 391 SEFAZ ───
-const FALLBACK_CREDENCIADORA_CNPJ = "00360305000104"; // Cielo (fallback se não houver env / venda)
+// ─── Enriquecer detPag: grupo `card` aninhado (layout Nuvem Fiscal / XML NFC-e) ───
+// REGRA SEFAZ:
+//   tPag 03/04 (crédito/débito) → OBRIGATÓRIO grupo `card` com tpIntegra, CNPJ, tBand, cAut
+//   tPag 17 (PIX), 01 (dinheiro), outros → SEM grupo `card` (causa Rejeição 391 se presente)
+const FALLBACK_CREDENCIADORA_CNPJ = "00360305000104"; // Cielo (fallback)
 
 function enrichPaymentEntry(entry: any, tPag: string, source: any) {
   const tp = String(tPag).trim();
+
+  // Limpar quaisquer campos residuais (flat OU aninhados)
   delete entry.card;
   delete entry.tpIntegra;
   delete entry.CNPJ;
   delete entry.tBand;
   delete entry.cAut;
 
-   if (tp === "17") {
-    entry.tPag = "17";
+  // PIX (17), Dinheiro (01) e outros: NÃO incluir grupo card
+  if (tp !== "03" && tp !== "04") {
     return;
-   }
-
-  if (tp === "03" || tp === "04") {
-    const envCnpj = onlyDigits(Deno.env.get("FISCAL_DEFAULT_CREDENCIADORA_CNPJ") || "");
-    let cnpj = onlyDigits(
-      source?.cnpj_credenciadora || source?.card?.CNPJ || "",
-    );
-    if (cnpj.length !== 14) cnpj = envCnpj.length === 14 ? envCnpj : FALLBACK_CREDENCIADORA_CNPJ;
-    const tpIntegra = Number(source?.tpIntegra ?? source?.card?.tpIntegra ?? 2);
-    const tBandRaw = String(source?.tBand ?? source?.card?.tBand ?? "99").replace(/\D/g, "");
-    const tBand = tBandRaw.length >= 1 ? tBandRaw : "99";
-    let cAut = String(
-      source?.cAut ?? source?.card?.cAut ?? source?.auth_code ?? source?.nsu ?? "000000",
-    ).trim();
-    if (!cAut) cAut = "000000";
-    if (cAut.length > 20) cAut = cAut.slice(0, 20);
-
-    entry.tpIntegra = Number.isFinite(tpIntegra) ? tpIntegra : 2;
-    entry.CNPJ = cnpj;
-    entry.tBand = tBand;
-    entry.cAut = cAut;
   }
+
+  // Crédito (03) / Débito (04): grupo `card` aninhado é OBRIGATÓRIO
+  const envCnpj = onlyDigits(Deno.env.get("FISCAL_DEFAULT_CREDENCIADORA_CNPJ") || "");
+  let cnpj = onlyDigits(source?.cnpj_credenciadora || source?.card?.CNPJ || "");
+  if (cnpj.length !== 14) cnpj = envCnpj.length === 14 ? envCnpj : FALLBACK_CREDENCIADORA_CNPJ;
+  const tpIntegra = Number(source?.tpIntegra ?? source?.card?.tpIntegra ?? 2);
+  const tBandRaw = String(source?.tBand ?? source?.card?.tBand ?? "99").replace(/\D/g, "");
+  const tBand = tBandRaw.length >= 1 ? tBandRaw : "99";
+  let cAut = String(source?.cAut ?? source?.card?.cAut ?? source?.auth_code ?? source?.nsu ?? "000000").trim();
+  if (!cAut) cAut = "000000";
+  if (cAut.length > 20) cAut = cAut.slice(0, 20);
+
+  // Formato Nuvem Fiscal: grupo `card` ANINHADO (espelho do XML <card>)
+  entry.card = {
+    tpIntegra: Number.isFinite(tpIntegra) ? tpIntegra : 2,
+    CNPJ: cnpj,
+    tBand,
+    cAut,
+  };
 }
 
 // ─── Numeração segura (atômica via RPC) ───
@@ -548,19 +551,20 @@ async function handleEmit(supabase: any, body: any) {
 
   if (form.payments && Array.isArray(form.payments) && form.payments.length > 0) {
     for (const p of form.payments) {
-      const tp = rowToTPagForNfce(p as Record<string, unknown>);
+      const pRecord = p as Record<string, unknown>;
+      const tp = rowToTPagForNfce(pRecord);
       const entry: any = {
         tPag: tp,
-        vPag: Math.round(((p as any).vPag || (p as any).value || 0) * 100) / 100,
+        vPag: Math.round(((p as any).vPag || (p as any).value || (p as any).amount || 0) * 100) / 100,
       };
-      if (tp === "17") entry.tPag = "17";
       enrichPaymentEntry(entry, tp, p);
+      console.log(`[emit-nfce] detPag entry: method=${pRecord.method}, tPag=${tp}, hasCard=${!!entry.card}`, JSON.stringify(entry));
       detPag.push(entry);
     }
   } else {
     const entry: any = { tPag: mainTpag, vPag: Math.round((form.payment_value || vNF) * 100) / 100 };
-    if (mainTpag === "17") entry.tPag = "17";
     enrichPaymentEntry(entry, mainTpag, form);
+    console.log(`[emit-nfce] detPag single: mainTpag=${mainTpag}, hasCard=${!!entry.card}`, JSON.stringify(entry));
     detPag.push(entry);
   }
 
@@ -657,6 +661,7 @@ async function handleEmit(supabase: any, body: any) {
   if (Object.keys(infAdic).length > 0) payload.infNFe.infAdic = infAdic;
 
   console.log(`[emit-nfce] ▶ Emitindo NFC-e #${numero} | CNPJ: ${cnpjClean} | CRT: ${crt} | Amb: ${ambiente} | Itens: ${items.length} | Total: ${vNF}`);
+  console.log(`[emit-nfce] ▶ pagBlock completo:`, JSON.stringify(pagBlock));
 
   // ─── Autenticação Nuvem Fiscal ───
   const token = await getNuvemFiscalToken();
@@ -843,8 +848,9 @@ async function handleEmitFromSale(supabase: any, body: any) {
     ? paymentRows.map((row: Record<string, unknown>) => {
       const amt = Number(row.amount ?? row.value ?? saleTotal);
       const tp = rowToTPagForNfce(row);
-      const entry: any = { tPag: tp === "17" ? "17" : tp, vPag: Math.round((Number.isFinite(amt) ? amt : saleTotal) * 100) / 100 };
+      const entry: any = { tPag: tp, vPag: Math.round((Number.isFinite(amt) ? amt : saleTotal) * 100) / 100 };
       enrichPaymentEntry(entry, tp, row);
+      console.log(`[emit-nfce] emit_from_sale detPag: method=${row.method}, rawTp=${tp}, hasCard=${!!entry.card}`, JSON.stringify(entry));
       return entry;
     })
     : [{ tPag: mainPay !== "99" ? mainPay : "01", vPag: Math.round(saleTotal * 100) / 100 }];
