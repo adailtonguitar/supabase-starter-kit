@@ -551,19 +551,20 @@ async function handleEmit(supabase: any, body: any) {
 
   if (form.payments && Array.isArray(form.payments) && form.payments.length > 0) {
     for (const p of form.payments) {
-      const tp = rowToTPagForNfce(p as Record<string, unknown>);
+      const pRecord = p as Record<string, unknown>;
+      const tp = rowToTPagForNfce(pRecord);
       const entry: any = {
         tPag: tp,
-        vPag: Math.round(((p as any).vPag || (p as any).value || 0) * 100) / 100,
+        vPag: Math.round(((p as any).vPag || (p as any).value || (p as any).amount || 0) * 100) / 100,
       };
-      if (tp === "17") entry.tPag = "17";
       enrichPaymentEntry(entry, tp, p);
+      console.log(`[emit-nfce] detPag entry: method=${pRecord.method}, tPag=${tp}, hasCard=${!!entry.card}`, JSON.stringify(entry));
       detPag.push(entry);
     }
   } else {
     const entry: any = { tPag: mainTpag, vPag: Math.round((form.payment_value || vNF) * 100) / 100 };
-    if (mainTpag === "17") entry.tPag = "17";
     enrichPaymentEntry(entry, mainTpag, form);
+    console.log(`[emit-nfce] detPag single: mainTpag=${mainTpag}, hasCard=${!!entry.card}`, JSON.stringify(entry));
     detPag.push(entry);
   }
 
