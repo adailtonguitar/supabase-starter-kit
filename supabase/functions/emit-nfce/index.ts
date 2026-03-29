@@ -228,7 +228,7 @@ async function resolveProviderDocRef(params: {
       .eq("id", String(params.companyId))
       .maybeSingle();
 
-    const cpfCnpj = onlyDigits(company?.cnpj);
+    const cpfCnpj = onlyDigits((company as { cnpj?: string } | null)?.cnpj);
     const ambiente: "homologacao" | "producao" = Deno.env.get("NUVEM_FISCAL_SANDBOX") === "true" ? "homologacao" : "producao";
     if (cpfCnpj.length >= 11) {
       const resolved = await resolveNuvemFiscalDocId({
@@ -274,12 +274,10 @@ function enrichPaymentEntry(entry: any, tPag: string, source: any) {
     if (!cAut) cAut = "000000";
     if (cAut.length > 20) cAut = cAut.slice(0, 20);
 
-    entry.card = {
-      tpIntegra: Number.isFinite(tpIntegra) ? tpIntegra : 2,
-      CNPJ: cnpj,
-      tBand,
-      cAut,
-    };
+    entry.tpIntegra = Number.isFinite(tpIntegra) ? tpIntegra : 2;
+    entry.CNPJ = cnpj;
+    entry.tBand = tBand;
+    entry.cAut = cAut;
   }
 }
 

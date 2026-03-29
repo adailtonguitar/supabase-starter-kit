@@ -216,7 +216,7 @@ export function usePDV() {
       // ✅ CORREÇÃO #1: Aumentar delay pós-commit para PIX/Cartão
       const baseDelayMs = pdvPostSaleVisibilityDelayMs(payments);
       const paymentMethod = payments[0]?.method || 'dinheiro';
-      const isHighLatencyPayment = paymentMethod === 'pix' || paymentMethod === 'cartao';
+      const isHighLatencyPayment = paymentMethod === 'pix' || paymentMethod === 'credito' || paymentMethod === 'debito';
       const extraDelayForHighLatency = isHighLatencyPayment ? 1500 : 0; // +1.5s extra
       const totalDelayMs = baseDelayMs + extraDelayForHighLatency;
 
@@ -299,14 +299,7 @@ export function usePDV() {
 
             const FISCAL_TIMEOUT_MS = 28_000;
             try {
-              const fiscalPromise = processFiscalEmission(saleId, queueId, {
-                saleItems,
-                payments,
-                total: saleTotalCaptured,
-                crt: fiscalCrt,
-                customerName: options?.fiscalCustomer?.name,
-                customerDoc: options?.fiscalCustomer?.doc,
-              });
+              const fiscalPromise = processFiscalEmission(saleId, queueId);
 
               const raced = await Promise.race([
                 fiscalPromise.then((r) => ({ done: true as const, r })),
