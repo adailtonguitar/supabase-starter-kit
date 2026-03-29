@@ -661,6 +661,7 @@ async function handleEmit(supabase: any, body: any) {
   if (Object.keys(infAdic).length > 0) payload.infNFe.infAdic = infAdic;
 
   console.log(`[emit-nfce] ▶ Emitindo NFC-e #${numero} | CNPJ: ${cnpjClean} | CRT: ${crt} | Amb: ${ambiente} | Itens: ${items.length} | Total: ${vNF}`);
+  console.log(`[emit-nfce] ▶ pagBlock completo:`, JSON.stringify(pagBlock));
 
   // ─── Autenticação Nuvem Fiscal ───
   const token = await getNuvemFiscalToken();
