@@ -27,6 +27,7 @@ interface NfceEmissionDialogProps {
     id: string;
     items_json?: unknown;
     items?: unknown;
+    payments?: unknown;
     customer_name?: string;
     customer_doc?: string;
     payment_method?: string;
@@ -88,6 +89,21 @@ const mapPaymentToFiscal = (method: string): string => {
   return map[method] || "99";
 };
 
+const parseSalePayments = (raw: unknown): Array<Record<string, unknown>> => {
+  if (Array.isArray(raw)) return raw.filter((item): item is Record<string, unknown> => !!item && typeof item === "object");
+  if (typeof raw === "string") {
+    try {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed)
+        ? parsed.filter((item): item is Record<string, unknown> => !!item && typeof item === "object")
+        : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
+};
+
 const MONEY_TOLERANCE = 0.01;
 
 function isMoneyConsistent(a: number, b: number): boolean {
@@ -114,6 +130,7 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
   const [fiscalWarningOpen, setFiscalWarningOpen] = useState(false);
   const [fiscalStockItems, setFiscalStockItems] = useState<FiscalStockItem[]>([]);
   const [fiscalCheckPassed, setFiscalCheckPassed] = useState(false);
+  const salePayments = useMemo(() => parseSalePayments(sale.payments), [sale.payments]);
 
   const ncmFiltered = useMemo(() => {
     const q = ncmSearchText.trim().toLowerCase();
@@ -528,6 +545,7 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
             customer_doc: form.customerDoc,
             nat_op: form.natOp,
             inf_adic: form.infAdic,
+            payments: salePayments,
             payment_method: form.paymentMethod,
             payment_value: form.paymentValue,
             change: form.change,
