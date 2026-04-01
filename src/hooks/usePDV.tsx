@@ -227,22 +227,50 @@ export function usePDV() {
           : "";
 
       if (fiscalCustomerName || fiscalCustomerDoc) {
-        const { error: saleCustomerError } = await supabase
-          .from("sales")
-          .update({
-            ...(fiscalCustomerName ? { customer_name: fiscalCustomerName } : {}),
-            ...(fiscalCustomerDoc
-              ? {
-                  customer_doc: fiscalCustomerDoc,
-                  customer_cpf: fiscalCustomerDoc,
-                  customer_cpf_cnpj: fiscalCustomerDoc,
-                }
-              : {}),
-          } as Record<string, unknown>)
-          .eq("id", saleId)
-          .eq("company_id", companyId);
-        if (saleCustomerError) {
-          console.warn("[PDV] Falha ao vincular cliente à venda para NFC-e:", saleCustomerError.message);
+        if (fiscalCustomerName) {
+          const nameAttempts: Array<Record<string, unknown>> = [
+            { customer_name: fiscalCustomerName },
+            { client_name: fiscalCustomerName },
+            { counterpart: fiscalCustomerName },
+          ];
+          let nameSaved = false;
+          for (const payload of nameAttempts) {
+            const { error } = await supabase
+              .from("sales")
+              .update(payload as Record<string, unknown>)
+              .eq("id", saleId)
+              .eq("company_id", companyId);
+            if (!error) {
+              nameSaved = true;
+              break;
+            }
+          }
+          if (!nameSaved) {
+            console.warn("[PDV] Falha ao vincular nome do cliente à venda para NFC-e");
+          }
+        }
+
+        if (fiscalCustomerDoc) {
+          const docAttempts: Array<Record<string, unknown>> = [
+            { customer_doc: fiscalCustomerDoc, customer_cpf: fiscalCustomerDoc },
+            { customer_doc: fiscalCustomerDoc },
+            { customer_cpf: fiscalCustomerDoc },
+          ];
+          let docSaved = false;
+          for (const payload of docAttempts) {
+            const { error } = await supabase
+              .from("sales")
+              .update(payload as Record<string, unknown>)
+              .eq("id", saleId)
+              .eq("company_id", companyId);
+            if (!error) {
+              docSaved = true;
+              break;
+            }
+          }
+          if (!docSaved) {
+            console.warn("[PDV] Falha ao vincular CPF/CNPJ do cliente à venda para NFC-e");
+          }
         }
       }
 

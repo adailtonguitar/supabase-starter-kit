@@ -744,7 +744,7 @@ async function handleEmitFromSale(supabase: any, body: any) {
   // Tentativa ÚNICA — sem retry com delay (a fila fiscal reprocessa automaticamente)
   const [saleRes, itemsRes] = await Promise.all([
     supabase.from("sales")
-      .select("total, total_value, payments, payment_method, customer_name, customer_doc, customer_cpf, customer_cpf_cnpj")
+      .select("total, total_value, payments, payment_method, customer_name, client_name, counterpart, customer_doc, customer_cpf")
       .eq("id", saleId).eq("company_id", companyId).maybeSingle(),
     supabase.from("sale_items")
       .select("product_id, product_name, quantity, unit_price, discount_percent")
@@ -827,8 +827,8 @@ async function handleEmitFromSale(supabase: any, body: any) {
     form: {
       nat_op: "VENDA DE MERCADORIA", crt,
       payments: fiscalPayments, payment_method: mainPay,
-      customer_name: String(saleRow.customer_name ?? "").trim() || undefined,
-      customer_doc: String(saleRow.customer_doc ?? saleRow.customer_cpf ?? saleRow.customer_cpf_cnpj ?? "").replace(/\D/g, "") || undefined,
+      customer_name: String(saleRow.customer_name ?? saleRow.client_name ?? saleRow.counterpart ?? "").trim() || undefined,
+      customer_doc: String(saleRow.customer_doc ?? saleRow.customer_cpf ?? "").replace(/\D/g, "") || undefined,
       payment_value: saleTotal, change, items: fiscalItems,
     },
   });
