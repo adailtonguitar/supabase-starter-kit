@@ -72,6 +72,12 @@ export interface FinalizeSalePaymentInput {
   approved: boolean;
   /** Preserva na venda para emissão fiscal (fila / tPag PIX). */
   pix_tx_id?: string;
+  change_amount?: number;
+  nsu?: string;
+  auth_code?: string;
+  card_last_digits?: string;
+  card_brand?: string;
+  installments?: number;
 }
 
 export interface StockMovementInput {

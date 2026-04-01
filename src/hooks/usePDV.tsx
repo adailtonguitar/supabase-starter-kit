@@ -179,6 +179,12 @@ export function usePDV() {
         method: p.method,
         amount: p.amount,
         approved: p.approved,
+        ...(p.change_amount != null ? { change_amount: p.change_amount } : {}),
+        ...(p.nsu ? { nsu: p.nsu } : {}),
+        ...(p.auth_code ? { auth_code: p.auth_code } : {}),
+        ...(p.card_last_digits ? { card_last_digits: p.card_last_digits } : {}),
+        ...(p.card_brand ? { card_brand: p.card_brand } : {}),
+        ...(p.installments != null ? { installments: p.installments } : {}),
         ...(p.pix_tx_id ? { pix_tx_id: p.pix_tx_id } : {}),
       }));
 
@@ -212,6 +218,27 @@ export function usePDV() {
       }
 
       const saleId = result.sale_id!;
+
+      const fiscalCustomerName = options?.fiscalCustomer?.name?.trim() || "";
+      const fiscalCustomerDocRaw = options?.fiscalCustomer?.doc?.replace(/\D/g, "") || "";
+      const fiscalCustomerDoc =
+        fiscalCustomerDocRaw.length === 11 || fiscalCustomerDocRaw.length === 14
+          ? fiscalCustomerDocRaw
+          : "";
+
+      if (fiscalCustomerName || fiscalCustomerDoc) {
+        const { error: saleCustomerError } = await supabase
+          .from("sales")
+          .update({
+            ...(fiscalCustomerName ? { customer_name: fiscalCustomerName } : {}),
+            ...(fiscalCustomerDoc ? { customer_doc: fiscalCustomerDoc, customer_cpf: fiscalCustomerDoc } : {}),
+          } as Record<string, unknown>)
+          .eq("id", saleId)
+          .eq("company_id", companyId);
+        if (saleCustomerError) {
+          console.warn("[PDV] Falha ao vincular cliente à venda para NFC-e:", saleCustomerError.message);
+        }
+      }
 
       // ✅ CORREÇÃO #1: Aumentar delay pós-commit para PIX/Cartão
       const baseDelayMs = pdvPostSaleVisibilityDelayMs(payments);
@@ -417,6 +444,8 @@ export function usePDV() {
             payment_method: payments[0]?.method === "dinheiro" ? "01" : payments[0]?.method === "pix" ? "17" : "99",
             payment_value: cart.total,
             change: payments[0]?.change_amount || 0,
+            customer_name: options?.fiscalCustomer?.name?.trim() || undefined,
+            customer_doc: options?.fiscalCustomer?.doc?.replace(/\D/g, "") || undefined,
             items: cart.cartItems.map(item => ({
               name: item.name, ncm: item.ncm || "", cfop: "5102", cst: "", unit: item.unit || "UN",
               qty: item.quantity, unit_price: item.price,

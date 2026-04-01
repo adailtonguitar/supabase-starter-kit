@@ -1,8 +1,7 @@
 import { corsHeaders, createServiceClient, jsonResponse, requireCompanyMembership, requireUser } from "../_shared/auth.ts";
 import {
-  getPrimaryPaymentMethod,
-  parseSalePaymentsJson,
-  rowToTPagForNfce,
+  normalizePaymentsFromSaleData,
+  validateDetPagForEmission,
 } from "../_shared/sale-payments.ts";
 
 function sleep(ms: number): Promise<void> {
@@ -57,19 +56,6 @@ function buildNextRetryAt(attempts: number): string {
   const retryScheduleMs = [60_000, 120_000, 300_000, 600_000, 900_000];
   const delayMs = retryScheduleMs[Math.max(0, Math.min(attempts - 1, retryScheduleMs.length - 1))];
   return new Date(Date.now() + delayMs).toISOString();
-}
-
-function forcePixPaymentRow(row: Record<string, unknown>, fallbackAmount: number): Record<string, unknown> {
-  const amount = Number(row.amount ?? row.value ?? fallbackAmount);
-  return {
-    ...row,
-    method: "pix",
-    payment_method: "pix",
-    tPag: "17",
-    amount: Number.isFinite(amount) ? amount : fallbackAmount,
-    value: Number.isFinite(amount) ? amount : fallbackAmount,
-    pix_tx_id: row.pix_tx_id ?? row.pixTxId ?? `PIX-${Date.now()}`,
-  };
 }
 
 /**
@@ -469,19 +455,14 @@ Deno.serve(async (req) => {
     const defaultCst = isSimples ? "102" : "00";
     const defaultPisCofins = isSimples ? "49" : "01";
     const saleTotal = Number((sale as any).total ?? (sale as any).total_value ?? 0);
-    let paymentRows = parseSalePaymentsJson((sale as any).payments);
-    const salePaymentMethod = String((sale as any).payment_method ?? "").trim().toLowerCase();
-    if (paymentRows.length === 0) {
-      const pm = (sale as any).payment_method;
-      if (typeof pm === "string" && pm.trim()) {
-        paymentRows = [{ method: pm.trim(), amount: saleTotal, change_amount: 0 }];
-      }
-    }
-    if (salePaymentMethod === "pix") {
-      paymentRows = paymentRows.length > 0
-        ? paymentRows.map((row, idx) => idx === 0 ? forcePixPaymentRow(row, saleTotal) : row)
-        : [forcePixPaymentRow({}, saleTotal)];
-    }
+    const normalizedPayments = normalizePaymentsFromSaleData({
+      paymentsRaw: (sale as any).payments,
+      fallbackMethod: (sale as any).payment_method,
+      fallbackAmount: saleTotal,
+    });
+    validateDetPagForEmission(normalizedPayments);
+    console.log(`[process-fiscal-queue] payment.audit.raw: ${JSON.stringify((sale as any).payments ?? (sale as any).payment_method ?? null)}`);
+    console.log(`[process-fiscal-queue] payment.audit.normalized: ${JSON.stringify(normalizedPayments)}`);
 
     const snapByPid = fiscalSnapshotByProductId((sale as any).items);
 
@@ -543,40 +524,9 @@ Deno.serve(async (req) => {
       };
     });
 
-    const primary = paymentRows[0] as Record<string, unknown> | undefined;
-    const mainPayTpag = rowToTPagForNfce(primary);
-    const fiscalPayments = paymentRows.length > 0
-      ? paymentRows.map((row: Record<string, unknown>) => {
-        const amt = Number(row.amount ?? row.value ?? saleTotal);
-        const tp = rowToTPagForNfce(row);
-        const pm = getPrimaryPaymentMethod(row);
-        const entry: Record<string, unknown> = {
-          method: pm || undefined,
-          tPag: tp,
-          vPag: Math.round((Number.isFinite(amt) ? amt : saleTotal) * 100) / 100,
-        };
-        const copyIf = (k: string, v: unknown) => {
-          if (v != null && v !== "") entry[k] = v;
-        };
-        copyIf("nsu", row.nsu);
-        copyIf("auth_code", row.auth_code ?? row.authCode);
-        copyIf("authCode", row.authCode);
-        copyIf("card_last_digits", row.card_last_digits ?? row.cardLastDigits);
-        copyIf("cardLastDigits", row.cardLastDigits);
-        copyIf("pix_tx_id", row.pix_tx_id ?? row.pixTxId);
-        copyIf("pixTxId", row.pixTxId);
-        copyIf("installments", row.installments ?? row.parcelas);
-        copyIf("cnpj_credenciadora", row.cnpj_credenciadora);
-        const card =
-          row.card && typeof row.card === "object"
-            ? (row.card as Record<string, unknown>)
-            : undefined;
-        copyIf("tpIntegra", row.tpIntegra ?? card?.tpIntegra);
-        copyIf("tBand", row.tBand ?? card?.tBand);
-        copyIf("cAut", row.cAut ?? card?.cAut);
-        return entry;
-      })
-      : [{ tPag: mainPayTpag !== "99" ? mainPayTpag : "01", vPag: Math.round(saleTotal * 100) / 100 }];
+    const primary = normalizedPayments[0];
+    const mainPayTpag = primary?.tPag || "99";
+    const fiscalPayments = normalizedPayments.map((payment) => payment.sanitized);
 
     // 6️⃣ Chamar emissão fiscal (service role → emit-nfce; usuário já validado acima)
     console.log(`[process-fiscal-queue] ${new Date().toISOString()} 📤 Iniciando emissão fiscal: sale_id=${saleId}, queue_id=${queueId}, attempts=${attempts}/${MAX_RETRIES}`);
@@ -591,8 +541,10 @@ Deno.serve(async (req) => {
         crt,
         payments: fiscalPayments,
         payment_method: mainPayTpag,
+        customer_name: String((sale as any).customer_name ?? "").trim() || undefined,
+        customer_doc: String((sale as any).customer_doc ?? (sale as any).customer_cpf ?? "").replace(/\D/g, "") || undefined,
         payment_value: saleTotal,
-        change: Number(primary?.change_amount ?? primary?.changeAmount ?? 0) || 0,
+        change: primary?.change || 0,
         items: fiscalItems,
       },
     });

@@ -11,11 +11,11 @@
 
 import { corsHeaders, createServiceClient, jsonResponse, requireCompanyMembership, requireUser } from "../_shared/auth.ts";
 import {
-  getPaymentChange,
-  getPrimaryPaymentMethod,
-  normalizePaymentTPag,
+  classifyAndNormalizePayment,
+  normalizePaymentsForNfce,
+  normalizePaymentsFromSaleData,
   parseSalePaymentsJson,
-  rowToTPagForNfce,
+  validateDetPagForEmission,
 } from "../_shared/sale-payments.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
@@ -247,69 +247,6 @@ async function resolveProviderDocRef(params: {
 }
 
 // ─── Numeração segura (atômica via RPC) ───
-
-// ─── Enriquecer detPag: grupo `card` aninhado (layout Nuvem Fiscal / XML NFC-e) ───
-// REGRA SEFAZ:
-//   tPag 03/04 (crédito/débito) → OBRIGATÓRIO grupo `card` com tpIntegra, CNPJ, tBand, cAut
-//   tPag 17 (PIX), 01 (dinheiro), outros → SEM grupo `card` (causa Rejeição 391 se presente)
-const FALLBACK_CREDENCIADORA_CNPJ = "00360305000104"; // Cielo (fallback)
-
-function enrichPaymentEntry(entry: any, tPag: string, source: any) {
-  const tp = String(tPag).trim();
-
-  // Limpar quaisquer campos residuais (flat OU aninhados)
-  delete entry.card;
-  delete entry.tpIntegra;
-  delete entry.CNPJ;
-  delete entry.tBand;
-  delete entry.cAut;
-
-  // PIX (17), Dinheiro (01) e outros: NÃO incluir grupo card
-  if (tp !== "03" && tp !== "04") {
-    return;
-  }
-
-  // Crédito (03) / Débito (04): grupo `card` aninhado é OBRIGATÓRIO
-  const envCnpj = onlyDigits(Deno.env.get("FISCAL_DEFAULT_CREDENCIADORA_CNPJ") || "");
-  let cnpj = onlyDigits(source?.cnpj_credenciadora || source?.card?.CNPJ || "");
-  if (cnpj.length !== 14) cnpj = envCnpj.length === 14 ? envCnpj : FALLBACK_CREDENCIADORA_CNPJ;
-  const tpIntegra = Number(source?.tpIntegra ?? source?.card?.tpIntegra ?? 2);
-  const tBandRaw = String(source?.tBand ?? source?.card?.tBand ?? "99").replace(/\D/g, "");
-  const tBand = tBandRaw.length >= 1 ? tBandRaw : "99";
-  let cAut = String(source?.cAut ?? source?.card?.cAut ?? source?.auth_code ?? source?.nsu ?? "000000").trim();
-  if (!cAut) cAut = "000000";
-  if (cAut.length > 20) cAut = cAut.slice(0, 20);
-
-  // Formato Nuvem Fiscal: grupo `card` ANINHADO (espelho do XML <card>)
-  entry.card = {
-    tpIntegra: Number.isFinite(tpIntegra) ? tpIntegra : 2,
-    CNPJ: cnpj,
-    tBand,
-    cAut,
-  };
-}
-
-function isPixLikePayment(source: Record<string, unknown> | undefined, fallbackMethod?: unknown): boolean {
-  const method = String(
-    source?.method ??
-    source?.payment_method ??
-    fallbackMethod ??
-    "",
-  ).trim().toLowerCase();
-  const pixId =
-    String(source?.pix_tx_id ?? source?.pixTxId ?? "").trim();
-  return method === "pix" || method === "17" || pixId.length > 0;
-}
-
-function resolvePaymentAmount(source: Record<string, unknown> | undefined, fallbackAmount: number): number {
-  const amount = Number(
-    source?.vPag ??
-    source?.amount ??
-    source?.value ??
-    fallbackAmount,
-  );
-  return Math.round((Number.isFinite(amount) ? amount : fallbackAmount) * 100) / 100;
-}
 
 // ─── Numeração segura (atômica via RPC) ───
 async function getNextNumberSafe(supabase: ReturnType<typeof createClient>, configId: string): Promise<number> {
@@ -568,30 +505,21 @@ async function handleEmit(supabase: any, body: any) {
 
   // Pagamento
   const troco = form.change || 0;
-  const detPag: any[] = [];
-  const mainTpag = normalizePaymentTPag(form.payment_method ?? "01");
-
-  if (form.payments && Array.isArray(form.payments) && form.payments.length > 0) {
-    for (const p of form.payments) {
-      const row = p as Record<string, unknown>;
-      const pixLike = isPixLikePayment(row, form.payment_method);
-      const tp = pixLike ? "17" : rowToTPagForNfce(row);
-      const entry: any = {
-        tPag: tp,
-        vPag: resolvePaymentAmount(row, vNF),
-      };
-      enrichPaymentEntry(entry, tp, row);
-      detPag.push(entry);
-    }
-  } else {
-    const fallbackTpag = isPixLikePayment(form as Record<string, unknown>) ? "17" : mainTpag;
-    const entry: any = {
-      tPag: fallbackTpag,
-      vPag: resolvePaymentAmount(form as Record<string, unknown>, vNF),
-    };
-    enrichPaymentEntry(entry, fallbackTpag, form);
-    detPag.push(entry);
-  }
+  const normalizedPayments = form.payments && Array.isArray(form.payments) && form.payments.length > 0
+    ? normalizePaymentsForNfce(form.payments as Array<Record<string, unknown>>, {
+      fallbackAmount: vNF,
+      fallbackChange: troco,
+    })
+    : [classifyAndNormalizePayment(form as Record<string, unknown>, {
+      fallbackAmount: vNF,
+      fallbackChange: troco,
+    })];
+  validateDetPagForEmission(normalizedPayments);
+  const detPag = normalizedPayments.map((payment) => payment.sefazDetPag);
+  const mainTpag = normalizedPayments[0]?.tPag || "99";
+  console.log("[emit-nfce] payment.audit.raw:", JSON.stringify(form.payments ?? form));
+  console.log("[emit-nfce] payment.audit.normalized:", JSON.stringify(normalizedPayments));
+  console.log("[emit-nfce] payment.audit.detPag:", JSON.stringify(detPag));
 
   const pagBlock: any = { detPag };
   if (troco > 0) pagBlock.vTroco = Math.round(troco * 100) / 100;
@@ -760,7 +688,7 @@ async function handleEmit(supabase: any, body: any) {
   else finalStatus = "pendente";
 
   // Salvar documento fiscal
-  const mainPayMethod = mapTPagToLocalPaymentMethod(detPag[0]?.tPag || "99");
+  const mainPayMethod = mapTPagToLocalPaymentMethod(normalizedPayments[0]?.tPag || "99");
   const insertRow: Record<string, unknown> = {
     company_id, doc_type: "nfce", number: numero, serie: config.serie || 1,
     access_key: accessKey || null, protocol_number: protocolNumber || null,
@@ -816,7 +744,7 @@ async function handleEmitFromSale(supabase: any, body: any) {
   // Tentativa ÚNICA — sem retry com delay (a fila fiscal reprocessa automaticamente)
   const [saleRes, itemsRes] = await Promise.all([
     supabase.from("sales")
-      .select("total, total_value, payments, payment_method")
+      .select("total, total_value, payments, payment_method, customer_name, customer_doc, customer_cpf")
       .eq("id", saleId).eq("company_id", companyId).maybeSingle(),
     supabase.from("sale_items")
       .select("product_id, product_name, quantity, unit_price, discount_percent")
@@ -859,42 +787,15 @@ async function handleEmitFromSale(supabase: any, body: any) {
 
   const saleRow = sale as Record<string, unknown>;
   const saleTotal = Number(saleRow.total ?? saleRow.total_value ?? 0);
-  let paymentRows = parseSalePaymentsJson(saleRow.payments);
-  if (paymentRows.length === 0) {
-    const pm = saleRow.payment_method;
-    if (typeof pm === "string" && pm.trim()) {
-      paymentRows = [{ method: pm.trim(), amount: saleTotal, change_amount: 0 }];
-    }
-  }
-  const primary = paymentRows[0] as Record<string, unknown> | undefined;
-  const mainPay = rowToTPagForNfce(primary);
-  const change = getPaymentChange(primary);
-  const fiscalPayments = paymentRows.length > 0
-    ? paymentRows.map((row: Record<string, unknown>) => {
-      const amt = Number(row.amount ?? row.value ?? saleTotal);
-      const tp = rowToTPagForNfce(row);
-      const pm = getPrimaryPaymentMethod(row);
-      const entry: Record<string, unknown> = {
-        method: pm || undefined,
-        tPag: tp,
-        vPag: Math.round((Number.isFinite(amt) ? amt : saleTotal) * 100) / 100,
-      };
-      const copyIf = (k: string, v: unknown) => {
-        if (v != null && v !== "") entry[k] = v;
-      };
-      copyIf("nsu", row.nsu);
-      copyIf("auth_code", row.auth_code ?? row.authCode);
-      copyIf("authCode", row.authCode);
-      copyIf("card_last_digits", row.card_last_digits ?? row.cardLastDigits);
-      copyIf("cardLastDigits", row.cardLastDigits);
-      copyIf("pix_tx_id", row.pix_tx_id ?? row.pixTxId);
-      copyIf("pixTxId", row.pixTxId);
-      copyIf("installments", row.installments ?? row.parcelas);
-      const entryAny = entry as any;
-      enrichPaymentEntry(entryAny, tp, row);
-      return entryAny;
-    })
-    : [{ tPag: mainPay !== "99" ? mainPay : "01", vPag: Math.round(saleTotal * 100) / 100 }];
+  const normalizedPayments = normalizePaymentsFromSaleData({
+    paymentsRaw: saleRow.payments,
+    fallbackMethod: saleRow.payment_method,
+    fallbackAmount: saleTotal,
+  });
+  validateDetPagForEmission(normalizedPayments);
+  const mainPay = normalizedPayments[0]?.tPag || "99";
+  const change = normalizedPayments[0]?.change || 0;
+  const fiscalPayments = normalizedPayments.map((payment) => payment.sanitized);
 
   const fiscalItems = items.map((item: Record<string, unknown>) => {
     const pid = String(item.product_id || "");
@@ -926,6 +827,8 @@ async function handleEmitFromSale(supabase: any, body: any) {
     form: {
       nat_op: "VENDA DE MERCADORIA", crt,
       payments: fiscalPayments, payment_method: mainPay,
+      customer_name: String(saleRow.customer_name ?? "").trim() || undefined,
+      customer_doc: String(saleRow.customer_doc ?? saleRow.customer_cpf ?? "").replace(/\D/g, "") || undefined,
       payment_value: saleTotal, change, items: fiscalItems,
     },
   });

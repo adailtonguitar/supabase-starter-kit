@@ -1,9 +1,14 @@
 import { useState, useMemo } from "react";
-import { Search, User, AlertTriangle, CreditCard, Clock, ShoppingBag, Banknote } from "lucide-react";
+import { Search, User, AlertTriangle, CreditCard, Clock, ShoppingBag, Banknote, Pencil } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useCompany } from "@/hooks/useCompany";
 import { useClients } from "@/hooks/useClients";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { maskCpfCnpj } from "@/lib/cpf-cnpj-mask";
+import { validateDoc } from "@/lib/cpf-cnpj-validator";
+import { toast } from "sonner";
 
 export interface CreditClient {
   id: string;
@@ -25,8 +30,13 @@ const formatCurrency = (value: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
 
 const INSTALLMENT_OPTIONS = [1, 2, 3, 4, 5, 6, 10, 12];
+const hasValidFiscalDoc = (doc?: string) => {
+  const clean = (doc || "").replace(/\D/g, "");
+  return clean.length === 11 || clean.length === 14;
+};
 
 export function PDVClientSelector({ open, onClose, onSelect, saleTotal }: PDVClientSelectorProps) {
+  const { companyId } = useCompany();
   const { data: clients = [] } = useClients();
   const [search, setSearch] = useState("");
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
@@ -35,6 +45,12 @@ export function PDVClientSelector({ open, onClose, onSelect, saleTotal }: PDVCli
   const [downPayment, setDownPayment] = useState("");
   const [sinalRemainingMode, setSinalRemainingMode] = useState<"fiado" | "parcelado">("fiado");
   const [sinalInstallments, setSinalInstallments] = useState(2);
+  const [editingClientId, setEditingClientId] = useState<string | null>(null);
+  const [editingDoc, setEditingDoc] = useState("");
+  const [savingDoc, setSavingDoc] = useState(false);
+  const [clientDocOverrides, setClientDocOverrides] = useState<Record<string, string | undefined>>({});
+  const editingDocClean = editingDoc.replace(/\D/g, "");
+  const editingDocValidation = editingDocClean ? validateDoc(editingDocClean) : null;
 
   const filteredClients = useMemo(() => {
     if (!search.trim()) return clients;
@@ -47,6 +63,7 @@ export function PDVClientSelector({ open, onClose, onSelect, saleTotal }: PDVCli
   }, [clients, search]);
 
   const selectedClient = clients.find((c: any) => c.id === selectedClientId) as any;
+  const selectedClientDoc = selectedClient ? (clientDocOverrides[selectedClient.id] ?? selectedClient.cpf_cnpj) : undefined;
   const creditLimit = Number(selectedClient?.credit_limit || 0);
   const creditBalance = Number(selectedClient?.credit_balance || 0);
   const availableCredit = creditLimit > 0 ? creditLimit - creditBalance : Infinity;
@@ -61,7 +78,7 @@ export function PDVClientSelector({ open, onClose, onSelect, saleTotal }: PDVCli
     const mapped: CreditClient = {
       id: selectedClient.id,
       name: selectedClient.name,
-      cpf: selectedClient.cpf_cnpj,
+      cpf: selectedClientDoc,
       credit_limit: creditLimit,
       credit_used: creditBalance,
       credit_balance: creditBalance,
@@ -82,6 +99,51 @@ export function PDVClientSelector({ open, onClose, onSelect, saleTotal }: PDVCli
     setDownPayment("");
     setSinalRemainingMode("fiado");
     setSinalInstallments(2);
+    setEditingClientId(null);
+    setEditingDoc("");
+  };
+
+  const startEditDoc = (client: any) => {
+    setEditingClientId(client.id);
+    setEditingDoc(maskCpfCnpj(client.cpf_cnpj || ""));
+  };
+
+  const saveClientDoc = async (client: any) => {
+    if (!companyId) return;
+    if (editingDocClean && !editingDocValidation?.valid) {
+      toast.error(editingDocValidation?.error || "CPF/CNPJ inválido");
+      return;
+    }
+    setSavingDoc(true);
+    try {
+      const cleanDoc = editingDocClean || null;
+      const { error } = await supabase
+        .from("clients")
+        .update({ cpf_cnpj: cleanDoc })
+        .eq("id", client.id)
+        .eq("company_id", companyId);
+      if (error) throw error;
+      toast.success("Documento do cliente atualizado!");
+      setClientDocOverrides((prev) => ({ ...prev, [client.id]: cleanDoc || undefined }));
+      setSelectedClientId(client.id);
+      setEditingClientId(null);
+      setEditingDoc("");
+    } catch (err: any) {
+      toast.error("Erro ao atualizar documento: " + (err.message || ""));
+    } finally {
+      setSavingDoc(false);
+    }
+  };
+
+  const handleChooseClient = (client: any) => {
+    setSelectedClientId(client.id);
+    if (!hasValidFiscalDoc(client.cpf_cnpj)) {
+      startEditDoc(client);
+      toast.info("Informe um CPF/CNPJ válido para usar este cliente na NFC-e identificada.");
+    } else {
+      setEditingClientId(null);
+      setEditingDoc("");
+    }
   };
 
   if (!open) return null;
@@ -131,6 +193,9 @@ export function PDVClientSelector({ open, onClose, onSelect, saleTotal }: PDVCli
               autoFocus
             />
           </div>
+          <p className="text-[11px] text-muted-foreground mt-2">
+            Clientes com CPF/CNPJ valido podem sair na NFC-e identificada direto pelo PDV.
+          </p>
         </div>
 
         {/* Content */}
@@ -150,41 +215,98 @@ export function PDVClientSelector({ open, onClose, onSelect, saleTotal }: PDVCli
                 const limit = Number(client.credit_limit || 0);
                 const available = limit > 0 ? limit - balance : Infinity;
                 const wouldExceed = limit > 0 && saleTotal > available;
+                const effectiveDoc = clientDocOverrides[client.id] ?? client.cpf_cnpj;
+                const fiscalReady = hasValidFiscalDoc(effectiveDoc);
+                const isEditing = editingClientId === client.id;
 
                 return (
-                  <button
-                    key={client.id}
-                    onClick={() => setSelectedClientId(client.id)}
-                    className="w-full flex items-center justify-between p-3 rounded-xl text-left transition-all hover:bg-muted border border-transparent hover:border-border"
-                  >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="w-9 h-9 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
-                        <User className="w-4 h-4 text-muted-foreground" />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-foreground truncate">{client.name}</p>
-                        <p className="text-xs text-muted-foreground">{client.cpf_cnpj || "Sem documento"}</p>
+                  <div key={client.id} className="rounded-xl border border-transparent hover:border-border">
+                    <div className="w-full flex items-center justify-between p-3 text-left transition-all hover:bg-muted">
+                      <button
+                        onClick={() => handleChooseClient(client)}
+                        className="flex items-center gap-2.5 min-w-0 flex-1 text-left"
+                      >
+                        <div className="w-9 h-9 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
+                          <User className="w-4 h-4 text-muted-foreground" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-foreground truncate">{client.name}</p>
+                          <p className="text-xs text-muted-foreground">{effectiveDoc || "Sem documento"}</p>
+                        </div>
+                      </button>
+                      <div className="text-right flex-shrink-0 ml-2">
+                        <div className="flex items-center justify-end gap-1 mb-1">
+                          <Badge
+                            variant="outline"
+                            className={`text-[9px] px-1 py-0 ${
+                              fiscalReady
+                                ? "border-emerald-500/30 text-emerald-600 dark:text-emerald-300"
+                                : "border-amber-500/30 text-amber-600 dark:text-amber-300"
+                            }`}
+                          >
+                            {fiscalReady ? "NFC-e identificada" : "Sem doc fiscal"}
+                          </Badge>
+                          <button
+                            onClick={() => startEditDoc(client)}
+                            className="inline-flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground hover:bg-background transition-colors"
+                            title="Editar CPF/CNPJ"
+                          >
+                            <Pencil className="w-3 h-3" />
+                            Editar
+                          </button>
+                        </div>
+                        {balance > 0 && (
+                          <p className="text-xs font-mono text-destructive">
+                            Deve {formatCurrency(balance)}
+                          </p>
+                        )}
+                        {limit > 0 && (
+                          <p className="text-xs text-muted-foreground">
+                            Limite: {formatCurrency(limit)}
+                          </p>
+                        )}
+                        {wouldExceed && (
+                          <Badge variant="destructive" className="text-[9px] px-1 py-0 mt-0.5">
+                            <AlertTriangle className="w-2.5 h-2.5 mr-0.5" />
+                            Excede limite
+                          </Badge>
+                        )}
                       </div>
                     </div>
-                    <div className="text-right flex-shrink-0 ml-2">
-                      {balance > 0 && (
-                        <p className="text-xs font-mono text-destructive">
-                          Deve {formatCurrency(balance)}
-                        </p>
-                      )}
-                      {limit > 0 && (
-                        <p className="text-xs text-muted-foreground">
-                          Limite: {formatCurrency(limit)}
-                        </p>
-                      )}
-                      {wouldExceed && (
-                        <Badge variant="destructive" className="text-[9px] px-1 py-0 mt-0.5">
-                          <AlertTriangle className="w-2.5 h-2.5 mr-0.5" />
-                          Excede limite
-                        </Badge>
-                      )}
-                    </div>
-                  </button>
+                    {isEditing && (
+                      <div className="px-3 pb-3">
+                        <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-2">
+                          <Input
+                            placeholder="CPF/CNPJ"
+                            value={editingDoc}
+                            onChange={(e) => setEditingDoc(maskCpfCnpj(e.target.value))}
+                            inputMode="numeric"
+                          />
+                          {editingDocClean ? (
+                            <p className={`text-[11px] ${editingDocValidation?.valid ? "text-emerald-600 dark:text-emerald-300" : "text-destructive"}`}>
+                              {editingDocValidation?.valid ? "Documento válido para NFC-e identificada." : editingDocValidation?.error}
+                            </p>
+                          ) : (
+                            <p className="text-[11px] text-muted-foreground">
+                              Deixe em branco para remover o documento do cliente.
+                            </p>
+                          )}
+                          <div className="flex gap-2">
+                            <Button variant="outline" size="sm" onClick={() => { setEditingClientId(null); setEditingDoc(""); }} disabled={savingDoc}>
+                              Cancelar
+                            </Button>
+                            <Button
+                              size="sm"
+                              onClick={() => saveClientDoc(client)}
+                              disabled={savingDoc || (editingDocClean.length > 0 && !editingDocValidation?.valid)}
+                            >
+                              {savingDoc ? "Salvando..." : "Salvar documento"}
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 );
               })
             )}
@@ -200,7 +322,12 @@ export function PDVClientSelector({ open, onClose, onSelect, saleTotal }: PDVCli
                 </div>
                 <div>
                   <p className="text-sm font-semibold text-foreground">{selectedClient.name}</p>
-                  <p className="text-xs text-muted-foreground">{selectedClient.cpf_cnpj || "Sem documento"}</p>
+                  <p className="text-xs text-muted-foreground">{selectedClientDoc || "Sem documento"}</p>
+                  <p className={`text-[11px] mt-1 ${hasValidFiscalDoc(selectedClientDoc) ? "text-emerald-600 dark:text-emerald-300" : "text-amber-600 dark:text-amber-300"}`}>
+                    {hasValidFiscalDoc(selectedClientDoc)
+                      ? "Apto para NFC-e identificada"
+                      : "Sem CPF/CNPJ valido para identificar a NFC-e"}
+                  </p>
                 </div>
               </div>
               <button
@@ -446,7 +573,7 @@ export function PDVClientSelector({ open, onClose, onSelect, saleTotal }: PDVCli
             </Button>
             <Button
               onClick={handleConfirm}
-              disabled={exceedsLimit || (mode === "sinal" && !sinalValid)}
+              disabled={exceedsLimit || (mode === "sinal" && !sinalValid) || !hasValidFiscalDoc(selectedClientDoc)}
               className="flex-1"
             >
               {mode === "sinal"

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Wifi, WifiOff, User, Wallet, Maximize, Minimize, AlertTriangle } from "lucide-react";
+import { Wifi, WifiOff, User, Wallet, Maximize, Minimize, AlertTriangle, FileBadge2 } from "lucide-react";
 
 interface PDVTopBarProps {
   companyName: string | null;
@@ -12,6 +12,8 @@ interface PDVTopBarProps {
   syncStats: { pending: number; syncing: number };
   currentSession: { opened_at: string } | null;
   selectedClientName?: string;
+  selectedClientDoc?: string;
+  fiscalCustomerReady?: boolean;
   onExit: () => void;
   onTerminalClick: () => void;
   onCashRegisterClick: () => void;
@@ -22,7 +24,7 @@ interface PDVTopBarProps {
 export function PDVTopBar({
   companyName, terminalId, saleNumber, isOnline, isFullscreen,
   trainingMode, contingencyMode, syncStats, currentSession,
-  selectedClientName, onExit, onTerminalClick, onCashRegisterClick,
+  selectedClientName, selectedClientDoc, fiscalCustomerReady, onExit, onTerminalClick, onCashRegisterClick,
   onToggleFullscreen, onClearClient,
 }: PDVTopBarProps) {
   return (
@@ -56,6 +58,29 @@ export function PDVTopBar({
           <span className="flex items-center gap-1">
             <User className="w-3 h-3" />
             <span className="font-bold truncate max-w-[120px]">{selectedClientName}</span>
+            {fiscalCustomerReady ? (
+              <span
+                className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-200 border border-emerald-300/30"
+                title={`NFC-e identificada com ${selectedClientDoc || "documento valido"}`}
+              >
+                <FileBadge2 className="w-3 h-3" />
+                NFC-e identificada
+              </span>
+            ) : selectedClientDoc ? (
+              <span
+                className="hidden sm:inline-flex px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-100 border border-amber-300/30"
+                title="Documento do cliente invalido para NFC-e"
+              >
+                Doc invalido
+              </span>
+            ) : (
+              <span
+                className="hidden sm:inline-flex px-2 py-0.5 rounded-full bg-white/10 text-primary-foreground/85 border border-white/15"
+                title="Selecione um CPF ou CNPJ para identificar a NFC-e"
+              >
+                Sem documento fiscal
+              </span>
+            )}
             <button onClick={onClearClient} className="ml-0.5 hover:text-destructive">✕</button>
           </span>
         )}

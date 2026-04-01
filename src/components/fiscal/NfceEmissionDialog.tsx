@@ -104,6 +104,12 @@ const parseSalePayments = (raw: unknown): Array<Record<string, unknown>> => {
   return [];
 };
 
+const resolveDialogPaymentMethod = (salePaymentMethod: string | undefined, payments: Array<Record<string, unknown>>): string => {
+  const first = payments[0];
+  const method = String(first?.method ?? first?.payment_method ?? salePaymentMethod ?? "").trim().toLowerCase();
+  return mapPaymentToFiscal(method);
+};
+
 const MONEY_TOLERANCE = 0.01;
 
 function isMoneyConsistent(a: number, b: number): boolean {
@@ -247,11 +253,11 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
       natOp: "VENDA DE MERCADORIA",
       infAdic: "",
       items: nfceItems,
-      paymentMethod: mapPaymentToFiscal(sale.payment_method || ""),
+      paymentMethod: resolveDialogPaymentMethod(sale.payment_method, salePayments),
       paymentValue: sale.total_value ?? sale.total ?? Math.round(nfceItems.reduce((sum, it) => sum + it.total, 0) * 100) / 100,
       change: 0,
     });
-  }, [open, sale]);
+  }, [open, sale, salePayments]);
 
   if (!open || !sale) return null;
 

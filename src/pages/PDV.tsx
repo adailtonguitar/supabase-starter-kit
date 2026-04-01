@@ -122,6 +122,12 @@ export default function PDV() {
   const [itemNotes, setItemNotes] = useState<Record<string, string>>({});
   const [itemDiscountValues, setItemDiscountValues] = useState<Record<string, number>>({});
   const customerDisplay = useCustomerDisplay();
+  const selectedClientDoc = (selectedClient?.cpf || "").replace(/\D/g, "");
+  const fiscalCustomerReady = selectedClientDoc.length === 11 || selectedClientDoc.length === 14;
+  const fiscalFinalizeBlocked = canUseFiscal && !skipFiscalEmission && !!selectedClient && !fiscalCustomerReady;
+  const fiscalFinalizeBlockReason = fiscalFinalizeBlocked
+    ? "Cliente selecionado sem CPF/CNPJ valido para NFC-e"
+    : "";
 
   // ── Fullscreen ──
   const toggleFullscreen = useCallback(() => {
@@ -345,6 +351,7 @@ export default function PDV() {
     if (!pdv.currentSession) { toast.warning("Abra o caixa antes de finalizar uma venda", { duration: 1500 }); setShowCashRegister(true); return; }
     if (pdv.cartItems.length === 0) { toast.warning("Adicione itens ao carrinho primeiro", { duration: 1200 }); return; }
     if (finalizingSale) { toast.warning("Venda em processamento, aguarde...", { duration: 1200 }); return; }
+    if (fiscalFinalizeBlocked) { playErrorSound(); toast.error(fiscalFinalizeBlockReason, { duration: 2500 }); return; }
     if (!fiscalValidation.valid) {
       playErrorSound();
       setShowFiscalErrors(true);
@@ -352,14 +359,15 @@ export default function PDV() {
     }
     setTefDefaultMethod(defaultMethod || null);
     setShowTEF(true);
-  }, [pdv.cartItems.length, pdv.currentSession, finalizingSale, fiscalValidation.valid]);
+  }, [pdv.cartItems.length, pdv.currentSession, finalizingSale, fiscalFinalizeBlocked, fiscalFinalizeBlockReason, fiscalValidation.valid]);
 
   const handleDirectPayment = useCallback((method: string) => {
     if (pdv.cartItems.length === 0) { toast.warning("Adicione itens ao carrinho primeiro", { duration: 1200 }); return; }
     if (finalizingSale) { toast.warning("Venda em processamento, aguarde...", { duration: 1200 }); return; }
+    if (fiscalFinalizeBlocked) { playErrorSound(); toast.error(fiscalFinalizeBlockReason, { duration: 2500 }); return; }
     if (method === "prazo") { handlePrazoRequested(); return; }
     handleCheckout(method);
-  }, [pdv.cartItems.length, handleCheckout, finalizingSale]);
+  }, [pdv.cartItems.length, handleCheckout, finalizingSale, fiscalFinalizeBlocked, fiscalFinalizeBlockReason]);
 
   // ── Barcode ──
   const handleBarcodeSubmit = () => {
@@ -547,7 +555,13 @@ export default function PDV() {
 
       toast.info("Finalizando venda e emitindo NFC-e...", { duration: 3000 });
 
-      const result = await pdv.finalizeSale(paymentResults, { skipFiscal: skipFiscalEmission, maxDiscountPercent });
+      const result = await pdv.finalizeSale(paymentResults, {
+        skipFiscal: skipFiscalEmission,
+        maxDiscountPercent,
+        fiscalCustomer: selectedClient
+          ? { name: selectedClient.name, doc: selectedClient.cpf }
+          : undefined,
+      });
       playSaleCompleteSound();
       setReceipt({
         items: savedItems, total: savedTotal, payments: tefResults, nfceNumber: result.nfceNumber,
@@ -591,7 +605,11 @@ export default function PDV() {
       }];
       const savedItems = [...pdv.cartItems];
       const savedTotal = total;
-      const result = await pdv.finalizeSale(paymentResults, { skipFiscal: skipFiscalEmission, maxDiscountPercent });
+      const result = await pdv.finalizeSale(paymentResults, {
+        skipFiscal: skipFiscalEmission,
+        maxDiscountPercent,
+        fiscalCustomer: { name: client.name, doc: client.cpf },
+      });
       playSaleCompleteSound();
 
       if (result.saleId) {
@@ -688,6 +706,8 @@ export default function PDV() {
         syncStats={pdv.syncStats}
         currentSession={pdv.currentSession}
         selectedClientName={selectedClient?.name}
+        selectedClientDoc={selectedClientDoc || undefined}
+        fiscalCustomerReady={fiscalCustomerReady}
         onExit={() => { if (pdv.currentSession) setShowExitConfirm(true); else navigate("/"); }}
         onTerminalClick={() => { setTempTerminalId(terminalId); setShowTerminalPicker(true); }}
         onCashRegisterClick={() => setShowCashRegister(true)}
@@ -763,6 +783,11 @@ export default function PDV() {
         cartItems={pdv.cartItems}
         canUseFiscal={canUseFiscal}
         skipFiscalEmission={skipFiscalEmission}
+        selectedClientName={selectedClient?.name}
+        fiscalCustomerDoc={selectedClientDoc || undefined}
+        fiscalCustomerReady={fiscalCustomerReady}
+        fiscalFinalizeBlocked={fiscalFinalizeBlocked}
+        fiscalFinalizeBlockReason={fiscalFinalizeBlockReason || undefined}
         onSkipFiscalChange={setFiscalSkipUserOverride}
         onDirectPayment={handleDirectPayment}
         onCheckout={() => handleCheckout()}
@@ -824,7 +849,15 @@ export default function PDV() {
               <h2 className="text-lg font-bold text-foreground">Identificar Cliente {loyaltyActive && "🎁"}</h2>
               <button onClick={() => setShowLoyaltyClientSelector(false)} className="p-1.5 rounded-lg hover:bg-muted transition-colors"><X className="w-5 h-5 text-muted-foreground" /></button>
             </div>
-            <PDVLoyaltyClientList onSelect={(client) => { setSelectedClient(client); setShowLoyaltyClientSelector(false); toast.success(`Cliente: ${client.name}`); }} />
+            <PDVLoyaltyClientList onSelect={(client) => {
+              setSelectedClient({
+                id: client.id,
+                name: client.name,
+                cpf: client.cpf_cnpj,
+              });
+              setShowLoyaltyClientSelector(false);
+              toast.success(`Cliente: ${client.name}`);
+            }} />
           </div>
         </div>
       )}

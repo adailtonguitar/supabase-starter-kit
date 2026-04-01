@@ -14,22 +14,6 @@ export interface PdvNfceEmitContext {
   customerDoc?: string;
 }
 
-const PDV_METHOD_TO_TPAG: Record<string, string> = {
-  dinheiro: "01",
-  credito: "03",
-  debito: "04",
-  pix: "17",
-  voucher: "05",
-  outros: "99",
-  prazo: "99",
-};
-
-export function mapPdvMethodToTPag(method: string | undefined | null): string {
-  const m = String(method ?? "").trim().toLowerCase();
-  if (!m) return "99";
-  return PDV_METHOD_TO_TPAG[m] ?? "99";
-}
-
 /** NCM/CFOP: mesma exigência prática do histórico. CST/CSOSN vazio usa default da edge (102/00), como em `emit_from_sale`. */
 export function validatePdvEmitFiscalLines(saleItems: FinalizeSaleItemInput[], _crt: number): string | null {
   for (const line of saleItems) {
@@ -91,14 +75,22 @@ export function buildPdvNfceEmitForm(params: {
     return row;
   });
 
-  const fiscalPayments = params.payments.map((p) => ({
-    method: p.method,
-    tPag: mapPdvMethodToTPag(p.method),
-    vPag: Math.round(p.amount * 100) / 100,
-  }));
+  const fiscalPayments = params.payments.map((p) => {
+    const base: Record<string, unknown> = {
+      method: p.method,
+      payment_method: p.method,
+      amount: Math.round(p.amount * 100) / 100,
+      vPag: Math.round(p.amount * 100) / 100,
+    };
+    if (p.change_amount != null) base.change_amount = Math.round(p.change_amount * 100) / 100;
+    if (p.pix_tx_id) base.pix_tx_id = p.pix_tx_id;
+    if (p.nsu) base.nsu = p.nsu;
+    if (p.auth_code) base.auth_code = p.auth_code;
+    if (p.card_last_digits) base.card_last_digits = p.card_last_digits;
+    return base;
+  });
 
   const primary = params.payments[0];
-  const mainPay = mapPdvMethodToTPag(primary?.method);
   const change = Number(primary?.change_amount) || 0;
 
   let customerDoc = params.customerDoc?.replace(/\D/g, "") || "";
@@ -110,7 +102,7 @@ export function buildPdvNfceEmitForm(params: {
     nat_op: "VENDA DE MERCADORIA",
     crt: params.crt,
     payments: fiscalPayments,
-    payment_method: mainPay,
+    payment_method: primary?.method || undefined,
     payment_value: Math.round(params.total * 100) / 100,
     change: Math.round(change * 100) / 100,
     customer_name: params.customerName?.trim() || undefined,
