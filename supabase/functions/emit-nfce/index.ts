@@ -528,8 +528,8 @@ async function handleEmit(supabase: any, body: any) {
   let dest: any = undefined;
   if (form.customer_doc) {
     const docClean = form.customer_doc.replace(/\D/g, "");
-    if (docClean.length === 11) dest = { CPF: docClean };
-    else if (docClean.length === 14) dest = { CNPJ: docClean };
+    if (docClean.length === 11) dest = { CPF: docClean, indIEDest: 9 };
+    else if (docClean.length === 14) dest = { CNPJ: docClean, indIEDest: 9 };
     if (dest && form.customer_name) dest.xNome = form.customer_name;
   }
 
