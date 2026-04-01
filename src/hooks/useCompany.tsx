@@ -5,7 +5,7 @@ import { useAuth } from "./useAuth";
 const COMPANY_CACHE_KEY = "as_cached_company";
 const SELECTED_COMPANY_KEY = "as_selected_company";
 
-const COMPANY_SELECT = "name, logo_url, slogan, pix_key, pix_key_type, pix_city, address_city, address_street, address_number, address_neighborhood, address_state, cnpj, ie, phone, tax_regime";
+const COMPANY_SELECT = "name, logo_url, slogan, pix_key, pix_key_type, pix_city, address_city, address_street, address_number, address_neighborhood, address_state, cnpj, ie, phone, tax_regime, pdv_auto_emit_nfce";
 
 interface CachedCompany {
   companyId: string;
@@ -24,6 +24,7 @@ interface CachedCompany {
   addressCity: string | null;
   addressState: string | null;
   taxRegime: string | null;
+  pdvAutoEmitNfce: boolean;
 }
 
 type CompanyRow = {
@@ -42,6 +43,7 @@ type CompanyRow = {
   ie?: string | null;
   phone?: string | null;
   tax_regime?: string | null;
+  pdv_auto_emit_nfce?: boolean | null;
 };
 
 function cacheCompany(data: CachedCompany) {
@@ -73,6 +75,7 @@ function extractCompanyFields(company: CompanyRow | null | undefined): Omit<Cach
     addressCity: company?.address_city ?? null,
     addressState: company?.address_state ?? null,
     taxRegime: company?.tax_regime ?? null,
+    pdvAutoEmitNfce: company?.pdv_auto_emit_nfce ?? true,
   };
 }
 
@@ -93,13 +96,14 @@ interface CompanyData {
   addressCity: string | null;
   addressState: string | null;
   taxRegime: string | null;
+  pdvAutoEmitNfce: boolean;
   loading: boolean;
   switchCompany: (companyId: string) => void;
 }
 
 const nullFields: Omit<CachedCompany, 'companyId'> = {
   companyName: null, logoUrl: null, slogan: null, pixKey: null, pixKeyType: null, pixCity: null,
-  cnpj: null, ie: null, phone: null, addressStreet: null, addressNumber: null, addressNeighborhood: null, addressCity: null, addressState: null, taxRegime: null,
+  cnpj: null, ie: null, phone: null, addressStreet: null, addressNumber: null, addressNeighborhood: null, addressCity: null, addressState: null, taxRegime: null, pdvAutoEmitNfce: true,
 };
 
 export function useCompany(): CompanyData {

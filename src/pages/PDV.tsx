@@ -47,7 +47,7 @@ import { usePDVFiscalValidation } from "@/hooks/pdv/usePDVFiscalValidation";
 export default function PDV() {
   const pdv = usePDV();
   const navigate = useNavigate();
-  const { companyName, companyId, logoUrl, slogan, pixKey, pixKeyType, pixCity, cnpj, ie, phone, addressStreet, addressNumber, addressNeighborhood, addressCity, addressState, taxRegime } = useCompany();
+  const { companyName, companyId, logoUrl, slogan, pixKey, pixKeyType, pixCity, cnpj, ie, phone, addressStreet, addressNumber, addressNeighborhood, addressCity, addressState, taxRegime, pdvAutoEmitNfce } = useCompany();
   const { config: tefConfigData } = useTEFConfig();
   const { maxDiscountPercent } = usePermissions();
   const planFeatures = usePlanFeatures();
@@ -58,13 +58,10 @@ export default function PDV() {
   const [quoteNotes, setQuoteNotes] = useState("");
   const [showTEF, setShowTEF] = useState(false);
   const [tefDefaultMethod, setTefDefaultMethod] = useState<string | null>(null);
-  /** Evita `useState(!canUseFiscal)` no 1º render: plano ainda carrega → false → pula NFC-e para sempre. */
-  const [fiscalSkipUserOverride, setFiscalSkipUserOverride] = useState<boolean | null>(null);
   const skipFiscalEmission = useMemo(() => {
     if (!canUseFiscal) return true;
-    if (fiscalSkipUserOverride !== null) return fiscalSkipUserOverride;
-    return false;
-  }, [canUseFiscal, fiscalSkipUserOverride]);
+    return !pdvAutoEmitNfce;
+  }, [canUseFiscal, pdvAutoEmitNfce]);
   const fiscalValidation = usePDVFiscalValidation(pdv.cartItems, canUseFiscal && !skipFiscalEmission, taxRegime);
   const [showFiscalErrors, setShowFiscalErrors] = useState(false);
   const [showCashRegister, setShowCashRegister] = useState(false);
@@ -788,7 +785,7 @@ export default function PDV() {
         fiscalCustomerReady={fiscalCustomerReady}
         fiscalFinalizeBlocked={fiscalFinalizeBlocked}
         fiscalFinalizeBlockReason={fiscalFinalizeBlockReason || undefined}
-        onSkipFiscalChange={setFiscalSkipUserOverride}
+        pdvAutoEmitNfce={pdvAutoEmitNfce}
         onDirectPayment={handleDirectPayment}
         onCheckout={() => handleCheckout()}
         onClearCart={() => pdv.clearCart()}

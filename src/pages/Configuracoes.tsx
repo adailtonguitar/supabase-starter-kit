@@ -643,6 +643,80 @@ function CashRegisterToggleSection() {
   );
 }
 
+function PdvFiscalAutomationSection() {
+  const { role } = usePermissions();
+  const { companyId } = useCompany();
+  const [enabled, setEnabled] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!companyId) return;
+    const load = async () => {
+      const { data } = await supabase
+        .from("companies")
+        .select("pdv_auto_emit_nfce")
+        .eq("id", companyId)
+        .single();
+      setEnabled(data?.pdv_auto_emit_nfce ?? true);
+      setLoading(false);
+    };
+    load();
+  }, [companyId]);
+
+  if (role !== "admin" && role !== "gerente") return null;
+
+  const toggle = async () => {
+    if (!companyId || loading || saving) return;
+    const next = !enabled;
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from("companies")
+        .update({ pdv_auto_emit_nfce: next })
+        .eq("id", companyId);
+      if (error) throw error;
+      setEnabled(next);
+      logAction({
+        companyId,
+        action: "Automação fiscal do PDV atualizada",
+        module: "configuracoes",
+        details: next ? "Emissão automática NFC-e ativada" : "Emissão automática NFC-e desativada",
+      });
+      toast.success(next ? "PDV configurado para emitir NFC-e automaticamente" : "PDV configurado para não emitir NFC-e automaticamente");
+    } catch {
+      toast.error("Erro ao salvar configuração fiscal do PDV");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.075 }} className="bg-card rounded-2xl card-shadow border border-border overflow-hidden">
+      <div className="px-5 py-4 border-b border-border flex items-center gap-2">
+        <FileText className="w-4 h-4 text-primary" />
+        <h2 className="text-base font-semibold text-foreground">NFC-e Automática no PDV</h2>
+      </div>
+      <div className="p-5 space-y-3">
+        <p className="text-sm text-muted-foreground">Define o comportamento padrão do caixa. Quando ativado, o PDV emite NFC-e automaticamente nas vendas elegíveis, sem checkbox manual na tela.</p>
+        {loading ? (
+          <div className="flex items-center justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>
+        ) : (
+          <div className="flex items-center justify-between py-3 px-4 rounded-xl bg-muted/50 border border-border">
+            <div>
+              <p className="text-sm font-medium text-foreground">Emitir NFC-e automaticamente no PDV</p>
+              <p className="text-xs text-muted-foreground">Se desativado, as vendas do caixa serão concluídas sem emissão automática de NFC-e</p>
+            </div>
+            <button onClick={toggle} disabled={saving} className={`relative w-11 h-6 rounded-full transition-colors disabled:opacity-60 ${enabled ? "bg-primary" : "bg-muted-foreground/30"}`}>
+              <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${enabled ? "translate-x-5" : "translate-x-0"}`} />
+            </button>
+          </div>
+        )}
+      </div>
+    </motion.div>
+  );
+}
+
 // FurnitureModeSection removed — segment is now defined at onboarding only
 
 export default function Configuracoes() {
@@ -718,6 +792,7 @@ export default function Configuracoes() {
       <ChangePasswordSection />
       <MyPlanSection />
       <CashRegisterToggleSection />
+      <PdvFiscalAutomationSection />
       <CarneConfigSection />
       <DiscountLimitsSection />
       <TEFConfigSection />

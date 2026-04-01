@@ -621,6 +621,7 @@ export type Database = {
           logo_url: string | null
           slogan: string | null
           tax_regime: string | null
+          pdv_auto_emit_nfce: boolean
           modo_seguro_fiscal: boolean
           is_blocked: boolean
           block_reason: string | null
@@ -660,6 +661,7 @@ export type Database = {
           logo_url?: string | null
           slogan?: string | null
           tax_regime?: string | null
+          pdv_auto_emit_nfce?: boolean
           modo_seguro_fiscal?: boolean
           is_blocked?: boolean
           block_reason?: string | null
@@ -699,6 +701,7 @@ export type Database = {
           logo_url?: string | null
           slogan?: string | null
           tax_regime?: string | null
+          pdv_auto_emit_nfce?: boolean
           modo_seguro_fiscal?: boolean
           is_blocked?: boolean
           block_reason?: string | null

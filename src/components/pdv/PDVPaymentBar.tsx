@@ -7,12 +7,12 @@ interface PDVPaymentBarProps {
   cartItems: CartItem[];
   canUseFiscal: boolean;
   skipFiscalEmission: boolean;
+  pdvAutoEmitNfce: boolean;
   selectedClientName?: string;
   fiscalCustomerDoc?: string;
   fiscalCustomerReady?: boolean;
   fiscalFinalizeBlocked?: boolean;
   fiscalFinalizeBlockReason?: string;
-  onSkipFiscalChange: (skip: boolean) => void;
   onDirectPayment: (method: string) => void;
   onCheckout: () => void;
   onClearCart: () => void;
@@ -38,8 +38,8 @@ interface PDVPaymentBarProps {
 }
 
 export function PDVPaymentBar({
-  cartItems, canUseFiscal, skipFiscalEmission, selectedClientName, fiscalCustomerDoc, fiscalCustomerReady,
-  fiscalFinalizeBlocked, fiscalFinalizeBlockReason, onSkipFiscalChange,
+  cartItems, canUseFiscal, skipFiscalEmission, pdvAutoEmitNfce, selectedClientName, fiscalCustomerDoc, fiscalCustomerReady,
+  fiscalFinalizeBlocked, fiscalFinalizeBlockReason,
   onDirectPayment, onCheckout, onClearCart, onHoldSale,
   onShowHoldRecall, onShowReturnExchange, onShowProductList,
   onShowLoyaltyClient, onShowPriceLookup, onShowSaveQuote,
@@ -93,7 +93,7 @@ export function PDVPaymentBar({
         ))}
       </div>
 
-      {/* Fiscal toggle */}
+      {/* Fiscal status */}
       {canUseFiscal && (
         <div className="flex items-center justify-between gap-2 px-2 py-1 bg-muted/40 border-t border-border">
           <div className="min-w-0 text-[11px]">
@@ -121,16 +121,10 @@ export function PDVPaymentBar({
               <span className="text-muted-foreground">{fiscalCustomerDoc}</span>
             )}
           </div>
-          <label className="flex items-center gap-1.5 cursor-pointer text-xs text-muted-foreground select-none whitespace-nowrap">
-            <input
-              type="checkbox"
-              checked={!skipFiscalEmission}
-              onChange={(e) => onSkipFiscalChange(!e.target.checked)}
-              className="w-3.5 h-3.5 rounded border-border accent-primary"
-            />
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground whitespace-nowrap">
             <FileText className="w-3 h-3" />
-            <span>Emitir NFC-e</span>
-          </label>
+            <span>{pdvAutoEmitNfce ? "NFC-e automática" : "NFC-e automática desativada"}</span>
+          </div>
         </div>
       )}
 
