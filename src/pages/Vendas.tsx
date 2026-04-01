@@ -402,12 +402,14 @@ export default function Vendas() {
       </AlertDialog>
 
       {/* NFC-e emission review dialog */}
-      <NfceEmissionDialog
-        sale={emissionSale}
-        open={!!emissionSale}
-        onOpenChange={(open) => !open && setEmissionSale(null)}
-        onSuccess={() => refetch()}
-      />
+      {emissionSale && (
+        <NfceEmissionDialog
+          sale={emissionSale}
+          open={!!emissionSale}
+          onOpenChange={(open) => !open && setEmissionSale(null)}
+          onSuccess={() => refetch()}
+        />
+      )}
     </div>
   );
 }

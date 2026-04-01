@@ -289,6 +289,28 @@ function enrichPaymentEntry(entry: any, tPag: string, source: any) {
   };
 }
 
+function isPixLikePayment(source: Record<string, unknown> | undefined, fallbackMethod?: unknown): boolean {
+  const method = String(
+    source?.method ??
+    source?.payment_method ??
+    fallbackMethod ??
+    "",
+  ).trim().toLowerCase();
+  const pixId =
+    String(source?.pix_tx_id ?? source?.pixTxId ?? "").trim();
+  return method === "pix" || method === "17" || pixId.length > 0;
+}
+
+function resolvePaymentAmount(source: Record<string, unknown> | undefined, fallbackAmount: number): number {
+  const amount = Number(
+    source?.vPag ??
+    source?.amount ??
+    source?.value ??
+    fallbackAmount,
+  );
+  return Math.round((Number.isFinite(amount) ? amount : fallbackAmount) * 100) / 100;
+}
+
 // ─── Numeração segura (atômica via RPC) ───
 async function getNextNumberSafe(supabase: ReturnType<typeof createClient>, configId: string): Promise<number> {
   const { data, error } = await supabase.rpc("next_fiscal_number" as any, {
@@ -551,20 +573,23 @@ async function handleEmit(supabase: any, body: any) {
 
   if (form.payments && Array.isArray(form.payments) && form.payments.length > 0) {
     for (const p of form.payments) {
-      const pRecord = p as Record<string, unknown>;
-      const tp = rowToTPagForNfce(pRecord);
+      const row = p as Record<string, unknown>;
+      const pixLike = isPixLikePayment(row, form.payment_method);
+      const tp = pixLike ? "17" : rowToTPagForNfce(row);
       const entry: any = {
         tPag: tp,
-        vPag: Math.round(((p as any).vPag || (p as any).value || (p as any).amount || 0) * 100) / 100,
+        vPag: resolvePaymentAmount(row, vNF),
       };
-      enrichPaymentEntry(entry, tp, p);
-      console.log(`[emit-nfce] detPag entry: method=${pRecord.method}, tPag=${tp}, hasCard=${!!entry.card}`, JSON.stringify(entry));
+      enrichPaymentEntry(entry, tp, row);
       detPag.push(entry);
     }
   } else {
-    const entry: any = { tPag: mainTpag, vPag: Math.round((form.payment_value || vNF) * 100) / 100 };
-    enrichPaymentEntry(entry, mainTpag, form);
-    console.log(`[emit-nfce] detPag single: mainTpag=${mainTpag}, hasCard=${!!entry.card}`, JSON.stringify(entry));
+    const fallbackTpag = isPixLikePayment(form as Record<string, unknown>) ? "17" : mainTpag;
+    const entry: any = {
+      tPag: fallbackTpag,
+      vPag: resolvePaymentAmount(form as Record<string, unknown>, vNF),
+    };
+    enrichPaymentEntry(entry, fallbackTpag, form);
     detPag.push(entry);
   }
 
@@ -848,10 +873,26 @@ async function handleEmitFromSale(supabase: any, body: any) {
     ? paymentRows.map((row: Record<string, unknown>) => {
       const amt = Number(row.amount ?? row.value ?? saleTotal);
       const tp = rowToTPagForNfce(row);
-      const entry: any = { tPag: tp, vPag: Math.round((Number.isFinite(amt) ? amt : saleTotal) * 100) / 100 };
-      enrichPaymentEntry(entry, tp, row);
-      console.log(`[emit-nfce] emit_from_sale detPag: method=${row.method}, rawTp=${tp}, hasCard=${!!entry.card}`, JSON.stringify(entry));
-      return entry;
+      const pm = getPrimaryPaymentMethod(row);
+      const entry: Record<string, unknown> = {
+        method: pm || undefined,
+        tPag: tp,
+        vPag: Math.round((Number.isFinite(amt) ? amt : saleTotal) * 100) / 100,
+      };
+      const copyIf = (k: string, v: unknown) => {
+        if (v != null && v !== "") entry[k] = v;
+      };
+      copyIf("nsu", row.nsu);
+      copyIf("auth_code", row.auth_code ?? row.authCode);
+      copyIf("authCode", row.authCode);
+      copyIf("card_last_digits", row.card_last_digits ?? row.cardLastDigits);
+      copyIf("cardLastDigits", row.cardLastDigits);
+      copyIf("pix_tx_id", row.pix_tx_id ?? row.pixTxId);
+      copyIf("pixTxId", row.pixTxId);
+      copyIf("installments", row.installments ?? row.parcelas);
+      const entryAny = entry as any;
+      enrichPaymentEntry(entryAny, tp, row);
+      return entryAny;
     })
     : [{ tPag: mainPay !== "99" ? mainPay : "01", vPag: Math.round(saleTotal * 100) / 100 }];
 

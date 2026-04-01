@@ -53,6 +53,25 @@ function visibilityPendingResponse(saleId: string, queueId: string, reason: stri
   );
 }
 
+function buildNextRetryAt(attempts: number): string {
+  const retryScheduleMs = [60_000, 120_000, 300_000, 600_000, 900_000];
+  const delayMs = retryScheduleMs[Math.max(0, Math.min(attempts - 1, retryScheduleMs.length - 1))];
+  return new Date(Date.now() + delayMs).toISOString();
+}
+
+function forcePixPaymentRow(row: Record<string, unknown>, fallbackAmount: number): Record<string, unknown> {
+  const amount = Number(row.amount ?? row.value ?? fallbackAmount);
+  return {
+    ...row,
+    method: "pix",
+    payment_method: "pix",
+    tPag: "17",
+    amount: Number.isFinite(amount) ? amount : fallbackAmount,
+    value: Number.isFinite(amount) ? amount : fallbackAmount,
+    pix_tx_id: row.pix_tx_id ?? row.pixTxId ?? `PIX-${Date.now()}`,
+  };
+}
+
 /**
  * Chama `emit-nfce` com Authorization confiável.
  * Usamos **service role** aqui (servidor→servidor): o JWT do usuário falha com frequência em Edge→Edge
@@ -107,11 +126,14 @@ Deno.serve(async (req) => {
   }
 
   try {
+    const body = await req.json().catch(() => ({}));
+    if (body.health_check === true) {
+      return jsonResponse({ ok: true, service: "process-fiscal-queue" });
+    }
+
     // Only authenticated users can trigger queue processing (prevents public abuse)
     const auth = await requireUser(req);
     if (!auth.ok) return auth.response;
-
-    const body = await req.json().catch(() => ({}));
     const companyFilter = body.company_id;
     const saleFilter = body.sale_id;
     const queueFilter = body.queue_id;
@@ -129,12 +151,18 @@ Deno.serve(async (req) => {
     const supabase: any = createServiceClient();
 
     // 1️⃣ Resetar itens presos em "processing" há mais de 5 minutos
+    const nowIso = new Date().toISOString();
     const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
     let stuckQuery = supabase
       .from("fiscal_queue")
-      .update({ status: "pending" })
+      .update({
+        status: "pending",
+        updated_at: nowIso,
+        started_at: null,
+        next_retry_at: nowIso,
+      })
       .eq("status", "processing")
-      .lt("created_at", fiveMinAgo);
+      .lt("updated_at", fiveMinAgo);
 
     if (companyFilter) stuckQuery = stuckQuery.eq("company_id", companyFilter);
     await stuckQuery;
@@ -146,7 +174,11 @@ Deno.serve(async (req) => {
     let pendingQuery: any = supabase
       .from("fiscal_queue")
       .select("*");
-    if (!hasSpecificTarget) pendingQuery = pendingQuery.eq("status", "pending");
+    if (!hasSpecificTarget) {
+      pendingQuery = pendingQuery
+        .eq("status", "pending")
+        .or(`next_retry_at.is.null,next_retry_at.lte.${nowIso}`);
+    }
     else pendingQuery = pendingQuery.in("status", ["pending", "processing"]);
     if (companyFilter) pendingQuery = pendingQuery.eq("company_id", companyFilter);
     if (queueFilter) pendingQuery = pendingQuery.eq("id", String(queueFilter));
@@ -166,7 +198,12 @@ Deno.serve(async (req) => {
     if (attempts > MAX_RETRIES) {
       await Promise.all([
         supabase.from("fiscal_queue")
-          .update({ status: "dead_letter", last_error: `Excedeu ${MAX_RETRIES} processamentos na fila` })
+          .update({
+            status: "dead_letter",
+            last_error: `Excedeu ${MAX_RETRIES} processamentos na fila`,
+            updated_at: nowIso,
+            finished_at: nowIso,
+          })
           .eq("id", queueId),
         supabase.from("sales")
           .update({ status: "erro_fiscal" })
@@ -182,7 +219,14 @@ Deno.serve(async (req) => {
     // 3️⃣ Marcar como processing (se já estiver processing, só atualiza attempts)
     await supabase
       .from("fiscal_queue")
-      .update({ status: "processing", attempts })
+      .update({
+        status: "processing",
+        attempts,
+        started_at: nowIso,
+        updated_at: nowIso,
+        next_retry_at: null,
+        finished_at: null,
+      })
       .eq("id", queueId);
 
     // 4️⃣ Buscar config fiscal com fallback (NFC-e -> NF-e)
@@ -202,7 +246,7 @@ Deno.serve(async (req) => {
       const reason = cfgErr?.message || "Nenhuma configuração fiscal encontrada";
       await Promise.all([
         supabase.from("fiscal_queue")
-          .update({ status: "error", last_error: reason })
+          .update({ status: "error", last_error: reason, updated_at: nowIso, finished_at: nowIso })
           .eq("id", queueId),
         supabase.from("sales")
           .update({ status: "pendente_fiscal" })
@@ -252,7 +296,12 @@ Deno.serve(async (req) => {
       if (sale && String((sale as any).company_id || "") !== String(companyId)) {
         console.error(`[process-fiscal-queue] ${t0} SECURITY_ERROR: Venda não pertence à empresa. sale_id=${saleId}, company_mismatch=true`);
         await supabase.from("fiscal_queue")
-          .update({ status: "error", last_error: "Venda não pertence à empresa deste processamento." })
+          .update({
+            status: "error",
+            last_error: "Venda não pertence à empresa deste processamento.",
+            updated_at: new Date().toISOString(),
+            finished_at: new Date().toISOString(),
+          })
           .eq("id", queueId);
         return new Response(
           JSON.stringify({ success: false, error: "Venda não pertence à empresa", sale_id: saleId }),
@@ -304,7 +353,12 @@ Deno.serve(async (req) => {
         `Venda/itens não visíveis após ${maxVisibilityReads} leituras (backoff ${visibilityBackoffMs.join(",")}ms, ${totalVisibilityWaitMs}ms total). ${errDetail}`;
       console.error(`[process-fiscal-queue] ${new Date().toISOString()} ❌ VISIBILITY_ERROR: queue_id=${queueId}, sale_id=${saleId}, attempts=${attempts}: ${fatalMsg}`);
       await supabase.from("fiscal_queue")
-        .update({ status: "error", last_error: fatalMsg })
+        .update({
+          status: "error",
+          last_error: fatalMsg,
+          updated_at: new Date().toISOString(),
+          finished_at: new Date().toISOString(),
+        })
         .eq("id", queueId);
       return new Response(
         JSON.stringify({ success: false, error: fatalMsg, sale_id: saleId, queue_id: queueId }),
@@ -330,7 +384,14 @@ Deno.serve(async (req) => {
           .eq("id", saleId)
           .eq("company_id", companyId),
         supabase.from("fiscal_queue")
-          .update({ status: "done", processed_at: new Date().toISOString(), last_error: null })
+          .update({
+            status: "done",
+            processed_at: new Date().toISOString(),
+            last_error: null,
+            updated_at: new Date().toISOString(),
+            finished_at: new Date().toISOString(),
+            next_retry_at: null,
+          })
           .eq("id", queueId),
       ]);
 
@@ -357,12 +418,47 @@ Deno.serve(async (req) => {
             .eq("id", saleId)
             .eq("company_id", companyId),
           supabase.from("fiscal_queue")
-            .update({ status: "done", processed_at: new Date().toISOString(), last_error: null })
+            .update({
+              status: "done",
+              processed_at: new Date().toISOString(),
+              last_error: null,
+              updated_at: new Date().toISOString(),
+              finished_at: new Date().toISOString(),
+              next_retry_at: null,
+            })
             .eq("id", queueId),
         ]);
 
         return new Response(
           JSON.stringify({ success: true, skipped: true, sale_id: saleId, reason: "Documento autorizado após consulta" }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      if (!consultError && consultedData && consultedData.success === true && consultedData.status === "rejeitada") {
+        const rejectReason = String(
+          consultedData.rejection_reason ||
+          consultedData.error ||
+          "Documento rejeitado no provedor fiscal",
+        );
+        await Promise.all([
+          supabase.from("sales")
+            .update({ status: "erro_fiscal" })
+            .eq("id", saleId)
+            .eq("company_id", companyId),
+          supabase.from("fiscal_queue")
+            .update({
+              status: "error",
+              last_error: rejectReason,
+              updated_at: new Date().toISOString(),
+              finished_at: new Date().toISOString(),
+              next_retry_at: null,
+            })
+            .eq("id", queueId),
+        ]);
+
+        return new Response(
+          JSON.stringify({ success: false, rejected: true, sale_id: saleId, error: rejectReason }),
           { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
@@ -374,11 +470,17 @@ Deno.serve(async (req) => {
     const defaultPisCofins = isSimples ? "49" : "01";
     const saleTotal = Number((sale as any).total ?? (sale as any).total_value ?? 0);
     let paymentRows = parseSalePaymentsJson((sale as any).payments);
+    const salePaymentMethod = String((sale as any).payment_method ?? "").trim().toLowerCase();
     if (paymentRows.length === 0) {
       const pm = (sale as any).payment_method;
       if (typeof pm === "string" && pm.trim()) {
         paymentRows = [{ method: pm.trim(), amount: saleTotal, change_amount: 0 }];
       }
+    }
+    if (salePaymentMethod === "pix") {
+      paymentRows = paymentRows.length > 0
+        ? paymentRows.map((row, idx) => idx === 0 ? forcePixPaymentRow(row, saleTotal) : row)
+        : [forcePixPaymentRow({}, saleTotal)];
     }
 
     const snapByPid = fiscalSnapshotByProductId((sale as any).items);
@@ -396,7 +498,12 @@ Deno.serve(async (req) => {
       const errMsg = `Produto(s) sem NCM válido: ${names}. Cadastre o NCM antes de emitir NFC-e.`;
       console.error(`[process-fiscal-queue] ${new Date().toISOString()} ❌ NCM_VALIDATION_ERROR: sale_id=${saleId}, items_without_ncm=${itemsWithoutNcm.length}`);
       await supabase.from("fiscal_queue")
-        .update({ status: "error", last_error: errMsg })
+        .update({
+          status: "error",
+          last_error: errMsg,
+          updated_at: new Date().toISOString(),
+          finished_at: new Date().toISOString(),
+        })
         .eq("id", queueId);
       return new Response(
         JSON.stringify({ success: false, error: errMsg, sale_id: saleId }),
@@ -441,11 +548,33 @@ Deno.serve(async (req) => {
     const fiscalPayments = paymentRows.length > 0
       ? paymentRows.map((row: Record<string, unknown>) => {
         const amt = Number(row.amount ?? row.value ?? saleTotal);
-        return {
-          method: getPrimaryPaymentMethod(row),
-          tPag: rowToTPagForNfce(row),
+        const tp = rowToTPagForNfce(row);
+        const pm = getPrimaryPaymentMethod(row);
+        const entry: Record<string, unknown> = {
+          method: pm || undefined,
+          tPag: tp,
           vPag: Math.round((Number.isFinite(amt) ? amt : saleTotal) * 100) / 100,
         };
+        const copyIf = (k: string, v: unknown) => {
+          if (v != null && v !== "") entry[k] = v;
+        };
+        copyIf("nsu", row.nsu);
+        copyIf("auth_code", row.auth_code ?? row.authCode);
+        copyIf("authCode", row.authCode);
+        copyIf("card_last_digits", row.card_last_digits ?? row.cardLastDigits);
+        copyIf("cardLastDigits", row.cardLastDigits);
+        copyIf("pix_tx_id", row.pix_tx_id ?? row.pixTxId);
+        copyIf("pixTxId", row.pixTxId);
+        copyIf("installments", row.installments ?? row.parcelas);
+        copyIf("cnpj_credenciadora", row.cnpj_credenciadora);
+        const card =
+          row.card && typeof row.card === "object"
+            ? (row.card as Record<string, unknown>)
+            : undefined;
+        copyIf("tpIntegra", row.tpIntegra ?? card?.tpIntegra);
+        copyIf("tBand", row.tBand ?? card?.tBand);
+        copyIf("cAut", row.cAut ?? card?.cAut);
+        return entry;
       })
       : [{ tPag: mainPayTpag !== "99" ? mainPayTpag : "01", vPag: Math.round(saleTotal * 100) / 100 }];
 
@@ -480,16 +609,29 @@ Deno.serve(async (req) => {
       if (attempts >= MAX_RETRIES) {
         console.error(`[process-fiscal-queue] ${new Date().toISOString()} ❌ RATE_LIMIT_MAX_RETRIES: sale_id=${saleId}, marking as ERROR`);
         await supabase.from("fiscal_queue")
-          .update({ status: "error", last_error: pendingMsg })
+          .update({
+            status: "error",
+            last_error: pendingMsg,
+            updated_at: new Date().toISOString(),
+            finished_at: new Date().toISOString(),
+          })
           .eq("id", queueId);
         return new Response(
           JSON.stringify({ success: false, error: pendingMsg, sale_id: saleId, queue_id: queueId }),
           { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
         );
       }
+      const nextRetryAt = buildNextRetryAt(attempts);
       await Promise.all([
         supabase.from("fiscal_queue")
-          .update({ status: "pending", last_error: pendingMsg, processed_at: null })
+          .update({
+            status: "pending",
+            last_error: pendingMsg,
+            processed_at: null,
+            updated_at: new Date().toISOString(),
+            next_retry_at: nextRetryAt,
+            finished_at: null,
+          })
           .eq("id", queueId),
         supabase.from("sales")
           .update({ status: "pendente_fiscal" })
@@ -519,7 +661,13 @@ Deno.serve(async (req) => {
       
       await Promise.all([
         supabase.from("fiscal_queue")
-          .update({ status: finalStatus, last_error: userMsg })
+          .update({
+            status: finalStatus,
+            last_error: userMsg,
+            updated_at: new Date().toISOString(),
+            finished_at: new Date().toISOString(),
+            next_retry_at: null,
+          })
           .eq("id", queueId),
         supabase.from("sales")
           .update({ status: finalStatus === "dead_letter" ? "erro_fiscal" : "pendente_fiscal" })
@@ -539,9 +687,17 @@ Deno.serve(async (req) => {
         `[process-fiscal-queue] ${new Date().toISOString()} ⏳ PROVIDER_PENDING: ` +
         `sale_id=${saleId}, queue_id=${queueId}, attempts=${attempts}/${MAX_RETRIES}, reason=${pendingMsg}`
       );
+      const nextRetryAt = buildNextRetryAt(attempts);
       await Promise.all([
         supabase.from("fiscal_queue")
-          .update({ status: "pending", last_error: pendingMsg, processed_at: null })
+          .update({
+            status: "pending",
+            last_error: pendingMsg,
+            processed_at: null,
+            updated_at: new Date().toISOString(),
+            next_retry_at: nextRetryAt,
+            finished_at: null,
+          })
           .eq("id", queueId),
         supabase.from("sales")
           .update({ status: "pendente_fiscal" })
@@ -559,7 +715,14 @@ Deno.serve(async (req) => {
         .eq("id", saleId)
         .eq("company_id", companyId),
       supabase.from("fiscal_queue")
-        .update({ status: "done", processed_at: new Date().toISOString(), last_error: null })
+        .update({
+          status: "done",
+          processed_at: new Date().toISOString(),
+          last_error: null,
+          updated_at: new Date().toISOString(),
+          finished_at: new Date().toISOString(),
+          next_retry_at: null,
+        })
         .eq("id", queueId),
     ]);
 
