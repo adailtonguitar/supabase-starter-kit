@@ -54,14 +54,15 @@ interface SaleReceiptProps {
   companyUf?: string;
   isContingency?: boolean;
   isHomologacao?: boolean;
-  customerCpf?: string;
+  customerName?: string;
+  customerDoc?: string;
   protocolNumber?: string;
   protocolDate?: string;
   tributosAprox?: number;
   onClose: () => void;
 }
 
-export function SaleReceipt({ items, total, payments, onClose, saleId, companyName, companyCnpj, companyIe, companyPhone, companyAddress, companyUf, nfceNumber: initialNfceNumber, accessKey: initialAccessKey, serie: initialSerie, isContingency, logoUrl, slogan, customerCpf, protocolNumber, protocolDate, isHomologacao, tributosAprox }: SaleReceiptProps) {
+export function SaleReceipt({ items, total, payments, onClose, saleId, companyName, companyCnpj, companyIe, companyPhone, companyAddress, companyUf, nfceNumber: initialNfceNumber, accessKey: initialAccessKey, serie: initialSerie, isContingency, logoUrl, slogan, customerName, customerDoc, protocolNumber, protocolDate, isHomologacao, tributosAprox }: SaleReceiptProps) {
   const [nfceNumber, setNfceNumber] = useState(initialNfceNumber);
   const [accessKey, setAccessKey] = useState(initialAccessKey);
   const [serie, setSerie] = useState(initialSerie);
@@ -375,8 +376,13 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
 
     const formattedKey = currentAccessKey ? escapeHtml(currentAccessKey.replace(/(\d{4})(?=\d)/g, "$1 ")) : "";
 
-    const consumerHtml = customerCpf 
-      ? `<p class="center sm bold">CPF DO CONSUMIDOR: ${escapeHtml(customerCpf)}</p>`
+    const consumerDoc = String(customerDoc || "").trim();
+    const consumerName = String(customerName || "").trim();
+    const consumerHtml = consumerDoc
+      ? `
+        ${consumerName ? `<p class="center sm bold">CONSUMIDOR: ${escapeHtml(consumerName)}</p>` : ""}
+        <p class="center sm bold">CPF/CNPJ DO CONSUMIDOR: ${escapeHtml(consumerDoc)}</p>
+      `
       : `<p class="center sm bold">CONSUMIDOR NÃO IDENTIFICADO</p>`;
 
     const protocolHtml = protocolNumber 
@@ -530,7 +536,7 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
       </html>
     `);
     printWindow.document.close();
-  }, [items, total, payments, changeAmount, companyName, companyCnpj, companyIe, companyPhone, companyAddress, companyUf, logoUrl, saleId, customerCpf, protocolNumber, protocolDate, isHomologacao, tributosAprox, resolvedDocEnvironment]);
+  }, [items, total, payments, changeAmount, companyName, companyCnpj, companyIe, companyPhone, companyAddress, companyUf, logoUrl, saleId, customerName, customerDoc, protocolNumber, protocolDate, isHomologacao, tributosAprox, resolvedDocEnvironment]);
 
   const handlePrintFiscal = useCallback(() => {
     if (fetchingFiscal) return;

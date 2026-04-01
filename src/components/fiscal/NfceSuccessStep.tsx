@@ -48,6 +48,9 @@ export function NfceSuccessStep({
   paymentOptions,
   onClose,
 }: NfceSuccessStepProps) {
+  const normalizedCustomerName = customerName.trim();
+  const normalizedCustomerDoc = customerDoc.trim();
+  const hasIdentifiedConsumer = !!normalizedCustomerDoc;
   const ambienteLabel =
     fiscalEnvironment === "homologacao"
       ? "Ambiente: Homologação — sem valor fiscal"
@@ -106,12 +109,16 @@ export function NfceSuccessStep({
         <div class="pay-row"><span>Pagamento</span><span>${paymentOptions.find(p => p.value === paymentMethod)?.label || paymentMethod}</span></div>
         ${change > 0 ? `<div class="pay-row"><span>Troco</span><span>R$ ${change.toFixed(2)}</span></div>` : ""}
       </div>
-      ${customerName ? `
+      ${hasIdentifiedConsumer ? `
         <div class="cupom-section">
-          <div><strong>Cliente:</strong> ${customerName}</div>
-          ${customerDoc ? `<div><strong>CPF/CNPJ:</strong> ${customerDoc}</div>` : ""}
+          ${normalizedCustomerName ? `<div><strong>Consumidor:</strong> ${normalizedCustomerName}</div>` : ""}
+          <div><strong>CPF/CNPJ do consumidor:</strong> ${normalizedCustomerDoc}</div>
         </div>
-      ` : ""}
+      ` : `
+        <div class="cupom-section">
+          <div><strong>Consumidor:</strong> NÃO IDENTIFICADO</div>
+        </div>
+      `}
       <div class="qr-section">
         ${document.getElementById("nfce-cupom")?.querySelector("svg")?.outerHTML || ""}
         <div class="qr-label">Consulte pelo QR Code</div>
@@ -178,10 +185,14 @@ export function NfceSuccessStep({
           )}
         </div>
 
-        {customerName && (
+        {hasIdentifiedConsumer ? (
           <div className="border-b border-dashed border-gray-400 pb-2">
-            <p><span className="font-bold">Cliente:</span> {customerName}</p>
-            {customerDoc && <p><span className="font-bold">CPF/CNPJ:</span> {customerDoc}</p>}
+            {normalizedCustomerName && <p><span className="font-bold">Consumidor:</span> {normalizedCustomerName}</p>}
+            <p><span className="font-bold">CPF/CNPJ do consumidor:</span> {normalizedCustomerDoc}</p>
+          </div>
+        ) : (
+          <div className="border-b border-dashed border-gray-400 pb-2">
+            <p><span className="font-bold">Consumidor:</span> NAO IDENTIFICADO</p>
           </div>
         )}
 

@@ -75,7 +75,8 @@ export default function PDV() {
     isContingency?: boolean;
     isHomologacao?: boolean;
     saleId?: string;
-    customerCpf?: string;
+    customerName?: string;
+    customerDoc?: string;
     protocolNumber?: string;
     protocolDate?: string;
     itemNotes?: Record<string, string>;
@@ -564,7 +565,7 @@ export default function PDV() {
         items: savedItems, total: savedTotal, payments: tefResults, nfceNumber: result.nfceNumber,
         accessKey: result.accessKey, serie: result.serie, isContingency: result.isContingency,
         isHomologacao: result.isHomologacao,
-        saleId: result.saleId, customerCpf: savedClient?.cpf || undefined,
+        saleId: result.saleId, customerName: savedClient?.name || undefined, customerDoc: savedClient?.cpf || undefined,
         itemNotes: savedItemNotes, promoMatches: savedPromoMatches,
       });
       setSelectedClient(null);
@@ -867,7 +868,7 @@ export default function PDV() {
           items={receipt.items.map((i) => ({ id: i.id, name: i.name, price: i.price, category: i.category || "", sku: i.sku, ncm: i.ncm || "", unit: i.unit, stock: i.stock_quantity, quantity: i.quantity, notes: receipt.itemNotes?.[i.id] || undefined, discount: receipt.promoMatches?.[i.id]?.totalSavings || 0, promoName: receipt.promoMatches?.[i.id]?.promoName }))}
           total={receipt.total} payments={receipt.payments} nfceNumber={receipt.nfceNumber}
           accessKey={receipt.accessKey} serie={receipt.serie} isContingency={receipt.isContingency} isHomologacao={receipt.isHomologacao} saleId={receipt.saleId}
-          slogan={slogan || undefined} logoUrl={logoUrl || undefined} companyName={companyName || undefined} companyCnpj={cnpj || undefined} companyIe={ie || undefined} companyPhone={phone || undefined} companyUf={addressState || undefined} customerCpf={receipt.customerCpf}
+          slogan={slogan || undefined} logoUrl={logoUrl || undefined} companyName={companyName || undefined} companyCnpj={cnpj || undefined} companyIe={ie || undefined} companyPhone={phone || undefined} companyUf={addressState || undefined} customerName={receipt.customerName} customerDoc={receipt.customerDoc}
           companyAddress={[addressStreet, addressNumber, addressNeighborhood, addressCity, addressState].filter(Boolean).join(', ') || undefined}
           onClose={() => setReceipt(null)}
         />
