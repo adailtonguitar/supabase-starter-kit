@@ -378,10 +378,11 @@ export function SaleReceipt({ items, total, payments, onClose, saleId, companyNa
 
     const consumerDoc = String(customerDoc || "").trim();
     const consumerName = String(customerName || "").trim();
+    const consumerDocLabel = consumerDoc.length === 14 ? "CNPJ" : "CPF";
     const consumerHtml = consumerDoc
       ? `
         ${consumerName ? `<p class="center sm bold">CONSUMIDOR: ${escapeHtml(consumerName)}</p>` : ""}
-        <p class="center sm bold">CPF/CNPJ DO CONSUMIDOR: ${escapeHtml(consumerDoc)}</p>
+        <p class="center sm bold">${consumerDocLabel}: ${escapeHtml(consumerDoc)}</p>
       `
       : `<p class="center sm bold">CONSUMIDOR NÃO IDENTIFICADO</p>`;
 

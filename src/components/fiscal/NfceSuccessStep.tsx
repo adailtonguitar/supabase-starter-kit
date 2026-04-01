@@ -51,6 +51,7 @@ export function NfceSuccessStep({
   const normalizedCustomerName = customerName.trim();
   const normalizedCustomerDoc = customerDoc.trim();
   const hasIdentifiedConsumer = !!normalizedCustomerDoc;
+  const customerDocLabel = normalizedCustomerDoc.length === 14 ? "CNPJ" : "CPF";
   const ambienteLabel =
     fiscalEnvironment === "homologacao"
       ? "Ambiente: Homologação — sem valor fiscal"
@@ -112,7 +113,7 @@ export function NfceSuccessStep({
       ${hasIdentifiedConsumer ? `
         <div class="cupom-section">
           ${normalizedCustomerName ? `<div><strong>Consumidor:</strong> ${normalizedCustomerName}</div>` : ""}
-          <div><strong>CPF/CNPJ do consumidor:</strong> ${normalizedCustomerDoc}</div>
+          <div><strong>${customerDocLabel}:</strong> ${normalizedCustomerDoc}</div>
         </div>
       ` : `
         <div class="cupom-section">
@@ -188,7 +189,7 @@ export function NfceSuccessStep({
         {hasIdentifiedConsumer ? (
           <div className="border-b border-dashed border-gray-400 pb-2">
             {normalizedCustomerName && <p><span className="font-bold">Consumidor:</span> {normalizedCustomerName}</p>}
-            <p><span className="font-bold">CPF/CNPJ do consumidor:</span> {normalizedCustomerDoc}</p>
+            <p><span className="font-bold">{customerDocLabel}:</span> {normalizedCustomerDoc}</p>
           </div>
         ) : (
           <div className="border-b border-dashed border-gray-400 pb-2">
