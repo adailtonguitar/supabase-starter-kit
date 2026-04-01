@@ -542,7 +542,7 @@ Deno.serve(async (req) => {
         payments: fiscalPayments,
         payment_method: mainPayTpag,
         customer_name: String((sale as any).customer_name ?? "").trim() || undefined,
-        customer_doc: String((sale as any).customer_doc ?? (sale as any).customer_cpf ?? "").replace(/\D/g, "") || undefined,
+        customer_doc: String((sale as any).customer_doc ?? (sale as any).customer_cpf ?? (sale as any).customer_cpf_cnpj ?? "").replace(/\D/g, "") || undefined,
         payment_value: saleTotal,
         change: primary?.change || 0,
         items: fiscalItems,

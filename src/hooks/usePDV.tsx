@@ -231,7 +231,13 @@ export function usePDV() {
           .from("sales")
           .update({
             ...(fiscalCustomerName ? { customer_name: fiscalCustomerName } : {}),
-            ...(fiscalCustomerDoc ? { customer_doc: fiscalCustomerDoc, customer_cpf: fiscalCustomerDoc } : {}),
+            ...(fiscalCustomerDoc
+              ? {
+                  customer_doc: fiscalCustomerDoc,
+                  customer_cpf: fiscalCustomerDoc,
+                  customer_cpf_cnpj: fiscalCustomerDoc,
+                }
+              : {}),
           } as Record<string, unknown>)
           .eq("id", saleId)
           .eq("company_id", companyId);
