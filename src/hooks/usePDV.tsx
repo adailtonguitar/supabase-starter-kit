@@ -360,7 +360,10 @@ export function usePDV() {
 
             const FISCAL_TIMEOUT_MS = 28_000;
             try {
-              const fiscalPromise = processFiscalEmission(saleId, queueId);
+              const fiscalPromise = processFiscalEmission(saleId, queueId, {
+                customer_name: fiscalCustomerName || undefined,
+                customer_doc: fiscalCustomerDoc || undefined,
+              });
 
               const raced = await Promise.race([
                 fiscalPromise.then((r) => ({ done: true as const, r })),

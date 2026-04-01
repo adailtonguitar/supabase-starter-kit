@@ -16,6 +16,11 @@ type FiscalResult = {
   status: "autorizada" | "pendente";
 };
 
+type FiscalCustomerOverride = {
+  customer_name?: string;
+  customer_doc?: string;
+};
+
 function normalizeQueueStatus(value: unknown): FiscalQueueState {
   const status = String(value || "").toLowerCase();
   if (status === "pending" || status === "processing" || status === "done" || status === "error" || status === "dead_letter") {
@@ -98,11 +103,17 @@ export function usePDVFiscal(companyId: string | null) {
     };
   }, [companyId]);
 
-  const triggerQueueProcessing = useCallback(async (saleId: string, queueId: string) => {
+  const triggerQueueProcessing = useCallback(async (saleId: string, queueId: string, fiscalCustomer?: FiscalCustomerOverride) => {
     if (!companyId) throw new Error("Empresa não identificada");
 
     const { error } = await supabase.functions.invoke("process-fiscal-queue", {
-      body: { company_id: companyId, sale_id: saleId, queue_id: queueId },
+      body: {
+        company_id: companyId,
+        sale_id: saleId,
+        queue_id: queueId,
+        ...(fiscalCustomer?.customer_name ? { customer_name: fiscalCustomer.customer_name } : {}),
+        ...(fiscalCustomer?.customer_doc ? { customer_doc: fiscalCustomer.customer_doc } : {}),
+      },
     });
 
     if (error) {
@@ -129,7 +140,7 @@ export function usePDVFiscal(companyId: string | null) {
     return enqueueFiscal(saleId);
   }, [companyId, enqueueFiscal]);
 
-  const waitForFiscalQueue = useCallback(async (saleId: string, queueId: string): Promise<FiscalResult> => {
+  const waitForFiscalQueue = useCallback(async (saleId: string, queueId: string, fiscalCustomer?: FiscalCustomerOverride): Promise<FiscalResult> => {
     const startedAt = Date.now();
     const MAX_QUEUE_WAIT_MS = 120_000;
     const POLL_INTERVAL_MS = 1_000;
@@ -159,7 +170,7 @@ export function usePDVFiscal(companyId: string | null) {
 
       if (Date.now() - lastTriggerAt >= POLL_INTERVAL_MS) {
         lastTriggerAt = Date.now();
-        await triggerQueueProcessing(saleId, queueId);
+        await triggerQueueProcessing(saleId, queueId, fiscalCustomer);
       }
 
       await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
@@ -168,7 +179,11 @@ export function usePDVFiscal(companyId: string | null) {
     return loadFinalFiscalState(saleId);
   }, [loadFinalFiscalState, triggerQueueProcessing]);
 
-  const processFiscalEmission = useCallback(async (saleId: string, queueId?: string): Promise<FiscalResult> => {
+  const processFiscalEmission = useCallback(async (
+    saleId: string,
+    queueId?: string,
+    fiscalCustomer?: FiscalCustomerOverride,
+  ): Promise<FiscalResult> => {
     if (!companyId) throw new Error("Empresa não identificada");
 
     const activeQueueId = await ensureQueue(saleId, queueId);
@@ -176,8 +191,8 @@ export function usePDVFiscal(companyId: string | null) {
       throw new Error("Não foi possível enfileirar a NFC-e");
     }
 
-    await triggerQueueProcessing(saleId, activeQueueId);
-    return waitForFiscalQueue(saleId, activeQueueId);
+    await triggerQueueProcessing(saleId, activeQueueId, fiscalCustomer);
+    return waitForFiscalQueue(saleId, activeQueueId, fiscalCustomer);
   }, [companyId, ensureQueue, triggerQueueProcessing, waitForFiscalQueue]);
 
   const startBackgroundFiscalProcessing = useCallback((saleId: string, queueId: string) => {

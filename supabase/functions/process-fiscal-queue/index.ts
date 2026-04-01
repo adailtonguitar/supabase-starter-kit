@@ -123,6 +123,8 @@ Deno.serve(async (req) => {
     const companyFilter = body.company_id;
     const saleFilter = body.sale_id;
     const queueFilter = body.queue_id;
+    const customerNameOverride = String(body.customer_name || "").trim();
+    const customerDocOverride = String(body.customer_doc || "").replace(/\D/g, "");
 
     if (companyFilter) {
       const membership = await requireCompanyMembership({
@@ -527,6 +529,12 @@ Deno.serve(async (req) => {
     const primary = normalizedPayments[0];
     const mainPayTpag = primary?.tPag || "99";
     const fiscalPayments = normalizedPayments.map((payment) => payment.sanitized);
+    const fiscalCustomerName =
+      customerNameOverride ||
+      String((sale as any).customer_name ?? (sale as any).client_name ?? (sale as any).counterpart ?? "").trim();
+    const fiscalCustomerDoc =
+      customerDocOverride ||
+      String((sale as any).customer_doc ?? (sale as any).customer_cpf ?? "").replace(/\D/g, "");
 
     // 6️⃣ Chamar emissão fiscal (service role → emit-nfce; usuário já validado acima)
     console.log(`[process-fiscal-queue] ${new Date().toISOString()} 📤 Iniciando emissão fiscal: sale_id=${saleId}, queue_id=${queueId}, attempts=${attempts}/${MAX_RETRIES}`);
@@ -541,8 +549,8 @@ Deno.serve(async (req) => {
         crt,
         payments: fiscalPayments,
         payment_method: mainPayTpag,
-        customer_name: String((sale as any).customer_name ?? (sale as any).client_name ?? (sale as any).counterpart ?? "").trim() || undefined,
-        customer_doc: String((sale as any).customer_doc ?? (sale as any).customer_cpf ?? "").replace(/\D/g, "") || undefined,
+        customer_name: fiscalCustomerName || undefined,
+        customer_doc: fiscalCustomerDoc || undefined,
         payment_value: saleTotal,
         change: primary?.change || 0,
         items: fiscalItems,
