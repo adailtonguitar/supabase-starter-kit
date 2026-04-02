@@ -35,7 +35,12 @@ export function useConsolidatedReport(dateFrom?: Date, dateTo?: Date) {
       type CompanyRow = { id: string; name: string };
       type SaleRow = { total: number | string | null };
 
-      const memberships = await fetchMyCompanyMemberships(user.id);
+      let memberships: Awaited<ReturnType<typeof fetchMyCompanyMemberships>>;
+      try {
+        memberships = await fetchMyCompanyMemberships(user.id);
+      } catch {
+        return { branches: [], totalSales: 0, totalSalesCount: 0, totalProducts: 0, totalClients: 0 };
+      }
       const companyIds = memberships.filter((m) => m.is_active).map((m) => m.company_id);
       if (companyIds.length === 0) {
         return { branches: [], totalSales: 0, totalSalesCount: 0, totalProducts: 0, totalClients: 0 };

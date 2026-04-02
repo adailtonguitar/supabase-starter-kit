@@ -59,6 +59,9 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [companyCheckDone, setCompanyCheckDone] = useState(false);
   const [timedOut, setTimedOut] = useState(false);
+  const [membershipFetchFailed, setMembershipFetchFailed] = useState(false);
+  /** null = ainda não checamos; 0 = sem vínculo ativo; >0 = tem empresa mas companyId pode não ter resolvido (ex.: RLS em companies). */
+  const [activeMembershipCount, setActiveMembershipCount] = useState<number | null>(null);
 
   // Só contar depois de auth + empresa + checagem de memberships — evita modal falso durante
   // várias idas ao Supabase ou enquanto checkCompany ainda roda.
@@ -82,11 +85,13 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
         try {
           const memberships = await fetchMyCompanyMemberships(user.id);
 
+          const activeCount = memberships.filter((m) => m.is_active).length;
+          setActiveMembershipCount(activeCount);
           if (memberships.length === 0) {
             setShowOnboarding(true);
           } else {
             setShowOnboarding(false);
-            if (!memberships.some((m) => m.is_active)) {
+            if (activeCount === 0) {
               hasSignedOut.current = true;
               toast.error("Sua conta foi desativada. Entre em contato com o administrador.");
               signOut();
@@ -94,6 +99,9 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
           }
         } catch (err) {
           console.error("[ProtectedRoute] Company check failed:", err);
+          setMembershipFetchFailed(true);
+          setShowOnboarding(false);
+          setActiveMembershipCount(null);
         }
         setCompanyCheckDone(true);
       };
@@ -108,8 +116,14 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
       hasSignedOut.current = false;
       setShowOnboarding(false);
       setCompanyCheckDone(false);
+      setMembershipFetchFailed(false);
+      setActiveMembershipCount(null);
     }
   }, [user]);
+
+  useEffect(() => {
+    if (companyId) setMembershipFetchFailed(false);
+  }, [companyId]);
 
   // Assim que a empresa resolve (ex.: após criar no wizard + reload), não manter wizard preso.
   useEffect(() => {
@@ -160,6 +174,57 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
               Aguardar
             </button>
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (membershipFetchFailed && !companyId && !showOnboarding) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-background p-6">
+        <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-xl space-y-3">
+          <div className="text-lg font-bold text-foreground">Não foi possível confirmar sua empresa</div>
+          <div className="text-sm text-muted-foreground">
+            A API não respondeu ao buscar seus vínculos (empresas). Isso costuma ser erro temporário no servidor ou política de segurança (RLS). Você{" "}
+            <strong className="text-foreground">não</strong> foi tratado como conta nova — recarregue após corrigir o backend.
+          </div>
+          <button
+            type="button"
+            className="w-full px-4 py-2 rounded-xl bg-primary text-primary-foreground font-semibold text-sm hover:bg-primary/90 transition-colors"
+            onClick={() => window.location.reload()}
+          >
+            Recarregar página
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (
+    companyCheckDone &&
+    !companyLoading &&
+    !companyId &&
+    !showOnboarding &&
+    !membershipFetchFailed &&
+    activeMembershipCount !== null &&
+    activeMembershipCount > 0
+  ) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-background p-6">
+        <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-xl space-y-3">
+          <div className="text-lg font-bold text-foreground">Sua conta já tem empresa cadastrada</div>
+          <div className="text-sm text-muted-foreground">
+            O sistema encontrou vínculo ativo com uma ou mais empresas, mas não conseguiu carregar o painel (erro 500 nas consultas ao Supabase, em geral RLS). Isso{" "}
+            <strong className="text-foreground">não</strong> é fluxo de primeiro acesso. Aplique a migration{" "}
+            <code className="text-xs bg-muted px-1 rounded">current_user_company_ids</code> no SQL Editor do projeto e recarregue.
+          </div>
+          <button
+            type="button"
+            className="w-full px-4 py-2 rounded-xl bg-primary text-primary-foreground font-semibold text-sm hover:bg-primary/90 transition-colors"
+            onClick={() => window.location.reload()}
+          >
+            Recarregar página
+          </button>
         </div>
       </div>
     );

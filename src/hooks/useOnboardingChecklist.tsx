@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useCompany } from "@/hooks/useCompany";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchMyCompanyMemberships } from "@/lib/company-memberships";
 
 export interface OnboardingStep {
   id: string;
@@ -385,7 +386,12 @@ export function useOnboardingChecklist() {
     !state.dismissed &&
     !allDone;
   const showWelcomeModal =
-    welcomeLoaded && !!user && !companyLoading && !welcomeSeen && !tenantReady;
+    welcomeLoaded &&
+    memberProbe === "none" &&
+    !!user &&
+    !companyLoading &&
+    !welcomeSeen &&
+    !tenantReady;
 
   return {
     steps,

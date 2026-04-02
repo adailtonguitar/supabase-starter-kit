@@ -40,8 +40,13 @@ export async function fetchMyCompanyMemberships(userId: string): Promise<Company
     .select("company_id, is_active")
     .eq("user_id", userId);
 
-  if (qErr || !rows?.length) return [];
-  return rows.map((r) => ({
+  // Erro real ≠ “sem empresas”. Antes devolvíamos [] e o app abria onboarding de conta nova (falso positivo com RLS 500).
+  if (qErr) {
+    console.error("[fetchMyCompanyMemberships] company_users fallback:", qErr.message);
+    throw new Error(qErr.message);
+  }
+
+  return (rows ?? []).map((r) => ({
     company_id: r.company_id as string,
     is_active: !!(r as { is_active?: boolean }).is_active,
   }));

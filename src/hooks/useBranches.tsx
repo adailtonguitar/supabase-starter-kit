@@ -33,7 +33,12 @@ export function useBranches() {
       };
 
       // Mesma fonte que useCompany: RPC bypassa RLS em company_users (SELECT direto pode vir []).
-      const memberships = await fetchMyCompanyMemberships(user.id);
+      let memberships: Awaited<ReturnType<typeof fetchMyCompanyMemberships>>;
+      try {
+        memberships = await fetchMyCompanyMemberships(user.id);
+      } catch {
+        return [];
+      }
       const companyIds = memberships.filter((m) => m.is_active).map((m) => m.company_id);
       if (companyIds.length === 0) return [];
 
