@@ -7,11 +7,10 @@ import { useOnboardingChecklist } from "@/hooks/useOnboardingChecklist";
 const WELCOME_VIDEO_URL = "https://fsvxpxziotklbxkivyug.supabase.co/storage/v1/object/public/assets/antho-welcome-audio.mp4";
 
 export function WelcomeModal() {
-  const { welcomeSeen, welcomeLoaded, markWelcomeSeen } = useOnboardingChecklist();
+  const { showWelcomeModal, markWelcomeSeen } = useOnboardingChecklist();
   const [step, setStep] = useState<"video" | "done">("video");
 
-  if (!welcomeLoaded) return null;
-  if (welcomeSeen) return null;
+  if (!showWelcomeModal) return null;
 
   return (
     <AnimatePresence>
@@ -30,6 +29,7 @@ export function WelcomeModal() {
         >
           {/* Close button */}
           <button
+            type="button"
             onClick={markWelcomeSeen}
             className="absolute top-4 right-4 z-10 p-2 rounded-full bg-background/80 hover:bg-background transition-colors"
           >
@@ -88,6 +88,7 @@ export function WelcomeModal() {
                   <span className="text-sm font-semibold">Vamos configurar tudo!</span>
                 </div>
                 <button
+                  type="button"
                   onClick={markWelcomeSeen}
                   className="px-6 py-2.5 rounded-xl bg-primary text-primary-foreground font-semibold text-sm hover:bg-primary/90 transition-colors flex items-center gap-2"
                 >

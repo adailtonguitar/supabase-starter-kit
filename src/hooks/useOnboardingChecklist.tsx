@@ -1,5 +1,6 @@
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { useCompany } from "@/hooks/useCompany";
 import { supabase } from "@/integrations/supabase/client";
 
 export interface OnboardingStep {
@@ -78,6 +79,9 @@ function saveState(storageKey: string, state: OnboardingState) {
 
 export function useOnboardingChecklist() {
   const { user } = useAuth();
+  const { companyId, loading: companyLoading } = useCompany();
+  /** Empresa ativa já resolvida — quem está no app com tenant não é “primeiro login” de conta. */
+  const tenantReady = !!companyId && !companyLoading;
   const onboardingKey = useMemo(() => (user?.id ? `${STORAGE_KEY}:${user.id}` : STORAGE_KEY), [user?.id]);
   const [state, setState] = useState<OnboardingState>(() => loadState(onboardingKey));
   const welcomeKey = useMemo(() => (user?.id ? `${WELCOME_KEY}:${user.id}` : WELCOME_KEY), [user?.id]);
@@ -149,6 +153,33 @@ export function useOnboardingChecklist() {
     };
   }, [user?.id]);
 
+  const markWelcomeSeen = useCallback(() => {
+    setWelcomeSeen(true);
+    try {
+      localStorage.setItem(welcomeKey, "true");
+    } catch {}
+    (async () => {
+      try {
+        if (!user?.id) return;
+        await supabase.from("profiles").update({ welcome_seen_at: new Date().toISOString() } as any).eq("id", user.id);
+      } catch {
+        /* best effort */
+      }
+    })();
+  }, [welcomeKey, user?.id]);
+
+  const tenantWelcomeSynced = useRef(false);
+  useEffect(() => {
+    if (!tenantReady || !user?.id) {
+      tenantWelcomeSynced.current = false;
+      return;
+    }
+    if (welcomeSeen) return;
+    if (tenantWelcomeSynced.current) return;
+    tenantWelcomeSynced.current = true;
+    markWelcomeSeen();
+  }, [tenantReady, user?.id, welcomeSeen, markWelcomeSeen]);
+
   useEffect(() => {
     saveState(onboardingKey, state);
   }, [onboardingKey, state]);
@@ -218,23 +249,44 @@ export function useOnboardingChecklist() {
     })();
   }, [user?.id]);
 
-  const markWelcomeSeen = useCallback(() => {
-    setWelcomeSeen(true);
-    try {
-      localStorage.setItem(welcomeKey, "true");
-    } catch {}
-    // Best effort: persist server-side
+  /** Contas com uso real (produto ou venda) não devem ver checklist “0 de 5” como novato. */
+  const checklistProbeDoneForCompany = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (!checklistLoaded || !tenantReady || !companyId || !user?.id) return;
+    const everyStepDone = state.completedSteps.length >= ONBOARDING_STEPS.length;
+    if (state.dismissed || everyStepDone) return;
+    if (checklistProbeDoneForCompany.current.has(companyId)) return;
+    let cancelled = false;
     (async () => {
       try {
-        if (!user?.id) return;
-        await supabase.from("profiles").update({ welcome_seen_at: new Date().toISOString() } as any).eq("id", user.id);
+        const [{ data: pRows }, { data: sRows }] = await Promise.all([
+          supabase.from("products").select("id").eq("company_id", companyId).limit(1),
+          supabase.from("sales").select("id").eq("company_id", companyId).limit(1),
+        ]);
+        if (cancelled) return;
+        checklistProbeDoneForCompany.current.add(companyId);
+        const hasActivity = (pRows?.length ?? 0) > 0 || (sRows?.length ?? 0) > 0;
+        if (hasActivity) dismissChecklist();
       } catch {
-        /* best effort */
+        checklistProbeDoneForCompany.current.add(companyId);
       }
     })();
-  }, [welcomeKey, user?.id]);
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    checklistLoaded,
+    tenantReady,
+    companyId,
+    user?.id,
+    state.dismissed,
+    state.completedSteps.length,
+    dismissChecklist,
+  ]);
 
   const resetOnboarding = useCallback(() => {
+    checklistProbeDoneForCompany.current.clear();
+    tenantWelcomeSynced.current = false;
     setState({ completedSteps: [], dismissed: false });
     setWelcomeSeen(false);
     try {
@@ -261,6 +313,8 @@ export function useOnboardingChecklist() {
   const progress = totalSteps > 0 ? (completedCount / totalSteps) * 100 : 0;
   const allDone = completedCount >= totalSteps;
   const showChecklist = !state.dismissed && !allDone;
+  const showWelcomeModal =
+    welcomeLoaded && !!user && !companyLoading && !welcomeSeen && !tenantReady;
 
   return {
     steps,
@@ -277,5 +331,6 @@ export function useOnboardingChecklist() {
     totalSteps,
     allDone,
     showChecklist,
+    showWelcomeModal,
   };
 }
