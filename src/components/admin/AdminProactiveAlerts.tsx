@@ -59,6 +59,33 @@ const TYPE_LABELS = {
 
 const DISMISSED_KEY = "admin_dismissed_alerts";
 
+/** Empresas criadas por testes E2E / tenants descartáveis — não são clientes reais. */
+function isAdminNoiseCompany(name: string): boolean {
+  const n = name.trim();
+  if (!n) return true;
+  const lower = n.toLowerCase();
+  if (lower.startsWith("loja demo")) return true;
+  if (/\be2e\b/i.test(n)) return true;
+  if (/^tenant-[ab]-\d+$/i.test(n)) return true;
+  return false;
+}
+
+/** Dias até o dia de expiração (calendário UTC), alinhado ao filtro `expires_at >= hoje` do admin. */
+function utcCalendarDaysUntilExpiry(expiresAtIso: string): number {
+  const d = new Date(expiresAtIso);
+  if (Number.isNaN(d.getTime())) return 0;
+  const expDay = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+  const now = new Date();
+  const today = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+  return Math.round((expDay - today) / 86400000);
+}
+
+function expiringSubscriptionTitle(companyName: string, daysLeft: number): string {
+  if (daysLeft <= 0) return `${companyName} vence hoje`;
+  if (daysLeft === 1) return `${companyName} vence em 1 dia`;
+  return `${companyName} vence em ${daysLeft} dias`;
+}
+
 function getDismissed(): string[] {
   try {
     return JSON.parse(localStorage.getItem(DISMISSED_KEY) || "[]");
@@ -123,8 +150,7 @@ export function AdminProactiveAlerts() {
         limit: 500,
       });
 
-      const isDemo = (name: string) => name.toLowerCase().startsWith("loja demo");
-      const allCompanies = allCompaniesRaw.filter(c => !isDemo(c.name));
+      const allCompanies = allCompaniesRaw.filter((c) => !isAdminNoiseCompany(c.name));
 
       const recentActivity = await adminQuery<{ company_id: string }>({
         table: "action_logs",
@@ -184,12 +210,12 @@ export function AdminProactiveAlerts() {
       for (const plan of expiringPlans) {
         const company = allCompanies.find(c => c.id === plan.company_id);
         if (!company) continue;
-        const daysLeft = Math.ceil((new Date(plan.expires_at).getTime() - Date.now()) / 86400000);
+        const daysLeft = utcCalendarDaysUntilExpiry(plan.expires_at);
         generatedAlerts.push({
           id: `expiring-${plan.company_id}`,
           type: "expiring",
           severity: daysLeft <= 2 ? "critical" : "warning",
-          title: `${company.name} vence em ${daysLeft} dia${daysLeft > 1 ? "s" : ""}`,
+          title: expiringSubscriptionTitle(company.name, daysLeft),
           description: `Assinatura expira em ${new Date(plan.expires_at).toLocaleDateString("pt-BR")}`,
           company_name: company.name,
           company_id: plan.company_id,
