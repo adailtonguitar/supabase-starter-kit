@@ -1,4 +1,5 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
+import { useAuth } from "@/hooks/useAuth";
 
 export interface OnboardingStep {
   id: string;
@@ -75,7 +76,9 @@ function saveState(state: OnboardingState) {
 }
 
 export function useOnboardingChecklist() {
+  const { user } = useAuth();
   const [state, setState] = useState<OnboardingState>(loadState);
+  const welcomeKey = useMemo(() => (user?.id ? `${WELCOME_KEY}:${user.id}` : WELCOME_KEY), [user?.id]);
   const [welcomeSeen, setWelcomeSeen] = useState(() => {
     try {
       return localStorage.getItem(WELCOME_KEY) === "true";
@@ -83,6 +86,21 @@ export function useOnboardingChecklist() {
       return false;
     }
   });
+
+  // Migrate legacy key -> per-user key (so old users don't see it again)
+  useEffect(() => {
+    try {
+      if (!user?.id) return;
+      const legacySeen = localStorage.getItem(WELCOME_KEY) === "true";
+      const scopedSeen = localStorage.getItem(welcomeKey) === "true";
+      if (legacySeen && !scopedSeen) {
+        localStorage.setItem(welcomeKey, "true");
+      }
+      setWelcomeSeen(localStorage.getItem(welcomeKey) === "true");
+    } catch {
+      /* best effort */
+    }
+  }, [user?.id, welcomeKey]);
 
   useEffect(() => {
     saveState(state);
@@ -102,17 +120,17 @@ export function useOnboardingChecklist() {
   const markWelcomeSeen = useCallback(() => {
     setWelcomeSeen(true);
     try {
-      localStorage.setItem(WELCOME_KEY, "true");
+      localStorage.setItem(welcomeKey, "true");
     } catch {}
-  }, []);
+  }, [welcomeKey]);
 
   const resetOnboarding = useCallback(() => {
     setState({ completedSteps: [], dismissed: false });
     setWelcomeSeen(false);
     try {
-      localStorage.removeItem(WELCOME_KEY);
+      localStorage.removeItem(welcomeKey);
     } catch {}
-  }, []);
+  }, [welcomeKey]);
 
   const steps = ONBOARDING_STEPS;
   const completedCount = state.completedSteps.length;
