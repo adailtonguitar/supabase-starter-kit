@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { PRODUCTS_ACTIVE_OR_LEGACY_NULL } from "@/lib/product-active-filter";
+import { fetchMyCompanyMemberships } from "@/lib/company-memberships";
 import { useAuth } from "./useAuth";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 
@@ -31,22 +32,14 @@ export function useConsolidatedReport(dateFrom?: Date, dateTo?: Date) {
     queryFn: async (): Promise<ConsolidatedReport> => {
       if (!user) throw new Error("Não autenticado");
 
-      type CompanyUserRow = { company_id: string };
       type CompanyRow = { id: string; name: string };
       type SaleRow = { total: number | string | null };
 
-      // Get all companies this user belongs to
-      const { data: cuData } = await supabase
-        .from("company_users")
-        .select("company_id")
-        .eq("user_id", user.id)
-        .eq("is_active", true);
-
-      if (!cuData || cuData.length === 0) {
+      const memberships = await fetchMyCompanyMemberships(user.id);
+      const companyIds = memberships.filter((m) => m.is_active).map((m) => m.company_id);
+      if (companyIds.length === 0) {
         return { branches: [], totalSales: 0, totalSalesCount: 0, totalProducts: 0, totalClients: 0 };
       }
-
-      const companyIds = (cuData as CompanyUserRow[]).map((cu) => cu.company_id);
 
       // Get company names
       const { data: companies } = await supabase

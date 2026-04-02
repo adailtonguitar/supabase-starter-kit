@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { PRODUCTS_ACTIVE_OR_LEGACY_NULL } from "@/lib/product-active-filter";
+import { fetchMyCompanyMemberships } from "@/lib/company-memberships";
 import { useAuth } from "./useAuth";
 import { toast } from "sonner";
 import { logAction } from "@/services/ActionLogger";
@@ -23,7 +24,6 @@ export function useBranches() {
     queryFn: async (): Promise<Branch[]> => {
       if (!user) return [];
 
-      type CompanyUserRow = { company_id: string };
       type CompanyRow = {
         id: string;
         name: string | null;
@@ -32,15 +32,10 @@ export function useBranches() {
         logo_url: string | null;
       };
 
-      const { data: cuData } = await supabase
-        .from("company_users")
-        .select("company_id")
-        .eq("user_id", user.id)
-        .eq("is_active", true);
-
-      if (!cuData || cuData.length === 0) return [];
-
-      const companyIds = (cuData as CompanyUserRow[]).map((cu) => cu.company_id);
+      // Mesma fonte que useCompany: RPC bypassa RLS em company_users (SELECT direto pode vir []).
+      const memberships = await fetchMyCompanyMemberships(user.id);
+      const companyIds = memberships.filter((m) => m.is_active).map((m) => m.company_id);
+      if (companyIds.length === 0) return [];
 
       const { data: companies } = await supabase
         .from("companies")
