@@ -59,9 +59,9 @@ function getCachedCompany(): CachedCompany | null {
   return null;
 }
 
-/** Sem `as_selected_company`, evita cair na empresa “vazia” quando o usuário tem vários vínculos. */
-async function pickDefaultCompanyIdAmongActives(activeIds: string[]): Promise<string> {
-  if (activeIds.length === 1) return activeIds[0];
+/** Ordena tenants ativos por volume (vendas, depois produtos) — primeiro = operação principal na prática. */
+async function rankActiveCompanyIdsByActivity(activeIds: string[]): Promise<string[]> {
+  if (activeIds.length <= 1) return [...activeIds];
   const scored = await Promise.all(
     activeIds.map(async (id) => {
       const [{ count: salesC }, { count: productsC }] = await Promise.all([
@@ -70,11 +70,35 @@ async function pickDefaultCompanyIdAmongActives(activeIds: string[]): Promise<st
       ]);
       const s = salesC ?? 0;
       const p = productsC ?? 0;
-      return { id, s, p, score: s * 1_000_000 + p };
+      return { id, score: s * 1_000_000 + p };
     }),
   );
   scored.sort((a, b) => b.score - a.score);
-  return scored[0].id;
+  return scored.map((x) => x.id);
+}
+
+/** Sem `as_selected_company`, evita cair na empresa “vazia” quando o usuário tem vários vínculos. */
+async function pickDefaultCompanyIdAmongActives(activeIds: string[]): Promise<string> {
+  const ranked = await rankActiveCompanyIdsByActivity(activeIds);
+  return ranked[0];
+}
+
+/** Tenta ler `companies` na ordem preferida até RLS retornar uma linha (evita tenant preso ilegível). */
+async function loadFirstReadableCompanyRow(
+  preferredFirst: string | null,
+  activeIds: string[],
+): Promise<{ id: string; row: CompanyRow } | null> {
+  const ranked = await rankActiveCompanyIdsByActivity(activeIds);
+  const tryIds = [...new Set([preferredFirst, ...ranked].filter((id): id is string => !!id && activeIds.includes(id)))];
+  for (const id of tryIds) {
+    const { data, error } = await supabase
+      .from("companies")
+      .select(COMPANY_SELECT)
+      .eq("id", id)
+      .maybeSingle();
+    if (!error && data) return { id, row: data as CompanyRow };
+  }
+  return null;
 }
 
 function extractCompanyFields(company: CompanyRow | null | undefined): Omit<CachedCompany, 'companyId'> {
@@ -202,7 +226,7 @@ export function useCompany(): CompanyData {
               .from("sales").select("id", { count: "exact", head: true }).eq("company_id", bestId);
             const c0 = curS ?? 0;
             const b0 = bestS ?? 0;
-            if (c0 === 0 && b0 >= 5) {
+            if (c0 === 0 && b0 >= 1) {
               localStorage.removeItem(SELECTED_COMPANY_KEY);
               resolvedCompanyId = bestId;
             }
@@ -210,12 +234,24 @@ export function useCompany(): CompanyData {
         }
         if (cancelled) return;
 
-        const { data: company } = await supabase
-          .from("companies").select(COMPANY_SELECT)
-          .eq("id", resolvedCompanyId).single();
-
+        const activeIds = memberships.filter((m) => m.is_active).map((m) => m.company_id);
+        const readable = await loadFirstReadableCompanyRow(resolvedCompanyId, activeIds);
         if (cancelled) return;
-        applyCompany(resolvedCompanyId, company);
+
+        if (readable) {
+          if (readable.id !== resolvedCompanyId) {
+            localStorage.removeItem(SELECTED_COMPANY_KEY);
+          }
+          applyCompany(readable.id, readable.row);
+        } else {
+          console.error("[useCompany] Nenhuma empresa legível via RLS para os vínculos ativos", resolvedCompanyId);
+          try {
+            localStorage.removeItem(SELECTED_COMPANY_KEY);
+            localStorage.removeItem(COMPANY_CACHE_KEY);
+          } catch { /* */ }
+          setCompanyId(null);
+          setFields(nullFields);
+        }
       } catch (err) {
         console.error("[useCompany] Failed to fetch company:", err);
         if (!cancelled && retryCount.current < 3) {
@@ -243,11 +279,10 @@ export function useCompany(): CompanyData {
 
       localStorage.setItem(SELECTED_COMPANY_KEY, newCompanyId);
 
-      const { data: company } = await supabase
-        .from("companies").select(COMPANY_SELECT)
-        .eq("id", newCompanyId).single();
-
-      applyCompany(newCompanyId, company);
+      const activeIds = memberships.filter((m) => m.is_active).map((m) => m.company_id);
+      const readable = await loadFirstReadableCompanyRow(newCompanyId, activeIds);
+      if (readable) applyCompany(readable.id, readable.row);
+      else applyCompany(newCompanyId, null);
       setLoading(false);
     })();
   }, [user, applyCompany]);

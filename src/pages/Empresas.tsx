@@ -69,7 +69,14 @@ const Empresas = () => {
     if (!companyId) { setLoading(false); return; }
     (async () => {
       setLoading(true);
-      const { data } = await supabase.from("companies").select("*").eq("id", companyId).single();
+      const { data, error } = await supabase.from("companies").select("*").eq("id", companyId).maybeSingle();
+      if (error) {
+        console.error("[Empresas] load company:", error);
+        toast.error(
+          "Não foi possível carregar a empresa (permissão ou rede). Limpe no navegador as chaves localStorage \"as_selected_company\" e \"as_cached_company\" e recarregue — ou confira as políticas RLS de \"companies\" no Supabase.",
+          { duration: 12_000 },
+        );
+      }
       if (data) {
         setForm({
           name: data.name || "",
@@ -93,6 +100,11 @@ const Empresas = () => {
           whatsapp_support: (data as any).whatsapp_support || "",
         });
         setLogoUrl(data.logo_url || null);
+      } else if (!error) {
+        toast.error(
+          "Nenhum registro de empresa encontrado para o tenant atual. Se você tem duas empresas na conta, remova \"as_selected_company\" do localStorage e atualize a página.",
+          { duration: 10_000 },
+        );
       }
       setLoading(false);
     })();
