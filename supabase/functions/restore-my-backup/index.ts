@@ -316,6 +316,7 @@ Deno.serve(async (req) => {
 
       try {
         let totalInserted = 0;
+        let insertErr: string | undefined;
         for (let i = 0; i < rows.length; i += 200) {
           const batch = rows.slice(i, i + 200);
           const { error } = await adminClient
@@ -323,12 +324,12 @@ Deno.serve(async (req) => {
             .upsert(batch, { onConflict: "id", ignoreDuplicates: false });
 
           if (error) {
-            results.push({ table, phase: "insert", count: totalInserted, error: `batch ${i}: ${error.message}` });
-          } else {
-            totalInserted += batch.length;
+            insertErr = `batch ${i}: ${error.message}`;
+            break;
           }
+          totalInserted += batch.length;
         }
-        results.push({ table, phase: "insert", count: totalInserted });
+        results.push({ table, phase: "insert", count: totalInserted, ...(insertErr ? { error: insertErr } : {}) });
       } catch (error) {
         results.push({ table, phase: "insert", count: 0, error: error instanceof Error ? error.message : "unknown" });
       }
@@ -338,6 +339,7 @@ Deno.serve(async (req) => {
     if (saleItems.length > 0) {
       try {
         let totalInserted = 0;
+        let insertErr: string | undefined;
         for (let i = 0; i < saleItems.length; i += 200) {
           const batch = saleItems.slice(i, i + 200);
           const { error } = await adminClient
@@ -345,12 +347,12 @@ Deno.serve(async (req) => {
             .upsert(batch, { onConflict: "id", ignoreDuplicates: false });
 
           if (error) {
-            results.push({ table: "sale_items", phase: "insert", count: totalInserted, error: `batch ${i}: ${error.message}` });
-          } else {
-            totalInserted += batch.length;
+            insertErr = `batch ${i}: ${error.message}`;
+            break;
           }
+          totalInserted += batch.length;
         }
-        results.push({ table: "sale_items", phase: "insert", count: totalInserted });
+        results.push({ table: "sale_items", phase: "insert", count: totalInserted, ...(insertErr ? { error: insertErr } : {}) });
       } catch (error) {
         results.push({ table: "sale_items", phase: "insert", count: 0, error: error instanceof Error ? error.message : "unknown" });
       }

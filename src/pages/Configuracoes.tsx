@@ -1131,10 +1131,19 @@ export default function Configuracoes() {
       if (data?.error) throw new Error(data.error);
 
       const results = Array.isArray(data?.results) ? data.results : [];
+      // Um resultado "insert" por tabela (servidor); evita somar linhas duplicadas de batches.
       const totalImported = results
         .filter((result: any) => result?.phase === "insert")
-        .reduce((sum: number, result: any) => sum + Number(result?.count || 0), 0);
-      const totalErrors = results.filter((result: any) => result?.error).length;
+        .reduce((sum: number, result: any) => sum + Number(result?.count ?? 0), 0);
+      const failedSteps = results.filter((result: any) => result?.error);
+      const totalErrors = failedSteps.length;
+      const errorDetail =
+        totalErrors > 0
+          ? failedSteps
+              .slice(0, 4)
+              .map((r: any) => `${r.table} (${r.phase}): ${String(r.error).slice(0, 140)}`)
+              .join("\n")
+          : "";
 
       logAction({
         companyId: data?.company_id,
@@ -1149,7 +1158,8 @@ export default function Configuracoes() {
 
       if (totalErrors > 0) {
         toast.warning(
-          `Restauração concluída${tenantHint}: ${totalImported} registros importados, ${totalErrors} ocorrência(s).`,
+          `Restauração parcial${tenantHint}: ${totalImported} registros nas tabelas OK; ${totalErrors} etapa(s) com erro (veja abaixo).`,
+          { description: errorDetail || undefined, duration: 14_000 },
         );
       } else if (data?.company_created) {
         toast.success(
@@ -1318,7 +1328,8 @@ export default function Configuracoes() {
           <div className="border-t border-border pt-4 mt-4">
             <h3 className="text-sm font-semibold text-foreground mb-2">Restaurar Backup</h3>
             <p className="text-xs text-muted-foreground mb-3">
-              Faça upload de um arquivo <strong>.json</strong> exportado pelo sistema ou do <strong>backup semanal consolidado</strong>. Se sua empresa foi apagada, ela será recriada automaticamente durante a restauração.
+              Faça upload de um arquivo <strong>.json</strong> exportado pelo sistema ou do <strong>backup semanal consolidado</strong>.{" "}
+              <strong>Não é obrigatório</strong> cadastrar a empresa antes: se você não tiver nenhuma empresa ativa na conta, ela será criada na restauração. Se já tiver mais de uma (filiais), os dados vão para a empresa em que você está usando o app agora — depois pode conferir em <strong>Filiais</strong>.
             </p>
             <input ref={fileInputRef} type="file" accept=".json" onChange={handleImportBackup} className="hidden" id="backup-file-input" />
             <Button variant="secondary" size="sm" onClick={() => fileInputRef.current?.click()} disabled={importing || exporting}>
