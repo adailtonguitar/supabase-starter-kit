@@ -5,6 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
 import { Download, Upload, Loader2, Database, CheckCircle, AlertTriangle, FileJson, ChevronsUpDown, Check, Mail, PlayCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -15,6 +22,40 @@ import { useAuth } from "@/hooks/useAuth";
 
 const BACKUP_TABLES = ["products", "sales", "sale_items", "clients", "suppliers", "financial_entries", "stock_movements", "employees", "cash_sessions"];
 
+/** Trecho de uma empresa dentro do JSON do backup semanal (email). */
+type WeeklyBackupSlice = {
+  company_id: string;
+  company_name: string;
+  data: Record<string, unknown[]>;
+};
+
+type BackupImportMeta = {
+  company_name: string;
+  exported_at: string;
+  tables: { table: string; rows: number }[];
+  company_id?: string;
+};
+
+function tablesSummaryFromData(data: Record<string, unknown[]>): { table: string; rows: number }[] {
+  return Object.keys(data).map((table) => ({
+    table,
+    rows: Array.isArray(data[table]) ? data[table].length : 0,
+  }));
+}
+
+function weeklySliceToImportPayload(slice: WeeklyBackupSlice, exportedAt: string) {
+  const data = slice.data;
+  return {
+    metadata: {
+      company_id: slice.company_id,
+      company_name: slice.company_name?.trim() || "Sem nome",
+      exported_at: exportedAt,
+      tables: tablesSummaryFromData(data),
+    } satisfies BackupImportMeta,
+    data,
+  };
+}
+
 export function AdminBackup() {
   const { user } = useAuth();
   const [companies, setCompanies] = useState<{ id: string; name: string }[]>([]);
@@ -24,11 +65,12 @@ export function AdminBackup() {
   const [loading, setLoading] = useState(true);
 
   // Import state
-  const [backupFile, setBackupFile] = useState<any>(null);
-  const [backupMeta, setBackupMeta] = useState<{ company_name: string; exported_at: string; tables: { table: string; rows: number }[] } | null>(null);
-  const [weeklyBackupCompanies, setWeeklyBackupCompanies] = useState<{ company_id: string; company_name: string; data: Record<string, any[]> }[]>([]);
-  const [selectedBackupCompany, setSelectedBackupCompany] = useState("");
-  const [isWeeklyFormat, setIsWeeklyFormat] = useState(false);
+  const [backupFile, setBackupFile] = useState<{ metadata: BackupImportMeta; data: Record<string, unknown[]> } | null>(null);
+  const [backupMeta, setBackupMeta] = useState<BackupImportMeta | null>(null);
+  /** Arquivo anexado do backup semanal: várias empresas no mesmo JSON */
+  const [weeklySlices, setWeeklySlices] = useState<WeeklyBackupSlice[] | null>(null);
+  const [weeklySliceId, setWeeklySliceId] = useState<string | null>(null);
+  const [weeklyExportedAt, setWeeklyExportedAt] = useState<string | null>(null);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [confirmName, setConfirmName] = useState("");
   const [importing, setImporting] = useState(false);
@@ -80,6 +122,15 @@ export function AdminBackup() {
     setExporting(false);
   };
 
+  const applyWeeklySlice = (slices: WeeklyBackupSlice[], exportedAt: string, companyIdInFile: string) => {
+    const slice = slices.find((s) => s.company_id === companyIdInFile);
+    if (!slice) return;
+    const payload = weeklySliceToImportPayload(slice, exportedAt);
+    setWeeklySliceId(companyIdInFile);
+    setBackupFile(payload);
+    setBackupMeta(payload.metadata);
+  };
+
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -87,37 +138,60 @@ export function AdminBackup() {
     const reader = new FileReader();
     reader.onload = (ev) => {
       try {
-        const json = JSON.parse(ev.target?.result as string);
-        
-        // Detect weekly consolidated format: { metadata, backups[] }
-        if (json?.metadata && Array.isArray(json?.backups) && json.backups.length > 0) {
-          setIsWeeklyFormat(true);
-          setWeeklyBackupCompanies(json.backups);
-          setSelectedBackupCompany("");
-          setBackupFile(json);
-          setBackupMeta(json.metadata);
+        const json = JSON.parse(ev.target?.result as string) as Record<string, unknown>;
+        setWeeklySlices(null);
+        setWeeklySliceId(null);
+        setWeeklyExportedAt(null);
+
+        const backupsRaw = json.backups;
+        const isWeeklyBundle =
+          Array.isArray(backupsRaw) &&
+          backupsRaw.length > 0 &&
+          typeof (backupsRaw[0] as WeeklyBackupSlice)?.company_id === "string" &&
+          typeof (backupsRaw[0] as WeeklyBackupSlice)?.data === "object";
+
+        if (isWeeklyBundle) {
+          const slices = backupsRaw as WeeklyBackupSlice[];
+          const exportedAt =
+            typeof (json.metadata as { exported_at?: string } | undefined)?.exported_at === "string"
+              ? (json.metadata as { exported_at: string }).exported_at
+              : new Date().toISOString();
+          setWeeklySlices(slices);
+          setWeeklyExportedAt(exportedAt);
+          const preferred =
+            selectedCompany && slices.some((s) => s.company_id === selectedCompany)
+              ? selectedCompany
+              : slices[0].company_id;
+          applyWeeklySlice(slices, exportedAt, preferred);
           setImportResult(null);
-          toast.success(`Backup semanal carregado com ${json.backups.length} empresa(s)! Selecione qual restaurar.`);
+          if (selectedCompany && preferred === selectedCompany) {
+            toast.success("Backup semanal: trecho da empresa selecionada (Admin) carregado.");
+          } else {
+            toast.success(
+              `Backup semanal: ${slices.length} empresa(s) no arquivo — escolha qual trecho restaurar.`,
+            );
+          }
           return;
         }
-        
-        // Standard single-company format: { metadata, data }
-        if (json?.metadata && json?.data) {
-          setIsWeeklyFormat(false);
-          setWeeklyBackupCompanies([]);
-          setBackupFile(json);
-          setBackupMeta(json.metadata);
-          setImportResult(null);
-          toast.success("Arquivo de backup carregado!");
+
+        if (!json?.metadata || !json?.data) {
+          toast.error("Arquivo JSON inválido — use exportação única (Admin) ou backup semanal (.json)");
           return;
         }
-        
-        toast.error("Arquivo JSON inválido — não é um backup do sistema");
+        setBackupFile(json as { metadata: BackupImportMeta; data: Record<string, unknown[]> });
+        setBackupMeta(json.metadata as BackupImportMeta);
+        setImportResult(null);
+        toast.success("Arquivo de backup carregado!");
       } catch {
         toast.error("Erro ao ler o arquivo JSON");
       }
     };
     reader.readAsText(file);
+  };
+
+  const handleWeeklySliceSelect = (companyIdInFile: string) => {
+    if (!weeklySlices || !weeklyExportedAt) return;
+    applyWeeklySlice(weeklySlices, weeklyExportedAt, companyIdInFile);
   };
 
   const handleStartImport = () => {
@@ -140,18 +214,10 @@ export function AdminBackup() {
     setImporting(true);
 
     try {
-      // Determine backup_data based on format
-      let backupData = backupFile.data;
-      if (isWeeklyFormat && selectedBackupCompany) {
-        const chosen = weeklyBackupCompanies.find(b => b.company_id === selectedBackupCompany);
-        if (!chosen) throw new Error("Empresa do backup não encontrada");
-        backupData = chosen.data;
-      }
-
       const { data, error } = await supabase.functions.invoke("import-backup", {
         body: {
           company_id: selectedCompany,
-          backup_data: backupData,
+          backup_data: backupFile.data,
           confirm_company_name: confirmName,
         },
       });
@@ -332,72 +398,77 @@ export function AdminBackup() {
               </Button>
             </div>
 
+            {weeklySlices && weeklySlices.length > 0 && (
+              <div className="space-y-2 rounded-lg border border-primary/20 bg-primary/5 p-3">
+                <p className="text-sm font-medium">Backup semanal (várias empresas no mesmo arquivo)</p>
+                <p className="text-xs text-muted-foreground">
+                  Cada trecho tem um <span className="font-mono">company_id</span> fixo. Para restaurar na empresa certa no sistema,
+                  compare o ID abaixo com o ID da empresa em Admin (lista) ou com o UUID que você vê no Supabase.
+                </p>
+                {weeklySlices.length > 1 ? (
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium">Trecho a restaurar</label>
+                    <Select
+                      value={weeklySliceId ?? undefined}
+                      onValueChange={handleWeeklySliceSelect}
+                    >
+                      <SelectTrigger className="w-full max-w-xl">
+                        <SelectValue placeholder="Escolha a empresa no arquivo" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {weeklySlices.map((s) => (
+                          <SelectItem key={s.company_id} value={s.company_id}>
+                            {s.company_name || "Sem nome"} — {s.company_id}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">Uma empresa neste arquivo; dados já carregados.</p>
+                )}
+              </div>
+            )}
+
             {backupMeta && (
               <div className="rounded-lg border p-4 bg-muted/50 space-y-2">
                 <h4 className="text-sm font-medium flex items-center gap-2">
                   <Database className="h-4 w-4" /> Resumo do backup
                 </h4>
-                {isWeeklyFormat ? (
-                  <div className="space-y-3">
-                    <p className="text-sm text-muted-foreground">
-                      Backup semanal com <strong>{weeklyBackupCompanies.length}</strong> empresa(s).
-                      Exportado em: <strong>{new Date(backupMeta.exported_at).toLocaleString("pt-BR")}</strong>
+                <div className="text-sm text-muted-foreground space-y-1">
+                  <p>Empresa original: <strong>{backupMeta.company_name}</strong></p>
+                  {backupMeta.company_id && (
+                    <p className="font-mono text-xs break-all">
+                      ID no arquivo: {backupMeta.company_id}
                     </p>
-                    <div>
-                      <label className="text-sm font-medium mb-1.5 block">Selecione a empresa do backup para restaurar:</label>
-                      <select
-                        className="w-full border rounded px-3 py-2 text-sm bg-background"
-                        value={selectedBackupCompany}
-                        onChange={(e) => setSelectedBackupCompany(e.target.value)}
-                      >
-                        <option value="">-- Escolha uma empresa --</option>
-                        {weeklyBackupCompanies.map((b) => {
-                          const rowCount = Object.values(b.data).reduce((s, arr) => s + (Array.isArray(arr) ? arr.length : 0), 0);
-                          return (
-                            <option key={b.company_id} value={b.company_id}>
-                              {b.company_name} ({rowCount} registros)
-                            </option>
-                          );
-                        })}
-                      </select>
-                    </div>
-                    {selectedBackupCompany && (() => {
-                      const chosen = weeklyBackupCompanies.find(b => b.company_id === selectedBackupCompany);
-                      if (!chosen) return null;
-                      return (
-                        <div className="flex flex-wrap gap-1.5">
-                          {Object.entries(chosen.data).map(([table, rows]) => (
-                            <span key={table} className="text-xs bg-background border rounded px-2 py-0.5">
-                              {table}: <strong>{Array.isArray(rows) ? rows.length : 0}</strong>
-                            </span>
-                          ))}
-                        </div>
-                      );
-                    })()}
-                  </div>
-                ) : (
-                  <>
-                    <div className="text-sm text-muted-foreground space-y-1">
-                      <p>Empresa original: <strong>{backupMeta.company_name}</strong></p>
-                      <p>Data do backup: <strong>{new Date(backupMeta.exported_at).toLocaleString("pt-BR")}</strong></p>
-                      <p>Total de registros: <strong>{totalBackupRows}</strong></p>
-                    </div>
-                    <div className="flex flex-wrap gap-1.5 mt-2">
-                      {backupMeta.tables?.map(t => (
-                        <span key={t.table} className="text-xs bg-background border rounded px-2 py-0.5">
-                          {t.table}: <strong>{t.rows}</strong>
-                        </span>
-                      ))}
-                    </div>
-                  </>
-                )}
+                  )}
+                  {selectedCompany && backupMeta.company_id && (
+                    <p className={cn(
+                      "text-xs",
+                      backupMeta.company_id === selectedCompany ? "text-primary font-medium" : "text-amber-700 dark:text-amber-500",
+                    )}>
+                      {backupMeta.company_id === selectedCompany
+                        ? "Este trecho corresponde à empresa destino selecionada acima (mesmo UUID)."
+                        : "O UUID do arquivo é diferente da empresa destino — comum ao restaurar em outra base ou empresa nova."}
+                    </p>
+                  )}
+                  <p>Data do backup: <strong>{new Date(backupMeta.exported_at).toLocaleString("pt-BR")}</strong></p>
+                  <p>Total de registros: <strong>{totalBackupRows}</strong></p>
+                </div>
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                  {backupMeta.tables?.map(t => (
+                    <span key={t.table} className="text-xs bg-background border rounded px-2 py-0.5">
+                      {t.table}: <strong>{t.rows}</strong>
+                    </span>
+                  ))}
+                </div>
               </div>
             )}
 
             <Button
               variant="destructive"
               onClick={handleStartImport}
-              disabled={importing || !selectedCompany || !backupFile || (isWeeklyFormat && !selectedBackupCompany)}
+              disabled={importing || !selectedCompany || !backupFile}
             >
               {importing ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Restaurando...</> : <><Upload className="h-4 w-4 mr-2" /> Restaurar Backup</>}
             </Button>
