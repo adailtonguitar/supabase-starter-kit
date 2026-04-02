@@ -4,6 +4,7 @@ import { tutorials, type TutorialCategory, type TutorialSection } from "@/data/t
 import { TutorialCard } from "@/components/ajuda/TutorialCard";
 import { FAQSection } from "@/components/ajuda/FAQSection";
 import { useWhatsAppSupport } from "@/hooks/useWhatsAppSupport";
+import { usePermissions } from "@/hooks/usePermissions";
 
 const STORAGE_KEY = "ajuda-read-tutorials";
 
@@ -88,6 +89,8 @@ export default function Ajuda() {
   const [activeCategory, setActiveCategory] = useState<TutorialCategory | "todos">("todos");
   const [readTutorials, setReadTutorials] = useState<Set<string>>(getReadTutorials);
   const { openWhatsApp, whatsappNumber } = useWhatsAppSupport();
+  const { role, loading: permLoading } = usePermissions();
+  const showSaaSCoverage = !permLoading && role === "admin";
 
   const markRead = useCallback((title: string) => {
     setReadTutorials(prev => {
@@ -119,7 +122,12 @@ export default function Ajuda() {
       { key: "estoque", label: "Estoque", required: true, matchTitles: ["Estoque"] },
       { key: "vendas", label: "Vendas", required: true, matchTitles: ["Vendas"] },
       { key: "relatorios", label: "Relatórios", required: true, matchTitles: ["Relatórios", "Relatório"] },
-      { key: "financeiro", label: "Financeiro", required: true, matchTitles: ["Financeiro"] },
+      {
+        key: "financeiro",
+        label: "Financeiro",
+        required: true,
+        matchTitles: ["Financeiro", "Financeiro (Análises)", "Movimentações", "Diagnóstico Financeiro"],
+      },
       { key: "cadastros", label: "Cadastros", required: true, matchTitles: ["Cadastros"] },
       { key: "fiscal", label: "Fiscal", required: true, matchTitles: ["Fiscal"] },
       { key: "config", label: "Configurações", required: true, matchTitles: ["Configurações & Terminais"] },
@@ -183,45 +191,47 @@ export default function Ajuda() {
         </div>
       </div>
 
-      {/* Coverage audit */}
-      <div className="bg-card border border-border rounded-xl p-4">
-        <div className="flex items-center justify-between gap-3 flex-wrap">
-          <div>
-            <div className="text-sm font-bold text-foreground">Cobertura de tutoriais (SaaS)</div>
-            <div className="text-xs text-muted-foreground">
-              Módulos essenciais com tutorial: {coverage.requiredOk}/{coverage.requiredTotal} ({coverage.requiredPct}%)
+      {/* Cobertura SaaS: só papel admin na empresa */}
+      {showSaaSCoverage && (
+        <div className="bg-card border border-border rounded-xl p-4">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div>
+              <div className="text-sm font-bold text-foreground">Cobertura de tutoriais (SaaS)</div>
+              <div className="text-xs text-muted-foreground">
+                Módulos essenciais com tutorial: {coverage.requiredOk}/{coverage.requiredTotal} ({coverage.requiredPct}%)
+              </div>
             </div>
+            {coverage.missingRequired.length > 0 && (
+              <div className="text-xs font-semibold text-destructive">Faltando essencial: {coverage.missingRequired.length}</div>
+            )}
           </div>
-          {coverage.missingRequired.length > 0 && (
-            <div className="text-xs font-semibold text-destructive">Faltando essencial: {coverage.missingRequired.length}</div>
+
+          {(coverage.missingRequired.length > 0 || coverage.missingOptional.length > 0) && (
+            <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+              {coverage.missingRequired.length > 0 && (
+                <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3">
+                  <div className="text-xs font-bold text-destructive">Essenciais sem tutorial</div>
+                  <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
+                    {coverage.missingRequired.map((m) => (
+                      <li key={m.key}>- {m.label}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {coverage.missingOptional.length > 0 && (
+                <div className="rounded-xl border border-border bg-muted/20 p-3">
+                  <div className="text-xs font-bold text-foreground">Opcionais sem tutorial</div>
+                  <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
+                    {coverage.missingOptional.map((m) => (
+                      <li key={m.key}>- {m.label}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
           )}
         </div>
-
-        {(coverage.missingRequired.length > 0 || coverage.missingOptional.length > 0) && (
-          <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
-            {coverage.missingRequired.length > 0 && (
-              <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3">
-                <div className="text-xs font-bold text-destructive">Essenciais sem tutorial</div>
-                <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
-                  {coverage.missingRequired.map((m) => (
-                    <li key={m.key}>- {m.label}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            {coverage.missingOptional.length > 0 && (
-              <div className="rounded-xl border border-border bg-muted/20 p-3">
-                <div className="text-xs font-bold text-foreground">Opcionais sem tutorial</div>
-                <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
-                  {coverage.missingOptional.map((m) => (
-                    <li key={m.key}>- {m.label}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
+      )}
 
       {/* FAQ Section */}
       <FAQSection />
