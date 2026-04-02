@@ -58,6 +58,9 @@ const ONBOARDING_STEPS: OnboardingStep[] = [
 const STORAGE_KEY = "antho_onboarding";
 const WELCOME_KEY = "antho_welcome_seen";
 
+/** Acima disso, a empresa é considerada “de produção”: não exibir Primeiros passos (evita RLS/contagens zeradas falsas). */
+const MS_COMPANY_CONSIDERED_ESTABLISHED = 48 * 60 * 60 * 1000;
+
 interface OnboardingState {
   completedSteps: string[];
   dismissed: boolean;
@@ -97,6 +100,9 @@ export function useOnboardingChecklist() {
   });
   const [welcomeLoaded, setWelcomeLoaded] = useState(false);
   const [checklistLoaded, setChecklistLoaded] = useState(false);
+  const [companyAgeLoaded, setCompanyAgeLoaded] = useState(false);
+  /** true = empresa criada há mais de MS_COMPANY_CONSIDERED_ESTABLISHED ou falha ao ler created_at (preferir não incomodar). */
+  const [companyIsEstablished, setCompanyIsEstablished] = useState(true);
 
   // Migrate legacy key -> per-user key (so old users don't see it again)
   useEffect(() => {
@@ -152,6 +158,39 @@ export function useOnboardingChecklist() {
       cancelled = true;
     };
   }, [user?.id]);
+
+  useEffect(() => {
+    if (!companyId) {
+      setCompanyAgeLoaded(false);
+      setCompanyIsEstablished(true);
+      return;
+    }
+    let cancelled = false;
+    setCompanyAgeLoaded(false);
+    (async () => {
+      try {
+        const { data, error } = await supabase
+          .from("companies")
+          .select("created_at")
+          .eq("id", companyId)
+          .maybeSingle();
+        if (cancelled) return;
+        if (error || !data?.created_at) {
+          setCompanyIsEstablished(true);
+        } else {
+          const ageMs = Date.now() - new Date(data.created_at).getTime();
+          setCompanyIsEstablished(ageMs > MS_COMPANY_CONSIDERED_ESTABLISHED);
+        }
+      } catch {
+        if (!cancelled) setCompanyIsEstablished(true);
+      } finally {
+        if (!cancelled) setCompanyAgeLoaded(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [companyId]);
 
   const markWelcomeSeen = useCallback(() => {
     setWelcomeSeen(true);
@@ -249,10 +288,33 @@ export function useOnboardingChecklist() {
     })();
   }, [user?.id]);
 
-  /** Contas com uso real (produto ou venda) não devem ver checklist “0 de 5” como novato. */
+  /** Empresas antigas: persistir dismiss no profile (evita voltar o card se algo limpar estado local). */
+  const establishedDismissSyncedForCompany = useRef<string | null>(null);
+  useEffect(() => {
+    if (!checklistLoaded || !companyAgeLoaded || !tenantReady || !companyId || !user?.id) return;
+    if (!companyIsEstablished) return;
+    const everyStepDone = state.completedSteps.length >= ONBOARDING_STEPS.length;
+    if (state.dismissed || everyStepDone) return;
+    if (establishedDismissSyncedForCompany.current === companyId) return;
+    establishedDismissSyncedForCompany.current = companyId;
+    dismissChecklist();
+  }, [
+    checklistLoaded,
+    companyAgeLoaded,
+    companyIsEstablished,
+    tenantReady,
+    companyId,
+    user?.id,
+    state.dismissed,
+    state.completedSteps.length,
+    dismissChecklist,
+  ]);
+
+  /** Contas novas com uso real (produto ou venda visível) dispensam o checklist sem esperar 48h. */
   const checklistProbeDoneForCompany = useRef<Set<string>>(new Set());
   useEffect(() => {
-    if (!checklistLoaded || !tenantReady || !companyId || !user?.id) return;
+    if (!checklistLoaded || !companyAgeLoaded || !tenantReady || !companyId || !user?.id) return;
+    if (companyIsEstablished) return;
     const everyStepDone = state.completedSteps.length >= ONBOARDING_STEPS.length;
     if (state.dismissed || everyStepDone) return;
     if (checklistProbeDoneForCompany.current.has(companyId)) return;
@@ -276,6 +338,8 @@ export function useOnboardingChecklist() {
     };
   }, [
     checklistLoaded,
+    companyAgeLoaded,
+    companyIsEstablished,
     tenantReady,
     companyId,
     user?.id,
@@ -286,6 +350,7 @@ export function useOnboardingChecklist() {
 
   const resetOnboarding = useCallback(() => {
     checklistProbeDoneForCompany.current.clear();
+    establishedDismissSyncedForCompany.current = null;
     tenantWelcomeSynced.current = false;
     setState({ completedSteps: [], dismissed: false });
     setWelcomeSeen(false);
@@ -312,7 +377,13 @@ export function useOnboardingChecklist() {
   const totalSteps = steps.length;
   const progress = totalSteps > 0 ? (completedCount / totalSteps) * 100 : 0;
   const allDone = completedCount >= totalSteps;
-  const showChecklist = !state.dismissed && !allDone;
+  const showChecklist =
+    checklistLoaded &&
+    companyAgeLoaded &&
+    tenantReady &&
+    !companyIsEstablished &&
+    !state.dismissed &&
+    !allDone;
   const showWelcomeModal =
     welcomeLoaded && !!user && !companyLoading && !welcomeSeen && !tenantReady;
 
