@@ -77,28 +77,58 @@ async function rankActiveCompanyIdsByActivity(activeIds: string[]): Promise<stri
   return scored.map((x) => x.id);
 }
 
-/** Sem `as_selected_company`, evita cair na empresa “vazia” quando o usuário tem vários vínculos. */
-async function pickDefaultCompanyIdAmongActives(activeIds: string[]): Promise<string> {
-  const ranked = await rankActiveCompanyIdsByActivity(activeIds);
-  return ranked[0];
-}
-
-/** Tenta ler `companies` na ordem preferida até RLS retornar uma linha (evita tenant preso ilegível). */
-async function loadFirstReadableCompanyRow(
-  preferredFirst: string | null,
+/** Uma rodada de rede: ranking + linhas de companies em paralelo (evita estourar timeout de rota). */
+async function resolveActiveCompany(
   activeIds: string[],
-): Promise<{ id: string; row: CompanyRow } | null> {
+  preferredFirst: string | null,
+): Promise<{ id: string; row: CompanyRow | null }> {
+  if (activeIds.length === 0) return { id: "", row: null };
+
   const ranked = await rankActiveCompanyIdsByActivity(activeIds);
-  const tryIds = [...new Set([preferredFirst, ...ranked].filter((id): id is string => !!id && activeIds.includes(id)))];
-  for (const id of tryIds) {
-    const { data, error } = await supabase
-      .from("companies")
-      .select(COMPANY_SELECT)
-      .eq("id", id)
-      .maybeSingle();
-    if (!error && data) return { id, row: data as CompanyRow };
+  let chosen =
+    preferredFirst && activeIds.includes(preferredFirst) ? preferredFirst : ranked[0];
+
+  if (activeIds.length > 1 && ranked.length >= 2) {
+    const bestId = ranked[0];
+    if (chosen !== bestId) {
+      const [{ count: curS }, { count: bestS }] = await Promise.all([
+        supabase.from("sales").select("id", { count: "exact", head: true }).eq("company_id", chosen),
+        supabase.from("sales").select("id", { count: "exact", head: true }).eq("company_id", bestId),
+      ]);
+      if ((curS ?? 0) === 0 && (bestS ?? 0) >= 1) {
+        chosen = bestId;
+        try {
+          localStorage.removeItem(SELECTED_COMPANY_KEY);
+        } catch {
+          /* */
+        }
+      }
+    }
   }
-  return null;
+
+  const tryIds = [...new Set([chosen, ...ranked].filter((id) => activeIds.includes(id)))];
+  const results = await Promise.all(
+    tryIds.map((id) =>
+      supabase.from("companies").select(COMPANY_SELECT).eq("id", id).maybeSingle(),
+    ),
+  );
+
+  for (let i = 0; i < tryIds.length; i++) {
+    const { data, error } = results[i];
+    if (!error && data) {
+      if (tryIds[i] !== chosen) {
+        try {
+          localStorage.removeItem(SELECTED_COMPANY_KEY);
+        } catch {
+          /* */
+        }
+      }
+      return { id: tryIds[i], row: data as CompanyRow };
+    }
+  }
+
+  // Mantém o tenant para products/sales mesmo se SELECT em companies falhar (RLS pontual); formulário Empresa pode ficar vazio.
+  return { id: chosen, row: null };
 }
 
 function extractCompanyFields(company: CompanyRow | null | undefined): Omit<CachedCompany, 'companyId'> {
@@ -200,57 +230,28 @@ export function useCompany(): CompanyData {
           else localStorage.removeItem(SELECTED_COMPANY_KEY);
         }
 
-        if (!resolvedCompanyId) {
-          const activeIds = memberships.filter((m) => m.is_active).map((m) => m.company_id);
-          if (activeIds.length === 0) {
-            if (retryCount.current < 3) {
-              retryCount.current++;
-              retryTimer.current = setTimeout(() => { if (!cancelled) fetchCompany(); }, Math.min(400 * retryCount.current, 1200));
-              return;
-            }
-            setCompanyId(null);
-            setLoading(false);
+        const activeIds = memberships.filter((m) => m.is_active).map((m) => m.company_id);
+        if (activeIds.length === 0) {
+          if (retryCount.current < 3) {
+            retryCount.current++;
+            retryTimer.current = setTimeout(() => { if (!cancelled) fetchCompany(); }, Math.min(400 * retryCount.current, 1200));
             return;
           }
-          resolvedCompanyId = await pickDefaultCompanyIdAmongActives(activeIds);
-        }
-
-        // `as_selected_company` pode ficar preso na empresa secundária (ex.: onboarding) enquanto a operação real está em outro tenant.
-        if (resolvedCompanyId && memberships.filter((m) => m.is_active).length > 1) {
-          const activeIds = memberships.filter((m) => m.is_active).map((m) => m.company_id);
-          const bestId = await pickDefaultCompanyIdAmongActives(activeIds);
-          if (bestId !== resolvedCompanyId) {
-            const [{ count: curS }] = await supabase
-              .from("sales").select("id", { count: "exact", head: true }).eq("company_id", resolvedCompanyId);
-            const [{ count: bestS }] = await supabase
-              .from("sales").select("id", { count: "exact", head: true }).eq("company_id", bestId);
-            const c0 = curS ?? 0;
-            const b0 = bestS ?? 0;
-            if (c0 === 0 && b0 >= 1) {
-              localStorage.removeItem(SELECTED_COMPANY_KEY);
-              resolvedCompanyId = bestId;
-            }
-          }
-        }
-        if (cancelled) return;
-
-        const activeIds = memberships.filter((m) => m.is_active).map((m) => m.company_id);
-        const readable = await loadFirstReadableCompanyRow(resolvedCompanyId, activeIds);
-        if (cancelled) return;
-
-        if (readable) {
-          if (readable.id !== resolvedCompanyId) {
-            localStorage.removeItem(SELECTED_COMPANY_KEY);
-          }
-          applyCompany(readable.id, readable.row);
-        } else {
-          console.error("[useCompany] Nenhuma empresa legível via RLS para os vínculos ativos", resolvedCompanyId);
-          try {
-            localStorage.removeItem(SELECTED_COMPANY_KEY);
-            localStorage.removeItem(COMPANY_CACHE_KEY);
-          } catch { /* */ }
           setCompanyId(null);
           setFields(nullFields);
+          if (!cancelled) setLoading(false);
+          return;
+        }
+
+        const preferred = resolvedCompanyId ?? null;
+        const { id: finalId, row } = await resolveActiveCompany(activeIds, preferred);
+        if (cancelled) return;
+
+        if (!finalId) {
+          setCompanyId(null);
+          setFields(nullFields);
+        } else {
+          applyCompany(finalId, row);
         }
       } catch (err) {
         console.error("[useCompany] Failed to fetch company:", err);
@@ -280,8 +281,8 @@ export function useCompany(): CompanyData {
       localStorage.setItem(SELECTED_COMPANY_KEY, newCompanyId);
 
       const activeIds = memberships.filter((m) => m.is_active).map((m) => m.company_id);
-      const readable = await loadFirstReadableCompanyRow(newCompanyId, activeIds);
-      if (readable) applyCompany(readable.id, readable.row);
+      const { id, row } = await resolveActiveCompany(activeIds, newCompanyId);
+      if (id) applyCompany(id, row);
       else applyCompany(newCompanyId, null);
       setLoading(false);
     })();

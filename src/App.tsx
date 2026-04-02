@@ -60,13 +60,17 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const [companyCheckDone, setCompanyCheckDone] = useState(false);
   const [timedOut, setTimedOut] = useState(false);
 
+  // Só contar depois de auth + empresa + checagem de memberships — evita modal falso durante
+  // várias idas ao Supabase ou enquanto checkCompany ainda roda.
   useEffect(() => {
+    setTimedOut(false);
+    if (loading || !session || companyLoading || !companyCheckDone) return;
     const timer = setTimeout(() => {
       setTimedOut(true);
-      console.warn("[ProtectedRoute] Loading timeout reached — showing fallback");
-    }, 8000);
+      console.warn("[ProtectedRoute] Pós-carregamento de empresa: timeout ao liberar rota");
+    }, 30000);
     return () => clearTimeout(timer);
-  }, []);
+  }, [loading, session, companyLoading, companyCheckDone]);
 
   useEffect(() => {
     if (!loading && !!session && !companyLoading && user && companyId === null && !hasSignedOut.current) {
