@@ -7,9 +7,10 @@ import { useOnboardingChecklist } from "@/hooks/useOnboardingChecklist";
 const WELCOME_VIDEO_URL = "https://fsvxpxziotklbxkivyug.supabase.co/storage/v1/object/public/assets/antho-welcome-audio.mp4";
 
 export function WelcomeModal() {
-  const { welcomeSeen, markWelcomeSeen } = useOnboardingChecklist();
+  const { welcomeSeen, welcomeLoaded, markWelcomeSeen } = useOnboardingChecklist();
   const [step, setStep] = useState<"video" | "done">("video");
 
+  if (!welcomeLoaded) return null;
   if (welcomeSeen) return null;
 
   return (

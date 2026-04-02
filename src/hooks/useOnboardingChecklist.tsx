@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useMemo } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 
 export interface OnboardingStep {
   id: string;
@@ -81,11 +82,15 @@ export function useOnboardingChecklist() {
   const welcomeKey = useMemo(() => (user?.id ? `${WELCOME_KEY}:${user.id}` : WELCOME_KEY), [user?.id]);
   const [welcomeSeen, setWelcomeSeen] = useState(() => {
     try {
+      // Prefer scoped key (per-user). Fallback to legacy global key if present.
+      const scoped = localStorage.getItem(welcomeKey);
+      if (scoped != null) return scoped === "true";
       return localStorage.getItem(WELCOME_KEY) === "true";
     } catch {
       return false;
     }
   });
+  const [welcomeLoaded, setWelcomeLoaded] = useState(false);
 
   // Migrate legacy key -> per-user key (so old users don't see it again)
   useEffect(() => {
@@ -101,6 +106,46 @@ export function useOnboardingChecklist() {
       /* best effort */
     }
   }, [user?.id, welcomeKey]);
+
+  // Keep state in sync when the key changes (user switch / session restore)
+  useEffect(() => {
+    try {
+      const scoped = localStorage.getItem(welcomeKey);
+      if (scoped != null) setWelcomeSeen(scoped === "true");
+    } catch {
+      /* best effort */
+    }
+  }, [welcomeKey]);
+
+  // Authoritative source of truth: DB (survives anonymous tabs / storage resets)
+  useEffect(() => {
+    let cancelled = false;
+    const run = async () => {
+      if (!user?.id) {
+        setWelcomeLoaded(true);
+        return;
+      }
+      try {
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("welcome_seen_at")
+          .eq("id", user.id)
+          .maybeSingle();
+        if (error) throw error;
+        const dbSeen = !!data?.welcome_seen_at;
+        if (cancelled) return;
+        setWelcomeSeen((prev) => (dbSeen ? true : prev));
+      } catch {
+        // best effort: keep localStorage-derived value
+      } finally {
+        if (!cancelled) setWelcomeLoaded(true);
+      }
+    };
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
 
   useEffect(() => {
     saveState(state);
@@ -122,7 +167,16 @@ export function useOnboardingChecklist() {
     try {
       localStorage.setItem(welcomeKey, "true");
     } catch {}
-  }, [welcomeKey]);
+    // Best effort: persist server-side
+    (async () => {
+      try {
+        if (!user?.id) return;
+        await supabase.from("profiles").update({ welcome_seen_at: new Date().toISOString() } as any).eq("id", user.id);
+      } catch {
+        /* best effort */
+      }
+    })();
+  }, [welcomeKey, user?.id]);
 
   const resetOnboarding = useCallback(() => {
     setState({ completedSteps: [], dismissed: false });
@@ -130,7 +184,15 @@ export function useOnboardingChecklist() {
     try {
       localStorage.removeItem(welcomeKey);
     } catch {}
-  }, [welcomeKey]);
+    (async () => {
+      try {
+        if (!user?.id) return;
+        await supabase.from("profiles").update({ welcome_seen_at: null } as any).eq("id", user.id);
+      } catch {
+        /* best effort */
+      }
+    })();
+  }, [welcomeKey, user?.id]);
 
   const steps = ONBOARDING_STEPS;
   const completedCount = state.completedSteps.length;
@@ -145,6 +207,7 @@ export function useOnboardingChecklist() {
     completeStep,
     dismissChecklist,
     welcomeSeen,
+    welcomeLoaded,
     markWelcomeSeen,
     resetOnboarding,
     progress,
