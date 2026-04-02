@@ -152,7 +152,8 @@ export function OnboardingWizard({ onComplete }: Props) {
                   ))}
                 </div>
                 <button
-                  onClick={next}
+                  type="button"
+                  onClick={() => next()}
                   className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-xl font-semibold hover:bg-primary/90 transition-colors"
                 >
                   Começar <ArrowRight className="w-4 h-4" />

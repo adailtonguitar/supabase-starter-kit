@@ -84,10 +84,13 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
           if (!data || data.length === 0) {
             setShowOnboarding(true);
-          } else if (!data.some((row: any) => row.is_active)) {
-            hasSignedOut.current = true;
-            toast.error("Sua conta foi desativada. Entre em contato com o administrador.");
-            signOut();
+          } else {
+            setShowOnboarding(false);
+            if (!data.some((row: any) => row.is_active)) {
+              hasSignedOut.current = true;
+              toast.error("Sua conta foi desativada. Entre em contato com o administrador.");
+              signOut();
+            }
           }
         } catch (err) {
           console.error("[ProtectedRoute] Company check failed:", err);
@@ -108,10 +111,20 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     }
   }, [user]);
 
+  // Assim que a empresa resolve (ex.: após criar no wizard + reload), não manter wizard preso.
+  useEffect(() => {
+    if (companyId) setShowOnboarding(false);
+  }, [companyId]);
+
   // When a cached user exists, Supabase may still be restoring the real session.
   // Avoid flashing onboarding screens during this short window.
   const authNeedsSession = !!user && !session;
-  const isStillLoading = loading || authNeedsSession || companyLoading || subLoading || adminLoading || termsLoading || (!companyId && !companyCheckDone);
+  /** Enquanto o wizard de onboarding está visível, não bloquear por subscription/admin/terms — senão o spinner desmonta o wizard e o passo volta a 0. */
+  const coreRouteBlocking =
+    loading || authNeedsSession || companyLoading || (!companyId && !companyCheckDone);
+  const isStillLoading = showOnboarding
+    ? coreRouteBlocking
+    : coreRouteBlocking || subLoading || adminLoading || termsLoading;
 
   if (isStillLoading && !timedOut) {
     return (
