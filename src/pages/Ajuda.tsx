@@ -75,6 +75,13 @@ function saveReadTutorials(set: Set<string>) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify([...set]));
 }
 
+type CoverageItem = {
+  key: string;
+  label: string;
+  required: boolean;
+  matchTitles: string[];
+};
+
 export default function Ajuda() {
   const [search, setSearch] = useState("");
   const [openSection, setOpenSection] = useState<string | null>(null);
@@ -103,6 +110,42 @@ export default function Ajuda() {
   const totalVisible = tutorials.filter(t => !t.mode || t.mode === "pdv" || t.mode === "both").length;
   const readCount = tutorials.filter(t => (!t.mode || t.mode === "pdv" || t.mode === "both") && readTutorials.has(t.title)).length;
   const progressPct = totalVisible > 0 ? Math.round((readCount / totalVisible) * 100) : 0;
+
+  const coverage = useMemo(() => {
+    const items: CoverageItem[] = [
+      { key: "pdv", label: "PDV", required: true, matchTitles: ["PDV — Ponto de Venda"] },
+      { key: "dashboard", label: "Dashboard", required: true, matchTitles: ["Dashboard"] },
+      { key: "painel-dono", label: "Painel do Dono", required: true, matchTitles: ["Painel do Dono"] },
+      { key: "estoque", label: "Estoque", required: true, matchTitles: ["Estoque"] },
+      { key: "vendas", label: "Vendas", required: true, matchTitles: ["Vendas"] },
+      { key: "relatorios", label: "Relatórios", required: true, matchTitles: ["Relatórios", "Relatório"] },
+      { key: "financeiro", label: "Financeiro", required: true, matchTitles: ["Financeiro"] },
+      { key: "cadastros", label: "Cadastros", required: true, matchTitles: ["Cadastros"] },
+      { key: "fiscal", label: "Fiscal", required: true, matchTitles: ["Fiscal"] },
+      { key: "config", label: "Configurações", required: true, matchTitles: ["Configurações & Terminais"] },
+      { key: "filiais", label: "Filiais", required: false, matchTitles: ["Filiais — Gestão Multilojas"] },
+      { key: "terminais", label: "Terminais", required: false, matchTitles: ["Configurações & Terminais"] },
+      { key: "instalar", label: "Instalar App", required: false, matchTitles: ["Instalar App (PWA)"] },
+      { key: "logs", label: "Logs do Sistema", required: false, matchTitles: ["Logs do Sistema & Auditoria"] },
+      { key: "admin", label: "Admin", required: false, matchTitles: ["Admin — Painel Administrativo"] },
+      { key: "assistente", label: "Assistente Inteligente", required: false, matchTitles: ["Assistente Inteligente"] },
+    ];
+
+    const visible = tutorials.filter((t) => !t.mode || t.mode === "pdv" || t.mode === "both");
+    const titles = new Set(visible.map((t) => t.title));
+
+    const hasItem = (it: CoverageItem) => it.matchTitles.some((mt) => titles.has(mt));
+    const results = items.map((it) => ({ ...it, ok: hasItem(it) }));
+
+    const requiredTotal = results.filter((r) => r.required).length;
+    const requiredOk = results.filter((r) => r.required && r.ok).length;
+    const requiredPct = requiredTotal > 0 ? Math.round((requiredOk / requiredTotal) * 100) : 100;
+
+    const missingRequired = results.filter((r) => r.required && !r.ok);
+    const missingOptional = results.filter((r) => !r.required && !r.ok);
+
+    return { results, requiredTotal, requiredOk, requiredPct, missingRequired, missingOptional };
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -138,6 +181,46 @@ export default function Ajuda() {
             style={{ width: `${progressPct}%` }}
           />
         </div>
+      </div>
+
+      {/* Coverage audit */}
+      <div className="bg-card border border-border rounded-xl p-4">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div>
+            <div className="text-sm font-bold text-foreground">Cobertura de tutoriais (SaaS)</div>
+            <div className="text-xs text-muted-foreground">
+              Módulos essenciais com tutorial: {coverage.requiredOk}/{coverage.requiredTotal} ({coverage.requiredPct}%)
+            </div>
+          </div>
+          {coverage.missingRequired.length > 0 && (
+            <div className="text-xs font-semibold text-destructive">Faltando essencial: {coverage.missingRequired.length}</div>
+          )}
+        </div>
+
+        {(coverage.missingRequired.length > 0 || coverage.missingOptional.length > 0) && (
+          <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+            {coverage.missingRequired.length > 0 && (
+              <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3">
+                <div className="text-xs font-bold text-destructive">Essenciais sem tutorial</div>
+                <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
+                  {coverage.missingRequired.map((m) => (
+                    <li key={m.key}>- {m.label}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {coverage.missingOptional.length > 0 && (
+              <div className="rounded-xl border border-border bg-muted/20 p-3">
+                <div className="text-xs font-bold text-foreground">Opcionais sem tutorial</div>
+                <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
+                  {coverage.missingOptional.map((m) => (
+                    <li key={m.key}>- {m.label}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* FAQ Section */}
