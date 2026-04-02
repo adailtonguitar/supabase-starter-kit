@@ -2568,8 +2568,8 @@ export type Database = {
         Returns: Json
       }
       admin_delete_company: {
-        Args: { p_company_id: string }
-        Returns: Json
+        Args: { p_allow_non_demo?: boolean; p_company_id: string }
+        Returns: undefined
       }
       next_fiscal_number: {
         Args: { p_config_id: string }

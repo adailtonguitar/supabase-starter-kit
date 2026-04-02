@@ -322,6 +322,7 @@ export function useDeleteBranch() {
       // Use the SECURITY DEFINER function that handles all FK dependencies
       const { error } = await supabase.rpc("admin_delete_company", {
         p_company_id: companyId,
+        p_allow_non_demo: true,
       });
       if (error) throw error;
     },

@@ -1,6 +1,5 @@
--- Função SECURITY DEFINER: exclusão em cascata de uma empresa.
--- Por padrão só executa se companies.is_demo = true (protege matrizes reais).
--- Admin > Empresas e exclusão de filial no app passam p_allow_non_demo := true.
+-- Trava no servidor: admin_delete_company só apaga empresa com is_demo = true,
+-- exceto quando o cliente passa p_allow_non_demo = true (Admin > Empresas, exclusão de filial).
 
 DROP FUNCTION IF EXISTS public.admin_delete_company(uuid);
 
@@ -62,3 +61,8 @@ BEGIN
   DELETE FROM companies WHERE id = p_company_id;
 END;
 $$;
+
+COMMENT ON FUNCTION public.admin_delete_company(uuid, boolean) IS
+  'Exclui empresa e dados relacionados. Por padrão só permite is_demo = true; p_allow_non_demo exige fluxo explícito no app (Admin Empresas / filial).';
+
+GRANT EXECUTE ON FUNCTION public.admin_delete_company(uuid, boolean) TO authenticated;
