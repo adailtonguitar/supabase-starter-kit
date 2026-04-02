@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { PRODUCTS_ACTIVE_OR_LEGACY_NULL } from "@/lib/product-active-filter";
 import { useAuth } from "./useAuth";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 
@@ -70,7 +71,7 @@ export function useConsolidatedReport(dateFrom?: Date, dateTo?: Date) {
               .from("products")
               .select("id", { count: "exact", head: true })
               .eq("company_id", cid)
-              .eq("is_active", true),
+              .or(PRODUCTS_ACTIVE_OR_LEGACY_NULL),
             supabase
               .from("clients")
               .select("id", { count: "exact", head: true })

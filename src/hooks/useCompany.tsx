@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchMyCompanyMemberships } from "@/lib/company-memberships";
+import { PRODUCTS_ACTIVE_OR_LEGACY_NULL } from "@/lib/product-active-filter";
 import { useAuth } from "./useAuth";
 
 const COMPANY_CACHE_KEY = "as_cached_company";
@@ -66,7 +67,7 @@ async function rankActiveCompanyIdsByActivity(activeIds: string[]): Promise<stri
     activeIds.map(async (id) => {
       const [{ count: salesC }, { count: productsC }] = await Promise.all([
         supabase.from("sales").select("id", { count: "exact", head: true }).eq("company_id", id),
-        supabase.from("products").select("id", { count: "exact", head: true }).eq("company_id", id).eq("is_active", true),
+        supabase.from("products").select("id", { count: "exact", head: true }).eq("company_id", id).or(PRODUCTS_ACTIVE_OR_LEGACY_NULL),
       ]);
       const s = salesC ?? 0;
       const p = productsC ?? 0;
@@ -91,11 +92,16 @@ async function resolveActiveCompany(
   if (activeIds.length > 1 && ranked.length >= 2) {
     const bestId = ranked[0];
     if (chosen !== bestId) {
-      const [{ count: curS }, { count: bestS }] = await Promise.all([
+      const [{ count: curS }, { count: bestS }, { count: curP }, { count: bestP }] = await Promise.all([
         supabase.from("sales").select("id", { count: "exact", head: true }).eq("company_id", chosen),
         supabase.from("sales").select("id", { count: "exact", head: true }).eq("company_id", bestId),
+        supabase.from("products").select("id", { count: "exact", head: true }).eq("company_id", chosen).or(PRODUCTS_ACTIVE_OR_LEGACY_NULL),
+        supabase.from("products").select("id", { count: "exact", head: true }).eq("company_id", bestId).or(PRODUCTS_ACTIVE_OR_LEGACY_NULL),
       ]);
-      if ((curS ?? 0) === 0 && (bestS ?? 0) >= 1) {
+      const switchForSales = (curS ?? 0) === 0 && (bestS ?? 0) >= 1;
+      const switchForProducts =
+        (curS ?? 0) === 0 && (bestS ?? 0) === 0 && (curP ?? 0) === 0 && (bestP ?? 0) >= 1;
+      if (switchForSales || switchForProducts) {
         chosen = bestId;
         try {
           localStorage.removeItem(SELECTED_COMPANY_KEY);

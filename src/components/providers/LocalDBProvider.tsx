@@ -6,6 +6,7 @@ import { useEffect, useRef, ReactNode } from "react";
 import { useCompany } from "@/hooks/useCompany";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import { PRODUCTS_ACTIVE_OR_LEGACY_NULL } from "@/lib/product-active-filter";
 import { cacheSet, REFRESH_INTERVAL_MS } from "@/lib/offline-cache";
 
 async function syncProducts(companyId: string) {
@@ -14,7 +15,7 @@ async function syncProducts(companyId: string) {
       .from("products")
       .select("*")
       .eq("company_id", companyId)
-      .eq("is_active", true)
+      .or(PRODUCTS_ACTIVE_OR_LEGACY_NULL)
       .order("name");
     if (error) throw error;
     if (data) {

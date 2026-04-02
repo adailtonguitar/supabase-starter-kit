@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { PRODUCTS_ACTIVE_OR_LEGACY_NULL } from "@/lib/product-active-filter";
 import { useCompany } from "./useCompany";
 import { differenceInDays } from "date-fns";
 
@@ -30,7 +31,7 @@ export function useFinancialAlerts(minMarginPercent = 10) {
           .from("products")
           .select("id, name, sku, price, cost_price, stock_quantity, min_stock, ncm, fiscal_category_id, updated_at")
           .eq("company_id", companyId)
-          .eq("is_active", true),
+          .or(PRODUCTS_ACTIVE_OR_LEGACY_NULL),
         supabase
           .from("stock_movements")
           .select("product_id, type, created_at")

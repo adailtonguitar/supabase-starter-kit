@@ -5,6 +5,7 @@ import { format, startOfMonth, endOfMonth, startOfDay, endOfDay } from "date-fns
 import { ptBR } from "date-fns/locale";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { PRODUCTS_ACTIVE_OR_LEGACY_NULL } from "@/lib/product-active-filter";
 import { useCompany } from "@/hooks/useCompany";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -183,7 +184,7 @@ export default function Relatorios() {
         .from("products")
         .select("id, name, stock_quantity, min_stock, cost_price, price, category")
         .eq("company_id", companyId!)
-        .eq("is_active", true);
+        .or(PRODUCTS_ACTIVE_OR_LEGACY_NULL);
 
       return products || [];
     },

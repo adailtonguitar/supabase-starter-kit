@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { PRODUCTS_ACTIVE_OR_LEGACY_NULL } from "@/lib/product-active-filter";
 import { useAuth } from "@/hooks/useAuth";
 import { useCompany } from "@/hooks/useCompany";
 import { toast } from "sonner";
@@ -43,7 +44,7 @@ export default function Producao() {
   const [ingProductId, setIngProductId] = useState("");
   const [ingQty, setIngQty] = useState(1);
 
-  const { data: products = [] } = useQuery({ queryKey: ["products-production", companyId], queryFn: async () => { if (!companyId) return []; const { data } = await supabase.from("products").select("id, name, cost_price, price, stock_quantity, unit").eq("company_id", companyId).eq("is_active", true).order("name"); return (data || []) as Product[]; }, enabled: !!companyId });
+  const { data: products = [] } = useQuery({ queryKey: ["products-production", companyId], queryFn: async () => { if (!companyId) return []; const { data } = await supabase.from("products").select("id, name, cost_price, price, stock_quantity, unit").eq("company_id", companyId).or(PRODUCTS_ACTIVE_OR_LEGACY_NULL).order("name"); return (data || []) as Product[]; }, enabled: !!companyId });
 
   const { data: recipes = [], isLoading: loadingRecipes } = useQuery({ queryKey: ["recipes", companyId], queryFn: async () => { if (!companyId) return []; const { data: recipeRows } = await supabase.from("recipes").select("*").eq("company_id", companyId).eq("is_active", true).order("name"); if (!recipeRows?.length) return []; const recipeIds = recipeRows.map((r: any) => r.id); const { data: ingRows } = await supabase.from("recipe_ingredients").select("*").in("recipe_id", recipeIds); return recipeRows.map((r: any) => { const ings = (ingRows || []).filter((i: any) => i.recipe_id === r.id).map((i: any) => { const prod = products.find((p) => p.id === i.product_id); return { product_id: i.product_id, product_name: prod?.name || "Produto removido", quantity: Number(i.quantity), unit: i.unit, cost: (prod?.cost_price || 0) * Number(i.quantity) }; }); return { id: r.id, name: r.name, description: r.description || null, output_product_id: r.output_product_id || null, output_quantity: Number(r.output_quantity || 1), output_unit: r.output_unit || "un", category: r.category || "", is_active: r.is_active, ingredients: ings } as Recipe; }); }, enabled: !!companyId && products.length > 0 });
 

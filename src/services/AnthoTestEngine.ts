@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { PRODUCTS_ACTIVE_OR_LEGACY_NULL } from "@/lib/product-active-filter";
 
 export type TestStatus = "pending" | "running" | "pass" | "fail" | "warn" | "skipped";
 
@@ -172,7 +173,7 @@ export class AnthoTestEngine {
       if (performance.now() - start > 3000) throw new Error("aviso: Consulta lenta (>3s)");
     });
     await this.runTest("api", "Produtos", "Filtrar produtos ativos", async () => {
-      const { error } = await supabase.from("products").select("id, name, price").eq("company_id", this.companyId).eq("is_active", true).limit(10);
+      const { error } = await supabase.from("products").select("id, name, price").eq("company_id", this.companyId).or(PRODUCTS_ACTIVE_OR_LEGACY_NULL).limit(10);
       if (error) throw error;
     });
     await this.runTest("api", "Produtos", "Buscar por SKU", async () => {
@@ -405,7 +406,7 @@ export class AnthoTestEngine {
     await this.runTest("interface", "PDV", "Carregar grade de produtos", async () => {
       const start = performance.now();
       const { error } = await supabase.from("products").select("id, name, price, stock_quantity, barcode, image_url")
-        .eq("company_id", this.companyId).eq("is_active", true).order("name").limit(100);
+        .eq("company_id", this.companyId).or(PRODUCTS_ACTIVE_OR_LEGACY_NULL).order("name").limit(100);
       if (error) throw error;
       if (performance.now() - start > 2000) throw new Error("aviso: Grade de produtos lenta (>2s)");
     });
@@ -418,7 +419,7 @@ export class AnthoTestEngine {
 
     await this.runTest("interface", "Estoque", "Listar com quantidade", async () => {
       const { error } = await supabase.from("products").select("id, name, stock_quantity, min_stock")
-        .eq("company_id", this.companyId).eq("is_active", true).order("stock_quantity", { ascending: true }).limit(20);
+        .eq("company_id", this.companyId).or(PRODUCTS_ACTIVE_OR_LEGACY_NULL).order("stock_quantity", { ascending: true }).limit(20);
       if (error) throw error;
     });
 
@@ -654,7 +655,7 @@ export class AnthoTestEngine {
     }
 
     const { count: noPrice } = await supabase.from("products").select("id", { count: "exact", head: true })
-      .eq("company_id", this.companyId).eq("is_active", true).or("price.is.null,price.eq.0");
+      .eq("company_id", this.companyId).or(PRODUCTS_ACTIVE_OR_LEGACY_NULL).or("price.is.null,price.eq.0");
     if (noPrice && noPrice > 0) {
       issues.push({
         type: "stock_mismatch", severity: "warning", module: "Produtos",

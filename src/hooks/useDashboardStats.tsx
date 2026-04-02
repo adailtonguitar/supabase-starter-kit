@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { PRODUCTS_ACTIVE_OR_LEGACY_NULL } from "@/lib/product-active-filter";
 import { useCompany } from "./useCompany";
 
 interface DailySales {
@@ -96,12 +97,12 @@ export function useDashboardStats() {
         // Single query: all sales from 14 days ago (covers today, yesterday, 7d, prev period, month)
         supabase.from("sales").select("total, created_at, status").eq("company_id", companyId).gte("created_at", fourteenDaysAgo + "T00:00:00").in("status", ["completed", "finalizada"]).order("created_at", { ascending: true }),
         supabase.from("sales").select("id, sale_number, payments, total, status").eq("company_id", companyId).order("created_at", { ascending: false }).limit(5),
-        supabase.from("products").select("id, stock_quantity, min_stock").eq("company_id", companyId).eq("is_active", true),
+        supabase.from("products").select("id, stock_quantity, min_stock").eq("company_id", companyId).or(PRODUCTS_ACTIVE_OR_LEGACY_NULL),
         supabase.from("fiscal_configs").select("id").eq("company_id", companyId).eq("is_active", true).limit(1),
         // Single query: all financial entries (covers alerts, bills, overdue, receivables)
         supabase.from("financial_entries").select("type, amount, status, due_date").eq("company_id", companyId).gte("due_date", (() => { const d = new Date(); d.setDate(d.getDate() - 180); return d.toISOString().split("T")[0]; })()),
         supabase.from("sale_items").select("product_name, quantity, unit_price, sale_id, created_at:sales(created_at)").eq("company_id", companyId).gte("sales.created_at", monthStart + "T00:00:00").limit(500),
-        supabase.from("products").select("id", { count: "exact", head: true }).eq("company_id", companyId).eq("is_active", true),
+        supabase.from("products").select("id", { count: "exact", head: true }).eq("company_id", companyId).or(PRODUCTS_ACTIVE_OR_LEGACY_NULL),
         supabase.from("clients").select("id", { count: "exact", head: true }).eq("company_id", companyId),
         supabase.from("clients").select("credit_balance").eq("company_id", companyId).gt("credit_balance", 0),
       ]);

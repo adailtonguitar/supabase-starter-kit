@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { PRODUCTS_ACTIVE_OR_LEGACY_NULL } from "@/lib/product-active-filter";
 
 export interface TestResult {
   id: string;
@@ -448,7 +449,7 @@ export class SystemDiagnosticService {
         .from("products")
         .select("id", { count: "exact", head: true })
         .eq("company_id", this.companyId)
-        .eq("is_active", true);
+        .or(PRODUCTS_ACTIVE_OR_LEGACY_NULL);
       if (error) throw error;
     });
 

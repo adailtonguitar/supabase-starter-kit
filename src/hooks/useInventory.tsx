@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { PRODUCTS_ACTIVE_OR_LEGACY_NULL } from "@/lib/product-active-filter";
 import { useCompany } from "./useCompany";
 import { useAuth } from "./useAuth";
 import { toast } from "sonner";
@@ -96,7 +97,7 @@ export function useCreateInventory() {
         .from("products")
         .select("id, stock_quantity")
         .eq("company_id", companyId)
-        .eq("is_active", true);
+        .or(PRODUCTS_ACTIVE_OR_LEGACY_NULL);
       if (pErr) throw pErr;
 
       if (products && products.length > 0) {

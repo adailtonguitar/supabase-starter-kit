@@ -6,6 +6,7 @@ import {
 import { useCnpjLookup } from "@/hooks/useCnpjLookup";
 import { DANFePrintButton } from "@/components/fiscal/DANFePrint";
 import { supabase } from "@/integrations/supabase/client";
+import { PRODUCTS_ACTIVE_OR_LEGACY_NULL } from "@/lib/product-active-filter";
 import { useCompany } from "@/hooks/useCompany";
 import { formatCurrency } from "@/lib/utils";
 import { toast } from "sonner";
@@ -244,7 +245,7 @@ export default function NFeEmissao() {
       .from("products")
       .select("id, name, sku, barcode, ncm, unit, price, stock_quantity, origin, cfop, csosn, cst_icms, cest, icms_rate, pis_rate, cofins_rate")
       .eq("company_id", companyId)
-      .eq("is_active", true)
+      .or(PRODUCTS_ACTIVE_OR_LEGACY_NULL)
       .order("name")
       .then(({ data }) => {
         if (data) setProducts(data as NFeProduct[]);

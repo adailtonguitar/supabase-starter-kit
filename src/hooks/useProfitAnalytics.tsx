@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { PRODUCTS_ACTIVE_OR_LEGACY_NULL } from "@/lib/product-active-filter";
 import { useCompany } from "./useCompany";
 import { startOfMonth, endOfMonth, format } from "date-fns";
 
@@ -69,7 +70,7 @@ export function useProfitAnalytics(dateFrom?: Date, dateTo?: Date) {
           .from("products")
           .select("id, name, sku, price, cost_price, ncm")
           .eq("company_id", companyId)
-          .eq("is_active", true),
+          .or(PRODUCTS_ACTIVE_OR_LEGACY_NULL),
       ]);
 
       const sales = (salesRes.data || []) as SaleRow[];

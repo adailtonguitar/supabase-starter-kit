@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { PRODUCTS_ACTIVE_OR_LEGACY_NULL } from "@/lib/product-active-filter";
 import { useAuth } from "./useAuth";
 import { toast } from "sonner";
 import { logAction } from "@/services/ActionLogger";
@@ -205,7 +206,7 @@ export function useSyncProducts() {
         .from("products")
         .select("*")
         .eq("company_id", fromCompanyId)
-        .eq("is_active", true);
+        .or(PRODUCTS_ACTIVE_OR_LEGACY_NULL);
 
       if (fetchErr) throw fetchErr;
       if (!sourceProducts || sourceProducts.length === 0) throw new Error("Nenhum produto encontrado na matriz");

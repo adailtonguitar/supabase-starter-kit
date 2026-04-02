@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { PRODUCTS_ACTIVE_OR_LEGACY_NULL } from "@/lib/product-active-filter";
 import { getProductFiscalStatus } from "@/lib/fiscal-product-suggestions";
 import type { FiscalCategory } from "@/hooks/useFiscalCategories";
 import type { TaxRegime } from "@/lib/cst-csosn-validator";
@@ -148,7 +149,7 @@ export async function getFiscalReadiness(companyId: string): Promise<FiscalReadi
       .from("products")
       .select("id, name, fiscal_category_id, ncm, cfop, csosn, cst_icms, origem")
       .eq("company_id", companyId)
-      .eq("is_active", true),
+      .or(PRODUCTS_ACTIVE_OR_LEGACY_NULL),
     supabase
       .from("fiscal_categories")
       .select("id, name, regime, product_type, ncm, cest, cfop, csosn, cst_icms, icms_rate, icms_st_rate, mva, pis_rate, cofins_rate, ipi_rate, is_active, company_id, created_at, updated_at, operation_type")

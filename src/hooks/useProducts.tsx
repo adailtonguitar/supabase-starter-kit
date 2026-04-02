@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { autoSyncProductToBranches } from "./useBranches";
 import { recordPriceChange } from "@/lib/price-history";
 import { logAction, buildDiff } from "@/services/ActionLogger";
+import { PRODUCTS_ACTIVE_OR_LEGACY_NULL } from "@/lib/product-active-filter";
 
 export interface Product {
   id: string;
@@ -55,7 +56,7 @@ export function useProducts() {
           .from("products")
           .select("id,name,sku,barcode,fiscal_category_id,ncm,cfop,csosn,cst_icms,origem,category,price,cost_price,stock_quantity,min_stock,unit,company_id,is_active,image_url,shelf_location,voltage,warranty_months,serial_number")
           .eq("company_id", companyId)
-          .eq("is_active", true)
+          .or(PRODUCTS_ACTIVE_OR_LEGACY_NULL)
           .order("name")
           .range(from, from + PRODUCTS_PAGE_SIZE - 1);
         if (error) throw error;

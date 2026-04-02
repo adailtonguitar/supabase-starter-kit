@@ -4,6 +4,7 @@ import { useCompany } from "@/hooks/useCompany";
 import { toast } from "sonner";
 import { logAction } from "@/services/ActionLogger";
 import { useAuth } from "@/hooks/useAuth";
+import { PRODUCTS_ACTIVE_OR_LEGACY_NULL } from "@/lib/product-active-filter";
 
 export function useReorderSuggestions() {
   const { companyId } = useCompany();
@@ -17,7 +18,7 @@ export function useReorderSuggestions() {
         .from("products")
         .select("*")
         .eq("company_id", companyId)
-        .eq("is_active", true)
+        .or(PRODUCTS_ACTIVE_OR_LEGACY_NULL)
         .not("reorder_point", "is", null);
       return (data || []).filter((p: ProductRow) => Number(p.stock_quantity ?? 0) <= Number(p.reorder_point ?? 0));
     },

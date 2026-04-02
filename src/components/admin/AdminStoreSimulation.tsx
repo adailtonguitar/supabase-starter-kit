@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { PRODUCTS_ACTIVE_OR_LEGACY_NULL } from "@/lib/product-active-filter";
 import { useCompany } from "@/hooks/useCompany";
 import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -66,7 +67,7 @@ export function AdminStoreSimulation() {
       .from("products")
       .select("id, name, price, stock_quantity, unit")
       .eq("company_id", companyId)
-      .eq("is_active", true);
+      .or(PRODUCTS_ACTIVE_OR_LEGACY_NULL);
 
     if (pErr || !products || products.length === 0) {
       toast.error("Nenhum produto ativo encontrado para simulação");

@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { cacheSet, cacheGet } from "@/lib/offline-cache";
 import { toast } from "sonner";
 import type { PDVProduct } from "@/hooks/usePDV";
+import { PRODUCTS_ACTIVE_OR_LEGACY_NULL } from "@/lib/product-active-filter";
 
 export function usePDVProducts(companyId: string | null) {
   const [products, setProducts] = useState<PDVProduct[]>([]);
@@ -21,7 +22,7 @@ export function usePDVProducts(companyId: string | null) {
           .from("products")
           .select("*")
           .eq("company_id", companyId)
-          .eq("is_active", true)
+          .or(PRODUCTS_ACTIVE_OR_LEGACY_NULL)
           .order("name");
 
         if (data && data.length > 0) {

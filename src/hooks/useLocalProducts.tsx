@@ -4,6 +4,7 @@
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { PRODUCTS_ACTIVE_OR_LEGACY_NULL } from "@/lib/product-active-filter";
 import { useCompany } from "./useCompany";
 import { cacheSet, cacheGet } from "@/lib/offline-cache";
 import { toast } from "sonner";
@@ -26,7 +27,7 @@ export function useLocalProducts() {
             .from("products")
             .select("*")
             .eq("company_id", companyId)
-            .eq("is_active", true)
+            .or(PRODUCTS_ACTIVE_OR_LEGACY_NULL)
             .order("name");
           if (error) throw error;
           const products = (data || []) as LocalProduct[];
