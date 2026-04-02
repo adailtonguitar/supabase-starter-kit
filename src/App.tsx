@@ -49,7 +49,7 @@ const PageSpinner = () => (
 );
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { user, loading, signOut } = useAuth();
+  const { user, session, loading, signOut } = useAuth();
   const { companyId, loading: companyLoading } = useCompany();
   const { subscribed, trialExpired, subscriptionOverdue, blocked, loading: subLoading } = useSubscription();
   const { isSuperAdmin, loading: adminLoading } = useAdminRole();
@@ -70,7 +70,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (!loading && !companyLoading && user && companyId === null && !hasSignedOut.current) {
+    if (!loading && !!session && !companyLoading && user && companyId === null && !hasSignedOut.current) {
       if (!navigator.onLine) {
         setCompanyCheckDone(true);
         return;
@@ -99,7 +99,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     } else if (companyId) {
       setCompanyCheckDone(true);
     }
-  }, [loading, companyLoading, user, companyId, signOut]);
+  }, [loading, session, companyLoading, user, companyId, signOut]);
 
   useEffect(() => {
     if (!user) {
@@ -109,7 +109,10 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     }
   }, [user]);
 
-  const isStillLoading = loading || companyLoading || subLoading || adminLoading || termsLoading || (!companyId && !companyCheckDone);
+  // When a cached user exists, Supabase may still be restoring the real session.
+  // Avoid flashing onboarding screens during this short window.
+  const authNeedsSession = !!user && !session;
+  const isStillLoading = loading || authNeedsSession || companyLoading || subLoading || adminLoading || termsLoading || (!companyId && !companyCheckDone);
 
   if (isStillLoading && !timedOut) {
     return (
