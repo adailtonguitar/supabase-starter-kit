@@ -11,6 +11,7 @@ import {
   stCategoryConflictMessage,
   unnamedProductLabel,
 } from "../../../shared/fiscal/fiscal-copy.ts";
+import { productIdsExcludedFromCatalogFiscalReadiness } from "../../../shared/fiscal/acquisition-readiness.ts";
 
 export type FiscalReadinessIssue = {
   code: string;
@@ -327,7 +328,25 @@ export async function getFiscalReadiness(
 
   const productRows = ((products || []) as ProductFiscalRow[]);
   const categoryRows = ((fiscalCategories || []) as FiscalCategoryRow[]);
-  const productStatuses = productRows.map((product) => ({
+
+  const pids = productRows.map((p) => String(p.id || "")).filter(Boolean);
+  const movementRows: { product_id: string; acquisition_type: string | null }[] = [];
+  const MV_CHUNK = 200;
+  for (let i = 0; i < pids.length; i += MV_CHUNK) {
+    const chunk = pids.slice(i, i + MV_CHUNK);
+    const { data: mv } = await supabase
+      .from("stock_movements")
+      .select("product_id, acquisition_type")
+      .eq("company_id", companyId)
+      .in("product_id", chunk);
+    for (const r of mv || []) {
+      movementRows.push(r as { product_id: string; acquisition_type: string | null });
+    }
+  }
+  const cpfOnlySkip = productIdsExcludedFromCatalogFiscalReadiness(movementRows);
+  const productsForCatalog = productRows.filter((p) => p.id && !cpfOnlySkip.has(String(p.id)));
+
+  const productStatuses = productsForCatalog.map((product) => ({
     product,
     status: getProductFiscalStatus(product, categoryRows, taxRegime),
   }));

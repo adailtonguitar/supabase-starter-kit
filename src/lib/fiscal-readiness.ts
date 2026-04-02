@@ -9,6 +9,7 @@ import {
   productsFiscalInvalidMessage,
   unnamedProductLabel,
 } from "../../shared/fiscal/fiscal-copy";
+import { productIdsExcludedFromCatalogFiscalReadiness } from "../../shared/fiscal/acquisition-readiness";
 
 export type FiscalReadinessIssue = {
   code: string;
@@ -266,7 +267,26 @@ export async function getFiscalReadiness(companyId: string): Promise<FiscalReadi
 
   const activeFiscalCategories = ((fiscalCategories || []) as FiscalCategory[]);
   const activeProducts = ((products || []) as ProductFiscalRow[]);
-  const productStatuses = activeProducts.map((product) => ({
+
+  /** Produtos só com entrada "Sem nota / CPF" não entram na barreira de catálogo (lastro CNPJ). */
+  const productIds = activeProducts.map((p) => p.id).filter(Boolean);
+  const movementRows: { product_id: string; acquisition_type: string | null }[] = [];
+  const CHUNK = 200;
+  for (let i = 0; i < productIds.length; i += CHUNK) {
+    const chunk = productIds.slice(i, i + CHUNK);
+    const { data: mv } = await supabase
+      .from("stock_movements")
+      .select("product_id, acquisition_type")
+      .eq("company_id", companyId)
+      .in("product_id", chunk);
+    for (const r of mv || []) {
+      movementRows.push(r as { product_id: string; acquisition_type: string | null });
+    }
+  }
+  const cpfOnlyCatalogSkip = productIdsExcludedFromCatalogFiscalReadiness(movementRows);
+  const productsForCatalogReadiness = activeProducts.filter((p) => !cpfOnlyCatalogSkip.has(p.id));
+
+  const productStatuses = productsForCatalogReadiness.map((product) => ({
     product,
     status: getProductFiscalStatus(product as any, activeFiscalCategories, taxRegime),
   }));
