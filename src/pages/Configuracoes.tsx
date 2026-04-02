@@ -1216,7 +1216,7 @@ export default function Configuracoes() {
             key: String(entry.company_id ?? entry.company_name),
             companyName: String(entry.company_name ?? "Empresa sem nome").trim(),
             data: entry.data as Record<string, unknown[]>,
-            totalRows: Object.values(entry.data).reduce((sum, value) => sum + (Array.isArray(value) ? value.length : 0), 0),
+            totalRows: Object.values(entry.data).reduce<number>((sum, value) => sum + (Array.isArray(value) ? value.length : 0), 0),
           }));
 
         if (choices.length === 0) {
