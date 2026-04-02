@@ -59,6 +59,24 @@ function getCachedCompany(): CachedCompany | null {
   return null;
 }
 
+/** Sem `as_selected_company`, evita cair na empresa “vazia” quando o usuário tem vários vínculos. */
+async function pickDefaultCompanyIdAmongActives(activeIds: string[]): Promise<string> {
+  if (activeIds.length === 1) return activeIds[0];
+  const scored = await Promise.all(
+    activeIds.map(async (id) => {
+      const [{ count: salesC }, { count: productsC }] = await Promise.all([
+        supabase.from("sales").select("id", { count: "exact", head: true }).eq("company_id", id),
+        supabase.from("products").select("id", { count: "exact", head: true }).eq("company_id", id).eq("is_active", true),
+      ]);
+      const s = salesC ?? 0;
+      const p = productsC ?? 0;
+      return { id, s, p, score: s * 1_000_000 + p };
+    }),
+  );
+  scored.sort((a, b) => b.score - a.score);
+  return scored[0].id;
+}
+
 function extractCompanyFields(company: CompanyRow | null | undefined): Omit<CachedCompany, 'companyId'> {
   return {
     companyName: company?.name ?? null,
@@ -159,8 +177,8 @@ export function useCompany(): CompanyData {
         }
 
         if (!resolvedCompanyId) {
-          const firstActive = memberships.find((m) => m.is_active);
-          if (!firstActive?.company_id) {
+          const activeIds = memberships.filter((m) => m.is_active).map((m) => m.company_id);
+          if (activeIds.length === 0) {
             if (retryCount.current < 3) {
               retryCount.current++;
               retryTimer.current = setTimeout(() => { if (!cancelled) fetchCompany(); }, Math.min(400 * retryCount.current, 1200));
@@ -170,9 +188,26 @@ export function useCompany(): CompanyData {
             setLoading(false);
             return;
           }
-          resolvedCompanyId = firstActive.company_id;
+          resolvedCompanyId = await pickDefaultCompanyIdAmongActives(activeIds);
         }
 
+        // `as_selected_company` pode ficar preso na empresa secundária (ex.: onboarding) enquanto a operação real está em outro tenant.
+        if (resolvedCompanyId && memberships.filter((m) => m.is_active).length > 1) {
+          const activeIds = memberships.filter((m) => m.is_active).map((m) => m.company_id);
+          const bestId = await pickDefaultCompanyIdAmongActives(activeIds);
+          if (bestId !== resolvedCompanyId) {
+            const [{ count: curS }] = await supabase
+              .from("sales").select("id", { count: "exact", head: true }).eq("company_id", resolvedCompanyId);
+            const [{ count: bestS }] = await supabase
+              .from("sales").select("id", { count: "exact", head: true }).eq("company_id", bestId);
+            const c0 = curS ?? 0;
+            const b0 = bestS ?? 0;
+            if (c0 === 0 && b0 >= 5) {
+              localStorage.removeItem(SELECTED_COMPANY_KEY);
+              resolvedCompanyId = bestId;
+            }
+          }
+        }
         if (cancelled) return;
 
         const { data: company } = await supabase
