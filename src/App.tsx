@@ -63,8 +63,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const timer = setTimeout(() => {
       setTimedOut(true);
-      setCompanyCheckDone(true);
-      console.warn("[ProtectedRoute] Loading timeout reached — forcing through");
+      console.warn("[ProtectedRoute] Loading timeout reached — showing fallback");
     }, 8000);
     return () => clearTimeout(timer);
   }, []);
@@ -124,12 +123,45 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   if (!user) return <Navigate to="/" replace />;
 
+  // If we timed out resolving company, never fall back to onboarding wizard automatically.
+  // Old users can briefly have companyId=null during refresh; onboarding must be explicit.
+  if (timedOut && (!companyId && !showOnboarding)) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-background p-6">
+        <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-xl space-y-3">
+          <div className="text-lg font-bold text-foreground">Carregando sua empresa…</div>
+          <div className="text-sm text-muted-foreground">
+            O carregamento demorou mais que o esperado. Isso pode acontecer por conexão lenta ou bloqueio de rede.
+          </div>
+          <div className="flex gap-2 pt-2">
+            <button
+              className="flex-1 px-4 py-2 rounded-xl bg-primary text-primary-foreground font-semibold text-sm hover:bg-primary/90 transition-colors"
+              onClick={() => window.location.reload()}
+            >
+              Tentar novamente
+            </button>
+            <button
+              className="px-4 py-2 rounded-xl border border-border text-sm font-medium text-foreground hover:bg-muted transition-colors"
+              onClick={() => { setTimedOut(false); setCompanyCheckDone(false); }}
+            >
+              Aguardar
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (showOnboarding) {
     return <OnboardingWizard onComplete={() => window.location.reload()} />;
   }
 
   if (!companyId && !showOnboarding) {
-    return <OnboardingWizard onComplete={() => window.location.reload()} />;
+    return (
+      <div className="flex items-center justify-center h-screen bg-background" role="status" aria-label="Carregando">
+        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
   }
 
   if (!isSuperAdmin && !termsAccepted) {
