@@ -179,6 +179,25 @@ Deno.serve(async (req) => {
       }
     }
 
+    try {
+      const { data: supplierIds } = await adminClient.from("suppliers").select("id").eq("company_id", company_id);
+      if (supplierIds && supplierIds.length > 0) {
+        for (let i = 0; i < supplierIds.length; i += 100) {
+          const ids = supplierIds.slice(i, i + 100).map((r: { id: string }) => r.id);
+          const { error: upErr } = await adminClient.from("products").update({ supplier_id: null }).in("supplier_id", ids);
+          if (upErr) throw upErr;
+        }
+      }
+      results.push({ table: "products", phase: "null-supplier-fk", count: supplierIds?.length ?? 0 });
+    } catch (e: unknown) {
+      results.push({
+        table: "products",
+        phase: "null-supplier-fk",
+        count: 0,
+        error: e instanceof Error ? e.message : "unknown",
+      });
+    }
+
     // Phase 2: Delete main tables (reverse order to respect FK)
     const deleteOrder = [...EXPORTABLE_TABLES].reverse();
     for (const table of deleteOrder) {

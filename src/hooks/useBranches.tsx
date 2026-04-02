@@ -37,12 +37,28 @@ export function useBranches() {
       const companyIds = memberships.filter((m) => m.is_active).map((m) => m.company_id);
       if (companyIds.length === 0) return [];
 
-      const { data: companies } = await supabase
-        .from("companies")
-        .select("id, name, cnpj, parent_company_id, logo_url")
-        .in("id", companyIds);
+      let companies: CompanyRow[] | null = (
+        await supabase
+          .from("companies")
+          .select("id, name, cnpj, parent_company_id, logo_url")
+          .in("id", companyIds)
+      ).data;
 
-      if (!companies) return [];
+      // Fallback: em alguns ambientes o .in() pode retornar vazio com RLS/postgrest; busca por id evita Filiais “sem matriz”.
+      if (!companies?.length && companyIds.length > 0) {
+        const oneByOne: CompanyRow[] = [];
+        for (const cid of companyIds) {
+          const { data: row } = await supabase
+            .from("companies")
+            .select("id, name, cnpj, parent_company_id, logo_url")
+            .eq("id", cid)
+            .maybeSingle();
+          if (row) oneByOne.push(row as CompanyRow);
+        }
+        companies = oneByOne;
+      }
+
+      if (!companies?.length) return [];
 
       const { data: children } = await supabase
         .from("companies")
@@ -55,14 +71,21 @@ export function useBranches() {
         for (const c of children) allCompanies.set(c.id, c);
       }
 
-      return Array.from(allCompanies.values()).map((c) => ({
-        id: c.id,
-        name: c.name || "Sem nome",
-        cnpj: c.cnpj ?? undefined,
-        parent_company_id: c.parent_company_id,
-        is_parent: !c.parent_company_id,
-        logo_url: c.logo_url ?? undefined,
-      }));
+      const accessible = new Set(companyIds);
+
+      return Array.from(allCompanies.values()).map((c) => {
+        // Matriz na UI = raiz na hierarquia que o usuário enxerga.
+        // Legado/onboarding: parent_company_id aponta para UUID inacessível ou lixo → ainda é "matriz" para não sumir da lista.
+        const parentInTree = Boolean(c.parent_company_id && accessible.has(c.parent_company_id));
+        return {
+          id: c.id,
+          name: c.name || "Sem nome",
+          cnpj: c.cnpj ?? undefined,
+          parent_company_id: c.parent_company_id,
+          is_parent: !parentInTree,
+          logo_url: c.logo_url ?? undefined,
+        };
+      });
     },
     enabled: !!user,
   });

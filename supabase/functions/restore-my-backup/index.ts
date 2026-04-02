@@ -326,6 +326,26 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Libera DELETE em suppliers: produtos com company_id divergente ainda podem referenciar fornecedores deste tenant.
+    try {
+      const { data: supplierIds } = await adminClient.from("suppliers").select("id").eq("company_id", companyId);
+      if (supplierIds && supplierIds.length > 0) {
+        for (let i = 0; i < supplierIds.length; i += 100) {
+          const ids = supplierIds.slice(i, i + 100).map((row: { id: string }) => row.id);
+          const { error: upErr } = await adminClient.from("products").update({ supplier_id: null }).in("supplier_id", ids);
+          if (upErr) throw upErr;
+        }
+      }
+      results.push({ table: "products", phase: "null-supplier-fk", count: supplierIds?.length ?? 0 });
+    } catch (error) {
+      results.push({
+        table: "products",
+        phase: "null-supplier-fk",
+        count: 0,
+        error: error instanceof Error ? error.message : "unknown",
+      });
+    }
+
     for (const table of [...EXPORTABLE_TABLES].reverse()) {
       try {
         const { count, error } = await adminClient
