@@ -18,6 +18,7 @@ import { useFiscalCategories } from "@/hooks/useFiscalCategories";
 import { type TaxRegime } from "@/lib/cst-csosn-validator";
 import { getSuggestedFiscalUpdate, getChangedFiscalFields, getFiscalSuggestionDiagnostics, getBulkFiscalFixAnalysis } from "@/lib/fiscal-product-suggestions";
 import { messageFromFunctionsInvokeError } from "@/lib/supabase-function-error";
+import { getAccessTokenForEdgeFunctions } from "@/lib/supabase-edge-auth";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -1107,12 +1108,18 @@ export default function Configuracoes() {
     setImporting(true);
 
     try {
+      const auth = await getAccessTokenForEdgeFunctions();
+      if ("error" in auth) {
+        throw new Error(auth.error);
+      }
+
       const { data, error, response: fnResponse } = await supabase.functions.invoke("restore-my-backup", {
         body: {
           backup_data: backupData,
           source_company_name: sourceCompanyName,
           ...(activeCompanyId ? { target_company_id: activeCompanyId } : {}),
         },
+        headers: { Authorization: `Bearer ${auth.token}` },
       });
 
       if (error) {

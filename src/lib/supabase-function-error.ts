@@ -1,3 +1,10 @@
+function humanizeKnownEdgeMessages(msg: string): string {
+  if (/invalid jwt/i.test(msg)) {
+    return "Sessão expirada ou token inválido. Atualize a página ou faça login novamente e tente de novo.";
+  }
+  return msg;
+}
+
 /**
  * Extrai mensagem legível de supabase.functions.invoke quando error != null.
  * O SDK 2.x devolve { data, error, response? }; em HTTP de erro, `response` é o Response bruto.
@@ -22,10 +29,10 @@ export async function messageFromFunctionsInvokeError(
     if (raw) {
       try {
         const j = JSON.parse(raw) as { error?: string; message?: string };
-        if (typeof j.error === "string" && j.error.length > 0) return j.error;
-        if (typeof j.message === "string" && j.message.length > 0) return j.message;
+        if (typeof j.error === "string" && j.error.length > 0) return humanizeKnownEdgeMessages(j.error);
+        if (typeof j.message === "string" && j.message.length > 0) return humanizeKnownEdgeMessages(j.message);
       } catch {
-        if (raw.length < 600) return raw;
+        if (raw.length < 600) return humanizeKnownEdgeMessages(raw);
       }
     }
   } catch {
@@ -36,5 +43,5 @@ export async function messageFromFunctionsInvokeError(
     return `Falha na função (HTTP ${res.status}). Se acabou de alterar o código, faça deploy da Edge Function no Supabase e confira os logs.`;
   }
 
-  return fallback;
+  return humanizeKnownEdgeMessages(fallback);
 }
