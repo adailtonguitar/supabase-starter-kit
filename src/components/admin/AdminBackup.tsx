@@ -26,6 +26,9 @@ export function AdminBackup() {
   // Import state
   const [backupFile, setBackupFile] = useState<any>(null);
   const [backupMeta, setBackupMeta] = useState<{ company_name: string; exported_at: string; tables: { table: string; rows: number }[] } | null>(null);
+  const [weeklyBackupCompanies, setWeeklyBackupCompanies] = useState<{ company_id: string; company_name: string; data: Record<string, any[]> }[]>([]);
+  const [selectedBackupCompany, setSelectedBackupCompany] = useState("");
+  const [isWeeklyFormat, setIsWeeklyFormat] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [confirmName, setConfirmName] = useState("");
   const [importing, setImporting] = useState(false);
@@ -85,14 +88,31 @@ export function AdminBackup() {
     reader.onload = (ev) => {
       try {
         const json = JSON.parse(ev.target?.result as string);
-        if (!json?.metadata || !json?.data) {
-          toast.error("Arquivo JSON inválido — não é um backup do sistema");
+        
+        // Detect weekly consolidated format: { metadata, backups[] }
+        if (json?.metadata && Array.isArray(json?.backups) && json.backups.length > 0) {
+          setIsWeeklyFormat(true);
+          setWeeklyBackupCompanies(json.backups);
+          setSelectedBackupCompany("");
+          setBackupFile(json);
+          setBackupMeta(json.metadata);
+          setImportResult(null);
+          toast.success(`Backup semanal carregado com ${json.backups.length} empresa(s)! Selecione qual restaurar.`);
           return;
         }
-        setBackupFile(json);
-        setBackupMeta(json.metadata);
-        setImportResult(null);
-        toast.success("Arquivo de backup carregado!");
+        
+        // Standard single-company format: { metadata, data }
+        if (json?.metadata && json?.data) {
+          setIsWeeklyFormat(false);
+          setWeeklyBackupCompanies([]);
+          setBackupFile(json);
+          setBackupMeta(json.metadata);
+          setImportResult(null);
+          toast.success("Arquivo de backup carregado!");
+          return;
+        }
+        
+        toast.error("Arquivo JSON inválido — não é um backup do sistema");
       } catch {
         toast.error("Erro ao ler o arquivo JSON");
       }
@@ -120,10 +140,18 @@ export function AdminBackup() {
     setImporting(true);
 
     try {
+      // Determine backup_data based on format
+      let backupData = backupFile.data;
+      if (isWeeklyFormat && selectedBackupCompany) {
+        const chosen = weeklyBackupCompanies.find(b => b.company_id === selectedBackupCompany);
+        if (!chosen) throw new Error("Empresa do backup não encontrada");
+        backupData = chosen.data;
+      }
+
       const { data, error } = await supabase.functions.invoke("import-backup", {
         body: {
           company_id: selectedCompany,
-          backup_data: backupFile.data,
+          backup_data: backupData,
           confirm_company_name: confirmName,
         },
       });
