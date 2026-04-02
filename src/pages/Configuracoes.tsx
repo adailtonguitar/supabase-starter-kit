@@ -1076,9 +1076,50 @@ function FiscalReadinessSection() {
 // FurnitureModeSection removed — segment is now defined at onboarding only
 
 export default function Configuracoes() {
+  const { companyId, companyName } = useCompany();
   const [exporting, setExporting] = useState(false);
   const [importing, setImporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const normalizeCompanyName = useCallback((value: string | null | undefined) => {
+    return String(value ?? "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .toLowerCase();
+  }, []);
+
+  const resolveBackupPayload = useCallback((parsedBackup: any) => {
+    if (parsedBackup?.data && (parsedBackup?.version || parsedBackup?.metadata)) {
+      return {
+        backupData: parsedBackup.data,
+        sourceCompanyName: parsedBackup?.metadata?.company_name ?? companyName ?? "backup manual",
+      };
+    }
+
+    if (parsedBackup?.metadata && Array.isArray(parsedBackup?.backups)) {
+      if (!companyName) {
+        throw new Error("Não foi possível identificar a empresa atual para localizar os dados no backup semanal");
+      }
+
+      const currentName = normalizeCompanyName(companyName);
+      const matchedCompany = parsedBackup.backups.find((entry: any) => {
+        return normalizeCompanyName(entry?.company_name) === currentName && entry?.data && typeof entry.data === "object";
+      });
+
+      if (!matchedCompany) {
+        throw new Error(`Este backup semanal não contém a empresa ${companyName}`);
+      }
+
+      return {
+        backupData: matchedCompany.data,
+        sourceCompanyName: matchedCompany.company_name ?? companyName,
+      };
+    }
+
+    throw new Error("Este arquivo não parece ser um backup válido do sistema");
+  }, [companyName, normalizeCompanyName]);
 
   const handleExport = async () => {
     setExporting(true);
@@ -1120,21 +1161,41 @@ export default function Configuracoes() {
     if (fileInputRef.current) fileInputRef.current.value = "";
     if (!file.name.endsWith(".json")) { toast.error("Selecione um arquivo .json válido"); return; }
     if (file.size > 50 * 1024 * 1024) { toast.error("Arquivo muito grande (máx. 50MB)"); return; }
+    if (!companyId || !companyName) { toast.error("Não foi possível identificar a empresa atual para restaurar o backup"); return; }
     setImporting(true);
     try {
       const text = await file.text();
       let backup: any;
       try { backup = JSON.parse(text); } catch { toast.error("Arquivo JSON inválido"); setImporting(false); return; }
-      if (!backup.version || !backup.data) { toast.error("Este arquivo não parece ser um backup válido do sistema"); setImporting(false); return; }
-      const { data, error } = await supabase.functions.invoke("import-company-data", { body: { backup } });
+      const { backupData, sourceCompanyName } = resolveBackupPayload(backup);
+      const { data, error } = await supabase.functions.invoke("import-backup", {
+        body: {
+          company_id: companyId,
+          backup_data: backupData,
+          confirm_company_name: companyName,
+        },
+      });
       if (error) { toast.error("Erro ao importar: " + error.message); return; }
       if (data?.success) {
-        const totalImported = data.total_imported || 0;
-        const totalErrors = data.total_errors || 0;
-        if (totalErrors > 0) toast.warning(`Importação concluída: ${totalImported} registros importados, ${totalErrors} erros`);
+        const results = Array.isArray(data.results) ? data.results : [];
+        const totalImported = results
+          .filter((result: any) => result?.phase === "insert")
+          .reduce((sum: number, result: any) => sum + Number(result?.count || 0), 0);
+        const totalErrors = results.filter((result: any) => result?.error).length;
+
+        logAction({
+          companyId,
+          action: "Restauração de backup iniciada pela tela de configurações",
+          module: "configuracoes",
+          details: `Origem: ${sourceCompanyName}`,
+        });
+
+        if (totalErrors > 0) toast.warning(`Restauração concluída: ${totalImported} registros importados, ${totalErrors} ocorrências`);
         else toast.success(`Backup restaurado com sucesso! ${totalImported} registros importados.`);
       } else { toast.error(data?.error || "Erro ao importar backup"); }
-    } catch { toast.error("Erro ao processar arquivo de backup"); } finally { setImporting(false); }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao processar arquivo de backup");
+    } finally { setImporting(false); }
   };
 
   return (
@@ -1176,7 +1237,7 @@ export default function Configuracoes() {
           <div className="border-t border-border pt-4 mt-4">
             <h3 className="text-sm font-semibold text-foreground mb-2">Restaurar Backup</h3>
             <p className="text-xs text-muted-foreground mb-3">
-              Faça upload de um arquivo <strong>.json</strong> exportado anteriormente pelo sistema.
+              Faça upload de um arquivo <strong>.json</strong> exportado pelo sistema ou do <strong>backup semanal consolidado</strong> para restaurar a empresa atual.
             </p>
             <input ref={fileInputRef} type="file" accept=".json" onChange={handleImportBackup} className="hidden" id="backup-file-input" />
             <Button variant="secondary" size="sm" onClick={() => fileInputRef.current?.click()} disabled={importing || exporting}>
