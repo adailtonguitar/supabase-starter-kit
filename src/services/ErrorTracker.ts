@@ -42,11 +42,12 @@ export async function trackError(opts: {
     lastError = message;
     lastErrorTime = now;
 
-    // Skip common non-actionable errors
+    // Skip common non-actionable errors (e bug legado já corrigido no bundle atual)
     if (
       message.includes("ResizeObserver") ||
       message.includes("Loading chunk") ||
-      message.includes("requested version") && message.includes("existing version")
+      (message.includes("requested version") && message.includes("existing version")) ||
+      (message.includes("memberProbe") && message.includes("not defined"))
     ) return;
 
     const { browser, device } = getDeviceInfo();

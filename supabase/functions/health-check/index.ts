@@ -104,13 +104,7 @@ async function checkAppErrors(client: any): Promise<{ count: number; topErrors: 
   try {
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
 
-    // Filter out known non-actionable errors (IndexedDB version conflicts, ResizeObserver, chunk loading)
-    const NON_ACTIONABLE = [
-      "requested version",
-      "ResizeObserver",
-      "Loading chunk",
-    ];
-
+    // Filter out known non-actionable / já corrigidos no app (evita alerta eterno na janela de 1h)
     const { data, count } = await client
       .from("system_errors")
       .select("error_message", { count: "exact" })
@@ -118,6 +112,7 @@ async function checkAppErrors(client: any): Promise<{ count: number; topErrors: 
       .not("error_message", "ilike", "%requested version%")
       .not("error_message", "ilike", "%ResizeObserver%")
       .not("error_message", "ilike", "%Loading chunk%")
+      .not("error_message", "ilike", "%memberProbe%not defined%")
       .order("created_at", { ascending: false })
       .limit(5);
 
@@ -159,6 +154,33 @@ const CRITICAL_FUNCTIONS = [
 ];
 
 const APP_ERROR_THRESHOLD = 5;
+/** Evita um e-mail a cada execução do cron enquanto o pico continua na janela de 1h. */
+const APP_ERROR_EMAIL_COOLDOWN_MS = 45 * 60 * 1000;
+
+async function getLastAppErrorEmailAt(client: any): Promise<number | null> {
+  try {
+    const { data, error } = await client
+      .from("health_monitor_state")
+      .select("last_app_error_email_at")
+      .eq("id", 1)
+      .maybeSingle();
+    if (error || !data?.last_app_error_email_at) return null;
+    return new Date(data.last_app_error_email_at as string).getTime();
+  } catch {
+    return null;
+  }
+}
+
+async function markAppErrorEmailSent(client: any): Promise<void> {
+  try {
+    await client.from("health_monitor_state").upsert(
+      { id: 1, last_app_error_email_at: new Date().toISOString() },
+      { onConflict: "id" },
+    );
+  } catch {
+    /* tabela pode não existir até rodar a migration */
+  }
+}
 
 function buildAlertHtml(
   failedServices: HealthResult[],
@@ -243,12 +265,13 @@ Deno.serve(async (req) => {
     const client = createClient(supabaseUrl, serviceRoleKey);
 
     // Run all checks in parallel
-    const [db, auth, storage, previousFailed, appErrors, ...edgeResults] = await Promise.all([
+    const [db, auth, storage, previousFailed, appErrors, lastAppErrEmailAt, ...edgeResults] = await Promise.all([
       checkDatabase(client),
       checkAuth(client),
       checkStorage(client),
       getPreviousFailedServices(client),
       checkAppErrors(client),
+      getLastAppErrorEmailAt(client),
       ...CRITICAL_FUNCTIONS.map((fn) => checkEdgeFunction(supabaseUrl, fn)),
     ]);
 
@@ -262,8 +285,11 @@ Deno.serve(async (req) => {
     const newFailures = failedServices.filter((f) => !previousFailed.has(f.service));
     const hasNewFailures = newFailures.length > 0;
 
-    // ── App error spike detection ──
+    // ── App error spike detection (e-mail com cooldown — antes disparava a cada cron) ──
     const hasAppErrorSpike = appErrors.count >= APP_ERROR_THRESHOLD;
+    const appErrorCooldownElapsed =
+      lastAppErrEmailAt == null || Date.now() - lastAppErrEmailAt >= APP_ERROR_EMAIL_COOLDOWN_MS;
+    const shouldSendAppErrorEmail = hasAppErrorSpike && appErrorCooldownElapsed;
 
     // Log to uptime_logs
     try {
@@ -292,22 +318,23 @@ Deno.serve(async (req) => {
       }
     }
 
-    // ── Send alert only when there's something NEW to report ──
-    const shouldAlert = (hasNewFailures || hasAppErrorSpike) && resendKey;
+    // ── Send alert: infra só em falha nova; app errors só após cooldown ──
+    const shouldAlert = (hasNewFailures || shouldSendAppErrorEmail) && resendKey;
 
     if (shouldAlert) {
       try {
         const parts: string[] = [];
         if (hasNewFailures) parts.push(`${newFailures.length} serviço(s) fora do ar`);
-        if (hasAppErrorSpike) parts.push(`${appErrors.count} erros de app/hora`);
+        if (shouldSendAppErrorEmail) parts.push(`${appErrors.count} erros de app/hora`);
         const subject = `🚨 ALERTA: ${parts.join(" + ")} — AnthoSystem`;
 
         const html = buildAlertHtml(
           newFailures,
-          hasAppErrorSpike ? appErrors : null,
+          shouldSendAppErrorEmail ? appErrors : null,
           hasNewFailures,
         );
         await sendAlert(resendKey, alertEmail, html, subject);
+        if (shouldSendAppErrorEmail) await markAppErrorEmailSent(client);
       } catch (emailErr) {
         console.error("[health-check] Alert email error:", emailErr);
       }
