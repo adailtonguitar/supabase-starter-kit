@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { adminQuery } from "@/lib/admin-query";
+import { parseMembershipsPayload } from "@/lib/company-memberships";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -54,6 +55,8 @@ export function AdminSubscriptions() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [deleting, setDeleting] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState<{ open: boolean; mode: "selected" | "all_demos"; count: number }>({ open: false, mode: "selected", count: 0 });
+  /** IDs a excluir no próximo confirm — evita closure desatualizada e re-leitura errada de `plans`. */
+  const pendingDeleteIdsRef = useRef<string[] | null>(null);
 
   const fetchPlans = async () => {
     setLoading(true);
@@ -145,11 +148,39 @@ export function AdminSubscriptions() {
   };
 
   const deleteCompanies = async (companyIds: string[]) => {
+    if (companyIds.length === 0) return;
+
+    let mine = new Set<string>();
+    try {
+      const { data: raw } = await supabase.rpc("get_my_company_memberships");
+      mine = new Set(
+        parseMembershipsPayload(raw)
+          .filter((m) => m.is_active)
+          .map((m) => m.company_id),
+      );
+    } catch {
+      /* se RPC falhar, segue sem filtro de “minhas empresas” — raro */
+    }
+
+    const blocked = companyIds.filter((id) => mine.has(id));
+    const toDelete = companyIds.filter((id) => !mine.has(id));
+
+    if (blocked.length > 0) {
+      toast.warning(
+        `${blocked.length} empresa(s) estão vinculadas ao seu login e não podem ser excluídas por este painel.`,
+        { duration: 8000 },
+      );
+    }
+    if (toDelete.length === 0) {
+      toast.error("Nenhuma empresa restante para excluir (todas protegidas ou lista vazia).");
+      return;
+    }
+
     setDeleting(true);
     let successCount = 0;
     let errorCount = 0;
 
-    for (const companyId of companyIds) {
+    for (const companyId of toDelete) {
       try {
         const { error } = await supabase.rpc("admin_delete_company", { p_company_id: companyId });
         if (error) {
@@ -166,9 +197,11 @@ export function AdminSubscriptions() {
 
     if (successCount > 0) {
       toast.success(`${successCount} empresa(s) excluída(s) com sucesso!`);
-      companyIds.forEach(cId => logAction({ companyId: cId, userId: user?.id, action: "Empresa excluída via admin", module: "admin", details: `company_id: ${cId}` }));
+      toDelete.forEach((cId) =>
+        logAction({ companyId: cId, userId: user?.id, action: "Empresa excluída via admin", module: "admin", details: `company_id: ${cId}` }),
+      );
     }
-    if (errorCount > 0) toast.error(`${errorCount} empresa(s) falharam na exclusão.`);
+    if (errorCount > 0) toast.error(`${errorCount} empresa(s) falharam na exclusão (ver permissões/RPC admin_delete_company).`);
 
     setSelected(new Set());
     setDeleting(false);
@@ -176,24 +209,39 @@ export function AdminSubscriptions() {
   };
 
   const handleDeleteSelected = () => {
-    if (selected.size === 0) { toast.warning("Selecione ao menos uma empresa."); return; }
-    setConfirmDialog({ open: true, mode: "selected", count: selected.size });
+    if (selected.size === 0) {
+      toast.warning("Selecione ao menos uma empresa.");
+      return;
+    }
+    const ids = Array.from(selected);
+    const rows = ids.map((id) => plans.find((p) => p.company_id === id)).filter(Boolean) as PlanRow[];
+    const nonDemo = rows.filter((r) => !r.is_demo);
+    if (nonDemo.length > 0) {
+      toast.error(
+        `“Excluir selecionadas” só pode remover empresas marcadas como Demo. ${nonDemo.length} linha(s) não são demo (ex.: ${nonDemo[0]?.company_name || "—"}). Desmarque-as ou marque como Demo só se forem realmente teste.`,
+        { duration: 12_000 },
+      );
+      return;
+    }
+    pendingDeleteIdsRef.current = ids;
+    setConfirmDialog({ open: true, mode: "selected", count: ids.length });
   };
 
   const handleDeleteAllDemos = () => {
-    const demoIds = plans.filter(r => r.is_demo).map(r => r.company_id);
-    if (demoIds.length === 0) { toast.warning("Nenhuma empresa demo encontrada."); return; }
+    const demoIds = plans.filter((r) => r.is_demo).map((r) => r.company_id);
+    if (demoIds.length === 0) {
+      toast.warning("Nenhuma empresa demo encontrada.");
+      return;
+    }
+    pendingDeleteIdsRef.current = demoIds;
     setConfirmDialog({ open: true, mode: "all_demos", count: demoIds.length });
   };
 
   const confirmDelete = () => {
-    setConfirmDialog(prev => ({ ...prev, open: false }));
-    if (confirmDialog.mode === "selected") {
-      deleteCompanies(Array.from(selected));
-    } else {
-      const demoIds = plans.filter(r => r.is_demo).map(r => r.company_id);
-      deleteCompanies(demoIds);
-    }
+    const ids = pendingDeleteIdsRef.current;
+    pendingDeleteIdsRef.current = null;
+    setConfirmDialog((prev) => ({ ...prev, open: false }));
+    if (ids?.length) deleteCompanies(ids);
   };
 
   const filtered = plans.filter(p => {
@@ -332,10 +380,14 @@ export function AdminSubscriptions() {
                     <TableRow>
                       <TableHead className="w-10">
                         <Checkbox
-                          checked={filtered.length > 0 && filtered.every(r => selected.has(r.company_id))}
+                          title="Seleciona só empresas marcadas como Demo nesta lista"
+                          checked={
+                            filtered.filter((r) => r.is_demo).length > 0 &&
+                            filtered.filter((r) => r.is_demo).every((r) => selected.has(r.company_id))
+                          }
                           onCheckedChange={(checked) => {
                             if (checked) {
-                              setSelected(new Set(filtered.map(r => r.company_id)));
+                              setSelected(new Set(filtered.filter((r) => r.is_demo).map((r) => r.company_id)));
                             } else {
                               setSelected(new Set());
                             }
@@ -415,7 +467,7 @@ export function AdminSubscriptions() {
             <AlertDialogDescription>
               {confirmDialog.mode === "all_demos"
                 ? `Tem certeza que deseja excluir TODAS as ${confirmDialog.count} empresas demo? Esta ação é irreversível.`
-                : `Tem certeza que deseja excluir ${confirmDialog.count} empresa(s) selecionada(s)? Esta ação é irreversível.`
+                : `Tem certeza que deseja excluir ${confirmDialog.count} empresa(s) demo selecionada(s)? Empresas vinculadas ao seu login são ignoradas. Esta ação é irreversível.`
               }
             </AlertDialogDescription>
           </AlertDialogHeader>
