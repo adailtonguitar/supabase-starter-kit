@@ -337,25 +337,67 @@ export function AdminBackup() {
                 <h4 className="text-sm font-medium flex items-center gap-2">
                   <Database className="h-4 w-4" /> Resumo do backup
                 </h4>
-                <div className="text-sm text-muted-foreground space-y-1">
-                  <p>Empresa original: <strong>{backupMeta.company_name}</strong></p>
-                  <p>Data do backup: <strong>{new Date(backupMeta.exported_at).toLocaleString("pt-BR")}</strong></p>
-                  <p>Total de registros: <strong>{totalBackupRows}</strong></p>
-                </div>
-                <div className="flex flex-wrap gap-1.5 mt-2">
-                  {backupMeta.tables?.map(t => (
-                    <span key={t.table} className="text-xs bg-background border rounded px-2 py-0.5">
-                      {t.table}: <strong>{t.rows}</strong>
-                    </span>
-                  ))}
-                </div>
+                {isWeeklyFormat ? (
+                  <div className="space-y-3">
+                    <p className="text-sm text-muted-foreground">
+                      Backup semanal com <strong>{weeklyBackupCompanies.length}</strong> empresa(s).
+                      Exportado em: <strong>{new Date(backupMeta.exported_at).toLocaleString("pt-BR")}</strong>
+                    </p>
+                    <div>
+                      <label className="text-sm font-medium mb-1.5 block">Selecione a empresa do backup para restaurar:</label>
+                      <select
+                        className="w-full border rounded px-3 py-2 text-sm bg-background"
+                        value={selectedBackupCompany}
+                        onChange={(e) => setSelectedBackupCompany(e.target.value)}
+                      >
+                        <option value="">-- Escolha uma empresa --</option>
+                        {weeklyBackupCompanies.map((b) => {
+                          const rowCount = Object.values(b.data).reduce((s, arr) => s + (Array.isArray(arr) ? arr.length : 0), 0);
+                          return (
+                            <option key={b.company_id} value={b.company_id}>
+                              {b.company_name} ({rowCount} registros)
+                            </option>
+                          );
+                        })}
+                      </select>
+                    </div>
+                    {selectedBackupCompany && (() => {
+                      const chosen = weeklyBackupCompanies.find(b => b.company_id === selectedBackupCompany);
+                      if (!chosen) return null;
+                      return (
+                        <div className="flex flex-wrap gap-1.5">
+                          {Object.entries(chosen.data).map(([table, rows]) => (
+                            <span key={table} className="text-xs bg-background border rounded px-2 py-0.5">
+                              {table}: <strong>{Array.isArray(rows) ? rows.length : 0}</strong>
+                            </span>
+                          ))}
+                        </div>
+                      );
+                    })()}
+                  </div>
+                ) : (
+                  <>
+                    <div className="text-sm text-muted-foreground space-y-1">
+                      <p>Empresa original: <strong>{backupMeta.company_name}</strong></p>
+                      <p>Data do backup: <strong>{new Date(backupMeta.exported_at).toLocaleString("pt-BR")}</strong></p>
+                      <p>Total de registros: <strong>{totalBackupRows}</strong></p>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5 mt-2">
+                      {backupMeta.tables?.map(t => (
+                        <span key={t.table} className="text-xs bg-background border rounded px-2 py-0.5">
+                          {t.table}: <strong>{t.rows}</strong>
+                        </span>
+                      ))}
+                    </div>
+                  </>
+                )}
               </div>
             )}
 
             <Button
               variant="destructive"
               onClick={handleStartImport}
-              disabled={importing || !selectedCompany || !backupFile}
+              disabled={importing || !selectedCompany || !backupFile || (isWeeklyFormat && !selectedBackupCompany)}
             >
               {importing ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Restaurando...</> : <><Upload className="h-4 w-4 mr-2" /> Restaurar Backup</>}
             </Button>
