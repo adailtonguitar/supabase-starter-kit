@@ -1,4 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { resolveBackupTableArrays, totalBackupRows } from "../_shared/backup-restore.ts";
 
 /** Base URLs; adicione previews (ex.: Vercel) em Supabase → Edge Functions → restore-my-backup → ALLOWED_ORIGINS (lista separada por vírgula). */
 const DEFAULT_ALLOWED_ORIGINS = [
@@ -26,7 +27,16 @@ const EXPORTABLE_TABLES = [
 
 const DEPENDENT_TABLES_DELETE = [
   { table: "sale_items", fk_via: "sale_id", parent: "sales" },
+  // Produção / receitas referenciam products e recipes — limpar antes de products
+  { table: "production_order_items", column: "company_id" },
+  { table: "production_orders", column: "company_id" },
+  { table: "recipe_ingredients", column: "company_id" },
+  { table: "recipes", column: "company_id" },
   { table: "inventory_count_items", fk_via: "product_id", parent: "products" },
+  { table: "stock_transfer_items", fk_via: "product_id", parent: "products" },
+  { table: "product_lots", fk_via: "product_id", parent: "products" },
+  { table: "purchase_order_items", column: "company_id" },
+  { table: "purchase_orders", column: "company_id" },
   { table: "product_labels", column: "company_id" },
   { table: "product_extras", column: "company_id" },
   { table: "product_kits", column: "company_id" },
@@ -254,16 +264,32 @@ Deno.serve(async (req) => {
     const adminClient = createClient(supabaseUrl, serviceKey);
 
     const body = await parseRequestJsonSafe(req);
-    const backupData = body?.backup_data;
+    const rawBackup = body?.backup_data;
     const sourceCompanyName = String(body?.source_company_name ?? "").trim();
     const targetCompanyIdHint =
       typeof body?.target_company_id === "string" && body.target_company_id.length > 0
         ? body.target_company_id
         : null;
 
-    if (!backupData || typeof backupData !== "object") {
+    if (!rawBackup || typeof rawBackup !== "object") {
       return new Response(JSON.stringify({ error: "backup_data é obrigatório" }), { status: 400, headers: getCorsHeaders(req) });
     }
+
+    const backupTables = resolveBackupTableArrays(rawBackup, EXPORTABLE_TABLES);
+    const backupRowTotal = totalBackupRows(backupTables, EXPORTABLE_TABLES);
+    if (backupRowTotal === 0) {
+      return new Response(
+        JSON.stringify({
+          error:
+            "Nenhuma tabela com dados neste arquivo. Use o JSON exportado pelo app (com suppliers, products, sales…) ou, no backup semanal, o conteúdo de \"data\" da empresa escolhida — não envie só o objeto metadata.",
+        }),
+        { status: 400, headers: getCorsHeaders(req) },
+      );
+    }
+
+    const backupRowsPreview = Object.fromEntries(
+      [...EXPORTABLE_TABLES, "sale_items"].map((k) => [k, backupTables[k].length]),
+    );
 
     const targetCompany = await resolveOrCreateCompany(adminClient, userId, sourceCompanyName, targetCompanyIdHint);
     const companyId = targetCompany.id;
@@ -313,7 +339,7 @@ Deno.serve(async (req) => {
     }
 
     for (const table of EXPORTABLE_TABLES) {
-      let rows = remapCompanyRows(backupData[table], companyId);
+      let rows = remapCompanyRows(backupTables[table], companyId);
       if (table === "products") rows = normalizeRestoredProductRows(rows);
       if (rows.length === 0) {
         results.push({ table, phase: "insert", count: 0 });
@@ -341,7 +367,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    const saleItems = remapCompanyRows(backupData.sale_items, companyId);
+    const saleItems = remapCompanyRows(backupTables.sale_items, companyId);
     if (saleItems.length > 0) {
       try {
         let totalInserted = 0;
@@ -372,6 +398,7 @@ Deno.serve(async (req) => {
       company_name: targetCompany.name,
       company_created: targetCompany.companyCreated,
       restored_at: new Date().toISOString(),
+      backup_rows_in_payload: backupRowsPreview,
       results,
     }), {
       headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },

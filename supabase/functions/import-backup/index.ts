@@ -1,4 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { resolveBackupTableArrays, totalBackupRows } from "../_shared/backup-restore.ts";
 
 const ALLOWED_ORIGINS = [
   "https://anthosystemcombr.lovable.app",
@@ -34,8 +35,16 @@ const EXPORTABLE_TABLES = [
 const DEPENDENT_TABLES_DELETE = [
   // These reference sale_items/sales
   { table: "sale_items", fk_via: "sale_id", parent: "sales" },
+  { table: "production_order_items", column: "company_id" },
+  { table: "production_orders", column: "company_id" },
+  { table: "recipe_ingredients", column: "company_id" },
+  { table: "recipes", column: "company_id" },
   // These reference products
   { table: "inventory_count_items", fk_via: "product_id", parent: "products" },
+  { table: "stock_transfer_items", fk_via: "product_id", parent: "products" },
+  { table: "product_lots", fk_via: "product_id", parent: "products" },
+  { table: "purchase_order_items", column: "company_id" },
+  { table: "purchase_orders", column: "company_id" },
   { table: "product_labels", column: "company_id" },
   { table: "product_extras", column: "company_id" },
   { table: "product_kits", column: "company_id" },
@@ -127,6 +136,13 @@ Deno.serve(async (req) => {
       });
     }
 
+    const backupTables = resolveBackupTableArrays(backup_data, EXPORTABLE_TABLES);
+    if (totalBackupRows(backupTables, EXPORTABLE_TABLES) === 0) {
+      return new Response(JSON.stringify({ error: "Backup não contém dados nas tabelas esperadas (suppliers, products, sales, …)." }), {
+        status: 400, headers: getCorsHeaders(req),
+      });
+    }
+
     const results: { table: string; phase: string; count: number; error?: string }[] = [];
 
     // Phase 1: Delete dependent tables first (to avoid FK violations)
@@ -179,7 +195,7 @@ Deno.serve(async (req) => {
 
     // Phase 3: Insert backup data (in order)
     for (const table of EXPORTABLE_TABLES) {
-      const rows = remapCompanyRows(backup_data[table], company_id);
+      const rows = remapCompanyRows(backupTables[table], company_id);
       if (rows.length === 0) {
         results.push({ table, phase: "insert", count: 0 });
         continue;
@@ -206,7 +222,7 @@ Deno.serve(async (req) => {
     }
 
     // Also import sale_items if present (no company_id filter)
-    const saleItems = remapCompanyRows(backup_data.sale_items, company_id);
+    const saleItems = remapCompanyRows(backupTables.sale_items, company_id);
     if (saleItems.length > 0) {
       try {
         let totalInserted = 0;

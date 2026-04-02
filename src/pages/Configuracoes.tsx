@@ -1116,11 +1116,15 @@ export default function Configuracoes() {
         throw new Error(auth.error);
       }
 
+      const storedCompanyId =
+        typeof window !== "undefined" ? window.localStorage.getItem(LS_SELECTED_COMPANY_KEY) : null;
+      const targetCompanyId = activeCompanyId || storedCompanyId || undefined;
+
       const { data, error, response: fnResponse } = await supabase.functions.invoke("restore-my-backup", {
         body: {
           backup_data: backupData,
           source_company_name: sourceCompanyName,
-          ...(activeCompanyId ? { target_company_id: activeCompanyId } : {}),
+          ...(targetCompanyId ? { target_company_id: targetCompanyId } : {}),
         },
         headers: { Authorization: `Bearer ${auth.token}` },
       });
@@ -1156,27 +1160,34 @@ export default function Configuracoes() {
       const restoredId = typeof data?.company_id === "string" ? data.company_id : "";
       const tenantHint = restoredName ? ` (“${restoredName}”)` : restoredId ? ` (ID ${restoredId.slice(0, 8)}…)` : "";
 
+      const preview = data?.backup_rows_in_payload;
+      const payloadSummary =
+        preview && typeof preview === "object"
+          ? `Conteúdo do JSON: ${preview.products ?? 0} produtos, ${preview.clients ?? 0} clientes, ${preview.sales ?? 0} vendas, ${preview.suppliers ?? 0} fornecedores.\n`
+          : "";
+
       // Tempo para ler o toast antes do reload (o reload imediato apagava a mensagem).
       const reloadAfterMs = totalErrors > 0 ? 22_000 : 9_000;
       const reloadHint = `\n\n↻ Recarregando a página em ${Math.round(reloadAfterMs / 1000)}s…`;
 
       if (totalErrors > 0) {
         toast.warning(
-          `Restauração parcial${tenantHint}: ${totalImported} registros OK; ${totalErrors} etapa(s) com erro.`,
+          `Restauração parcial${tenantHint}: ${totalImported} registros gravados; ${totalErrors} etapa(s) com erro.`,
           {
-            description: (errorDetail || "Veja detalhes no painel da função no Supabase.") + reloadHint,
+            description:
+              payloadSummary + (errorDetail || "Se produtos não subiram, veja a linha \"products\" nos erros abaixo.") + reloadHint,
             duration: reloadAfterMs + 5_000,
           },
         );
       } else if (data?.company_created) {
         toast.success(
-          `Empresa recriada e backup restaurado${tenantHint}! ${totalImported} registros.`,
-          { description: reloadHint.trim(), duration: reloadAfterMs + 5_000 },
+          `Empresa recriada e backup restaurado${tenantHint}! ${totalImported} registros gravados no banco.`,
+          { description: (payloadSummary + reloadHint).trim(), duration: reloadAfterMs + 5_000 },
         );
       } else {
         toast.success(
-          `Backup restaurado${tenantHint}! ${totalImported} registros.`,
-          { description: reloadHint.trim(), duration: reloadAfterMs + 5_000 },
+          `Backup restaurado${tenantHint}! ${totalImported} registros gravados no banco.`,
+          { description: (payloadSummary + reloadHint).trim(), duration: reloadAfterMs + 5_000 },
         );
       }
 
