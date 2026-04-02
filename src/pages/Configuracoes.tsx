@@ -17,6 +17,16 @@ import { useProducts, useBulkUpdateProducts, type Product } from "@/hooks/usePro
 import { useFiscalCategories } from "@/hooks/useFiscalCategories";
 import { type TaxRegime } from "@/lib/cst-csosn-validator";
 import { getSuggestedFiscalUpdate, getChangedFiscalFields, getFiscalSuggestionDiagnostics, getBulkFiscalFixAnalysis } from "@/lib/fiscal-product-suggestions";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 function WhatsAppSupportSection() {
   const { role } = usePermissions();
