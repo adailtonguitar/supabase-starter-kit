@@ -767,17 +767,25 @@ export const ProductFormDialog = forwardRef<HTMLDivElement, Props>(function Prod
                   <div className="lg:col-span-4 rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-amber-700 dark:text-amber-300">
                     <p className="text-sm font-semibold">Correção fiscal guiada</p>
                     <p className="text-xs opacity-90">Revise os campos fiscais deste produto para liberar a emissão de NFC-e.</p>
+                    {!!fiscalStatus.gaps.length && (
+                      <p className="text-[11px] mt-1 opacity-90">
+                        Obrigatórios pendentes: <span className="font-semibold">{fiscalStatus.gaps.join(", ")}</span>
+                      </p>
+                    )}
                   </div>
                 )}
                 <FormField control={form.control} name="ncm" render={({ field }) => (
                   <FormItem className="relative md:col-span-2">
-                    <FormLabel>NCM</FormLabel>
+                    <FormLabel className="flex items-center gap-1">
+                      NCM <span className="text-destructive">*</span>
+                    </FormLabel>
                     <FormControl>
                       <Input
                         placeholder="Digite código ou descrição para buscar..."
                         autoComplete="off"
                         {...field}
                         onChange={(e) => handleNcmInputChange(e.target.value, field.onChange)}
+                        className={fiscalStatus.gaps.includes("NCM") ? "border-destructive focus-visible:ring-destructive/30" : ""}
                       />
                     </FormControl>
                     {showNcmSuggestions && ncmFiltered.length > 0 && (
@@ -1099,9 +1107,15 @@ export const ProductFormDialog = forwardRef<HTMLDivElement, Props>(function Prod
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <FormField control={form.control} name="origem" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Origem</FormLabel>
+                    <FormLabel className="flex items-center gap-1">
+                      Origem <span className="text-destructive">*</span>
+                    </FormLabel>
                     <Select onValueChange={(v) => field.onChange(Number(v))} value={String(field.value ?? 0)}>
-                      <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                      <FormControl>
+                        <SelectTrigger className={fiscalStatus.gaps.includes("Origem") ? "border-destructive focus:ring-destructive/30" : ""}>
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
                       <SelectContent>
                         <SelectItem value="0">0 - Nacional</SelectItem>
                         <SelectItem value="1">1 - Estrangeira (importação direta)</SelectItem>
@@ -1118,9 +1132,15 @@ export const ProductFormDialog = forwardRef<HTMLDivElement, Props>(function Prod
                 )} />
                 <FormField control={form.control} name="cfop" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>CFOP</FormLabel>
+                    <FormLabel className="flex items-center gap-1">
+                      CFOP <span className="text-destructive">*</span>
+                    </FormLabel>
                     <Select onValueChange={field.onChange} value={field.value || "5102"}>
-                      <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                      <FormControl>
+                        <SelectTrigger className={fiscalStatus.gaps.includes("CFOP") ? "border-destructive focus:ring-destructive/30" : ""}>
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
                       <SelectContent>
                         <SelectItem value="5101">5101 - Venda prod. estab.</SelectItem>
                         <SelectItem value="5102">5102 - Venda merc. adquirida</SelectItem>
@@ -1152,9 +1172,15 @@ export const ProductFormDialog = forwardRef<HTMLDivElement, Props>(function Prod
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
                 <FormField control={form.control} name="csosn" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>CSOSN (Simples)</FormLabel>
+                    <FormLabel className="flex items-center gap-1">
+                      CSOSN (Simples) <span className="text-destructive">*</span>
+                    </FormLabel>
                     <Select onValueChange={field.onChange} value={field.value || "102"}>
-                      <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                      <FormControl>
+                        <SelectTrigger className={fiscalStatus.gaps.includes("CST/CSOSN") ? "border-destructive focus:ring-destructive/30" : ""}>
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
                       <SelectContent>
                         <SelectItem value="101">101 - Tributada com permissão de crédito</SelectItem>
                         <SelectItem value="102">102 - Tributada sem permissão de crédito</SelectItem>
@@ -1172,9 +1198,15 @@ export const ProductFormDialog = forwardRef<HTMLDivElement, Props>(function Prod
                 )} />
                 <FormField control={form.control} name="cst_icms" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>CST ICMS</FormLabel>
+                    <FormLabel className="flex items-center gap-1">
+                      CST ICMS <span className="text-destructive">*</span>
+                    </FormLabel>
                     <Select onValueChange={field.onChange} value={field.value || "00"}>
-                      <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                      <FormControl>
+                        <SelectTrigger className={fiscalStatus.gaps.includes("CST/CSOSN") ? "border-destructive focus:ring-destructive/30" : ""}>
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
                       <SelectContent>
                         <SelectItem value="00">00 - Tributada integralmente</SelectItem>
                         <SelectItem value="10">10 - Tributada com ST</SelectItem>
