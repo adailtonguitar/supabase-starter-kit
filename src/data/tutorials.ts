@@ -709,4 +709,55 @@ export const tutorials: TutorialSection[] = [
       ],
     },
   },
+  {
+    icon: ShieldCheck,
+    title: "Admin — Painel Administrativo",
+    description: "Área administrativa para manutenção do sistema, verificação de saúde, backups e ferramentas de suporte.",
+    category: "config",
+    difficulty: "intermediario",
+    steps: [
+      "Acesse 'Admin' pelo menu lateral (somente super administradores).",
+      "Use os cards de saúde do sistema para identificar falhas de integração, filas pendentes e erros recentes.",
+      "Verifique rotinas de backup/exportação e mantenha cópias de segurança quando necessário.",
+      "Use as ferramentas de suporte para simular cenários e validar o ambiente antes de liberar para clientes.",
+    ],
+    tips: [
+      "Mantenha o acesso de super admin restrito: é uma área de alto impacto.",
+      "Quando investigar um problema, valide primeiro se é ambiente (rede/SEFAZ) ou dado (cadastros/config).",
+    ],
+  },
+  {
+    icon: Scan,
+    title: "Logs do Sistema & Auditoria",
+    description: "Onde encontrar logs, auditoria e histórico de ações para investigar problemas e rastrear alterações.",
+    category: "config",
+    difficulty: "basico",
+    steps: [
+      "Acesse 'Sistema > Logs do Sistema' pelo menu lateral.",
+      "Use filtros por período e tipo de ação para localizar eventos importantes (ex: emissões fiscais, movimentações, alterações em produtos).",
+      "Em operações fiscais, consulte também 'Fiscal > Auditoria Fiscal' para eventos de emissão, rejeições e filas.",
+      "Ao encontrar um evento, copie o identificador (id) para suporte técnico investigar rapidamente.",
+    ],
+    tips: [
+      "Para incidentes em produção, sempre registre: horário, usuário, empresa e terminal.",
+      "Logs ajudam a diferenciar erro de configuração (cadastro) vs. indisponibilidade de serviços externos.",
+    ],
+  },
+  {
+    icon: Smartphone,
+    title: "Instalar App (PWA)",
+    description: "Como instalar o AnthoSystem como aplicativo (PWA) no computador ou celular para melhor performance e uso offline.",
+    category: "config",
+    difficulty: "basico",
+    steps: [
+      "Acesse 'Instalar App' pelo menu lateral.",
+      "No computador (Chrome/Edge): clique no ícone de instalar na barra de endereço e confirme.",
+      "No celular: use 'Adicionar à Tela Inicial' no menu do navegador.",
+      "Após instalar, prefira abrir sempre pelo ícone do app instalado.",
+    ],
+    tips: [
+      "O modo PWA reduz problemas de cache e melhora a estabilidade para PDV.",
+      "Em ambientes de caixa, use tela cheia e ative a opção de manter a tela ativa (quando disponível).",
+    ],
+  },
 ];
