@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useCallback, forwardRef } from "react";
+import { useState, useMemo, useRef, useCallback, forwardRef, useEffect } from "react";
 
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -26,6 +26,8 @@ import { useProducts } from "@/hooks/useProducts";
 import { useSuppliers } from "@/hooks/useSuppliers";
 import { usePlanFeatures } from "@/hooks/usePlanFeatures";
 import { useAdminRole } from "@/hooks/useAdminRole";
+import { type TaxRegime } from "@/lib/cst-csosn-validator";
+import { getSuggestedFiscalUpdate, getProductFiscalStatus } from "@/lib/fiscal-product-suggestions";
 import { toast } from "sonner";
 
 interface NCMSuggestion {
@@ -72,12 +74,13 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   product?: LocalProduct | null;
+  focusFiscalSection?: boolean;
 }
 
 const categories = ["Bebidas", "Alimentos", "Limpeza", "Higiene", "Hortifrúti", "Padaria", "Frios", "Outros"];
 const units = ["UN", "KG", "LT", "MT", "CX", "PCT"];
 
-export const ProductFormDialog = forwardRef<HTMLDivElement, Props>(function ProductFormDialog({ open, onOpenChange, product }, _ref) {
+export const ProductFormDialog = forwardRef<HTMLDivElement, Props>(function ProductFormDialog({ open, onOpenChange, product, focusFiscalSection = false }, _ref) {
   const { data: fiscalCategories = [] } = useFiscalCategories();
   
   const { data: suppliers = [] } = useSuppliers();
@@ -88,7 +91,7 @@ export const ProductFormDialog = forwardRef<HTMLDivElement, Props>(function Prod
   const canUseAiPhoto = isSuperAdmin || planFeatures.plan === "pro";
   const createProduct = useCreateProduct();
   const updateProduct = useUpdateProduct();
-  const { companyId } = useCompany();
+  const { companyId, taxRegime: rawTaxRegime } = useCompany();
   const isEditing = !!product;
   const initialMargin = product && product.cost_price && product.cost_price > 0
     ? ((product.price - product.cost_price) / product.cost_price) * 100
@@ -105,12 +108,18 @@ export const ProductFormDialog = forwardRef<HTMLDivElement, Props>(function Prod
   const ncmLookupSeq = useRef(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const aiFileInputRef = useRef<HTMLInputElement>(null);
+  const fiscalSectionRef = useRef<HTMLDivElement>(null);
   const [analyzingImage, setAnalyzingImage] = useState(false);
   const [aiConfidence, setAiConfidence] = useState<number | null>(null);
   const [saveImage, setSaveImage] = useState(true);
   const [lookingUpBarcode, setLookingUpBarcode] = useState(false);
   const barcodeLookupTimer = useRef<ReturnType<typeof setTimeout>>();
   const { data: allProducts = [] } = useProducts();
+  const taxRegime: TaxRegime = rawTaxRegime === "lucro_presumido"
+    ? "lucro_presumido"
+    : rawTaxRegime === "lucro_real"
+      ? "lucro_real"
+      : "simples_nacional";
 
   const ncmFiltered = useMemo(() => {
     const q = ncmSearchText.trim().toLowerCase();
@@ -231,6 +240,105 @@ export const ProductFormDialog = forwardRef<HTMLDivElement, Props>(function Prod
     },
   });
 
+  const selectedFiscalCategoryId = form.watch("fiscal_category_id");
+  const selectedFiscalCategory = useMemo(
+    () => fiscalCategories.find((category) => category.id === selectedFiscalCategoryId),
+    [fiscalCategories, selectedFiscalCategoryId],
+  );
+
+  const suggestedFiscalDefaults = useMemo(() => {
+    const suggestion = getSuggestedFiscalUpdate({
+      id: product?.id || "preview",
+      name: product?.name || form.getValues("name") || "Produto",
+      sku: product?.sku || form.getValues("sku") || "",
+      price: product?.price || Number(form.getValues("price") || 0),
+      stock_quantity: product?.stock_quantity || Number(form.getValues("stock_quantity") || 0),
+      unit: product?.unit || form.getValues("unit") || "UN",
+      company_id: product?.company_id || companyId || "",
+      fiscal_category_id: selectedFiscalCategoryId || undefined,
+      ncm: form.getValues("ncm") || product?.ncm,
+      cfop: form.getValues("cfop") || product?.cfop,
+      csosn: form.getValues("csosn") || product?.csosn,
+      cst_icms: form.getValues("cst_icms") || product?.cst_icms,
+      origem: form.getValues("origem") ?? product?.origem,
+    }, fiscalCategories, taxRegime);
+
+    return {
+      origem: suggestion.origem ?? 0,
+      cfop: suggestion.cfop ?? "5102",
+      csosn: suggestion.csosn ?? "",
+      cstIcms: suggestion.cst_icms ?? "",
+      aliqIcms: selectedFiscalCategory?.product_type === "st" ? 0 : 18,
+      cstPis: "01",
+      aliqPis: 1.65,
+      cstCofins: "01",
+      aliqCofins: 7.6,
+    };
+  }, [selectedFiscalCategory, selectedFiscalCategoryId, taxRegime, fiscalCategories, form, product, companyId]);
+
+  const fiscalStatus = useMemo(() => {
+    return getProductFiscalStatus({
+      id: product?.id || "preview",
+      name: product?.name || form.getValues("name") || "Produto",
+      sku: product?.sku || form.getValues("sku") || "",
+      price: product?.price || Number(form.getValues("price") || 0),
+      stock_quantity: product?.stock_quantity || Number(form.getValues("stock_quantity") || 0),
+      unit: product?.unit || form.getValues("unit") || "UN",
+      company_id: product?.company_id || companyId || "",
+      fiscal_category_id: selectedFiscalCategoryId || undefined,
+      ncm: form.getValues("ncm") || product?.ncm,
+      cfop: form.getValues("cfop") || product?.cfop,
+      csosn: form.getValues("csosn") || product?.csosn,
+      cst_icms: form.getValues("cst_icms") || product?.cst_icms,
+      origem: form.getValues("origem") ?? product?.origem,
+    }, fiscalCategories, taxRegime);
+  }, [product, form, companyId, selectedFiscalCategoryId, fiscalCategories, taxRegime]);
+
+  const handleApplySuggestedStCategory = useCallback(() => {
+    if (!fiscalStatus.diagnostics.suggestedStCategoryId) return;
+
+    form.setValue("fiscal_category_id", fiscalStatus.diagnostics.suggestedStCategoryId, {
+      shouldDirty: true,
+      shouldTouch: true,
+      shouldValidate: true,
+    });
+
+    toast.success(
+      fiscalStatus.diagnostics.suggestedStCategoryName
+        ? `Categoria fiscal ajustada para "${fiscalStatus.diagnostics.suggestedStCategoryName}".`
+        : "Categoria fiscal ST aplicada.",
+    );
+  }, [fiscalStatus.diagnostics.suggestedStCategoryId, fiscalStatus.diagnostics.suggestedStCategoryName, form]);
+
+  const hasCriticalFiscalConflict = fiscalStatus.hasCriticalConflict;
+
+  const applySuggestedFiscalDefaults = useCallback(() => {
+    const current = form.getValues();
+
+    if (current.origem === undefined || current.origem === null || current.origem === 0) {
+      form.setValue("origem", suggestedFiscalDefaults.origem);
+    }
+    if (!current.cfop?.trim() || current.cfop === "5102" || current.cfop === "5405") {
+      form.setValue("cfop", suggestedFiscalDefaults.cfop);
+    }
+
+    if (taxRegime === "simples_nacional") {
+      form.setValue("csosn", suggestedFiscalDefaults.csosn);
+      form.setValue("cst_icms", "");
+    } else {
+      form.setValue("cst_icms", suggestedFiscalDefaults.cstIcms);
+      form.setValue("csosn", "");
+    }
+
+    form.setValue("aliq_icms", suggestedFiscalDefaults.aliqIcms);
+    form.setValue("cst_pis", suggestedFiscalDefaults.cstPis);
+    form.setValue("aliq_pis", suggestedFiscalDefaults.aliqPis);
+    form.setValue("cst_cofins", suggestedFiscalDefaults.cstCofins);
+    form.setValue("aliq_cofins", suggestedFiscalDefaults.aliqCofins);
+
+    toast.success("Sugestão fiscal aplicada. Revise os campos antes de salvar.");
+  }, [form, suggestedFiscalDefaults, taxRegime]);
+
   const lookupBarcode = useCallback(async (barcode: string, forceOverwrite = false) => {
     if (!barcode || barcode.length < 8 || isEditing) return;
     if (!forceOverwrite) {
@@ -322,6 +430,12 @@ export const ProductFormDialog = forwardRef<HTMLDivElement, Props>(function Prod
   };
 
   const onSubmit = async (data: FormData) => {
+    if (hasCriticalFiscalConflict) {
+      fiscalSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      toast.error("Revise os alertas fiscais antes de salvar o produto.");
+      return;
+    }
+
     try {
       const { reorder_point, reorder_quantity, ...rest } = data as any;
       // Auto-generate SKU if empty to avoid unique constraint violation
@@ -462,6 +576,16 @@ export const ProductFormDialog = forwardRef<HTMLDivElement, Props>(function Prod
   };
 
   const isPending = createProduct.isPending || updateProduct.isPending || uploadingImage;
+
+  useEffect(() => {
+    if (!open || !focusFiscalSection) return;
+
+    const timer = setTimeout(() => {
+      fiscalSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 120);
+
+    return () => clearTimeout(timer);
+  }, [open, focusFiscalSection]);
 
   if (!open) return null;
 
@@ -638,7 +762,13 @@ export const ProductFormDialog = forwardRef<HTMLDivElement, Props>(function Prod
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
+              <div ref={fiscalSectionRef} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
+                {focusFiscalSection && (
+                  <div className="lg:col-span-4 rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-amber-700 dark:text-amber-300">
+                    <p className="text-sm font-semibold">Correção fiscal guiada</p>
+                    <p className="text-xs opacity-90">Revise os campos fiscais deste produto para liberar a emissão de NFC-e.</p>
+                  </div>
+                )}
                 <FormField control={form.control} name="ncm" render={({ field }) => (
                   <FormItem className="relative md:col-span-2">
                     <FormLabel>NCM</FormLabel>
@@ -921,6 +1051,50 @@ export const ProductFormDialog = forwardRef<HTMLDivElement, Props>(function Prod
             {/* Dados Fiscais */}
             <div>
               <h2 className="text-lg font-semibold text-foreground mb-4">Dados Fiscais (NF-e)</h2>
+              <div className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3">
+                <div className="flex-1 min-w-[220px]">
+                  <p className="text-sm font-semibold text-foreground">Sugestão fiscal automática</p>
+                  <p className="text-xs text-muted-foreground">
+                    Baseada no regime {taxRegime === "simples_nacional" ? "Simples Nacional" : taxRegime === "lucro_presumido" ? "Lucro Presumido" : "Lucro Real"}
+                    {selectedFiscalCategory ? ` e na categoria fiscal "${selectedFiscalCategory.name}"` : ""}.
+                  </p>
+                </div>
+                <Button type="button" variant="outline" size="sm" onClick={applySuggestedFiscalDefaults}>
+                  Aplicar sugestão fiscal
+                </Button>
+              </div>
+              {fiscalStatus.diagnostics.warnings.length > 0 && (
+                <div className="mb-4 space-y-2">
+                  {fiscalStatus.diagnostics.warnings.map((warning, index) => (
+                    <div key={`${index}-${warning}`} className="flex flex-wrap items-start gap-3 rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-amber-700 dark:text-amber-300">
+                      <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+                      <div className="flex-1 min-w-[220px]">
+                        <p className="text-xs">{warning}</p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {fiscalStatus.diagnostics.hasCategoryConflict && (
+                          <Button type="button" size="sm" variant="outline" onClick={applySuggestedFiscalDefaults}>
+                            Aplicar sugestão central
+                          </Button>
+                        )}
+                        {fiscalStatus.diagnostics.suggestsStCategory && fiscalStatus.diagnostics.suggestedStCategoryId && (
+                          <Button type="button" size="sm" variant="outline" onClick={handleApplySuggestedStCategory}>
+                            Usar categoria ST
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {hasCriticalFiscalConflict && (
+                <div className="mb-4 rounded-xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-destructive">
+                  <p className="text-sm font-medium">Salvamento bloqueado por conflito fiscal</p>
+                  <p className="text-xs mt-1">
+                    Corrija os alertas acima ou aplique a sugestão central antes de salvar este produto.
+                  </p>
+                </div>
+              )}
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <FormField control={form.control} name="origem" render={({ field }) => (

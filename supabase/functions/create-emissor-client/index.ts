@@ -1,5 +1,43 @@
 import { createServiceClient, getCorsHeaders, jsonResponse, requireUser } from "../_shared/auth.ts";
 
+function buildDefaultFiscalConfigs(companyId: string) {
+  return [
+    {
+      company_id: companyId,
+      doc_type: "nfce",
+      serie: 1,
+      next_number: 1,
+      environment: "homologacao",
+      csc_id: null,
+      csc_token: null,
+      is_active: true,
+      certificate_type: "A1",
+    },
+    {
+      company_id: companyId,
+      doc_type: "nfe",
+      serie: 1,
+      next_number: 1,
+      environment: "homologacao",
+      csc_id: null,
+      csc_token: null,
+      is_active: true,
+      certificate_type: "A1",
+    },
+    {
+      company_id: companyId,
+      doc_type: "sat",
+      serie: 1,
+      next_number: 1,
+      environment: "producao",
+      csc_id: null,
+      csc_token: null,
+      is_active: false,
+      certificate_type: "A1",
+    },
+  ];
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: getCorsHeaders(req) });
 
@@ -96,6 +134,11 @@ Deno.serve(async (req) => {
       financial_module_level: "basic",
     }, { onConflict: "company_id" });
     if (planErr) throw new Error("Erro ao definir plano: " + planErr.message);
+
+    const { error: fiscalConfigErr } = await supabaseAdmin
+      .from("fiscal_configs")
+      .upsert(buildDefaultFiscalConfigs(company.id), { onConflict: "company_id,doc_type" });
+    if (fiscalConfigErr) throw new Error("Erro ao criar configuração fiscal base: " + fiscalConfigErr.message);
 
     return jsonResponse(
       {

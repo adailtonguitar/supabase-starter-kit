@@ -43,6 +43,7 @@ import type { FinancialEntryInsert } from "@/hooks/useFinancialEntries";
 import type { CashSessionRow } from "@/integrations/supabase/tables";
 import { AlertTriangle } from "lucide-react";
 import { usePDVFiscalValidation } from "@/hooks/pdv/usePDVFiscalValidation";
+import { getFiscalReadiness, getFiscalReadinessBlockReason, getFiscalReadinessPrimaryFixRoute, type FiscalReadinessResult } from "@/lib/fiscal-readiness";
 
 export default function PDV() {
   const pdv = usePDV();
@@ -119,13 +120,49 @@ export default function PDV() {
   const [editingItemNoteId, setEditingItemNoteId] = useState<string | null>(null);
   const [itemNotes, setItemNotes] = useState<Record<string, string>>({});
   const [itemDiscountValues, setItemDiscountValues] = useState<Record<string, number>>({});
+  const [fiscalReadiness, setFiscalReadiness] = useState<FiscalReadinessResult | null>(null);
   const customerDisplay = useCustomerDisplay();
   const selectedClientDoc = (selectedClient?.cpf || "").replace(/\D/g, "");
   const fiscalCustomerReady = selectedClientDoc.length === 11 || selectedClientDoc.length === 14;
-  const fiscalFinalizeBlocked = canUseFiscal && !skipFiscalEmission && !!selectedClient && !fiscalCustomerReady;
+  const fiscalSetupBlocked = canUseFiscal && !skipFiscalEmission && fiscalReadiness?.status !== "ready";
+  const fiscalFinalizeBlocked =
+    fiscalSetupBlocked ||
+    (canUseFiscal && !skipFiscalEmission && !!selectedClient && !fiscalCustomerReady);
   const fiscalFinalizeBlockReason = fiscalFinalizeBlocked
-    ? "Cliente selecionado sem CPF/CNPJ valido para NFC-e"
+    ? fiscalSetupBlocked
+      ? getFiscalReadinessBlockReason(fiscalReadiness)
+      : "Cliente selecionado sem CPF/CNPJ valido para NFC-e"
     : "";
+
+  useEffect(() => {
+    if (!companyId || !canUseFiscal || skipFiscalEmission) {
+      setFiscalReadiness(null);
+      return;
+    }
+
+    let mounted = true;
+    getFiscalReadiness(companyId)
+      .then((result) => {
+        if (mounted) setFiscalReadiness(result);
+      })
+      .catch(() => {
+        if (mounted) {
+          setFiscalReadiness({
+            status: "incomplete",
+            issues: [{
+              code: "fiscal_readiness_unavailable",
+              label: "Falha ao validar prontidao fiscal",
+              message: "Nao foi possivel validar a configuracao fiscal da empresa.",
+              severity: "error",
+            }],
+          });
+        }
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [companyId, canUseFiscal, skipFiscalEmission]);
 
   // ── Fullscreen ──
   const toggleFullscreen = useCallback(() => {
@@ -349,7 +386,15 @@ export default function PDV() {
     if (!pdv.currentSession) { toast.warning("Abra o caixa antes de finalizar uma venda", { duration: 1500 }); setShowCashRegister(true); return; }
     if (pdv.cartItems.length === 0) { toast.warning("Adicione itens ao carrinho primeiro", { duration: 1200 }); return; }
     if (finalizingSale) { toast.warning("Venda em processamento, aguarde...", { duration: 1200 }); return; }
-    if (fiscalFinalizeBlocked) { playErrorSound(); toast.error(fiscalFinalizeBlockReason, { duration: 2500 }); return; }
+    if (fiscalFinalizeBlocked) {
+      playErrorSound();
+      const fixRoute = getFiscalReadinessPrimaryFixRoute(fiscalReadiness);
+      toast.error(fiscalFinalizeBlockReason, {
+        duration: 3500,
+        action: fixRoute ? { label: "Abrir ajustes", onClick: () => navigate(fixRoute) } : undefined,
+      });
+      return;
+    }
     if (!fiscalValidation.valid) {
       playErrorSound();
       setShowFiscalErrors(true);
@@ -357,15 +402,23 @@ export default function PDV() {
     }
     setTefDefaultMethod(defaultMethod || null);
     setShowTEF(true);
-  }, [pdv.cartItems.length, pdv.currentSession, finalizingSale, fiscalFinalizeBlocked, fiscalFinalizeBlockReason, fiscalValidation.valid]);
+  }, [pdv.cartItems.length, pdv.currentSession, finalizingSale, fiscalFinalizeBlocked, fiscalFinalizeBlockReason, fiscalValidation.valid, fiscalReadiness, navigate]);
 
   const handleDirectPayment = useCallback((method: string) => {
     if (pdv.cartItems.length === 0) { toast.warning("Adicione itens ao carrinho primeiro", { duration: 1200 }); return; }
     if (finalizingSale) { toast.warning("Venda em processamento, aguarde...", { duration: 1200 }); return; }
-    if (fiscalFinalizeBlocked) { playErrorSound(); toast.error(fiscalFinalizeBlockReason, { duration: 2500 }); return; }
+    if (fiscalFinalizeBlocked) {
+      playErrorSound();
+      const fixRoute = getFiscalReadinessPrimaryFixRoute(fiscalReadiness);
+      toast.error(fiscalFinalizeBlockReason, {
+        duration: 3500,
+        action: fixRoute ? { label: "Abrir ajustes", onClick: () => navigate(fixRoute) } : undefined,
+      });
+      return;
+    }
     if (method === "prazo") { handlePrazoRequested(); return; }
     handleCheckout(method);
-  }, [pdv.cartItems.length, handleCheckout, finalizingSale, fiscalFinalizeBlocked, fiscalFinalizeBlockReason]);
+  }, [pdv.cartItems.length, handleCheckout, finalizingSale, fiscalFinalizeBlocked, fiscalFinalizeBlockReason, fiscalReadiness, navigate]);
 
   // ── Barcode ──
   const handleBarcodeSubmit = () => {

@@ -21,6 +21,8 @@ import { NCM_TABLE } from "@/lib/ncm-table";
 import { useProducts } from "@/hooks/useProducts";
 import { getFunctionErrorMessage } from "@/lib/get-function-error-message";
 import { type CRT, isValidCrt } from "@/lib/fiscal-config-lookup";
+import { getFiscalReadiness, getFiscalReadinessBlockReason, getFiscalReadinessPrimaryFixRoute } from "@/lib/fiscal-readiness";
+import { useNavigate } from "react-router-dom";
 
 interface NfceEmissionDialogProps {
   sale: {
@@ -118,6 +120,7 @@ function isMoneyConsistent(a: number, b: number): boolean {
 
 export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: NfceEmissionDialogProps) {
   const { companyId } = useCompany();
+  const navigate = useNavigate();
   const plan = usePlanFeatures();
   const { data: allProducts = [] } = useProducts();
   const [emitting, setEmitting] = useState(false);
@@ -447,6 +450,21 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
     setRejection(null);
 
     try {
+      if (companyId) {
+        const readiness = await getFiscalReadiness(companyId);
+        if (readiness.status !== "ready") {
+          setStep("error");
+          const reason = getFiscalReadinessBlockReason(readiness);
+          setErrorMsg(reason);
+          const fixRoute = getFiscalReadinessPrimaryFixRoute(readiness);
+          if (fixRoute) {
+            toast.error(reason, { duration: 4500, action: { label: "Abrir ajustes", onClick: () => navigate(fixRoute) } });
+          }
+          setEmitting(false);
+          return;
+        }
+      }
+
       const { data: configs, error: configError } = await supabase
         .from("fiscal_configs")
         .select("*")

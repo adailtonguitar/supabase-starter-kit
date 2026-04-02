@@ -12,7 +12,12 @@ export interface Product {
   name: string;
   sku: string;
   barcode?: string;
+  fiscal_category_id?: string;
   ncm?: string;
+  cfop?: string;
+  csosn?: string;
+  cst_icms?: string;
+  origem?: number;
   category?: string;
   price: number;
   cost_price?: number;
@@ -48,7 +53,7 @@ export function useProducts() {
       while (keepFetching) {
         const { data, error } = await supabase
           .from("products")
-          .select("id,name,sku,barcode,ncm,category,price,cost_price,stock_quantity,min_stock,unit,company_id,is_active,image_url,shelf_location,voltage,warranty_months,serial_number")
+          .select("id,name,sku,barcode,fiscal_category_id,ncm,cfop,csosn,cst_icms,origem,category,price,cost_price,stock_quantity,min_stock,unit,company_id,is_active,image_url,shelf_location,voltage,warranty_months,serial_number")
           .eq("company_id", companyId)
           .eq("is_active", true)
           .order("name")
@@ -150,6 +155,79 @@ export function useUpdateProduct() {
       const diff = result.oldData ? buildDiff(result.oldData, { ...result.oldData, ...variables }, Object.keys(variables).filter(k => k !== "id")) : undefined;
       if (companyId) logAction({ companyId, userId: user?.id, action: "Produto atualizado", module: "produtos", details: variables.name || variables.id, diff });
     },
+  });
+}
+
+export function useBulkUpdateProducts() {
+  const queryClient = useQueryClient();
+  const { companyId } = useCompany();
+  const { user } = useAuth();
+
+  return useMutation({
+    mutationFn: async (updates: Array<{ id: string; data: Partial<Product> }>) => {
+      if (!companyId) throw new Error("Empresa não encontrada");
+      if (!updates.length) return { updatedCount: 0, auditRows: [] as Array<{ id: string; name?: string; diff: ReturnType<typeof buildDiff> }> };
+
+      let updatedCount = 0;
+      const auditRows: Array<{ id: string; name?: string; diff: ReturnType<typeof buildDiff> }> = [];
+      for (const item of updates) {
+        const { data: oldData, error: oldError } = await supabase
+          .from("products")
+          .select("*")
+          .eq("id", item.id)
+          .eq("company_id", companyId)
+          .single();
+        if (oldError) throw oldError;
+
+        const { error } = await supabase
+          .from("products")
+          .update(item.data)
+          .eq("id", item.id)
+          .eq("company_id", companyId);
+        if (error) throw error;
+
+        const nextData = { ...(oldData || {}), ...(item.data || {}) } as Record<string, unknown>;
+        const diff = buildDiff(
+          (oldData || {}) as Record<string, unknown>,
+          nextData,
+          Object.keys(item.data || {}),
+        );
+        auditRows.push({
+          id: item.id,
+          name: (oldData as { name?: string } | null)?.name,
+          diff,
+        });
+        updatedCount += 1;
+      }
+
+      return { updatedCount, auditRows };
+    },
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      toast.success(`${result.updatedCount} produto(s) atualizados com sugestão fiscal`);
+      if (companyId) {
+        const summary = result.auditRows
+          .slice(0, 10)
+          .map((row) => `${row.name || row.id}: ${row.diff.map((entry) => `${entry.field}=${String(entry.to ?? "")}`).join(", ")}`)
+          .join(" | ");
+
+        logAction({
+          companyId,
+          userId: user?.id,
+          action: "Produtos atualizados em lote",
+          module: "produtos",
+          details: `${result.updatedCount} produto(s) com sugestão fiscal${summary ? ` | ${summary}` : ""}`,
+          diff: result.auditRows.flatMap((row) =>
+            row.diff.map((entry) => ({
+              field: `${row.name || row.id}.${entry.field}`,
+              from: entry.from,
+              to: entry.to,
+            })),
+          ),
+        });
+      }
+    },
+    onError: (e: Error) => toast.error(`Erro ao atualizar em lote: ${e.message}`),
   });
 }
 

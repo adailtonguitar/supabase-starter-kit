@@ -17,6 +17,7 @@ import {
   parseSalePaymentsJson,
   validateDetPagForEmission,
 } from "../_shared/sale-payments.ts";
+import { getFiscalReadiness, getFiscalReadinessBlockReason, getFiscalReadinessPrimaryIssueCode } from "../_shared/fiscal-readiness.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 function getRequiredEnv(name: string): string {
@@ -386,6 +387,15 @@ async function handleEmit(supabase: any, body: any) {
     });
     if (allowed === false) {
       return jsonResponse({ error: "Limite de emissões excedido. Aguarde 1 minuto." }, 429);
+    }
+
+    const readiness = await getFiscalReadiness(supabase, String(company_id), "nfce");
+    if (readiness.status !== "ready") {
+      return jsonResponse({
+        error: getFiscalReadinessBlockReason(readiness),
+        primary_issue_code: getFiscalReadinessPrimaryIssueCode(readiness),
+        readiness,
+      }, 400);
     }
   }
 

@@ -1,5 +1,6 @@
-import { useState, useEffect, useRef } from "react";
-import { Download, Upload, Clock, HardDrive, Percent, Save, Loader2, Crown, Check, ArrowRight, MessageCircle, Pencil, Calculator, Send, Mail, Lock, Eye, EyeOff, Wallet, FileText } from "lucide-react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
+import { Download, Upload, Clock, HardDrive, Percent, Save, Loader2, Crown, Check, ArrowRight, MessageCircle, Pencil, Calculator, Send, Mail, Lock, Eye, EyeOff, Wallet, FileText, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TEFConfigSection } from "@/components/settings/TEFConfigSection";
 import { ScaleConfigSection } from "@/components/settings/ScaleConfigSection";
@@ -11,6 +12,11 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { useSubscription, PLANS } from "@/hooks/useSubscription";
 import { useAdminRole } from "@/hooks/useAdminRole";
 import { useCompany } from "@/hooks/useCompany";
+import { getFiscalReadiness, getFiscalReadinessPrimaryFixRoute, getFiscalReadinessPrimaryIssue, type FiscalReadinessResult } from "@/lib/fiscal-readiness";
+import { useProducts, useBulkUpdateProducts, type Product } from "@/hooks/useProducts";
+import { useFiscalCategories } from "@/hooks/useFiscalCategories";
+import { type TaxRegime } from "@/lib/cst-csosn-validator";
+import { getSuggestedFiscalUpdate, getChangedFiscalFields, getFiscalSuggestionDiagnostics, getBulkFiscalFixAnalysis } from "@/lib/fiscal-product-suggestions";
 
 function WhatsAppSupportSection() {
   const { role } = usePermissions();
@@ -717,6 +723,344 @@ function PdvFiscalAutomationSection() {
   );
 }
 
+function FiscalReadinessSection() {
+  const { role } = usePermissions();
+  const { companyId, taxRegime: rawTaxRegime } = useCompany();
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
+  const [result, setResult] = useState<FiscalReadinessResult | null>(null);
+  const [lastBulkFixAt, setLastBulkFixAt] = useState<string | null>(null);
+  const [lastBulkFixSummary, setLastBulkFixSummary] = useState<string | null>(null);
+  const [showBulkFixConfirm, setShowBulkFixConfirm] = useState(false);
+  const { data: products = [] } = useProducts();
+  const { data: fiscalCategories = [] } = useFiscalCategories();
+  const bulkUpdateProducts = useBulkUpdateProducts();
+  const taxRegime: TaxRegime = rawTaxRegime === "lucro_presumido"
+    ? "lucro_presumido"
+    : rawTaxRegime === "lucro_real"
+      ? "lucro_real"
+      : "simples_nacional";
+
+  const bulkFixAnalysis = useMemo(
+    () => getBulkFiscalFixAnalysis(products, fiscalCategories, taxRegime),
+    [products, fiscalCategories, taxRegime],
+  );
+  const pendingFiscalProducts = bulkFixAnalysis.pendingFiscalProducts;
+  const criticalConflictProducts = bulkFixAnalysis.criticalConflictProducts;
+  const excludedCriticalBulkProducts = bulkFixAnalysis.excludedCriticalBulkProducts;
+  const pendingBulkFixProducts = bulkFixAnalysis.pendingBulkFixProducts;
+  const actionableBulkFixCount = bulkFixAnalysis.actionableBulkFixCount;
+  const bulkFixPreview = bulkFixAnalysis.bulkFixPreview;
+
+  const buildSuggestedFiscalUpdate = useCallback((product: Product): Partial<Product> => {
+    return getSuggestedFiscalUpdate(product, fiscalCategories, taxRegime);
+  }, [fiscalCategories, taxRegime]);
+
+  const reloadReadiness = useCallback(() => {
+    if (!companyId) return;
+    setLoading(true);
+    Promise.all([
+      getFiscalReadiness(companyId),
+      supabase
+        .from("action_logs")
+        .select("created_at, details")
+        .eq("company_id", companyId)
+        .eq("module", "produtos")
+        .eq("action", "Produtos atualizados em lote")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+    ])
+      .then(([data, bulkLog]) => {
+        setResult(data);
+        setLastBulkFixAt((bulkLog.data as { created_at?: string } | null)?.created_at || null);
+        setLastBulkFixSummary((bulkLog.data as { details?: string } | null)?.details || null);
+      })
+      .finally(() => setLoading(false));
+  }, [companyId]);
+
+  useEffect(() => {
+    if (!companyId) return;
+
+    let mounted = true;
+    setLoading(true);
+    Promise.all([
+      getFiscalReadiness(companyId),
+      supabase
+        .from("action_logs")
+        .select("created_at, details")
+        .eq("company_id", companyId)
+        .eq("module", "produtos")
+        .eq("action", "Produtos atualizados em lote")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+    ])
+      .then(([data, bulkLog]) => {
+        if (!mounted) return;
+        setResult(data);
+        setLastBulkFixAt((bulkLog.data as { created_at?: string } | null)?.created_at || null);
+        setLastBulkFixSummary((bulkLog.data as { details?: string } | null)?.details || null);
+      })
+      .catch(() => {
+        if (mounted) {
+          setResult({
+            status: "incomplete",
+            issues: [{
+              code: "fiscal_readiness_error",
+              label: "Falha ao verificar prontidão",
+              message: "Nao foi possivel validar as pendencias fiscais da empresa.",
+              severity: "error",
+            }],
+          });
+        }
+      })
+      .finally(() => {
+        if (mounted) setLoading(false);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [companyId]);
+
+  const handleRunBulkFiscalFix = async () => {
+    const updates = pendingBulkFixProducts
+      .map((product) => ({ product, data: buildSuggestedFiscalUpdate(product) }))
+      .filter(({ product, data }) => getChangedFiscalFields(product, data).length > 0)
+      .map(({ product, data }) => ({ id: product.id, data }));
+    await bulkUpdateProducts.mutateAsync(updates);
+    setShowBulkFixConfirm(false);
+    reloadReadiness();
+  };
+
+  if (role !== "admin" && role !== "gerente") return null;
+
+  const issues = result?.issues || [];
+  const ready = result?.status === "ready";
+  const invalidProductsIssue = issues.find((issue) => issue.code === "products_fiscal_invalid");
+  const criticalConflictIssue = issues.find((issue) => issue.code === "products_fiscal_conflict");
+  const primaryIssue = getFiscalReadinessPrimaryIssue(result);
+  const primaryFixRoute = getFiscalReadinessPrimaryFixRoute(result);
+  const primaryIssueCode = primaryIssue?.code || "";
+  const issueRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+  useEffect(() => {
+    if (loading) return;
+    if (ready) return;
+    if (!primaryIssueCode) return;
+
+    const el = issueRefs.current[primaryIssueCode];
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [loading, ready, primaryIssueCode]);
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08 }} className="bg-card rounded-2xl card-shadow border border-border overflow-hidden">
+      <div className="px-5 py-4 border-b border-border flex items-center gap-2">
+        <ShieldAlert className="w-4 h-4 text-primary" />
+        <h2 className="text-base font-semibold text-foreground">Prontidão Fiscal</h2>
+      </div>
+      <div className="p-5 space-y-3">
+        <p className="text-sm text-muted-foreground">Mostra se a empresa já está pronta para emitir NFC-e sem intervenção manual.</p>
+        {loading ? (
+          <div className="flex items-center justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>
+        ) : ready ? (
+          <div className="py-3 px-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-300">
+            Empresa pronta para emissão fiscal.
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {primaryIssue && primaryFixRoute && (
+              <div className="py-3 px-4 rounded-xl border border-primary/20 bg-primary/5">
+                <p className="text-sm font-semibold text-foreground">Correção prioritária</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{primaryIssue.message}</p>
+                <div className="mt-2">
+                  <Button size="sm" onClick={() => navigate(primaryFixRoute)}>
+                    Corrigir agora
+                  </Button>
+                </div>
+              </div>
+            )}
+            {issues.filter((issue) => issue.code !== "products_fiscal_invalid" && issue.code !== "products_fiscal_conflict").map((issue) => (
+              <div
+                key={issue.code}
+                ref={(el) => { issueRefs.current[issue.code] = el; }}
+                className={`py-3 px-4 rounded-xl border ${issue.code === primaryIssueCode ? "ring-2 ring-primary/40" : ""} ${issue.severity === "error" ? "bg-destructive/10 border-destructive/20 text-destructive" : "bg-amber-500/10 border-amber-500/20 text-amber-700 dark:text-amber-300"}`}
+              >
+                <p className="text-sm font-semibold">{issue.label}</p>
+                <p className="text-xs opacity-90">{issue.message}</p>
+                {issue.route && (
+                  <button
+                    type="button"
+                    className="text-[11px] opacity-80 mt-1 underline underline-offset-2"
+                    onClick={() => navigate(issue.route === "/produtos" ? "/produtos?fiscal=pending" : issue.route)}
+                  >
+                    Abrir ajuste: {issue.route === "/produtos" ? "/produtos?fiscal=pending" : issue.route}
+                  </button>
+                )}
+                {!!issue.details?.length && (
+                  <div className="mt-2 space-y-1">
+                    {issue.details.map((detail) => (
+                      <p key={detail} className="text-[11px] opacity-90">
+                        {detail}
+                      </p>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+            {criticalConflictIssue && (
+              <div
+                ref={(el) => { issueRefs.current[criticalConflictIssue.code] = el; }}
+                className={`py-3 px-4 rounded-xl border ${criticalConflictIssue.code === primaryIssueCode ? "ring-2 ring-primary/40" : ""} bg-destructive/10 border-destructive/20 text-destructive`}
+              >
+                <p className="text-sm font-semibold">{criticalConflictIssue.label}</p>
+                <p className="text-xs opacity-90">{criticalConflictIssue.message}</p>
+                <button
+                  type="button"
+                  className="text-[11px] opacity-80 mt-1 underline underline-offset-2"
+                  onClick={() => navigate("/produtos?fiscal=pending")}
+                >
+                  Abrir revisão manual: /produtos?fiscal=pending
+                </button>
+                {!!criticalConflictIssue.details?.length && (
+                  <div className="mt-2 space-y-1">
+                    {criticalConflictIssue.details.map((detail) => (
+                      <p key={detail} className="text-[11px] opacity-90">
+                        {detail}
+                      </p>
+                    ))}
+                  </div>
+                )}
+                <p className="text-[11px] opacity-90 mt-2">
+                  Esses conflitos nao entram na autocorreção em lote e exigem revisão manual.
+                </p>
+              </div>
+            )}
+            {invalidProductsIssue && (
+              <div
+                ref={(el) => { issueRefs.current[invalidProductsIssue.code] = el; }}
+                className={`py-3 px-4 rounded-xl border ${invalidProductsIssue.code === primaryIssueCode ? "ring-2 ring-primary/40" : ""} bg-amber-500/10 border-amber-500/20 text-amber-700 dark:text-amber-300`}
+              >
+                <p className="text-sm font-semibold">{invalidProductsIssue.label}</p>
+                <p className="text-xs opacity-90">{invalidProductsIssue.message}</p>
+                <button
+                  type="button"
+                  className="text-[11px] opacity-80 mt-1 underline underline-offset-2"
+                  onClick={() => navigate("/produtos?fiscal=pending")}
+                >
+                  Abrir autocorreção/manual: /produtos?fiscal=pending
+                </button>
+                {!!invalidProductsIssue.details?.length && (
+                  <div className="mt-2 space-y-1">
+                    {invalidProductsIssue.details.map((detail) => (
+                      <p key={detail} className="text-[11px] opacity-90">
+                        {detail}
+                      </p>
+                    ))}
+                  </div>
+                )}
+                <p className="text-[11px] opacity-90 mt-2">
+                  Essas pendências podem ser parcialmente resolvidas pela autocorreção quando houver sugestão acionável.
+                </p>
+              </div>
+            )}
+            <p className="text-[11px] text-muted-foreground pt-1">
+              A emissão é bloqueada enquanto existirem pendências fiscais críticas na empresa ou nos produtos.
+            </p>
+          </div>
+        )}
+        {!loading && (
+          <div className="rounded-xl border border-border bg-muted/30 px-4 py-3">
+            <p className="text-sm font-semibold text-foreground">Resumo operacional</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Produtos com pendência autocorrigível: {invalidProductsIssue ? "sim" : "nao"}.
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Produtos com conflito crítico manual: {criticalConflictIssue ? "sim" : "nao"}.
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Última autocorreção em lote: {lastBulkFixAt ? new Date(lastBulkFixAt).toLocaleString("pt-BR") : "nenhuma registrada"}.
+            </p>
+            {lastBulkFixSummary && (
+              <p className="text-[11px] text-muted-foreground mt-1 line-clamp-3">
+                {lastBulkFixSummary}
+              </p>
+            )}
+            {!!pendingFiscalProducts.length && (
+              <div className="mt-3">
+                <Button
+                  size="sm"
+                  onClick={() => setShowBulkFixConfirm(true)}
+                  disabled={bulkUpdateProducts.isPending || actionableBulkFixCount === 0}
+                >
+                  {bulkUpdateProducts.isPending ? "Reexecutando..." : "Reexecutar autocorreção em lote"}
+                </Button>
+                {!!criticalConflictProducts.length && (
+                  <p className="text-[11px] text-muted-foreground mt-2">
+                    {criticalConflictProducts.length} produto(s) com conflito crítico ficam fora da autocorreção e precisam de revisão manual.
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+      <AlertDialog open={showBulkFixConfirm} onOpenChange={setShowBulkFixConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reexecutar autocorreção fiscal em lote?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Isso vai aplicar novamente sugestões fiscais em {pendingBulkFixProducts.length} produto(s) elegíveis.
+              {excludedCriticalBulkProducts.length > 0 ? ` ${excludedCriticalBulkProducts.length} conflito(s) crítico(s) ficarão fora do lote para revisão manual.` : ""}
+              {actionableBulkFixCount === 0 ? " Nenhuma alteração real foi identificada nos produtos pendentes." : ""}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-2 max-h-72 overflow-y-auto">
+            {bulkFixPreview.map((item) => (
+              <div key={item.id} className="rounded-xl border border-border bg-muted/40 px-3 py-2">
+                <p className="text-sm font-semibold text-foreground">{item.name}</p>
+                <p className="text-xs text-muted-foreground">{item.changes.join(" | ")}</p>
+              </div>
+            ))}
+            {actionableBulkFixCount > bulkFixPreview.length && (
+              <p className="text-xs text-muted-foreground">
+                ...e mais {actionableBulkFixCount - bulkFixPreview.length} produto(s).
+              </p>
+            )}
+            {excludedCriticalBulkProducts.length > 0 && (
+              <div className="rounded-xl border border-destructive/20 bg-destructive/10 px-3 py-2">
+                <p className="text-sm font-semibold text-destructive">Fora da autocorreção</p>
+                <div className="mt-1 space-y-1">
+                  {excludedCriticalBulkProducts.slice(0, 5).map((product) => {
+                    const diagnostics = getFiscalSuggestionDiagnostics(product, fiscalCategories, taxRegime);
+                    return (
+                      <p key={product.id} className="text-xs text-destructive/90">
+                        {product.name}: {diagnostics.warnings.join(" | ")}
+                      </p>
+                    );
+                  })}
+                </div>
+                {excludedCriticalBulkProducts.length > 5 && (
+                  <p className="text-xs text-destructive/90 mt-1">
+                    ...e mais {excludedCriticalBulkProducts.length - 5} produto(s) com revisão manual pendente.
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleRunBulkFiscalFix} className="bg-primary text-primary-foreground" disabled={actionableBulkFixCount === 0}>
+              Confirmar autocorreção
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </motion.div>
+  );
+}
+
 // FurnitureModeSection removed — segment is now defined at onboarding only
 
 export default function Configuracoes() {
@@ -793,6 +1137,7 @@ export default function Configuracoes() {
       <MyPlanSection />
       <CashRegisterToggleSection />
       <PdvFiscalAutomationSection />
+      <FiscalReadinessSection />
       <CarneConfigSection />
       <DiscountLimitsSection />
       <TEFConfigSection />

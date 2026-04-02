@@ -1,9 +1,13 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { Search, Plus, Edit, Package, Upload, Trash2, FileText, ArrowUpDown, History, Zap } from "lucide-react";
+import { useMemo, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { Search, Plus, Edit, Package, Upload, Trash2, FileText, ArrowUpDown, History, Zap, AlertTriangle } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { motion } from "framer-motion";
-import { useProducts, useDeleteProduct, type Product } from "@/hooks/useProducts";
+import { useProducts, useDeleteProduct, useBulkUpdateProducts, type Product } from "@/hooks/useProducts";
+import { useCompany } from "@/hooks/useCompany";
+import { useFiscalCategories } from "@/hooks/useFiscalCategories";
+import { type TaxRegime } from "@/lib/cst-csosn-validator";
+import { getChangedFiscalFields, getSuggestedFiscalUpdate, getFiscalSuggestionDiagnostics, getBulkFiscalFixAnalysis, getProductFiscalStatus } from "@/lib/fiscal-product-suggestions";
 
 import { ProductFormDialog } from "@/components/stock/ProductFormDialog";
 import { StockMovementDialog } from "@/components/stock/StockMovementDialog";
@@ -29,33 +33,83 @@ export default function Produtos() {
   const [search, setSearch] = useState("");
   const { data: products = [], isLoading } = useProducts();
   const deleteProduct = useDeleteProduct();
-  
+  const bulkUpdateProducts = useBulkUpdateProducts();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { taxRegime: rawTaxRegime } = useCompany();
+  const { data: fiscalCategories = [] } = useFiscalCategories();
 
   const [showForm, setShowForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [focusFiscalSection, setFocusFiscalSection] = useState(false);
   const [movementProduct, setMovementProduct] = useState<Product | null>(null);
   const [historyProduct, setHistoryProduct] = useState<Product | null>(null);
   const [showImport, setShowImport] = useState(false);
   const navigate = useNavigate();
   const [deleteTarget, setDeleteTarget] = useState<Product | null>(null);
   const [priceHistoryProduct, setPriceHistoryProduct] = useState<Product | null>(null);
+  const [showBulkFiscalConfirm, setShowBulkFiscalConfirm] = useState(false);
+  const fiscalPendingOnly = searchParams.get("fiscal") === "pending";
+  const taxRegime: TaxRegime = rawTaxRegime === "lucro_presumido"
+    ? "lucro_presumido"
+    : rawTaxRegime === "lucro_real"
+      ? "lucro_real"
+      : "simples_nacional";
 
-
-  const filtered = products.filter(
-    (p) =>
+  const filtered = useMemo(() => {
+    const matchesSearch = (p: Product) =>
       p.name.toLowerCase().includes(search.toLowerCase()) ||
       p.sku.toLowerCase().includes(search.toLowerCase()) ||
-      (p.barcode && p.barcode.includes(search))
+      (p.barcode && p.barcode.includes(search));
+
+    const hasFiscalIssue = (p: Product) => getProductFiscalStatus(p, fiscalCategories, taxRegime).blocksFiscalEmission;
+
+    return products.filter((p) => matchesSearch(p) && (!fiscalPendingOnly || hasFiscalIssue(p)));
+  }, [products, search, fiscalPendingOnly, fiscalCategories, taxRegime]);
+
+  const bulkFixAnalysis = useMemo(
+    () => getBulkFiscalFixAnalysis(products, fiscalCategories, taxRegime),
+    [products, fiscalCategories, taxRegime],
   );
+  const fiscalPendingCount = bulkFixAnalysis.pendingFiscalProducts.length;
+  const pendingFiscalProducts = bulkFixAnalysis.pendingFiscalProducts;
+  const criticalConflictProducts = bulkFixAnalysis.criticalConflictProducts;
+  const excludedCriticalBulkProducts = bulkFixAnalysis.excludedCriticalBulkProducts;
+  const pendingBulkFixProducts = bulkFixAnalysis.pendingBulkFixProducts;
+  const actionableBulkFixCount = bulkFixAnalysis.actionableBulkFixCount;
+  const bulkFiscalPreview = bulkFixAnalysis.bulkFixPreview;
+
+  const buildSuggestedFiscalUpdate = (product: Product): Partial<Product> => {
+    return getSuggestedFiscalUpdate(product, fiscalCategories, taxRegime);
+  };
+
+  const handleApplyBulkFiscalSuggestion = async () => {
+    const updates = pendingBulkFixProducts
+      .map((product) => ({ product, data: buildSuggestedFiscalUpdate(product) }))
+      .filter(({ product, data }) => getChangedFiscalFields(product, data).length > 0)
+      .map(({ product, data }) => ({ id: product.id, data }));
+
+    await bulkUpdateProducts.mutateAsync(updates);
+    setShowBulkFiscalConfirm(false);
+  };
 
   const handleEdit = (product: Product) => {
     setEditingProduct(product);
+    setFocusFiscalSection(false);
+    setShowForm(true);
+  };
+
+  const handleFiscalEdit = (product: Product) => {
+    setEditingProduct(product);
+    setFocusFiscalSection(true);
     setShowForm(true);
   };
 
   const handleCloseForm = (open: boolean) => {
     setShowForm(open);
-    if (!open) setEditingProduct(null);
+    if (!open) {
+      setEditingProduct(null);
+      setFocusFiscalSection(false);
+    }
   };
 
   const adaptedEditing = editingProduct;
@@ -68,6 +122,7 @@ export default function Produtos() {
           open={showForm}
           onOpenChange={handleCloseForm}
           product={adaptedEditing as any}
+          focusFiscalSection={focusFiscalSection}
         />
       </div>
     );
@@ -99,6 +154,69 @@ export default function Produtos() {
       </motion.div>
 
       <LowStockAlert products={products as any} />
+
+      {fiscalPendingOnly && (
+        <div className="flex items-center justify-between gap-3 rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3">
+          <div>
+            <p className="text-sm font-semibold text-amber-700 dark:text-amber-300">Modo de correção fiscal</p>
+            <p className="text-xs text-amber-700/90 dark:text-amber-300/90">
+              Mostrando produtos com pendência fiscal ou conflito crítico que bloqueiam emissão de NFC-e.
+            </p>
+            {criticalConflictProducts.length > 0 && (
+              <p className="mt-1 text-[11px] text-amber-700/90 dark:text-amber-300/90">
+                {criticalConflictProducts.length} produto(s) têm conflito crítico e exigem revisão manual.
+              </p>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              onClick={() => setShowBulkFiscalConfirm(true)}
+              disabled={bulkUpdateProducts.isPending || actionableBulkFixCount === 0}
+            >
+              {bulkUpdateProducts.isPending ? "Aplicando..." : "Aplicar sugestão em lote"}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const next = new URLSearchParams(searchParams);
+                next.delete("fiscal");
+                setSearchParams(next);
+              }}
+            >
+              Ver todos
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {!fiscalPendingOnly && fiscalPendingCount > 0 && (
+        <div className="flex items-center justify-between gap-3 rounded-2xl border border-destructive/20 bg-destructive/10 px-4 py-3">
+          <div>
+            <p className="text-sm font-semibold text-destructive">Pendências fiscais em produtos</p>
+            <p className="text-xs text-destructive/90">
+              {fiscalPendingCount} produto(s) ativo(s) possuem dados fiscais que podem bloquear a NFC-e.
+            </p>
+            {criticalConflictProducts.length > 0 && (
+              <p className="mt-1 text-[11px] text-destructive/90">
+                {criticalConflictProducts.length} produto(s) também têm conflito fiscal crítico e precisam de revisão manual.
+              </p>
+            )}
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              const next = new URLSearchParams(searchParams);
+              next.set("fiscal", "pending");
+              setSearchParams(next);
+            }}
+          >
+            Ver pendências
+          </Button>
+        </div>
+      )}
 
       {/* Search */}
       <div data-tour="product-search" className="relative max-w-md">
@@ -151,10 +269,13 @@ export default function Produtos() {
               ) : (
                 filtered.map((product) => {
                   const isLow = product.min_stock != null && product.min_stock > 0 && product.stock_quantity <= product.min_stock;
+                  const fiscalStatus = getProductFiscalStatus(product, fiscalCategories, taxRegime);
+                  const hasFiscalIssue = fiscalStatus.hasFiscalGap;
+                  const hasCriticalConflict = fiscalStatus.hasCriticalConflict;
                   return (
                     <tr
                       key={product.id}
-                      className={`border-b border-border last:border-0 hover:bg-primary/[0.03] transition-colors ${filtered.indexOf(product) % 2 === 1 ? "bg-muted/15" : ""}`}
+                      className={`border-b border-border last:border-0 hover:bg-primary/[0.03] transition-colors ${filtered.indexOf(product) % 2 === 1 ? "bg-muted/15" : ""} ${hasCriticalConflict ? "bg-destructive/[0.06]" : hasFiscalIssue ? "bg-amber-500/[0.06]" : ""}`}
                     >
                       <td className="px-3 py-3">
                         <div className="flex items-center gap-2 min-w-0">
@@ -165,7 +286,20 @@ export default function Produtos() {
                               <Package className="w-4 h-4 text-accent-foreground" />
                             )}
                           </div>
-                          <span className="font-medium text-foreground truncate">{product.name}</span>
+                          <div className="min-w-0">
+                            <span className="font-medium text-foreground truncate block">{product.name}</span>
+                            {hasCriticalConflict && (
+                              <span className="inline-flex mt-1 items-center gap-1 rounded-full border border-destructive/20 bg-destructive/10 px-2 py-0.5 text-[10px] font-semibold text-destructive">
+                                <AlertTriangle className="w-3 h-3" />
+                                {fiscalStatus.badgeLabel}
+                              </span>
+                            )}
+                            {hasFiscalIssue && (
+                              <span className="inline-flex mt-1 items-center gap-1 rounded-full border border-destructive/20 bg-destructive/10 px-2 py-0.5 text-[10px] font-semibold text-destructive">
+                                {fiscalStatus.badgeLabel}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </td>
                       <td className="px-3 py-3 font-mono text-muted-foreground truncate max-w-0">{product.sku}</td>
@@ -191,6 +325,11 @@ export default function Produtos() {
                           <button onClick={() => handleEdit(product)} title="Editar" className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
                              <Edit className="w-4 h-4" />
                            </button>
+                           {(hasFiscalIssue || hasCriticalConflict) && (
+                             <button onClick={() => handleFiscalEdit(product)} title="Corrigir fiscal" className="p-1.5 rounded-lg text-destructive hover:bg-destructive/10 transition-colors">
+                               <Zap className="w-4 h-4" />
+                             </button>
+                           )}
                            <button onClick={() => setDeleteTarget(product)} title="Excluir" className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors">
                              <Trash2 className="w-4 h-4" />
                            </button>
@@ -216,8 +355,11 @@ export default function Produtos() {
         ) : (
           filtered.map((product) => {
             const isLow = product.min_stock != null && product.min_stock > 0 && product.stock_quantity <= product.min_stock;
+            const fiscalStatus = getProductFiscalStatus(product, fiscalCategories, taxRegime);
+            const hasFiscalIssue = fiscalStatus.hasFiscalGap;
+            const hasCriticalConflict = fiscalStatus.hasCriticalConflict;
             return (
-              <motion.div key={product.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: filtered.indexOf(product) * 0.03 }} className="bg-card rounded-2xl border border-border p-3 space-y-2 hover:shadow-md transition-shadow">
+              <motion.div key={product.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: filtered.indexOf(product) * 0.03 }} className={`bg-card rounded-2xl border p-3 space-y-2 hover:shadow-md transition-shadow ${hasCriticalConflict ? "border-destructive/30 bg-destructive/[0.03]" : hasFiscalIssue ? "border-amber-500/30 bg-amber-500/[0.03]" : "border-border"}`}>
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-center gap-2 min-w-0">
                     <div className="w-8 h-8 rounded-lg bg-accent flex items-center justify-center shrink-0 overflow-hidden">
@@ -230,6 +372,16 @@ export default function Produtos() {
                     <div className="min-w-0">
                       <p className="font-medium text-foreground text-sm truncate">{product.name}</p>
                       <p className="text-xs text-muted-foreground font-mono">{product.sku}</p>
+                      {hasCriticalConflict && (
+                        <p className="mt-1 text-[11px] text-destructive font-medium">
+                          {fiscalStatus.badgeLabel}: revisão manual necessária
+                        </p>
+                      )}
+                      {hasFiscalIssue && (
+                        <p className="mt-1 text-[11px] text-destructive">
+                          {fiscalStatus.badgeLabel}
+                        </p>
+                      )}
                     </div>
                   </div>
                   <span className="font-mono font-semibold text-primary text-sm shrink-0">
@@ -253,6 +405,11 @@ export default function Produtos() {
                     <button onClick={() => handleEdit(product)} className="p-2.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted active:scale-95 transition-all">
                       <Edit className="w-4 h-4" />
                     </button>
+                    {(hasFiscalIssue || hasCriticalConflict) && (
+                      <button onClick={() => handleFiscalEdit(product)} className="p-2.5 rounded-lg text-destructive hover:bg-destructive/10 active:scale-95 transition-all" title="Corrigir fiscal">
+                        <Zap className="w-4 h-4" />
+                      </button>
+                    )}
                     <button onClick={() => setDeleteTarget(product)} className="p-2.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 active:scale-95 transition-all">
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -311,6 +468,64 @@ export default function Produtos() {
               }}
             >
               Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={showBulkFiscalConfirm} onOpenChange={setShowBulkFiscalConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Aplicar sugestão fiscal em lote?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Isso vai atualizar automaticamente {pendingBulkFixProducts.length} produto(s) elegíveis com sugestão fiscal baseada no regime da empresa.
+              {excludedCriticalBulkProducts.length > 0 ? ` ${excludedCriticalBulkProducts.length} produto(s) com conflito crítico ficarão fora da autocorreção e continuarão para revisão manual.` : ""}
+              {actionableBulkFixCount === 0 ? " Nenhuma alteração real foi identificada nos produtos pendentes." : ""}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <div className="space-y-2 max-h-72 overflow-y-auto">
+            {bulkFiscalPreview.map((item) => (
+              <div key={item.id} className="rounded-xl border border-border bg-muted/40 px-3 py-2">
+                <p className="text-sm font-semibold text-foreground">{item.name}</p>
+                <p className="text-xs text-muted-foreground">{item.changes.join(" | ")}</p>
+              </div>
+            ))}
+            {actionableBulkFixCount > bulkFiscalPreview.length && (
+              <p className="text-xs text-muted-foreground">
+                ...e mais {actionableBulkFixCount - bulkFiscalPreview.length} produto(s).
+              </p>
+            )}
+            {excludedCriticalBulkProducts.length > 0 && (
+              <div className="rounded-xl border border-destructive/20 bg-destructive/10 px-3 py-2">
+                <p className="text-sm font-semibold text-destructive">Fora da autocorreção</p>
+                <div className="mt-1 space-y-1">
+                  {excludedCriticalBulkProducts.slice(0, 5).map((product) => {
+                    const diagnostics = getFiscalSuggestionDiagnostics(product, fiscalCategories, taxRegime);
+                    return (
+                      <p key={product.id} className="text-xs text-destructive/90">
+                        {product.name}: {diagnostics.warnings.join(" | ")}
+                      </p>
+                    );
+                  })}
+                </div>
+                {excludedCriticalBulkProducts.length > 5 && (
+                  <p className="text-xs text-destructive/90 mt-1">
+                    ...e mais {excludedCriticalBulkProducts.length - 5} produto(s) com revisão manual pendente.
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleApplyBulkFiscalSuggestion}
+              className="bg-primary text-primary-foreground"
+              disabled={actionableBulkFixCount === 0}
+            >
+              Confirmar aplicação
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

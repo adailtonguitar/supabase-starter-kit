@@ -16,6 +16,44 @@ function getCorsHeaders(req: Request) {
   };
 }
 
+function buildDefaultFiscalConfigs(companyId: string) {
+  return [
+    {
+      company_id: companyId,
+      doc_type: "nfce",
+      serie: 1,
+      next_number: 1,
+      environment: "homologacao",
+      csc_id: null,
+      csc_token: null,
+      is_active: true,
+      certificate_type: "A1",
+    },
+    {
+      company_id: companyId,
+      doc_type: "nfe",
+      serie: 1,
+      next_number: 1,
+      environment: "homologacao",
+      csc_id: null,
+      csc_token: null,
+      is_active: true,
+      certificate_type: "A1",
+    },
+    {
+      company_id: companyId,
+      doc_type: "sat",
+      serie: 1,
+      next_number: 1,
+      environment: "producao",
+      csc_id: null,
+      csc_token: null,
+      is_active: false,
+      certificate_type: "A1",
+    },
+  ];
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: getCorsHeaders(req) });
 
@@ -74,6 +112,12 @@ Deno.serve(async (req) => {
       });
 
     if (linkErr) throw linkErr;
+
+    const { error: fiscalConfigErr } = await supabaseAdmin
+      .from("fiscal_configs")
+      .upsert(buildDefaultFiscalConfigs(company.id), { onConflict: "company_id,doc_type" });
+
+    if (fiscalConfigErr) throw fiscalConfigErr;
 
     return new Response(JSON.stringify({ success: true, companyId: company.id }), {
       headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
