@@ -1,10 +1,16 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-const ALLOWED_ORIGINS = [
+/** Base URLs; adicione previews (ex.: Vercel) em Supabase → Edge Functions → restore-my-backup → ALLOWED_ORIGINS (lista separada por vírgula). */
+const DEFAULT_ALLOWED_ORIGINS = [
   "https://anthosystemcombr.lovable.app",
   "https://anthosystem.com.br",
   "https://www.anthosystem.com.br",
+  "https://app.anthosystem.com",
   "https://id-preview--d4ab3861-f98c-4c08-a556-30aa884845a3.lovable.app",
+  "http://localhost:5173",
+  "http://127.0.0.1:5173",
+  "http://localhost:8080",
+  "http://127.0.0.1:8080",
 ];
 
 const EXPORTABLE_TABLES = [
@@ -33,12 +39,22 @@ const DEPENDENT_TABLES_DELETE = [
   { table: "inventory_counts", column: "company_id" },
 ];
 
+function mergedAllowedOrigins(): string[] {
+  const fromEnv = (Deno.env.get("ALLOWED_ORIGINS") || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return [...new Set([...DEFAULT_ALLOWED_ORIGINS, ...fromEnv])];
+}
+
 function getCorsHeaders(req: Request) {
   const origin = req.headers.get("Origin") || "";
-  const allowedOrigin = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
+  const allowed = mergedAllowedOrigins();
+  const allowedOrigin = allowed.includes(origin) ? origin : allowed[0];
   return {
     "Access-Control-Allow-Origin": allowedOrigin,
     "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+    "Vary": "Origin",
   };
 }
 
@@ -113,7 +129,12 @@ function remapCompanyRows(rows: unknown, companyId: string): Record<string, unkn
     });
 }
 
-async function resolveOrCreateCompany(adminClient: ReturnType<typeof createClient>, userId: string, sourceCompanyName: string) {
+async function resolveOrCreateCompany(
+  adminClient: ReturnType<typeof createClient>,
+  userId: string,
+  sourceCompanyName: string,
+  targetCompanyIdHint: string | null | undefined,
+) {
   const normalizedSourceName = normalizeName(sourceCompanyName);
   const { data: memberships, error: membershipError } = await adminClient
     .from("company_users")
@@ -126,6 +147,17 @@ async function resolveOrCreateCompany(adminClient: ReturnType<typeof createClien
   const activeCompanyIds = [...new Set((memberships || []).map((membership) => membership.company_id).filter(Boolean))];
 
   if (activeCompanyIds.length > 0) {
+    if (targetCompanyIdHint && activeCompanyIds.includes(targetCompanyIdHint)) {
+      const { data: hinted, error: hintedErr } = await adminClient
+        .from("companies")
+        .select("id, name")
+        .eq("id", targetCompanyIdHint)
+        .maybeSingle();
+      if (!hintedErr && hinted?.id) {
+        return { ...hinted, companyCreated: false };
+      }
+    }
+
     const { data: companies, error: companiesError } = await adminClient
       .from("companies")
       .select("id, name")
@@ -144,7 +176,9 @@ async function resolveOrCreateCompany(adminClient: ReturnType<typeof createClien
         return { ...exactMatch, companyCreated: false };
       }
 
-      throw new Error("Seu usuário possui mais de uma empresa ativa. Use o painel Admin para escolher o destino correto da restauração.");
+      throw new Error(
+        "Seu usuário possui mais de uma empresa ativa e o nome no backup não bate com nenhuma delas. Abra o app já na empresa destino (trocar filial) e tente de novo, ou use Admin > Backup para escolher o destino.",
+      );
     }
   }
 
@@ -208,12 +242,16 @@ Deno.serve(async (req) => {
     const body = await parseRequestJsonSafe(req);
     const backupData = body?.backup_data;
     const sourceCompanyName = String(body?.source_company_name ?? "").trim();
+    const targetCompanyIdHint =
+      typeof body?.target_company_id === "string" && body.target_company_id.length > 0
+        ? body.target_company_id
+        : null;
 
     if (!backupData || typeof backupData !== "object") {
       return new Response(JSON.stringify({ error: "backup_data é obrigatório" }), { status: 400, headers: getCorsHeaders(req) });
     }
 
-    const targetCompany = await resolveOrCreateCompany(adminClient, user.id, sourceCompanyName);
+    const targetCompany = await resolveOrCreateCompany(adminClient, user.id, sourceCompanyName, targetCompanyIdHint);
     const companyId = targetCompany.id;
     const results: { table: string; phase: string; count: number; error?: string }[] = [];
 

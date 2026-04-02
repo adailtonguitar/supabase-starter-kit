@@ -1076,7 +1076,7 @@ function FiscalReadinessSection() {
 // FurnitureModeSection removed — segment is now defined at onboarding only
 
 export default function Configuracoes() {
-  const { companyName } = useCompany();
+  const { companyName, companyId: activeCompanyId } = useCompany();
   const [exporting, setExporting] = useState(false);
   const [importing, setImporting] = useState(false);
   const [backupChoices, setBackupChoices] = useState<Array<{ key: string; companyName: string; totalRows: number; data: Record<string, unknown[]> }>>([]);
@@ -1110,10 +1110,23 @@ export default function Configuracoes() {
         body: {
           backup_data: backupData,
           source_company_name: sourceCompanyName,
+          ...(activeCompanyId ? { target_company_id: activeCompanyId } : {}),
         },
       });
 
-      if (error) throw error;
+      if (error) {
+        let msg = error.message || "Erro ao chamar restauração";
+        try {
+          const e = error as { context?: { json?: () => Promise<{ error?: string }> } };
+          if (e.context && typeof e.context.json === "function") {
+            const body = await e.context.json();
+            if (body?.error) msg = body.error;
+          }
+        } catch {
+          /* keep msg */
+        }
+        throw new Error(msg);
+      }
       if (data?.error) throw new Error(data.error);
 
       const results = Array.isArray(data?.results) ? data.results : [];
@@ -1144,7 +1157,7 @@ export default function Configuracoes() {
     } finally {
       setImporting(false);
     }
-  }, [clearCompanyCache]);
+  }, [activeCompanyId, clearCompanyCache]);
 
   const handleRestoreSelectedBackup = useCallback(async () => {
     const selectedBackup = backupChoices.find((choice) => choice.key === selectedBackupKey);
