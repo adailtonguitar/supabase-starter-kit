@@ -16,8 +16,10 @@ export function OnboardingChecklist() {
     totalSteps,
     showChecklist,
     allDone,
+    checklistLoaded,
   } = useOnboardingChecklist();
 
+  if (!checklistLoaded) return null;
   if (!showChecklist && !allDone) return null;
   if (!showChecklist) return null;
 
