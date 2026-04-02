@@ -121,12 +121,17 @@ function remapCompanyRows(rows: unknown, companyId: string): Record<string, unkn
   return rows
     .filter((row): row is Record<string, unknown> => row !== null && typeof row === "object")
     .map((row) => {
-      const nextRow = { ...row };
-      if ("company_id" in nextRow) {
-        nextRow.company_id = companyId;
-      }
-      return nextRow;
+      // Sempre gravar no tenant alvo; backups sem chave company_id falhavam silenciosamente ou com FK errada.
+      return { ...row, company_id: companyId };
     });
+}
+
+/** O app lista produtos com is_active true ou null — false some de PDV/listas. */
+function normalizeRestoredProductRows(rows: Record<string, unknown>[]): Record<string, unknown>[] {
+  return rows.map((r) => ({
+    ...r,
+    is_active: r.is_active === false ? true : (r.is_active ?? true),
+  }));
 }
 
 async function resolveOrCreateCompany(
@@ -308,7 +313,8 @@ Deno.serve(async (req) => {
     }
 
     for (const table of EXPORTABLE_TABLES) {
-      const rows = remapCompanyRows(backupData[table], companyId);
+      let rows = remapCompanyRows(backupData[table], companyId);
+      if (table === "products") rows = normalizeRestoredProductRows(rows);
       if (rows.length === 0) {
         results.push({ table, phase: "insert", count: 0 });
         continue;

@@ -89,7 +89,10 @@ async function resolveActiveCompany(
   let chosen =
     preferredFirst && activeIds.includes(preferredFirst) ? preferredFirst : ranked[0];
 
-  if (activeIds.length > 1 && ranked.length >= 2) {
+  // Com filial fixada (Filiais / restore grava as_selected_company), não repointar para "mais atividade"
+  // — isso abria outra empresa e parecia que o backup não gravou nada.
+  const pinnedBranch = Boolean(preferredFirst && activeIds.includes(preferredFirst));
+  if (!pinnedBranch && activeIds.length > 1 && ranked.length >= 2) {
     const bestId = ranked[0];
     if (chosen !== bestId) {
       const [{ count: curS }, { count: bestS }, { count: curP }, { count: bestP }] = await Promise.all([
