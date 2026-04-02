@@ -91,6 +91,11 @@ verify_jwt = false
 [functions.import-backup]
 verify_jwt = false
 
+# Mesmo padrão do import-backup: validação do usuário dentro da função (getClaims),
+# evitando "Invalid JWT" no gateway quando o JWT do cliente é válido mas o verify do edge falha.
+[functions.restore-my-backup]
+verify_jwt = false
+
 [functions.backup-weekly]
 verify_jwt = false
 

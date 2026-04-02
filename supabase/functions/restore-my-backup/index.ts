@@ -231,13 +231,22 @@ Deno.serve(async (req) => {
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const adminClient = createClient(supabaseUrl, serviceKey);
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
 
     const token = authHeader.replace("Bearer ", "");
-    const { data: { user }, error: userError } = await adminClient.auth.getUser(token);
-    if (userError || !user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: getCorsHeaders(req) });
+    const userClient = createClient(supabaseUrl, anonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const { data: claimsData, error: claimsError } = await userClient.auth.getClaims(token);
+    if (claimsError || !claimsData?.claims?.sub) {
+      return new Response(
+        JSON.stringify({ error: claimsError?.message || "Não autorizado — faça login novamente." }),
+        { status: 401, headers: getCorsHeaders(req) },
+      );
     }
+    const userId = claimsData.claims.sub as string;
+
+    const adminClient = createClient(supabaseUrl, serviceKey);
 
     const body = await parseRequestJsonSafe(req);
     const backupData = body?.backup_data;
@@ -251,7 +260,7 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "backup_data é obrigatório" }), { status: 400, headers: getCorsHeaders(req) });
     }
 
-    const targetCompany = await resolveOrCreateCompany(adminClient, user.id, sourceCompanyName, targetCompanyIdHint);
+    const targetCompany = await resolveOrCreateCompany(adminClient, userId, sourceCompanyName, targetCompanyIdHint);
     const companyId = targetCompany.id;
     const results: { table: string; phase: string; count: number; error?: string }[] = [];
 
