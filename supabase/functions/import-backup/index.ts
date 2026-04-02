@@ -51,6 +51,20 @@ const DEPENDENT_TABLES_DELETE = [
   { table: "inventory_counts", column: "company_id" },
 ];
 
+function remapCompanyRows(rows: unknown, companyId: string): Record<string, unknown>[] {
+  if (!Array.isArray(rows)) return [];
+
+  return rows
+    .filter((row): row is Record<string, unknown> => row !== null && typeof row === "object")
+    .map((row) => {
+      const nextRow = { ...row };
+      if ("company_id" in nextRow) {
+        nextRow.company_id = companyId;
+      }
+      return nextRow;
+    });
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: getCorsHeaders(req) });
@@ -165,8 +179,8 @@ Deno.serve(async (req) => {
 
     // Phase 3: Insert backup data (in order)
     for (const table of EXPORTABLE_TABLES) {
-      const rows = backup_data[table];
-      if (!rows || !Array.isArray(rows) || rows.length === 0) {
+      const rows = remapCompanyRows(backup_data[table], company_id);
+      if (rows.length === 0) {
         results.push({ table, phase: "insert", count: 0 });
         continue;
       }
@@ -192,11 +206,12 @@ Deno.serve(async (req) => {
     }
 
     // Also import sale_items if present (no company_id filter)
-    if (backup_data.sale_items && Array.isArray(backup_data.sale_items) && backup_data.sale_items.length > 0) {
+    const saleItems = remapCompanyRows(backup_data.sale_items, company_id);
+    if (saleItems.length > 0) {
       try {
         let totalInserted = 0;
-        for (let i = 0; i < backup_data.sale_items.length; i += 200) {
-          const batch = backup_data.sale_items.slice(i, i + 200);
+        for (let i = 0; i < saleItems.length; i += 200) {
+          const batch = saleItems.slice(i, i + 200);
           const { error } = await adminClient
             .from("sale_items")
             .upsert(batch, { onConflict: "id", ignoreDuplicates: false });

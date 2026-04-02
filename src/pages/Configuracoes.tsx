@@ -12,7 +12,6 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { useSubscription, PLANS } from "@/hooks/useSubscription";
 import { useAdminRole } from "@/hooks/useAdminRole";
 import { useCompany } from "@/hooks/useCompany";
-import { fetchMyCompanyMemberships } from "@/lib/company-memberships";
 import { getFiscalReadiness, getFiscalReadinessPrimaryFixRoute, getFiscalReadinessPrimaryIssue, type FiscalReadinessResult } from "@/lib/fiscal-readiness";
 import { useProducts, useBulkUpdateProducts, type Product } from "@/hooks/useProducts";
 import { useFiscalCategories } from "@/hooks/useFiscalCategories";
@@ -1077,9 +1076,11 @@ function FiscalReadinessSection() {
 // FurnitureModeSection removed — segment is now defined at onboarding only
 
 export default function Configuracoes() {
-  const { companyId, companyName } = useCompany();
+  const { companyName } = useCompany();
   const [exporting, setExporting] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [backupChoices, setBackupChoices] = useState<Array<{ key: string; companyName: string; totalRows: number; data: Record<string, unknown[]> }>>([]);
+  const [selectedBackupKey, setSelectedBackupKey] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const normalizeCompanyName = useCallback((value: string | null | undefined) => {
@@ -1091,100 +1092,69 @@ export default function Configuracoes() {
       .toLowerCase();
   }, []);
 
-  const resolveTargetCompany = useCallback(async (parsedBackup: any) => {
-    if (companyId && companyName) {
-      return { companyId, companyName };
-    }
+  const clearBackupSelection = useCallback(() => {
+    setBackupChoices([]);
+    setSelectedBackupKey("");
+  }, []);
 
-    const { data: { session } } = await supabase.auth.getSession();
-    const userId = session?.user?.id;
-    if (!userId) {
-      throw new Error("Faça login novamente para restaurar o backup");
-    }
+  const clearCompanyCache = useCallback(() => {
+    localStorage.removeItem("as_cached_company");
+    localStorage.removeItem("as_selected_company");
+  }, []);
 
-    const memberships = await fetchMyCompanyMemberships(userId);
-    const activeCompanyIds = [...new Set(memberships.filter((membership) => membership.is_active).map((membership) => membership.company_id))];
+  const executeRestore = useCallback(async (backupData: Record<string, unknown[]>, sourceCompanyName: string) => {
+    setImporting(true);
 
-    if (activeCompanyIds.length === 0) {
-      throw new Error("Nenhuma empresa ativa foi encontrada para este usuário");
-    }
-
-    const backupNames = new Set<string>();
-    if (parsedBackup?.metadata?.company_name) {
-      backupNames.add(normalizeCompanyName(parsedBackup.metadata.company_name));
-    }
-    if (Array.isArray(parsedBackup?.backups)) {
-      parsedBackup.backups.forEach((entry: any) => {
-        if (entry?.company_name) {
-          backupNames.add(normalizeCompanyName(entry.company_name));
-        }
-      });
-    }
-
-    if (activeCompanyIds.length === 1) {
-      const fallbackName = parsedBackup?.metadata?.company_name
-        || (Array.isArray(parsedBackup?.backups) && parsedBackup.backups.length === 1 ? parsedBackup.backups[0]?.company_name : null)
-        || companyName
-        || "Empresa atual";
-      return { companyId: activeCompanyIds[0], companyName: fallbackName };
-    }
-
-    const { data: companies, error } = await supabase
-      .from("companies")
-      .select("id, name")
-      .in("id", activeCompanyIds);
-
-    if (error || !companies?.length) {
-      throw new Error("Não foi possível carregar os dados da empresa atual");
-    }
-
-    const matchedCompanies = companies.filter((company) => backupNames.has(normalizeCompanyName(company.name)));
-
-    if (matchedCompanies.length === 1) {
-      return { companyId: matchedCompanies[0].id, companyName: matchedCompanies[0].name };
-    }
-
-    if (companies.length === 1) {
-      return { companyId: companies[0].id, companyName: companies[0].name };
-    }
-
-    if (matchedCompanies.length > 1) {
-      throw new Error("Mais de uma empresa do seu usuário foi encontrada nesse backup; use a tela Admin > Backup para escolher o destino");
-    }
-
-    throw new Error("Não foi possível identificar a empresa atual para restaurar o backup");
-  }, [companyId, companyName, normalizeCompanyName]);
-
-  const resolveBackupPayload = useCallback((parsedBackup: any, targetCompanyName: string) => {
-    if (parsedBackup?.data && (parsedBackup?.version || parsedBackup?.metadata)) {
-      return {
-        backupData: parsedBackup.data,
-        sourceCompanyName: parsedBackup?.metadata?.company_name ?? targetCompanyName ?? "backup manual",
-      };
-    }
-
-    if (parsedBackup?.metadata && Array.isArray(parsedBackup?.backups)) {
-      if (!targetCompanyName) {
-        throw new Error("Não foi possível identificar a empresa atual para localizar os dados no backup semanal");
-      }
-
-      const currentName = normalizeCompanyName(targetCompanyName);
-      const matchedCompany = parsedBackup.backups.find((entry: any) => {
-        return normalizeCompanyName(entry?.company_name) === currentName && entry?.data && typeof entry.data === "object";
+    try {
+      const { data, error } = await supabase.functions.invoke("restore-my-backup", {
+        body: {
+          backup_data: backupData,
+          source_company_name: sourceCompanyName,
+        },
       });
 
-      if (!matchedCompany) {
-        throw new Error(`Este backup semanal não contém a empresa ${targetCompanyName}`);
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      const results = Array.isArray(data?.results) ? data.results : [];
+      const totalImported = results
+        .filter((result: any) => result?.phase === "insert")
+        .reduce((sum: number, result: any) => sum + Number(result?.count || 0), 0);
+      const totalErrors = results.filter((result: any) => result?.error).length;
+
+      logAction({
+        companyId: data?.company_id,
+        action: "Restauração de backup pela tela de configurações",
+        module: "configuracoes",
+        details: `Origem: ${sourceCompanyName}`,
+      });
+
+      if (totalErrors > 0) {
+        toast.warning(`Restauração concluída: ${totalImported} registros importados, ${totalErrors} ocorrências`);
+      } else if (data?.company_created) {
+        toast.success(`Empresa recriada e backup restaurado com sucesso! ${totalImported} registros importados.`);
+      } else {
+        toast.success(`Backup restaurado com sucesso! ${totalImported} registros importados.`);
       }
 
-      return {
-        backupData: matchedCompany.data,
-        sourceCompanyName: matchedCompany.company_name ?? targetCompanyName,
-      };
+      clearCompanyCache();
+      window.location.reload();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao restaurar backup");
+    } finally {
+      setImporting(false);
+    }
+  }, [clearCompanyCache]);
+
+  const handleRestoreSelectedBackup = useCallback(async () => {
+    const selectedBackup = backupChoices.find((choice) => choice.key === selectedBackupKey);
+    if (!selectedBackup) {
+      toast.error("Selecione a empresa do backup que deseja restaurar");
+      return;
     }
 
-    throw new Error("Este arquivo não parece ser um backup válido do sistema");
-  }, [normalizeCompanyName]);
+    await executeRestore(selectedBackup.data, selectedBackup.companyName);
+  }, [backupChoices, executeRestore, selectedBackupKey]);
 
   const handleExport = async () => {
     setExporting(true);
@@ -1226,41 +1196,50 @@ export default function Configuracoes() {
     if (fileInputRef.current) fileInputRef.current.value = "";
     if (!file.name.endsWith(".json")) { toast.error("Selecione um arquivo .json válido"); return; }
     if (file.size > 50 * 1024 * 1024) { toast.error("Arquivo muito grande (máx. 50MB)"); return; }
-    setImporting(true);
+
     try {
+      clearBackupSelection();
       const text = await file.text();
       let backup: any;
-      try { backup = JSON.parse(text); } catch { toast.error("Arquivo JSON inválido"); setImporting(false); return; }
-      const targetCompany = await resolveTargetCompany(backup);
-      const { backupData, sourceCompanyName } = resolveBackupPayload(backup, targetCompany.companyName);
-      const { data, error } = await supabase.functions.invoke("import-backup", {
-        body: {
-          company_id: targetCompany.companyId,
-          backup_data: backupData,
-          confirm_company_name: targetCompany.companyName,
-        },
-      });
-      if (error) { toast.error("Erro ao importar: " + error.message); return; }
-      if (data?.success) {
-        const results = Array.isArray(data.results) ? data.results : [];
-        const totalImported = results
-          .filter((result: any) => result?.phase === "insert")
-          .reduce((sum: number, result: any) => sum + Number(result?.count || 0), 0);
-        const totalErrors = results.filter((result: any) => result?.error).length;
+      try { backup = JSON.parse(text); } catch { toast.error("Arquivo JSON inválido"); return; }
 
-        logAction({
-          companyId: targetCompany.companyId,
-          action: "Restauração de backup iniciada pela tela de configurações",
-          module: "configuracoes",
-          details: `Origem: ${sourceCompanyName}`,
-        });
+      if (backup?.data && typeof backup.data === "object") {
+        const sourceCompanyName = backup?.metadata?.company_name ?? companyName ?? "Backup manual";
+        await executeRestore(backup.data, sourceCompanyName);
+        return;
+      }
 
-        if (totalErrors > 0) toast.warning(`Restauração concluída: ${totalImported} registros importados, ${totalErrors} ocorrências`);
-        else toast.success(`Backup restaurado com sucesso! ${totalImported} registros importados.`);
-      } else { toast.error(data?.error || "Erro ao importar backup"); }
+      if (backup?.metadata && Array.isArray(backup?.backups)) {
+        const choices = backup.backups
+          .filter((entry: any) => entry?.data && typeof entry.data === "object")
+          .map((entry: any) => ({
+            key: String(entry.company_id ?? entry.company_name),
+            companyName: String(entry.company_name ?? "Empresa sem nome").trim(),
+            data: entry.data as Record<string, unknown[]>,
+            totalRows: Object.values(entry.data).reduce((sum, value) => sum + (Array.isArray(value) ? value.length : 0), 0),
+          }));
+
+        if (choices.length === 0) {
+          toast.error("O backup semanal não possui empresas válidas para restaurar");
+          return;
+        }
+
+        const preferredChoice = choices.find((choice) => normalizeCompanyName(choice.companyName) === normalizeCompanyName(companyName)) ?? choices[0];
+        setBackupChoices(choices);
+        setSelectedBackupKey(preferredChoice.key);
+
+        if (choices.length === 1) {
+          await executeRestore(preferredChoice.data, preferredChoice.companyName);
+        } else {
+          toast.success("Backup semanal carregado. Escolha a empresa que deseja restaurar.");
+        }
+        return;
+      }
+
+      toast.error("Este arquivo não parece ser um backup válido do sistema");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erro ao processar arquivo de backup");
-    } finally { setImporting(false); }
+    }
   };
 
   return (
@@ -1302,13 +1281,40 @@ export default function Configuracoes() {
           <div className="border-t border-border pt-4 mt-4">
             <h3 className="text-sm font-semibold text-foreground mb-2">Restaurar Backup</h3>
             <p className="text-xs text-muted-foreground mb-3">
-              Faça upload de um arquivo <strong>.json</strong> exportado pelo sistema ou do <strong>backup semanal consolidado</strong> para restaurar a empresa atual.
+              Faça upload de um arquivo <strong>.json</strong> exportado pelo sistema ou do <strong>backup semanal consolidado</strong>. Se sua empresa foi apagada, ela será recriada automaticamente durante a restauração.
             </p>
             <input ref={fileInputRef} type="file" accept=".json" onChange={handleImportBackup} className="hidden" id="backup-file-input" />
             <Button variant="secondary" size="sm" onClick={() => fileInputRef.current?.click()} disabled={importing || exporting}>
               {importing ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Upload className="w-4 h-4 mr-2" />}
               {importing ? "Importando..." : "Restaurar Backup (JSON)"}
             </Button>
+
+            {backupChoices.length > 1 && (
+              <div className="mt-4 space-y-3 rounded-xl border border-border bg-muted/30 p-4">
+                <div>
+                  <p className="text-sm font-medium text-foreground">Selecione a empresa do backup semanal</p>
+                  <p className="text-xs text-muted-foreground mt-1">Encontramos {backupChoices.length} empresas dentro do arquivo enviado.</p>
+                </div>
+
+                <select
+                  className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground"
+                  value={selectedBackupKey}
+                  onChange={(event) => setSelectedBackupKey(event.target.value)}
+                  disabled={importing}
+                >
+                  {backupChoices.map((choice) => (
+                    <option key={choice.key} value={choice.key}>
+                      {choice.companyName} ({choice.totalRows} registros)
+                    </option>
+                  ))}
+                </select>
+
+                <Button size="sm" onClick={handleRestoreSelectedBackup} disabled={importing || !selectedBackupKey}>
+                  {importing ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Upload className="w-4 h-4 mr-2" />}
+                  Restaurar empresa selecionada
+                </Button>
+              </div>
+            )}
           </div>
         </div>
       </motion.div>
