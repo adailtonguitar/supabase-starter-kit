@@ -237,7 +237,7 @@ export default function Produtos() {
         className="hidden md:block bg-card rounded-2xl card-shadow border border-border overflow-hidden min-w-0 max-w-full"
       >
         <div className="overflow-x-auto scrollbar-thin max-w-full">
-          <table className="w-full text-sm table-fixed">
+          <table className="w-full min-w-[980px] text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/30">
                 <th className="text-left px-3 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-widest w-[22%]">Produto</th>
@@ -248,7 +248,7 @@ export default function Produtos() {
                 <th className="text-right px-3 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-widest w-[10%]">Estoque</th>
                 <th className="text-right px-3 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-widest w-[8%]">Mínimo</th>
                 
-                <th className="text-center px-3 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-widest w-[12%]">Ações</th>
+                <th className="text-center px-3 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-widest w-[200px]">Ações</th>
               </tr>
             </thead>
             <tbody>
@@ -314,8 +314,8 @@ export default function Produtos() {
                       <td className="px-3 py-3 text-right font-mono text-muted-foreground whitespace-nowrap">
                         {product.min_stock ?? "—"}
                       </td>
-                      <td className="px-3 py-3">
-                         <div className="flex items-center justify-center gap-0.5">
+                      <td className="px-3 py-3 whitespace-nowrap">
+                         <div className="flex items-center justify-center gap-0.5 flex-wrap">
                           <button onClick={() => setMovementProduct(product)} title="Movimentar estoque" className="p-1.5 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors">
                              <ArrowUpDown className="w-4 h-4" />
                            </button>
