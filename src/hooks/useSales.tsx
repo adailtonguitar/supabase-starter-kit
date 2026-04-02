@@ -155,7 +155,7 @@ export function useSales(limit = 50) {
           items: rawItems.length > 0 ? rawItems : (itemsBySale[row.id] || []),
           items_json: row.items,
           customer_name: row.client_name ?? row.customer_name ?? row.counterpart ?? undefined,
-          customer_doc: row.customer_doc ?? row.customer_cpf ?? row.customer_cpf_cnpj ?? undefined,
+          customer_doc: row.customer_doc ?? row.customer_cpf ?? undefined,
           access_key: row.access_key ?? undefined,
           company_id: row.company_id,
         };

@@ -89,7 +89,8 @@ function getCardMethod(row: Record<string, unknown> | undefined): "03" | "04" | 
 function hasCardEvidence(row: Record<string, unknown> | undefined): boolean {
   if (!row) return false;
   const nsu = String(row.nsu ?? "").trim();
-  const auth = String(row.auth_code ?? row.authCode ?? row.cAut ?? row.card?.cAut ?? "").trim();
+  const cardObj = (row.card && typeof row.card === "object" ? row.card : {}) as Record<string, unknown>;
+  const auth = String(row.auth_code ?? row.authCode ?? row.cAut ?? cardObj.cAut ?? "").trim();
   const digits = String(row.card_last_digits ?? row.cardLastDigits ?? "").trim();
   return nsu !== "" || auth !== "" || digits !== "";
 }
@@ -186,7 +187,8 @@ function resolvePaymentKind(row: Record<string, unknown> | undefined): Classifie
 }
 
 function buildPixDetPag(source: Record<string, unknown>, amount: number): Record<string, unknown> {
-  const tpIntegra = Number(source.tpIntegra ?? source.card?.tpIntegra ?? 2);
+  const cardObj = (source.card && typeof source.card === "object" ? source.card : {}) as Record<string, unknown>;
+  const tpIntegra = Number(source.tpIntegra ?? cardObj.tpIntegra ?? 2);
   return {
     tPag: "17",
     vPag: amount,
@@ -197,15 +199,16 @@ function buildPixDetPag(source: Record<string, unknown>, amount: number): Record
 }
 
 function buildCardDetPag(tPag: "03" | "04", source: Record<string, unknown>, amount: number): Record<string, unknown> {
-  const tpIntegra = Number(source.tpIntegra ?? source.card?.tpIntegra ?? 2);
+  const cardObj = (source.card && typeof source.card === "object" ? source.card : {}) as Record<string, unknown>;
+  const tpIntegra = Number(source.tpIntegra ?? cardObj.tpIntegra ?? 2);
   return {
     tPag,
     vPag: amount,
     card: {
       tpIntegra: Number.isFinite(tpIntegra) ? tpIntegra : 2,
-      CNPJ: String(source.cnpj_credenciadora ?? source.card?.CNPJ ?? "").trim(),
-      tBand: String(source.tBand ?? source.card?.tBand ?? "").trim(),
-      cAut: String(source.cAut ?? source.card?.cAut ?? source.auth_code ?? source.authCode ?? "").trim(),
+      CNPJ: String(source.cnpj_credenciadora ?? cardObj.CNPJ ?? "").trim(),
+      tBand: String(source.tBand ?? cardObj.tBand ?? "").trim(),
+      cAut: String(source.cAut ?? cardObj.cAut ?? source.auth_code ?? source.authCode ?? "").trim(),
     },
   };
 }
@@ -238,12 +241,12 @@ export function classifyAndNormalizePayment(
       authCode: source.authCode,
       card_last_digits: source.card_last_digits ?? source.cardLastDigits,
       cardLastDigits: source.cardLastDigits,
-      cnpj_credenciadora: source.cnpj_credenciadora ?? source.card?.CNPJ,
-      tBand: source.tBand ?? source.card?.tBand,
-      cAut: source.cAut ?? source.card?.cAut,
-      tpIntegra: source.tpIntegra ?? source.card?.tpIntegra ?? 2,
+      cnpj_credenciadora: source.cnpj_credenciadora ?? ((source.card && typeof source.card === "object" ? source.card : {}) as Record<string, unknown>).CNPJ,
+      tBand: source.tBand ?? ((source.card && typeof source.card === "object" ? source.card : {}) as Record<string, unknown>).tBand,
+      cAut: source.cAut ?? ((source.card && typeof source.card === "object" ? source.card : {}) as Record<string, unknown>).cAut,
+      tpIntegra: source.tpIntegra ?? ((source.card && typeof source.card === "object" ? source.card : {}) as Record<string, unknown>).tpIntegra ?? 2,
       card: {
-        tpIntegra: source.tpIntegra ?? source.card?.tpIntegra ?? 2,
+        tpIntegra: source.tpIntegra ?? ((source.card && typeof source.card === "object" ? source.card : {}) as Record<string, unknown>).tpIntegra ?? 2,
       },
     };
     return freezePaymentResult({
@@ -272,10 +275,10 @@ export function classifyAndNormalizePayment(
       authCode: source.authCode,
       card_last_digits: source.card_last_digits ?? source.cardLastDigits,
       cardLastDigits: source.cardLastDigits,
-      cnpj_credenciadora: source.cnpj_credenciadora ?? source.card?.CNPJ,
-      tpIntegra: source.tpIntegra ?? source.card?.tpIntegra ?? 2,
-      tBand: source.tBand ?? source.card?.tBand,
-      cAut: source.cAut ?? source.card?.cAut ?? source.auth_code ?? source.authCode,
+      cnpj_credenciadora: source.cnpj_credenciadora ?? ((source.card && typeof source.card === "object" ? source.card : {}) as Record<string, unknown>).CNPJ,
+      tpIntegra: source.tpIntegra ?? ((source.card && typeof source.card === "object" ? source.card : {}) as Record<string, unknown>).tpIntegra ?? 2,
+      tBand: source.tBand ?? ((source.card && typeof source.card === "object" ? source.card : {}) as Record<string, unknown>).tBand,
+      cAut: source.cAut ?? ((source.card && typeof source.card === "object" ? source.card : {}) as Record<string, unknown>).cAut ?? source.auth_code ?? source.authCode,
       card: source.card,
     };
     return freezePaymentResult({
