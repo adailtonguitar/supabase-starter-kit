@@ -3,6 +3,8 @@
  * Replace `getResponse` internals with an API call (OpenAI, Gemini, etc.) when ready.
  */
 
+import { tutorials, type TutorialSection } from "@/data/tutorials";
+
 export interface SupportMessage {
   id: string;
   sender: "user" | "bot";
@@ -553,6 +555,59 @@ const WHATSAPP_SUPPORT_URL = "https://wa.me/5599982345366";
 const FALLBACK_RESPONSE =
   `Desculpe, não consegui te ajudar com essa questão. 🤔\n\nMas não se preocupe! Nosso **suporte humano** pode resolver isso para você:\n\n👉 [**Falar com suporte via WhatsApp**](${WHATSAPP_SUPPORT_URL})\n\nOu clique no botão **"Suporte Humano"** no topo desta conversa.`;
 
+function tutorialSearchScore(section: TutorialSection, query: string): number {
+  const q = normalize(query);
+  if (!q) return 0;
+
+  const haystacks: string[] = [
+    section.title,
+    section.description,
+    ...(section.steps || []),
+    ...(section.tips || []),
+    ...(section.shortcuts || []).flatMap((s) => [s.key, s.action]),
+    section.example?.title || "",
+    ...(section.example?.steps || []),
+    ...(section.example?.conclusion || []),
+  ].filter(Boolean);
+
+  const normalized = haystacks.map((h) => normalize(h));
+  const words = q.split(/\s+/).filter((w) => w.length >= 2);
+  if (words.length === 0) return 0;
+
+  let score = 0;
+  for (const w of words) {
+    if (normalized.some((h) => h.includes(w))) score += 12;
+  }
+  if (normalized.some((h) => h.includes(q))) score += 40;
+  if (normalize(section.title).includes(q)) score += 60;
+  return score;
+}
+
+function buildTutorialFallback(query: string): string | null {
+  const scored = tutorials
+    .filter((t) => !t.mode || t.mode === "pdv" || t.mode === "both")
+    .map((t) => ({ t, score: tutorialSearchScore(t, query) }))
+    .filter((x) => x.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 3);
+
+  if (scored.length === 0) return null;
+
+  const lines: string[] = [];
+  lines.push("Não encontrei uma resposta exata na base rápida, mas achei estes tutoriais que resolvem isso:");
+  lines.push("");
+  scored.forEach(({ t }, idx) => {
+    lines.push(`${idx + 1}. **${t.title}** — ${t.description}`);
+    const preview = (t.steps || []).slice(0, 4);
+    if (preview.length > 0) {
+      lines.push("   - " + preview.join("\n   - "));
+    }
+    lines.push("");
+  });
+  lines.push("📌 Abra **Ajuda** no menu e pesquise pelo título acima para ver o passo a passo completo.");
+  return lines.join("\n");
+}
+
 /**
  * Hybrid mode: local keywords first for high-confidence matches (score >= 100),
  * Gemini for complex/ambiguous questions, local fallback if Gemini fails.
@@ -571,6 +626,7 @@ export async function getResponse(
   } catch {
     // ignore
   }
+  const tutorialFallback = buildTutorialFallback(userMessage);
 
   // Step 2: High-confidence local match → return instantly (no API call)
   if (localResult && localResult.score >= HIGH_CONFIDENCE_THRESHOLD) {
@@ -586,7 +642,7 @@ export async function getResponse(
       const { supabase } = await import("@/integrations/supabase/client");
       const { data: sessionData } = await supabase.auth.getSession();
       const accessToken = sessionData?.session?.access_token;
-      if (!accessToken) return localResult?.answer ?? FALLBACK_RESPONSE;
+      if (!accessToken) return localResult?.answer ?? tutorialFallback ?? FALLBACK_RESPONSE;
 
       const messages = conversationHistory && conversationHistory.length > 0
         ? [...conversationHistory, { role: "user", content: userMessage }]
@@ -624,7 +680,20 @@ export async function getResponse(
           // JSON parse failed
         }
       } else {
-        try { await res.text(); } catch { /* ignore */ }
+        let errText = "";
+        try {
+          const parsed = await res.json().catch(() => null);
+          if (parsed?.error) errText = String(parsed.error);
+        } catch {
+          // ignore
+        }
+        // If the advanced AI is misconfigured/offline server-side, be transparent and help via tutorials.
+        if (errText) {
+          const base = localResult?.answer ?? tutorialFallback;
+          if (base) {
+            return `${base}\n\n---\n\n⚠️ A IA avançada está temporariamente indisponível (${errText}). Se precisar, fale com nosso [**suporte humano via WhatsApp**](${WHATSAPP_SUPPORT_URL}).`;
+          }
+        }
       }
     } catch {
       // silent — falls back to local
@@ -640,7 +709,7 @@ export async function getResponse(
     return localResult.answer;
   }
 
-  return FALLBACK_RESPONSE;
+  return tutorialFallback ?? FALLBACK_RESPONSE;
 }
 
 export function getWelcomeMessage(): SupportMessage {

@@ -144,7 +144,7 @@ export default function Assistente() {
 
     try {
       // Build conversation history for AI context
-      const history = messages
+      const history = [...messages, userMsg]
         .filter((m) => m.id !== "welcome")
         .map((m) => ({ role: m.sender === "user" ? "user" : "assistant", content: m.message }));
 
