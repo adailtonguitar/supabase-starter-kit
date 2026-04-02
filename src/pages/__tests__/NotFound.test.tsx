@@ -1,9 +1,20 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
 import { render } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import NotFound from "../NotFound";
 
 describe("NotFound", () => {
+  let consoleErrorSpy: ReturnType<typeof vi.spyOn> | null = null;
+
+  beforeAll(() => {
+    // NotFound logs a 404 to stderr; silence during tests to keep output clean
+    consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+  });
+
+  afterAll(() => {
+    consoleErrorSpy?.mockRestore();
+  });
+
   const renderAt = (path: string) =>
     render(
       <MemoryRouter initialEntries={[path]}>

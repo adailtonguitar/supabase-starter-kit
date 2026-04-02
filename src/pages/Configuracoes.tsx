@@ -745,6 +745,7 @@ function FiscalReadinessSection() {
   const { data: products = [] } = useProducts();
   const { data: fiscalCategories = [] } = useFiscalCategories();
   const bulkUpdateProducts = useBulkUpdateProducts();
+  const canView = role === "admin" || role === "gerente";
   const taxRegime: TaxRegime = rawTaxRegime === "lucro_presumido"
     ? "lucro_presumido"
     : rawTaxRegime === "lucro_real"
@@ -844,8 +845,6 @@ function FiscalReadinessSection() {
     reloadReadiness();
   };
 
-  if (role !== "admin" && role !== "gerente") return null;
-
   const issues = result?.issues || [];
   const ready = result?.status === "ready";
   const invalidProductsIssue = issues.find((issue) => issue.code === "products_fiscal_invalid");
@@ -856,13 +855,16 @@ function FiscalReadinessSection() {
   const issueRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   useEffect(() => {
+    if (!canView) return;
     if (loading) return;
     if (ready) return;
     if (!primaryIssueCode) return;
 
     const el = issueRefs.current[primaryIssueCode];
     if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
-  }, [loading, ready, primaryIssueCode]);
+  }, [canView, loading, ready, primaryIssueCode]);
+
+  if (!canView) return null;
 
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08 }} className="bg-card rounded-2xl card-shadow border border-border overflow-hidden">
