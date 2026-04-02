@@ -88,13 +88,13 @@ export class DemoDataService {
   }
 
   static async seedDemoData(companyId: string, userId: string): Promise<{ products: number; clients: number; sales: number; suppliers: number; expenses: number }> {
-    const { data: existingProducts } = await supabase
-      .from("products")
-      .select("id")
-      .eq("company_id", companyId)
-      .limit(1);
-
-    if (existingProducts && existingProducts.length > 0) {
+    // Não gerar demo por cima de backup/restauração: qualquer dado real já importado cancela o seed.
+    const [{ count: pc }, { count: sc }, { count: cc }] = await Promise.all([
+      supabase.from("products").select("id", { count: "exact", head: true }).eq("company_id", companyId),
+      supabase.from("sales").select("id", { count: "exact", head: true }).eq("company_id", companyId),
+      supabase.from("clients").select("id", { count: "exact", head: true }).eq("company_id", companyId),
+    ]);
+    if ((pc ?? 0) > 0 || (sc ?? 0) > 0 || (cc ?? 0) > 0) {
       DemoDataService.markSeeded(companyId);
       return { products: -1, clients: -1, sales: -1, suppliers: -1, expenses: -1 };
     }

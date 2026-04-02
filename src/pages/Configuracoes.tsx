@@ -1156,18 +1156,27 @@ export default function Configuracoes() {
       const restoredId = typeof data?.company_id === "string" ? data.company_id : "";
       const tenantHint = restoredName ? ` (“${restoredName}”)` : restoredId ? ` (ID ${restoredId.slice(0, 8)}…)` : "";
 
+      // Tempo para ler o toast antes do reload (o reload imediato apagava a mensagem).
+      const reloadAfterMs = totalErrors > 0 ? 22_000 : 9_000;
+      const reloadHint = `\n\n↻ Recarregando a página em ${Math.round(reloadAfterMs / 1000)}s…`;
+
       if (totalErrors > 0) {
         toast.warning(
-          `Restauração parcial${tenantHint}: ${totalImported} registros nas tabelas OK; ${totalErrors} etapa(s) com erro (veja abaixo).`,
-          { description: errorDetail || undefined, duration: 14_000 },
+          `Restauração parcial${tenantHint}: ${totalImported} registros OK; ${totalErrors} etapa(s) com erro.`,
+          {
+            description: (errorDetail || "Veja detalhes no painel da função no Supabase.") + reloadHint,
+            duration: reloadAfterMs + 5_000,
+          },
         );
       } else if (data?.company_created) {
         toast.success(
-          `Empresa recriada e backup restaurado${tenantHint}! ${totalImported} registros importados. Abrindo essa empresa após recarregar.`,
+          `Empresa recriada e backup restaurado${tenantHint}! ${totalImported} registros.`,
+          { description: reloadHint.trim(), duration: reloadAfterMs + 5_000 },
         );
       } else {
         toast.success(
-          `Backup restaurado${tenantHint}! ${totalImported} registros importados. A página vai recarregar nesta empresa.`,
+          `Backup restaurado${tenantHint}! ${totalImported} registros.`,
+          { description: reloadHint.trim(), duration: reloadAfterMs + 5_000 },
         );
       }
 
@@ -1185,9 +1194,12 @@ export default function Configuracoes() {
       } else {
         clearCompanyCache();
       }
-      window.location.reload();
+
+      setTimeout(() => {
+        window.location.reload();
+      }, reloadAfterMs);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erro ao restaurar backup");
+      toast.error(err instanceof Error ? err.message : "Erro ao restaurar backup", { duration: 45_000 });
     } finally {
       setImporting(false);
     }
