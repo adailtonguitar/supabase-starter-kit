@@ -17,6 +17,7 @@ import { useProducts, useBulkUpdateProducts, type Product } from "@/hooks/usePro
 import { useFiscalCategories } from "@/hooks/useFiscalCategories";
 import { type TaxRegime } from "@/lib/cst-csosn-validator";
 import { getSuggestedFiscalUpdate, getChangedFiscalFields, getFiscalSuggestionDiagnostics, getBulkFiscalFixAnalysis } from "@/lib/fiscal-product-suggestions";
+import { messageFromFunctionsInvokeError } from "@/lib/supabase-function-error";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -1106,7 +1107,7 @@ export default function Configuracoes() {
     setImporting(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke("restore-my-backup", {
+      const { data, error, response: fnResponse } = await supabase.functions.invoke("restore-my-backup", {
         body: {
           backup_data: backupData,
           source_company_name: sourceCompanyName,
@@ -1115,17 +1116,7 @@ export default function Configuracoes() {
       });
 
       if (error) {
-        let msg = error.message || "Erro ao chamar restauração";
-        try {
-          const e = error as { context?: { json?: () => Promise<{ error?: string }> } };
-          if (e.context && typeof e.context.json === "function") {
-            const body = await e.context.json();
-            if (body?.error) msg = body.error;
-          }
-        } catch {
-          /* keep msg */
-        }
-        throw new Error(msg);
+        throw new Error(await messageFromFunctionsInvokeError(error, fnResponse));
       }
       if (data?.error) throw new Error(data.error);
 
