@@ -1109,15 +1109,6 @@ export default function Configuracoes() {
       throw new Error("Nenhuma empresa ativa foi encontrada para este usuário");
     }
 
-    const { data: companies, error } = await supabase
-      .from("companies")
-      .select("id, name")
-      .in("id", activeCompanyIds);
-
-    if (error || !companies?.length) {
-      throw new Error("Não foi possível carregar os dados da empresa atual");
-    }
-
     const backupNames = new Set<string>();
     if (parsedBackup?.metadata?.company_name) {
       backupNames.add(normalizeCompanyName(parsedBackup.metadata.company_name));
@@ -1128,6 +1119,23 @@ export default function Configuracoes() {
           backupNames.add(normalizeCompanyName(entry.company_name));
         }
       });
+    }
+
+    if (activeCompanyIds.length === 1) {
+      const fallbackName = parsedBackup?.metadata?.company_name
+        || (Array.isArray(parsedBackup?.backups) && parsedBackup.backups.length === 1 ? parsedBackup.backups[0]?.company_name : null)
+        || companyName
+        || "Empresa atual";
+      return { companyId: activeCompanyIds[0], companyName: fallbackName };
+    }
+
+    const { data: companies, error } = await supabase
+      .from("companies")
+      .select("id, name")
+      .in("id", activeCompanyIds);
+
+    if (error || !companies?.length) {
+      throw new Error("Não foi possível carregar os dados da empresa atual");
     }
 
     const matchedCompanies = companies.filter((company) => backupNames.has(normalizeCompanyName(company.name)));
