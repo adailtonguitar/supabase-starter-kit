@@ -22,7 +22,7 @@ import { useTermsAcceptance } from "@/hooks/useTermsAcceptance";
 import { WalkthroughProvider } from "@/hooks/useWalkthrough";
 import { WalkthroughRunner } from "@/components/WalkthroughRunner";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { fetchMyCompanyMemberships } from "@/lib/company-memberships";
 
 import {
   LandingPage, Auth, ResetPassword, TrialExpirado, Instalar, Termos,
@@ -76,17 +76,13 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
       }
       const checkCompany = async () => {
         try {
-          const { data } = await supabase
-            .from("company_users")
-            .select("company_id, is_active")
-            .eq("user_id", user.id)
-            .limit(10);
+          const memberships = await fetchMyCompanyMemberships(user.id);
 
-          if (!data || data.length === 0) {
+          if (memberships.length === 0) {
             setShowOnboarding(true);
           } else {
             setShowOnboarding(false);
-            if (!data.some((row: any) => row.is_active)) {
+            if (!memberships.some((m) => m.is_active)) {
               hasSignedOut.current = true;
               toast.error("Sua conta foi desativada. Entre em contato com o administrador.");
               signOut();

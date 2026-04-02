@@ -2536,6 +2536,10 @@ export type Database = {
         }
         Returns: Json
       }
+      get_my_company_memberships: {
+        Args: Record<string, never>
+        Returns: Json
+      }
       mark_financial_entry_paid_atomic: {
         Args: {
           p_company_id: string

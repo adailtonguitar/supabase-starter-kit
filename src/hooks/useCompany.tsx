@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchMyCompanyMemberships } from "@/lib/company-memberships";
 import { useAuth } from "./useAuth";
 
 const COMPANY_CACHE_KEY = "as_cached_company";
@@ -148,23 +149,20 @@ export function useCompany(): CompanyData {
         const selectedId = targetCompanyId || localStorage.getItem(SELECTED_COMPANY_KEY);
         let resolvedCompanyId: string | null = null;
 
+        const memberships = await fetchMyCompanyMemberships(user.id);
+        if (cancelled) return;
+
         if (selectedId) {
-          const { data: check } = await supabase
-            .from("company_users").select("company_id")
-            .eq("user_id", user.id).eq("company_id", selectedId).eq("is_active", true).maybeSingle();
-          if (check) resolvedCompanyId = check.company_id;
+          const sel = memberships.find((m) => m.company_id === selectedId && m.is_active);
+          if (sel) resolvedCompanyId = selectedId;
           else localStorage.removeItem(SELECTED_COMPANY_KEY);
         }
 
         if (!resolvedCompanyId) {
-          const { data: cuData, error: cuError } = await supabase
-            .from("company_users").select("company_id")
-            .eq("user_id", user.id).eq("is_active", true).limit(1).single();
-          if (cancelled) return;
-          if (cuError || !cuData?.company_id) {
+          const firstActive = memberships.find((m) => m.is_active);
+          if (!firstActive?.company_id) {
             if (retryCount.current < 3) {
               retryCount.current++;
-              // Antes: 1.5s, 3s, 4.5s — somava muito ao tempo pós-login
               retryTimer.current = setTimeout(() => { if (!cancelled) fetchCompany(); }, Math.min(400 * retryCount.current, 1200));
               return;
             }
@@ -172,7 +170,7 @@ export function useCompany(): CompanyData {
             setLoading(false);
             return;
           }
-          resolvedCompanyId = cuData.company_id;
+          resolvedCompanyId = firstActive.company_id;
         }
 
         if (cancelled) return;
@@ -198,15 +196,14 @@ export function useCompany(): CompanyData {
 
     fetchCompany();
     return () => { cancelled = true; if (retryTimer.current) clearTimeout(retryTimer.current); };
-  }, [user, session]);
+  }, [user, session, applyCompany]);
 
   const switchCompany = useCallback((newCompanyId: string) => {
     if (!user) return;
     setLoading(true);
     (async () => {
-      const { data: access } = await supabase
-        .from("company_users").select("company_id")
-        .eq("user_id", user.id).eq("company_id", newCompanyId).eq("is_active", true).maybeSingle();
+      const memberships = await fetchMyCompanyMemberships(user.id);
+      const access = memberships.find((m) => m.company_id === newCompanyId && m.is_active);
       if (!access) { setLoading(false); return; }
 
       localStorage.setItem(SELECTED_COMPANY_KEY, newCompanyId);

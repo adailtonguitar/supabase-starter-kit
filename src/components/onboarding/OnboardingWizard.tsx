@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import { Building2, Package, ShoppingCart, CheckCircle2, ArrowRight, ArrowLeft, Rocket } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchMyCompanyMemberships } from "@/lib/company-memberships";
 import { toast } from "sonner";
 import logoAs from "@/assets/logo-as.png";
 import { useCnpjLookup } from "@/hooks/useCnpjLookup";
@@ -72,19 +72,12 @@ export function OnboardingWizard({ onComplete }: Props) {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Usuário não autenticado");
 
-      // Get company
-      const { data: cu } = await supabase
-        .from("company_users")
-        .select("company_id")
-        .eq("user_id", user.id)
-        .eq("is_active", true)
-        .limit(1)
-        .single();
-
-      if (!cu) throw new Error("Empresa não encontrada");
+      const memberships = await fetchMyCompanyMemberships(user.id);
+      const active = memberships.find((m) => m.is_active);
+      if (!active) throw new Error("Empresa não encontrada");
 
       const { error } = await supabase.from("products").insert({
-        company_id: cu.company_id,
+        company_id: active.company_id,
         name: productName.trim(),
         price: parseFloat(productPrice),
         stock_quantity: parseInt(productStock) || 0,
@@ -120,15 +113,7 @@ export function OnboardingWizard({ onComplete }: Props) {
           ))}
         </div>
 
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={step}
-            initial={{ opacity: 0, x: 40 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -40 }}
-            transition={{ duration: 0.25 }}
-            className="bg-card border border-border rounded-2xl p-8 shadow-xl"
-          >
+        <div className="bg-card border border-border rounded-2xl p-8 shadow-xl">
             {/* Step 0 — Welcome */}
             {step === 0 && (
               <div className="text-center space-y-6">
@@ -335,8 +320,7 @@ export function OnboardingWizard({ onComplete }: Props) {
                 </button>
               </div>
             )}
-          </motion.div>
-        </AnimatePresence>
+        </div>
 
         <p className="text-center text-xs text-muted-foreground mt-6">
           Você tem <strong>15 dias grátis</strong> para testar todas as funcionalidades.
