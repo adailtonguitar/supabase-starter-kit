@@ -34,7 +34,7 @@ export const AppLayout = memo(function AppLayout({ children }: AppLayoutProps) {
         <DemoBanner />
         <SubscriptionBanner />
         {isMobile ? <MobileTopBar /> : <AppHeader />}
-        <main className={`flex-1 overflow-y-auto overflow-x-hidden min-h-0 min-w-0 ${isMobile ? "pb-20" : ""}`}>
+        <main className={`flex-1 overflow-y-auto overflow-x-auto min-h-0 min-w-0 ${isMobile ? "pb-20" : ""}`}>
           {isMobile ? (
             <div className="max-w-[480px] mx-auto w-full">{children}</div>
           ) : (
