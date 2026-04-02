@@ -62,6 +62,8 @@ const WELCOME_KEY = "antho_welcome_seen";
 /** Acima disso, a empresa é considerada “de produção”: não exibir Primeiros passos (evita RLS/contagens zeradas falsas). */
 const MS_COMPANY_CONSIDERED_ESTABLISHED = 48 * 60 * 60 * 1000;
 
+type MemberProbe = "idle" | "none" | "has" | "error";
+
 interface OnboardingState {
   completedSteps: string[];
   dismissed: boolean;
@@ -104,6 +106,30 @@ export function useOnboardingChecklist() {
   const [companyAgeLoaded, setCompanyAgeLoaded] = useState(false);
   /** true = empresa criada há mais de MS_COMPANY_CONSIDERED_ESTABLISHED ou falha ao ler created_at (preferir não incomodar). */
   const [companyIsEstablished, setCompanyIsEstablished] = useState(true);
+  /** Evita tratar conta com vínculo real como “primeiro login” quando RLS falha; só exibe welcome se probe = none. */
+  const [memberProbe, setMemberProbe] = useState<MemberProbe>("idle");
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!user?.id) {
+      setMemberProbe("idle");
+      return;
+    }
+    setMemberProbe("idle");
+    (async () => {
+      try {
+        const rows = await fetchMyCompanyMemberships(user.id);
+        if (cancelled) return;
+        const active = rows.filter((r) => r.is_active).length;
+        setMemberProbe(active > 0 ? "has" : "none");
+      } catch {
+        if (!cancelled) setMemberProbe("error");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
 
   // Migrate legacy key -> per-user key (so old users don't see it again)
   useEffect(() => {
