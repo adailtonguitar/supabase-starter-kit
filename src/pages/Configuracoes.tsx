@@ -12,6 +12,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { useSubscription, PLANS } from "@/hooks/useSubscription";
 import { useAdminRole } from "@/hooks/useAdminRole";
 import { useCompany } from "@/hooks/useCompany";
+import { fetchMyCompanyMemberships } from "@/lib/company-memberships";
 import { getFiscalReadiness, getFiscalReadinessPrimaryFixRoute, getFiscalReadinessPrimaryIssue, type FiscalReadinessResult } from "@/lib/fiscal-readiness";
 import { useProducts, useBulkUpdateProducts, type Product } from "@/hooks/useProducts";
 import { useFiscalCategories } from "@/hooks/useFiscalCategories";
@@ -1090,36 +1091,92 @@ export default function Configuracoes() {
       .toLowerCase();
   }, []);
 
-  const resolveBackupPayload = useCallback((parsedBackup: any) => {
+  const resolveTargetCompany = useCallback(async (parsedBackup: any) => {
+    if (companyId && companyName) {
+      return { companyId, companyName };
+    }
+
+    const { data: { session } } = await supabase.auth.getSession();
+    const userId = session?.user?.id;
+    if (!userId) {
+      throw new Error("Faça login novamente para restaurar o backup");
+    }
+
+    const memberships = await fetchMyCompanyMemberships(userId);
+    const activeCompanyIds = [...new Set(memberships.filter((membership) => membership.is_active).map((membership) => membership.company_id))];
+
+    if (activeCompanyIds.length === 0) {
+      throw new Error("Nenhuma empresa ativa foi encontrada para este usuário");
+    }
+
+    const { data: companies, error } = await supabase
+      .from("companies")
+      .select("id, name")
+      .in("id", activeCompanyIds);
+
+    if (error || !companies?.length) {
+      throw new Error("Não foi possível carregar os dados da empresa atual");
+    }
+
+    const backupNames = new Set<string>();
+    if (parsedBackup?.metadata?.company_name) {
+      backupNames.add(normalizeCompanyName(parsedBackup.metadata.company_name));
+    }
+    if (Array.isArray(parsedBackup?.backups)) {
+      parsedBackup.backups.forEach((entry: any) => {
+        if (entry?.company_name) {
+          backupNames.add(normalizeCompanyName(entry.company_name));
+        }
+      });
+    }
+
+    const matchedCompanies = companies.filter((company) => backupNames.has(normalizeCompanyName(company.name)));
+
+    if (matchedCompanies.length === 1) {
+      return { companyId: matchedCompanies[0].id, companyName: matchedCompanies[0].name };
+    }
+
+    if (companies.length === 1) {
+      return { companyId: companies[0].id, companyName: companies[0].name };
+    }
+
+    if (matchedCompanies.length > 1) {
+      throw new Error("Mais de uma empresa do seu usuário foi encontrada nesse backup; use a tela Admin > Backup para escolher o destino");
+    }
+
+    throw new Error("Não foi possível identificar a empresa atual para restaurar o backup");
+  }, [companyId, companyName, normalizeCompanyName]);
+
+  const resolveBackupPayload = useCallback((parsedBackup: any, targetCompanyName: string) => {
     if (parsedBackup?.data && (parsedBackup?.version || parsedBackup?.metadata)) {
       return {
         backupData: parsedBackup.data,
-        sourceCompanyName: parsedBackup?.metadata?.company_name ?? companyName ?? "backup manual",
+        sourceCompanyName: parsedBackup?.metadata?.company_name ?? targetCompanyName ?? "backup manual",
       };
     }
 
     if (parsedBackup?.metadata && Array.isArray(parsedBackup?.backups)) {
-      if (!companyName) {
+      if (!targetCompanyName) {
         throw new Error("Não foi possível identificar a empresa atual para localizar os dados no backup semanal");
       }
 
-      const currentName = normalizeCompanyName(companyName);
+      const currentName = normalizeCompanyName(targetCompanyName);
       const matchedCompany = parsedBackup.backups.find((entry: any) => {
         return normalizeCompanyName(entry?.company_name) === currentName && entry?.data && typeof entry.data === "object";
       });
 
       if (!matchedCompany) {
-        throw new Error(`Este backup semanal não contém a empresa ${companyName}`);
+        throw new Error(`Este backup semanal não contém a empresa ${targetCompanyName}`);
       }
 
       return {
         backupData: matchedCompany.data,
-        sourceCompanyName: matchedCompany.company_name ?? companyName,
+        sourceCompanyName: matchedCompany.company_name ?? targetCompanyName,
       };
     }
 
     throw new Error("Este arquivo não parece ser um backup válido do sistema");
-  }, [companyName, normalizeCompanyName]);
+  }, [normalizeCompanyName]);
 
   const handleExport = async () => {
     setExporting(true);
@@ -1161,18 +1218,18 @@ export default function Configuracoes() {
     if (fileInputRef.current) fileInputRef.current.value = "";
     if (!file.name.endsWith(".json")) { toast.error("Selecione um arquivo .json válido"); return; }
     if (file.size > 50 * 1024 * 1024) { toast.error("Arquivo muito grande (máx. 50MB)"); return; }
-    if (!companyId || !companyName) { toast.error("Não foi possível identificar a empresa atual para restaurar o backup"); return; }
     setImporting(true);
     try {
       const text = await file.text();
       let backup: any;
       try { backup = JSON.parse(text); } catch { toast.error("Arquivo JSON inválido"); setImporting(false); return; }
-      const { backupData, sourceCompanyName } = resolveBackupPayload(backup);
+      const targetCompany = await resolveTargetCompany(backup);
+      const { backupData, sourceCompanyName } = resolveBackupPayload(backup, targetCompany.companyName);
       const { data, error } = await supabase.functions.invoke("import-backup", {
         body: {
-          company_id: companyId,
+          company_id: targetCompany.companyId,
           backup_data: backupData,
-          confirm_company_name: companyName,
+          confirm_company_name: targetCompany.companyName,
         },
       });
       if (error) { toast.error("Erro ao importar: " + error.message); return; }
@@ -1184,7 +1241,7 @@ export default function Configuracoes() {
         const totalErrors = results.filter((result: any) => result?.error).length;
 
         logAction({
-          companyId,
+          companyId: targetCompany.companyId,
           action: "Restauração de backup iniciada pela tela de configurações",
           module: "configuracoes",
           details: `Origem: ${sourceCompanyName}`,
