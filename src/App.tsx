@@ -79,13 +79,13 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
         try {
           const { data } = await supabase
             .from("company_users")
-            .select("id")
+            .select("company_id, is_active")
             .eq("user_id", user.id)
-            .limit(1);
+            .limit(10);
 
           if (!data || data.length === 0) {
             setShowOnboarding(true);
-          } else if (!companyId) {
+          } else if (!data.some((row: any) => row.is_active)) {
             hasSignedOut.current = true;
             toast.error("Sua conta foi desativada. Entre em contato com o administrador.");
             signOut();
