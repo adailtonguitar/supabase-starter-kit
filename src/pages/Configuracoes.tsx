@@ -19,6 +19,9 @@ import { type TaxRegime } from "@/lib/cst-csosn-validator";
 import { getSuggestedFiscalUpdate, getChangedFiscalFields, getFiscalSuggestionDiagnostics, getBulkFiscalFixAnalysis } from "@/lib/fiscal-product-suggestions";
 import { messageFromFunctionsInvokeError } from "@/lib/supabase-function-error";
 import { getAccessTokenForEdgeFunctions } from "@/lib/supabase-edge-auth";
+
+/** Alinhado a useCompany / Filiais — define qual empresa abrir após reload. */
+const LS_SELECTED_COMPANY_KEY = "as_selected_company";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -1140,15 +1143,38 @@ export default function Configuracoes() {
         details: `Origem: ${sourceCompanyName}`,
       });
 
+      const restoredName = typeof data?.company_name === "string" ? data.company_name : "";
+      const restoredId = typeof data?.company_id === "string" ? data.company_id : "";
+      const tenantHint = restoredName ? ` (“${restoredName}”)` : restoredId ? ` (ID ${restoredId.slice(0, 8)}…)` : "";
+
       if (totalErrors > 0) {
-        toast.warning(`Restauração concluída: ${totalImported} registros importados, ${totalErrors} ocorrências`);
+        toast.warning(
+          `Restauração concluída${tenantHint}: ${totalImported} registros importados, ${totalErrors} ocorrência(s).`,
+        );
       } else if (data?.company_created) {
-        toast.success(`Empresa recriada e backup restaurado com sucesso! ${totalImported} registros importados.`);
+        toast.success(
+          `Empresa recriada e backup restaurado${tenantHint}! ${totalImported} registros importados. Abrindo essa empresa após recarregar.`,
+        );
       } else {
-        toast.success(`Backup restaurado com sucesso! ${totalImported} registros importados.`);
+        toast.success(
+          `Backup restaurado${tenantHint}! ${totalImported} registros importados. A página vai recarregar nesta empresa.`,
+        );
       }
 
-      clearCompanyCache();
+      try {
+        localStorage.removeItem("as_cached_company");
+      } catch {
+        /* */
+      }
+      if (restoredId) {
+        try {
+          localStorage.setItem(LS_SELECTED_COMPANY_KEY, restoredId);
+        } catch {
+          /* */
+        }
+      } else {
+        clearCompanyCache();
+      }
       window.location.reload();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erro ao restaurar backup");
