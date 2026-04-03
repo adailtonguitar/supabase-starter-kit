@@ -62,6 +62,24 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const [membershipFetchFailed, setMembershipFetchFailed] = useState(false);
   /** null = ainda não checamos; 0 = sem vínculo ativo; >0 = tem empresa mas companyId pode não ter resolvido (ex.: RLS em companies). */
   const [activeMembershipCount, setActiveMembershipCount] = useState<number | null>(null);
+  const hadCompanyIdInSession = useRef(false);
+
+  useEffect(() => {
+    if (companyId) hadCompanyIdInSession.current = true;
+  }, [companyId]);
+
+  const hasCachedCompanyHint = (() => {
+    try {
+      const selected = localStorage.getItem("as_selected_company");
+      const cached = localStorage.getItem("as_cached_company");
+      if (selected) return true;
+      if (!cached) return false;
+      const parsed = JSON.parse(cached) as { companyId?: string | null };
+      return !!String(parsed?.companyId || "").trim();
+    } catch {
+      return false;
+    }
+  })();
 
   // Só contar depois de auth + empresa + checagem de memberships — evita modal falso durante
   // várias idas ao Supabase ou enquanto checkCompany ainda roda.
@@ -207,7 +225,9 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     !showOnboarding &&
     !membershipFetchFailed &&
     activeMembershipCount !== null &&
-    activeMembershipCount > 0
+    activeMembershipCount > 0 &&
+    !hadCompanyIdInSession.current &&
+    !hasCachedCompanyHint
   ) {
     return (
       <div className="flex items-center justify-center h-screen bg-background p-6">
