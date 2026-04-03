@@ -79,7 +79,7 @@ export async function fillCompanyRowFromServicePeerFallback(
       .eq("is_active", true);
 
     const activeIds = (ms || []).map((m: { company_id?: string }) => String(m.company_id || "").trim()).filter(Boolean);
-    const peerIds = activeIds.filter((id) => id && id !== currentCompanyId);
+    const peerIds = activeIds.filter((id: string) => id && id !== currentCompanyId);
     if (peerIds.length === 0) continue;
 
     const base = { ...working, id: working.id ?? currentCompanyId };

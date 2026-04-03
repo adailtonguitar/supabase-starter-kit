@@ -412,7 +412,7 @@ async function handleEmit(supabase: any, body: any) {
       supabase,
       String(company_id),
       "nfce",
-      restrictIds.length ? { restrictToProductIds: restrictIds } : undefined,
+      restrictIds.length ? { restrictToProductIds: restrictIds as string[] } : undefined,
     );
     if (readiness.status !== "ready") {
       return jsonResponse({
