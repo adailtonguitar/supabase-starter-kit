@@ -124,6 +124,7 @@ export function pickPeerDonorForFiscalMerge(
 
   if (activeIds.length === 2 && basicsOk.length === 1) return basicsOk[0];
   if (activeIds.length === 2 && cnpjOk.length === 1) return cnpjOk[0];
+  if (cnpjOk.length === 1) return cnpjOk[0];
 
   return null;
 }

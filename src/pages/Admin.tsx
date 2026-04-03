@@ -33,6 +33,7 @@ import { AdminPaymentLogs } from "@/components/admin/AdminPaymentLogs";
 import { AdminAuditoria } from "@/components/admin/AdminAuditoria";
 import { AdminSmokeRunner } from "@/components/admin/AdminSmokeRunner";
 import { lazy, Suspense } from "react";
+import { adminQuery } from "@/lib/admin-query";
 
 const lazyRetry = (fn: () => Promise<any>) =>
   lazy(() => fn().catch(() => {
@@ -274,7 +275,6 @@ function AdminWhatsAppSupport() {
 }
 
 function CompaniesTab() {
-  const { user } = useAuth();
   const [companies, setCompanies] = useState<CompanyRow[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
@@ -288,12 +288,20 @@ function CompaniesTab() {
 
   const fetchCompanies = async () => {
     setLoading(true);
-    let query = supabase.from("companies").select("id, name, cnpj, is_blocked, block_reason, created_at").order("name");
-    if (search.trim()) {
-      query = query.or(`name.ilike.%${search}%,cnpj.ilike.%${search}%`);
-    }
-    const { data } = await query.limit(100);
-    setCompanies(data ?? []);
+    const rows = await adminQuery<CompanyRow>({
+      table: "companies",
+      select: "id, name, cnpj, is_blocked, block_reason, created_at",
+      order: { column: "name", ascending: true },
+      limit: 500,
+    });
+    const q = search.trim().toLowerCase();
+    const filtered = q
+      ? rows.filter((r) =>
+          String(r.name || "").toLowerCase().includes(q) ||
+          String(r.cnpj || "").toLowerCase().includes(q),
+        )
+      : rows;
+    setCompanies(filtered);
     setLoading(false);
   };
 
