@@ -13,6 +13,7 @@ import {
 } from "../../../shared/fiscal/fiscal-copy.ts";
 import { productIdsExcludedFromCatalogFiscalReadiness } from "../../../shared/fiscal/acquisition-readiness.ts";
 import { isExcludedFromGlobalFiscalReadinessCatalog } from "../../../shared/fiscal/fiscal-readiness-exclusions.ts";
+import { resolveCompanyFiscalRowWithParent } from "./company-fiscal-fallback.ts";
 
 export type FiscalReadinessIssue = {
   code: string;
@@ -214,7 +215,7 @@ export async function getFiscalReadiness(
   const [{ data: company }, { data: configs }, { data: plan }, { data: fiscalCategories }] = await Promise.all([
     supabase
       .from("companies")
-      .select("cnpj, ie, state_registration, crt, address_street, address_number, address_neighborhood, address_city, address_state, address_ibge_code, street, number, neighborhood, city, state, ibge_code, city_code")
+      .select("cnpj, ie, state_registration, parent_company_id, crt, address_street, address_number, address_neighborhood, address_city, address_state, address_ibge_code, street, number, neighborhood, city, state, ibge_code, city_code")
       .eq("id", companyId)
       .maybeSingle(),
     supabase
@@ -236,6 +237,11 @@ export async function getFiscalReadiness(
 
   const products = await fetchProductRowsForReadinessEdge(supabase, companyId, options?.restrictToProductIds);
 
+  const companyRowResolved = await resolveCompanyFiscalRowWithParent(
+    supabase,
+    (company || {}) as Record<string, unknown>,
+  );
+
   const fiscalEnabled = (plan as { fiscal_enabled?: boolean } | null)?.fiscal_enabled ?? false;
   if (!fiscalEnabled) {
     return {
@@ -253,7 +259,7 @@ export async function getFiscalReadiness(
   const fiscalConfig = ((configs || []) as Array<Record<string, unknown>>)
     .find((config) => String(config.doc_type || "") === docType) || null;
 
-  const companyRow = (company || {}) as Record<string, unknown>;
+  const companyRow = companyRowResolved;
   const taxRegime = getTaxRegimeFromCrt(companyRow.crt);
   pushIssue(issues, !onlyDigits(companyRow.cnpj).length, {
     code: "company_cnpj_missing",

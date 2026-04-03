@@ -11,6 +11,7 @@ import {
 } from "../../shared/fiscal/fiscal-copy";
 import { productIdsExcludedFromCatalogFiscalReadiness } from "../../shared/fiscal/acquisition-readiness";
 import { isExcludedFromGlobalFiscalReadinessCatalog } from "../../shared/fiscal/fiscal-readiness-exclusions";
+import { resolveCompanyFiscalRowWithParent } from "@/lib/company-fiscal-fallback";
 
 export type FiscalReadinessIssue = {
   code: string;
@@ -167,7 +168,7 @@ export async function getFiscalReadiness(
   const [{ data: company }, { data: configs }, { data: planRow }, { data: fiscalCategories }] = await Promise.all([
     supabase
       .from("companies")
-      .select("cnpj, ie, crt, address_street, address_number, address_neighborhood, address_city, address_state, address_ibge_code")
+      .select("cnpj, ie, state_registration, parent_company_id, crt, address_street, address_number, address_neighborhood, address_city, address_state, address_ibge_code")
       .eq("id", companyId)
       .maybeSingle(),
     supabase
@@ -202,12 +203,15 @@ export async function getFiscalReadiness(
     };
   }
 
-  const companyRow = (company || {}) as CompanyFiscalRow;
+  const companyRow = (await resolveCompanyFiscalRowWithParent(
+    (company || {}) as Record<string, unknown>,
+  )) as CompanyFiscalRow;
   const fiscalConfigs = ((configs || []) as FiscalConfigRow[]);
   const taxRegime = getTaxRegimeFromCrt(companyRow.crt);
   const nfceConfig = fiscalConfigs.find((cfg) => cfg.doc_type === "nfce") || null;
 
-  pushIfMissing(issues, !companyRow.cnpj, {
+  const cnpjDigits = String(companyRow.cnpj ?? "").replace(/\D/g, "");
+  pushIfMissing(issues, cnpjDigits.length === 0, {
     code: "company_cnpj_missing",
     label: "CNPJ não configurado",
     message: "Informe o CNPJ da empresa para emitir documentos fiscais.",

@@ -18,6 +18,7 @@ import {
   validateDetPagForEmission,
 } from "../_shared/sale-payments.ts";
 import { getFiscalReadiness, getFiscalReadinessBlockReason, getFiscalReadinessPrimaryIssueCode } from "../_shared/fiscal-readiness.ts";
+import { resolveCompanyFiscalRowWithParent } from "../_shared/company-fiscal-fallback.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 function getRequiredEnv(name: string): string {
@@ -225,11 +226,15 @@ async function resolveProviderDocRef(params: {
   if (params.companyId) {
     const { data: company } = await params.supabase
       .from("companies")
-      .select("cnpj")
+      .select("cnpj, parent_company_id")
       .eq("id", String(params.companyId))
       .maybeSingle();
 
-    const cpfCnpj = onlyDigits((company as { cnpj?: string } | null)?.cnpj);
+    const merged = await resolveCompanyFiscalRowWithParent(
+      params.supabase,
+      (company || {}) as Record<string, unknown>,
+    );
+    const cpfCnpj = onlyDigits(merged.cnpj);
     const ambiente: "homologacao" | "producao" = Deno.env.get("NUVEM_FISCAL_SANDBOX") === "true" ? "homologacao" : "producao";
     if (cpfCnpj.length >= 11) {
       const resolved = await resolveNuvemFiscalDocId({
@@ -419,10 +424,14 @@ async function handleEmit(supabase: any, body: any) {
 
   const [companyRes, configRes] = await Promise.all([companyPromise, configPromise]);
 
-  const company = companyRes.data;
-  if (companyRes.error || !company) {
+  if (companyRes.error || !companyRes.data) {
     return jsonResponse({ error: "Empresa não encontrada" }, 404);
   }
+
+  const company = await resolveCompanyFiscalRowWithParent(
+    supabase,
+    companyRes.data as Record<string, unknown>,
+  ) as typeof companyRes.data;
 
   let config = configRes.data;
   // Fallback: se config_id foi passado mas não encontrou, buscar por company_id
@@ -1123,9 +1132,13 @@ async function handleInutilize(supabase: any, body: any, callerUserId?: string |
   // Buscar CNPJ da empresa (campo obrigatório na API Nuvem Fiscal)
   let cnpj = "";
   if (company_id) {
-    const { data: company } = await supabase.from("companies").select("cnpj")
+    const { data: company } = await supabase.from("companies").select("cnpj, parent_company_id")
       .eq("id", company_id).maybeSingle();
-    cnpj = onlyDigits(company?.cnpj);
+    const merged = await resolveCompanyFiscalRowWithParent(
+      supabase,
+      (company || {}) as Record<string, unknown>,
+    );
+    cnpj = onlyDigits(merged.cnpj);
   }
   if (!cnpj || cnpj.length < 11) {
     return jsonResponse({ success: false, error: "CNPJ da empresa não encontrado. Verifique o cadastro." }, 400);
