@@ -69,38 +69,61 @@ const Empresas = () => {
     if (!companyId) { setLoading(false); return; }
     (async () => {
       setLoading(true);
-      const { data, error } = await supabase.from("companies").select("*").eq("id", companyId).maybeSingle();
-      if (error) {
-        console.error("[Empresas] load company:", error);
+
+      type CoRow = Record<string, unknown>;
+      let data: CoRow | null = null;
+      let loadError: Error | null = null;
+
+      const { data: rpcData, error: rpcErr } = await supabase.rpc("get_company_record", {
+        p_company_id: companyId,
+      });
+      if (!rpcErr && rpcData && typeof rpcData === "object") {
+        data = rpcData as CoRow;
+      } else {
+        if (rpcErr) console.warn("[Empresas] get_company_record:", rpcErr);
+        const { data: restData, error: restErr } = await supabase
+          .from("companies")
+          .select("*")
+          .eq("id", companyId)
+          .maybeSingle();
+        if (restErr) {
+          console.error("[Empresas] load company REST:", restErr);
+          loadError = new Error(restErr.message);
+        } else if (restData) {
+          data = restData as CoRow;
+        }
+      }
+
+      if (loadError) {
         toast.error(
-          "Não foi possível carregar a empresa (permissão ou rede). Limpe no navegador as chaves localStorage \"as_selected_company\" e \"as_cached_company\" e recarregue — ou confira as políticas RLS de \"companies\" no Supabase.",
+          "Não foi possível carregar a empresa (rede ou permissão). Se a tela continuar vazia após recarregar, rode a migration `rpc_get_company_record` no Supabase ou limpe no navegador as chaves localStorage \"as_selected_company\" e \"as_cached_company\".",
           { duration: 12_000 },
         );
       }
       if (data) {
         setForm({
-          name: data.name || "",
-          trade_name: (data as any).trade_name || "",
-          cnpj: (data as any).cnpj || "",
-          ie: (data as any).ie || "",
-          im: (data as any).im || "",
-          phone: (data as any).phone || "",
-          email: (data as any).email || "",
-          address_street: (data as any).address_street || "",
-          address_number: (data as any).address_number || "",
-          address_complement: (data as any).address_complement || "",
-          address_neighborhood: (data as any).address_neighborhood || "",
-          address_city: (data as any).address_city || "",
-          address_state: (data as any).address_state || "",
-          address_zip: (data as any).address_zip || "",
-          slogan: (data as any).slogan || "",
-          pix_key: (data as any).pix_key || "",
-          pix_key_type: (data as any).pix_key_type || "",
-          pix_city: (data as any).pix_city || "",
-          whatsapp_support: (data as any).whatsapp_support || "",
+          name: String(data.name || ""),
+          trade_name: String(data.trade_name || ""),
+          cnpj: String(data.cnpj || ""),
+          ie: String(data.ie || ""),
+          im: String(data.im || ""),
+          phone: String(data.phone || ""),
+          email: String(data.email || ""),
+          address_street: String(data.address_street || ""),
+          address_number: String(data.address_number || ""),
+          address_complement: String(data.address_complement || ""),
+          address_neighborhood: String(data.address_neighborhood || ""),
+          address_city: String(data.address_city || ""),
+          address_state: String(data.address_state || ""),
+          address_zip: String(data.address_zip || ""),
+          slogan: String(data.slogan || ""),
+          pix_key: String(data.pix_key || ""),
+          pix_key_type: String(data.pix_key_type || ""),
+          pix_city: String(data.pix_city || ""),
+          whatsapp_support: String(data.whatsapp_support || ""),
         });
-        setLogoUrl(data.logo_url || null);
-      } else if (!error) {
+        setLogoUrl((data.logo_url as string | null) || null);
+      } else if (!loadError) {
         toast.error(
           "Nenhum registro de empresa encontrado para o tenant atual. Se você tem duas empresas na conta, remova \"as_selected_company\" do localStorage e atualize a página.",
           { duration: 10_000 },

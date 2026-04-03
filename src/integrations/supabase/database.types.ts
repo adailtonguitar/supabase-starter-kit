@@ -2536,6 +2536,10 @@ export type Database = {
         }
         Returns: Json
       }
+      get_company_record: {
+        Args: { p_company_id: string }
+        Returns: Json
+      }
       get_my_company_memberships: {
         Args: Record<string, never>
         Returns: Json
