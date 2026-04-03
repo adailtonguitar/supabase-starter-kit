@@ -63,19 +63,24 @@ function getCachedCompany(): CachedCompany | null {
 /** Ordena tenants ativos por volume (vendas, depois produtos) — primeiro = operação principal na prática. */
 async function rankActiveCompanyIdsByActivity(activeIds: string[]): Promise<string[]> {
   if (activeIds.length <= 1) return [...activeIds];
-  const scored = await Promise.all(
-    activeIds.map(async (id) => {
-      const [{ count: salesC }, { count: productsC }] = await Promise.all([
-        supabase.from("sales").select("id", { count: "exact", head: true }).eq("company_id", id),
-        supabase.from("products").select("id", { count: "exact", head: true }).eq("company_id", id).or(PRODUCTS_ACTIVE_OR_LEGACY_NULL),
-      ]);
-      const s = salesC ?? 0;
-      const p = productsC ?? 0;
-      return { id, score: s * 1_000_000 + p };
-    }),
-  );
-  scored.sort((a, b) => b.score - a.score);
-  return scored.map((x) => x.id);
+  try {
+    const scored = await Promise.all(
+      activeIds.map(async (id) => {
+        const [{ count: salesC }, { count: productsC }] = await Promise.all([
+          supabase.from("sales").select("id", { count: "exact", head: true }).eq("company_id", id),
+          supabase.from("products").select("id", { count: "exact", head: true }).eq("company_id", id).or(PRODUCTS_ACTIVE_OR_LEGACY_NULL),
+        ]);
+        const s = salesC ?? 0;
+        const p = productsC ?? 0;
+        return { id, score: s * 1_000_000 + p };
+      }),
+    );
+    scored.sort((a, b) => b.score - a.score);
+    return scored.map((x) => x.id);
+  } catch (e) {
+    console.warn("[useCompany] rankActiveCompanyIdsByActivity falhou (rede/RLS); mantendo ordem dos IDs", e);
+    return [...activeIds];
+  }
 }
 
 /** Uma rodada de rede: ranking + linhas de companies em paralelo (evita estourar timeout de rota). */
@@ -93,34 +98,44 @@ async function resolveActiveCompany(
   // — isso abria outra empresa e parecia que o backup não gravou nada.
   const pinnedBranch = Boolean(preferredFirst && activeIds.includes(preferredFirst));
   if (!pinnedBranch && activeIds.length > 1 && ranked.length >= 2) {
-    const bestId = ranked[0];
-    if (chosen !== bestId) {
-      const [{ count: curS }, { count: bestS }, { count: curP }, { count: bestP }] = await Promise.all([
-        supabase.from("sales").select("id", { count: "exact", head: true }).eq("company_id", chosen),
-        supabase.from("sales").select("id", { count: "exact", head: true }).eq("company_id", bestId),
-        supabase.from("products").select("id", { count: "exact", head: true }).eq("company_id", chosen).or(PRODUCTS_ACTIVE_OR_LEGACY_NULL),
-        supabase.from("products").select("id", { count: "exact", head: true }).eq("company_id", bestId).or(PRODUCTS_ACTIVE_OR_LEGACY_NULL),
-      ]);
-      const switchForSales = (curS ?? 0) === 0 && (bestS ?? 0) >= 1;
-      const switchForProducts =
-        (curS ?? 0) === 0 && (bestS ?? 0) === 0 && (curP ?? 0) === 0 && (bestP ?? 0) >= 1;
-      if (switchForSales || switchForProducts) {
-        chosen = bestId;
-        try {
-          localStorage.removeItem(SELECTED_COMPANY_KEY);
-        } catch {
-          /* */
+    try {
+      const bestId = ranked[0];
+      if (chosen !== bestId) {
+        const [{ count: curS }, { count: bestS }, { count: curP }, { count: bestP }] = await Promise.all([
+          supabase.from("sales").select("id", { count: "exact", head: true }).eq("company_id", chosen),
+          supabase.from("sales").select("id", { count: "exact", head: true }).eq("company_id", bestId),
+          supabase.from("products").select("id", { count: "exact", head: true }).eq("company_id", chosen).or(PRODUCTS_ACTIVE_OR_LEGACY_NULL),
+          supabase.from("products").select("id", { count: "exact", head: true }).eq("company_id", bestId).or(PRODUCTS_ACTIVE_OR_LEGACY_NULL),
+        ]);
+        const switchForSales = (curS ?? 0) === 0 && (bestS ?? 0) >= 1;
+        const switchForProducts =
+          (curS ?? 0) === 0 && (bestS ?? 0) === 0 && (curP ?? 0) === 0 && (bestP ?? 0) >= 1;
+        if (switchForSales || switchForProducts) {
+          chosen = bestId;
+          try {
+            localStorage.removeItem(SELECTED_COMPANY_KEY);
+          } catch {
+            /* */
+          }
         }
       }
+    } catch (e) {
+      console.warn("[useCompany] Comparação de atividade entre tenants ignorada", e);
     }
   }
 
   const tryIds = [...new Set([chosen, ...ranked].filter((id) => activeIds.includes(id)))];
-  const results = await Promise.all(
-    tryIds.map((id) =>
-      supabase.from("companies").select(COMPANY_SELECT).eq("id", id).maybeSingle(),
-    ),
-  );
+  let results;
+  try {
+    results = await Promise.all(
+      tryIds.map((id) =>
+        supabase.from("companies").select(COMPANY_SELECT).eq("id", id).maybeSingle(),
+      ),
+    );
+  } catch (e) {
+    console.warn("[useCompany] Falha ao buscar companies em lote; usando tenant sem linha", e);
+    return { id: chosen, row: null };
+  }
 
   for (let i = 0; i < tryIds.length; i++) {
     const { data, error } = results[i];
@@ -269,8 +284,20 @@ export function useCompany(): CompanyData {
           retryTimer.current = setTimeout(() => { if (!cancelled) fetchCompany(); }, Math.min(400 * retryCount.current, 1200));
           return;
         }
-        if (!navigator.onLine && cached?.companyId) setCompanyId(cached.companyId);
-        else setCompanyId(null);
+        if (!navigator.onLine && cached?.companyId) {
+          setCompanyId(cached.companyId);
+          setFields({ ...nullFields, ...cached });
+        } else {
+          /* Último recurso: evita companyId null com membership ativo (modal enganoso no ProtectedRoute). */
+          try {
+            const m = await fetchMyCompanyMemberships(user.id);
+            const ids = m.filter((x) => x.is_active).map((x) => x.company_id);
+            if (ids.length > 0) applyCompany(ids[0], null);
+            else setCompanyId(null);
+          } catch {
+            setCompanyId(null);
+          }
+        }
       }
       if (!cancelled) setLoading(false);
     };

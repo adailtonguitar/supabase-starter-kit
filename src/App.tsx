@@ -214,9 +214,10 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
         <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-xl space-y-3">
           <div className="text-lg font-bold text-foreground">Sua conta já tem empresa cadastrada</div>
           <div className="text-sm text-muted-foreground">
-            O sistema encontrou vínculo ativo com uma ou mais empresas, mas não conseguiu carregar o painel (erro 500 nas consultas ao Supabase, em geral RLS). Isso{" "}
-            <strong className="text-foreground">não</strong> é fluxo de primeiro acesso. Aplique a migration{" "}
-            <code className="text-xs bg-muted px-1 rounded">current_user_company_ids</code> no SQL Editor do projeto e recarregue.
+            O sistema encontrou vínculo ativo com uma ou mais empresas, mas não conseguiu resolver o tenant (erro 500 / RLS no Supabase ao ler empresas, vendas ou produtos). Isso{" "}
+            <strong className="text-foreground">não</strong> é fluxo de primeiro acesso. No SQL Editor, execute a migration{" "}
+            <code className="text-xs bg-muted px-1 rounded">20260404210000_company_users_select_security_definer.sql</code>{" "}
+            (função <code className="text-xs bg-muted px-1 rounded">current_user_company_ids</code> + policy em <code className="text-xs bg-muted px-1 rounded">company_users</code>) e recarregue.
           </div>
           <button
             type="button"
