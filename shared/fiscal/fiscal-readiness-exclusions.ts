@@ -10,5 +10,6 @@ export function isExcludedFromGlobalFiscalReadinessCatalog(name: string | null |
   if (/\be2e\b/i.test(n)) return true;
   if (/^tenant-[ab]-\d+$/i.test(n)) return true;
   if (/__antho_test__/i.test(n)) return true;
+  if (/__diag_test__/i.test(n)) return true;
   return false;
 }

@@ -218,31 +218,6 @@ Deno.serve(async (req) => {
       })
       .eq("id", queueId);
 
-    const readiness = await getFiscalReadiness(supabase, String(companyId), "nfce");
-    if (readiness.status !== "ready") {
-      const reason = getFiscalReadinessBlockReason(readiness);
-      const primaryIssueCode = getFiscalReadinessPrimaryIssueCode(readiness);
-      await Promise.all([
-        supabase.from("fiscal_queue")
-          .update({
-            status: "error",
-            last_error: reason,
-            updated_at: nowIso,
-            finished_at: nowIso,
-            next_retry_at: null,
-          })
-          .eq("id", queueId),
-        supabase.from("sales")
-          .update({ status: "pendente_fiscal" })
-          .eq("id", saleId)
-          .eq("company_id", companyId),
-      ]);
-      return new Response(
-        JSON.stringify({ success: false, error: reason, primary_issue_code: primaryIssueCode, sale_id: saleId, queue_id: queueId, readiness }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
-    }
-
     // 4️⃣ Buscar config fiscal com fallback (NFC-e -> NF-e)
     const { data: configs, error: cfgErr } = await supabase
       .from("fiscal_configs")
@@ -376,6 +351,39 @@ Deno.serve(async (req) => {
         .eq("id", queueId);
       return new Response(
         JSON.stringify({ success: false, error: fatalMsg, sale_id: saleId, queue_id: queueId }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    const saleProductIds = [
+      ...new Set((items as any[]).map((it) => String(it?.product_id || "").trim()).filter(Boolean)),
+    ];
+    const readiness = await getFiscalReadiness(
+      supabase,
+      String(companyId),
+      "nfce",
+      { restrictToProductIds: saleProductIds },
+    );
+    if (readiness.status !== "ready") {
+      const reason = getFiscalReadinessBlockReason(readiness);
+      const primaryIssueCode = getFiscalReadinessPrimaryIssueCode(readiness);
+      await Promise.all([
+        supabase.from("fiscal_queue")
+          .update({
+            status: "error",
+            last_error: reason,
+            updated_at: nowIso,
+            finished_at: nowIso,
+            next_retry_at: null,
+          })
+          .eq("id", queueId),
+        supabase.from("sales")
+          .update({ status: "pendente_fiscal" })
+          .eq("id", saleId)
+          .eq("company_id", companyId),
+      ]);
+      return new Response(
+        JSON.stringify({ success: false, error: reason, primary_issue_code: primaryIssueCode, sale_id: saleId, queue_id: queueId, readiness }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }

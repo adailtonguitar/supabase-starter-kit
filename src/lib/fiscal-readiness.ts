@@ -26,6 +26,11 @@ export type FiscalReadinessResult = {
   issues: FiscalReadinessIssue[];
 };
 
+/** `restrictToProductIds`: só esses produtos entram na checagem NCM/CFOP/CST. `[]` = não checa catálogo. Omitido = todos os ativos. */
+export type GetFiscalReadinessOptions = {
+  restrictToProductIds?: string[] | null;
+};
+
 export function getFiscalReadinessPrimaryIssue(
   readiness: FiscalReadinessResult | null | undefined,
 ): FiscalReadinessIssue | null {
@@ -128,10 +133,38 @@ function normalizeStatus(issues: FiscalReadinessIssue[]): FiscalReadinessResult[
   return issues.some((issue) => issue.severity === "error") ? "incomplete" : "ready";
 }
 
-export async function getFiscalReadiness(companyId: string): Promise<FiscalReadinessResult> {
+async function fetchProductRowsForReadiness(
+  companyId: string,
+  restrictToProductIds: string[] | undefined | null,
+): Promise<ProductFiscalRow[]> {
+  const sel = "id, name, fiscal_category_id, ncm, cfop, csosn, cst_icms, origem";
+  if (restrictToProductIds == null) {
+    const { data } = await supabase
+      .from("products")
+      .select(sel)
+      .eq("company_id", companyId)
+      .or(PRODUCTS_ACTIVE_OR_LEGACY_NULL);
+    return (data || []) as ProductFiscalRow[];
+  }
+  const unique = [...new Set(restrictToProductIds.map((id) => String(id || "").trim()).filter(Boolean))];
+  if (unique.length === 0) return [];
+  const rows: ProductFiscalRow[] = [];
+  const CH = 200;
+  for (let i = 0; i < unique.length; i += CH) {
+    const chunk = unique.slice(i, i + CH);
+    const { data } = await supabase.from("products").select(sel).eq("company_id", companyId).in("id", chunk);
+    rows.push(...((data || []) as ProductFiscalRow[]));
+  }
+  return rows;
+}
+
+export async function getFiscalReadiness(
+  companyId: string,
+  options?: GetFiscalReadinessOptions,
+): Promise<FiscalReadinessResult> {
   const issues: FiscalReadinessIssue[] = [];
 
-  const [{ data: company }, { data: configs }, { data: planRow }, { data: products }, { data: fiscalCategories }] = await Promise.all([
+  const [{ data: company }, { data: configs }, { data: planRow }, { data: fiscalCategories }] = await Promise.all([
     supabase
       .from("companies")
       .select("cnpj, ie, crt, address_street, address_number, address_neighborhood, address_city, address_state, address_ibge_code")
@@ -148,16 +181,13 @@ export async function getFiscalReadiness(companyId: string): Promise<FiscalReadi
       .limit(1)
       .maybeSingle(),
     supabase
-      .from("products")
-      .select("id, name, fiscal_category_id, ncm, cfop, csosn, cst_icms, origem")
-      .eq("company_id", companyId)
-      .or(PRODUCTS_ACTIVE_OR_LEGACY_NULL),
-    supabase
       .from("fiscal_categories")
       .select("id, name, regime, product_type, ncm, cest, cfop, csosn, cst_icms, icms_rate, icms_st_rate, mva, pis_rate, cofins_rate, ipi_rate, is_active, company_id, created_at, updated_at, operation_type")
       .eq("company_id", companyId)
       .eq("is_active", true),
   ]);
+
+  const products = await fetchProductRowsForReadiness(companyId, options?.restrictToProductIds);
 
   const fiscalEnabled = (planRow as { fiscal_enabled?: boolean } | null)?.fiscal_enabled ?? false;
   if (!fiscalEnabled) {

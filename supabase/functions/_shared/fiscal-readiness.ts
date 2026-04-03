@@ -175,12 +175,43 @@ function getProductFiscalStatus(
   };
 }
 
+export type FiscalReadinessOptions = {
+  restrictToProductIds?: string[] | null;
+};
+
+async function fetchProductRowsForReadinessEdge(
+  supabase: any,
+  companyId: string,
+  restrictToProductIds: string[] | undefined | null,
+): Promise<ProductFiscalRow[]> {
+  const sel = "id, name, fiscal_category_id, ncm, cfop, csosn, cst_icms, origem";
+  if (restrictToProductIds == null) {
+    const { data } = await supabase
+      .from("products")
+      .select(sel)
+      .eq("company_id", companyId)
+      .eq("is_active", true);
+    return ((data || []) as ProductFiscalRow[]);
+  }
+  const unique = [...new Set(restrictToProductIds.map((id) => String(id || "").trim()).filter(Boolean))];
+  if (unique.length === 0) return [];
+  const rows: ProductFiscalRow[] = [];
+  const CH = 200;
+  for (let i = 0; i < unique.length; i += CH) {
+    const chunk = unique.slice(i, i + CH);
+    const { data } = await supabase.from("products").select(sel).eq("company_id", companyId).in("id", chunk);
+    rows.push(...((data || []) as ProductFiscalRow[]));
+  }
+  return rows;
+}
+
 export async function getFiscalReadiness(
   supabase: any,
   companyId: string,
   docType: "nfce" | "nfe" = "nfce",
+  options?: FiscalReadinessOptions,
 ): Promise<FiscalReadinessResult> {
-  const [{ data: company }, { data: configs }, { data: plan }, { data: products }, { data: fiscalCategories }] = await Promise.all([
+  const [{ data: company }, { data: configs }, { data: plan }, { data: fiscalCategories }] = await Promise.all([
     supabase
       .from("companies")
       .select("cnpj, ie, state_registration, crt, address_street, address_number, address_neighborhood, address_city, address_state, address_ibge_code, street, number, neighborhood, city, state, ibge_code, city_code")
@@ -197,16 +228,13 @@ export async function getFiscalReadiness(
       .limit(1)
       .maybeSingle(),
     supabase
-      .from("products")
-      .select("id, name, fiscal_category_id, ncm, cfop, csosn, cst_icms, origem")
-      .eq("company_id", companyId)
-      .eq("is_active", true),
-    supabase
       .from("fiscal_categories")
       .select("id, name, regime, product_type, cfop, csosn, cst_icms, is_active")
       .eq("company_id", companyId)
       .eq("is_active", true),
   ]);
+
+  const products = await fetchProductRowsForReadinessEdge(supabase, companyId, options?.restrictToProductIds);
 
   const fiscalEnabled = (plan as { fiscal_enabled?: boolean } | null)?.fiscal_enabled ?? false;
   if (!fiscalEnabled) {
@@ -327,7 +355,7 @@ export async function getFiscalReadiness(
     }
   }
 
-  const productRows = ((products || []) as ProductFiscalRow[]).filter((p) =>
+  const productRows = (products as ProductFiscalRow[]).filter((p) =>
     !isExcludedFromGlobalFiscalReadinessCatalog(String(p.name || ""))
   );
   const categoryRows = ((fiscalCategories || []) as FiscalCategoryRow[]);

@@ -125,6 +125,10 @@ export default function PDV() {
   const selectedClientDoc = (selectedClient?.cpf || "").replace(/\D/g, "");
   const fiscalCustomerReady = selectedClientDoc.length === 11 || selectedClientDoc.length === 14;
   const hasCartItems = pdv.cartItems.length > 0;
+  const fiscalReadinessCartProductIdsKey = useMemo(() => {
+    const ids = pdv.cartItems.map((i) => String(i.id || "").trim()).filter(Boolean);
+    return [...new Set(ids)].sort().join(",");
+  }, [pdv.cartItems]);
   /** Prontidão do catálogo só bloqueia venda quando há itens (carrinho vazio não precisa da faixa vermelha / trava extra). */
   const fiscalReadinessBlocks = canUseFiscal && !skipFiscalEmission && fiscalReadiness?.status !== "ready";
   const fiscalSetupBlocked = fiscalReadinessBlocks && hasCartItems;
@@ -144,7 +148,10 @@ export default function PDV() {
     }
 
     let mounted = true;
-    getFiscalReadiness(companyId)
+    const restrictToProductIds = fiscalReadinessCartProductIdsKey
+      ? fiscalReadinessCartProductIdsKey.split(",").filter(Boolean)
+      : [];
+    getFiscalReadiness(companyId, { restrictToProductIds })
       .then((result) => {
         if (mounted) setFiscalReadiness(result);
       })
@@ -165,7 +172,7 @@ export default function PDV() {
     return () => {
       mounted = false;
     };
-  }, [companyId, canUseFiscal, skipFiscalEmission]);
+  }, [companyId, canUseFiscal, skipFiscalEmission, fiscalReadinessCartProductIdsKey]);
 
   // ── Fullscreen ──
   const toggleFullscreen = useCallback(() => {

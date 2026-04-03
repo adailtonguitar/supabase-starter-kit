@@ -389,7 +389,18 @@ async function handleEmit(supabase: any, body: any) {
       return jsonResponse({ error: "Limite de emissões excedido. Aguarde 1 minuto." }, 429);
     }
 
-    const readiness = await getFiscalReadiness(supabase, String(company_id), "nfce");
+    const formItems = Array.isArray(form?.items) ? form.items : [];
+    const restrictIds = [
+      ...new Set(
+        formItems.map((it: { product_id?: string }) => String(it?.product_id || "").trim()).filter(Boolean),
+      ),
+    ];
+    const readiness = await getFiscalReadiness(
+      supabase,
+      String(company_id),
+      "nfce",
+      restrictIds.length ? { restrictToProductIds: restrictIds } : undefined,
+    );
     if (readiness.status !== "ready") {
       return jsonResponse({
         error: getFiscalReadinessBlockReason(readiness),

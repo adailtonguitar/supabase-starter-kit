@@ -451,7 +451,13 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
 
     try {
       if (companyId) {
-        const readiness = await getFiscalReadiness(companyId);
+        const lineProductIds = [
+          ...new Set(form.items.map((it) => String(it.product_id || "").trim()).filter(Boolean)),
+        ];
+        const readiness = await getFiscalReadiness(
+          companyId,
+          lineProductIds.length ? { restrictToProductIds: lineProductIds } : undefined,
+        );
         if (readiness.status !== "ready") {
           setStep("error");
           const reason = getFiscalReadinessBlockReason(readiness);
