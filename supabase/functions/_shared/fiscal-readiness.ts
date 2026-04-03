@@ -261,7 +261,7 @@ export async function getFiscalReadiness(
 
   const companyRow = companyRowResolved;
   const taxRegime = getTaxRegimeFromCrt(companyRow.crt);
-  pushIssue(issues, !onlyDigits(companyRow.cnpj).length, {
+  pushIssue(issues, onlyDigits(companyRow.cnpj).length < 14, {
     code: "company_cnpj_missing",
     label: "CNPJ não configurado",
     message: "Informe o CNPJ da empresa para emitir documentos fiscais.",

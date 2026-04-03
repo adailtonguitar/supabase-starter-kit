@@ -188,6 +188,16 @@ export async function getFiscalReadiness(
       .eq("is_active", true),
   ]);
 
+  let companySource = (company || {}) as Record<string, unknown>;
+  if (!company) {
+    const { data: rpcData, error: rpcErr } = await supabase.rpc("get_company_record", {
+      p_company_id: companyId,
+    });
+    if (!rpcErr && rpcData && typeof rpcData === "object") {
+      companySource = rpcData as Record<string, unknown>;
+    }
+  }
+
   const products = await fetchProductRowsForReadiness(companyId, options?.restrictToProductIds);
 
   const fiscalEnabled = (planRow as { fiscal_enabled?: boolean } | null)?.fiscal_enabled ?? false;
@@ -211,7 +221,7 @@ export async function getFiscalReadiness(
   const nfceConfig = fiscalConfigs.find((cfg) => cfg.doc_type === "nfce") || null;
 
   const cnpjDigits = String(companyRow.cnpj ?? "").replace(/\D/g, "");
-  pushIfMissing(issues, cnpjDigits.length === 0, {
+  pushIfMissing(issues, cnpjDigits.length < 14, {
     code: "company_cnpj_missing",
     label: "CNPJ não configurado",
     message: "Informe o CNPJ da empresa para emitir documentos fiscais.",

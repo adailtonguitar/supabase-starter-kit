@@ -1,17 +1,14 @@
 import { supabase } from "@/integrations/supabase/client";
-import { fiscalDigits, mergeChildCompanyWithParentFiscal } from "../../shared/fiscal/company-fiscal-merge";
+import {
+  companyRowMeetsReadinessBasics,
+  mergeChildCompanyWithParentFiscal,
+} from "../../shared/fiscal/company-fiscal-merge";
 
 const MAX_PARENT_HOPS = 5;
 
-function cnpjSufficient(value: unknown): boolean {
-  return fiscalDigits(value).length >= 14;
-}
+const PARENT_SELECT =
+  "cnpj, ie, parent_company_id, crt, address_street, address_number, address_neighborhood, address_city, address_state, address_ibge_code, address_zip";
 
-function ieSufficient(row: Record<string, unknown>): boolean {
-  return fiscalDigits(row.ie).length >= 2 || fiscalDigits(row.state_registration).length >= 2;
-}
-
-/** Mesma lógica do Edge: sobe vários níveis de `parent_company_id` se necessário. */
 export async function resolveCompanyFiscalRowWithParent(
   company: Record<string, unknown> | null | undefined,
 ): Promise<Record<string, unknown>> {
@@ -19,12 +16,12 @@ export async function resolveCompanyFiscalRowWithParent(
   let nextParentId: unknown = row.parent_company_id;
 
   for (let hop = 0; hop < MAX_PARENT_HOPS; hop++) {
-    if (cnpjSufficient(row.cnpj) && ieSufficient(row)) return row;
+    if (companyRowMeetsReadinessBasics(row)) return row;
     if (!nextParentId || String(nextParentId).trim() === "") return row;
 
     const { data: parent } = await supabase
       .from("companies")
-      .select("cnpj, ie, state_registration, parent_company_id")
+      .select(PARENT_SELECT)
       .eq("id", String(nextParentId))
       .maybeSingle();
 

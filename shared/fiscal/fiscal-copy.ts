@@ -75,7 +75,7 @@ export function buildFiscalIssueSample(names: string[], options?: FiscalCopyOpti
 export function productsFiscalInvalidMessage(count: number, sample: string, options?: FiscalCopyOptions): string {
   return normalizeCopy(
     `${count} produto(s) ativo(s) estão sem NCM/CFOP/CST/Origem válidos para NFC-e. Exemplos: ${sample}. ` +
-      `O item no carrinho pode estar correto: com NFC-e automática o sistema bloqueia enquanto existir qualquer produto ativo com cadastro fiscal incompleto.`,
+      `Esta visão considera o catálogo inteiro para prontidão; corrija ou inative SKUs de teste. A emissão ainda é validada ao gerar o documento.`,
     options,
   );
 }

@@ -983,7 +983,7 @@ function FiscalReadinessSection() {
               </div>
             )}
             <p className="text-[11px] text-muted-foreground pt-1">
-              A emissão é bloqueada enquanto existirem pendências fiscais críticas na empresa ou nos produtos.
+              Pendências aqui indicam o que falta para prontidão sem surpresas; a SEFAZ valida de novo na emissão.
             </p>
           </div>
         )}
