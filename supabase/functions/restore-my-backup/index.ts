@@ -145,11 +145,11 @@ function normalizeRestoredProductRows(rows: Record<string, unknown>[]): Record<s
 }
 
 async function resolveOrCreateCompany(
-  adminClient: ReturnType<typeof createClient>,
+  adminClient: any,
   userId: string,
   sourceCompanyName: string,
   targetCompanyIdHint: string | null | undefined,
-) {
+): Promise<{ id: string; name: string; companyCreated: boolean }> {
   const normalizedSourceName = normalizeName(sourceCompanyName);
   const { data: memberships, error: membershipError } = await adminClient
     .from("company_users")
@@ -159,7 +159,7 @@ async function resolveOrCreateCompany(
 
   if (membershipError) throw membershipError;
 
-  const activeCompanyIds = [...new Set((memberships || []).map((membership) => membership.company_id).filter(Boolean))];
+  const activeCompanyIds = [...new Set(((memberships || []) as any[]).map((m: any) => m.company_id).filter(Boolean))] as string[];
 
   if (activeCompanyIds.length > 0) {
     if (targetCompanyIdHint && activeCompanyIds.includes(targetCompanyIdHint)) {
@@ -169,7 +169,7 @@ async function resolveOrCreateCompany(
         .eq("id", targetCompanyIdHint)
         .maybeSingle();
       if (!hintedErr && hinted?.id) {
-        return { ...hinted, companyCreated: false };
+        return { id: hinted.id, name: hinted.name, companyCreated: false };
       }
     }
 
@@ -180,15 +180,15 @@ async function resolveOrCreateCompany(
 
     if (companiesError) throw companiesError;
 
-    const validCompanies = companies || [];
+    const validCompanies = (companies || []) as { id: string; name: string }[];
     if (validCompanies.length === 1) {
-      return { ...validCompanies[0], companyCreated: false };
+      return { id: validCompanies[0].id, name: validCompanies[0].name, companyCreated: false };
     }
 
     if (validCompanies.length > 1) {
       const exactMatch = validCompanies.find((company) => normalizeName(company.name) === normalizedSourceName);
       if (exactMatch) {
-        return { ...exactMatch, companyCreated: false };
+        return { id: exactMatch.id, name: exactMatch.name, companyCreated: false };
       }
 
       throw new Error(
@@ -207,7 +207,7 @@ async function resolveOrCreateCompany(
       name: sourceCompanyName.trim(),
       cnpj: "",
       phone: null,
-    })
+    } as any)
     .select("id, name")
     .single();
 
@@ -216,21 +216,21 @@ async function resolveOrCreateCompany(
   const { error: linkError } = await adminClient
     .from("company_users")
     .insert({
-      company_id: newCompany.id,
+      company_id: (newCompany as any).id,
       user_id: userId,
       role: "admin",
       is_active: true,
-    });
+    } as any);
 
   if (linkError) throw linkError;
 
   const { error: fiscalConfigError } = await adminClient
     .from("fiscal_configs")
-    .upsert(buildDefaultFiscalConfigs(newCompany.id), { onConflict: "company_id,doc_type" });
+    .upsert(buildDefaultFiscalConfigs((newCompany as any).id) as any[], { onConflict: "company_id,doc_type" });
 
   if (fiscalConfigError) throw fiscalConfigError;
 
-  return { ...newCompany, companyCreated: true };
+  return { id: (newCompany as any).id, name: (newCompany as any).name, companyCreated: true };
 }
 
 Deno.serve(async (req) => {
