@@ -284,6 +284,7 @@ async function getNextNumberSafe(supabase: ReturnType<typeof createClient>, conf
 // ─── CST/CSOSN de ST ───
 const CSOSN_ST = new Set(["201", "202", "203"]);
 const CST_ST = new Set(["10", "30", "70"]);
+const CSOSN_ICMSSN102_ALLOWED = new Set(["102", "103", "300", "400", "900"]);
 
 // ─── Construtor de bloco ICMS por regime ───
 function buildIcmsBlock(item: any, isSimples: boolean) {
@@ -308,7 +309,11 @@ function buildIcmsBlock(item: any, isSimples: boolean) {
     if (cst === "500") {
       return { ICMSSN500: { orig: origem, CSOSN: "500" } };
     }
-    return { ICMSSN102: { orig: origem, CSOSN: cst || "102" } };
+    // API rejeita CSOSN 101 dentro do bloco ICMSSN102; normalizamos para códigos válidos desse bloco.
+    let safeCsosn = cst || "102";
+    if (safeCsosn === "101") safeCsosn = "102";
+    if (!CSOSN_ICMSSN102_ALLOWED.has(safeCsosn)) safeCsosn = "102";
+    return { ICMSSN102: { orig: origem, CSOSN: safeCsosn } };
   }
 
   if (CST_ST.has(cst)) {

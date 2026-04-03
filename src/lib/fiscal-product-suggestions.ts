@@ -34,12 +34,18 @@ export function getSuggestedFiscalUpdate(
   const ncmSignalsSt = isTypicalStNcm(product.ncm).isTypical;
   const productType = fiscalCategory?.product_type === "st" || (!fiscalCategory && ncmSignalsSt) ? "st" : "normal";
   const suggestedCode = getSuggestedCodes(taxRegime, productType)[0]?.code;
+  const simplesDefaultCsosn = productType === "st" ? "500" : "102";
+  const categoryCsosn = (fiscalCategory?.csosn || "").trim();
+  const normalizedCategoryCsosn =
+    taxRegime === "simples_nacional" && productType === "normal" && categoryCsosn === "101"
+      ? "102"
+      : categoryCsosn;
 
   return {
     origem: product.origem ?? 0,
     cfop: fiscalCategory?.cfop || (productType === "st" ? "5405" : "5102"),
     csosn: taxRegime === "simples_nacional"
-      ? (fiscalCategory?.csosn || suggestedCode || (productType === "st" ? "500" : "102"))
+      ? (normalizedCategoryCsosn || suggestedCode || simplesDefaultCsosn)
       : "",
     cst_icms: taxRegime === "simples_nacional"
       ? ""
