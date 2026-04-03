@@ -21,14 +21,19 @@ interface ConfigSummary {
 }
 
 export default function FiscalConfig() {
-  const { companyId } = useCompany();
+  const { companyId, companyName, cnpj: companyCnpjFromHook } = useCompany();
   const navigate = useNavigate();
   const [company, setCompany] = useState<CompanyInfo | null>(null);
   const [configSummary, setConfigSummary] = useState<ConfigSummary | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!companyId) return;
+    if (!companyId) {
+      setCompany(null);
+      setConfigSummary(null);
+      setLoading(false);
+      return;
+    }
 
     const load = async () => {
       setLoading(true);
@@ -37,7 +42,31 @@ export default function FiscalConfig() {
         supabase.from("fiscal_configs").select("*").eq("company_id", companyId),
       ]);
 
-      if (companyRes.data) setCompany(companyRes.data);
+      let co = companyRes.data as CompanyInfo | null;
+      if (!co) {
+        const { data: rpc, error: rpcErr } = await supabase.rpc("get_company_record", {
+          p_company_id: companyId,
+        });
+        if (!rpcErr && rpc && typeof rpc === "object") {
+          const r = rpc as Record<string, unknown>;
+          co = {
+            name: String(r.name || ""),
+            trade_name: (r.trade_name as string) ?? null,
+            cnpj: String(r.cnpj || ""),
+          };
+        }
+      }
+      if (co) {
+        setCompany(co);
+      } else if (companyName || companyCnpjFromHook) {
+        setCompany({
+          name: companyName || "Empresa",
+          trade_name: null,
+          cnpj: companyCnpjFromHook || "",
+        });
+      } else {
+        setCompany(null);
+      }
 
       if (configRes.data && configRes.data.length > 0) {
         const configs = configRes.data;
@@ -63,7 +92,7 @@ export default function FiscalConfig() {
     };
 
     load();
-  }, [companyId]);
+  }, [companyId, companyName, companyCnpjFromHook]);
 
   if (loading) {
     return (

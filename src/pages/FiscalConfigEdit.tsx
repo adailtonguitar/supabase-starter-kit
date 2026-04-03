@@ -63,7 +63,7 @@ const defaultConfigs: FiscalConfigSection[] = [
 ];
 
 export default function FiscalConfigEdit() {
-  const { companyId } = useCompany();
+  const { companyId, crt: companyCrtFromHook } = useCompany();
   const { user } = useAuth();
   const navigate = useNavigate();
   const [configs, setConfigs] = useState<FiscalConfigSection[]>(defaultConfigs);
@@ -87,9 +87,13 @@ export default function FiscalConfigEdit() {
   const [certMarkedForRemoval, setCertMarkedForRemoval] = useState(false);
 
   useEffect(() => {
-    if (!companyId) return;
+    if (!companyId) {
+      setLoading(false);
+      return;
+    }
     const loadConfigs = async () => {
       setLoading(true);
+      let crtFromConfigs = false;
       try {
         const { data, error } = await supabase.from("fiscal_configs").select("*").eq("company_id", companyId);
         if (error) throw error;
@@ -133,7 +137,13 @@ export default function FiscalConfigEdit() {
           // Load CRT from first config
           const firstConfig = data[0];
           const rawCrt = (firstConfig as { crt?: number }).crt;
-          if (isValidCrt(rawCrt)) setCrt(rawCrt);
+          if (isValidCrt(rawCrt)) {
+            setCrt(rawCrt);
+            crtFromConfigs = true;
+          }
+        }
+        if (!crtFromConfigs && isValidCrt(companyCrtFromHook)) {
+          setCrt(companyCrtFromHook);
         }
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : "Erro desconhecido";
@@ -143,7 +153,7 @@ export default function FiscalConfigEdit() {
       }
     };
     loadConfigs();
-  }, [companyId]);
+  }, [companyId, companyCrtFromHook]);
 
   const handleSave = async () => {
     if (!companyId) return;
