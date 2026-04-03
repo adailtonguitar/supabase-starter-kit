@@ -45,10 +45,18 @@ function push(issues: FiscalValidationIssue[], missing: string[], id: string, na
   issues.push({ productId: id, productName: name, field, message });
 }
 
-export function validateCartFiscal(items: CartItem[], regime: TaxRegime): FiscalValidationResult {
+export function validateCartFiscal(
+  items: CartItem[],
+  regime: TaxRegime,
+  opts?: { companyCrt?: number | null },
+): FiscalValidationResult {
   const issues: FiscalValidationIssue[] = [];
   const invalidItems: Record<string, string[]> = {};
-  const isSN = isSimplesNacional(regime);
+  const crt = opts?.companyCrt;
+  const isSN =
+    isSimplesNacional(regime) ||
+    crt === 1 ||
+    crt === 2;
 
   for (const item of items) {
     const missing: string[] = [];
@@ -131,12 +139,13 @@ export function validateCartFiscal(items: CartItem[], regime: TaxRegime): Fiscal
 export function usePDVFiscalValidation(
   cartItems: CartItem[],
   fiscalEnabled: boolean,
-  taxRegime?: string | null
+  taxRegime?: string | null,
+  companyCrt?: number | null,
 ): FiscalValidationResult {
   return useMemo(() => {
     if (!fiscalEnabled || cartItems.length === 0) {
       return { valid: true, issues: [], invalidItems: {} };
     }
-    return validateCartFiscal(cartItems, taxRegime ?? null);
-  }, [cartItems, fiscalEnabled, taxRegime]);
+    return validateCartFiscal(cartItems, taxRegime ?? null, { companyCrt });
+  }, [cartItems, fiscalEnabled, taxRegime, companyCrt]);
 }

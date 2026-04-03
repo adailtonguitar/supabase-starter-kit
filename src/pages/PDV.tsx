@@ -48,7 +48,7 @@ import { getFiscalReadiness, getFiscalReadinessBlockReason, getFiscalReadinessPr
 export default function PDV() {
   const pdv = usePDV();
   const navigate = useNavigate();
-  const { companyName, companyId, logoUrl, slogan, pixKey, pixKeyType, pixCity, cnpj, ie, phone, addressStreet, addressNumber, addressNeighborhood, addressCity, addressState, taxRegime, pdvAutoEmitNfce } = useCompany();
+  const { companyName, companyId, logoUrl, slogan, pixKey, pixKeyType, pixCity, cnpj, ie, phone, addressStreet, addressNumber, addressNeighborhood, addressCity, addressState, taxRegime, crt, pdvAutoEmitNfce } = useCompany();
   const { config: tefConfigData } = useTEFConfig();
   const { maxDiscountPercent } = usePermissions();
   const planFeatures = usePlanFeatures();
@@ -63,7 +63,7 @@ export default function PDV() {
     if (!canUseFiscal) return true;
     return !pdvAutoEmitNfce;
   }, [canUseFiscal, pdvAutoEmitNfce]);
-  const fiscalValidation = usePDVFiscalValidation(pdv.cartItems, canUseFiscal && !skipFiscalEmission, taxRegime);
+  const fiscalValidation = usePDVFiscalValidation(pdv.cartItems, canUseFiscal && !skipFiscalEmission, taxRegime, crt);
   const [showFiscalErrors, setShowFiscalErrors] = useState(false);
   const [showCashRegister, setShowCashRegister] = useState(false);
   const [receipt, setReceipt] = useState<{
