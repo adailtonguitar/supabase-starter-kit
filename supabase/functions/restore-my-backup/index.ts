@@ -291,7 +291,7 @@ Deno.serve(async (req) => {
       [...EXPORTABLE_TABLES, "sale_items"].map((k) => [k, backupTables[k].length]),
     );
 
-    const targetCompany = await resolveOrCreateCompany(adminClient, userId, sourceCompanyName, targetCompanyIdHint);
+    const targetCompany = await resolveOrCreateCompany(adminClient as any, userId, sourceCompanyName, targetCompanyIdHint);
     const companyId = targetCompany.id;
     const results: { table: string; phase: string; count: number; error?: string }[] = [];
 
