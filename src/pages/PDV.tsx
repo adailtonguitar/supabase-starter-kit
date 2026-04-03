@@ -42,13 +42,11 @@ import { assertNonNegativeMoney, ensureMoneyEquals, fromCents, roundMoney, split
 import type { FinancialEntryInsert } from "@/hooks/useFinancialEntries";
 import type { CashSessionRow } from "@/integrations/supabase/tables";
 import { AlertTriangle } from "lucide-react";
-import { usePDVFiscalValidation } from "@/hooks/pdv/usePDVFiscalValidation";
-import { getFiscalReadiness, getFiscalReadinessBlockReason, getFiscalReadinessPrimaryFixRoute, type FiscalReadinessResult } from "@/lib/fiscal-readiness";
 
 export default function PDV() {
   const pdv = usePDV();
   const navigate = useNavigate();
-  const { companyName, companyId, logoUrl, slogan, pixKey, pixKeyType, pixCity, cnpj, ie, phone, addressStreet, addressNumber, addressNeighborhood, addressCity, addressState, taxRegime, crt, pdvAutoEmitNfce } = useCompany();
+  const { companyName, companyId, logoUrl, slogan, pixKey, pixKeyType, pixCity, cnpj, ie, phone, addressStreet, addressNumber, addressNeighborhood, addressCity, addressState, pdvAutoEmitNfce } = useCompany();
   const { config: tefConfigData } = useTEFConfig();
   const { maxDiscountPercent } = usePermissions();
   const planFeatures = usePlanFeatures();
@@ -63,8 +61,6 @@ export default function PDV() {
     if (!canUseFiscal) return true;
     return !pdvAutoEmitNfce;
   }, [canUseFiscal, pdvAutoEmitNfce]);
-  const fiscalValidation = usePDVFiscalValidation(pdv.cartItems, canUseFiscal && !skipFiscalEmission, taxRegime, crt);
-  const [showFiscalErrors, setShowFiscalErrors] = useState(false);
   const [showCashRegister, setShowCashRegister] = useState(false);
   const [receipt, setReceipt] = useState<{
     items: typeof pdv.cartItems;
@@ -120,59 +116,18 @@ export default function PDV() {
   const [editingItemNoteId, setEditingItemNoteId] = useState<string | null>(null);
   const [itemNotes, setItemNotes] = useState<Record<string, string>>({});
   const [itemDiscountValues, setItemDiscountValues] = useState<Record<string, number>>({});
-  const [fiscalReadiness, setFiscalReadiness] = useState<FiscalReadinessResult | null>(null);
   const customerDisplay = useCustomerDisplay();
   const selectedClientDoc = (selectedClient?.cpf || "").replace(/\D/g, "");
   const fiscalCustomerReady = selectedClientDoc.length === 11 || selectedClientDoc.length === 14;
-  const hasCartItems = pdv.cartItems.length > 0;
-  const fiscalReadinessCartProductIdsKey = useMemo(() => {
-    const ids = pdv.cartItems.map((i) => String(i.id || "").trim()).filter(Boolean);
-    return [...new Set(ids)].sort().join(",");
-  }, [pdv.cartItems]);
-  /** Prontidão do catálogo só bloqueia venda quando há itens (carrinho vazio não precisa da faixa vermelha / trava extra). */
-  const fiscalReadinessBlocks = canUseFiscal && !skipFiscalEmission && fiscalReadiness?.status !== "ready";
-  const fiscalSetupBlocked = fiscalReadinessBlocks && hasCartItems;
+  /**
+   * PDV não trava venda por “prontidão fiscal” nem por CST/NCM no carrinho (falsos positivos com filial/RLS/cache).
+   * NFC-e continua validada em emit-nfce / fila.
+   */
   const fiscalFinalizeBlocked =
-    fiscalSetupBlocked ||
-    (canUseFiscal && !skipFiscalEmission && !!selectedClient && !fiscalCustomerReady);
+    canUseFiscal && !skipFiscalEmission && !!selectedClient && !fiscalCustomerReady;
   const fiscalFinalizeBlockReason = fiscalFinalizeBlocked
-    ? fiscalSetupBlocked
-      ? getFiscalReadinessBlockReason(fiscalReadiness)
-      : "Cliente selecionado sem CPF/CNPJ valido para NFC-e"
+    ? "Cliente selecionado sem CPF/CNPJ valido para NFC-e"
     : "";
-
-  useEffect(() => {
-    if (!companyId || !canUseFiscal || skipFiscalEmission) {
-      setFiscalReadiness(null);
-      return;
-    }
-
-    let mounted = true;
-    const restrictToProductIds = fiscalReadinessCartProductIdsKey
-      ? fiscalReadinessCartProductIdsKey.split(",").filter(Boolean)
-      : [];
-    getFiscalReadiness(companyId, { restrictToProductIds })
-      .then((result) => {
-        if (mounted) setFiscalReadiness(result);
-      })
-      .catch(() => {
-        if (mounted) {
-          setFiscalReadiness({
-            status: "incomplete",
-            issues: [{
-              code: "fiscal_readiness_unavailable",
-              label: "Falha ao validar prontidao fiscal",
-              message: "Nao foi possivel validar a configuracao fiscal da empresa.",
-              severity: "error",
-            }],
-          });
-        }
-      });
-
-    return () => {
-      mounted = false;
-    };
-  }, [companyId, canUseFiscal, skipFiscalEmission, fiscalReadinessCartProductIdsKey]);
 
   // ── Fullscreen ──
   const toggleFullscreen = useCallback(() => {
@@ -398,37 +353,24 @@ export default function PDV() {
     if (finalizingSale) { toast.warning("Venda em processamento, aguarde...", { duration: 1200 }); return; }
     if (fiscalFinalizeBlocked) {
       playErrorSound();
-      const fixRoute = getFiscalReadinessPrimaryFixRoute(fiscalReadiness);
-      toast.error(fiscalFinalizeBlockReason, {
-        duration: 3500,
-        action: fixRoute ? { label: "Abrir ajustes", onClick: () => navigate(fixRoute) } : undefined,
-      });
-      return;
-    }
-    if (!fiscalValidation.valid) {
-      playErrorSound();
-      setShowFiscalErrors(true);
+      toast.error(fiscalFinalizeBlockReason, { duration: 3500 });
       return;
     }
     setTefDefaultMethod(defaultMethod || null);
     setShowTEF(true);
-  }, [pdv.cartItems.length, pdv.currentSession, finalizingSale, fiscalFinalizeBlocked, fiscalFinalizeBlockReason, fiscalValidation.valid, fiscalReadiness, navigate]);
+  }, [pdv.cartItems.length, pdv.currentSession, finalizingSale, fiscalFinalizeBlocked, fiscalFinalizeBlockReason, navigate]);
 
   const handleDirectPayment = useCallback((method: string) => {
     if (pdv.cartItems.length === 0) { toast.warning("Adicione itens ao carrinho primeiro", { duration: 1200 }); return; }
     if (finalizingSale) { toast.warning("Venda em processamento, aguarde...", { duration: 1200 }); return; }
     if (fiscalFinalizeBlocked) {
       playErrorSound();
-      const fixRoute = getFiscalReadinessPrimaryFixRoute(fiscalReadiness);
-      toast.error(fiscalFinalizeBlockReason, {
-        duration: 3500,
-        action: fixRoute ? { label: "Abrir ajustes", onClick: () => navigate(fixRoute) } : undefined,
-      });
+      toast.error(fiscalFinalizeBlockReason, { duration: 3500 });
       return;
     }
     if (method === "prazo") { handlePrazoRequested(); return; }
     handleCheckout(method);
-  }, [pdv.cartItems.length, handleCheckout, finalizingSale, fiscalFinalizeBlocked, fiscalFinalizeBlockReason, fiscalReadiness, navigate]);
+  }, [pdv.cartItems.length, handleCheckout, finalizingSale, fiscalFinalizeBlocked, fiscalFinalizeBlockReason, navigate]);
 
   // ── Barcode ──
   const handleBarcodeSubmit = () => {
@@ -812,7 +754,6 @@ export default function PDV() {
           companyName={companyName}
           logoUrl={logoUrl}
           slogan={slogan}
-          fiscalInvalidItems={fiscalValidation.invalidItems}
         />
         <PDVTotalsSidebar
           cartItems={pdv.cartItems}
@@ -1081,40 +1022,6 @@ export default function PDV() {
       <PDVHoldRecallDialog open={showHoldRecall} onClose={() => setShowHoldRecall(false)} onRecall={handleRecallSale} />
       <PDVReturnExchangeDialog open={showReturnExchange} onClose={() => setShowReturnExchange(false)} />
       <PDVItemNotesDialog open={!!editingItemNoteId} itemName={pdv.cartItems.find(i => i.id === editingItemNoteId)?.name || ""} currentNote={editingItemNoteId ? itemNotes[editingItemNoteId] || "" : ""} onSave={(note) => { if (editingItemNoteId) setItemNote(editingItemNoteId, note); }} onClose={() => setEditingItemNoteId(null)} />
-
-      {/* Fiscal validation errors dialog */}
-      <AlertDialog open={showFiscalErrors} onOpenChange={setShowFiscalErrors}>
-        <AlertDialogContent className="max-w-lg">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2 text-destructive">
-              <AlertTriangle className="w-5 h-5" />
-              Produtos com dados fiscais incompletos
-            </AlertDialogTitle>
-            <AlertDialogDescription asChild>
-              <div className="space-y-3 mt-2">
-                <p className="text-sm text-muted-foreground">Corrija os produtos abaixo antes de finalizar a venda:</p>
-                <div className="max-h-60 overflow-y-auto space-y-2">
-                  {fiscalValidation.issues.map((issue, idx) => (
-                    <div key={idx} className="flex items-start gap-2 p-2 rounded-lg bg-destructive/10 border border-destructive/20">
-                      <AlertTriangle className="w-4 h-4 text-destructive mt-0.5 flex-shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-bold text-foreground">{issue.productName}</p>
-                        <p className="text-xs text-muted-foreground">{issue.field}: {issue.message}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
-            <AlertDialogCancel>Fechar</AlertDialogCancel>
-            <AlertDialogAction onClick={() => { setShowFiscalErrors(false); navigate("/produtos"); }} className="bg-primary text-primary-foreground">
-              Ir para Cadastro de Produtos
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
 
       {/* Exit confirmation */}
       <AlertDialog open={showExitConfirm} onOpenChange={setShowExitConfirm}>
