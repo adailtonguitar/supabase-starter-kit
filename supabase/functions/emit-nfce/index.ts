@@ -415,11 +415,18 @@ async function handleEmit(supabase: any, body: any) {
       restrictIds.length ? { restrictToProductIds: restrictIds as string[] } : undefined,
     );
     if (readiness.status !== "ready") {
-      return jsonResponse({
-        error: getFiscalReadinessBlockReason(readiness),
-        primary_issue_code: getFiscalReadinessPrimaryIssueCode(readiness),
-        readiness,
-      }, 400);
+      const primaryIssueCode = getFiscalReadinessPrimaryIssueCode(readiness);
+      if (primaryIssueCode !== "company_cnpj_missing") {
+        return jsonResponse({
+          error: getFiscalReadinessBlockReason(readiness),
+          primary_issue_code: primaryIssueCode,
+          readiness,
+        }, 400);
+      }
+      console.warn(
+        `[emit-nfce] readiness soft-bypass: ${primaryIssueCode}. ` +
+        `Tentando resolver CNPJ no fallback do emitente (company_id=${company_id}).`,
+      );
     }
   }
 

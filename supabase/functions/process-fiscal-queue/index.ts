@@ -367,6 +367,13 @@ Deno.serve(async (req) => {
     if (readiness.status !== "ready") {
       const reason = getFiscalReadinessBlockReason(readiness);
       const primaryIssueCode = getFiscalReadinessPrimaryIssueCode(readiness);
+      const canTryEmitWithCnpjFallback = primaryIssueCode === "company_cnpj_missing";
+      if (canTryEmitWithCnpjFallback) {
+        console.warn(
+          `[process-fiscal-queue] readiness soft-bypass: ${primaryIssueCode}. ` +
+          `Tentando emissão para resolver CNPJ no emit-nfce (sale_id=${saleId}, company_id=${companyId}).`,
+        );
+      } else {
       await Promise.all([
         supabase.from("fiscal_queue")
           .update({
@@ -386,6 +393,7 @@ Deno.serve(async (req) => {
         JSON.stringify({ success: false, error: reason, primary_issue_code: primaryIssueCode, sale_id: saleId, queue_id: queueId, readiness }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
+      }
     }
 
     const { data: latestDoc } = await supabase
