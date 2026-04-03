@@ -112,7 +112,7 @@ export function PDVPaymentBar({
                 {fiscalFinalizeBlockReason || "Finalize sem NFC-e ou informe um documento valido"}
               </span>
             )}
-            {!skipFiscalEmission && !selectedClientName && (
+            {!skipFiscalEmission && !selectedClientName && !fiscalFinalizeBlocked && (
               <span className="text-muted-foreground">
                 NFC-e saira como consumidor nao identificado
               </span>
