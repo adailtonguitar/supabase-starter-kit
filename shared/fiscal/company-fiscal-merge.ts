@@ -14,7 +14,9 @@ export function mergeChildCompanyWithParentFiscal(
   const row = { ...child };
   if (!parent) return row;
 
-  if (!fiscalDigits(row.cnpj).length && fiscalDigits(parent.cnpj).length) {
+  const childCnpj = fiscalDigits(row.cnpj);
+  const parentCnpj = fiscalDigits(parent.cnpj);
+  if (childCnpj.length < 14 && parentCnpj.length >= 14) {
     row.cnpj = parent.cnpj;
   }
 
