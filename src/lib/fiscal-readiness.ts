@@ -11,7 +11,11 @@ import {
 } from "../../shared/fiscal/fiscal-copy";
 import { productIdsExcludedFromCatalogFiscalReadiness } from "../../shared/fiscal/acquisition-readiness";
 import { isExcludedFromGlobalFiscalReadinessCatalog } from "../../shared/fiscal/fiscal-readiness-exclusions";
-import { resolveCompanyFiscalRowWithParent } from "@/lib/company-fiscal-fallback";
+import {
+  fillCompanyRowFromMembershipPeers,
+  resolveCompanyFiscalRowWithParent,
+} from "@/lib/company-fiscal-fallback";
+import { mergeChildCompanyWithParentFiscal } from "../../shared/fiscal/company-fiscal-merge";
 
 export type FiscalReadinessIssue = {
   code: string;
@@ -189,12 +193,15 @@ export async function getFiscalReadiness(
   ]);
 
   let companySource = (company || {}) as Record<string, unknown>;
-  if (!company) {
-    const { data: rpcData, error: rpcErr } = await supabase.rpc("get_company_record", {
-      p_company_id: companyId,
-    });
-    if (!rpcErr && rpcData && typeof rpcData === "object") {
-      companySource = rpcData as Record<string, unknown>;
+  const { data: rpcCompany, error: rpcCompanyErr } = await supabase.rpc("get_company_record", {
+    p_company_id: companyId,
+  });
+  if (!rpcCompanyErr && rpcCompany && typeof rpcCompany === "object") {
+    const rpcRow = rpcCompany as Record<string, unknown>;
+    if (!company) {
+      companySource = rpcRow;
+    } else {
+      companySource = mergeChildCompanyWithParentFiscal(companySource, rpcRow);
     }
   }
 
@@ -213,8 +220,10 @@ export async function getFiscalReadiness(
     };
   }
 
-  const companyRow = (await resolveCompanyFiscalRowWithParent(
-    (company || {}) as Record<string, unknown>,
+  const mergedChain = await resolveCompanyFiscalRowWithParent(companySource);
+  const companyRow = (await fillCompanyRowFromMembershipPeers(
+    mergedChain,
+    companyId,
   )) as CompanyFiscalRow;
   const fiscalConfigs = ((configs || []) as FiscalConfigRow[]);
   const taxRegime = getTaxRegimeFromCrt(companyRow.crt);
@@ -228,7 +237,7 @@ export async function getFiscalReadiness(
     route: "/empresas",
     severity: "error",
   });
-  pushIfMissing(issues, !companyRow.crt, {
+  pushIfMissing(issues, !Number(companyRow.crt), {
     code: "company_crt_missing",
     label: "CRT não configurado",
     message: "Defina o CRT da empresa para liberar a emissão fiscal.",
@@ -242,7 +251,7 @@ export async function getFiscalReadiness(
     route: "/empresas",
     severity: "error",
   });
-  pushIfMissing(issues, !companyRow.address_ibge_code, {
+  pushIfMissing(issues, String(companyRow.address_ibge_code ?? "").replace(/\D/g, "").length < 7, {
     code: "company_ibge_missing",
     label: "Código IBGE ausente",
     message: "O município da empresa precisa ter código IBGE configurado.",
