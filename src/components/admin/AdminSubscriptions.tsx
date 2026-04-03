@@ -66,7 +66,7 @@ export function AdminSubscriptions() {
         table: "company_plans",
         select: "*",
         order: { column: "created_at", ascending: false },
-        limit: 200,
+        limit: 2000,
       });
 
       if (!planData || planData.length === 0) { setPlans([]); setLoading(false); return; }
@@ -76,6 +76,7 @@ export function AdminSubscriptions() {
         table: "companies",
         select: "id, name, is_demo",
         filters: [{ op: "in", column: "id", value: companyIds }],
+        limit: 2500,
       });
 
       const nameMap: Record<string, string> = {};
@@ -237,13 +238,22 @@ export function AdminSubscriptions() {
   };
 
   const handleDeleteAllDemos = () => {
-    const demoIds = plans.filter((r) => r.is_demo).map((r) => r.company_id);
-    if (demoIds.length === 0) {
-      toast.warning("Nenhuma empresa demo encontrada.");
-      return;
-    }
-    pendingDeleteIdsRef.current = demoIds;
-    setConfirmDialog({ open: true, mode: "all_demos", count: demoIds.length });
+    (async () => {
+      // Busca todas as empresas demo direto no backend (sem depender do limit da lista).
+      const demoCompanies = await adminQuery<{ id: string }>({
+        table: "companies",
+        select: "id",
+        filters: [{ op: "eq", column: "is_demo", value: true }],
+        limit: 5000,
+      });
+      const demoIds = (demoCompanies || []).map((c) => String((c as any).id || "").trim()).filter(Boolean);
+      if (demoIds.length === 0) {
+        toast.warning("Nenhuma empresa demo encontrada.");
+        return;
+      }
+      pendingDeleteIdsRef.current = demoIds;
+      setConfirmDialog({ open: true, mode: "all_demos", count: demoIds.length });
+    })();
   };
 
   const confirmDelete = () => {
