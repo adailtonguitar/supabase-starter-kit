@@ -124,7 +124,10 @@ export default function PDV() {
   const customerDisplay = useCustomerDisplay();
   const selectedClientDoc = (selectedClient?.cpf || "").replace(/\D/g, "");
   const fiscalCustomerReady = selectedClientDoc.length === 11 || selectedClientDoc.length === 14;
-  const fiscalSetupBlocked = canUseFiscal && !skipFiscalEmission && fiscalReadiness?.status !== "ready";
+  const hasCartItems = pdv.cartItems.length > 0;
+  /** Prontidão do catálogo só bloqueia venda quando há itens (carrinho vazio não precisa da faixa vermelha / trava extra). */
+  const fiscalReadinessBlocks = canUseFiscal && !skipFiscalEmission && fiscalReadiness?.status !== "ready";
+  const fiscalSetupBlocked = fiscalReadinessBlocks && hasCartItems;
   const fiscalFinalizeBlocked =
     fiscalSetupBlocked ||
     (canUseFiscal && !skipFiscalEmission && !!selectedClient && !fiscalCustomerReady);

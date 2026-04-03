@@ -12,6 +12,7 @@ import {
   unnamedProductLabel,
 } from "../../../shared/fiscal/fiscal-copy.ts";
 import { productIdsExcludedFromCatalogFiscalReadiness } from "../../../shared/fiscal/acquisition-readiness.ts";
+import { isExcludedFromGlobalFiscalReadinessCatalog } from "../../../shared/fiscal/fiscal-readiness-exclusions.ts";
 
 export type FiscalReadinessIssue = {
   code: string;
@@ -326,7 +327,9 @@ export async function getFiscalReadiness(
     }
   }
 
-  const productRows = ((products || []) as ProductFiscalRow[]);
+  const productRows = ((products || []) as ProductFiscalRow[]).filter((p) =>
+    !isExcludedFromGlobalFiscalReadinessCatalog(String(p.name || ""))
+  );
   const categoryRows = ((fiscalCategories || []) as FiscalCategoryRow[]);
 
   const pids = productRows.map((p) => String(p.id || "")).filter(Boolean);

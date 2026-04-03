@@ -10,6 +10,7 @@ import {
   unnamedProductLabel,
 } from "../../shared/fiscal/fiscal-copy";
 import { productIdsExcludedFromCatalogFiscalReadiness } from "../../shared/fiscal/acquisition-readiness";
+import { isExcludedFromGlobalFiscalReadinessCatalog } from "../../shared/fiscal/fiscal-readiness-exclusions";
 
 export type FiscalReadinessIssue = {
   code: string;
@@ -266,7 +267,9 @@ export async function getFiscalReadiness(companyId: string): Promise<FiscalReadi
   }
 
   const activeFiscalCategories = ((fiscalCategories || []) as FiscalCategory[]);
-  const activeProducts = ((products || []) as ProductFiscalRow[]);
+  const activeProducts = ((products || []) as ProductFiscalRow[]).filter(
+    (p) => !isExcludedFromGlobalFiscalReadinessCatalog(p.name),
+  );
 
   /** Produtos só com entrada "Sem nota / CPF" não entram na barreira de catálogo (lastro CNPJ). */
   const productIds = activeProducts.map((p) => p.id).filter(Boolean);
