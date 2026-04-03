@@ -13,7 +13,10 @@ import {
 } from "../../../shared/fiscal/fiscal-copy.ts";
 import { productIdsExcludedFromCatalogFiscalReadiness } from "../../../shared/fiscal/acquisition-readiness.ts";
 import { isExcludedFromGlobalFiscalReadinessCatalog } from "../../../shared/fiscal/fiscal-readiness-exclusions.ts";
-import { resolveCompanyFiscalRowWithParent } from "./company-fiscal-fallback.ts";
+import {
+  fillCompanyRowFromServicePeerFallback,
+  resolveCompanyFiscalRowWithParent,
+} from "./company-fiscal-fallback.ts";
 
 export type FiscalReadinessIssue = {
   code: string;
@@ -237,9 +240,14 @@ export async function getFiscalReadiness(
 
   const products = await fetchProductRowsForReadinessEdge(supabase, companyId, options?.restrictToProductIds);
 
-  const companyRowResolved = await resolveCompanyFiscalRowWithParent(
+  let companyRowResolved = await resolveCompanyFiscalRowWithParent(
     supabase,
     (company || {}) as Record<string, unknown>,
+  );
+  companyRowResolved = await fillCompanyRowFromServicePeerFallback(
+    supabase,
+    companyRowResolved,
+    companyId,
   );
 
   const fiscalEnabled = (plan as { fiscal_enabled?: boolean } | null)?.fiscal_enabled ?? false;

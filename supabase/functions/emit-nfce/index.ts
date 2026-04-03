@@ -18,7 +18,10 @@ import {
   validateDetPagForEmission,
 } from "../_shared/sale-payments.ts";
 import { getFiscalReadiness, getFiscalReadinessBlockReason, getFiscalReadinessPrimaryIssueCode } from "../_shared/fiscal-readiness.ts";
-import { resolveCompanyFiscalRowWithParent } from "../_shared/company-fiscal-fallback.ts";
+import {
+  fillCompanyRowFromServicePeerFallback,
+  resolveCompanyFiscalRowWithParent,
+} from "../_shared/company-fiscal-fallback.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 function getRequiredEnv(name: string): string {
@@ -230,9 +233,14 @@ async function resolveProviderDocRef(params: {
       .eq("id", String(params.companyId))
       .maybeSingle();
 
-    const merged = await resolveCompanyFiscalRowWithParent(
+    let merged = await resolveCompanyFiscalRowWithParent(
       params.supabase,
       (company || {}) as Record<string, unknown>,
+    );
+    merged = await fillCompanyRowFromServicePeerFallback(
+      params.supabase,
+      merged,
+      String(params.companyId),
     );
     const cpfCnpj = onlyDigits(merged.cnpj);
     const ambiente: "homologacao" | "producao" = Deno.env.get("NUVEM_FISCAL_SANDBOX") === "true" ? "homologacao" : "producao";
@@ -428,10 +436,11 @@ async function handleEmit(supabase: any, body: any) {
     return jsonResponse({ error: "Empresa não encontrada" }, 404);
   }
 
-  const company = await resolveCompanyFiscalRowWithParent(
+  const company = (await fillCompanyRowFromServicePeerFallback(
     supabase,
-    companyRes.data as Record<string, unknown>,
-  ) as typeof companyRes.data;
+    await resolveCompanyFiscalRowWithParent(supabase, companyRes.data as Record<string, unknown>),
+    String(company_id),
+  )) as typeof companyRes.data;
 
   let config = configRes.data;
   // Fallback: se config_id foi passado mas não encontrou, buscar por company_id
@@ -1134,10 +1143,11 @@ async function handleInutilize(supabase: any, body: any, callerUserId?: string |
   if (company_id) {
     const { data: company } = await supabase.from("companies").select("cnpj, parent_company_id")
       .eq("id", company_id).maybeSingle();
-    const merged = await resolveCompanyFiscalRowWithParent(
+    let merged = await resolveCompanyFiscalRowWithParent(
       supabase,
       (company || {}) as Record<string, unknown>,
     );
+    merged = await fillCompanyRowFromServicePeerFallback(supabase, merged, String(company_id));
     cnpj = onlyDigits(merged.cnpj);
   }
   if (!cnpj || cnpj.length < 11) {
