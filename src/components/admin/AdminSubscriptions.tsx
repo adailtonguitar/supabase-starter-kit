@@ -179,19 +179,25 @@ export function AdminSubscriptions() {
     setDeleting(true);
     let successCount = 0;
     let errorCount = 0;
+    const errorSamples: string[] = [];
 
     for (const companyId of toDelete) {
       try {
-        const { error } = await supabase.rpc("admin_delete_company", { p_company_id: companyId });
+        const { error } = await supabase.rpc("admin_delete_company", {
+          p_company_id: companyId,
+          p_allow_non_demo: true,
+        });
         if (error) {
           console.error(`Error deleting ${companyId}:`, error);
           errorCount++;
+          if (errorSamples.length < 3) errorSamples.push(`${companyId.slice(0, 8)}: ${error.message}`);
         } else {
           successCount++;
         }
       } catch (err) {
         console.error(`Error deleting ${companyId}:`, err);
         errorCount++;
+        if (errorSamples.length < 3) errorSamples.push(`${companyId.slice(0, 8)}: ${String((err as Error)?.message || err)}`);
       }
     }
 
@@ -201,7 +207,10 @@ export function AdminSubscriptions() {
         logAction({ companyId: cId, userId: user?.id, action: "Empresa excluída via admin", module: "admin", details: `company_id: ${cId}` }),
       );
     }
-    if (errorCount > 0) toast.error(`${errorCount} empresa(s) falharam na exclusão (ver permissões/RPC admin_delete_company).`);
+    if (errorCount > 0) {
+      const detail = errorSamples.length ? ` Ex.: ${errorSamples.join(" | ")}` : "";
+      toast.error(`${errorCount} empresa(s) falharam na exclusão.${detail}`);
+    }
 
     setSelected(new Set());
     setDeleting(false);
