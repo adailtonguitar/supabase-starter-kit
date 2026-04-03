@@ -91,7 +91,7 @@ export const ProductFormDialog = forwardRef<HTMLDivElement, Props>(function Prod
   const canUseAiPhoto = isSuperAdmin || planFeatures.plan === "pro";
   const createProduct = useCreateProduct();
   const updateProduct = useUpdateProduct();
-  const { companyId, taxRegime: rawTaxRegime } = useCompany();
+  const { companyId, taxRegime: rawTaxRegime, crt } = useCompany();
   const isEditing = !!product;
   const initialMargin = product && product.cost_price && product.cost_price > 0
     ? ((product.price - product.cost_price) / product.cost_price) * 100
@@ -120,6 +120,8 @@ export const ProductFormDialog = forwardRef<HTMLDivElement, Props>(function Prod
     : rawTaxRegime === "lucro_real"
       ? "lucro_real"
       : "simples_nacional";
+  const isSimples = taxRegime === "simples_nacional";
+  const isCrtMeiOrSn = crt === 1 || crt === 2;
 
   const ncmFiltered = useMemo(() => {
     const q = ncmSearchText.trim().toLowerCase();
@@ -268,13 +270,15 @@ export const ProductFormDialog = forwardRef<HTMLDivElement, Props>(function Prod
       cfop: suggestion.cfop ?? "5102",
       csosn: suggestion.csosn ?? "",
       cstIcms: suggestion.cst_icms ?? "",
-      aliqIcms: selectedFiscalCategory?.product_type === "st" ? 0 : 18,
+      aliqIcms: isSimples
+        ? (selectedFiscalCategory?.product_type === "st" ? 18 : 0)
+        : (selectedFiscalCategory?.product_type === "st" ? 18 : 18),
       cstPis: "01",
       aliqPis: 1.65,
       cstCofins: "01",
       aliqCofins: 7.6,
     };
-  }, [selectedFiscalCategory, selectedFiscalCategoryId, taxRegime, fiscalCategories, form, product, companyId]);
+  }, [selectedFiscalCategory, selectedFiscalCategoryId, taxRegime, fiscalCategories, form, product, companyId, isSimples]);
 
   const fiscalStatus = useMemo(() => {
     return getProductFiscalStatus({
@@ -437,7 +441,19 @@ export const ProductFormDialog = forwardRef<HTMLDivElement, Props>(function Prod
     }
 
     try {
-      const { reorder_point, reorder_quantity, ...rest } = data as any;
+      const normalized = { ...(data as any) };
+      if (isSimples && isCrtMeiOrSn && String(normalized.csosn || "").trim() === "101") {
+        toast.error("Para MEI/Simples use CSOSN 102 neste fluxo de NFC-e.");
+        return;
+      }
+      if (isSimples) {
+        const csosn = String(normalized.csosn || "").trim();
+        if (["102", "103", "300", "400", "900"].includes(csosn)) {
+          normalized.aliq_icms = 0;
+          normalized.cst_icms = "";
+        }
+      }
+      const { reorder_point, reorder_quantity, ...rest } = normalized as any;
       // Auto-generate SKU if empty to avoid unique constraint violation
       const finalSku = data.sku?.trim() || `PRD-${Date.now().toString(36).toUpperCase()}-${crypto.randomUUID().substring(0, 4)}`;
       const payload = {
