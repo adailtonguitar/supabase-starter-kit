@@ -63,6 +63,24 @@ export function useBranches() {
         companies = oneByOne;
       }
 
+      // REST ainda vazio: mesmo padrão de Empresa/Fiscal — RPC bypassa RLS em companies.
+      if (!companies?.length && companyIds.length > 0) {
+        const fromRpc: CompanyRow[] = [];
+        for (const cid of companyIds) {
+          const { data: raw, error: rpcErr } = await supabase.rpc("get_company_record", { p_company_id: cid });
+          if (rpcErr || raw == null || typeof raw !== "object") continue;
+          const r = raw as Record<string, unknown>;
+          fromRpc.push({
+            id: String(r.id ?? cid),
+            name: (r.name as string) ?? null,
+            cnpj: (r.cnpj as string) ?? null,
+            parent_company_id: (r.parent_company_id as string) ?? null,
+            logo_url: (r.logo_url as string) ?? null,
+          });
+        }
+        companies = fromRpc.length ? fromRpc : null;
+      }
+
       if (!companies?.length) return [];
 
       const { data: children } = await supabase
