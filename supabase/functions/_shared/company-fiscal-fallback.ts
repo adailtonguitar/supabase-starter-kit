@@ -1,12 +1,14 @@
 import {
   companyRowMeetsReadinessBasics,
   mergeChildCompanyWithParentFiscal,
+  pickPeerDonorForFiscalMerge,
+  supplementCnpjFromRowTextFields,
 } from "../../../shared/fiscal/company-fiscal-merge.ts";
 
 const MAX_PARENT_HOPS = 5;
 
 const PARENT_SELECT =
-  "cnpj, ie, parent_company_id, crt, address_street, address_number, address_neighborhood, address_city, address_state, address_ibge_code, address_zip";
+  "cnpj, ie, state_registration, parent_company_id, crt, address_street, address_number, address_neighborhood, address_city, address_state, address_ibge_code, address_zip";
 
 /** Mesmas colunas usadas em fiscal-readiness (emit / fila) para carregar peers. */
 const PEER_COMPANY_SELECT =
@@ -19,7 +21,7 @@ export async function resolveCompanyFiscalRowWithParent(
   supabase: any,
   company: Record<string, unknown> | null | undefined,
 ): Promise<Record<string, unknown>> {
-  let row: Record<string, unknown> = { ...(company || {}) };
+  let row: Record<string, unknown> = supplementCnpjFromRowTextFields({ ...(company || {}) });
   let nextParentId: unknown = row.parent_company_id;
 
   for (let hop = 0; hop < MAX_PARENT_HOPS; hop++) {
@@ -67,6 +69,8 @@ export async function fillCompanyRowFromServicePeerFallback(
   )];
   if (userIds.length === 0) return row;
 
+  let working: Record<string, unknown> = { ...row };
+
   for (const uid of userIds) {
     const { data: ms } = await supabase
       .from("company_users")
@@ -78,7 +82,7 @@ export async function fillCompanyRowFromServicePeerFallback(
     const peerIds = activeIds.filter((id) => id && id !== currentCompanyId);
     if (peerIds.length === 0) continue;
 
-    const base = { ...row, id: row.id ?? currentCompanyId };
+    const base = { ...working, id: working.id ?? currentCompanyId };
     const map = new Map<string, Record<string, unknown>>();
     map.set(currentCompanyId, base);
 
@@ -96,26 +100,12 @@ export async function fillCompanyRowFromServicePeerFallback(
       peerRows.push(resolved);
     }
 
-    const isDirectlyLinked = (a: string, b: string): boolean => {
-      const ca = map.get(a);
-      const cb = map.get(b);
-      if (!ca || !cb) return false;
-      return String(ca.parent_company_id || "") === b || String(cb.parent_company_id || "") === a;
-    };
-
-    const basicsOk = peerRows.filter((p) => companyRowMeetsReadinessBasics(p));
-    const linkedDonor = basicsOk.find((p) => isDirectlyLinked(currentCompanyId, String(p.id ?? "")));
-
-    let donor: Record<string, unknown> | null = linkedDonor ?? null;
-    if (!donor && activeIds.length === 2 && basicsOk.length === 1) {
-      donor = basicsOk[0];
-    }
-
+    const donor = pickPeerDonorForFiscalMerge(currentCompanyId, activeIds, peerRows, map);
     if (donor) {
-      const merged = mergeChildCompanyWithParentFiscal(base, donor);
-      if (companyRowMeetsReadinessBasics(merged)) return merged;
+      working = mergeChildCompanyWithParentFiscal(base, donor);
+      if (companyRowMeetsReadinessBasics(working)) return working;
     }
   }
 
-  return row;
+  return working;
 }

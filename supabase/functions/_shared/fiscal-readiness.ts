@@ -13,6 +13,7 @@ import {
 } from "../../../shared/fiscal/fiscal-copy.ts";
 import { productIdsExcludedFromCatalogFiscalReadiness } from "../../../shared/fiscal/acquisition-readiness.ts";
 import { isExcludedFromGlobalFiscalReadinessCatalog } from "../../../shared/fiscal/fiscal-readiness-exclusions.ts";
+import { supplementCnpjFromRowTextFields } from "../../../shared/fiscal/company-fiscal-merge.ts";
 import {
   fillCompanyRowFromServicePeerFallback,
   resolveCompanyFiscalRowWithParent,
@@ -218,7 +219,7 @@ export async function getFiscalReadiness(
   const [{ data: company }, { data: configs }, { data: plan }, { data: fiscalCategories }] = await Promise.all([
     supabase
       .from("companies")
-      .select("cnpj, ie, state_registration, parent_company_id, crt, address_street, address_number, address_neighborhood, address_city, address_state, address_ibge_code, street, number, neighborhood, city, state, ibge_code, city_code")
+      .select("name, trade_name, cnpj, ie, state_registration, parent_company_id, crt, address_street, address_number, address_neighborhood, address_city, address_state, address_ibge_code, street, number, neighborhood, city, state, ibge_code, city_code")
       .eq("id", companyId)
       .maybeSingle(),
     supabase
@@ -249,6 +250,7 @@ export async function getFiscalReadiness(
     companyRowResolved,
     companyId,
   );
+  companyRowResolved = supplementCnpjFromRowTextFields(companyRowResolved);
 
   const fiscalEnabled = (plan as { fiscal_enabled?: boolean } | null)?.fiscal_enabled ?? false;
   if (!fiscalEnabled) {

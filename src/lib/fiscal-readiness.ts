@@ -15,7 +15,10 @@ import {
   fillCompanyRowFromMembershipPeers,
   resolveCompanyFiscalRowWithParent,
 } from "@/lib/company-fiscal-fallback";
-import { mergeChildCompanyWithParentFiscal } from "../../shared/fiscal/company-fiscal-merge";
+import {
+  mergeChildCompanyWithParentFiscal,
+  supplementCnpjFromRowTextFields,
+} from "../../shared/fiscal/company-fiscal-merge";
 
 export type FiscalReadinessIssue = {
   code: string;
@@ -172,7 +175,7 @@ export async function getFiscalReadiness(
   const [{ data: company }, { data: configs }, { data: planRow }, { data: fiscalCategories }] = await Promise.all([
     supabase
       .from("companies")
-      .select("cnpj, ie, state_registration, parent_company_id, crt, address_street, address_number, address_neighborhood, address_city, address_state, address_ibge_code")
+      .select("name, trade_name, cnpj, ie, state_registration, parent_company_id, crt, address_street, address_number, address_neighborhood, address_city, address_state, address_ibge_code")
       .eq("id", companyId)
       .maybeSingle(),
     supabase
@@ -221,10 +224,9 @@ export async function getFiscalReadiness(
   }
 
   const mergedChain = await resolveCompanyFiscalRowWithParent(companySource);
-  const companyRow = (await fillCompanyRowFromMembershipPeers(
-    mergedChain,
-    companyId,
-  )) as CompanyFiscalRow;
+  const companyRow = supplementCnpjFromRowTextFields(
+    await fillCompanyRowFromMembershipPeers(mergedChain, companyId),
+  ) as CompanyFiscalRow;
   const fiscalConfigs = ((configs || []) as FiscalConfigRow[]);
   const taxRegime = getTaxRegimeFromCrt(companyRow.crt);
   const nfceConfig = fiscalConfigs.find((cfg) => cfg.doc_type === "nfce") || null;

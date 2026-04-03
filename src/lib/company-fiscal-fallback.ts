@@ -3,17 +3,19 @@ import { fetchMyCompanyMemberships } from "@/lib/company-memberships";
 import {
   companyRowMeetsReadinessBasics,
   mergeChildCompanyWithParentFiscal,
+  pickPeerDonorForFiscalMerge,
+  supplementCnpjFromRowTextFields,
 } from "../../shared/fiscal/company-fiscal-merge";
 
 const MAX_PARENT_HOPS = 5;
 
 const PARENT_SELECT =
-  "cnpj, ie, parent_company_id, crt, address_street, address_number, address_neighborhood, address_city, address_state, address_ibge_code, address_zip";
+  "cnpj, ie, state_registration, parent_company_id, crt, address_street, address_number, address_neighborhood, address_city, address_state, address_ibge_code, address_zip";
 
 export async function resolveCompanyFiscalRowWithParent(
   company: Record<string, unknown> | null | undefined,
 ): Promise<Record<string, unknown>> {
-  let row: Record<string, unknown> = { ...(company || {}) };
+  let row: Record<string, unknown> = supplementCnpjFromRowTextFields({ ...(company || {}) });
   let nextParentId: unknown = row.parent_company_id;
 
   for (let hop = 0; hop < MAX_PARENT_HOPS; hop++) {
@@ -71,27 +73,13 @@ export async function fillCompanyRowFromMembershipPeers(
     const { data, error } = await supabase.rpc("get_company_record", { p_company_id: oid });
     if (error || data == null || typeof data !== "object") continue;
     const pr = data as Record<string, unknown>;
-    const pid = String(pr.id ?? oid);
-    map.set(pid, pr);
-    peerRows.push(pr);
+    const resolved = await resolveCompanyFiscalRowWithParent(pr);
+    const pid = String(resolved.id ?? oid);
+    map.set(pid, resolved);
+    peerRows.push(resolved);
   }
 
-  const isDirectlyLinked = (a: string, b: string): boolean => {
-    const ca = map.get(a);
-    const cb = map.get(b);
-    if (!ca || !cb) return false;
-    return String(ca.parent_company_id || "") === b || String(cb.parent_company_id || "") === a;
-  };
-
-  const basicsOk = peerRows.filter((p) => companyRowMeetsReadinessBasics(p));
-  const linkedDonor = basicsOk.find((p) => isDirectlyLinked(currentCompanyId, String(p.id ?? "")));
-
-  let donor: Record<string, unknown> | null = linkedDonor ?? null;
-
-  if (!donor && activeIds.length === 2 && basicsOk.length === 1) {
-    donor = basicsOk[0];
-  }
-
+  const donor = pickPeerDonorForFiscalMerge(currentCompanyId, activeIds, peerRows, map);
   if (!donor) return base;
 
   return mergeChildCompanyWithParentFiscal(base, donor);
