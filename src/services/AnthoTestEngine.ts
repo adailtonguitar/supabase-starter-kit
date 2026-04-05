@@ -614,6 +614,14 @@ export class AnthoTestEngine {
       await supabase.from("stock_movements").delete().eq("product_id", flowProductId).eq("reason", TEST_PREFIX);
       await supabase.from("products").delete().eq("id", flowProductId);
     }
+    // Close and remove temp session created by tests
+    if (flowSessionId) {
+      try {
+        await supabase.from("cash_sessions").update({ status: "fechado" }).eq("id", flowSessionId).eq("terminal_id", "ANTHO_TEST");
+        await supabase.from("cash_movements").delete().eq("session_id", flowSessionId);
+        await supabase.from("cash_sessions").delete().eq("id", flowSessionId).eq("terminal_id", "ANTHO_TEST");
+      } catch { /* non-critical */ }
+    }
   }
 
   // ─── INTEGRITY AUDIT ───
