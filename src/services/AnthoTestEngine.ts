@@ -471,9 +471,19 @@ export class AnthoTestEngine {
     let flowClientId: string | null = null;
     let flowSessionId: string | null = null;
 
-    // Create a temporary cash session for sale tests
-    try {
-      const { data: sessionData } = await supabase.from("cash_sessions").insert({
+    // Try to find an existing open session first
+    const { data: existingSession } = await supabase.from("cash_sessions")
+      .select("id")
+      .eq("company_id", this.companyId)
+      .eq("status", "aberto")
+      .order("opened_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (existingSession) {
+      flowSessionId = existingSession.id;
+    } else {
+      // Create a temporary cash session for sale tests
+      const { data: sessionData, error: sessionErr } = await supabase.from("cash_sessions").insert({
         company_id: this.companyId,
         terminal_id: "ANTHO_TEST",
         opened_by: this.userId,
@@ -481,18 +491,7 @@ export class AnthoTestEngine {
         status: "aberto",
       }).select("id").single();
       if (sessionData) flowSessionId = sessionData.id;
-    } catch { /* session creation may fail if one is already open */ }
-
-    // If we couldn't create one, try to find an open session
-    if (!flowSessionId) {
-      const { data: existing } = await supabase.from("cash_sessions")
-        .select("id")
-        .eq("company_id", this.companyId)
-        .eq("status", "aberto")
-        .order("opened_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (existing) flowSessionId = existing.id;
+      if (sessionErr) console.warn("[AnthoTest] Falha ao criar sessão:", sessionErr.message);
     }
 
     await this.runTest("flow", "Fluxo Completo", "1. Cadastrar produto", async () => {
