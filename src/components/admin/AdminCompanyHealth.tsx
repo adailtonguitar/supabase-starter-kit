@@ -251,16 +251,16 @@ export function AdminCompanyHealth() {
     if (!health?.openCashSession) return;
     setActionLoading("closeCash");
     try {
-      const { error } = await supabase
-        .from("cash_sessions")
-        .update({ status: "fechado", closed_at: new Date().toISOString() })
-        .eq("id", health.openCashSession.id);
+      const { data, error } = await supabase.functions.invoke("admin-action", {
+        body: { action: "force_close_cash_session", session_id: health.openCashSession.id },
+      });
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
       toast.success("Caixa fechado remotamente!");
       logAction({ companyId: selectedCompany!.id, userId: user?.id, action: "Caixa fechado remotamente via admin", module: "admin", details: `session_id: ${health.openCashSession.id}` });
       loadHealth(selectedCompany!);
     } catch (e: any) {
-      toast.error("Erro: " + e.message);
+      toast.error("Erro: " + (e.message || "Erro desconhecido"));
     }
     setActionLoading(null);
   };
@@ -269,16 +269,16 @@ export function AdminCompanyHealth() {
     if (!selectedCompany) return;
     setActionLoading("clearErrors");
     try {
-      const { error } = await supabase
-        .from("system_errors")
-        .delete()
-        .eq("company_id", selectedCompany.id);
+      const { data, error } = await supabase.functions.invoke("admin-action", {
+        body: { action: "clear_company_errors", company_id: selectedCompany.id },
+      });
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
       toast.success("Erros limpos!");
       logAction({ companyId: selectedCompany.id, userId: user?.id, action: "Erros do sistema limpos via admin", module: "admin", details: selectedCompany.name });
       loadHealth(selectedCompany);
     } catch (e: any) {
-      toast.error("Erro: " + e.message);
+      toast.error("Erro: " + (e.message || "Erro desconhecido"));
     }
     setActionLoading(null);
   };
@@ -288,18 +288,18 @@ export function AdminCompanyHealth() {
     setActionLoading("block");
     try {
       const newBlocked = !selectedCompany.is_blocked;
-      const { error } = await supabase
-        .from("companies")
-        .update({ is_blocked: newBlocked, block_reason: newBlocked ? "Bloqueado via painel de saúde" : null })
-        .eq("id", selectedCompany.id);
+      const { data, error } = await supabase.functions.invoke("admin-action", {
+        body: { action: "toggle_block_company", company_id: selectedCompany.id, is_blocked: newBlocked, block_reason: "Bloqueado via painel de saúde" },
+      });
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
       toast.success(newBlocked ? "Empresa bloqueada" : "Empresa desbloqueada");
       logAction({ companyId: selectedCompany.id, userId: user?.id, action: newBlocked ? "Empresa bloqueada via admin" : "Empresa desbloqueada via admin", module: "admin", details: selectedCompany.name });
       const updated = { ...selectedCompany, is_blocked: newBlocked };
       setSelectedCompany(updated);
       if (health) setHealth({ ...health, company: updated });
     } catch (e: any) {
-      toast.error("Erro: " + e.message);
+      toast.error("Erro: " + (e.message || "Erro desconhecido"));
     }
     setActionLoading(null);
   };

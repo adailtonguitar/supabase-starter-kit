@@ -105,34 +105,43 @@ export function AdminSubscriptions() {
 
   const savePlan = async (row: PlanRow) => {
     setSaving(row.id);
-    const { error } = await supabase
-      .from("company_plans")
-      .update({
-        plan: row.plan,
-        status: row.status,
-        max_users: row.max_users,
-        fiscal_enabled: row.fiscal_enabled,
-        advanced_reports_enabled: row.advanced_reports_enabled,
-        financial_module_level: row.financial_module_level,
-      })
-      .eq("id", row.id);
-
-    if (error) {
-      toast.error("Erro ao salvar: " + error.message);
-    } else {
+    try {
+      const { data, error } = await supabase.functions.invoke("admin-action", {
+        body: {
+          action: "update_company_plan",
+          plan_id: row.id,
+          plan: row.plan,
+          status: row.status,
+          max_users: row.max_users,
+          fiscal_enabled: row.fiscal_enabled,
+          advanced_reports_enabled: row.advanced_reports_enabled,
+          financial_module_level: row.financial_module_level,
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
       toast.success(`Plano de ${row.company_name} atualizado.`);
       logAction({ companyId: row.company_id, userId: user?.id, action: "Plano alterado via admin", module: "admin", details: `Plano: ${row.plan}, Status: ${row.status}, Empresa: ${row.company_name}` });
+    } catch (err: any) {
+      toast.error("Erro ao salvar: " + (err?.message || "Erro desconhecido"));
     }
     setSaving(null);
   };
 
   const toggleDemo = async (row: PlanRow) => {
     const newVal = !row.is_demo;
-    const { error } = await (supabase.from("companies").update({ is_demo: newVal } as any) as any).eq("id", row.company_id);
-    if (error) { toast.error("Erro: " + error.message); return; }
-    setPlans(prev => prev.map(r => r.id === row.id ? { ...r, is_demo: newVal } : r));
-    toast.success(newVal ? "Empresa marcada como Demo" : "Modo demo desativado");
-    logAction({ companyId: row.company_id, userId: user?.id, action: newVal ? "Empresa marcada como demo" : "Demo desativado", module: "admin", details: row.company_name });
+    try {
+      const { data, error } = await supabase.functions.invoke("admin-action", {
+        body: { action: "toggle_demo", company_id: row.company_id, is_demo: newVal },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      setPlans(prev => prev.map(r => r.id === row.id ? { ...r, is_demo: newVal } : r));
+      toast.success(newVal ? "Empresa marcada como Demo" : "Modo demo desativado");
+      logAction({ companyId: row.company_id, userId: user?.id, action: newVal ? "Empresa marcada como demo" : "Demo desativado", module: "admin", details: row.company_name });
+    } catch (err: any) {
+      toast.error("Erro: " + (err?.message || "Erro desconhecido"));
+    }
   };
 
   const toggleSelect = (companyId: string) => {
