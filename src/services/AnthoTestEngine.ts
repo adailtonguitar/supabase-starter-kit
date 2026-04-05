@@ -525,9 +525,9 @@ export class AnthoTestEngine {
         p_discount_pct: 0, p_discount_val: 0, p_total: 75,
         p_payments: [{ method: "dinheiro", amount: 75 }], p_sold_by: this.userId,
       });
-      if (error) throw error;
+      if (error) throw new Error("RPC error: " + error.message);
       const result = data as RpcAtomicResult | null;
-      if (!result?.success) throw new Error(result?.error || "RPC falhou");
+      if (!result?.success) throw new Error(result?.error || "RPC falhou sem detalhes");
       flowSaleId = result.sale_id || null;
     });
 
