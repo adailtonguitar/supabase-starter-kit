@@ -473,6 +473,31 @@ export class AnthoTestEngine {
     let flowProductId: string | null = null;
     let flowSaleId: string | null = null;
     let flowClientId: string | null = null;
+    let flowSessionId: string | null = null;
+
+    // Create a temporary cash session for sale tests
+    try {
+      const { data: sessionData } = await supabase.from("cash_sessions").insert({
+        company_id: this.companyId,
+        terminal_id: "ANTHO_TEST",
+        opened_by: this.userId,
+        opening_balance: 0,
+        status: "aberto",
+      }).select("id").single();
+      if (sessionData) flowSessionId = sessionData.id;
+    } catch { /* session creation may fail if one is already open */ }
+
+    // If we couldn't create one, try to find an open session
+    if (!flowSessionId) {
+      const { data: existing } = await supabase.from("cash_sessions")
+        .select("id")
+        .eq("company_id", this.companyId)
+        .eq("status", "aberto")
+        .order("opened_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (existing) flowSessionId = existing.id;
+    }
 
     await this.runTest("flow", "Fluxo Completo", "1. Cadastrar produto", async () => {
       const { data, error } = await supabase.from("products").insert({
@@ -494,13 +519,14 @@ export class AnthoTestEngine {
 
     await this.runTest("flow", "Fluxo Completo", "3. Registrar venda (RPC atômica)", async () => {
       if (!flowProductId) throw new Error("Produto não criado");
+      if (!flowSessionId) throw new Error("Sessão de caixa não disponível");
       const items = [{
         product_id: flowProductId, product_name: `${TEST_PREFIX} Flow Product`,
         quantity: 3, unit_price: 25, cost_price: 12, subtotal: 75,
       }];
       const { data, error } = await supabase.rpc("finalize_sale_atomic", {
         p_company_id: this.companyId, p_terminal_id: "ANTHO_TEST",
-        p_session_id: null, p_items: items, p_subtotal: 75,
+        p_session_id: flowSessionId, p_items: items, p_subtotal: 75,
         p_discount_pct: 0, p_discount_val: 0, p_total: 75,
         p_payments: [{ method: "dinheiro", amount: 75 }], p_sold_by: this.userId,
       });
