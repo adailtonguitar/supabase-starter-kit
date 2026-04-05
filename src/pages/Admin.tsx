@@ -284,7 +284,7 @@ function AdminWhatsAppSupport() {
 }
 
 function CompaniesTab() {
-  const [companies, setCompanies] = useState<CompanyRow[]>([]);
+  const [allCompanies, setAllCompanies] = useState<CompanyRow[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [blockReasons, setBlockReasons] = useState<Record<string, string>>({});
@@ -303,18 +303,20 @@ function CompaniesTab() {
       order: { column: "name", ascending: true },
       limit: 500,
     });
-    const q = search.trim().toLowerCase();
-    const filtered = q
-      ? rows.filter((r) =>
-          String(r.name || "").toLowerCase().includes(q) ||
-          String(r.cnpj || "").toLowerCase().includes(q),
-        )
-      : rows;
-    setCompanies(filtered);
+    setAllCompanies(rows);
     setLoading(false);
   };
 
-  useEffect(() => { fetchCompanies(); }, [search]);
+  useEffect(() => { fetchCompanies(); }, []);
+
+  // Client-side filtering
+  const q = search.trim().toLowerCase();
+  const companies = q
+    ? allCompanies.filter((r) =>
+        String(r.name || "").toLowerCase().includes(q) ||
+        String(r.cnpj || "").toLowerCase().includes(q),
+      )
+    : allCompanies;
 
   const isMyCompany = (id: string) => id === selectedCompanyId;
 
