@@ -313,18 +313,18 @@ function CompaniesTab() {
     const newBlocked = !company.is_blocked;
     const reason = newBlocked ? (blockReasons[company.id] || "Bloqueado pelo administrador.") : null;
 
-    const { error } = await supabase
-      .from("companies")
-      .update({ is_blocked: newBlocked, block_reason: reason })
-      .eq("id", company.id);
+    try {
+      const { data, error } = await supabase.functions.invoke("admin-action", {
+        body: { action: "toggle_block_company", company_id: company.id, is_blocked: newBlocked, block_reason: reason },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
 
-    if (error) {
-      toast.error("Erro ao atualizar: " + error.message);
-      return;
+      toast.success(newBlocked ? `${company.name} bloqueada` : `${company.name} desbloqueada`);
+      fetchCompanies();
+    } catch (err: any) {
+      toast.error("Erro ao atualizar: " + (err?.message || "Erro desconhecido"));
     }
-
-    toast.success(newBlocked ? `${company.name} bloqueada` : `${company.name} desbloqueada`);
-    fetchCompanies();
   };
 
   const deleteCompany = async (company: CompanyRow) => {
