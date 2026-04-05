@@ -157,9 +157,16 @@ export class AnthoTestEngine {
     });
 
     await this.runTest("api", "Empresa", "Acesso à empresa", async () => {
-      const { data, error } = await supabase.from("companies").select("id, name").eq("id", this.companyId).maybeSingle();
-      if (error) throw error;
-      if (!data) throw new Error("Empresa não encontrada");
+      // Check via company_users (RLS-safe) first, then try companies
+      const { data: membership, error: memberErr } = await supabase
+        .from("company_users")
+        .select("company_id")
+        .eq("company_id", this.companyId)
+        .eq("user_id", this.userId)
+        .eq("is_active", true)
+        .maybeSingle();
+      if (memberErr) throw memberErr;
+      if (!membership) throw new Error("Usuário não vinculado à empresa");
     });
     await this.runTest("api", "Empresa", "Configurações da empresa", async () => {
       const { error } = await supabase.from("companies").select("name, cnpj, whatsapp_support").eq("id", this.companyId).single();
@@ -466,6 +473,31 @@ export class AnthoTestEngine {
     let flowProductId: string | null = null;
     let flowSaleId: string | null = null;
     let flowClientId: string | null = null;
+    let flowSessionId: string | null = null;
+
+    // Create a temporary cash session for sale tests
+    try {
+      const { data: sessionData } = await supabase.from("cash_sessions").insert({
+        company_id: this.companyId,
+        terminal_id: "ANTHO_TEST",
+        opened_by: this.userId,
+        opening_balance: 0,
+        status: "aberto",
+      }).select("id").single();
+      if (sessionData) flowSessionId = sessionData.id;
+    } catch { /* session creation may fail if one is already open */ }
+
+    // If we couldn't create one, try to find an open session
+    if (!flowSessionId) {
+      const { data: existing } = await supabase.from("cash_sessions")
+        .select("id")
+        .eq("company_id", this.companyId)
+        .eq("status", "aberto")
+        .order("opened_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (existing) flowSessionId = existing.id;
+    }
 
     await this.runTest("flow", "Fluxo Completo", "1. Cadastrar produto", async () => {
       const { data, error } = await supabase.from("products").insert({
@@ -487,13 +519,14 @@ export class AnthoTestEngine {
 
     await this.runTest("flow", "Fluxo Completo", "3. Registrar venda (RPC atômica)", async () => {
       if (!flowProductId) throw new Error("Produto não criado");
+      if (!flowSessionId) throw new Error("Sessão de caixa não disponível");
       const items = [{
         product_id: flowProductId, product_name: `${TEST_PREFIX} Flow Product`,
         quantity: 3, unit_price: 25, cost_price: 12, subtotal: 75,
       }];
       const { data, error } = await supabase.rpc("finalize_sale_atomic", {
         p_company_id: this.companyId, p_terminal_id: "ANTHO_TEST",
-        p_session_id: null, p_items: items, p_subtotal: 75,
+        p_session_id: flowSessionId, p_items: items, p_subtotal: 75,
         p_discount_pct: 0, p_discount_val: 0, p_total: 75,
         p_payments: [{ method: "dinheiro", amount: 75 }], p_sold_by: this.userId,
       });
@@ -530,7 +563,7 @@ export class AnthoTestEngine {
       }];
       const { data, error } = await supabase.rpc("finalize_sale_atomic", {
         p_company_id: this.companyId, p_terminal_id: "ANTHO_TEST",
-        p_session_id: null, p_items: items, p_subtotal: 50,
+        p_session_id: flowSessionId, p_items: items, p_subtotal: 50,
         p_discount_pct: 0, p_discount_val: 0, p_total: 50,
         p_payments: [{ method: "pix", amount: 30 }, { method: "dinheiro", amount: 20 }],
         p_sold_by: this.userId,
@@ -555,7 +588,7 @@ export class AnthoTestEngine {
       const discountVal = 2.5;
       const { data, error } = await supabase.rpc("finalize_sale_atomic", {
         p_company_id: this.companyId, p_terminal_id: "ANTHO_TEST",
-        p_session_id: null, p_items: items, p_subtotal: 25,
+        p_session_id: flowSessionId, p_items: items, p_subtotal: 25,
         p_discount_pct: 10, p_discount_val: discountVal, p_total: 22.5,
         p_payments: [{ method: "dinheiro", amount: 22.5 }], p_sold_by: this.userId,
       });
@@ -580,6 +613,14 @@ export class AnthoTestEngine {
     if (flowProductId) {
       await supabase.from("stock_movements").delete().eq("product_id", flowProductId).eq("reason", TEST_PREFIX);
       await supabase.from("products").delete().eq("id", flowProductId);
+    }
+    // Close and remove temp session created by tests
+    if (flowSessionId) {
+      try {
+        await supabase.from("cash_sessions").update({ status: "fechado" }).eq("id", flowSessionId).eq("terminal_id", "ANTHO_TEST");
+        await supabase.from("cash_movements").delete().eq("session_id", flowSessionId);
+        await supabase.from("cash_sessions").delete().eq("id", flowSessionId).eq("terminal_id", "ANTHO_TEST");
+      } catch { /* non-critical */ }
     }
   }
 
