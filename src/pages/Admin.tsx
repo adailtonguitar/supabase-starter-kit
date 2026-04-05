@@ -305,7 +305,7 @@ function CompaniesTab() {
     setLoading(false);
   };
 
-  useEffect(() => { fetchCompanies(); }, []);
+  useEffect(() => { fetchCompanies(); }, [search]);
 
   const isMyCompany = (id: string) => id === selectedCompanyId;
 
