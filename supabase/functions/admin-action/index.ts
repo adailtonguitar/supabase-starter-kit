@@ -16,6 +16,12 @@ function getCorsHeaders(req: Request) {
   };
 }
 
+function jsonOk(req: Request, body: unknown) {
+  return new Response(JSON.stringify(body), {
+    headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
+  });
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: getCorsHeaders(req) });
@@ -58,6 +64,7 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const { action } = body;
 
+    // ── close_stuck_cash_sessions ──
     if (action === "close_stuck_cash_sessions") {
       const hoursThreshold = body.hours_threshold || 24;
       const cutoff = new Date(Date.now() - hoursThreshold * 3600000).toISOString();
@@ -71,9 +78,7 @@ Deno.serve(async (req) => {
       if (fetchErr) throw fetchErr;
 
       if (!sessions || sessions.length === 0) {
-        return new Response(JSON.stringify({ closed: 0 }), {
-          headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
-        });
+        return jsonOk(req, { closed: 0 });
       }
 
       const ids = sessions.map(s => s.id);
@@ -87,12 +92,10 @@ Deno.serve(async (req) => {
         .in("id", ids);
 
       if (updateErr) throw updateErr;
-
-      return new Response(JSON.stringify({ closed: ids.length }), {
-        headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
-      });
+      return jsonOk(req, { closed: ids.length });
     }
 
+    // ── clear_old_errors ──
     if (action === "clear_old_errors") {
       const daysThreshold = body.days_threshold || 7;
       const cutoff = new Date(Date.now() - daysThreshold * 86400000).toISOString();
@@ -103,12 +106,10 @@ Deno.serve(async (req) => {
         .lt("created_at", cutoff);
 
       if (delErr) throw delErr;
-
-      return new Response(JSON.stringify({ deleted: count || 0 }), {
-        headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
-      });
+      return jsonOk(req, { deleted: count || 0 });
     }
 
+    // ── send_notification ──
     if (action === "send_notification") {
       const { title, message, type, company_id } = body;
       if (!title || !message) {
@@ -128,10 +129,128 @@ Deno.serve(async (req) => {
         });
 
       if (insertErr) throw insertErr;
+      return jsonOk(req, { success: true });
+    }
 
-      return new Response(JSON.stringify({ success: true }), {
-        headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
-      });
+    // ── toggle_block_company ──
+    if (action === "toggle_block_company") {
+      const { company_id, is_blocked, block_reason } = body;
+      if (!company_id) {
+        return new Response(JSON.stringify({ error: "company_id required" }), { status: 400, headers: getCorsHeaders(req) });
+      }
+
+      const { error } = await adminClient
+        .from("companies")
+        .update({ is_blocked: !!is_blocked, block_reason: is_blocked ? (block_reason || "Bloqueado pelo administrador.") : null })
+        .eq("id", company_id);
+
+      if (error) throw error;
+      return jsonOk(req, { success: true });
+    }
+
+    // ── update_company_plan ──
+    if (action === "update_company_plan") {
+      const { plan_id, plan, status, max_users, fiscal_enabled, advanced_reports_enabled, financial_module_level } = body;
+      if (!plan_id) {
+        return new Response(JSON.stringify({ error: "plan_id required" }), { status: 400, headers: getCorsHeaders(req) });
+      }
+
+      const updateData: Record<string, unknown> = {};
+      if (plan !== undefined) updateData.plan = plan;
+      if (status !== undefined) updateData.status = status;
+      if (max_users !== undefined) updateData.max_users = max_users;
+      if (fiscal_enabled !== undefined) updateData.fiscal_enabled = fiscal_enabled;
+      if (advanced_reports_enabled !== undefined) updateData.advanced_reports_enabled = advanced_reports_enabled;
+      if (financial_module_level !== undefined) updateData.financial_module_level = financial_module_level;
+
+      const { error } = await adminClient
+        .from("company_plans")
+        .update(updateData)
+        .eq("id", plan_id);
+
+      if (error) throw error;
+      return jsonOk(req, { success: true });
+    }
+
+    // ── toggle_demo ──
+    if (action === "toggle_demo") {
+      const { company_id, is_demo } = body;
+      if (!company_id) {
+        return new Response(JSON.stringify({ error: "company_id required" }), { status: 400, headers: getCorsHeaders(req) });
+      }
+
+      const { error } = await adminClient
+        .from("companies")
+        .update({ is_demo: !!is_demo })
+        .eq("id", company_id);
+
+      if (error) throw error;
+      return jsonOk(req, { success: true });
+    }
+
+    // ── force_close_cash_session (single) ──
+    if (action === "force_close_cash_session") {
+      const { session_id } = body;
+      if (!session_id) {
+        return new Response(JSON.stringify({ error: "session_id required" }), { status: 400, headers: getCorsHeaders(req) });
+      }
+
+      const { error } = await adminClient
+        .from("cash_sessions")
+        .update({ status: "fechado", closed_at: new Date().toISOString(), notes: "[ADMIN_FORCE_CLOSED] Fechado remotamente pelo administrador" })
+        .eq("id", session_id);
+
+      if (error) throw error;
+      return jsonOk(req, { success: true });
+    }
+
+    // ── clear_company_errors ──
+    if (action === "clear_company_errors") {
+      const { company_id } = body;
+      if (!company_id) {
+        return new Response(JSON.stringify({ error: "company_id required" }), { status: 400, headers: getCorsHeaders(req) });
+      }
+
+      const { error, count } = await adminClient
+        .from("system_errors")
+        .delete({ count: "exact" })
+        .eq("company_id", company_id);
+
+      if (error) throw error;
+      return jsonOk(req, { deleted: count || 0 });
+    }
+
+    // ── update_whatsapp_support ──
+    if (action === "update_whatsapp_support") {
+      const { company_id, whatsapp_support } = body;
+      if (!company_id) {
+        return new Response(JSON.stringify({ error: "company_id required" }), { status: 400, headers: getCorsHeaders(req) });
+      }
+
+      const { error } = await adminClient
+        .from("companies")
+        .update({ whatsapp_support: whatsapp_support || null })
+        .eq("id", company_id);
+
+      if (error) throw error;
+      return jsonOk(req, { success: true });
+    }
+
+    // ── get_whatsapp_support ──
+    if (action === "get_whatsapp_support") {
+      const { company_id } = body;
+      if (!company_id) {
+        return new Response(JSON.stringify({ error: "company_id required" }), { status: 400, headers: getCorsHeaders(req) });
+      }
+
+      const { data, error } = await adminClient
+        .from("companies")
+        .select("whatsapp_support")
+        .eq("id", company_id)
+        .maybeSingle();
+
+      if (error) throw error;
+      return jsonOk(req, { whatsapp_support: data?.whatsapp_support || null });
     }
 
     return new Response(JSON.stringify({ error: "Unknown action" }), {
