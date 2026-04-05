@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -7,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { RefreshCw, UserCheck, UserX, Calendar, TrendingUp } from "lucide-react";
 import { format, isToday, isThisWeek, isThisMonth, differenceInDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { adminQuery } from "@/lib/admin-query";
 
 interface DemoLead {
   company_id: string;
@@ -27,12 +27,14 @@ export function AdminLeads() {
   const fetchLeads = async () => {
     setLoading(true);
 
-    // Get all demo companies
-    const { data: companies } = await supabase
-      .from("companies")
-      .select("id, name, created_at, is_demo")
-      .eq("is_demo", true)
-      .order("created_at", { ascending: false });
+    // Get all demo companies via admin-query edge function (bypasses RLS)
+    const companies = await adminQuery<{ id: string; name: string; created_at: string; is_demo: boolean }>({
+      table: "companies",
+      select: "id, name, created_at, is_demo",
+      filters: [{ op: "eq", column: "is_demo", value: true }],
+      order: { column: "created_at", ascending: false },
+      limit: 500,
+    });
 
     if (!companies?.length) {
       setLeads([]);
@@ -40,37 +42,34 @@ export function AdminLeads() {
       return;
     }
 
-    const companyIds = companies.map((c: any) => c.id);
+    const companyIds = companies.map((c) => c.id);
 
-    // Get plans for these companies
-    const { data: plans } = await supabase
-      .from("company_plans")
-      .select("company_id, plan, status, expires_at")
-      .in("company_id", companyIds);
+    // Get plans and users in parallel via admin-query
+    const [plans, companyUsers] = await Promise.all([
+      adminQuery<{ company_id: string; plan: string; status: string; expires_at: string }>({
+        table: "company_plans",
+        select: "company_id, plan, status, expires_at",
+        filters: [{ op: "in", column: "company_id", value: companyIds }],
+        limit: 500,
+      }),
+      adminQuery<{ company_id: string; user_id: string; email: string }>({
+        table: "company_users",
+        select: "company_id, user_id, email",
+        filters: [{ op: "in", column: "company_id", value: companyIds }],
+        limit: 500,
+      }),
+    ]);
 
-    // Get user emails linked to these companies
-    const { data: companyUsers } = await supabase
-      .from("company_users")
-      .select("company_id, user_id")
-      .in("company_id", companyIds);
-
-    const userIds = (companyUsers ?? []).map((cu: any) => cu.user_id);
-    const { data: profiles } = userIds.length
-      ? await supabase.from("profiles").select("id, email").in("id", userIds)
-      : { data: [] };
-
-    const emailMap: Record<string, string> = {};
-    (profiles ?? []).forEach((p: any) => { emailMap[p.id] = p.email; });
-
+    // Build email map from company_users (email column if available)
     const userCompanyMap: Record<string, string> = {};
-    (companyUsers ?? []).forEach((cu: any) => {
-      if (emailMap[cu.user_id]) userCompanyMap[cu.company_id] = emailMap[cu.user_id];
+    (companyUsers ?? []).forEach((cu) => {
+      if (cu.email) userCompanyMap[cu.company_id] = cu.email;
     });
 
     const planMap: Record<string, any> = {};
-    (plans ?? []).forEach((p: any) => { planMap[p.company_id] = p; });
+    (plans ?? []).forEach((p) => { planMap[p.company_id] = p; });
 
-    const result: DemoLead[] = companies.map((c: any) => {
+    const result: DemoLead[] = companies.map((c) => {
       const plan = planMap[c.id];
       const expiresAt = plan?.expires_at ? new Date(plan.expires_at) : null;
       const daysRemaining = expiresAt ? differenceInDays(expiresAt, new Date()) : null;

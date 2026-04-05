@@ -196,10 +196,16 @@ function AdminWhatsAppSupport() {
   useEffect(() => {
     if (!companyId) return;
     const load = async () => {
-      const { data } = await supabase.from("companies").select("whatsapp_support").eq("id", companyId).single();
-      if (data?.whatsapp_support) {
-        setNumber(data.whatsapp_support);
-        setSavedNumber(data.whatsapp_support);
+      try {
+        const { data, error } = await supabase.functions.invoke("admin-action", {
+          body: { action: "get_whatsapp_support", company_id: companyId },
+        });
+        if (!error && data?.whatsapp_support) {
+          setNumber(data.whatsapp_support);
+          setSavedNumber(data.whatsapp_support);
+        }
+      } catch {
+        // fallback: leave empty
       }
       setLoading(false);
     };
@@ -212,8 +218,11 @@ function AdminWhatsAppSupport() {
     if (!companyId) return;
     setSaving(true);
     try {
-      const { error } = await supabase.from("companies").update({ whatsapp_support: number || null }).eq("id", companyId);
+      const { data, error } = await supabase.functions.invoke("admin-action", {
+        body: { action: "update_whatsapp_support", company_id: companyId, whatsapp_support: number || null },
+      });
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
       setSavedNumber(number);
       setEditing(false);
       toast.success("WhatsApp de suporte salvo!");
