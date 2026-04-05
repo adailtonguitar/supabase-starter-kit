@@ -157,9 +157,16 @@ export class AnthoTestEngine {
     });
 
     await this.runTest("api", "Empresa", "Acesso à empresa", async () => {
-      const { data, error } = await supabase.from("companies").select("id, name").eq("id", this.companyId).maybeSingle();
-      if (error) throw error;
-      if (!data) throw new Error("Empresa não encontrada");
+      // Check via company_users (RLS-safe) first, then try companies
+      const { data: membership, error: memberErr } = await supabase
+        .from("company_users")
+        .select("company_id")
+        .eq("company_id", this.companyId)
+        .eq("user_id", this.userId)
+        .eq("is_active", true)
+        .maybeSingle();
+      if (memberErr) throw memberErr;
+      if (!membership) throw new Error("Usuário não vinculado à empresa");
     });
     await this.runTest("api", "Empresa", "Configurações da empresa", async () => {
       const { error } = await supabase.from("companies").select("name, cnpj, whatsapp_support").eq("id", this.companyId).single();
