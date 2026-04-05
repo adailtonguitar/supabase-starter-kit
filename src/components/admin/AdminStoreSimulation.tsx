@@ -36,6 +36,14 @@ interface SimReport {
   finishedAt: string;
 }
 
+interface SimulationProduct {
+  id: string;
+  name: string;
+  price: number | string | null;
+  stock_quantity: number | string | null;
+  unit?: string | null;
+}
+
 export function AdminStoreSimulation() {
   const { companyId } = useCompany();
   const { user } = useAuth();
@@ -62,20 +70,24 @@ export function AdminStoreSimulation() {
     const startedAt = new Date().toISOString();
     const results: SimResult[] = [];
 
-    // 1) Load active products
-    const { data: products, error: pErr } = await supabase
+    const { data: rawProducts, error: pErr } = await supabase
       .from("products")
       .select("id, name, price, stock_quantity, unit")
       .eq("company_id", companyId)
       .or(PRODUCTS_ACTIVE_OR_LEGACY_NULL);
 
-    if (pErr || !products || products.length === 0) {
+    const products = (rawProducts ?? []) as SimulationProduct[];
+
+    if (pErr || products.length === 0) {
       toast.error("Nenhum produto ativo encontrado para simulação");
       setRunning(false);
       return;
     }
 
-    // 2) Get or create a test cash session
+    const availableStock = new Map<string, number>(
+      products.map((product) => [product.id, Math.max(0, Number(product.stock_quantity ?? 0))])
+    );
+
     let sessionId: string | null = null;
     const terminalId = "SIM-TEST";
 
@@ -112,7 +124,6 @@ export function AdminStoreSimulation() {
 
     toast.info(`🚀 Simulação iniciada — ${salesCount} vendas com ${products.length} produtos disponíveis`);
 
-    // 3) Run simulation sales
     for (let i = 0; i < salesCount; i++) {
       if (cancelRef.current) break;
 
@@ -122,24 +133,58 @@ export function AdminStoreSimulation() {
       const start = performance.now();
       const itemCount = Math.floor(Math.random() * maxItems) + 1;
 
-      // Pick random products
-      const shuffled = [...products].sort(() => Math.random() - 0.5);
-      const selected = shuffled.slice(0, Math.min(itemCount, products.length));
-
-      const saleItems = selected.map((p: any) => {
-        const qty = Math.floor(Math.random() * 3) + 1;
-        const discountPct = 0;
-        return {
-          product_id: p.id,
-          product_name: p.name,
-          quantity: qty,
-          unit_price: Number(p.price),
-          discount_percent: discountPct,
-          subtotal: Number(p.price) * qty,
-        };
+      const eligibleProducts = products.filter((product) => {
+        const stock = availableStock.get(product.id) ?? 0;
+        return stock >= 1 && Number(product.price ?? 0) > 0;
       });
 
-      const subtotal = saleItems.reduce((s, it) => s + it.subtotal, 0);
+      if (eligibleProducts.length === 0) {
+        results.push({
+          saleIndex: i + 1,
+          success: false,
+          total: 0,
+          itemCount: 0,
+          duration: performance.now() - start,
+          warning: "Estoque disponível esgotado para continuar a simulação.",
+        });
+        break;
+      }
+
+      const shuffled = [...eligibleProducts].sort(() => Math.random() - 0.5);
+      const selected = shuffled.slice(0, Math.min(itemCount, eligibleProducts.length));
+
+      const saleItems = selected.flatMap((product) => {
+        const stock = Math.floor(availableStock.get(product.id) ?? 0);
+        if (stock < 1) return [];
+
+        const quantity = Math.min(stock, Math.floor(Math.random() * 3) + 1);
+        const unitPrice = Number(product.price ?? 0);
+
+        if (quantity <= 0 || unitPrice <= 0) return [];
+
+        return [{
+          product_id: product.id,
+          product_name: product.name,
+          quantity,
+          unit_price: unitPrice,
+          discount_percent: 0,
+          subtotal: unitPrice * quantity,
+        }];
+      });
+
+      if (saleItems.length === 0) {
+        results.push({
+          saleIndex: i + 1,
+          success: false,
+          total: 0,
+          itemCount: 0,
+          duration: performance.now() - start,
+          warning: "Nenhum item com estoque suficiente foi encontrado para esta venda.",
+        });
+        continue;
+      }
+
+      const subtotal = saleItems.reduce((sum, item) => sum + item.subtotal, 0);
       const total = subtotal;
 
       if (total <= 0) {
@@ -147,7 +192,7 @@ export function AdminStoreSimulation() {
           saleIndex: i + 1,
           success: false,
           total: 0,
-          itemCount,
+          itemCount: saleItems.length,
           duration: performance.now() - start,
           error: "Total calculado <= 0 — ignorada",
         });
@@ -157,7 +202,6 @@ export function AdminStoreSimulation() {
       const payments = [{ method: "dinheiro", amount: total, approved: true }];
 
       try {
-        // Use RPC atômica — same as real PDV but mark as test
         const { data: rpcResult, error: rpcError } = await supabase.rpc("finalize_sale_atomic", {
           p_company_id: companyId,
           p_terminal_id: terminalId,
@@ -185,37 +229,36 @@ export function AdminStoreSimulation() {
           continue;
         }
 
-        const result = rpcResult as any;
+        const result = rpcResult as { success?: boolean; sale_id?: string; error?: string } | null;
         if (!result?.success) {
-          // Stock insufficient is expected — mark as warning
-          const isStockIssue = result?.error?.includes("Estoque insuficiente");
           results.push({
             saleIndex: i + 1,
             success: false,
             total,
             itemCount: saleItems.length,
             duration,
-            ...(isStockIssue
-              ? { warning: result.error }
-              : { error: result.error || "Erro desconhecido" }),
+            error: result?.error || "Erro desconhecido",
           });
           continue;
         }
 
-        // Mark sale as test
-        if (result.sale_id) {
-          await supabase.from("sales").update({ status: "teste" } as any).eq("id", result.sale_id);
+        for (const item of saleItems) {
+          const currentStock = availableStock.get(item.product_id) ?? 0;
+          availableStock.set(item.product_id, Math.max(0, currentStock - Number(item.quantity)));
         }
 
-        // Validate calculation
+        if (result.sale_id) {
+          await supabase.from("sales").update({ status: "teste" } as Record<string, unknown>).eq("id", result.sale_id);
+        }
+
         let warning: string | undefined;
-        const expectedTotal = saleItems.reduce((s, it) => s + it.subtotal, 0);
+        const expectedTotal = saleItems.reduce((sum, item) => sum + item.subtotal, 0);
         if (Math.abs(expectedTotal - total) > 0.01) {
           warning = `Divergência de cálculo: esperado ${expectedTotal.toFixed(2)}, obtido ${total.toFixed(2)}`;
         }
 
         if (duration > 5000) {
-          warning = (warning ? warning + " | " : "") + `Lentidão detectada: ${(duration / 1000).toFixed(1)}s`;
+          warning = (warning ? `${warning} | ` : "") + `Lentidão detectada: ${(duration / 1000).toFixed(1)}s`;
         }
 
         results.push({
@@ -227,20 +270,19 @@ export function AdminStoreSimulation() {
           duration,
           warning,
         });
-      } catch (err: any) {
+      } catch (err: unknown) {
         results.push({
           saleIndex: i + 1,
           success: false,
           total,
           itemCount: saleItems.length,
           duration: performance.now() - start,
-          error: err.message || "Erro inesperado",
+          error: err instanceof Error ? err.message : "Erro inesperado",
         });
       }
 
-      // Small delay to avoid hammering the DB
       if (i % 10 === 9) {
-        await new Promise((r) => setTimeout(r, 100));
+        await new Promise((resolve) => setTimeout(resolve, 100));
       }
     }
 
