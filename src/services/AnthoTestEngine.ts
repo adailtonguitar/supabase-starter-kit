@@ -588,7 +588,7 @@ export class AnthoTestEngine {
       const discountVal = 2.5;
       const { data, error } = await supabase.rpc("finalize_sale_atomic", {
         p_company_id: this.companyId, p_terminal_id: "ANTHO_TEST",
-        p_session_id: null, p_items: items, p_subtotal: 25,
+        p_session_id: flowSessionId, p_items: items, p_subtotal: 25,
         p_discount_pct: 10, p_discount_val: discountVal, p_total: 22.5,
         p_payments: [{ method: "dinheiro", amount: 22.5 }], p_sold_by: this.userId,
       });
