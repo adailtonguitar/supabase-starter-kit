@@ -62,11 +62,45 @@ export default function Auth() {
   const [isSignUp, setIsSignUp] = useState(false);
   const [signUpName, setSignUpName] = useState("");
   
-  // Rate limiting state
-  const [failedAttempts, setFailedAttempts] = useState(0);
-  const [lockedUntil, setLockedUntil] = useState<number | null>(null);
+  // Rate limiting state — persisted in localStorage to survive page refresh
+  const LOCKOUT_STORAGE_KEY = "as_login_lockout";
+  const ATTEMPTS_STORAGE_KEY = "as_login_attempts";
+
+  const [failedAttempts, setFailedAttempts] = useState(() => {
+    try {
+      const stored = localStorage.getItem(ATTEMPTS_STORAGE_KEY);
+      return stored ? parseInt(stored, 10) || 0 : 0;
+    } catch { return 0; }
+  });
+  const [lockedUntil, setLockedUntil] = useState<number | null>(() => {
+    try {
+      const stored = localStorage.getItem(LOCKOUT_STORAGE_KEY);
+      if (stored) {
+        const ts = parseInt(stored, 10);
+        return ts > Date.now() ? ts : null;
+      }
+      return null;
+    } catch { return null; }
+  });
   const [lockCountdown, setLockCountdown] = useState(0);
   const lockTimerRef = useRef<ReturnType<typeof setInterval>>();
+
+  // Persist lockout state to localStorage
+  useEffect(() => {
+    try {
+      if (lockedUntil) {
+        localStorage.setItem(LOCKOUT_STORAGE_KEY, String(lockedUntil));
+      } else {
+        localStorage.removeItem(LOCKOUT_STORAGE_KEY);
+      }
+    } catch { /* ignore */ }
+  }, [lockedUntil]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(ATTEMPTS_STORAGE_KEY, String(failedAttempts));
+    } catch { /* ignore */ }
+  }, [failedAttempts]);
 
   const isLocked = lockedUntil !== null && Date.now() < lockedUntil;
 
