@@ -310,13 +310,16 @@ export default function NFeEmissao() {
     }
   }, [form.destZip, form.destCityCode, handleSilentCepLookup]);
 
-  // Load company info for DANFE
+  // Load company info for DANFE (with fallback from useCompany hook)
   useEffect(() => {
     if (!companyId) return;
     supabase.from("companies")
       .select("name, trade_name, cnpj, ie, phone, address_street, address_number, address_neighborhood, address_city, address_state, address_zip, logo_url")
       .eq("id", companyId).single()
-      .then(({ data }) => { if (data) setCompanyInfo(data as NFeCompanyInfo); });
+      .then(({ data, error }) => {
+        if (error) console.warn("[NFeEmissao] Falha ao carregar company info:", error.message);
+        if (data) setCompanyInfo(data as NFeCompanyInfo);
+      });
   }, [companyId]);
 
   useEffect(() => {
