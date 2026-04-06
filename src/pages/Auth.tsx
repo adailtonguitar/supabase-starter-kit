@@ -391,23 +391,16 @@ export default function Auth() {
 
       if (signInError) throw signInError;
 
-      // Seed demo data immediately after login
-      try {
-        const { DemoDataService } = await import("@/services/DemoDataService");
-        const result = await DemoDataService.seedDemoData(data.company_id, data.user_id);
-        if (result.products === -1) {
-          toast.success("Conta demo criada! Dados já existiam.");
-        } else if (result.products === 0) {
-          console.warn("seedDemoData retornou 0 produtos — possível falha de RLS");
-          toast.success("Conta demo criada! Verifique as permissões de dados.");
-        } else {
-          toast.success("Conta demo pronta! 🎉", {
-            description: `${result.products} produtos, ${result.clients} clientes, ${result.sales} vendas, ${result.suppliers} fornecedores e ${result.expenses} despesas criados.`,
-          });
-        }
-      } catch (seedErr: any) {
-        console.error("Erro ao gerar dados demo:", seedErr);
-        toast.success("Conta demo criada! Os dados serão gerados ao carregar o painel.");
+      // Seed is now done server-side in create-demo-account
+      const seed = data.seed;
+      if (seed && seed.products > 0) {
+        // Mark as seeded in localStorage so DemoBanner doesn't re-seed
+        try { localStorage.setItem(`as_demo_seeded_${data.company_id}`, "true"); } catch {}
+        toast.success("Conta demo pronta! 🎉", {
+          description: `${seed.products} produtos, ${seed.clients} clientes, ${seed.sales} vendas criados.`,
+        });
+      } else {
+        toast.success("Conta demo criada!");
       }
 
       navigate("/");
