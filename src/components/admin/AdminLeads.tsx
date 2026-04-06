@@ -31,7 +31,7 @@ export function AdminLeads() {
     const companies = await adminQuery<{ id: string; name: string; created_at: string; is_demo: boolean }>({
       table: "companies",
       select: "id, name, created_at, is_demo",
-      filters: [{ op: "eq", column: "is_demo", value: true }],
+      filters: [{ op: "is", column: "is_demo", value: true }],
       order: { column: "created_at", ascending: false },
       limit: 500,
     });
@@ -52,18 +52,32 @@ export function AdminLeads() {
         filters: [{ op: "in", column: "company_id", value: companyIds }],
         limit: 500,
       }),
-      adminQuery<{ company_id: string; user_id: string; email: string }>({
+      adminQuery<{ company_id: string; user_id: string }>({
         table: "company_users",
-        select: "company_id, user_id, email",
+        select: "company_id, user_id",
         filters: [{ op: "in", column: "company_id", value: companyIds }],
         limit: 500,
       }),
     ]);
 
-    // Build email map from company_users (email column if available)
+    // Get emails from profiles for the user_ids found
+    const userIds = (companyUsers ?? []).map(cu => cu.user_id).filter(Boolean);
+    let profileMap: Record<string, string> = {};
+    if (userIds.length > 0) {
+      const profiles = await adminQuery<{ id: string; email: string }>({
+        table: "profiles",
+        select: "id, email",
+        filters: [{ op: "in", column: "id", value: userIds }],
+        limit: 500,
+      });
+      (profiles ?? []).forEach(p => { if (p.email) profileMap[p.id] = p.email; });
+    }
+
+    // Build email map: company_id -> email
     const userCompanyMap: Record<string, string> = {};
     (companyUsers ?? []).forEach((cu) => {
-      if (cu.email) userCompanyMap[cu.company_id] = cu.email;
+      const email = profileMap[cu.user_id];
+      if (email) userCompanyMap[cu.company_id] = email;
     });
 
     const planMap: Record<string, any> = {};
