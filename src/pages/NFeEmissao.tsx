@@ -1184,6 +1184,16 @@ export default function NFeEmissao() {
                   {FINALIDADE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
               </div>
+              <div className="w-[180px]">
+                <label className="text-xs text-muted-foreground font-medium">Tipo de Venda</label>
+                <select
+                  value={form.presenceType}
+                  onChange={(e) => setForm(p => ({ ...p, presenceType: e.target.value }))}
+                  className="w-full mt-1 px-3 py-2 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+                >
+                  {PRESENCE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </div>
             </div>
 
             {/* DESTINATÁRIO */}
