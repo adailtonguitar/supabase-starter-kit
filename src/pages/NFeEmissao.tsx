@@ -1186,12 +1186,8 @@ export default function NFeEmissao() {
                     <input value={form.destCity} onChange={e => setForm(p => ({ ...p, destCity: e.target.value }))}
                       className="w-full mt-1 px-3 py-2 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30" />
                   </div>
-                  <div>
-                    <label className="text-xs text-muted-foreground">Cód. Município (IBGE)</label>
-                    <input value={form.destCityCode} onChange={e => setForm(p => ({ ...p, destCityCode: e.target.value }))}
-                      className="w-full mt-1 px-3 py-2 rounded-lg border border-border bg-background text-sm font-mono text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
-                      placeholder="0000000" maxLength={7} />
-                  </div>
+                  {/* IBGE preenchido automaticamente pelo CEP — campo oculto */}
+                  <input type="hidden" value={form.destCityCode} />
                   <div>
                     <label className="text-xs text-muted-foreground">UF</label>
                     <input value={form.destUF} onChange={e => setForm(p => ({ ...p, destUF: e.target.value.toUpperCase() }))}
