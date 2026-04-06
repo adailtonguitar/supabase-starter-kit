@@ -953,8 +953,9 @@ export default function NFeEmissao() {
       }
 
       if (data?.success) {
-        setStep("success");
+        setDanfeCompanySnapshot(resolvedDanfeCompany);
         setSuccessData(data);
+        setStep("success");
         toast.success("NF-e emitida com sucesso!");
       } else {
         setStep("error");
