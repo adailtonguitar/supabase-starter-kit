@@ -352,7 +352,20 @@ Deno.serve(async (req) => {
       // profiles table may not exist
     }
 
-    // 6) Seed demo data (server-side, bypasses RLS)
+    // 6) Auto-accept terms for demo accounts
+    try {
+      await supabaseAdmin.from("terms_acceptance").insert({
+        company_id: company.id,
+        user_id: userId,
+        ip_address: clientIp,
+        user_agent: "demo-account-auto",
+        terms_version: "1.0",
+      });
+    } catch {
+      // non-critical
+    }
+
+    // 7) Seed demo data (server-side, bypasses RLS)
     let seedResult = { products: 0, clients: 0, sales: 0, suppliers: 0, expenses: 0 };
     try {
       seedResult = await seedDemoData(supabaseAdmin, company.id, userId);
