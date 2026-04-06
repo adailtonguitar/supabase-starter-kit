@@ -78,6 +78,8 @@ export default function SmartNFeImport() {
     setAiExplanation("");
     setSupplierId(null);
     setSupplierStatus("checking");
+    setRegisterDest(false);
+    setDestClientStatus("none");
   };
 
   // Detect supplier
