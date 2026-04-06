@@ -987,10 +987,29 @@ async function handleEmitNfe(supabase: any, body: any) {
   const cnpjClean = (company.cnpj || "").replace(/\D/g, "");
   const ieEmitClean = (company.ie || company.state_registration || "").replace(/\D/g, "");
 
-  const ibgeCode = company.ibge_code || company.city_code || company.address_ibge_code || "";
-  const ibgeClean = String(ibgeCode).replace(/\D/g, "");
+  let ibgeCode = company.ibge_code || company.city_code || company.address_ibge_code || "";
+  let ibgeClean = String(ibgeCode).replace(/\D/g, "");
+  // Fallback: resolver IBGE via ViaCEP se não configurado
+  if ((!ibgeClean || ibgeClean.length < 7 || ibgeClean === "0000000") && (company.zip_code || company.cep)) {
+    const cepDigits = (company.zip_code || company.cep || "").replace(/\D/g, "");
+    if (cepDigits.length === 8) {
+      try {
+        const viacepResp = await safeFetch(`https://viacep.com.br/ws/${cepDigits}/json/`, {}, 5000);
+        if (viacepResp.ok) {
+          const viacepData = await viacepResp.json();
+          if (viacepData.ibge) {
+            ibgeClean = String(viacepData.ibge).replace(/\D/g, "");
+            await supabase.from("companies").update({ ibge_code: ibgeClean }).eq("id", company_id);
+            console.log(`[emit-nfe] IBGE resolvido via ViaCEP: ${ibgeClean}`);
+          }
+        }
+      } catch (e) {
+        console.warn("[emit-nfe] Falha ao consultar ViaCEP para IBGE:", e);
+      }
+    }
+  }
   if (!ibgeClean || ibgeClean.length < 7 || ibgeClean === "0000000") {
-    return jsonResponse({ error: `Código IBGE do município não configurado ou inválido ("${ibgeCode}").` }, 400);
+    return jsonResponse({ error: `Código IBGE do município não configurado ou inválido ("${ibgeCode}"). Atualize o CEP da empresa em Configurações.` }, 400);
   }
 
   const emit: Record<string, unknown> = {
