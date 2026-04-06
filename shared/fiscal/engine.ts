@@ -103,6 +103,15 @@ const FCP_UF: Record<string, number> = {
   BA: 2, PE: 2, CE: 2, PA: 2, SE: 2, PB: 2, RN: 2, TO: 2,
 };
 
+function resolveEffectiveFcpPercent(ufDestino: string, explicitPercent?: number | null): number {
+  const uf = ufDestino.toUpperCase().trim();
+  if (uf === "PI") return 0;
+  if (typeof explicitPercent === "number" && Number.isFinite(explicitPercent)) {
+    return explicitPercent;
+  }
+  return FCP_UF[uf] || 0;
+}
+
 // ─── Funções do Motor ───
 
 export function resolveIdDest(emitUF: string, destUF: string): number {

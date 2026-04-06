@@ -1064,10 +1064,16 @@ async function handleEmitNfe(supabase: any, body: any) {
     RJ: 2, MG: 2, MS: 2, GO: 2, MT: 2, PI: 0, AL: 1, MA: 2,
     BA: 2, PE: 2, CE: 2, PA: 2, SE: 2, PB: 2, RN: 2, TO: 2,
   };
+  const resolveEffectiveFcpPercent = (ufDestino: string, explicitPercent?: number | null) => {
+    const uf = ufDestino.toUpperCase().trim();
+    if (uf === "PI") return 0;
+    if (typeof explicitPercent === "number" && Number.isFinite(explicitPercent)) return explicitPercent;
+    return FCP_UF[uf] || 0;
+  };
   const defaultInterRate = SUL_SUDESTE.has(emitUF) && !SUL_SUDESTE.has(destUF) ? 7 : 12;
   const pICMSInter = taxRule?.aliq_interestadual ?? defaultInterRate;
   const pICMSUFDest = taxRule?.aliq_interna_destino ?? (ALIQ_INTERNA_UF[destUF] || 18);
-  const pFCPUFDest = taxRule?.fcp_percent ?? (FCP_UF[destUF] || 0);
+  const pFCPUFDest = resolveEffectiveFcpPercent(destUF, taxRule?.fcp_percent ?? null);
 
   // Itens
   const items = form.items || [];
