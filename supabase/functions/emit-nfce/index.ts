@@ -957,11 +957,11 @@ async function handleEmitNfe(supabase: any, body: any) {
   }
 
   // ─── Determinar se destinatário é contribuinte ICMS ───
-  const destDoc = (form.dest_doc || "").replace(/\D/g, "");
+  const destDocDigits = (form.dest_doc || "").replace(/\D/g, "");
   const destIE = (form.dest_ie || "").replace(/\D/g, "");
   const destIsContribuinte = destIE.length >= 2 || false;
   const applyDifal = isInterstate && !destIsContribuinte;
-  console.log(`[emit-nfe] Contribuinte=${destIsContribuinte} DIFAL=${applyDifal}`);
+  console.log(`[emit-nfe] DestDoc=${destDocDigits.length} Contribuinte=${destIsContribuinte} DIFAL=${applyDifal}`);
 
   // ─── Alíquotas DIFAL ───
   // Sul/Sudeste (exceto ES) para demais: 7%, senão 12%
