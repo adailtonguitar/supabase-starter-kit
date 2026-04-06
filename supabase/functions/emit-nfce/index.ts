@@ -1482,6 +1482,14 @@ async function handleEmitNfe(supabase: any, body: any) {
   const nuvemFiscalId = nfData.id || nfData.nuvem_fiscal_id || null;
   const protocolNumber = emissionStatus.protocolNumber;
   const finalStatus = emissionStatus.normalizedStatus;
+  const providerReason = formatConsultReason(
+    nfData || {},
+    finalStatus === "rejeitada"
+      ? "NF-e rejeitada pelo provedor fiscal"
+      : finalStatus === "pendente"
+        ? "NF-e recebida pelo provedor fiscal, aguardando autorização"
+        : "",
+  );
 
   // Salvar documento fiscal
   await supabase.from("fiscal_documents").insert({
@@ -1490,14 +1498,18 @@ async function handleEmitNfe(supabase: any, body: any) {
     status: finalStatus, total_value: vNF, environment: ambiente,
     customer_name: form.dest_name || null, customer_cpf_cnpj: destDoc || null,
     payment_method: mapTPagToLocalPaymentMethod(tPag), is_contingency: emissionStatus.isContingency,
+    rejection_reason: finalStatus === "rejeitada" ? providerReason || null : null,
   });
 
-  console.log(`[emit-nfe] ✓ NF-e #${numero} → ${finalStatus} | provider_status=${emissionStatus.statusStr || "(vazio)"} cStat=${emissionStatus.cStatStr || "(vazio)"} | Chave: ${accessKey?.substring(0, 20)}... | ${Date.now() - t0}ms total`);
+  console.log(`[emit-nfe] ✓ NF-e #${numero} → ${finalStatus} | provider_status=${emissionStatus.statusStr || "(vazio)"} cStat=${emissionStatus.cStatStr || "(vazio)"} | reason=${providerReason || "(vazio)"} | Chave: ${accessKey?.substring(0, 20)}... | ${Date.now() - t0}ms total`);
 
   return jsonResponse({
     success: finalStatus === "autorizada" || finalStatus === "contingencia",
     pending: finalStatus === "pendente",
     status: finalStatus,
+    error: finalStatus === "rejeitada" ? providerReason || "NF-e rejeitada pelo provedor fiscal" : undefined,
+    rejection_reason: finalStatus === "rejeitada" ? providerReason || undefined : undefined,
+    details: nfData || undefined,
     number: numero,
     serie: String(config.serie || 1),
     access_key: accessKey,

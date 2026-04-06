@@ -155,6 +155,7 @@ interface NFeSuccessData {
   pending?: boolean;
   resolved_items?: NFeItem[];
   error?: string;
+  rejection_reason?: string;
   details?: Record<string, unknown>;
   emitente?: NFeEmitentePayload;
 }
@@ -1065,11 +1066,22 @@ export default function NFeEmissao() {
         setStep("success");
         toast.success("NF-e emitida com sucesso!");
       } else if (data?.status === "pendente" || data?.pending) {
+        const pendingReason = typeof data?.rejection_reason === "string" && data.rejection_reason.trim()
+          ? data.rejection_reason
+          : typeof data?.error === "string" && data.error.trim()
+            ? data.error
+            : "A NF-e foi enviada para processamento, mas ainda NÃO foi autorizada. Aguarde a confirmação em Documentos Fiscais antes de imprimir o DANFE.";
         setStep("error");
-        setErrorMsg("A NF-e foi enviada para processamento, mas ainda NÃO foi autorizada. Aguarde a confirmação em Documentos Fiscais antes de imprimir o DANFE.");
+        setErrorMsg(pendingReason);
       } else {
         setStep("error");
-        const errText = (data && typeof data.error === "string") ? data.error : "Erro ao emitir NF-e. Verifique se o certificado digital está configurado.";
+        const errText = typeof data?.rejection_reason === "string" && data.rejection_reason.trim()
+          ? data.rejection_reason
+          : typeof data?.error === "string" && data.error.trim()
+            ? data.error
+            : data?.status === "rejeitada"
+              ? "NF-e rejeitada pelo provedor fiscal. Revise os dados fiscais do destinatário e dos itens."
+              : "Erro ao emitir NF-e. Não foi possível identificar o motivo exato da falha.";
         setErrorMsg(errText);
         try {
           const rej = parseSefazRejection(errText, data?.details);
