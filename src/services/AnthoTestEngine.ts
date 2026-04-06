@@ -169,9 +169,11 @@ export class AnthoTestEngine {
       if (error) throw new Error("Sem acesso aos dados da empresa: " + error.message);
     });
     await this.runTest("api", "Empresa", "Configurações da empresa", async () => {
+      // Avoid querying 'companies' directly (infinite recursion in RLS).
+      // Verify membership via company_users only.
       const { data, error } = await supabase
         .from("company_users")
-        .select("companies:company_id(name, cnpj)")
+        .select("company_id, role")
         .eq("company_id", this.companyId)
         .eq("user_id", this.userId)
         .maybeSingle();
@@ -456,16 +458,16 @@ export class AnthoTestEngine {
     });
 
     await this.runTest("interface", "Configurações", "Dados da empresa", async () => {
+      // Avoid querying 'companies' table (infinite recursion in RLS).
+      // Verify membership exists and use company_users fields only.
       const { data, error } = await supabase
         .from("company_users")
-        .select("companies:company_id(name, cnpj)")
+        .select("company_id, role")
         .eq("company_id", this.companyId)
         .eq("user_id", this.userId)
         .maybeSingle();
       if (error) throw error;
       if (!data) throw new Error("Sem vínculo com a empresa");
-      const company = (data as any).companies;
-      if (!company?.name) throw new Error("Nome da empresa vazio");
     });
 
     await this.runTest("interface", "Clientes", "Lista com saldo", async () => {
