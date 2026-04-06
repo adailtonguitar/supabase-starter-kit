@@ -989,16 +989,41 @@ export default function NFeEmissao() {
             } else if (e && typeof e.message === "string") {
               errMsg = e.message;
               // Try to get response body from FunctionsHttpError
-              if (e.context && typeof e.context.json === "function") {
+              // The context can be a Response object — try .json() first, then .text()
+              if (e.context) {
                 try {
-                  const body = await e.context.json();
-                  if (body?.error) errMsg = body.error;
-                } catch { /* ignore */ }
+                  if (typeof e.context.json === "function") {
+                    const body = await e.context.json();
+                    console.log("[NFeEmissao] Error response body:", JSON.stringify(body));
+                    if (body?.error) errMsg = body.error;
+                    else if (body?.message) errMsg = body.message;
+                    else if (body?.mensagem) errMsg = body.mensagem;
+                    // If the body has success=false + rejection_reason, use that
+                    if (body?.rejection_reason) errMsg = body.rejection_reason;
+                  } else if (typeof e.context.text === "function") {
+                    const txt = await e.context.text();
+                    console.log("[NFeEmissao] Error response text:", txt);
+                    try {
+                      const parsed = JSON.parse(txt);
+                      if (parsed?.error) errMsg = parsed.error;
+                      else if (parsed?.rejection_reason) errMsg = parsed.rejection_reason;
+                    } catch {
+                      if (txt && txt.length < 500) errMsg = txt;
+                    }
+                  }
+                } catch (ctxParseErr) {
+                  console.warn("[NFeEmissao] Failed to parse error context:", ctxParseErr);
+                }
               }
             }
           } catch { /* keep default */ }
+          console.error("[NFeEmissao] SDK error final msg:", errMsg);
           setStep("error");
           setErrorMsg(errMsg);
+          try {
+            const rej = parseSefazRejection(errMsg);
+            setRejection(rej);
+          } catch { /* ignore */ }
           setEmitting(false);
           return;
         }
@@ -1009,9 +1034,11 @@ export default function NFeEmissao() {
           if (parsed && typeof parsed === "object" && typeof parsed.json === "function") {
             parsed = await parsed.json();
           }
-        } catch {
+        } catch (parseErr) {
+          console.error("[NFeEmissao] Failed to parse response data:", parseErr);
           parsed = null;
         }
+        console.log("[NFeEmissao] Parsed response:", parsed ? JSON.stringify(parsed).substring(0, 500) : "null");
         data = parsed;
     } catch (fetchErr: unknown) {
         const fetchErrObj = fetchErr instanceof Error ? fetchErr : null;
