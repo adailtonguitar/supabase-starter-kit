@@ -97,7 +97,7 @@ function extractUF(address: string): string {
 }
 
 const DANFE_CSS = `
-@import url('https://fonts.googleapis.com/css2?family=Libre+Barcode+128+Text&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Libre+Barcode+128&display=swap');
 
 @page { size: A4; margin: 8mm; }
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -146,8 +146,8 @@ body { font-family: Arial, Helvetica, sans-serif; font-size: 8px; color: #000; b
 .h-access { width: 50%; display: flex; flex-direction: column; }
 .h-fisco { border-bottom: 1px solid #000; padding: 2px 6px; }
 .h-fisco .fisco-lbl { font-size: 6px; color: #444; text-transform: uppercase; margin-bottom: 2px; }
-.h-fisco .barcode-area { display: flex; align-items: center; justify-content: center; min-height: 36px; overflow: hidden; }
-.h-fisco .barcode-text { font-family: 'Libre Barcode 128 Text', monospace; font-size: 48px; letter-spacing: 0; line-height: 1; }
+.h-fisco .barcode-area { display: flex; align-items: center; justify-content: center; min-height: 40px; overflow: hidden; }
+.h-fisco .barcode-text { font-family: 'Libre Barcode 128', monospace; font-size: 52px; letter-spacing: 0; line-height: 1; }
 .h-key { padding: 3px 6px; }
 .h-key .klbl { font-size: 6px; color: #444; text-transform: uppercase; margin-bottom: 1px; }
 .h-key .kval { font-size: 8.5px; font-family: monospace; word-break: break-all; text-align: center; letter-spacing: 0.5px; }
@@ -183,7 +183,7 @@ export function DANFePrintButton({ data }: { data: DANFeData }) {
     if (!content) return;
     const printWindow = window.open("", "_blank", "width=900,height=1200");
     if (!printWindow) return;
-    printWindow.document.write(`<!DOCTYPE html><html><head><title>DANFE - NF-e ${data.number || ""}</title><style>${DANFE_CSS}</style><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Libre+Barcode+128+Text&display=swap" rel="stylesheet"></head><body>${content.innerHTML}</body></html>`);
+    printWindow.document.write(`<!DOCTYPE html><html><head><title>DANFE - NF-e ${data.number || ""}</title><style>${DANFE_CSS}</style><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Libre+Barcode+128&display=swap" rel="stylesheet"></head><body>${content.innerHTML}</body></html>`);
     printWindow.document.close();
     setTimeout(() => { printWindow.print(); }, 800);
   };
