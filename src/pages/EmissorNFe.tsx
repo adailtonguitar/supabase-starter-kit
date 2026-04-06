@@ -798,7 +798,7 @@ export default function EmissorNFe() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background overflow-y-auto">
       {/* Header */}
       <header className="border-b border-border bg-card sticky top-0 z-30">
         <div className="max-w-6xl mx-auto px-4 h-16 flex items-center gap-4">
