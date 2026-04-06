@@ -24,7 +24,7 @@ export function AdminSystemStatus() {
     const check = async () => {
       const results: boolean[] = [];
       try { const { error } = await supabase.functions.invoke("admin-metrics"); results.push(!error); } catch { results.push(false); }
-      try { const { error } = await supabase.from("companies").select("id", { count: "exact", head: true }); results.push(!error); } catch { results.push(false); }
+      try { const { data, error } = await supabase.from("company_users").select("id", { count: "exact", head: true }); results.push(!error); } catch { results.push(false); }
       results.push(results[0]);
       try { const { error } = await supabase.storage.from("company-assets").list("", { limit: 1 }); results.push(!error); } catch { results.push(false); }
       setServices((prev) => prev.map((s, i) => ({ ...s, online: results[i] ?? false })));
