@@ -772,7 +772,7 @@ export default function EmissorNFe() {
 
   if (view === "new") {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-background overflow-y-auto">
         <header className="h-14 border-b border-border bg-card flex items-center px-4 gap-3 sticky top-0 z-30">
           <button
             onClick={() => { setView("list"); fetchDocs(); }}
