@@ -145,6 +145,33 @@ interface NFeCompanyInfo {
   logo_url: string | null;
 }
 
+interface DANFECompanySnapshot {
+  companyName: string;
+  companyCnpj: string;
+  companyIe: string;
+  companyAddress: string;
+  companyPhone: string;
+  logoUrl: string | null;
+}
+
+function formatCompanyAddress(source: {
+  address_street?: string | null;
+  address_number?: string | null;
+  address_neighborhood?: string | null;
+  address_city?: string | null;
+  address_state?: string | null;
+  address_zip?: string | null;
+}): string {
+  const line1 = [source.address_street, source.address_number].filter(Boolean).join(", ");
+  const cityUf = [source.address_city, source.address_state].filter(Boolean).join("/");
+  const line2 = [source.address_neighborhood, cityUf].filter(Boolean).join(", ");
+  const parts = [line1, line2];
+
+  if (source.address_zip) parts.push(`CEP: ${source.address_zip}`);
+
+  return parts.filter(Boolean).join(" – ");
+}
+
 // ── Item 7: Interfaces for products and clients ──
 interface NFeProduct {
   id: string;
@@ -216,6 +243,7 @@ export default function NFeEmissao() {
   const [companyCrt, setCompanyCrt] = useState<CRT>(1);
   const [successData, setSuccessData] = useState<NFeSuccessData | null>(null);
   const [companyInfo, setCompanyInfo] = useState<NFeCompanyInfo | null>(null);
+  const [danfeCompanySnapshot, setDanfeCompanySnapshot] = useState<DANFECompanySnapshot | null>(null);
   const [products, setProducts] = useState<NFeProduct[]>([]);
   const [productSearch, setProductSearch] = useState<Record<number, string>>({});
   const [showProductDropdown, setShowProductDropdown] = useState<number | null>(null);
@@ -241,6 +269,33 @@ export default function NFeEmissao() {
   });
   const [cepLoading, setCepLoading] = useState(false);
   const autoCepLookupInFlight = useRef<string | null>(null);
+
+  const resolvedDanfeCompany = useMemo<DANFECompanySnapshot>(() => ({
+    companyName: companyInfo?.trade_name || companyInfo?.name || companyName || "",
+    companyCnpj: companyInfo?.cnpj || hookCnpj || "",
+    companyIe: companyInfo?.ie || hookIe || "",
+    companyAddress: formatCompanyAddress({
+      address_street: companyInfo?.address_street ?? hookStreet,
+      address_number: companyInfo?.address_number ?? hookNumber,
+      address_neighborhood: companyInfo?.address_neighborhood ?? hookNeighborhood,
+      address_city: companyInfo?.address_city ?? hookCity,
+      address_state: companyInfo?.address_state ?? hookState,
+      address_zip: companyInfo?.address_zip,
+    }),
+    companyPhone: companyInfo?.phone || hookPhone || "",
+    logoUrl: companyInfo?.logo_url || logoUrl || null,
+  }), [companyInfo, companyName, hookCnpj, hookIe, hookPhone, hookStreet, hookNumber, hookNeighborhood, hookCity, hookState, logoUrl]);
+
+  const danfeCompanyData = useMemo(() => {
+    if (
+      danfeCompanySnapshot &&
+      (danfeCompanySnapshot.companyName || danfeCompanySnapshot.companyCnpj || danfeCompanySnapshot.companyAddress)
+    ) {
+      return danfeCompanySnapshot;
+    }
+
+    return resolvedDanfeCompany;
+  }, [danfeCompanySnapshot, resolvedDanfeCompany]);
 
   // Auto-lookup CEP via ViaCEP
   const applyCepDataToForm = useCallback((digits: string, data: ViaCepResponse) => {
@@ -315,13 +370,13 @@ export default function NFeEmissao() {
     if (!companyId) return;
     supabase.from("companies")
       .select("name, trade_name, cnpj, ie, phone, address_street, address_number, address_neighborhood, address_city, address_state, address_zip, logo_url")
-      .eq("id", companyId).single()
+      .eq("id", companyId)
+      .maybeSingle()
       .then(({ data, error }) => {
         if (error) console.warn("[NFeEmissao] Falha ao carregar company info:", error.message);
         if (data) {
           setCompanyInfo(data as NFeCompanyInfo);
-        } else if (companyName || hookCnpj) {
-          // Fallback: build companyInfo from useCompany hook data
+        } else if (companyName || hookCnpj || hookStreet || hookCity) {
           setCompanyInfo({
             name: companyName || "",
             trade_name: null,
@@ -898,8 +953,9 @@ export default function NFeEmissao() {
       }
 
       if (data?.success) {
-        setStep("success");
+        setDanfeCompanySnapshot(resolvedDanfeCompany);
         setSuccessData(data);
+        setStep("success");
         toast.success("NF-e emitida com sucesso!");
       } else {
         setStep("error");
@@ -926,6 +982,7 @@ export default function NFeEmissao() {
     setErrorMsg("");
     setRejection(null);
     setSuccessData(null);
+    setDanfeCompanySnapshot(null);
     setActiveTab("dest");
   };
 
@@ -969,21 +1026,12 @@ export default function NFeEmissao() {
           )}
           <div className="flex flex-wrap gap-2 justify-center">
             <DANFePrintButton data={{
-              companyName: companyInfo?.trade_name || companyInfo?.name || companyName || "",
-              companyCnpj: companyInfo?.cnpj || hookCnpj || "",
-              companyIe: companyInfo?.ie || hookIe || "",
-              companyAddress: (() => {
-                const st = companyInfo?.address_street || hookStreet || "";
-                const num = companyInfo?.address_number || hookNumber || "";
-                const bairro = companyInfo?.address_neighborhood || hookNeighborhood || "";
-                const city = companyInfo?.address_city || hookCity || "";
-                const uf = companyInfo?.address_state || hookState || "";
-                const cep = companyInfo?.address_zip || "";
-                if (!st && !city) return "";
-                return `${st}, ${num} – ${bairro}, ${city}/${uf}${cep ? ` - CEP: ${cep}` : ""}`;
-              })(),
-              companyPhone: companyInfo?.phone || hookPhone || "",
-              logoUrl: logoUrl,
+              companyName: danfeCompanyData.companyName,
+              companyCnpj: danfeCompanyData.companyCnpj,
+              companyIe: danfeCompanyData.companyIe,
+              companyAddress: danfeCompanyData.companyAddress,
+              companyPhone: danfeCompanyData.companyPhone,
+              logoUrl: danfeCompanyData.logoUrl,
               destName: form.destName,
               destDoc: form.destDoc,
               destIe: form.destIE,
