@@ -48,6 +48,13 @@ const FINALIDADE_OPTIONS = [
   { value: "4", label: "Devolução" },
 ];
 
+const PRESENCE_OPTIONS = [
+  { value: "1", label: "Presencial" },
+  { value: "2", label: "Internet" },
+  { value: "3", label: "Telefone" },
+  { value: "9", label: "Outros" },
+];
+
 const MONEY_TOLERANCE = 0.01;
 
 interface NFeItem {
@@ -84,6 +91,7 @@ interface NFeFormData {
   // Operação
   natOp: string;
   finalidade: string;
+  presenceType: string;
   infAdic: string;
   // Itens
   items: NFeItem[];
@@ -111,7 +119,7 @@ const emptyForm = (): NFeFormData => ({
   destName: "", destDoc: "", destIE: "", destEmail: "",
   destStreet: "", destNumber: "", destComplement: "", destNeighborhood: "",
   destCity: "", destCityCode: "", destUF: "", destZip: "",
-  natOp: "VENDA DE MERCADORIA", finalidade: "1", infAdic: "",
+  natOp: "VENDA DE MERCADORIA", finalidade: "1", presenceType: "1", infAdic: "",
   items: [],
   paymentMethod: "01", paymentValue: 0,
   frete: "9", transportName: "", transportDoc: "", transportPlate: "", transportUF: "",
@@ -413,7 +421,24 @@ export default function NFeEmissao() {
     }
   }, [form.destZip, form.destCityCode, handleSilentCepLookup]);
 
-  // Load company info for DANFE (with fallback from useCompany hook)
+  // Auto-detect CFOP: when destUF changes, update items 5xxx↔6xxx
+  useEffect(() => {
+    const emitUF = (hookState || "").toUpperCase().trim();
+    const destUFVal = form.destUF.toUpperCase().trim();
+    if (!emitUF || destUFVal.length !== 2 || form.items.length === 0) return;
+    const isInterstate = emitUF !== destUFVal;
+    setForm(prev => {
+      const updatedItems = prev.items.map(item => {
+        let cfop = item.cfop;
+        if (isInterstate && cfop.startsWith("5")) cfop = "6" + cfop.substring(1);
+        else if (!isInterstate && cfop.startsWith("6")) cfop = "5" + cfop.substring(1);
+        return cfop !== item.cfop ? { ...item, cfop } : item;
+      });
+      const changed = updatedItems.some((it, i) => it !== prev.items[i]);
+      return changed ? { ...prev, items: updatedItems } : prev;
+    });
+  }, [form.destUF, hookState]);
+
   useEffect(() => {
     if (!companyId) return;
     supabase.from("companies")
@@ -905,6 +930,7 @@ export default function NFeEmissao() {
             form: {
               nat_op: form.natOp,
               finalidade: form.finalidade,
+              presence_type: Number(form.presenceType) || 1,
               inf_adic: form.infAdic,
               dest_name: form.destName,
               dest_doc: form.destDoc,
@@ -1173,6 +1199,16 @@ export default function NFeEmissao() {
                   className="w-full mt-1 px-3 py-2 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
                 >
                   {FINALIDADE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </div>
+              <div className="w-[180px]">
+                <label className="text-xs text-muted-foreground font-medium">Tipo de Venda</label>
+                <select
+                  value={form.presenceType}
+                  onChange={(e) => setForm(p => ({ ...p, presenceType: e.target.value }))}
+                  className="w-full mt-1 px-3 py-2 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+                >
+                  {PRESENCE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
               </div>
             </div>
