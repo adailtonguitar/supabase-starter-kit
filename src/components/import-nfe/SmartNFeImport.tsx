@@ -17,6 +17,7 @@ import { logAction } from "@/services/ActionLogger";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
 import { parseNFeXML, validateDestCnpj, type NFeInfo, type NFeProduct } from "./nfe-xml-parser";
 
