@@ -1116,7 +1116,7 @@ export default function NFeEmissao() {
   ];
 
   return (
-    <div className="p-3 sm:p-6 max-w-4xl mx-auto space-y-4">
+    <div className="p-3 sm:p-6 pb-24 max-w-4xl mx-auto space-y-4 min-h-full">
       {/* Header */}
       <div className="flex items-center gap-3">
         <Link to="/fiscal" className="p-2 rounded-lg hover:bg-muted transition-colors">
@@ -1228,7 +1228,7 @@ export default function NFeEmissao() {
             ))}
           </div>
 
-          <div className="p-5 space-y-4">
+          <div className="p-5 space-y-4 overflow-x-hidden">
             {/* Operação info */}
             <div className="flex flex-wrap gap-3">
               <div className="flex-1 min-w-[200px]">

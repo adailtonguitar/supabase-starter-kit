@@ -772,8 +772,8 @@ export default function EmissorNFe() {
 
   if (view === "new") {
     return (
-      <div className="min-h-screen bg-background overflow-y-auto">
-        <header className="h-14 border-b border-border bg-card flex items-center px-4 gap-3 sticky top-0 z-30">
+      <div className="h-screen bg-background overflow-hidden flex flex-col">
+        <header className="h-14 shrink-0 border-b border-border bg-card flex items-center px-4 gap-3 sticky top-0 z-30">
           <button
             onClick={() => { setView("list"); fetchDocs(); }}
             className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
@@ -784,15 +784,17 @@ export default function EmissorNFe() {
           <div className="flex-1" />
           <ThemeToggle />
         </header>
-        <Suspense
-          fallback={
-            <div className="flex items-center justify-center h-[60vh]">
-              <Loader2 className="w-6 h-6 animate-spin text-primary" />
-            </div>
-          }
-        >
-          <NFeEmissao />
-        </Suspense>
+        <main className="flex-1 min-h-0 overflow-y-auto">
+          <Suspense
+            fallback={
+              <div className="flex items-center justify-center h-[60vh]">
+                <Loader2 className="w-6 h-6 animate-spin text-primary" />
+              </div>
+            }
+          >
+            <NFeEmissao />
+          </Suspense>
+        </main>
       </div>
     );
   }
