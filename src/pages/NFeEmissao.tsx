@@ -145,6 +145,33 @@ interface NFeCompanyInfo {
   logo_url: string | null;
 }
 
+interface DANFECompanySnapshot {
+  companyName: string;
+  companyCnpj: string;
+  companyIe: string;
+  companyAddress: string;
+  companyPhone: string;
+  logoUrl: string | null;
+}
+
+function formatCompanyAddress(source: {
+  address_street?: string | null;
+  address_number?: string | null;
+  address_neighborhood?: string | null;
+  address_city?: string | null;
+  address_state?: string | null;
+  address_zip?: string | null;
+}): string {
+  const line1 = [source.address_street, source.address_number].filter(Boolean).join(", ");
+  const cityUf = [source.address_city, source.address_state].filter(Boolean).join("/");
+  const line2 = [source.address_neighborhood, cityUf].filter(Boolean).join(", ");
+  const parts = [line1, line2];
+
+  if (source.address_zip) parts.push(`CEP: ${source.address_zip}`);
+
+  return parts.filter(Boolean).join(" – ");
+}
+
 // ── Item 7: Interfaces for products and clients ──
 interface NFeProduct {
   id: string;
