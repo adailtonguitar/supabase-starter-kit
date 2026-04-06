@@ -635,8 +635,25 @@ export default function NFeEmissao() {
       setActiveTab("dest");
       return;
     }
+    const destZipDigits = form.destZip.replace(/\D/g, "");
+    let resolvedDestCityCode = form.destCityCode.replace(/\D/g, "");
+
+    if (resolvedDestCityCode.length < 7) {
+      try {
+        const cepResult = await lookupCepData(destZipDigits);
+        const ibgeFromCep = cepResult?.data.ibge?.replace(/\D/g, "") || "";
+
+        if (ibgeFromCep.length >= 7 && cepResult) {
+          resolvedDestCityCode = ibgeFromCep;
+          applyCepDataToForm(cepResult.digits, cepResult.data);
+        }
+      } catch {
+        // mantém validação final abaixo
+      }
+    }
+
     // Código IBGE do município obrigatório para SEFAZ
-    if (!form.destCityCode.trim() || form.destCityCode.replace(/\D/g, "").length < 7) {
+    if (resolvedDestCityCode.length < 7) {
       toast.error("Código IBGE não resolvido. Preencha o CEP do destinatário corretamente para resolver automaticamente.");
       setActiveTab("dest");
       return;
@@ -780,7 +797,7 @@ export default function NFeEmissao() {
               dest_complement: form.destComplement,
               dest_neighborhood: form.destNeighborhood,
               dest_city: form.destCity,
-              dest_city_code: form.destCityCode,
+               dest_city_code: resolvedDestCityCode,
               dest_uf: form.destUF,
               dest_zip: form.destZip,
               payment_method: form.paymentMethod,
