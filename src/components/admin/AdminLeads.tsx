@@ -72,12 +72,12 @@ export function AdminLeads() {
       });
       (profiles ?? []).forEach(p => { if (p.email) profileMap[p.id] = p.email; });
     }
-    ]);
 
-    // Build email map from company_users (email column if available)
+    // Build email map: company_id -> email
     const userCompanyMap: Record<string, string> = {};
     (companyUsers ?? []).forEach((cu) => {
-      if (cu.email) userCompanyMap[cu.company_id] = cu.email;
+      const email = profileMap[cu.user_id];
+      if (email) userCompanyMap[cu.company_id] = email;
     });
 
     const planMap: Record<string, any> = {};
