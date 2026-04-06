@@ -1125,6 +1125,93 @@ async function handleEmitNfe(supabase: any, body: any) {
   const token = await getNuvemFiscalToken();
   const baseUrl = getApiBaseUrl();
 
+  // ─── Garantir que a empresa tem config de NF-e na Nuvem Fiscal ───
+  try {
+    const checkResp = await safeFetch(`${baseUrl}/empresas/${cnpjClean}/nfe`, {
+      headers: { Authorization: `Bearer ${token}` },
+    }, 5000);
+
+    if (checkResp.status === 404 || !checkResp.ok) {
+      console.log(`[emit-nfe] Config NF-e não encontrada na Nuvem Fiscal. Criando...`);
+
+      // Primeiro garantir que a empresa existe na Nuvem Fiscal
+      const empresaPayload: any = {
+        cpf_cnpj: cnpjClean,
+        inscricao_estadual: ieEmitClean,
+        nome_razao_social: sanitizeSefazText(company.name || company.trade_name, "EMITENTE"),
+        nome_fantasia: sanitizeSefazText(company.trade_name || company.name, "EMITENTE"),
+        endereco: {
+          logradouro: sanitizeSefazText(company.street || company.address || "Rua não informada", "Rua não informada"),
+          numero: company.number || company.address_number || "S/N",
+          bairro: sanitizeSefazText(company.neighborhood || "Centro", "Centro"),
+          codigo_municipio: ibgeClean,
+          cidade: sanitizeSefazText(company.city || "Não informada", "Não informada"),
+          uf: (company.state || "MA").toUpperCase(),
+          cep: (company.zip_code || company.cep || "00000000").replace(/\D/g, ""),
+          codigo_pais: "1058",
+          pais: "Brasil",
+        },
+      };
+
+      // Criar/atualizar empresa
+      await safeFetch(`${baseUrl}/empresas`, {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify(empresaPayload),
+      }, 8000);
+
+      // Configurar NF-e
+      const nfeConfigPayload: any = {
+        ambiente: ambiente === "producao" ? "producao" : "homologacao",
+      };
+
+      // Certificado A1 (se disponível)
+      if (certificate_base64) {
+        nfeConfigPayload.certificado = {
+          base64: certificate_base64,
+          password: certificate_password || "",
+        };
+      } else if (config.certificate_path) {
+        // Tentar buscar certificado do storage
+        try {
+          const { data: certData } = await supabase.storage
+            .from("company-backups")
+            .download(config.certificate_path);
+          if (certData) {
+            const arrayBuf = await certData.arrayBuffer();
+            const bytes = new Uint8Array(arrayBuf);
+            let binary = "";
+            for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+            nfeConfigPayload.certificado = {
+              base64: btoa(binary),
+              password: config.certificate_password || "",
+            };
+          }
+        } catch (certErr) {
+          console.warn("[emit-nfe] Falha ao buscar certificado do storage:", certErr);
+        }
+      }
+
+      const nfeConfigResp = await safeFetch(`${baseUrl}/empresas/${cnpjClean}/nfe`, {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify(nfeConfigPayload),
+      }, 8000);
+
+      if (!nfeConfigResp.ok) {
+        const errData = await nfeConfigResp.text().catch(() => "");
+        console.error(`[emit-nfe] Falha ao configurar NF-e na Nuvem Fiscal:`, errData);
+        return jsonResponse({
+          error: `Falha ao configurar NF-e na Nuvem Fiscal. Verifique o certificado digital e tente novamente. Detalhe: ${errData.slice(0, 300)}`,
+        }, 400);
+      }
+
+      console.log(`[emit-nfe] ✓ Config NF-e criada na Nuvem Fiscal para CNPJ ${cnpjClean}`);
+    }
+  } catch (configErr: any) {
+    console.warn("[emit-nfe] Erro ao verificar/criar config NF-e na Nuvem Fiscal (tentando emitir mesmo assim):", configErr.message);
+  }
+
   console.log(`[emit-nfe] ▶ Enviando para Nuvem Fiscal (NF-e)...`);
 
   // ─── Emissão NF-e com safeFetch ───
