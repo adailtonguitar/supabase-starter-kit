@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import {
   FileText, Send, Loader2, CheckCircle, AlertTriangle, X,
   Plus, Trash2, User, Package, CreditCard, Truck, Info, Lock, ArrowLeft, Search, Save
@@ -260,13 +260,31 @@ export default function NFeEmissao() {
     }
   }, []);
 
-  // Auto-resolve IBGE quando CEP muda (ex: preenchido via CNPJ lookup) e destCityCode está vazio
+  // Auto-resolve IBGE quando destZip muda e destCityCode está vazio (fallback silencioso)
+  const lastAutoLookupCep = useRef("");
   useEffect(() => {
     const digits = form.destZip.replace(/\D/g, "");
-    if (digits.length === 8 && (!form.destCityCode || form.destCityCode.replace(/\D/g, "").length < 7)) {
-      handleCepLookup(digits);
+    if (digits.length === 8 && digits !== lastAutoLookupCep.current && (!form.destCityCode || form.destCityCode.replace(/\D/g, "").length < 7)) {
+      lastAutoLookupCep.current = digits;
+      // Lookup silencioso — não mostrar erro se falhar
+      (async () => {
+        try {
+          const resp = await fetch(`https://viacep.com.br/ws/${digits}/json/`);
+          const data = await resp.json();
+          if (!data.erro && data.ibge) {
+            setForm(p => ({
+              ...p,
+              destCity: data.localidade || p.destCity,
+              destUF: data.uf || p.destUF,
+              destCityCode: data.ibge || p.destCityCode,
+              destStreet: data.logradouro || p.destStreet,
+              destNeighborhood: data.bairro || p.destNeighborhood,
+            }));
+          }
+        } catch { /* silencioso */ }
+      })();
     }
-  }, [form.destZip, form.destCityCode, handleCepLookup]);
+  }, [form.destZip, form.destCityCode]);
 
   // Load company info for DANFE
   useEffect(() => {
@@ -436,6 +454,7 @@ export default function NFeEmissao() {
   };
 
   const selectClient = (client: NFeClient) => {
+    const zip = (client.address_zip || "").replace(/\D/g, "");
     setForm(p => ({
       ...p,
       destName: client.name || "",
@@ -447,9 +466,14 @@ export default function NFeEmissao() {
       destComplement: client.address_complement || "",
       destNeighborhood: client.address_neighborhood || "",
       destCity: client.address_city || "",
+      destCityCode: (client as any).address_ibge_code || "",
       destUF: client.address_state || "",
       destZip: client.address_zip || "",
     }));
+    // Resolver IBGE via CEP se não disponível no cadastro
+    if (!(client as any).address_ibge_code && zip.length === 8) {
+      handleCepLookup(zip);
+    }
     setShowClientSearch(false);
     setClientSearch("");
     toast.success(`Cliente "${client.name}" selecionado`);
