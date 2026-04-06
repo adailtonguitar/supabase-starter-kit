@@ -309,7 +309,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { company_id, start_date, end_date } = await req.json();
+    const { company_id, start_date, end_date } = body;
 
     if (!company_id || !start_date || !end_date) {
       return new Response(
