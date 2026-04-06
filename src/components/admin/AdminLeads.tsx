@@ -31,7 +31,7 @@ export function AdminLeads() {
     const companies = await adminQuery<{ id: string; name: string; created_at: string; is_demo: boolean }>({
       table: "companies",
       select: "id, name, created_at, is_demo",
-      filters: [{ op: "eq", column: "is_demo", value: true }],
+      filters: [{ op: "is", column: "is_demo", value: true }],
       order: { column: "created_at", ascending: false },
       limit: 500,
     });
