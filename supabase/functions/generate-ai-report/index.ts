@@ -278,6 +278,17 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // Health-check probe — respond immediately without processing
+    const rawBody = await req.text();
+    let body: any = {};
+    try { body = JSON.parse(rawBody); } catch { /* empty or invalid */ }
+
+    if (body.health_check) {
+      return new Response(JSON.stringify({ status: "ok" }), {
+        headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
+      });
+    }
+
     // Validate auth
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
@@ -298,7 +309,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { company_id, start_date, end_date } = await req.json();
+    const { company_id, start_date, end_date } = body;
 
     if (!company_id || !start_date || !end_date) {
       return new Response(
