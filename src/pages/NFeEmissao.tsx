@@ -312,6 +312,8 @@ export default function NFeEmissao() {
   const [cepLoading, setCepLoading] = useState(false);
   const autoCepLookupInFlight = useRef<string | null>(null);
 
+  const backendDanfeCompany = useMemo(() => mapEmitenteToDanfeSnapshot(successData?.emitente, logoUrl), [successData?.emitente, logoUrl]);
+
   const resolvedDanfeCompany = useMemo<DANFECompanySnapshot>(() => ({
     companyName: companyInfo?.trade_name || companyInfo?.name || companyName || "",
     companyCnpj: companyInfo?.cnpj || hookCnpj || "",
@@ -329,6 +331,10 @@ export default function NFeEmissao() {
   }), [companyInfo, companyName, hookCnpj, hookIe, hookPhone, hookStreet, hookNumber, hookNeighborhood, hookCity, hookState, logoUrl]);
 
   const danfeCompanyData = useMemo(() => {
+    if (backendDanfeCompany && (backendDanfeCompany.companyName || backendDanfeCompany.companyCnpj || backendDanfeCompany.companyAddress)) {
+      return backendDanfeCompany;
+    }
+
     if (
       danfeCompanySnapshot &&
       (danfeCompanySnapshot.companyName || danfeCompanySnapshot.companyCnpj || danfeCompanySnapshot.companyAddress)
@@ -337,7 +343,7 @@ export default function NFeEmissao() {
     }
 
     return resolvedDanfeCompany;
-  }, [danfeCompanySnapshot, resolvedDanfeCompany]);
+  }, [backendDanfeCompany, danfeCompanySnapshot, resolvedDanfeCompany]);
 
   // Auto-lookup CEP via ViaCEP
   const applyCepDataToForm = useCallback((digits: string, data: ViaCepResponse) => {
