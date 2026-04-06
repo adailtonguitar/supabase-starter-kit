@@ -264,6 +264,7 @@ function EmissorSignUpModal({ onClose }: { onClose: () => void }) {
         toast.success("Conta criada! Faça login com suas credenciais.");
         navigate("/auth");
       } else {
+        localStorage.setItem("emissor_signup", "1");
         toast.success("Conta criada com sucesso! Redirecionando...");
         navigate("/emissor-nfe");
       }
