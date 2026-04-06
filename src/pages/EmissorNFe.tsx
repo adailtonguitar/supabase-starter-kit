@@ -772,7 +772,7 @@ export default function EmissorNFe() {
 
   if (view === "new") {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-background overflow-y-auto">
         <header className="h-14 border-b border-border bg-card flex items-center px-4 gap-3 sticky top-0 z-30">
           <button
             onClick={() => { setView("list"); fetchDocs(); }}
@@ -798,7 +798,7 @@ export default function EmissorNFe() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background overflow-y-auto">
       {/* Header */}
       <header className="border-b border-border bg-card sticky top-0 z-30">
         <div className="max-w-6xl mx-auto px-4 h-16 flex items-center gap-4">
@@ -830,7 +830,7 @@ export default function EmissorNFe() {
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-4 py-6 space-y-6">
+      <main className="max-w-6xl mx-auto px-4 py-6 pb-20 space-y-6">
         {/* Tab navigation */}
         <div className="flex gap-1 bg-muted/50 rounded-xl p-1 overflow-x-auto">
           {TABS.map(tab => (
