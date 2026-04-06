@@ -247,6 +247,57 @@ function formatConsultReason(data: Record<string, any>, fallback: string): strin
   return code && !reason.includes(`[${code}]`) ? `[${code}] ${reason}` : reason;
 }
 
+function normalizeCfopForDestination(baseCfop: unknown, isInterstate: boolean): string {
+  let cfop = String(baseCfop ?? "5102").trim();
+  if (!/^\d{4}$/.test(cfop)) cfop = "5102";
+  if (isInterstate && cfop.startsWith("5")) return `6${cfop.slice(1)}`;
+  if (!isInterstate && cfop.startsWith("6")) return `5${cfop.slice(1)}`;
+  return cfop;
+}
+
+function resolveProviderFiscalStatus(data: Record<string, any> | null | undefined) {
+  const statusStr = String(data?.status || "").toLowerCase();
+  const cStatStr = String(data?.codigo_status || data?.cStat || data?.status_sefaz?.codigo || "").trim();
+  const accessKey = String(data?.chave || data?.chave_acesso || data?.access_key || "").trim();
+  const protocolNumber = String(data?.protocolo || data?.numero_protocolo || data?.status_sefaz?.protocolo || "").trim();
+
+  const isDenied = statusStr.includes("rejei") || statusStr.includes("deneg") || ["110", "204", "301", "302", "539", "999"].includes(cStatStr);
+  const isContingency = statusStr.includes("contingencia") || statusStr.includes("contingência");
+  const isAuthorized = cStatStr === "100"
+    || statusStr.includes("autoriz")
+    || (statusStr.includes("aprovad") && !!protocolNumber);
+  const isPending = !isAuthorized && !isDenied && (
+    statusStr.includes("pendente")
+    || statusStr.includes("process")
+    || statusStr.includes("fila")
+    || statusStr.includes("recebid")
+    || statusStr.includes("aprovad")
+    || (!cStatStr && !protocolNumber)
+  );
+
+  const normalizedStatus = isDenied
+    ? "rejeitada"
+    : isAuthorized
+      ? "autorizada"
+      : isContingency
+        ? "contingencia"
+        : isPending
+          ? "pendente"
+          : "pendente";
+
+  return {
+    normalizedStatus,
+    isAuthorized,
+    isDenied,
+    isContingency,
+    isPending,
+    statusStr,
+    cStatStr,
+    accessKey,
+    protocolNumber,
+  };
+}
+
 async function resolveNuvemFiscalDocId(params: {
   token: string;
   baseUrl: string;
@@ -991,21 +1042,17 @@ async function handleEmitNfe(supabase: any, body: any) {
   let totalVProd = 0, totalVDesc = 0, totalVICMS = 0, totalVBCST = 0, totalVST = 0, totalVPIS = 0, totalVCOFINS = 0;
   let totalVFCPUFDest = 0, totalVICMSUFDest = 0, totalVICMSUFRemet = 0;
 
+  const resolvedItemsForReturn: Array<Record<string, unknown>> = [];
+
   const detItems = items.map((item: any, i: number) => {
     const ncm = (item.ncm || "").replace(/\D/g, "");
     if (!ncm || ncm.length < 2 || ncm === "00000000") {
       throw new Error(`Item ${i + 1} ("${item.name}") sem NCM válido.`);
     }
 
-    // Auto-detect CFOP: if interstate, convert 5xxx→6xxx automatically
-    let cfop = (item.cfop || "5102").trim();
+    const cfop = normalizeCfopForDestination(item.cfop || "5102", isInterstate);
     if (!cfop || cfop.length !== 4) {
       throw new Error(`Item ${i + 1} ("${item.name}") com CFOP inválido: "${cfop}"`);
-    }
-    if (isInterstate && cfop.startsWith("5")) {
-      cfop = "6" + cfop.substring(1);
-    } else if (!isInterstate && cfop.startsWith("6")) {
-      cfop = "5" + cfop.substring(1);
     }
 
     const qty = item.qty || item.quantity || 1;
@@ -1069,6 +1116,23 @@ async function handleEmitNfe(supabase: any, body: any) {
 
     const det: any = { nItem: i + 1, prod: prodBlock, imposto: impostoBlock };
     if (discount > 0) det.prod.vDesc = discount;
+
+    resolvedItemsForReturn.push({
+      name: item.name,
+      productCode: item.product_code || item.product_id || String(i + 1),
+      ncm,
+      cfop,
+      cst: String(item.cst || ""),
+      unit: item.unit || "UN",
+      qty,
+      unitPrice,
+      discount,
+      total: Math.round(vProdLiq * 100) / 100,
+      pisCst,
+      cofinsCst,
+      icmsAliquota: Number(item.icms_aliquota || 0),
+      origem: String(item.origem || "0"),
+    });
 
     return det;
   });
@@ -1413,21 +1477,11 @@ async function handleEmitNfe(supabase: any, body: any) {
   }
 
   // Detectar status
-  const statusStr = (nfData.status || "").toLowerCase();
-  const cStatStr = String(nfData.codigo_status || nfData.cStat || "");
-  const accessKey = nfData.chave || nfData.chave_acesso || nfData.access_key || "";
+  const emissionStatus = resolveProviderFiscalStatus(nfData);
+  const accessKey = emissionStatus.accessKey;
   const nuvemFiscalId = nfData.id || nfData.nuvem_fiscal_id || null;
-  const protocolNumber = nfData.protocolo || nfData.numero_protocolo || "";
-
-  const isAuthorized = statusStr.includes("autoriz") || statusStr.includes("aprovad") || cStatStr === "100";
-  const isContingency = statusStr.includes("contingencia") || statusStr.includes("contingência");
-  const isPending = statusStr.includes("pendente") || statusStr.includes("processando");
-
-  let finalStatus: string;
-  if (isAuthorized) finalStatus = "autorizada";
-  else if (isContingency) finalStatus = "contingencia";
-  else if (isPending) finalStatus = "pendente";
-  else finalStatus = "pendente";
+  const protocolNumber = emissionStatus.protocolNumber;
+  const finalStatus = emissionStatus.normalizedStatus;
 
   // Salvar documento fiscal
   await supabase.from("fiscal_documents").insert({
@@ -1435,18 +1489,21 @@ async function handleEmitNfe(supabase: any, body: any) {
     access_key: accessKey || null, protocol_number: protocolNumber || null,
     status: finalStatus, total_value: vNF, environment: ambiente,
     customer_name: form.dest_name || null, customer_cpf_cnpj: destDoc || null,
-    payment_method: mapTPagToLocalPaymentMethod(tPag), is_contingency: isContingency,
+    payment_method: mapTPagToLocalPaymentMethod(tPag), is_contingency: emissionStatus.isContingency,
   });
 
-  console.log(`[emit-nfe] ✓ NF-e #${numero} → ${finalStatus} | Chave: ${accessKey?.substring(0, 20)}... | ${Date.now() - t0}ms total`);
+  console.log(`[emit-nfe] ✓ NF-e #${numero} → ${finalStatus} | provider_status=${emissionStatus.statusStr || "(vazio)"} cStat=${emissionStatus.cStatStr || "(vazio)"} | Chave: ${accessKey?.substring(0, 20)}... | ${Date.now() - t0}ms total`);
 
   return jsonResponse({
-    success: true,
+    success: finalStatus === "autorizada" || finalStatus === "contingencia",
+    pending: finalStatus === "pendente",
     status: finalStatus,
     number: numero,
+    serie: String(config.serie || 1),
     access_key: accessKey,
     protocol: protocolNumber,
     nuvem_fiscal_id: nuvemFiscalId,
+    resolved_items: resolvedItemsForReturn,
     emitente: {
       cpf_cnpj: cnpjClean,
       inscricao_estadual: ieEmitClean || null,
@@ -1609,10 +1666,8 @@ async function handleConsultStatus(supabase: any, body: any, callerUserId?: stri
   if (!data) {
     return jsonResponse({ success: false, error: "Resposta vazia ao consultar status" }, 502);
   }
-  const status = (data.status || "").toLowerCase();
-  const isAuth = status.includes("autoriz") || status.includes("aprovad") || String(data.codigo_status) === "100";
-  const isDenied = status.includes("rejei") || status.includes("deneg") || ["110", "204", "301", "302", "539", "999"].includes(String(data.codigo_status || data.cStat || ""));
-  const normalizedStatus = isAuth ? "autorizada" : isDenied ? "rejeitada" : status || "pendente";
+  const consultStatus = resolveProviderFiscalStatus(data);
+  const normalizedStatus = consultStatus.normalizedStatus;
   const providerReason = formatConsultReason(data, normalizedStatus === "rejeitada" ? "Rejeição confirmada no provedor fiscal" : "");
 
   if (company_id) {
