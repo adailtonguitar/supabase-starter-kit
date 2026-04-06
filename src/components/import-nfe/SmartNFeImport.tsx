@@ -686,6 +686,43 @@ export default function SmartNFeImport() {
               </CardContent>
             </Card>
 
+            {/* Destinatário → Cliente */}
+            {nfeInfo.destInfo && nfeInfo.destInfo.name && (
+              <Card>
+                <CardContent className="pt-4 pb-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <Users className="w-4 h-4 text-primary" />
+                      <div className="flex flex-col">
+                        <span className="text-sm font-semibold text-foreground">Destinatário</span>
+                        <span className="text-xs text-muted-foreground">
+                          {nfeInfo.destInfo.name}
+                          {(nfeInfo.destInfo.cnpj || nfeInfo.destInfo.cpf) && ` — ${nfeInfo.destInfo.cnpj || nfeInfo.destInfo.cpf}`}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {destClientStatus === "exists" && (
+                        <Badge variant="default" className="text-xs"><CheckCircle2 className="w-3 h-3 mr-1" /> Já cadastrado</Badge>
+                      )}
+                      {destClientStatus === "created" && (
+                        <Badge variant="default" className="text-xs"><CheckCircle2 className="w-3 h-3 mr-1" /> Cadastrado</Badge>
+                      )}
+                      {destClientStatus === "none" && (
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <Checkbox
+                            checked={registerDest}
+                            onCheckedChange={(v) => setRegisterDest(!!v)}
+                          />
+                          <span className="text-xs text-muted-foreground">Cadastrar como cliente</span>
+                        </label>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             {/* Products Table */}
             <Card>
               <CardHeader className="pb-3">
