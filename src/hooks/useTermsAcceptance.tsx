@@ -31,21 +31,6 @@ export function useTermsAcceptance(): TermsAcceptance {
 
     const check = async () => {
       try {
-        // Demo companies skip terms entirely
-        const { data: companyData } = await supabase
-          .from("companies")
-          .select("is_demo")
-          .eq("id", companyId)
-          .maybeSingle();
-
-        const row = companyData as { is_demo?: boolean } | null;
-        if (row?.is_demo === true) {
-          setAccepted(true);
-          localStorage.setItem(cacheKey, "true");
-          setLoading(false);
-          return;
-        }
-
         const { data } = await supabase
           .from("terms_acceptance")
           .select("id")
