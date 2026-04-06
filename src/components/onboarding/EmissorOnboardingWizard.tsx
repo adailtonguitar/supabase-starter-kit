@@ -237,6 +237,14 @@ export function EmissorOnboardingWizard({ onComplete }: Props) {
                               setCompanyName(result.name || companyName);
                               setTradeName(result.trade_name || tradeName);
                               setPhone(result.phone || phone);
+                              if (result.address_street) setStreet(result.address_street);
+                              if (result.address_number) setNumber(result.address_number);
+                              if (result.address_complement) setComplement(result.address_complement);
+                              if (result.address_neighborhood) setNeighborhood(result.address_neighborhood);
+                              if (result.address_city) setCity(result.address_city);
+                              if (result.address_state) setUf(result.address_state);
+                              if (result.address_zip) setCep(result.address_zip);
+                              if (result.address_ibge_code) toast.info("Endereço preenchido automaticamente!");
                             }
                           }}
                           className="px-3 py-2 rounded-xl bg-muted border border-border text-foreground text-xs font-medium hover:bg-accent disabled:opacity-50 shrink-0">
