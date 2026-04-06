@@ -101,6 +101,27 @@ export default function SmartNFeImport() {
     }
   }, [step, nfeInfo?.supplierCnpj, suppliers]);
 
+  // Check if dest already exists as client
+  useEffect(() => {
+    if (step !== "results" || !nfeInfo?.destInfo) {
+      setDestClientStatus("none");
+      return;
+    }
+    const destDoc = (nfeInfo.destInfo.cnpj || nfeInfo.destInfo.cpf || "").replace(/\D/g, "");
+    if (!destDoc || !companyId) { setDestClientStatus("none"); return; }
+
+    (async () => {
+      const { data } = await supabase
+        .from("clients")
+        .select("id")
+        .eq("company_id", companyId)
+        .or(`cpf_cnpj.eq.${destDoc},cpf.eq.${destDoc},cnpj.eq.${destDoc}`)
+        .limit(1)
+        .maybeSingle();
+      setDestClientStatus(data ? "exists" : "none");
+    })();
+  }, [step, nfeInfo?.destInfo, companyId]);
+
   // Check existing products by barcode
   const enrichWithStockData = useCallback(async (info: NFeInfo) => {
     if (!companyId) return info;
