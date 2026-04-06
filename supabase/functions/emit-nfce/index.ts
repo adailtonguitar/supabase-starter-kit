@@ -131,6 +131,14 @@ function onlyDigits(v: unknown): string {
   return String(v ?? "").replace(/[^0-9]/g, "");
 }
 
+function pickFirstNonEmpty(...values: unknown[]): string {
+  for (const value of values) {
+    const normalized = String(value ?? "").trim();
+    if (normalized) return normalized;
+  }
+  return "";
+}
+
 function mapTPagToLocalPaymentMethod(tPag: unknown): string {
   switch (String(tPag ?? "").trim()) {
     case "01":
@@ -598,6 +606,13 @@ async function handleEmit(supabase: any, body: any) {
     String(company_id),
   )) as typeof companyRes.data;
 
+  const companyStreet = pickFirstNonEmpty(company.street, company.address_street, company.address);
+  const companyNumber = pickFirstNonEmpty(company.number, company.address_number);
+  const companyNeighborhood = pickFirstNonEmpty(company.neighborhood, company.address_neighborhood);
+  const companyCity = pickFirstNonEmpty(company.city, company.address_city);
+  const companyState = pickFirstNonEmpty(company.state, company.address_state, "MA").toUpperCase();
+  const companyZip = onlyDigits(pickFirstNonEmpty(company.zip_code, company.address_zip, company.cep));
+
   let config = configRes.data;
   // Fallback: se config_id foi passado mas não encontrou, buscar por company_id
   if (!config && config_id) {
@@ -735,8 +750,8 @@ async function handleEmit(supabase: any, body: any) {
   let ibgeCode = company.ibge_code || company.city_code || company.address_ibge_code || "";
   let ibgeClean = String(ibgeCode).replace(/\D/g, "");
   // Fallback: resolver IBGE via ViaCEP se não configurado
-  if ((!ibgeClean || ibgeClean.length < 7 || ibgeClean === "0000000") && (company.zip_code || company.cep)) {
-    const cepDigits = (company.zip_code || company.cep || "").replace(/\D/g, "");
+  if ((!ibgeClean || ibgeClean.length < 7 || ibgeClean === "0000000") && companyZip) {
+    const cepDigits = companyZip;
     if (cepDigits.length === 8) {
       try {
         const viacepResp = await safeFetch(`https://viacep.com.br/ws/${cepDigits}/json/`, {}, 5000);
@@ -745,7 +760,7 @@ async function handleEmit(supabase: any, body: any) {
           if (viacepData.ibge) {
             ibgeClean = String(viacepData.ibge).replace(/\D/g, "");
             // Persistir para não precisar consultar novamente
-            await supabase.from("companies").update({ ibge_code: ibgeClean }).eq("id", company_id);
+            await supabase.from("companies").update({ ibge_code: ibgeClean, address_ibge_code: ibgeClean }).eq("id", company_id);
             console.log(`[emit-nfce] IBGE resolvido via ViaCEP: ${ibgeClean}`);
           }
         }
@@ -765,15 +780,15 @@ async function handleEmit(supabase: any, body: any) {
   };
   if (ieEmitClean) emit.IE = ieEmitClean;
 
-  if (company.street || company.address) {
+  if (companyStreet) {
     emit.enderEmit = {
-      xLgr: sanitizeSefazText(company.street || company.address || "Rua não informada", "Rua não informada"),
-      nro: company.number || company.address_number || "S/N",
-      xBairro: sanitizeSefazText(company.neighborhood || "Centro", "Centro"),
+      xLgr: sanitizeSefazText(companyStreet || "Rua não informada", "Rua não informada"),
+      nro: companyNumber || "S/N",
+      xBairro: sanitizeSefazText(companyNeighborhood || "Centro", "Centro"),
       cMun: ibgeClean,
-      xMun: sanitizeSefazText(company.city || "Não informada", "Não informada"),
-      UF: sanitizeSefazText(company.state || "MA", "MA"),
-      CEP: (company.zip_code || company.cep || "00000000").replace(/\D/g, ""),
+      xMun: sanitizeSefazText(companyCity || "Não informada", "Não informada"),
+      UF: sanitizeSefazText(companyState || "MA", "MA"),
+      CEP: companyZip || "00000000",
       cPais: "1058", xPais: "Brasil",
     };
     if (company.complement) (emit.enderEmit as Record<string, unknown>).xCpl = company.complement;
@@ -986,6 +1001,13 @@ async function handleEmitNfe(supabase: any, body: any) {
     String(company_id),
   )) as typeof companyRes.data;
 
+  const companyStreet = pickFirstNonEmpty(company.street, company.address_street, company.address);
+  const companyNumber = pickFirstNonEmpty(company.number, company.address_number);
+  const companyNeighborhood = pickFirstNonEmpty(company.neighborhood, company.address_neighborhood);
+  const companyCity = pickFirstNonEmpty(company.city, company.address_city);
+  const companyState = pickFirstNonEmpty(company.state, company.address_state, "MA").toUpperCase();
+  const companyZip = onlyDigits(pickFirstNonEmpty(company.zip_code, company.address_zip, company.cep));
+
   let config = configRes.data;
   if (!config && config_id) {
     const { data } = await supabase.from("fiscal_configs").select("*")
@@ -1022,7 +1044,7 @@ async function handleEmitNfe(supabase: any, body: any) {
   const ambiente = config.environment === "producao" ? "producao" : "homologacao";
 
   // ─── Motor Fiscal Automático ───
-  const emitUF = (company.state || "MA").toUpperCase().trim();
+  const emitUF = companyState.trim();
   const destUF = (form.dest_uf || "").toUpperCase().trim();
   const rawPresence = Number(form.presence_type);
   const indPres = [1, 2, 3, 4, 9].includes(rawPresence) ? rawPresence : 1;
@@ -1252,8 +1274,8 @@ async function handleEmitNfe(supabase: any, body: any) {
   let ibgeCode = company.ibge_code || company.city_code || company.address_ibge_code || "";
   let ibgeClean = String(ibgeCode).replace(/\D/g, "");
   // Fallback: resolver IBGE via ViaCEP se não configurado
-  if ((!ibgeClean || ibgeClean.length < 7 || ibgeClean === "0000000") && (company.zip_code || company.cep)) {
-    const cepDigits = (company.zip_code || company.cep || "").replace(/\D/g, "");
+  if ((!ibgeClean || ibgeClean.length < 7 || ibgeClean === "0000000") && companyZip) {
+    const cepDigits = companyZip;
     if (cepDigits.length === 8) {
       try {
         const viacepResp = await safeFetch(`https://viacep.com.br/ws/${cepDigits}/json/`, {}, 5000);
@@ -1261,7 +1283,7 @@ async function handleEmitNfe(supabase: any, body: any) {
           const viacepData = await viacepResp.json();
           if (viacepData.ibge) {
             ibgeClean = String(viacepData.ibge).replace(/\D/g, "");
-            await supabase.from("companies").update({ ibge_code: ibgeClean }).eq("id", company_id);
+            await supabase.from("companies").update({ ibge_code: ibgeClean, address_ibge_code: ibgeClean }).eq("id", company_id);
             console.log(`[emit-nfe] IBGE resolvido via ViaCEP: ${ibgeClean}`);
           }
         }
@@ -1281,15 +1303,15 @@ async function handleEmitNfe(supabase: any, body: any) {
   };
   if (ieEmitClean) emit.IE = ieEmitClean;
 
-  if (company.street || company.address) {
+  if (companyStreet) {
     emit.enderEmit = {
-      xLgr: sanitizeSefazText(company.street || company.address || "Rua não informada", "Rua não informada"),
-      nro: company.number || company.address_number || "S/N",
-      xBairro: sanitizeSefazText(company.neighborhood || "Centro", "Centro"),
+      xLgr: sanitizeSefazText(companyStreet || "Rua não informada", "Rua não informada"),
+      nro: companyNumber || "S/N",
+      xBairro: sanitizeSefazText(companyNeighborhood || "Centro", "Centro"),
       cMun: ibgeClean,
-      xMun: sanitizeSefazText(company.city || "Não informada", "Não informada"),
-      UF: sanitizeSefazText(company.state || "MA", "MA"),
-      CEP: (company.zip_code || company.cep || "00000000").replace(/\D/g, ""),
+      xMun: sanitizeSefazText(companyCity || "Não informada", "Não informada"),
+      UF: sanitizeSefazText(companyState || "MA", "MA"),
+      CEP: companyZip || "00000000",
       cPais: "1058", xPais: "Brasil",
     };
     if (company.complement) (emit.enderEmit as Record<string, unknown>).xCpl = company.complement;

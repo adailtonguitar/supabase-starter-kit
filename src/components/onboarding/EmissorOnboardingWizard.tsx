@@ -92,6 +92,17 @@ export function EmissorOnboardingWizard({ onComplete }: Props) {
 
     setSaving(true);
     try {
+      let addressIbgeCode: string | null = null;
+      try {
+        const cepRes = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`);
+        const cepData = await cepRes.json();
+        if (!cepData?.erro && cepData?.ibge) {
+          addressIbgeCode = String(cepData.ibge).replace(/\D/g, "") || null;
+        }
+      } catch {
+        // segue sem bloquear — backend ainda pode resolver por CEP
+      }
+
       const { data, error } = await supabase.rpc("create_onboarding_company", {
         p_name: companyName.trim(),
         p_cnpj: cnpj.replace(/\D/g, ""),
@@ -125,6 +136,7 @@ export function EmissorOnboardingWizard({ onComplete }: Props) {
         address_city: city.trim(),
         address_state: uf,
         address_zip: cleanCep,
+        address_ibge_code: addressIbgeCode,
       } as any).eq("id", cu.company_id);
 
       if (updateError) throw updateError;

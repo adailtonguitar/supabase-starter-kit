@@ -259,13 +259,28 @@ export default function EmissorSettingsTab({ companyId }: { companyId: string })
 
     setSaving(true);
     try {
+      const cleanCep = form.address_zip.replace(/\D/g, "");
+      let addressIbgeCode: string | null = null;
+
+      if (cleanCep.length === 8) {
+        try {
+          const cepRes = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`);
+          const cepData = await cepRes.json();
+          if (!cepData?.erro && cepData?.ibge) {
+            addressIbgeCode = String(cepData.ibge).replace(/\D/g, "") || null;
+          }
+        } catch {
+          // não bloqueia o salvamento; a emissão ainda tenta fallback no backend
+        }
+      }
+
       const { error } = await supabase.from("companies").update({
         name: form.name.trim(), trade_name: form.trade_name.trim() || null,
         cnpj: form.cnpj.replace(/\D/g, ""), ie: form.ie.trim(), crt: form.crt,
         phone: form.phone.trim() || null, address_street: form.address_street.trim(),
         address_number: form.address_number.trim(), address_complement: form.address_complement.trim() || null,
         address_neighborhood: form.address_neighborhood.trim(), address_city: form.address_city.trim(),
-        address_state: form.address_state, address_zip: form.address_zip.replace(/\D/g, ""),
+        address_state: form.address_state, address_zip: cleanCep, address_ibge_code: addressIbgeCode,
       } as any).eq("id", companyId);
       if (error) throw error;
       logAction({ companyId, action: "Dados empresa emissor atualizados", module: "fiscal", details: form.name.trim() });
