@@ -581,7 +581,7 @@ export default function NFeEmissao() {
     }
     // Código IBGE do município obrigatório para SEFAZ
     if (!form.destCityCode.trim() || form.destCityCode.replace(/\D/g, "").length < 7) {
-      toast.error("Código IBGE do município é obrigatório para NF-e. Use a busca por CNPJ/CEP para preencher automaticamente.");
+      toast.error("Código IBGE não resolvido. Preencha o CEP do destinatário corretamente para resolver automaticamente.");
       setActiveTab("dest");
       return;
     }
