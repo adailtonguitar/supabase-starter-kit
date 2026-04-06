@@ -216,6 +216,7 @@ export default function NFeEmissao() {
   const [companyCrt, setCompanyCrt] = useState<CRT>(1);
   const [successData, setSuccessData] = useState<NFeSuccessData | null>(null);
   const [companyInfo, setCompanyInfo] = useState<NFeCompanyInfo | null>(null);
+  const [danfeCompanySnapshot, setDanfeCompanySnapshot] = useState<DANFECompanySnapshot | null>(null);
   const [products, setProducts] = useState<NFeProduct[]>([]);
   const [productSearch, setProductSearch] = useState<Record<number, string>>({});
   const [showProductDropdown, setShowProductDropdown] = useState<number | null>(null);
@@ -241,6 +242,33 @@ export default function NFeEmissao() {
   });
   const [cepLoading, setCepLoading] = useState(false);
   const autoCepLookupInFlight = useRef<string | null>(null);
+
+  const resolvedDanfeCompany = useMemo<DANFECompanySnapshot>(() => ({
+    companyName: companyInfo?.trade_name || companyInfo?.name || companyName || "",
+    companyCnpj: companyInfo?.cnpj || hookCnpj || "",
+    companyIe: companyInfo?.ie || hookIe || "",
+    companyAddress: formatCompanyAddress({
+      address_street: companyInfo?.address_street ?? hookStreet,
+      address_number: companyInfo?.address_number ?? hookNumber,
+      address_neighborhood: companyInfo?.address_neighborhood ?? hookNeighborhood,
+      address_city: companyInfo?.address_city ?? hookCity,
+      address_state: companyInfo?.address_state ?? hookState,
+      address_zip: companyInfo?.address_zip,
+    }),
+    companyPhone: companyInfo?.phone || hookPhone || "",
+    logoUrl: companyInfo?.logo_url || logoUrl || null,
+  }), [companyInfo, companyName, hookCnpj, hookIe, hookPhone, hookStreet, hookNumber, hookNeighborhood, hookCity, hookState, logoUrl]);
+
+  const danfeCompanyData = useMemo(() => {
+    if (
+      danfeCompanySnapshot &&
+      (danfeCompanySnapshot.companyName || danfeCompanySnapshot.companyCnpj || danfeCompanySnapshot.companyAddress)
+    ) {
+      return danfeCompanySnapshot;
+    }
+
+    return resolvedDanfeCompany;
+  }, [danfeCompanySnapshot, resolvedDanfeCompany]);
 
   // Auto-lookup CEP via ViaCEP
   const applyCepDataToForm = useCallback((digits: string, data: ViaCepResponse) => {
