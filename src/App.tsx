@@ -252,9 +252,9 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   }
 
   if (showOnboarding) {
-    const isEmissorRoute = window.location.pathname.startsWith("/emissor");
-    if (isEmissorRoute) {
-      return <EmissorOnboardingWizard onComplete={() => window.location.reload()} />;
+    const isEmissorFlow = window.location.pathname.startsWith("/emissor") || localStorage.getItem("emissor_signup") === "1";
+    if (isEmissorFlow) {
+      return <EmissorOnboardingWizard onComplete={() => { localStorage.removeItem("emissor_signup"); window.location.reload(); }} />;
     }
     return <OnboardingWizard onComplete={() => window.location.reload()} />;
   }
