@@ -830,7 +830,7 @@ export default function EmissorNFe() {
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-4 py-6 space-y-6">
+      <main className="max-w-6xl mx-auto px-4 py-6 pb-20 space-y-6">
         {/* Tab navigation */}
         <div className="flex gap-1 bg-muted/50 rounded-xl p-1 overflow-x-auto">
           {TABS.map(tab => (
