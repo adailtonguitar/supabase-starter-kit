@@ -48,6 +48,13 @@ const FINALIDADE_OPTIONS = [
   { value: "4", label: "Devolução" },
 ];
 
+const PRESENCE_OPTIONS = [
+  { value: "1", label: "Presencial" },
+  { value: "2", label: "Internet" },
+  { value: "3", label: "Telefone" },
+  { value: "9", label: "Outros" },
+];
+
 const MONEY_TOLERANCE = 0.01;
 
 interface NFeItem {
