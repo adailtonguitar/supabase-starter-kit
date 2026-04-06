@@ -42,9 +42,6 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: getCorsHeaders(req) });
 
   try {
-    const auth = await requireUser(req);
-    if (!auth.ok) return auth.response;
-
     const body = await req.json().catch(() => ({}));
     const companyName = typeof body.company_name === "string" ? body.company_name : "";
     const cnpj = typeof body.cnpj === "string" ? body.cnpj : "";
@@ -57,6 +54,9 @@ Deno.serve(async (req) => {
 
     // If NOT self-service, verify caller is super_admin
     if (!selfService) {
+      const auth = await requireUser(req);
+      if (!auth.ok) return auth.response;
+
       const { data: adminRoleRow } = await supabaseAdmin
         .from("admin_roles").select("role")
         .eq("user_id", auth.userId).maybeSingle();
