@@ -260,6 +260,14 @@ export default function NFeEmissao() {
     }
   }, []);
 
+  // Auto-resolve IBGE quando CEP muda (ex: preenchido via CNPJ lookup) e destCityCode está vazio
+  useEffect(() => {
+    const digits = form.destZip.replace(/\D/g, "");
+    if (digits.length === 8 && (!form.destCityCode || form.destCityCode.replace(/\D/g, "").length < 7)) {
+      handleCepLookup(digits);
+    }
+  }, [form.destZip, form.destCityCode, handleCepLookup]);
+
   // Load company info for DANFE
   useEffect(() => {
     if (!companyId) return;
@@ -1137,6 +1145,11 @@ export default function NFeEmissao() {
                               destUF: result.address_state || p.destUF,
                               destZip: result.address_zip || p.destZip,
                             }));
+                            // Se IBGE não veio do CNPJ lookup, resolver via CEP
+                            const zip = result.address_zip?.replace(/\D/g, "") || "";
+                            if (!result.address_ibge_code && zip.length === 8) {
+                              handleCepLookup(zip);
+                            }
                           }
                         }}
                         className="px-3 py-2 rounded-lg border border-border bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-40"
