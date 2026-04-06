@@ -93,7 +93,7 @@ export function useCnpjLookup() {
         // BrasilAPI failed (CORS/network), try fallback
       }
 
-      // Fallback: publica.cnpj.ws
+      // Fallback 1: publica.cnpj.ws
       if (!data) {
         try {
           const res2 = await fetch(`https://publica.cnpj.ws/cnpj/${clean}`);
@@ -119,7 +119,37 @@ export function useCnpjLookup() {
             };
           }
         } catch {
-          // Fallback also failed
+          // publica.cnpj.ws failed
+        }
+      }
+
+      // Fallback 2: minhareceita.org (open-source, CORS-friendly)
+      if (!data) {
+        try {
+          const res3 = await fetch(`https://minhareceita.org/${clean}`);
+          if (res3.ok) {
+            const raw = await res3.json();
+            data = {
+              razao_social: raw.razao_social || "",
+              nome_fantasia: raw.nome_fantasia || "",
+              cnpj: clean,
+              logradouro: raw.logradouro || "",
+              numero: raw.numero || "",
+              complemento: raw.complemento || "",
+              bairro: raw.bairro || "",
+              municipio: raw.municipio || "",
+              uf: raw.uf || "",
+              cep: raw.cep || "",
+              email: raw.email || "",
+              ddd_telefone_1: raw.ddd_telefone_1 || "",
+              codigo_ibge_municipio: raw.codigo_municipio_ibge ? String(raw.codigo_municipio_ibge) : (raw.codigo_municipio ? String(raw.codigo_municipio) : ""),
+              situacao_cadastral: raw.descricao_situacao_cadastral || "",
+              descricao_situacao_cadastral: raw.descricao_situacao_cadastral || "",
+              qsa: raw.qsa?.map((s: any) => ({ nome_socio: s.nome_socio || "" })) || [],
+            };
+          }
+        } catch {
+          // minhareceita.org failed
         }
       }
 
