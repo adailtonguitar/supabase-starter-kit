@@ -183,7 +183,7 @@ export function DANFePrintButton({ data }: { data: DANFeData }) {
     if (!content) return;
     const printWindow = window.open("", "_blank", "width=900,height=1200");
     if (!printWindow) return;
-    printWindow.document.write(`<!DOCTYPE html><html><head><title>DANFE - NF-e ${data.number || ""}</title><style>${DANFE_CSS}</style><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Libre+Barcode+128+Text&display=swap" rel="stylesheet"></head><body>${content.innerHTML}</body></html>`);
+    printWindow.document.write(`<!DOCTYPE html><html><head><title>DANFE - NF-e ${data.number || ""}</title><style>${DANFE_CSS}</style><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Libre+Barcode+128&display=swap" rel="stylesheet"></head><body>${content.innerHTML}</body></html>`);
     printWindow.document.close();
     setTimeout(() => { printWindow.print(); }, 800);
   };
