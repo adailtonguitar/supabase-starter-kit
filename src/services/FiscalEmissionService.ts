@@ -17,7 +17,7 @@ function getErrorMessage(err: unknown): string {
 }
 
 function getFunctionName(docType: DocType): string {
-  return docType === "nfce" ? "emit-nfce" : "emit-nfe";
+  return "emit-nfce";
 }
 
 export class FiscalEmissionService {
