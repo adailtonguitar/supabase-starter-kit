@@ -169,9 +169,11 @@ export class AnthoTestEngine {
       if (error) throw new Error("Sem acesso aos dados da empresa: " + error.message);
     });
     await this.runTest("api", "Empresa", "Configurações da empresa", async () => {
+      // Avoid querying 'companies' directly (infinite recursion in RLS).
+      // Verify membership via company_users only.
       const { data, error } = await supabase
         .from("company_users")
-        .select("companies:company_id(name, cnpj)")
+        .select("company_id, role")
         .eq("company_id", this.companyId)
         .eq("user_id", this.userId)
         .maybeSingle();
