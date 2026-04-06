@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { isValidCnpj } from "@/lib/cpf-cnpj-validator";
+import { supabase } from "@/integrations/supabase/client";
 
 interface CnpjData {
   razao_social: string;
@@ -39,6 +40,12 @@ interface PublicaCnpjWsResponse {
     situacao_cadastral?: string;
   };
   socios?: Array<{ nome?: string }>;
+}
+
+interface LookupCnpjFunctionResponse {
+  found?: boolean;
+  error?: string;
+  data?: CnpjData;
 }
 
 export interface CnpjResult {
@@ -83,78 +90,20 @@ export function useCnpjLookup() {
     try {
       let data: CnpjData | null = null;
 
-      // Try BrasilAPI first
-      try {
-        const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${clean}`);
-        if (res.ok) {
-          data = await res.json();
-        }
-      } catch {
-        // BrasilAPI failed (CORS/network), try fallback
+      const { data: response, error } = await supabase.functions.invoke<LookupCnpjFunctionResponse>("lookup-cnpj", {
+        body: { cnpj: clean },
+      });
+
+      if (error) {
+        throw error;
       }
 
-      // Fallback 1: publica.cnpj.ws
-      if (!data) {
-        try {
-          const res2 = await fetch(`https://publica.cnpj.ws/cnpj/${clean}`);
-          if (res2.ok) {
-            const raw = (await res2.json()) as PublicaCnpjWsResponse;
-            data = {
-              razao_social: raw.razao_social || "",
-              nome_fantasia: raw.estabelecimento?.nome_fantasia || "",
-              cnpj: clean,
-              logradouro: raw.estabelecimento?.logradouro || "",
-              numero: raw.estabelecimento?.numero || "",
-              complemento: raw.estabelecimento?.complemento || "",
-              bairro: raw.estabelecimento?.bairro || "",
-              municipio: raw.estabelecimento?.cidade?.nome || "",
-              uf: raw.estabelecimento?.estado?.sigla || "",
-              cep: raw.estabelecimento?.cep || "",
-              email: raw.estabelecimento?.email || "",
-              ddd_telefone_1: raw.estabelecimento?.ddd1 && raw.estabelecimento?.telefone1
-                ? `${raw.estabelecimento.ddd1}${raw.estabelecimento.telefone1}` : "",
-              codigo_ibge_municipio: raw.estabelecimento?.cidade?.ibge_id ? String(raw.estabelecimento.cidade.ibge_id) : "",
-              descricao_situacao_cadastral: raw.estabelecimento?.situacao_cadastral || "",
-              qsa: raw.socios?.map((s) => ({ nome_socio: s.nome || "" })) || [],
-            };
-          }
-        } catch {
-          // publica.cnpj.ws failed
-        }
-      }
-
-      // Fallback 2: minhareceita.org (open-source, CORS-friendly)
-      if (!data) {
-        try {
-          const res3 = await fetch(`https://minhareceita.org/${clean}`);
-          if (res3.ok) {
-            const raw = await res3.json();
-            data = {
-              razao_social: raw.razao_social || "",
-              nome_fantasia: raw.nome_fantasia || "",
-              cnpj: clean,
-              logradouro: raw.logradouro || "",
-              numero: raw.numero || "",
-              complemento: raw.complemento || "",
-              bairro: raw.bairro || "",
-              municipio: raw.municipio || "",
-              uf: raw.uf || "",
-              cep: raw.cep || "",
-              email: raw.email || "",
-              ddd_telefone_1: raw.ddd_telefone_1 || "",
-              codigo_ibge_municipio: raw.codigo_municipio_ibge ? String(raw.codigo_municipio_ibge) : (raw.codigo_municipio ? String(raw.codigo_municipio) : ""),
-              situacao_cadastral: raw.descricao_situacao_cadastral || "",
-              descricao_situacao_cadastral: raw.descricao_situacao_cadastral || "",
-              qsa: raw.qsa?.map((s: any) => ({ nome_socio: s.nome_socio || "" })) || [],
-            };
-          }
-        } catch {
-          // minhareceita.org failed
-        }
+      if (response?.found && response.data) {
+        data = response.data;
       }
 
       if (!data) {
-        toast.error("CNPJ não encontrado — tente novamente em alguns segundos");
+        toast.error(response?.error || "CNPJ não encontrado — tente novamente em alguns segundos");
         return null;
       }
 
