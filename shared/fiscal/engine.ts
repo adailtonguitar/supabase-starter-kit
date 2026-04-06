@@ -233,7 +233,12 @@ export function resolveFiscal(
   // Simples Nacional: ICMS não destacado (0.00)
 
   // 5. DIFAL — somente interestadual + não contribuinte
-  let difal = calculateDifal(0, emitUF, destUF); // default sem DIFAL
+  const noDifal: DifalResult = {
+    applies: false, vBCUFDest: 0, pFCPUFDest: 0, pICMSUFDest: 0,
+    pICMSInter: 0, pICMSInterPart: 100, vFCPUFDest: 0,
+    vICMSUFDest: 0, vICMSUFRemet: 0,
+  };
+  let difal = noDifal;
   if (isInterstate && !isContribuinte(destinatario)) {
     difal = calculateDifal(produto.valor, emitUF, destUF, taxRule);
   }
