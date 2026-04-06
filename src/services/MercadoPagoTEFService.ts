@@ -1,13 +1,15 @@
 import { supabase } from "@/integrations/supabase/client";
 
 export class MercadoPagoTEFService {
-  static async refundPayment(params: { accessToken: string; paymentId: string; amount?: number }) {
+  /**
+   * Refund via tef-gateway edge function.
+   * Credentials are fetched server-side — only paymentId and amount are sent.
+   */
+  static async refundPayment(params: { paymentId: string; amount?: number }) {
     try {
       const { data, error } = await supabase.functions.invoke("tef-gateway", {
         body: {
           action: "cancel",
-          provider: "mercadopago",
-          accessToken: params.accessToken,
           transactionId: params.paymentId,
           amount: params.amount,
         },

@@ -7,7 +7,6 @@ function buildCorsHeaders(req: Request) {
     .map((s) => s.trim())
     .filter(Boolean);
 
-  // Default: if not configured, keep permissive for local dev but still avoid reflecting arbitrary origins.
   const allowOrigin =
     allowed.length > 0
       ? (allowed.includes(origin) ? origin : allowed[0])
@@ -27,6 +26,52 @@ function json(req: Request, body: unknown, status = 200) {
     status,
     headers: { ...buildCorsHeaders(req), "Content-Type": "application/json" },
   });
+}
+
+// ─── Fetch credentials server-side from tef_config ───
+interface TEFCredentials {
+  provider: string;
+  environment: string;
+  api_key?: string;
+  api_secret?: string;
+  merchant_id?: string;
+  terminal_id?: string;
+}
+
+async function fetchTEFCredentials(userId: string): Promise<TEFCredentials | null> {
+  const supabaseAdmin = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+  );
+
+  // Get user's active company
+  const { data: membership } = await supabaseAdmin
+    .from("company_users")
+    .select("company_id")
+    .eq("user_id", userId)
+    .eq("is_active", true)
+    .limit(1)
+    .maybeSingle();
+
+  if (!membership?.company_id) return null;
+
+  // Get TEF config for that company
+  const { data: config } = await supabaseAdmin
+    .from("tef_config")
+    .select("*")
+    .eq("company_id", membership.company_id)
+    .maybeSingle();
+
+  if (!config) return null;
+
+  return {
+    provider: config.provider || "",
+    environment: config.environment || "sandbox",
+    api_key: config.api_key || "",
+    api_secret: config.api_secret || "",
+    merchant_id: config.merchant_id || "",
+    terminal_id: config.terminal_id || "",
+  };
 }
 
 // ─── Cielo API 3.0 ───
@@ -214,6 +259,24 @@ function buildMercadopagoPayload(amount: number, installments: number, descripti
   };
 }
 
+// ─── Map provider name to credential fields ───
+function resolveProviderCredentials(provider: string, creds: TEFCredentials) {
+  switch (provider) {
+    case "cielo":
+      return { merchantId: creds.merchant_id || "", merchantKey: creds.api_key || "" };
+    case "rede":
+      return { pv: creds.merchant_id || "", integrationKey: creds.api_secret || creds.api_key || "" };
+    case "pagseguro":
+      return { accessToken: creds.api_key || "" };
+    case "stone":
+      return { apiKey: creds.api_key || "" };
+    case "mercadopago":
+      return { accessToken: creds.api_key || "" };
+    default:
+      return {};
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: buildCorsHeaders(req) });
 
@@ -231,13 +294,6 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const {
       action,
-      provider,
-      environment = "sandbox",
-      merchantId,
-      apiKey,
-      pv,
-      integrationKey,
-      accessToken,
       amount,
       installments = 1,
       paymentType = "credito",
@@ -247,17 +303,23 @@ Deno.serve(async (req) => {
       description,
     } = body ?? {};
 
+    // Fetch credentials server-side — never trust client
+    const creds = await fetchTEFCredentials(user.id);
+    if (!creds || !creds.provider) {
+      return json(req, { error: "TEF não configurado para esta empresa" }, 400);
+    }
+
+    const provider = creds.provider;
+    const environment = creds.environment || "sandbox";
+
     const allowedProviders = ["cielo", "rede", "pagseguro", "stone", "mercadopago"] as const;
     const allowedActions = ["create", "check", "cancel", "test"] as const;
 
-    if (!provider || !allowedProviders.includes(provider)) {
+    if (!allowedProviders.includes(provider as any)) {
       return json(req, { error: "Provedor inválido" }, 400);
     }
     if (!action || !allowedActions.includes(action)) {
       return json(req, { error: "Ação inválida" }, 400);
-    }
-    if (environment !== "sandbox" && environment !== "production") {
-      return json(req, { error: "Ambiente inválido" }, 400);
     }
 
     // Basic financial validation
@@ -271,42 +333,43 @@ Deno.serve(async (req) => {
       if (!Number.isFinite(inst) || inst < 1 || inst > 24) return json(req, { error: "Parcelas inválidas" }, 400);
     }
 
+    const resolved = resolveProviderCredentials(provider, creds);
     let result: unknown;
 
     switch (provider) {
       case "cielo": {
-        const mId = merchantId || "";
-        const mKey = apiKey || "";
-        if (!mId || !mKey) return json(req, { error: "Credenciais Cielo ausentes" }, 400);
+        const mId = resolved.merchantId || "";
+        const mKey = resolved.merchantKey || "";
+        if (!mId || !mKey) return json(req, { error: "Credenciais Cielo ausentes na configuração" }, 400);
         const payload = action === "create" ? buildCieloPayload(amt, inst, String(paymentType || "credito"), String(orderId || `PDV-${Date.now()}`)) : { amount: amt, chargeId };
         result = await cieloRequest(environment, mId, mKey, action, payload, transactionId);
         break;
       }
       case "rede": {
-        const pvNum = pv || merchantId || "";
-        const iKey = integrationKey || apiKey || "";
-        if (!pvNum || !iKey) return json(req, { error: "Credenciais Rede ausentes" }, 400);
+        const pvNum = resolved.pv || "";
+        const iKey = resolved.integrationKey || "";
+        if (!pvNum || !iKey) return json(req, { error: "Credenciais Rede ausentes na configuração" }, 400);
         const payload = action === "create" ? buildRedePayload(amt, inst, String(orderId || `PDV-${Date.now()}`)) : { amount: amt };
         result = await redeRequest(environment, pvNum, iKey, action, payload, transactionId);
         break;
       }
       case "pagseguro": {
-        const at = accessToken || apiKey || "";
-        if (!at) return json(req, { error: "Credenciais PagSeguro ausentes" }, 400);
+        const at = resolved.accessToken || "";
+        if (!at) return json(req, { error: "Credenciais PagSeguro ausentes na configuração" }, 400);
         const payload = action === "create" ? buildPagseguroPayload(amt, String(orderId || `PDV-${Date.now()}`)) : { chargeId, amount: amt };
         result = await pagseguroRequest(environment, at, action, payload, transactionId);
         break;
       }
       case "stone": {
-        const key = apiKey || "";
-        if (!key) return json(req, { error: "Credenciais Stone ausentes" }, 400);
+        const key = resolved.apiKey || "";
+        if (!key) return json(req, { error: "Credenciais Stone ausentes na configuração" }, 400);
         const payload = action === "create" ? buildStonePayload(amt, inst, String(orderId || `PDV-${Date.now()}`)) : { chargeId };
         result = await stoneRequest(environment, key, action, payload, transactionId);
         break;
       }
       case "mercadopago": {
-        const at = accessToken || apiKey || "";
-        if (!at) return json(req, { error: "Credenciais Mercado Pago ausentes" }, 400);
+        const at = resolved.accessToken || "";
+        if (!at) return json(req, { error: "Credenciais Mercado Pago ausentes na configuração" }, 400);
         const payload = action === "create" ? buildMercadopagoPayload(amt, inst, String(description || "Venda PDV")) : { amount: amt };
         result = await mercadopagoRequest(environment, at, action, payload, transactionId);
         break;

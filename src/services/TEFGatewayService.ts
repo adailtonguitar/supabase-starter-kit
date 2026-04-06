@@ -16,36 +16,7 @@ export interface TEFGatewayResult {
   rawData?: unknown;
 }
 
-type TEFProvider = "cielo" | "rede" | "pagseguro" | "stone";
-
-interface ProviderCredentials {
-  provider: TEFProvider;
-  environment: string;
-  merchantId?: string;
-  merchantKey?: string;
-  pv?: string;
-  integrationKey?: string;
-  apiKey?: string;
-  accessToken?: string;
-}
-
-async function callGateway(body: Record<string, unknown>) {
-  const { data, error } = await supabase.functions.invoke("tef-gateway", { body });
-  if (error) throw new Error(error.message || "Erro ao chamar gateway TEF");
-  if (!data?.success) throw new Error(data?.data?.message || data?.error || "Transação não processada");
-  return data;
-}
-
-function buildCredentials(creds: ProviderCredentials): Record<string, unknown> {
-  const base: Record<string, unknown> = { provider: creds.provider, environment: creds.environment };
-  switch (creds.provider) {
-    case "cielo": base.merchantId = creds.merchantId; base.merchantKey = creds.merchantKey || creds.apiKey; break;
-    case "rede": base.pv = creds.pv || creds.merchantId; base.integrationKey = creds.integrationKey || creds.apiKey; break;
-    case "pagseguro": base.accessToken = creds.accessToken || creds.apiKey; break;
-    case "stone": base.apiKey = creds.apiKey; break;
-  }
-  return base;
-}
+type TEFProvider = "cielo" | "rede" | "pagseguro" | "stone" | "mercadopago";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function normalizeResult(provider: TEFProvider, data: Record<string, any>): TEFGatewayResult {
@@ -67,42 +38,64 @@ function normalizeResult(provider: TEFProvider, data: Record<string, any>): TEFG
       const approved = chargeStatus === "PAID" || chargeStatus === "AUTHORIZED";
       return { approved, transactionId: String(data?.id ?? ""), nsu: String(charge?.payment_response?.reference ?? ""), authCode: String(charge?.payment_response?.code ?? ""), status: approved ? "approved" : String(chargeStatus ?? "unknown"), rawData: data };
     }
-    case "stone": {
+    case "stone":
+    case "mercadopago": {
       const charges = Array.isArray(data?.charges) ? data.charges : [];
       const charge = charges[0] || {};
       const lastTransaction = charge?.last_transaction || {};
       const chargeStatus = charge?.status || data?.status;
-      const approved = chargeStatus === "paid" || chargeStatus === "captured";
+      const approved = chargeStatus === "paid" || chargeStatus === "captured" || chargeStatus === "approved";
       return { approved, transactionId: String(data?.id ?? ""), nsu: String(lastTransaction?.acquirer_nsu ?? ""), authCode: String(lastTransaction?.acquirer_auth_code ?? ""), cardBrand: String(lastTransaction?.card?.brand ?? ""), cardLastDigits: String(lastTransaction?.card?.last_four_digits ?? ""), status: approved ? "approved" : String(chargeStatus ?? "unknown"), rawData: data };
     }
     default: return { approved: false, errorMessage: "Provedor desconhecido" };
   }
 }
 
+async function callGateway(body: Record<string, unknown>) {
+  const { data, error } = await supabase.functions.invoke("tef-gateway", { body });
+  if (error) throw new Error(error.message || "Erro ao chamar gateway TEF");
+  if (!data?.success) throw new Error(data?.data?.message || data?.error || "Transação não processada");
+  return data;
+}
+
 export class TEFGatewayService {
+  /**
+   * Credentials are fetched server-side by the edge function.
+   * The client only sends action, amount, and payment details.
+   */
   static async processPayment(params: {
-    credentials: ProviderCredentials;
+    provider: TEFProvider;
     amount: number;
     installments?: number;
     paymentType?: string;
     description?: string;
     onStatusChange?: (status: string) => void;
   }): Promise<TEFGatewayResult> {
-    const { credentials, amount, installments, paymentType, onStatusChange } = params;
+    const { provider, amount, installments, paymentType, onStatusChange } = params;
     const orderId = `PDV-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    onStatusChange?.(`Conectando com ${credentials.provider.toUpperCase()}...`);
+    onStatusChange?.(`Conectando com ${provider.toUpperCase()}...`);
     try {
       onStatusChange?.("Criando transação...");
-      const createResp = await callGateway({ ...buildCredentials(credentials), action: "create", amount, installments: installments || 1, paymentType: paymentType || "credito", orderId, description: params.description || "Venda PDV" });
-      const initialResult = normalizeResult(credentials.provider, createResp.data);
-      if (initialResult.approved || initialResult.status === "denied") { onStatusChange?.(initialResult.approved ? "Pagamento aprovado!" : "Pagamento negado"); return initialResult; }
+      const createResp = await callGateway({
+        action: "create",
+        amount,
+        installments: installments || 1,
+        paymentType: paymentType || "credito",
+        orderId,
+        description: params.description || "Venda PDV",
+      });
+      const initialResult = normalizeResult(provider, createResp.data);
+      if (initialResult.approved || initialResult.status === "denied") {
+        onStatusChange?.(initialResult.approved ? "Pagamento aprovado!" : "Pagamento negado");
+        return initialResult;
+      }
       const transactionId = initialResult.transactionId || orderId;
       onStatusChange?.("Aguardando processamento...");
       for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS; attempt++) {
         await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
         try {
-          const checkResp = await callGateway({ ...buildCredentials(credentials), action: "check", transactionId });
-          const checkResult = normalizeResult(credentials.provider, checkResp.data);
+          const checkResp = await callGateway({ action: "check", transactionId });
+          const checkResult = normalizeResult(provider, checkResp.data);
           if (checkResult.approved) { onStatusChange?.("Pagamento aprovado!"); return checkResult; }
           if (["denied", "cancelled", "failed"].includes(checkResult.status || "")) { onStatusChange?.("Pagamento negado"); return checkResult; }
           onStatusChange?.(`Processando... (${attempt + 1})`);
@@ -115,8 +108,12 @@ export class TEFGatewayService {
     }
   }
 
-  static async cancelTransaction(params: { credentials: ProviderCredentials; transactionId: string; chargeId?: string; amount: number }): Promise<{ success: boolean; errorMessage?: string }> {
-    try { await callGateway({ ...buildCredentials(params.credentials), action: "cancel", transactionId: params.transactionId, chargeId: params.chargeId, amount: params.amount }); return { success: true }; }
-    catch (err: unknown) { return { success: false, errorMessage: err instanceof Error ? err.message : "Erro ao cancelar" }; }
+  static async cancelTransaction(params: { transactionId: string; chargeId?: string; amount: number }): Promise<{ success: boolean; errorMessage?: string }> {
+    try {
+      await callGateway({ action: "cancel", transactionId: params.transactionId, chargeId: params.chargeId, amount: params.amount });
+      return { success: true };
+    } catch (err: unknown) {
+      return { success: false, errorMessage: err instanceof Error ? err.message : "Erro ao cancelar" };
+    }
   }
 }
