@@ -591,7 +591,7 @@ async function handleEmit(supabase: any, body: any) {
   let ibgeCode = company.ibge_code || company.city_code || company.address_ibge_code || "";
   let ibgeClean = String(ibgeCode).replace(/\D/g, "");
   // Fallback: resolver IBGE via ViaCEP se não configurado
-  if ((!ibgeClean || ibgeClean.length < 7 || ibgeClean === "0000000") && company.zip_code || company.cep) {
+  if ((!ibgeClean || ibgeClean.length < 7 || ibgeClean === "0000000") && (company.zip_code || company.cep)) {
     const cepDigits = (company.zip_code || company.cep || "").replace(/\D/g, "");
     if (cepDigits.length === 8) {
       try {
