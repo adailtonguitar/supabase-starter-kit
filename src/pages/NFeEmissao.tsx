@@ -119,6 +119,23 @@ const emptyForm = (): NFeFormData => ({
 });
 
 // ── Item 6: Interfaces for successData and companyInfo ──
+interface NFeEmitentePayload {
+  nome_razao_social: string;
+  nome_fantasia?: string | null;
+  cpf_cnpj: string;
+  inscricao_estadual?: string | null;
+  telefone?: string | null;
+  endereco?: {
+    logradouro?: string | null;
+    numero?: string | null;
+    complemento?: string | null;
+    bairro?: string | null;
+    cidade?: string | null;
+    uf?: string | null;
+    cep?: string | null;
+  } | null;
+}
+
 interface NFeSuccessData {
   success: boolean;
   access_key?: string;
@@ -126,8 +143,10 @@ interface NFeSuccessData {
   status?: string;
   serie?: string;
   fiscal_doc_id?: string;
+  protocol?: string;
   error?: string;
   details?: Record<string, unknown>;
+  emitente?: NFeEmitentePayload;
 }
 
 interface NFeCompanyInfo {
@@ -157,20 +176,43 @@ interface DANFECompanySnapshot {
 function formatCompanyAddress(source: {
   address_street?: string | null;
   address_number?: string | null;
+  address_complement?: string | null;
   address_neighborhood?: string | null;
   address_city?: string | null;
   address_state?: string | null;
   address_zip?: string | null;
 }): string {
   const line1 = [source.address_street, source.address_number].filter(Boolean).join(", ");
+  const line2 = [source.address_complement, source.address_neighborhood].filter(Boolean).join(", ");
   const cityUf = [source.address_city, source.address_state].filter(Boolean).join("/");
-  const line2 = [source.address_neighborhood, cityUf].filter(Boolean).join(", ");
-  const parts = [line1, line2];
+  const parts = [line1, line2, cityUf];
 
   if (source.address_zip) parts.push(`CEP: ${source.address_zip}`);
 
   return parts.filter(Boolean).join(" – ");
 }
+
+function mapEmitenteToDanfeSnapshot(emitente?: NFeEmitentePayload | null, logo?: string | null): DANFECompanySnapshot | null {
+  if (!emitente) return null;
+
+  return {
+    companyName: emitente.nome_fantasia || emitente.nome_razao_social || "",
+    companyCnpj: emitente.cpf_cnpj || "",
+    companyIe: emitente.inscricao_estadual || "",
+    companyAddress: formatCompanyAddress({
+      address_street: emitente.endereco?.logradouro,
+      address_number: emitente.endereco?.numero,
+      address_complement: emitente.endereco?.complemento,
+      address_neighborhood: emitente.endereco?.bairro,
+      address_city: emitente.endereco?.cidade,
+      address_state: emitente.endereco?.uf,
+      address_zip: emitente.endereco?.cep,
+    }),
+    companyPhone: emitente.telefone || "",
+    logoUrl: logo || null,
+  };
+}
+
 
 // ── Item 7: Interfaces for products and clients ──
 interface NFeProduct {
@@ -270,6 +312,8 @@ export default function NFeEmissao() {
   const [cepLoading, setCepLoading] = useState(false);
   const autoCepLookupInFlight = useRef<string | null>(null);
 
+  const backendDanfeCompany = useMemo(() => mapEmitenteToDanfeSnapshot(successData?.emitente, logoUrl), [successData?.emitente, logoUrl]);
+
   const resolvedDanfeCompany = useMemo<DANFECompanySnapshot>(() => ({
     companyName: companyInfo?.trade_name || companyInfo?.name || companyName || "",
     companyCnpj: companyInfo?.cnpj || hookCnpj || "",
@@ -287,6 +331,10 @@ export default function NFeEmissao() {
   }), [companyInfo, companyName, hookCnpj, hookIe, hookPhone, hookStreet, hookNumber, hookNeighborhood, hookCity, hookState, logoUrl]);
 
   const danfeCompanyData = useMemo(() => {
+    if (backendDanfeCompany && (backendDanfeCompany.companyName || backendDanfeCompany.companyCnpj || backendDanfeCompany.companyAddress)) {
+      return backendDanfeCompany;
+    }
+
     if (
       danfeCompanySnapshot &&
       (danfeCompanySnapshot.companyName || danfeCompanySnapshot.companyCnpj || danfeCompanySnapshot.companyAddress)
@@ -295,7 +343,7 @@ export default function NFeEmissao() {
     }
 
     return resolvedDanfeCompany;
-  }, [danfeCompanySnapshot, resolvedDanfeCompany]);
+  }, [backendDanfeCompany, danfeCompanySnapshot, resolvedDanfeCompany]);
 
   // Auto-lookup CEP via ViaCEP
   const applyCepDataToForm = useCallback((digits: string, data: ViaCepResponse) => {

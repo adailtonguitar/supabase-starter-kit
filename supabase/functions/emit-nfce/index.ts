@@ -1365,6 +1365,22 @@ async function handleEmitNfe(supabase: any, body: any) {
     access_key: accessKey,
     protocol: protocolNumber,
     nuvem_fiscal_id: nuvemFiscalId,
+    emitente: {
+      cpf_cnpj: cnpjClean,
+      inscricao_estadual: ieEmitClean || null,
+      nome_razao_social: sanitizeSefazText(company.name || company.trade_name, "EMITENTE"),
+      nome_fantasia: sanitizeSefazText(company.trade_name || company.name, "EMITENTE"),
+      telefone: company.phone || null,
+      endereco: {
+        logradouro: sanitizeSefazText(company.street || company.address_street || company.address || "Rua não informada", "Rua não informada"),
+        numero: String(company.number || company.address_number || "S/N"),
+        complemento: company.complement || company.address_complement || null,
+        bairro: sanitizeSefazText(company.neighborhood || company.address_neighborhood || "Centro", "Centro"),
+        cidade: sanitizeSefazText(company.city || company.address_city || "Não informada", "Não informada"),
+        uf: String(company.state || company.address_state || "MA").toUpperCase(),
+        cep: String(company.zip_code || company.address_zip || company.cep || "").replace(/\D/g, "") || null,
+      },
+    },
   });
 }
 
