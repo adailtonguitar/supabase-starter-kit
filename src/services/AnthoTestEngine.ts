@@ -94,7 +94,11 @@ export class AnthoTestEngine {
       await fn();
       this.addTest({ layer, group, name, status: "pass", duration: Math.round(performance.now() - start) });
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
+      const msg = err instanceof Error
+        ? err.message
+        : (typeof err === "object" && err !== null && "message" in err)
+          ? String((err as any).message)
+          : String(err);
       const isWarn = msg.includes("aviso:") || msg.includes("warning:");
       this.addTest({
         layer, group, name,
