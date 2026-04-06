@@ -19,7 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
-import { parseNFeXML, validateDestCnpj, type NFeInfo, type NFeProduct } from "./nfe-xml-parser";
+import { parseNFeXML, validateDestCnpj, type NFeInfo, type NFeProduct, type NFeDestInfo } from "./nfe-xml-parser";
 
 type Step = "upload" | "processing" | "results" | "done";
 
