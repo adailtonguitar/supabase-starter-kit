@@ -1,0 +1,354 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<nfeProc xmlns="http://www.portalfiscal.inf.br/nfe" versao="4.00">
+  <NFe xmlns="http://www.portalfiscal.inf.br/nfe">
+    <infNFe Id="NFe35260412345678000195550010000004561234567890" versao="4.00">
+      <ide>
+        <cUF>35</cUF>
+        <cNF>98765432</cNF>
+        <natOp>VENDA DE MERCADORIA</natOp>
+        <mod>55</mod>
+        <serie>1</serie>
+        <nNF>456</nNF>
+        <dhEmi>2026-04-05T14:00:00-03:00</dhEmi>
+        <tpNF>1</tpNF>
+        <idDest>1</idDest>
+        <cMunFG>3550308</cMunFG>
+        <tpImp>1</tpImp>
+        <tpEmis>1</tpEmis>
+        <cDV>0</cDV>
+        <tpAmb>2</tpAmb>
+        <finNFe>1</finNFe>
+        <indFinal>0</indFinal>
+        <indPres>1</indPres>
+        <procEmi>0</procEmi>
+        <verProc>1.0</verProc>
+      </ide>
+      <emit>
+        <CNPJ>11222333000181</CNPJ>
+        <xNome>ATACADAO DISTRIBUIDORA NACIONAL LTDA</xNome>
+        <xFant>ATACADAO NACIONAL</xFant>
+        <enderEmit>
+          <xLgr>AV INDUSTRIAL</xLgr>
+          <nro>2500</nro>
+          <xBairro>DISTRITO INDUSTRIAL</xBairro>
+          <cMun>3550308</cMun>
+          <xMun>SAO PAULO</xMun>
+          <UF>SP</UF>
+          <CEP>04001000</CEP>
+          <cPais>1058</cPais>
+          <xPais>BRASIL</xPais>
+          <fone>1140001234</fone>
+        </enderEmit>
+        <IE>111222333444</IE>
+        <CRT>3</CRT>
+      </emit>
+      <dest>
+        <CNPJ>98765432000199</CNPJ>
+        <xNome>MERCADO BOM PRECO LTDA</xNome>
+        <enderDest>
+          <xLgr>AV BRASIL</xLgr>
+          <nro>500</nro>
+          <xBairro>VILA NOVA</xBairro>
+          <cMun>3550308</cMun>
+          <xMun>SAO PAULO</xMun>
+          <UF>SP</UF>
+          <CEP>02002000</CEP>
+          <cPais>1058</cPais>
+          <xPais>BRASIL</xPais>
+        </enderDest>
+        <indIEDest>1</indIEDest>
+        <IE>987654321098</IE>
+      </dest>
+      <det nItem="1">
+        <prod>
+          <cProd>P001</cProd>
+          <cEAN>7891000100101</cEAN>
+          <xProd>LEITE INTEGRAL UHT - 1L</xProd>
+          <NCM>04012010</NCM>
+          <CFOP>5102</CFOP>
+          <uCom>UN</uCom>
+          <qCom>120.0000</qCom>
+          <vUnCom>5.4900</vUnCom>
+          <vProd>658.80</vProd>
+          <cEANTrib>7891000100101</cEANTrib>
+          <uTrib>UN</uTrib>
+          <qTrib>120.0000</qTrib>
+          <vUnTrib>5.4900</vUnTrib>
+          <indTot>1</indTot>
+        </prod>
+        <imposto>
+          <ICMS><ICMS00><orig>0</orig><CST>00</CST><modBC>3</modBC><vBC>658.80</vBC><pICMS>18.00</pICMS><vICMS>118.58</vICMS></ICMS00></ICMS>
+          <PIS><PISAliq><CST>01</CST><vBC>658.80</vBC><pPIS>1.65</pPIS><vPIS>10.87</vPIS></PISAliq></PIS>
+          <COFINS><COFINSAliq><CST>01</CST><vBC>658.80</vBC><pCOFINS>7.60</pCOFINS><vCOFINS>50.07</vCOFINS></COFINSAliq></COFINS>
+        </imposto>
+      </det>
+      <det nItem="2">
+        <prod>
+          <cProd>P002</cProd>
+          <cEAN>7891000200202</cEAN>
+          <xProd>MACARRAO ESPAGUETE - 500G</xProd>
+          <NCM>19021100</NCM>
+          <CFOP>5102</CFOP>
+          <uCom>UN</uCom>
+          <qCom>200.0000</qCom>
+          <vUnCom>3.9900</vUnCom>
+          <vProd>798.00</vProd>
+          <cEANTrib>7891000200202</cEANTrib>
+          <uTrib>UN</uTrib>
+          <qTrib>200.0000</qTrib>
+          <vUnTrib>3.9900</vUnTrib>
+          <indTot>1</indTot>
+        </prod>
+        <imposto>
+          <ICMS><ICMS00><orig>0</orig><CST>00</CST><modBC>3</modBC><vBC>798.00</vBC><pICMS>18.00</pICMS><vICMS>143.64</vICMS></ICMS00></ICMS>
+          <PIS><PISAliq><CST>01</CST><vBC>798.00</vBC><pPIS>1.65</pPIS><vPIS>13.17</vPIS></PISAliq></PIS>
+          <COFINS><COFINSAliq><CST>01</CST><vBC>798.00</vBC><pCOFINS>7.60</pCOFINS><vCOFINS>60.65</vCOFINS></COFINSAliq></COFINS>
+        </imposto>
+      </det>
+      <det nItem="3">
+        <prod>
+          <cProd>P003</cProd>
+          <cEAN>7891000300303</cEAN>
+          <xProd>MOLHO DE TOMATE TRADICIONAL - 340G</xProd>
+          <NCM>20029911</NCM>
+          <CFOP>5102</CFOP>
+          <uCom>UN</uCom>
+          <qCom>150.0000</qCom>
+          <vUnCom>2.7900</vUnCom>
+          <vProd>418.50</vProd>
+          <cEANTrib>7891000300303</cEANTrib>
+          <uTrib>UN</uTrib>
+          <qTrib>150.0000</qTrib>
+          <vUnTrib>2.7900</vUnTrib>
+          <indTot>1</indTot>
+        </prod>
+        <imposto>
+          <ICMS><ICMS00><orig>0</orig><CST>00</CST><modBC>3</modBC><vBC>418.50</vBC><pICMS>18.00</pICMS><vICMS>75.33</vICMS></ICMS00></ICMS>
+          <PIS><PISAliq><CST>01</CST><vBC>418.50</vBC><pPIS>1.65</pPIS><vPIS>6.91</vPIS></PISAliq></PIS>
+          <COFINS><COFINSAliq><CST>01</CST><vBC>418.50</vBC><pCOFINS>7.60</pCOFINS><vCOFINS>31.81</vCOFINS></COFINSAliq></COFINS>
+        </imposto>
+      </det>
+      <det nItem="4">
+        <prod>
+          <cProd>P004</cProd>
+          <cEAN>7891000400404</cEAN>
+          <xProd>SABAO EM PO MULTIACAO - 1KG</xProd>
+          <NCM>34022000</NCM>
+          <CFOP>5102</CFOP>
+          <uCom>UN</uCom>
+          <qCom>60.0000</qCom>
+          <vUnCom>12.9900</vUnCom>
+          <vProd>779.40</vProd>
+          <cEANTrib>7891000400404</cEANTrib>
+          <uTrib>UN</uTrib>
+          <qTrib>60.0000</qTrib>
+          <vUnTrib>12.9900</vUnTrib>
+          <indTot>1</indTot>
+        </prod>
+        <imposto>
+          <ICMS><ICMS00><orig>0</orig><CST>00</CST><modBC>3</modBC><vBC>779.40</vBC><pICMS>18.00</pICMS><vICMS>140.29</vICMS></ICMS00></ICMS>
+          <PIS><PISAliq><CST>01</CST><vBC>779.40</vBC><pPIS>1.65</pPIS><vPIS>12.86</vPIS></PISAliq></PIS>
+          <COFINS><COFINSAliq><CST>01</CST><vBC>779.40</vBC><pCOFINS>7.60</pCOFINS><vCOFINS>59.23</vCOFINS></COFINSAliq></COFINS>
+        </imposto>
+      </det>
+      <det nItem="5">
+        <prod>
+          <cProd>P005</cProd>
+          <cEAN>7891000500505</cEAN>
+          <xProd>BISCOITO CREAM CRACKER - 400G</xProd>
+          <NCM>19053100</NCM>
+          <CFOP>5102</CFOP>
+          <uCom>UN</uCom>
+          <qCom>100.0000</qCom>
+          <vUnCom>4.4900</vUnCom>
+          <vProd>449.00</vProd>
+          <cEANTrib>7891000500505</cEANTrib>
+          <uTrib>UN</uTrib>
+          <qTrib>100.0000</qTrib>
+          <vUnTrib>4.4900</vUnTrib>
+          <indTot>1</indTot>
+        </prod>
+        <imposto>
+          <ICMS><ICMS00><orig>0</orig><CST>00</CST><modBC>3</modBC><vBC>449.00</vBC><pICMS>18.00</pICMS><vICMS>80.82</vICMS></ICMS00></ICMS>
+          <PIS><PISAliq><CST>01</CST><vBC>449.00</vBC><pPIS>1.65</pPIS><vPIS>7.41</vPIS></PISAliq></PIS>
+          <COFINS><COFINSAliq><CST>01</CST><vBC>449.00</vBC><pCOFINS>7.60</pCOFINS><vCOFINS>34.12</vCOFINS></COFINSAliq></COFINS>
+        </imposto>
+      </det>
+      <det nItem="6">
+        <prod>
+          <cProd>P006</cProd>
+          <cEAN>7891000600606</cEAN>
+          <xProd>REFRIGERANTE COLA - 2L</xProd>
+          <NCM>22021000</NCM>
+          <CFOP>5102</CFOP>
+          <uCom>UN</uCom>
+          <qCom>80.0000</qCom>
+          <vUnCom>8.9900</vUnCom>
+          <vProd>719.20</vProd>
+          <cEANTrib>7891000600606</cEANTrib>
+          <uTrib>UN</uTrib>
+          <qTrib>80.0000</qTrib>
+          <vUnTrib>8.9900</vUnTrib>
+          <indTot>1</indTot>
+        </prod>
+        <imposto>
+          <ICMS><ICMS00><orig>0</orig><CST>00</CST><modBC>3</modBC><vBC>719.20</vBC><pICMS>18.00</pICMS><vICMS>129.46</vICMS></ICMS00></ICMS>
+          <PIS><PISAliq><CST>01</CST><vBC>719.20</vBC><pPIS>1.65</pPIS><vPIS>11.87</vPIS></PISAliq></PIS>
+          <COFINS><COFINSAliq><CST>01</CST><vBC>719.20</vBC><pCOFINS>7.60</pCOFINS><vCOFINS>54.66</vCOFINS></COFINSAliq></COFINS>
+        </imposto>
+      </det>
+      <det nItem="7">
+        <prod>
+          <cProd>P007</cProd>
+          <cEAN>7891000700707</cEAN>
+          <xProd>FARINHA DE TRIGO ESPECIAL - 1KG</xProd>
+          <NCM>11010010</NCM>
+          <CFOP>5102</CFOP>
+          <uCom>UN</uCom>
+          <qCom>90.0000</qCom>
+          <vUnCom>5.9900</vUnCom>
+          <vProd>539.10</vProd>
+          <cEANTrib>7891000700707</cEANTrib>
+          <uTrib>UN</uTrib>
+          <qTrib>90.0000</qTrib>
+          <vUnTrib>5.9900</vUnTrib>
+          <indTot>1</indTot>
+        </prod>
+        <imposto>
+          <ICMS><ICMS00><orig>0</orig><CST>00</CST><modBC>3</modBC><vBC>539.10</vBC><pICMS>18.00</pICMS><vICMS>97.04</vICMS></ICMS00></ICMS>
+          <PIS><PISAliq><CST>01</CST><vBC>539.10</vBC><pPIS>1.65</pPIS><vPIS>8.90</vPIS></PISAliq></PIS>
+          <COFINS><COFINSAliq><CST>01</CST><vBC>539.10</vBC><pCOFINS>7.60</pCOFINS><vCOFINS>40.97</vCOFINS></COFINSAliq></COFINS>
+        </imposto>
+      </det>
+      <det nItem="8">
+        <prod>
+          <cProd>P008</cProd>
+          <cEAN>7891000800808</cEAN>
+          <xProd>DETERGENTE LIQUIDO NEUTRO - 500ML</xProd>
+          <NCM>34025000</NCM>
+          <CFOP>5102</CFOP>
+          <uCom>UN</uCom>
+          <qCom>200.0000</qCom>
+          <vUnCom>2.1900</vUnCom>
+          <vProd>438.00</vProd>
+          <cEANTrib>7891000800808</cEANTrib>
+          <uTrib>UN</uTrib>
+          <qTrib>200.0000</qTrib>
+          <vUnTrib>2.1900</vUnTrib>
+          <indTot>1</indTot>
+        </prod>
+        <imposto>
+          <ICMS><ICMS00><orig>0</orig><CST>00</CST><modBC>3</modBC><vBC>438.00</vBC><pICMS>18.00</pICMS><vICMS>78.84</vICMS></ICMS00></ICMS>
+          <PIS><PISAliq><CST>01</CST><vBC>438.00</vBC><pPIS>1.65</pPIS><vPIS>7.23</vPIS></PISAliq></PIS>
+          <COFINS><COFINSAliq><CST>01</CST><vBC>438.00</vBC><pCOFINS>7.60</pCOFINS><vCOFINS>33.29</vCOFINS></COFINSAliq></COFINS>
+        </imposto>
+      </det>
+      <det nItem="9">
+        <prod>
+          <cProd>P009</cProd>
+          <cEAN>7891000900909</cEAN>
+          <xProd>PAPEL HIGIENICO FOLHA DUPLA - 12 ROLOS</xProd>
+          <NCM>48182000</NCM>
+          <CFOP>5102</CFOP>
+          <uCom>PCT</uCom>
+          <qCom>50.0000</qCom>
+          <vUnCom>18.9900</vUnCom>
+          <vProd>949.50</vProd>
+          <cEANTrib>7891000900909</cEANTrib>
+          <uTrib>PCT</uTrib>
+          <qTrib>50.0000</qTrib>
+          <vUnTrib>18.9900</vUnTrib>
+          <indTot>1</indTot>
+        </prod>
+        <imposto>
+          <ICMS><ICMS00><orig>0</orig><CST>00</CST><modBC>3</modBC><vBC>949.50</vBC><pICMS>18.00</pICMS><vICMS>170.91</vICMS></ICMS00></ICMS>
+          <PIS><PISAliq><CST>01</CST><vBC>949.50</vBC><pPIS>1.65</pPIS><vPIS>15.67</vPIS></PISAliq></PIS>
+          <COFINS><COFINSAliq><CST>01</CST><vBC>949.50</vBC><pCOFINS>7.60</pCOFINS><vCOFINS>72.16</vCOFINS></COFINSAliq></COFINS>
+        </imposto>
+      </det>
+      <det nItem="10">
+        <prod>
+          <cProd>P010</cProd>
+          <cEAN>7891001001010</cEAN>
+          <xProd>MARGARINA CREMOSA - 500G</xProd>
+          <NCM>15171000</NCM>
+          <CFOP>5102</CFOP>
+          <uCom>UN</uCom>
+          <qCom>70.0000</qCom>
+          <vUnCom>6.4900</vUnCom>
+          <vProd>454.30</vProd>
+          <cEANTrib>7891001001010</cEANTrib>
+          <uTrib>UN</uTrib>
+          <qTrib>70.0000</qTrib>
+          <vUnTrib>6.4900</vUnTrib>
+          <indTot>1</indTot>
+        </prod>
+        <imposto>
+          <ICMS><ICMS00><orig>0</orig><CST>00</CST><modBC>3</modBC><vBC>454.30</vBC><pICMS>18.00</pICMS><vICMS>81.77</vICMS></ICMS00></ICMS>
+          <PIS><PISAliq><CST>01</CST><vBC>454.30</vBC><pPIS>1.65</pPIS><vPIS>7.50</vPIS></PISAliq></PIS>
+          <COFINS><COFINSAliq><CST>01</CST><vBC>454.30</vBC><pCOFINS>7.60</pCOFINS><vCOFINS>34.53</vCOFINS></COFINSAliq></COFINS>
+        </imposto>
+      </det>
+      <total>
+        <ICMSTot>
+          <vBC>6803.80</vBC>
+          <vICMS>1116.68</vICMS>
+          <vICMSDeson>0.00</vICMSDeson>
+          <vFCP>0.00</vFCP>
+          <vBCST>0.00</vBCST>
+          <vST>0.00</vST>
+          <vFCPST>0.00</vFCPST>
+          <vFCPSTRet>0.00</vFCPSTRet>
+          <vProd>6803.80</vProd>
+          <vFrete>0.00</vFrete>
+          <vSeg>0.00</vSeg>
+          <vDesc>0.00</vDesc>
+          <vII>0.00</vII>
+          <vIPI>0.00</vIPI>
+          <vIPIDevol>0.00</vIPIDevol>
+          <vPIS>102.39</vPIS>
+          <vCOFINS>471.49</vCOFINS>
+          <vOutro>0.00</vOutro>
+          <vNF>6803.80</vNF>
+        </ICMSTot>
+      </total>
+      <transp>
+        <modFrete>0</modFrete>
+        <transporta>
+          <xNome>TRANSPORTADORA RAPIDA SP LTDA</xNome>
+          <CNPJ>55666777000188</CNPJ>
+          <xEnder>ROD BR-116 KM 50</xEnder>
+          <xMun>SAO PAULO</xMun>
+          <UF>SP</UF>
+        </transporta>
+        <vol>
+          <qVol>10</qVol>
+          <esp>CAIXAS</esp>
+          <pesoL>285.000</pesoL>
+          <pesoB>310.000</pesoB>
+        </vol>
+      </transp>
+      <pag>
+        <detPag>
+          <tPag>15</tPag>
+          <vPag>6803.80</vPag>
+        </detPag>
+      </pag>
+      <infAdic>
+        <infCpl>PEDIDO DE COMPRA N. 2026-0412 | VENCIMENTO BOLETO: 05/05/2026</infCpl>
+      </infAdic>
+    </infNFe>
+  </NFe>
+  <protNFe versao="4.00">
+    <infProt>
+      <tpAmb>2</tpAmb>
+      <verAplic>SP_NFE_PL009_V4</verAplic>
+      <chNFe>35260412345678000195550010000004561234567890</chNFe>
+      <dhRecbto>2026-04-05T14:01:30-03:00</dhRecbto>
+      <nProt>135260000000456</nProt>
+      <digVal>xyz789abc123==</digVal>
+      <cStat>100</cStat>
+      <xMotivo>Autorizado o uso da NF-e</xMotivo>
+    </infProt>
+  </protNFe>
+</nfeProc>
