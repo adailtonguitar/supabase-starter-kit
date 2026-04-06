@@ -352,6 +352,33 @@ export default function SmartNFeImport() {
       } as Record<string, unknown>);
     }
 
+    // Register dest as client if checkbox is checked
+    if (registerDest && nfeInfo.destInfo && destClientStatus !== "exists") {
+      try {
+        const d = nfeInfo.destInfo;
+        const clientData: Record<string, unknown> = {
+          company_id: companyId,
+          name: d.name || "Destinatário NF-e",
+        };
+        const doc = (d.cnpj || d.cpf || "").replace(/\D/g, "");
+        if (doc) clientData.cpf_cnpj = doc;
+        if (d.email) clientData.email = d.email;
+        if (d.phone) clientData.phone = d.phone;
+        if (d.cep) clientData.cep = d.cep;
+        if (d.street) clientData.address = `${d.street}${d.number ? `, ${d.number}` : ""}${d.complement ? ` - ${d.complement}` : ""}`;
+        if (d.neighborhood) clientData.neighborhood = d.neighborhood;
+        if (d.city) clientData.city = d.city;
+        if (d.uf) clientData.state = d.uf;
+
+        const { error: clientErr } = await supabase.from("clients").insert(clientData);
+        if (!clientErr) {
+          setDestClientStatus("created");
+          queryClient.invalidateQueries({ queryKey: ["clients"] });
+          toast.success(`Destinatário "${d.name}" cadastrado como cliente!`);
+        }
+      } catch { /* silent */ }
+    }
+
     setResult({ imported, updated, errors, noNcm, lowMarginProducts, fiscalAdjustments });
     setStep("done");
     setImporting(false);
