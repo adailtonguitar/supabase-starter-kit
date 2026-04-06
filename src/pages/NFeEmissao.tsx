@@ -652,12 +652,6 @@ export default function NFeEmissao() {
       }
     }
 
-    // Código IBGE do município obrigatório para SEFAZ
-    if (resolvedDestCityCode.length < 7) {
-      toast.error("Código IBGE não resolvido. Preencha o CEP do destinatário corretamente para resolver automaticamente.");
-      setActiveTab("dest");
-      return;
-    }
     // IE obrigatória se destinatário for CNPJ (PJ)
     if (docDigits.length === 14 && !form.destIE.trim()) {
       toast.error("Inscrição Estadual é obrigatória para destinatário Pessoa Jurídica. Use 'ISENTO' se o destinatário for isento.");
