@@ -1041,7 +1041,33 @@ async function handleEmitNfe(supabase: any, body: any) {
 
     if (item.cest) prodBlock.CEST = String(item.cest).replace(/\D/g, "");
 
-    const det: any = { nItem: i + 1, prod: prodBlock, imposto: { ICMS: icmsBlock, PIS, COFINS } };
+    const impostoBlock: any = { ICMS: icmsBlock, PIS, COFINS };
+
+    // ─── DIFAL: ICMSUFDest por item (interestadual + não contribuinte) ───
+    if (applyDifal && pICMSUFDest > pICMSInter) {
+      const vBCUFDest = Math.round(vProdLiq * 100) / 100;
+      const difalItem = Math.round(vBCUFDest * (pICMSUFDest - pICMSInter) / 100 * 100) / 100;
+      const fcpItem = Math.round(vBCUFDest * pFCPUFDest / 100 * 100) / 100;
+      const vICMSUFDestItem = difalItem; // 100% destino desde 2019
+      const vICMSUFRemetItem = 0;
+
+      impostoBlock.ICMSUFDest = {
+        vBCUFDest,
+        pFCPUFDest,
+        pICMSUFDest,
+        pICMSInter,
+        pICMSInterPart: 100,
+        vFCPUFDest: fcpItem,
+        vICMSUFDest: vICMSUFDestItem,
+        vICMSUFRemet: vICMSUFRemetItem,
+      };
+
+      totalVFCPUFDest += fcpItem;
+      totalVICMSUFDest += vICMSUFDestItem;
+      totalVICMSUFRemet += vICMSUFRemetItem;
+    }
+
+    const det: any = { nItem: i + 1, prod: prodBlock, imposto: impostoBlock };
     if (discount > 0) det.prod.vDesc = discount;
 
     return det;
