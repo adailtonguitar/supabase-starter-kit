@@ -152,6 +152,8 @@ interface NFeSuccessData {
   serie?: string;
   fiscal_doc_id?: string;
   protocol?: string;
+  pending?: boolean;
+  resolved_items?: NFeItem[];
   error?: string;
   details?: Record<string, unknown>;
   emitente?: NFeEmitentePayload;
@@ -352,6 +354,10 @@ export default function NFeEmissao() {
 
     return resolvedDanfeCompany;
   }, [backendDanfeCompany, danfeCompanySnapshot, resolvedDanfeCompany]);
+
+  const printableItems = useMemo(() => {
+    return successData?.resolved_items?.length ? successData.resolved_items : form.items;
+  }, [successData?.resolved_items, form.items]);
 
   // Auto-lookup CEP via ViaCEP
   const applyCepDataToForm = useCallback((digits: string, data: ViaCepResponse) => {
@@ -1026,11 +1032,14 @@ export default function NFeEmissao() {
         return;
       }
 
-      if (data?.success) {
+      if (data?.success && (data?.status === "autorizada" || data?.status === "contingencia")) {
         setDanfeCompanySnapshot(resolvedDanfeCompany);
         setSuccessData(data);
         setStep("success");
         toast.success("NF-e emitida com sucesso!");
+      } else if (data?.status === "pendente" || data?.pending) {
+        setStep("error");
+        setErrorMsg("A NF-e foi enviada para processamento, mas ainda NÃO foi autorizada. Aguarde a confirmação em Documentos Fiscais antes de imprimir o DANFE.");
       } else {
         setStep("error");
         const errText = (data && typeof data.error === "string") ? data.error : "Erro ao emitir NF-e. Verifique se o certificado digital está configurado.";
@@ -1091,7 +1100,7 @@ export default function NFeEmissao() {
             <img src={logoUrl} alt={companyName || "Logo"} className="h-16 object-contain mx-auto mb-2" />
           )}
           <CheckCircle className="w-16 h-16 text-success mx-auto" />
-          <h2 className="text-lg font-semibold text-foreground">NF-e Emitida com Sucesso!</h2>
+          <h2 className="text-lg font-semibold text-foreground">NF-e Autorizada com Sucesso!</h2>
           {successData?.access_key && (
             <p className="text-xs font-mono text-muted-foreground break-all">Chave: {successData.access_key}</p>
           )}
@@ -1118,15 +1127,15 @@ export default function NFeEmissao() {
               destEmail: form.destEmail,
               number: successData?.number || null,
               accessKey: successData?.access_key || null,
-              protocoloAutorizacao: "",
+              protocoloAutorizacao: successData?.protocol || "",
               natOp: form.natOp,
               emissionDate: new Date().toLocaleDateString("pt-BR"),
               emissionTime: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
               serie: successData?.serie || "1",
-              items: form.items,
+              items: printableItems,
               paymentMethod: form.paymentMethod,
               paymentLabel: form.paymentMethod,
-              totalValue: form.items.reduce((s, i) => s + i.total, 0),
+              totalValue: printableItems.reduce((s, i) => s + i.total, 0),
               frete: form.frete,
               transportName: form.transportName,
               infAdic: form.infAdic,
