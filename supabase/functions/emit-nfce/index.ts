@@ -935,6 +935,18 @@ async function handleEmitNfe(supabase: any, body: any) {
   // Ambiente
   const ambiente = config.environment === "producao" ? "producao" : "homologacao";
 
+  // ─── indPres dinâmico ───
+  const rawPresence = Number(form.presence_type);
+  const indPres = [1, 2, 3, 4, 9].includes(rawPresence) ? rawPresence : 1;
+  console.log(`[emit-nfe] indPres=${indPres} (raw=${form.presence_type})`);
+
+  // ─── Detecção interestadual automática ───
+  const emitUF = (company.state || "MA").toUpperCase().trim();
+  const destUF = (form.dest_uf || "").toUpperCase().trim();
+  const isInterstate = destUF.length === 2 && emitUF !== destUF;
+  const idDest = isInterstate ? 2 : 1;
+  console.log(`[emit-nfe] UF emitente=${emitUF} destino=${destUF} → idDest=${idDest} interestadual=${isInterstate}`);
+
   // Itens
   const items = form.items || [];
   if (items.length === 0) {
@@ -950,9 +962,15 @@ async function handleEmitNfe(supabase: any, body: any) {
       throw new Error(`Item ${i + 1} ("${item.name}") sem NCM válido.`);
     }
 
-    const cfop = (item.cfop || "5102").trim();
+    // Auto-detect CFOP: if interstate, convert 5xxx→6xxx automatically
+    let cfop = (item.cfop || "5102").trim();
     if (!cfop || cfop.length !== 4) {
       throw new Error(`Item ${i + 1} ("${item.name}") com CFOP inválido: "${cfop}"`);
+    }
+    if (isInterstate && cfop.startsWith("5")) {
+      cfop = "6" + cfop.substring(1);
+    } else if (!isInterstate && cfop.startsWith("6")) {
+      cfop = "5" + cfop.substring(1);
     }
 
     const qty = item.qty || item.quantity || 1;
