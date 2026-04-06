@@ -56,6 +56,7 @@ describe("resolveFiscal — Cenários completos", () => {
     expect(r.difal.pICMSInter).toBe(12); // MA→PI = 12%
     expect(r.difal.pICMSUFDest).toBe(21); // PI interna
     expect(r.difal.vICMSUFDest).toBe(90); // (21-12)/100 * 1000 = 90
+    expect(r.difal.vFCPUFDest).toBe(0); // PI sem FCP
     expect(r.difal.vICMSUFRemet).toBe(0); // 100% destino desde 2019
   });
 
