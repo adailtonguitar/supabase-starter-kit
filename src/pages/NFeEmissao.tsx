@@ -421,7 +421,24 @@ export default function NFeEmissao() {
     }
   }, [form.destZip, form.destCityCode, handleSilentCepLookup]);
 
-  // Load company info for DANFE (with fallback from useCompany hook)
+  // Auto-detect CFOP: when destUF changes, update items 5xxx↔6xxx
+  useEffect(() => {
+    const emitUF = (hookState || "").toUpperCase().trim();
+    const destUFVal = form.destUF.toUpperCase().trim();
+    if (!emitUF || destUFVal.length !== 2 || form.items.length === 0) return;
+    const isInterstate = emitUF !== destUFVal;
+    setForm(prev => {
+      const updatedItems = prev.items.map(item => {
+        let cfop = item.cfop;
+        if (isInterstate && cfop.startsWith("5")) cfop = "6" + cfop.substring(1);
+        else if (!isInterstate && cfop.startsWith("6")) cfop = "5" + cfop.substring(1);
+        return cfop !== item.cfop ? { ...item, cfop } : item;
+      });
+      const changed = updatedItems.some((it, i) => it !== prev.items[i]);
+      return changed ? { ...prev, items: updatedItems } : prev;
+    });
+  }, [form.destUF, hookState]);
+
   useEffect(() => {
     if (!companyId) return;
     supabase.from("companies")
