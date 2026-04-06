@@ -935,17 +935,51 @@ async function handleEmitNfe(supabase: any, body: any) {
   // Ambiente
   const ambiente = config.environment === "producao" ? "producao" : "homologacao";
 
-  // ─── indPres dinâmico ───
-  const rawPresence = Number(form.presence_type);
-  const indPres = [1, 2, 3, 4, 9].includes(rawPresence) ? rawPresence : 1;
-  console.log(`[emit-nfe] indPres=${indPres} (raw=${form.presence_type})`);
-
-  // ─── Detecção interestadual automática ───
+  // ─── Motor Fiscal Automático ───
   const emitUF = (company.state || "MA").toUpperCase().trim();
   const destUF = (form.dest_uf || "").toUpperCase().trim();
+  const rawPresence = Number(form.presence_type);
+  const indPres = [1, 2, 3, 4, 9].includes(rawPresence) ? rawPresence : 1;
   const isInterstate = destUF.length === 2 && emitUF !== destUF;
   const idDest = isInterstate ? 2 : 1;
-  console.log(`[emit-nfe] UF emitente=${emitUF} destino=${destUF} → idDest=${idDest} interestadual=${isInterstate}`);
+  console.log(`[emit-nfe] Motor Fiscal: UF=${emitUF}→${destUF} idDest=${idDest} indPres=${indPres} CRT=${crt}`);
+
+  // ─── Buscar tax_rule customizada (se existir) ───
+  let taxRule: { aliq_interestadual: number; aliq_interna_destino: number; fcp_percent: number } | null = null;
+  if (isInterstate) {
+    const { data: ruleData } = await supabase
+      .from("tax_rules")
+      .select("aliq_interestadual, aliq_interna_destino, fcp_percent")
+      .eq("uf_origem", emitUF)
+      .eq("uf_destino", destUF)
+      .maybeSingle();
+    if (ruleData) taxRule = ruleData;
+  }
+
+  // ─── Determinar se destinatário é contribuinte ICMS ───
+  const destDoc = (form.dest_doc || "").replace(/\D/g, "");
+  const destIE = (form.dest_ie || "").replace(/\D/g, "");
+  const destIsContribuinte = destIE.length >= 2 || false;
+  const applyDifal = isInterstate && !destIsContribuinte;
+  console.log(`[emit-nfe] Contribuinte=${destIsContribuinte} DIFAL=${applyDifal}`);
+
+  // ─── Alíquotas DIFAL ───
+  // Sul/Sudeste (exceto ES) para demais: 7%, senão 12%
+  const SUL_SUDESTE = new Set(["SP", "RJ", "MG", "PR", "SC", "RS"]);
+  const ALIQ_INTERNA_UF: Record<string, number> = {
+    AC: 19, AL: 19, AP: 18, AM: 20, BA: 20.5, CE: 20, DF: 20, ES: 17,
+    GO: 19, MA: 22, MT: 17, MS: 17, MG: 18, PA: 19, PB: 20, PR: 19.5,
+    PE: 20.5, PI: 21, RJ: 22, RN: 18, RS: 17, RO: 19.5, RR: 20, SC: 17,
+    SP: 18, SE: 19, TO: 20,
+  };
+  const FCP_UF: Record<string, number> = {
+    RJ: 2, MG: 2, MS: 2, GO: 2, MT: 2, PI: 2, AL: 1, MA: 2,
+    BA: 2, PE: 2, CE: 2, PA: 2, SE: 2, PB: 2, RN: 2, TO: 2,
+  };
+  const defaultInterRate = SUL_SUDESTE.has(emitUF) && !SUL_SUDESTE.has(destUF) ? 7 : 12;
+  const pICMSInter = taxRule?.aliq_interestadual ?? defaultInterRate;
+  const pICMSUFDest = taxRule?.aliq_interna_destino ?? (ALIQ_INTERNA_UF[destUF] || 18);
+  const pFCPUFDest = taxRule?.fcp_percent ?? (FCP_UF[destUF] || 0);
 
   // Itens
   const items = form.items || [];
@@ -955,6 +989,7 @@ async function handleEmitNfe(supabase: any, body: any) {
 
   // Totalizadores
   let totalVProd = 0, totalVDesc = 0, totalVICMS = 0, totalVBCST = 0, totalVST = 0, totalVPIS = 0, totalVCOFINS = 0;
+  let totalVFCPUFDest = 0, totalVICMSUFDest = 0, totalVICMSUFRemet = 0;
 
   const detItems = items.map((item: any, i: number) => {
     const ncm = (item.ncm || "").replace(/\D/g, "");
