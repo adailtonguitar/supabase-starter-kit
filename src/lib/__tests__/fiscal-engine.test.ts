@@ -137,6 +137,16 @@ describe("calculateDifal", () => {
     expect(d.vICMSUFDest).toBe(150); // (22-7)/100 * 1000
     expect(d.vFCPUFDest).toBe(20);
   });
+
+  it("ignora tax_rule antiga de FCP para PI", () => {
+    const staleRule: TaxRule = {
+      uf_origem: "MA", uf_destino: "PI",
+      aliq_interestadual: 12, aliq_interna_destino: 21, fcp_percent: 2,
+    };
+    const d = calculateDifal(1000, "MA", "PI", staleRule);
+    expect(d.pFCPUFDest).toBe(0);
+    expect(d.vFCPUFDest).toBe(0);
+  });
 });
 
 describe("validateFiscalInputs", () => {
