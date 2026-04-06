@@ -452,7 +452,7 @@ export class AnthoTestEngine {
     });
 
     await this.runTest("interface", "Caixa", "Sessões de caixa", async () => {
-      const { error } = await supabase.from("cash_sessions").select("id, status, opening_balance, total_sales")
+      const { error } = await supabase.from("cash_sessions").select("id, status, opening_balance")
         .eq("company_id", this.companyId).order("created_at", { ascending: false }).limit(5);
       if (error) throw error;
     });
