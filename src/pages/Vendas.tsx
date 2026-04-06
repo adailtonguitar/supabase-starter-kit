@@ -72,12 +72,11 @@ export default function Vendas() {
   };
 
   const handleRefund = async () => {
-    if (!confirmRefund || !config?.api_key) return;
+    if (!confirmRefund) return;
     setRefundingSaleId(confirmRefund.saleId);
     setConfirmRefund(null);
 
     const result = await MercadoPagoTEFService.refundPayment({
-      accessToken: config.api_key,
       paymentId: confirmRefund.paymentId,
     });
 
