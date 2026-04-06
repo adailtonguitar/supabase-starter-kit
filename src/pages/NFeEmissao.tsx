@@ -91,6 +91,7 @@ interface NFeFormData {
   // Operação
   natOp: string;
   finalidade: string;
+  presenceType: string;
   infAdic: string;
   // Itens
   items: NFeItem[];
@@ -118,7 +119,7 @@ const emptyForm = (): NFeFormData => ({
   destName: "", destDoc: "", destIE: "", destEmail: "",
   destStreet: "", destNumber: "", destComplement: "", destNeighborhood: "",
   destCity: "", destCityCode: "", destUF: "", destZip: "",
-  natOp: "VENDA DE MERCADORIA", finalidade: "1", infAdic: "",
+  natOp: "VENDA DE MERCADORIA", finalidade: "1", presenceType: "1", infAdic: "",
   items: [],
   paymentMethod: "01", paymentValue: 0,
   frete: "9", transportName: "", transportDoc: "", transportPlate: "", transportUF: "",
