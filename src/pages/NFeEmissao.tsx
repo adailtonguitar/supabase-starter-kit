@@ -436,6 +436,7 @@ export default function NFeEmissao() {
   };
 
   const selectClient = (client: NFeClient) => {
+    const zip = (client.address_zip || "").replace(/\D/g, "");
     setForm(p => ({
       ...p,
       destName: client.name || "",
@@ -447,9 +448,14 @@ export default function NFeEmissao() {
       destComplement: client.address_complement || "",
       destNeighborhood: client.address_neighborhood || "",
       destCity: client.address_city || "",
+      destCityCode: (client as any).address_ibge_code || "",
       destUF: client.address_state || "",
       destZip: client.address_zip || "",
     }));
+    // Resolver IBGE via CEP se não disponível no cadastro
+    if (!(client as any).address_ibge_code && zip.length === 8) {
+      handleCepLookup(zip);
+    }
     setShowClientSearch(false);
     setClientSearch("");
     toast.success(`Cliente "${client.name}" selecionado`);
