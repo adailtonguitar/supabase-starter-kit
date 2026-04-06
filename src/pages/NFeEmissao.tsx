@@ -1026,21 +1026,12 @@ export default function NFeEmissao() {
           )}
           <div className="flex flex-wrap gap-2 justify-center">
             <DANFePrintButton data={{
-              companyName: companyInfo?.trade_name || companyInfo?.name || companyName || "",
-              companyCnpj: companyInfo?.cnpj || hookCnpj || "",
-              companyIe: companyInfo?.ie || hookIe || "",
-              companyAddress: (() => {
-                const st = companyInfo?.address_street || hookStreet || "";
-                const num = companyInfo?.address_number || hookNumber || "";
-                const bairro = companyInfo?.address_neighborhood || hookNeighborhood || "";
-                const city = companyInfo?.address_city || hookCity || "";
-                const uf = companyInfo?.address_state || hookState || "";
-                const cep = companyInfo?.address_zip || "";
-                if (!st && !city) return "";
-                return `${st}, ${num} – ${bairro}, ${city}/${uf}${cep ? ` - CEP: ${cep}` : ""}`;
-              })(),
-              companyPhone: companyInfo?.phone || hookPhone || "",
-              logoUrl: logoUrl,
+              companyName: danfeCompanyData.companyName,
+              companyCnpj: danfeCompanyData.companyCnpj,
+              companyIe: danfeCompanyData.companyIe,
+              companyAddress: danfeCompanyData.companyAddress,
+              companyPhone: danfeCompanyData.companyPhone,
+              logoUrl: danfeCompanyData.logoUrl,
               destName: form.destName,
               destDoc: form.destDoc,
               destIe: form.destIE,
