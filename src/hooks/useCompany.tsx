@@ -181,6 +181,45 @@ function extractCompanyFields(company: CompanyRow | null | undefined): Omit<Cach
   };
 }
 
+function hasCompanyIdentity(fields: Omit<CachedCompany, 'companyId'>): boolean {
+  return Boolean(
+    fields.companyName ||
+    fields.cnpj ||
+    fields.ie ||
+    fields.addressStreet ||
+    fields.addressCity ||
+    fields.phone ||
+    fields.logoUrl,
+  );
+}
+
+function mergeCompanyFields(
+  company: CompanyRow | null | undefined,
+  fallback: Omit<CachedCompany, 'companyId'>,
+): Omit<CachedCompany, 'companyId'> {
+  if (!company) return fallback;
+
+  return {
+    companyName: company.name ?? fallback.companyName,
+    logoUrl: company.logo_url ?? fallback.logoUrl,
+    slogan: company.slogan ?? fallback.slogan,
+    pixKey: company.pix_key ?? fallback.pixKey,
+    pixKeyType: company.pix_key_type ?? fallback.pixKeyType,
+    pixCity: company.pix_city ?? company.address_city ?? fallback.pixCity,
+    cnpj: company.cnpj ?? fallback.cnpj,
+    ie: company.ie ?? fallback.ie,
+    phone: company.phone ?? fallback.phone,
+    addressStreet: company.address_street ?? fallback.addressStreet,
+    addressNumber: company.address_number ?? fallback.addressNumber,
+    addressNeighborhood: company.address_neighborhood ?? fallback.addressNeighborhood,
+    addressCity: company.address_city ?? fallback.addressCity,
+    addressState: company.address_state ?? fallback.addressState,
+    taxRegime: company.tax_regime ?? fallback.taxRegime,
+    crt: company.crt != null && Number.isFinite(Number(company.crt)) ? Number(company.crt) : fallback.crt,
+    pdvAutoEmitNfce: company.pdv_auto_emit_nfce ?? fallback.pdvAutoEmitNfce,
+  };
+}
+
 interface CompanyData {
   companyId: string | null;
   companyName: string | null;
@@ -219,11 +258,15 @@ export function useCompany(): CompanyData {
   const retryTimer = useRef<ReturnType<typeof setTimeout>>();
 
   const applyCompany = useCallback((resolvedId: string, company: CompanyRow | null | undefined) => {
-    const f = extractCompanyFields(company);
     setCompanyId(resolvedId);
-    setFields(f);
-    cacheCompany({ companyId: resolvedId, ...f });
-  }, []);
+    setFields((prev) => {
+      const cachedFallback = cached ? { ...nullFields, ...cached } : nullFields;
+      const baseFallback = hasCompanyIdentity(prev) ? prev : cachedFallback;
+      const next = mergeCompanyFields(company, baseFallback);
+      cacheCompany({ companyId: resolvedId, ...next });
+      return next;
+    });
+  }, [cached]);
 
   useEffect(() => {
     retryCount.current = 0;
