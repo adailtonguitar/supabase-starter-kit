@@ -260,13 +260,31 @@ export default function NFeEmissao() {
     }
   }, []);
 
-  // Auto-resolve IBGE quando CEP muda (ex: preenchido via CNPJ lookup) e destCityCode está vazio
+  // Auto-resolve IBGE quando destZip muda e destCityCode está vazio (fallback silencioso)
+  const lastAutoLookupCep = useRef("");
   useEffect(() => {
     const digits = form.destZip.replace(/\D/g, "");
-    if (digits.length === 8 && (!form.destCityCode || form.destCityCode.replace(/\D/g, "").length < 7)) {
-      handleCepLookup(digits);
+    if (digits.length === 8 && digits !== lastAutoLookupCep.current && (!form.destCityCode || form.destCityCode.replace(/\D/g, "").length < 7)) {
+      lastAutoLookupCep.current = digits;
+      // Lookup silencioso — não mostrar erro se falhar
+      (async () => {
+        try {
+          const resp = await fetch(`https://viacep.com.br/ws/${digits}/json/`);
+          const data = await resp.json();
+          if (!data.erro && data.ibge) {
+            setForm(p => ({
+              ...p,
+              destCity: data.localidade || p.destCity,
+              destUF: data.uf || p.destUF,
+              destCityCode: data.ibge || p.destCityCode,
+              destStreet: data.logradouro || p.destStreet,
+              destNeighborhood: data.bairro || p.destNeighborhood,
+            }));
+          }
+        } catch { /* silencioso */ }
+      })();
     }
-  }, [form.destZip, form.destCityCode, handleCepLookup]);
+  }, [form.destZip, form.destCityCode]);
 
   // Load company info for DANFE
   useEffect(() => {
