@@ -252,6 +252,10 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   }
 
   if (showOnboarding) {
+    const isEmissorRoute = window.location.pathname.startsWith("/emissor");
+    if (isEmissorRoute) {
+      return <EmissorOnboardingWizard onComplete={() => window.location.reload()} />;
+    }
     return <OnboardingWizard onComplete={() => window.location.reload()} />;
   }
 
