@@ -278,6 +278,17 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // Health-check probe — respond immediately without processing
+    const rawBody = await req.text();
+    let body: any = {};
+    try { body = JSON.parse(rawBody); } catch { /* empty or invalid */ }
+
+    if (body.health_check) {
+      return new Response(JSON.stringify({ status: "ok" }), {
+        headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
+      });
+    }
+
     // Validate auth
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
