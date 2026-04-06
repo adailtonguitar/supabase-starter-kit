@@ -31,15 +31,24 @@ export function useTermsAcceptance(): TermsAcceptance {
 
     const check = async () => {
       try {
-        // Demo companies skip terms entirely
-        const { data: companyData } = await supabase
-          .from("companies")
-          .select("is_demo")
-          .eq("id", companyId)
+        // Demo companies skip terms — use company_plans as proxy
+        // (avoids recursive RLS on companies table)
+        const { data: planData } = await supabase
+          .from("company_plans")
+          .select("plan")
+          .eq("company_id", companyId)
           .maybeSingle();
 
-        const row = companyData as { is_demo?: boolean } | null;
-        if (row?.is_demo === true) {
+        // Also check via products if any is_demo product exists (lightweight check)
+        const { count: demoCount } = await supabase
+          .from("products")
+          .select("id", { count: "exact", head: true })
+          .eq("company_id", companyId)
+          .eq("is_demo", true);
+
+        const isDemoCompany = (demoCount ?? 0) > 0;
+
+        if (isDemoCompany) {
           setAccepted(true);
           localStorage.setItem(cacheKey, "true");
           setLoading(false);
