@@ -218,6 +218,7 @@ function extractConsultReason(data: Record<string, any>): string {
   const candidates = [
     data.motivo,
     data.xMotivo,
+    data.motivo_status,
     data.rejection_reason,
     data.mensagem,
     data.message,
@@ -227,6 +228,11 @@ function extractConsultReason(data: Record<string, any>): string {
     data?.status_sefaz?.xMotivo,
     data?.status_sefaz?.mensagem,
     data?.status_sefaz?.message,
+    data?.autorizacao?.motivo_status,
+    data?.autorizacao?.motivo,
+    data?.autorizacao?.xMotivo,
+    data?.autorizacao?.mensagem,
+    data?.autorizacao?.message,
     data?.erro?.mensagem,
     data?.erro?.message,
     data?.error?.mensagem,
@@ -242,7 +248,14 @@ function extractConsultReason(data: Record<string, any>): string {
 }
 
 function formatConsultReason(data: Record<string, any>, fallback: string): string {
-  const code = String(data.codigo_status || data.cStat || data.status_sefaz?.codigo || "").trim();
+  const code = String(
+    data.codigo_status
+      || data.cStat
+      || data.status_sefaz?.codigo
+      || data.autorizacao?.codigo_status
+      || data.autorizacao?.cStat
+      || "",
+  ).trim();
   const reason = extractConsultReason(data) || fallback;
   return code && !reason.includes(`[${code}]`) ? `[${code}] ${reason}` : reason;
 }
@@ -256,12 +269,34 @@ function normalizeCfopForDestination(baseCfop: unknown, isInterstate: boolean): 
 }
 
 function resolveProviderFiscalStatus(data: Record<string, any> | null | undefined) {
-  const statusStr = String(data?.status || "").toLowerCase();
-  const cStatStr = String(data?.codigo_status || data?.cStat || data?.status_sefaz?.codigo || "").trim();
-  const accessKey = String(data?.chave || data?.chave_acesso || data?.access_key || "").trim();
-  const protocolNumber = String(data?.protocolo || data?.numero_protocolo || data?.status_sefaz?.protocolo || "").trim();
+  const primaryStatus = String(data?.status || "").toLowerCase();
+  const authStatus = String(data?.autorizacao?.status || "").toLowerCase();
+  const statusStr = authStatus || primaryStatus;
+  const cStatStr = String(
+    data?.codigo_status
+      || data?.cStat
+      || data?.status_sefaz?.codigo
+      || data?.autorizacao?.codigo_status
+      || data?.autorizacao?.cStat
+      || "",
+  ).trim();
+  const accessKey = String(
+    data?.chave
+      || data?.chave_acesso
+      || data?.access_key
+      || data?.autorizacao?.chave_acesso
+      || "",
+  ).trim();
+  const protocolNumber = String(
+    data?.protocolo
+      || data?.numero_protocolo
+      || data?.status_sefaz?.protocolo
+      || data?.autorizacao?.protocolo
+      || data?.autorizacao?.numero_protocolo
+      || "",
+  ).trim();
 
-  const isDenied = statusStr.includes("rejei") || statusStr.includes("deneg") || ["110", "204", "301", "302", "539", "999"].includes(cStatStr);
+  const isDenied = statusStr.includes("rejei") || statusStr.includes("deneg") || ["110", "204", "301", "302", "539", "793", "999"].includes(cStatStr);
   const isContingency = statusStr.includes("contingencia") || statusStr.includes("contingência");
   const isAuthorized = cStatStr === "100"
     || statusStr.includes("autoriz")
@@ -1009,10 +1044,12 @@ async function handleEmitNfe(supabase: any, body: any) {
 
   // ─── Determinar se destinatário é contribuinte ICMS ───
   const destDocDigits = (form.dest_doc || "").replace(/\D/g, "");
-  const destIE = (form.dest_ie || "").replace(/\D/g, "");
-  const destIsContribuinte = destIE.length >= 2 || false;
+  const destIERaw = String(form.dest_ie || "").trim();
+  const destIE = destIERaw.replace(/\D/g, "");
+  const destIEIsento = /^isento$/i.test(destIERaw);
+  const destIsContribuinte = destDocDigits.length === 14 && (destIE.length >= 2 || destIEIsento);
   const applyDifal = isInterstate && !destIsContribuinte;
-  console.log(`[emit-nfe] DestDoc=${destDocDigits.length} Contribuinte=${destIsContribuinte} DIFAL=${applyDifal}`);
+  console.log(`[emit-nfe] DestDoc=${destDocDigits.length} IE=${destIERaw || "(vazio)"} Contribuinte=${destIsContribuinte} DIFAL=${applyDifal}`);
 
   // ─── Alíquotas DIFAL ───
   // Sul/Sudeste (exceto ES) para demais: 7%, senão 12%
@@ -1166,12 +1203,16 @@ async function handleEmitNfe(supabase: any, body: any) {
     if (form.dest_name) dest.xNome = sanitizeSefazText(form.dest_name, "CONSUMIDOR");
 
     // IE do destinatário
-    const destIE = (form.dest_ie || "").replace(/\D/g, "");
+    const destIERawValue = String(form.dest_ie || "").trim();
+    const destIE = destIERawValue.replace(/\D/g, "");
+    const destIEIsento = /^isento$/i.test(destIERawValue);
     if (destIE && destIE.length >= 2) {
       dest.IE = destIE;
       dest.indIEDest = 1; // Contribuinte
+    } else if (destDoc.length === 14 && destIEIsento) {
+      dest.indIEDest = 2; // Contribuinte isento
     } else {
-      dest.indIEDest = destDoc.length === 14 ? 2 : 9; // 2=Isento (PJ), 9=Não contribuinte (PF)
+      dest.indIEDest = 9; // Não contribuinte
     }
 
     if (form.dest_email) dest.email = form.dest_email;
