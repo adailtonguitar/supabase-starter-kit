@@ -783,6 +783,393 @@ async function handleEmit(supabase: any, body: any) {
   });
 }
 
+// ─── Emissão NF-e modelo 55 (chamada pelo NFeEmissao.tsx) ───
+async function handleEmitNfe(supabase: any, body: any) {
+  const t0 = Date.now();
+  const { company_id, config_id, form, certificate_base64, certificate_password } = body;
+
+  if (!company_id || !form) {
+    return jsonResponse({ error: "Dados incompletos: company_id e form são obrigatórios" }, 400);
+  }
+
+  // Rate limiting
+  const { data: allowed } = await supabase.rpc("check_rate_limit", {
+    p_company_id: company_id,
+    p_fn_name: "emit-nfe",
+    p_max_calls: 20,
+    p_window_sec: 60,
+  });
+  if (allowed === false) {
+    return jsonResponse({ error: "Limite de emissões excedido. Aguarde 1 minuto." }, 429);
+  }
+
+  // Buscar empresa + config fiscal em PARALELO
+  const companyPromise = supabase.from("companies").select("*").eq("id", company_id).single();
+  const configPromise = config_id
+    ? supabase.from("fiscal_configs").select("*").eq("id", config_id).single()
+    : supabase.from("fiscal_configs").select("*")
+        .eq("company_id", company_id).eq("doc_type", "nfe").eq("is_active", true).limit(1).maybeSingle();
+
+  const [companyRes, configRes] = await Promise.all([companyPromise, configPromise]);
+
+  if (companyRes.error || !companyRes.data) {
+    return jsonResponse({ error: "Empresa não encontrada" }, 404);
+  }
+
+  const company = (await fillCompanyRowFromServicePeerFallback(
+    supabase,
+    await resolveCompanyFiscalRowWithParent(supabase, companyRes.data as Record<string, unknown>),
+    String(company_id),
+  )) as typeof companyRes.data;
+
+  let config = configRes.data;
+  if (!config && config_id) {
+    const { data } = await supabase.from("fiscal_configs").select("*")
+      .eq("company_id", company_id).eq("doc_type", "nfe").eq("is_active", true).limit(1).maybeSingle();
+    config = data;
+  }
+  if (!config) {
+    return jsonResponse({ error: "Configuração fiscal NF-e não encontrada. Acesse Fiscal > Configuração." }, 400);
+  }
+
+  // Validação IE
+  const ieClean = (company.ie || company.state_registration || "").replace(/\D/g, "");
+  if (!ieClean || ieClean.length < 2) {
+    return jsonResponse({ error: "Inscrição Estadual (IE) não configurada." }, 400);
+  }
+
+  // Certificado expirado
+  if (config.certificate_expiry) {
+    const expiryDate = new Date(config.certificate_expiry);
+    const daysUntilExpiry = Math.floor((expiryDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+    if (daysUntilExpiry <= 0) {
+      return jsonResponse({ error: `Certificado digital A1 EXPIRADO em ${expiryDate.toLocaleDateString("pt-BR")}. Renove antes de emitir.` }, 400);
+    }
+  }
+
+  // CRT e regime
+  const crt = form.crt || company.crt || 1;
+  const isSimples = crt === 1 || crt === 2;
+
+  // Numeração
+  const numero = await getNextNumberSafe(supabase, config.id);
+
+  // Ambiente
+  const ambiente = config.environment === "producao" ? "producao" : "homologacao";
+
+  // Itens
+  const items = form.items || [];
+  if (items.length === 0) {
+    return jsonResponse({ error: "Nenhum item na nota" }, 400);
+  }
+
+  // Totalizadores
+  let totalVProd = 0, totalVDesc = 0, totalVICMS = 0, totalVBCST = 0, totalVST = 0, totalVPIS = 0, totalVCOFINS = 0;
+
+  const detItems = items.map((item: any, i: number) => {
+    const ncm = (item.ncm || "").replace(/\D/g, "");
+    if (!ncm || ncm.length < 2 || ncm === "00000000") {
+      throw new Error(`Item ${i + 1} ("${item.name}") sem NCM válido.`);
+    }
+
+    const cfop = (item.cfop || "5102").trim();
+    if (!cfop || cfop.length !== 4) {
+      throw new Error(`Item ${i + 1} ("${item.name}") com CFOP inválido: "${cfop}"`);
+    }
+
+    const qty = item.qty || item.quantity || 1;
+    const unitPrice = item.unit_price || 0;
+    const discount = Math.round((item.discount || 0) * 100) / 100;
+    const vProd = Math.round(qty * unitPrice * 100) / 100;
+    const vProdLiq = vProd - discount;
+
+    totalVProd += vProd;
+    totalVDesc += discount;
+
+    const icmsBlock = buildIcmsBlock({ ...item, qty, unit_price: unitPrice, discount }, isSimples);
+
+    const icmsKey = Object.keys(icmsBlock)[0];
+    const icmsData = (icmsBlock as any)[icmsKey];
+    if (icmsData.vICMS) totalVICMS += icmsData.vICMS;
+    if (icmsData.vBCST) totalVBCST += icmsData.vBCST;
+    if (icmsData.vICMSST) totalVST += icmsData.vICMSST;
+
+    const pisCst = item.pis_cst || (isSimples ? "49" : "01");
+    const cofinsCst = item.cofins_cst || (isSimples ? "49" : "01");
+    const { PIS, COFINS } = buildPisCofins(pisCst, cofinsCst, vProdLiq);
+
+    if (PIS.PISAliq) totalVPIS += PIS.PISAliq.vPIS;
+    if (COFINS.COFINSAliq) totalVCOFINS += COFINS.COFINSAliq.vCOFINS;
+
+    const prodBlock: any = {
+      cProd: item.product_code || item.product_id || String(i + 1),
+      cEAN: "SEM GTIN", xProd: item.name, NCM: ncm, CFOP: cfop,
+      uCom: item.unit || "UN", qCom: qty, vUnCom: unitPrice, vProd,
+      cEANTrib: "SEM GTIN", uTrib: item.unit || "UN", qTrib: qty, vUnTrib: unitPrice, indTot: 1,
+    };
+
+    if (item.cest) prodBlock.CEST = String(item.cest).replace(/\D/g, "");
+
+    const det: any = { nItem: i + 1, prod: prodBlock, imposto: { ICMS: icmsBlock, PIS, COFINS } };
+    if (discount > 0) det.prod.vDesc = discount;
+
+    return det;
+  });
+
+  const vNF = Math.round((totalVProd - totalVDesc + totalVST) * 100) / 100;
+
+  // Pagamento
+  const paymentMethod = form.payment_method || "01";
+  const paymentValue = form.payment_value || vNF;
+  const tPag = paymentMethod;
+  const detPag = [{ tPag, vPag: Math.round(paymentValue * 100) / 100 }];
+  const pagBlock: any = { detPag };
+
+  // Destinatário (obrigatório para NF-e)
+  let dest: any = undefined;
+  const destDoc = (form.dest_doc || "").replace(/\D/g, "");
+  if (destDoc) {
+    dest = {};
+    if (destDoc.length === 11) { dest.CPF = destDoc; }
+    else if (destDoc.length === 14) { dest.CNPJ = destDoc; }
+
+    if (form.dest_name) dest.xNome = sanitizeSefazText(form.dest_name, "CONSUMIDOR");
+
+    // IE do destinatário
+    const destIE = (form.dest_ie || "").replace(/\D/g, "");
+    if (destIE && destIE.length >= 2) {
+      dest.IE = destIE;
+      dest.indIEDest = 1; // Contribuinte
+    } else {
+      dest.indIEDest = destDoc.length === 14 ? 2 : 9; // 2=Isento (PJ), 9=Não contribuinte (PF)
+    }
+
+    if (form.dest_email) dest.email = form.dest_email;
+
+    // Endereço do destinatário
+    if (form.dest_street) {
+      const destCityCode = (form.dest_city_code || "").replace(/\D/g, "");
+      dest.enderDest = {
+        xLgr: sanitizeSefazText(form.dest_street, "Rua não informada"),
+        nro: form.dest_number || "S/N",
+        xBairro: sanitizeSefazText(form.dest_neighborhood || "Centro", "Centro"),
+        cMun: destCityCode || "0000000",
+        xMun: sanitizeSefazText(form.dest_city || "Não informada", "Não informada"),
+        UF: (form.dest_uf || "").toUpperCase() || "MA",
+        CEP: (form.dest_zip || "00000000").replace(/\D/g, ""),
+        cPais: "1058", xPais: "Brasil",
+      };
+      if (form.dest_complement) dest.enderDest.xCpl = form.dest_complement;
+    }
+  }
+
+  // Emitente
+  const cnpjClean = (company.cnpj || "").replace(/\D/g, "");
+  const ieEmitClean = (company.ie || company.state_registration || "").replace(/\D/g, "");
+
+  const ibgeCode = company.ibge_code || company.city_code || company.address_ibge_code || "";
+  const ibgeClean = String(ibgeCode).replace(/\D/g, "");
+  if (!ibgeClean || ibgeClean.length < 7 || ibgeClean === "0000000") {
+    return jsonResponse({ error: `Código IBGE do município não configurado ou inválido ("${ibgeCode}").` }, 400);
+  }
+
+  const emit: Record<string, unknown> = {
+    CNPJ: cnpjClean,
+    xNome: sanitizeSefazText(company.name || company.trade_name, "EMITENTE"),
+    CRT: crt,
+  };
+  if (ieEmitClean) emit.IE = ieEmitClean;
+
+  if (company.street || company.address) {
+    emit.enderEmit = {
+      xLgr: sanitizeSefazText(company.street || company.address || "Rua não informada", "Rua não informada"),
+      nro: company.number || company.address_number || "S/N",
+      xBairro: sanitizeSefazText(company.neighborhood || "Centro", "Centro"),
+      cMun: ibgeClean,
+      xMun: sanitizeSefazText(company.city || "Não informada", "Não informada"),
+      UF: sanitizeSefazText(company.state || "MA", "MA"),
+      CEP: (company.zip_code || company.cep || "00000000").replace(/\D/g, ""),
+      cPais: "1058", xPais: "Brasil",
+    };
+    if (company.complement) (emit.enderEmit as Record<string, unknown>).xCpl = company.complement;
+  }
+
+  // Informações adicionais
+  let infAdFisco = "";
+  if (isSimples) infAdFisco = "DOCUMENTO EMITIDO POR ME OU EPP OPTANTE PELO SIMPLES NACIONAL";
+  const infAdic: any = {};
+  if (infAdFisco) infAdic.infAdFisco = infAdFisco;
+  if (form.inf_adic) infAdic.infCpl = form.inf_adic;
+
+  // Finalidade
+  const finNFe = Number(form.finalidade) || 1;
+
+  // Transporte
+  const modFrete = Number(form.frete) || 9;
+  const transp: any = { modFrete };
+  if (form.transport_name && modFrete !== 9) {
+    const transpDoc = (form.transport_doc || "").replace(/\D/g, "");
+    transp.transporta = {
+      xNome: sanitizeSefazText(form.transport_name, "TRANSPORTADORA"),
+    };
+    if (transpDoc.length === 14) transp.transporta.CNPJ = transpDoc;
+    else if (transpDoc.length === 11) transp.transporta.CPF = transpDoc;
+
+    if (form.transport_plate) {
+      transp.veicTransp = {
+        placa: form.transport_plate.replace(/[^A-Z0-9]/gi, "").toUpperCase(),
+        UF: (form.transport_uf || "").toUpperCase() || "MA",
+      };
+    }
+  }
+
+  // Volumes
+  if (form.volumes && Number(form.volumes) > 0) {
+    transp.vol = [{
+      qVol: Number(form.volumes),
+      pesoL: form.net_weight ? Math.round(Number(form.net_weight) * 1000) / 1000 : undefined,
+      pesoB: form.gross_weight ? Math.round(Number(form.gross_weight) * 1000) / 1000 : undefined,
+    }];
+  }
+
+  // Payload NF-e modelo 55
+  const payload: any = {
+    ambiente,
+    infNFe: {
+      versao: "4.00",
+      ide: {
+        cUF: getUfCode(company.state || "MA"),
+        natOp: form.nat_op || "VENDA DE MERCADORIA",
+        mod: 55, serie: config.serie || 1, nNF: numero,
+        dhEmi: new Date().toISOString(),
+        dhSaiEnt: new Date().toISOString(),
+        tpNF: 1, idDest: 1, cMunFG: ibgeClean,
+        tpImp: 1, tpEmis: 1,
+        tpAmb: ambiente === "producao" ? 1 : 2,
+        finNFe, indFinal: 1, indPres: 0,
+        procEmi: 0, verProc: "AnthoSystem 1.0",
+      },
+      emit,
+      dest,
+      det: detItems,
+      transp,
+      total: {
+        ICMSTot: {
+          vBC: Math.round((totalVICMS > 0 ? totalVProd : 0) * 100) / 100,
+          vICMS: Math.round(totalVICMS * 100) / 100,
+          vICMSDeson: 0, vFCP: 0,
+          vBCST: Math.round(totalVBCST * 100) / 100,
+          vST: Math.round(totalVST * 100) / 100,
+          vFCPST: 0, vFCPSTRet: 0,
+          vProd: Math.round(totalVProd * 100) / 100,
+          vFrete: 0, vSeg: 0,
+          vDesc: Math.round(totalVDesc * 100) / 100,
+          vII: 0, vIPI: 0, vIPIDevol: 0,
+          vPIS: Math.round(totalVPIS * 100) / 100,
+          vCOFINS: Math.round(totalVCOFINS * 100) / 100,
+          vOutro: 0, vNF,
+        },
+      },
+      pag: pagBlock,
+    },
+  };
+
+  if (!dest) {
+    return jsonResponse({ error: "Destinatário é obrigatório para NF-e modelo 55. Preencha os dados do destinatário." }, 400);
+  }
+
+  if (Object.keys(infAdic).length > 0) payload.infNFe.infAdic = infAdic;
+
+  console.log(`[emit-nfe] ▶ Emitindo NF-e #${numero} | CNPJ: ${cnpjClean} | CRT: ${crt} | Amb: ${ambiente} | Itens: ${items.length} | Total: ${vNF} | Finalidade: ${finNFe}`);
+
+  // ─── Autenticação Nuvem Fiscal ───
+  const token = await getNuvemFiscalToken();
+  const baseUrl = getApiBaseUrl();
+
+  console.log(`[emit-nfe] ▶ Enviando para Nuvem Fiscal (NF-e)...`);
+
+  // ─── Emissão NF-e com safeFetch ───
+  const nfResp = await safeFetch(`${baseUrl}/nfe`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  }, 15000);
+
+  const nfData = await parseResponseJsonSafe(nfResp, "emissão NF-e");
+
+  console.log(`[emit-nfe] ◀ Resposta Nuvem Fiscal: status=${nfResp.status} | ${Date.now() - t0}ms`);
+
+  if (!nfResp.ok) {
+    const baseErrMsg = nfData?.mensagem || nfData?.error?.message || nfData?.message || JSON.stringify(nfData);
+    const validationList = [
+      ...(Array.isArray(nfData?.errors) ? nfData.errors : []),
+      ...(Array.isArray(nfData?.violations) ? nfData.violations : []),
+      ...(Array.isArray(nfData?.details) ? nfData.details : []),
+    ];
+    const firstValidation = validationList[0];
+    const fieldPath = firstValidation?.propertyPath || firstValidation?.field || firstValidation?.path || "";
+    const fieldMessage = firstValidation?.message || firstValidation?.error || firstValidation?.reason || "";
+    const validationHint = fieldPath && fieldMessage ? `${fieldPath}: ${fieldMessage}` : (fieldMessage || "");
+    const errMsg = validationHint ? `${baseErrMsg} — ${validationHint}` : baseErrMsg;
+    console.error(`[emit-nfe] ✗ Erro Nuvem Fiscal [${nfResp.status}]:`, errMsg);
+
+    const rejAccessKey = nfData?.chave || nfData?.chave_acesso || null;
+    const rejProtocol = nfData?.protocolo || nfData?.numero_protocolo || null;
+    const rejReason = nfData?.motivo || nfData?.xMotivo || errMsg;
+    const rejCode = nfData?.codigo_status || nfData?.cStat || null;
+
+    await supabase.from("fiscal_documents").insert({
+      company_id, doc_type: "nfe", number: numero, serie: config.serie || 1,
+      status: "rejeitada", total_value: vNF, environment: ambiente,
+      customer_name: form.dest_name || null, customer_cpf_cnpj: destDoc || null,
+      payment_method: mapTPagToLocalPaymentMethod(tPag), access_key: rejAccessKey, protocol_number: rejProtocol,
+      rejection_reason: rejCode ? `[${rejCode}] ${rejReason}` : rejReason, is_contingency: false,
+    });
+
+    return jsonResponse({ success: false, error: errMsg, rejection_reason: rejReason, details: nfData }, 400);
+  }
+
+  // Detectar status
+  const statusStr = (nfData.status || "").toLowerCase();
+  const cStatStr = String(nfData.codigo_status || nfData.cStat || "");
+  const accessKey = nfData.chave || nfData.chave_acesso || nfData.access_key || "";
+  const nuvemFiscalId = nfData.id || nfData.nuvem_fiscal_id || null;
+  const protocolNumber = nfData.protocolo || nfData.numero_protocolo || "";
+
+  const isAuthorized = statusStr.includes("autoriz") || statusStr.includes("aprovad") || cStatStr === "100";
+  const isContingency = statusStr.includes("contingencia") || statusStr.includes("contingência");
+  const isPending = statusStr.includes("pendente") || statusStr.includes("processando");
+
+  let finalStatus: string;
+  if (isAuthorized) finalStatus = "autorizada";
+  else if (isContingency) finalStatus = "contingencia";
+  else if (isPending) finalStatus = "pendente";
+  else finalStatus = "pendente";
+
+  // Salvar documento fiscal
+  await supabase.from("fiscal_documents").insert({
+    company_id, doc_type: "nfe", number: numero, serie: config.serie || 1,
+    access_key: accessKey || null, protocol_number: protocolNumber || null,
+    status: finalStatus, total_value: vNF, environment: ambiente,
+    customer_name: form.dest_name || null, customer_cpf_cnpj: destDoc || null,
+    payment_method: mapTPagToLocalPaymentMethod(tPag), is_contingency: isContingency,
+  });
+
+  console.log(`[emit-nfe] ✓ NF-e #${numero} → ${finalStatus} | Chave: ${accessKey?.substring(0, 20)}... | ${Date.now() - t0}ms total`);
+
+  return jsonResponse({
+    success: true,
+    status: finalStatus,
+    number: numero,
+    access_key: accessKey,
+    protocol: protocolNumber,
+    nuvem_fiscal_id: nuvemFiscalId,
+  });
+}
+
 // ─── Emissão a partir de uma venda já gravada ───
 async function handleEmitFromSale(supabase: any, body: any) {
   const { sale_id, company_id, config_id } = body as { sale_id?: unknown; company_id?: unknown; config_id?: unknown };
@@ -1365,7 +1752,7 @@ Deno.serve(async (req) => {
     const { userId, isServiceCall } = await validateCaller(req);
 
     // Auth obrigatória para ações destrutivas — mas service_role pode chamar consult_status etc.
-    const isAuthRequired = ["emit", "cancel", "backup_xmls"].includes(action) || Boolean(body.company_id);
+    const isAuthRequired = ["emit", "emit_nfe", "cancel", "backup_xmls"].includes(action) || Boolean(body.company_id);
     if (isAuthRequired && !isServiceCall) {
       const auth = await requireUser(req);
       if (!auth.ok) return auth.response;
@@ -1381,6 +1768,8 @@ Deno.serve(async (req) => {
     switch (action) {
       case "emit":
         return await handleEmit(supabase, body);
+      case "emit_nfe":
+        return await handleEmitNfe(supabase, body);
       case "emit_from_sale":
         return await handleEmitFromSale(supabase, body);
       case "consult_status":
