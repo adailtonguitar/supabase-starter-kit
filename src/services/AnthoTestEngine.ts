@@ -169,8 +169,14 @@ export class AnthoTestEngine {
       if (error) throw new Error("Sem acesso aos dados da empresa: " + error.message);
     });
     await this.runTest("api", "Empresa", "Configurações da empresa", async () => {
-      const { error } = await supabase.from("companies").select("name, cnpj, whatsapp_support").eq("id", this.companyId).single();
+      const { data, error } = await supabase
+        .from("company_users")
+        .select("companies:company_id(name, cnpj)")
+        .eq("company_id", this.companyId)
+        .eq("user_id", this.userId)
+        .maybeSingle();
       if (error) throw new Error(error.message || JSON.stringify(error));
+      if (!data) throw new Error("Sem vínculo com a empresa");
     });
 
     await this.runTest("api", "Produtos", "Listar produtos", async () => {
