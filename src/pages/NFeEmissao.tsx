@@ -260,6 +260,14 @@ export default function NFeEmissao() {
     }
   }, []);
 
+  // Auto-resolve IBGE quando CEP muda (ex: preenchido via CNPJ lookup) e destCityCode está vazio
+  useEffect(() => {
+    const digits = form.destZip.replace(/\D/g, "");
+    if (digits.length === 8 && (!form.destCityCode || form.destCityCode.replace(/\D/g, "").length < 7)) {
+      handleCepLookup(digits);
+    }
+  }, [form.destZip, form.destCityCode, handleCepLookup]);
+
   // Load company info for DANFE
   useEffect(() => {
     if (!companyId) return;
