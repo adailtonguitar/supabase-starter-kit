@@ -1768,6 +1768,8 @@ Deno.serve(async (req) => {
     switch (action) {
       case "emit":
         return await handleEmit(supabase, body);
+      case "emit_nfe":
+        return await handleEmitNfe(supabase, body);
       case "emit_from_sale":
         return await handleEmitFromSale(supabase, body);
       case "consult_status":
