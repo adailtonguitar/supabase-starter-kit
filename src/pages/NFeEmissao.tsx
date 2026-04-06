@@ -179,6 +179,16 @@ interface NFeClient {
   address_city: string | null;
   address_state: string | null;
   address_zip: string | null;
+  address_ibge_code?: string | null;
+}
+
+interface ViaCepResponse {
+  logradouro?: string;
+  bairro?: string;
+  localidade?: string;
+  uf?: string;
+  ibge?: string;
+  erro?: boolean;
 }
 
 interface NFeFiscalCategory {
@@ -230,61 +240,75 @@ export default function NFeEmissao() {
     address_neighborhood: "", address_city: "", address_state: "", address_zip: "",
   });
   const [cepLoading, setCepLoading] = useState(false);
+  const autoCepLookupInFlight = useRef<string | null>(null);
 
   // Auto-lookup CEP via ViaCEP
-  const handleCepLookup = useCallback(async (cep: string) => {
+  const applyCepDataToForm = useCallback((digits: string, data: ViaCepResponse) => {
+    setForm((p) => ({
+      ...p,
+      destStreet: data.logradouro || p.destStreet,
+      destNeighborhood: data.bairro || p.destNeighborhood,
+      destCity: data.localidade || p.destCity,
+      destUF: data.uf || p.destUF,
+      destCityCode: data.ibge || p.destCityCode,
+      destZip: digits,
+    }));
+  }, []);
+
+  const lookupCepData = useCallback(async (cep: string): Promise<{ digits: string; data: ViaCepResponse } | null> => {
     const digits = cep.replace(/\D/g, "");
-    if (digits.length !== 8) return;
+    if (digits.length !== 8) return null;
+
+    const resp = await fetch(`https://viacep.com.br/ws/${digits}/json/`);
+    const data = await resp.json() as ViaCepResponse;
+    if (!resp.ok || data.erro) return null;
+
+    return { digits, data };
+  }, []);
+
+  const handleCepLookup = useCallback(async (cep: string) => {
+    if (cep.replace(/\D/g, "").length !== 8) return;
     setCepLoading(true);
     try {
-      const resp = await fetch(`https://viacep.com.br/ws/${digits}/json/`);
-      const data = await resp.json();
-      if (data.erro) {
+      const result = await lookupCepData(cep);
+      if (!result) {
         toast.error("CEP não encontrado.");
         return;
       }
-      setForm(p => ({
-        ...p,
-        destStreet: data.logradouro || p.destStreet,
-        destNeighborhood: data.bairro || p.destNeighborhood,
-        destCity: data.localidade || p.destCity,
-        destUF: data.uf || p.destUF,
-        destCityCode: data.ibge || p.destCityCode,
-        destZip: digits,
-      }));
+      applyCepDataToForm(result.digits, result.data);
       toast.success("Endereço preenchido automaticamente!");
     } catch {
       toast.error("Erro ao consultar CEP.");
     } finally {
       setCepLoading(false);
     }
-  }, []);
+  }, [applyCepDataToForm, lookupCepData]);
+
+  const handleSilentCepLookup = useCallback(async (cep: string) => {
+    const digits = cep.replace(/\D/g, "");
+    if (digits.length !== 8 || autoCepLookupInFlight.current === digits) return;
+
+    autoCepLookupInFlight.current = digits;
+    try {
+      const result = await lookupCepData(digits);
+      if (!result) return;
+      applyCepDataToForm(result.digits, result.data);
+    } catch {
+      // silencioso
+    } finally {
+      if (autoCepLookupInFlight.current === digits) {
+        autoCepLookupInFlight.current = null;
+      }
+    }
+  }, [applyCepDataToForm, lookupCepData]);
 
   // Auto-resolve IBGE quando destZip muda e destCityCode está vazio (fallback silencioso)
-  const lastAutoLookupCep = useRef("");
   useEffect(() => {
     const digits = form.destZip.replace(/\D/g, "");
-    if (digits.length === 8 && digits !== lastAutoLookupCep.current && (!form.destCityCode || form.destCityCode.replace(/\D/g, "").length < 7)) {
-      lastAutoLookupCep.current = digits;
-      // Lookup silencioso — não mostrar erro se falhar
-      (async () => {
-        try {
-          const resp = await fetch(`https://viacep.com.br/ws/${digits}/json/`);
-          const data = await resp.json();
-          if (!data.erro && data.ibge) {
-            setForm(p => ({
-              ...p,
-              destCity: data.localidade || p.destCity,
-              destUF: data.uf || p.destUF,
-              destCityCode: data.ibge || p.destCityCode,
-              destStreet: data.logradouro || p.destStreet,
-              destNeighborhood: data.bairro || p.destNeighborhood,
-            }));
-          }
-        } catch { /* silencioso */ }
-      })();
+    if (digits.length === 8 && (!form.destCityCode || form.destCityCode.replace(/\D/g, "").length < 7)) {
+      void handleSilentCepLookup(digits);
     }
-  }, [form.destZip, form.destCityCode]);
+  }, [form.destZip, form.destCityCode, handleSilentCepLookup]);
 
   // Load company info for DANFE
   useEffect(() => {
@@ -313,7 +337,7 @@ export default function NFeEmissao() {
     if (!companyId) return;
     const { data } = await supabase
       .from("clients")
-      .select("id, name, cpf_cnpj, ie, email, phone, address_street, address_number, address_complement, address_neighborhood, address_city, address_state, address_zip")
+      .select("id, name, cpf_cnpj, ie, email, phone, address_street, address_number, address_complement, address_neighborhood, address_city, address_state, address_zip, address_ibge_code")
       .eq("company_id", companyId)
       .order("name")
       .limit(500);
@@ -466,13 +490,13 @@ export default function NFeEmissao() {
       destComplement: client.address_complement || "",
       destNeighborhood: client.address_neighborhood || "",
       destCity: client.address_city || "",
-      destCityCode: (client as any).address_ibge_code || "",
+      destCityCode: client.address_ibge_code || "",
       destUF: client.address_state || "",
       destZip: client.address_zip || "",
     }));
     // Resolver IBGE via CEP se não disponível no cadastro
-    if (!(client as any).address_ibge_code && zip.length === 8) {
-      handleCepLookup(zip);
+    if (!client.address_ibge_code && zip.length === 8) {
+      void handleSilentCepLookup(zip);
     }
     setShowClientSearch(false);
     setClientSearch("");
@@ -1172,7 +1196,7 @@ export default function NFeEmissao() {
                             // Se IBGE não veio do CNPJ lookup, resolver via CEP
                             const zip = result.address_zip?.replace(/\D/g, "") || "";
                             if (!result.address_ibge_code && zip.length === 8) {
-                              handleCepLookup(zip);
+                              void handleSilentCepLookup(zip);
                             }
                           }
                         }}
