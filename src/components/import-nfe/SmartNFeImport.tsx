@@ -64,6 +64,9 @@ export default function SmartNFeImport() {
   const [supplierId, setSupplierId] = useState<string | null>(null);
   const [supplierStatus, setSupplierStatus] = useState<"checking" | "found" | "not_found" | "created">("checking");
   const [creatingSupplier, setCreatingSupplier] = useState(false);
+  const [registerDest, setRegisterDest] = useState(false);
+  const [destClientStatus, setDestClientStatus] = useState<"none" | "exists" | "created">("none");
+  const [creatingSupplier, setCreatingSupplier] = useState(false);
 
   const reset = () => {
     setStep("upload");
