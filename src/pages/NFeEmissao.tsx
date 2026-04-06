@@ -203,7 +203,7 @@ interface NFeFiscalCategory {
 }
 
 export default function NFeEmissao() {
-  const { companyId, companyName, logoUrl } = useCompany();
+  const { companyId, companyName, logoUrl, cnpj: hookCnpj, ie: hookIe, phone: hookPhone, addressStreet: hookStreet, addressNumber: hookNumber, addressNeighborhood: hookNeighborhood, addressCity: hookCity, addressState: hookState } = useCompany();
   const plan = usePlanFeatures();
   const { lookup: cnpjLookup, loading: cnpjLoading } = useCnpjLookup();
 
@@ -310,13 +310,16 @@ export default function NFeEmissao() {
     }
   }, [form.destZip, form.destCityCode, handleSilentCepLookup]);
 
-  // Load company info for DANFE
+  // Load company info for DANFE (with fallback from useCompany hook)
   useEffect(() => {
     if (!companyId) return;
     supabase.from("companies")
       .select("name, trade_name, cnpj, ie, phone, address_street, address_number, address_neighborhood, address_city, address_state, address_zip, logo_url")
       .eq("id", companyId).single()
-      .then(({ data }) => { if (data) setCompanyInfo(data as NFeCompanyInfo); });
+      .then(({ data, error }) => {
+        if (error) console.warn("[NFeEmissao] Falha ao carregar company info:", error.message);
+        if (data) setCompanyInfo(data as NFeCompanyInfo);
+      });
   }, [companyId]);
 
   useEffect(() => {
@@ -949,10 +952,19 @@ export default function NFeEmissao() {
           <div className="flex flex-wrap gap-2 justify-center">
             <DANFePrintButton data={{
               companyName: companyInfo?.trade_name || companyInfo?.name || companyName || "",
-              companyCnpj: companyInfo?.cnpj || "",
-              companyIe: companyInfo?.ie || "",
-              companyAddress: companyInfo ? `${companyInfo.address_street || ""}, ${companyInfo.address_number || ""} - ${companyInfo.address_neighborhood || ""}, ${companyInfo.address_city || ""}/${companyInfo.address_state || ""} - CEP: ${companyInfo.address_zip || ""}` : "",
-              companyPhone: companyInfo?.phone || "",
+              companyCnpj: companyInfo?.cnpj || hookCnpj || "",
+              companyIe: companyInfo?.ie || hookIe || "",
+              companyAddress: (() => {
+                const st = companyInfo?.address_street || hookStreet || "";
+                const num = companyInfo?.address_number || hookNumber || "";
+                const bairro = companyInfo?.address_neighborhood || hookNeighborhood || "";
+                const city = companyInfo?.address_city || hookCity || "";
+                const uf = companyInfo?.address_state || hookState || "";
+                const cep = companyInfo?.address_zip || "";
+                if (!st && !city) return "";
+                return `${st}, ${num} – ${bairro}, ${city}/${uf}${cep ? ` - CEP: ${cep}` : ""}`;
+              })(),
+              companyPhone: companyInfo?.phone || hookPhone || "",
               logoUrl: logoUrl,
               destName: form.destName,
               destDoc: form.destDoc,
