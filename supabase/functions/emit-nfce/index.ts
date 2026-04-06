@@ -156,6 +156,64 @@ function sanitizeSefazText(value: unknown, fallback: string): string {
   return s;
 }
 
+function normalizeCityName(value: unknown): string {
+  return String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9 ]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+async function resolveIbgeCodeFromDestination(params: {
+  city?: unknown;
+  uf?: unknown;
+  zip?: unknown;
+}): Promise<string> {
+  const zipDigits = onlyDigits(params.zip);
+  if (zipDigits.length === 8) {
+    try {
+      const viacepResp = await safeFetch(`https://viacep.com.br/ws/${zipDigits}/json/`, {}, 5000);
+      if (viacepResp.ok) {
+        const viacepData = await viacepResp.json();
+        const ibge = onlyDigits(viacepData?.ibge);
+        if (ibge.length >= 7) return ibge;
+      }
+    } catch (error) {
+      console.warn("[emit-nfce] Falha ao resolver IBGE do destinatário via ViaCEP:", error);
+    }
+  }
+
+  const city = String(params.city ?? "").trim();
+  const uf = String(params.uf ?? "").trim().toUpperCase();
+  if (!city || uf.length !== 2) return "";
+
+  try {
+    const ibgeUrl = `https://servicodados.ibge.gov.br/api/v1/localidades/municipios?nome=${encodeURIComponent(city)}`;
+    const ibgeResp = await safeFetch(ibgeUrl, {}, 5000);
+    if (!ibgeResp.ok) return "";
+
+    const ibgeData = await ibgeResp.json().catch(() => []);
+    if (!Array.isArray(ibgeData)) return "";
+
+    const normalizedCity = normalizeCityName(city);
+    const match = ibgeData.find((item) => {
+      const itemUf = String(item?.microrregiao?.mesorregiao?.UF?.sigla || item?.['regiao-imediata']?.['regiao-intermediaria']?.UF?.sigla || "").toUpperCase();
+      const itemCity = normalizeCityName(item?.nome);
+      return itemUf === uf && itemCity === normalizedCity;
+    }) || ibgeData.find((item) => {
+      const itemUf = String(item?.microrregiao?.mesorregiao?.UF?.sigla || item?.['regiao-imediata']?.['regiao-intermediaria']?.UF?.sigla || "").toUpperCase();
+      return itemUf === uf;
+    });
+
+    return onlyDigits(match?.id);
+  } catch (error) {
+    console.warn("[emit-nfce] Falha ao resolver IBGE do destinatário via API IBGE:", error);
+    return "";
+  }
+}
+
 function extractConsultReason(data: Record<string, any>): string {
   const candidates = [
     data.motivo,
@@ -949,6 +1007,15 @@ async function handleEmitNfe(supabase: any, body: any) {
   let dest: any = undefined;
   const destDoc = (form.dest_doc || "").replace(/\D/g, "");
   if (destDoc) {
+    let destCityCode = onlyDigits(form.dest_city_code);
+    if (destCityCode.length < 7) {
+      destCityCode = await resolveIbgeCodeFromDestination({
+        city: form.dest_city,
+        uf: form.dest_uf,
+        zip: form.dest_zip,
+      });
+    }
+
     dest = {};
     if (destDoc.length === 11) { dest.CPF = destDoc; }
     else if (destDoc.length === 14) { dest.CNPJ = destDoc; }
@@ -968,7 +1035,6 @@ async function handleEmitNfe(supabase: any, body: any) {
 
     // Endereço do destinatário
     if (form.dest_street) {
-      const destCityCode = (form.dest_city_code || "").replace(/\D/g, "");
       dest.enderDest = {
         xLgr: sanitizeSefazText(form.dest_street, "Rua não informada"),
         nro: form.dest_number || "S/N",
@@ -980,6 +1046,12 @@ async function handleEmitNfe(supabase: any, body: any) {
         cPais: "1058", xPais: "Brasil",
       };
       if (form.dest_complement) dest.enderDest.xCpl = form.dest_complement;
+    }
+
+    if (destCityCode.length < 7) {
+      return jsonResponse({
+        error: "Código IBGE do município do destinatário não pôde ser resolvido automaticamente. Revise CEP, cidade e UF do destinatário.",
+      }, 400);
     }
   }
 
