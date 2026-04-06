@@ -913,6 +913,7 @@ export default function NFeEmissao() {
             form: {
               nat_op: form.natOp,
               finalidade: form.finalidade,
+              presence_type: Number(form.presenceType) || 1,
               inf_adic: form.infAdic,
               dest_name: form.destName,
               dest_doc: form.destDoc,
