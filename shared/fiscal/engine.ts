@@ -99,7 +99,7 @@ const ALIQ_INTERNA_UF: Record<string, number> = {
 
 // FCP padrão por UF (Fundo de Combate à Pobreza)
 const FCP_UF: Record<string, number> = {
-  RJ: 2, MG: 2, MS: 2, GO: 2, MT: 2, PI: 2, AL: 1, MA: 2,
+  RJ: 2, MG: 2, MS: 2, GO: 2, MT: 2, PI: 0, AL: 1, MA: 2,
   BA: 2, PE: 2, CE: 2, PA: 2, SE: 2, PB: 2, RN: 2, TO: 2,
 };
 

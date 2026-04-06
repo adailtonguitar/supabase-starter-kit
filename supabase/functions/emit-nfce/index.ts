@@ -1061,7 +1061,7 @@ async function handleEmitNfe(supabase: any, body: any) {
     SP: 18, SE: 19, TO: 20,
   };
   const FCP_UF: Record<string, number> = {
-    RJ: 2, MG: 2, MS: 2, GO: 2, MT: 2, PI: 2, AL: 1, MA: 2,
+    RJ: 2, MG: 2, MS: 2, GO: 2, MT: 2, PI: 0, AL: 1, MA: 2,
     BA: 2, PE: 2, CE: 2, PA: 2, SE: 2, PB: 2, RN: 2, TO: 2,
   };
   const defaultInterRate = SUL_SUDESTE.has(emitUF) && !SUL_SUDESTE.has(destUF) ? 7 : 12;
