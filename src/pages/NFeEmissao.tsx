@@ -155,6 +155,7 @@ interface NFeSuccessData {
   pending?: boolean;
   resolved_items?: NFeItem[];
   error?: string;
+  rejection_reason?: string;
   details?: Record<string, unknown>;
   emitente?: NFeEmitentePayload;
 }
