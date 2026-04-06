@@ -229,6 +229,36 @@ export default function NFeEmissao() {
     address_street: "", address_number: "", address_complement: "",
     address_neighborhood: "", address_city: "", address_state: "", address_zip: "",
   });
+  const [cepLoading, setCepLoading] = useState(false);
+
+  // Auto-lookup CEP via ViaCEP
+  const handleCepLookup = useCallback(async (cep: string) => {
+    const digits = cep.replace(/\D/g, "");
+    if (digits.length !== 8) return;
+    setCepLoading(true);
+    try {
+      const resp = await fetch(`https://viacep.com.br/ws/${digits}/json/`);
+      const data = await resp.json();
+      if (data.erro) {
+        toast.error("CEP não encontrado.");
+        return;
+      }
+      setForm(p => ({
+        ...p,
+        destStreet: data.logradouro || p.destStreet,
+        destNeighborhood: data.bairro || p.destNeighborhood,
+        destCity: data.localidade || p.destCity,
+        destUF: data.uf || p.destUF,
+        destCityCode: data.ibge || p.destCityCode,
+        destZip: digits,
+      }));
+      toast.success("Endereço preenchido automaticamente!");
+    } catch {
+      toast.error("Erro ao consultar CEP.");
+    } finally {
+      setCepLoading(false);
+    }
+  }, []);
 
   // Load company info for DANFE
   useEffect(() => {
@@ -1170,9 +1200,13 @@ export default function NFeEmissao() {
                   </div>
                   <div>
                     <label className="text-xs text-muted-foreground">CEP</label>
-                    <input value={form.destZip} onChange={e => setForm(p => ({ ...p, destZip: e.target.value }))}
-                      className="w-full mt-1 px-3 py-2 rounded-lg border border-border bg-background text-sm font-mono text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
-                      placeholder="00000-000" />
+                    <div className="relative">
+                      <input value={form.destZip} onChange={e => setForm(p => ({ ...p, destZip: e.target.value }))}
+                        onBlur={e => handleCepLookup(e.target.value)}
+                        className="w-full mt-1 px-3 py-2 rounded-lg border border-border bg-background text-sm font-mono text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+                        placeholder="00000-000" />
+                      {cepLoading && <Loader2 className="absolute right-2 top-3 w-4 h-4 animate-spin text-muted-foreground" />}
+                    </div>
                   </div>
                 </div>
               </div>
