@@ -146,8 +146,8 @@ body { font-family: Arial, Helvetica, sans-serif; font-size: 8px; color: #000; b
 .h-access { width: 50%; display: flex; flex-direction: column; }
 .h-fisco { border-bottom: 1px solid #000; padding: 2px 6px; }
 .h-fisco .fisco-lbl { font-size: 6px; color: #444; text-transform: uppercase; margin-bottom: 2px; }
-.h-fisco .barcode-area { display: flex; align-items: center; justify-content: center; min-height: 36px; overflow: hidden; }
-.h-fisco .barcode-text { font-family: 'Libre Barcode 128 Text', monospace; font-size: 48px; letter-spacing: 0; line-height: 1; }
+.h-fisco .barcode-area { display: flex; align-items: center; justify-content: center; min-height: 40px; overflow: hidden; }
+.h-fisco .barcode-text { font-family: 'Libre Barcode 128', monospace; font-size: 52px; letter-spacing: 0; line-height: 1; }
 .h-key { padding: 3px 6px; }
 .h-key .klbl { font-size: 6px; color: #444; text-transform: uppercase; margin-bottom: 1px; }
 .h-key .kval { font-size: 8.5px; font-family: monospace; word-break: break-all; text-align: center; letter-spacing: 0.5px; }
