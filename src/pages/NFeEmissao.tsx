@@ -343,13 +343,13 @@ export default function NFeEmissao() {
     if (!companyId) return;
     supabase.from("companies")
       .select("name, trade_name, cnpj, ie, phone, address_street, address_number, address_neighborhood, address_city, address_state, address_zip, logo_url")
-      .eq("id", companyId).single()
+      .eq("id", companyId)
+      .maybeSingle()
       .then(({ data, error }) => {
         if (error) console.warn("[NFeEmissao] Falha ao carregar company info:", error.message);
         if (data) {
           setCompanyInfo(data as NFeCompanyInfo);
-        } else if (companyName || hookCnpj) {
-          // Fallback: build companyInfo from useCompany hook data
+        } else if (companyName || hookCnpj || hookStreet || hookCity) {
           setCompanyInfo({
             name: companyName || "",
             trade_name: null,
