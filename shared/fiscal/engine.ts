@@ -168,7 +168,7 @@ export function calculateDifal(
 
   const aliqInter = taxRule?.aliq_interestadual ?? getDefaultInterstateRate(uo, ud);
   const aliqInterna = taxRule?.aliq_interna_destino ?? (ALIQ_INTERNA_UF[ud] || 18);
-  const fcp = taxRule?.fcp_percent ?? (FCP_UF[ud] || 0);
+  const fcp = resolveEffectiveFcpPercent(ud, taxRule?.fcp_percent ?? null);
 
   if (aliqInterna <= aliqInter) return noDifal;
 
