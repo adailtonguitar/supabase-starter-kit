@@ -318,9 +318,27 @@ export default function NFeEmissao() {
       .eq("id", companyId).single()
       .then(({ data, error }) => {
         if (error) console.warn("[NFeEmissao] Falha ao carregar company info:", error.message);
-        if (data) setCompanyInfo(data as NFeCompanyInfo);
+        if (data) {
+          setCompanyInfo(data as NFeCompanyInfo);
+        } else if (companyName || hookCnpj) {
+          // Fallback: build companyInfo from useCompany hook data
+          setCompanyInfo({
+            name: companyName || "",
+            trade_name: null,
+            cnpj: hookCnpj || "",
+            ie: hookIe || null,
+            phone: hookPhone || null,
+            address_street: hookStreet || null,
+            address_number: hookNumber || null,
+            address_neighborhood: hookNeighborhood || null,
+            address_city: hookCity || null,
+            address_state: hookState || null,
+            address_zip: null,
+            logo_url: logoUrl || null,
+          });
+        }
       });
-  }, [companyId]);
+  }, [companyId, companyName, hookCnpj, hookIe, hookPhone, hookStreet, hookNumber, hookNeighborhood, hookCity, hookState, logoUrl]);
 
   useEffect(() => {
     if (!companyId) return;
