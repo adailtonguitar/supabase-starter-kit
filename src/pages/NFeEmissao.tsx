@@ -954,6 +954,7 @@ export default function NFeEmissao() {
     setErrorMsg("");
     setRejection(null);
     setSuccessData(null);
+    setDanfeCompanySnapshot(null);
     setActiveTab("dest");
   };
 
