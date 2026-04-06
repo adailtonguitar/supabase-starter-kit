@@ -97,7 +97,7 @@ function extractUF(address: string): string {
 }
 
 const DANFE_CSS = `
-@import url('https://fonts.googleapis.com/css2?family=Libre+Barcode+128+Text&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Libre+Barcode+128&display=swap');
 
 @page { size: A4; margin: 8mm; }
 * { margin: 0; padding: 0; box-sizing: border-box; }
