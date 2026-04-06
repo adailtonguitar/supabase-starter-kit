@@ -94,7 +94,11 @@ export class AnthoTestEngine {
       await fn();
       this.addTest({ layer, group, name, status: "pass", duration: Math.round(performance.now() - start) });
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
+      const msg = err instanceof Error
+        ? err.message
+        : (typeof err === "object" && err !== null && "message" in err)
+          ? String((err as any).message)
+          : String(err);
       const isWarn = msg.includes("aviso:") || msg.includes("warning:");
       this.addTest({
         layer, group, name,
@@ -166,7 +170,7 @@ export class AnthoTestEngine {
     });
     await this.runTest("api", "Empresa", "Configurações da empresa", async () => {
       const { error } = await supabase.from("companies").select("name, cnpj, whatsapp_support").eq("id", this.companyId).single();
-      if (error) throw error;
+      if (error) throw new Error(error.message || JSON.stringify(error));
     });
 
     await this.runTest("api", "Produtos", "Listar produtos", async () => {
