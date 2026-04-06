@@ -4,7 +4,7 @@ import {
   Upload, FileText, AlertCircle, CheckCircle2, Loader2, Package,
   Pencil, Trash2, Factory, Plus, Link, RefreshCw, Brain, Lightbulb,
   TrendingDown, AlertTriangle, Eye, X, Sparkles, FileSearch, ShieldCheck,
-  BarChart3, ArrowRight,
+  BarChart3, ArrowRight, Users,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
