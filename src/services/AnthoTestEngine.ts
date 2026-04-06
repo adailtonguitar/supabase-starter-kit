@@ -745,6 +745,37 @@ export class AnthoTestEngine {
   // ─── CLEANUP ───
   private async cleanup() {
     try {
+      // Clean up test sales (identified by terminal_id "ANTHO_TEST")
+      const { data: testSales } = await supabase
+        .from("sales")
+        .select("id")
+        .eq("company_id", this.companyId)
+        .eq("terminal_id", "ANTHO_TEST");
+
+      if (testSales && testSales.length > 0) {
+        for (const sale of testSales) {
+          await supabase.from("sale_items").delete().eq("sale_id", sale.id);
+          await supabase.from("financial_entries").delete().eq("reference", sale.id);
+        }
+        const saleIds = testSales.map(s => s.id);
+        await supabase.from("sales").delete().eq("company_id", this.companyId).in("id", saleIds);
+      }
+
+      // Clean up test cash sessions
+      const { data: testSessions } = await supabase
+        .from("cash_sessions")
+        .select("id")
+        .eq("company_id", this.companyId)
+        .eq("terminal_id", "ANTHO_TEST");
+
+      if (testSessions && testSessions.length > 0) {
+        for (const sess of testSessions) {
+          await supabase.from("cash_movements").delete().eq("session_id", sess.id);
+        }
+        await supabase.from("cash_sessions").delete().eq("company_id", this.companyId).eq("terminal_id", "ANTHO_TEST");
+      }
+
+      // Clean up test products, movements, financial entries and clients
       await supabase.from("products").delete().eq("company_id", this.companyId).like("name", `${TEST_PREFIX}%`);
       await supabase.from("stock_movements").delete().eq("company_id", this.companyId).eq("reason", TEST_PREFIX);
       await supabase.from("financial_entries").delete().eq("company_id", this.companyId).like("description", `${TEST_PREFIX}%`);
