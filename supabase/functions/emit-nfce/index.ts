@@ -1752,7 +1752,7 @@ Deno.serve(async (req) => {
     const { userId, isServiceCall } = await validateCaller(req);
 
     // Auth obrigatória para ações destrutivas — mas service_role pode chamar consult_status etc.
-    const isAuthRequired = ["emit", "cancel", "backup_xmls"].includes(action) || Boolean(body.company_id);
+    const isAuthRequired = ["emit", "emit_nfe", "cancel", "backup_xmls"].includes(action) || Boolean(body.company_id);
     if (isAuthRequired && !isServiceCall) {
       const auth = await requireUser(req);
       if (!auth.ok) return auth.response;
