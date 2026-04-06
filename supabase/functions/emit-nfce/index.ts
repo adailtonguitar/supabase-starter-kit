@@ -1247,7 +1247,7 @@ async function handleEmitNfe(supabase: any, body: any) {
         ICMSTot: {
           vBC: Math.round((totalVICMS > 0 ? totalVProd : 0) * 100) / 100,
           vICMS: Math.round(totalVICMS * 100) / 100,
-          vICMSDeson: 0, vFCP: 0,
+          vICMSDeson: 0, vFCP: Math.round(totalVFCPUFDest * 100) / 100,
           vBCST: Math.round(totalVBCST * 100) / 100,
           vST: Math.round(totalVST * 100) / 100,
           vFCPST: 0, vFCPSTRet: 0,
@@ -1258,6 +1258,9 @@ async function handleEmitNfe(supabase: any, body: any) {
           vPIS: Math.round(totalVPIS * 100) / 100,
           vCOFINS: Math.round(totalVCOFINS * 100) / 100,
           vOutro: 0, vNF,
+          vFCPUFDest: Math.round(totalVFCPUFDest * 100) / 100,
+          vICMSUFDest: Math.round(totalVICMSUFDest * 100) / 100,
+          vICMSUFRemet: Math.round(totalVICMSUFRemet * 100) / 100,
         },
       },
       pag: pagBlock,
