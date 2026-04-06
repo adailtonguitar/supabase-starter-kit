@@ -24,6 +24,22 @@ export interface NFeProduct {
   confirmed: boolean;
 }
 
+export interface NFeDestInfo {
+  cnpj: string;
+  cpf: string;
+  name: string;
+  ie: string;
+  email: string;
+  phone: string;
+  street: string;
+  number: string;
+  complement: string;
+  neighborhood: string;
+  city: string;
+  uf: string;
+  cep: string;
+}
+
 export interface NFeInfo {
   number: string;
   series: string;
@@ -36,6 +52,7 @@ export interface NFeInfo {
   supplierPhone: string;
   supplierEmail: string;
   destCnpj: string;
+  destInfo: NFeDestInfo | null;
   totalValue: number;
   products: NFeProduct[];
 }
