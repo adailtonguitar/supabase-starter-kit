@@ -124,6 +124,7 @@ describe("calculateDifal", () => {
     expect(d.pICMSInter).toBe(12);
     expect(d.pICMSUFDest).toBe(21);
     expect(d.vICMSUFDest).toBe(90);
+    expect(d.vFCPUFDest).toBe(0);
   });
 
   it("com tax_rule customizada", () => {
