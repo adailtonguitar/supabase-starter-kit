@@ -24,6 +24,22 @@ export interface NFeProduct {
   confirmed: boolean;
 }
 
+export interface NFeDestInfo {
+  cnpj: string;
+  cpf: string;
+  name: string;
+  ie: string;
+  email: string;
+  phone: string;
+  street: string;
+  number: string;
+  complement: string;
+  neighborhood: string;
+  city: string;
+  uf: string;
+  cep: string;
+}
+
 export interface NFeInfo {
   number: string;
   series: string;
@@ -36,6 +52,7 @@ export interface NFeInfo {
   supplierPhone: string;
   supplierEmail: string;
   destCnpj: string;
+  destInfo: NFeDestInfo | null;
   totalValue: number;
   products: NFeProduct[];
 }
@@ -78,6 +95,23 @@ export function parseNFeXML(xmlText: string): NFeInfo | null {
     const enderEmit = emit ? getEl(emit, "enderEmit") : null;
     const dest = getEl(doc, "dest");
     const destCnpj = dest ? getText(dest, "CNPJ") : "";
+    const enderDest = dest ? getEl(dest, "enderDest") : null;
+
+    const destInfo: NFeDestInfo | null = dest ? {
+      cnpj: destCnpj,
+      cpf: getText(dest, "CPF"),
+      name: getText(dest, "xNome"),
+      ie: getText(dest, "IE"),
+      email: getText(dest, "email"),
+      phone: enderDest ? getText(enderDest, "fone") : "",
+      street: enderDest ? getText(enderDest, "xLgr") : "",
+      number: enderDest ? getText(enderDest, "nro") : "",
+      complement: enderDest ? getText(enderDest, "xCpl") : "",
+      neighborhood: enderDest ? getText(enderDest, "xBairro") : "",
+      city: enderDest ? getText(enderDest, "xMun") : "",
+      uf: enderDest ? getText(enderDest, "UF") : "",
+      cep: enderDest ? getText(enderDest, "CEP") : "",
+    } : null;
 
     const nfeInfo: NFeInfo = {
       number: ide ? getText(ide, "nNF") : "",
@@ -91,6 +125,7 @@ export function parseNFeXML(xmlText: string): NFeInfo | null {
       supplierPhone: enderEmit ? getText(enderEmit, "fone") : "",
       supplierEmail: emit ? getText(emit, "email") : "",
       destCnpj,
+      destInfo,
       totalValue: total ? parseFloat(getText(total, "vNF")) || 0 : 0,
       products: [],
     };

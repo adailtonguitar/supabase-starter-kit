@@ -4,7 +4,7 @@ import {
   Upload, FileText, AlertCircle, CheckCircle2, Loader2, Package,
   Pencil, Trash2, Factory, Plus, Link, RefreshCw, Brain, Lightbulb,
   TrendingDown, AlertTriangle, Eye, X, Sparkles, FileSearch, ShieldCheck,
-  BarChart3, ArrowRight,
+  BarChart3, ArrowRight, Users,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
@@ -17,8 +17,9 @@ import { logAction } from "@/services/ActionLogger";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
-import { parseNFeXML, validateDestCnpj, type NFeInfo, type NFeProduct } from "./nfe-xml-parser";
+import { parseNFeXML, validateDestCnpj, type NFeInfo, type NFeProduct, type NFeDestInfo } from "./nfe-xml-parser";
 
 type Step = "upload" | "processing" | "results" | "done";
 
@@ -63,6 +64,8 @@ export default function SmartNFeImport() {
   const [supplierId, setSupplierId] = useState<string | null>(null);
   const [supplierStatus, setSupplierStatus] = useState<"checking" | "found" | "not_found" | "created">("checking");
   const [creatingSupplier, setCreatingSupplier] = useState(false);
+  const [registerDest, setRegisterDest] = useState(false);
+  const [destClientStatus, setDestClientStatus] = useState<"none" | "exists" | "created">("none");
 
   const reset = () => {
     setStep("upload");
@@ -75,6 +78,8 @@ export default function SmartNFeImport() {
     setAiExplanation("");
     setSupplierId(null);
     setSupplierStatus("checking");
+    setRegisterDest(false);
+    setDestClientStatus("none");
   };
 
   // Detect supplier
@@ -95,6 +100,27 @@ export default function SmartNFeImport() {
       setSupplierStatus("not_found");
     }
   }, [step, nfeInfo?.supplierCnpj, suppliers]);
+
+  // Check if dest already exists as client
+  useEffect(() => {
+    if (step !== "results" || !nfeInfo?.destInfo) {
+      setDestClientStatus("none");
+      return;
+    }
+    const destDoc = (nfeInfo.destInfo.cnpj || nfeInfo.destInfo.cpf || "").replace(/\D/g, "");
+    if (!destDoc || !companyId) { setDestClientStatus("none"); return; }
+
+    (async () => {
+      const { data } = await supabase
+        .from("clients")
+        .select("id")
+        .eq("company_id", companyId)
+        .or(`cpf_cnpj.eq.${destDoc},cpf.eq.${destDoc},cnpj.eq.${destDoc}`)
+        .limit(1)
+        .maybeSingle();
+      setDestClientStatus(data ? "exists" : "none");
+    })();
+  }, [step, nfeInfo?.destInfo, companyId]);
 
   // Check existing products by barcode
   const enrichWithStockData = useCallback(async (info: NFeInfo) => {
@@ -324,6 +350,33 @@ export default function SmartNFeImport() {
         total_value: nfeInfo.totalValue, products_count: imported + updated,
         imported_by: user?.id || null, status: "pendente",
       } as Record<string, unknown>);
+    }
+
+    // Register dest as client if checkbox is checked
+    if (registerDest && nfeInfo.destInfo && destClientStatus !== "exists") {
+      try {
+        const d = nfeInfo.destInfo;
+        const clientData: Record<string, unknown> = {
+          company_id: companyId,
+          name: d.name || "Destinatário NF-e",
+        };
+        const doc = (d.cnpj || d.cpf || "").replace(/\D/g, "");
+        if (doc) clientData.cpf_cnpj = doc;
+        if (d.email) clientData.email = d.email;
+        if (d.phone) clientData.phone = d.phone;
+        if (d.cep) clientData.cep = d.cep;
+        if (d.street) clientData.address = `${d.street}${d.number ? `, ${d.number}` : ""}${d.complement ? ` - ${d.complement}` : ""}`;
+        if (d.neighborhood) clientData.neighborhood = d.neighborhood;
+        if (d.city) clientData.city = d.city;
+        if (d.uf) clientData.state = d.uf;
+
+        const { error: clientErr } = await supabase.from("clients").insert(clientData);
+        if (!clientErr) {
+          setDestClientStatus("created");
+          queryClient.invalidateQueries({ queryKey: ["clients"] });
+          toast.success(`Destinatário "${d.name}" cadastrado como cliente!`);
+        }
+      } catch { /* silent */ }
     }
 
     setResult({ imported, updated, errors, noNcm, lowMarginProducts, fiscalAdjustments });
@@ -632,6 +685,43 @@ export default function SmartNFeImport() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Destinatário → Cliente */}
+            {nfeInfo.destInfo && nfeInfo.destInfo.name && (
+              <Card>
+                <CardContent className="pt-4 pb-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <Users className="w-4 h-4 text-primary" />
+                      <div className="flex flex-col">
+                        <span className="text-sm font-semibold text-foreground">Destinatário</span>
+                        <span className="text-xs text-muted-foreground">
+                          {nfeInfo.destInfo.name}
+                          {(nfeInfo.destInfo.cnpj || nfeInfo.destInfo.cpf) && ` — ${nfeInfo.destInfo.cnpj || nfeInfo.destInfo.cpf}`}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {destClientStatus === "exists" && (
+                        <Badge variant="default" className="text-xs"><CheckCircle2 className="w-3 h-3 mr-1" /> Já cadastrado</Badge>
+                      )}
+                      {destClientStatus === "created" && (
+                        <Badge variant="default" className="text-xs"><CheckCircle2 className="w-3 h-3 mr-1" /> Cadastrado</Badge>
+                      )}
+                      {destClientStatus === "none" && (
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <Checkbox
+                            checked={registerDest}
+                            onCheckedChange={(v) => setRegisterDest(!!v)}
+                          />
+                          <span className="text-xs text-muted-foreground">Cadastrar como cliente</span>
+                        </label>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             {/* Products Table */}
             <Card>
