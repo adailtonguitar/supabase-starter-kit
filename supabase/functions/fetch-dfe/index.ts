@@ -43,16 +43,15 @@ Deno.serve(async (req) => {
     if (!membership.ok) return membership.response;
 
     const supabaseAdmin = createServiceClient() as any;
-    const supabase = auth.supabase as any;
 
     // Get company data + fiscal config in parallel
     const [companyResult, fiscalConfigResult] = await Promise.all([
-      supabase
+      supabaseAdmin
         .from("companies")
         .select("cnpj, name, trade_name, street, address, number, address_number, neighborhood, city, state, zip_code, cep, ibge_code")
         .eq("id", company_id)
         .single(),
-      supabase
+      supabaseAdmin
         .from("fiscal_configs")
         .select("certificate_path, certificate_password, ie, ambiente")
         .eq("company_id", company_id)
