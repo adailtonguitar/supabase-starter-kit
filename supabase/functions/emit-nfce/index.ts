@@ -486,12 +486,22 @@ async function handleUploadCertificate(supabase: any, body: any) {
 
   const targetDocTypes = normalizeRequestedDocTypes(doc_types);
   const expiresAtIso = certificate_expires_at ? new Date(certificate_expires_at).toISOString() : null;
+
+  // Encrypt certificate password for server-side recovery
+  let encryptedPassword: string | null = null;
+  try {
+    encryptedPassword = await encryptCertPassword(String(certificate_password));
+  } catch (encErr) {
+    console.warn("[handleUploadCertificate] Falha ao criptografar senha do certificado:", encErr);
+  }
+
   const { error: updateConfigError } = await supabase
     .from("fiscal_configs")
     .update({
       certificate_type: "A1",
       certificate_path: storagePath,
       certificate_expires_at: expiresAtIso,
+      certificate_password_hash: encryptedPassword,
       updated_at: new Date().toISOString(),
     })
     .eq("company_id", company_id)
