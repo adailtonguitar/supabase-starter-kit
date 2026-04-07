@@ -1104,11 +1104,23 @@ function buildIcmsBlock(item: any, isSimples: boolean) {
 }
 
 // ─── Construtor de PIS/COFINS ───
-function buildPisCofins(pisCst: string, cofinsCst: string, vProd: number) {
+// REGRA CRÍTICA: Simples Nacional (CRT 1/2) NUNCA destaca PIS/COFINS na NF-e/NFC-e.
+// O cálculo real ocorre no DAS. Usar CST 49 (Outras Operações de Saída) com valores zerados.
+function buildPisCofins(pisCst: string, cofinsCst: string, vProd: number, isSimples = false) {
   const pis: any = {};
   const cofins: any = {};
   const ntCst = new Set(["04", "05", "06", "07", "08", "09"]);
 
+  // ── SIMPLES NACIONAL: forçar CST 49 com valores zerados ──
+  if (isSimples) {
+    const safePisCst = (pisCst === "49" || pisCst === "99") ? pisCst : "49";
+    const safeCofCst = (cofinsCst === "49" || cofinsCst === "99") ? cofinsCst : "49";
+    pis.PISOutr = { CST: safePisCst, vBC: 0, pPIS: 0, vPIS: 0 };
+    cofins.COFINSOutr = { CST: safeCofCst, vBC: 0, pCOFINS: 0, vCOFINS: 0 };
+    return { PIS: pis, COFINS: cofins };
+  }
+
+  // ── REGIME NORMAL: destaca PIS/COFINS conforme CST ──
   if (["01", "02"].includes(pisCst)) {
     pis.PISAliq = { CST: pisCst, vBC: Math.round(vProd * 100) / 100, pPIS: 0.65, vPIS: Math.round(vProd * 0.0065 * 100) / 100 };
   } else if (ntCst.has(pisCst)) {
