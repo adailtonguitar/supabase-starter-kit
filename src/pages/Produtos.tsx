@@ -407,8 +407,8 @@ export default function Produtos() {
         ) : (
           paginatedProducts.map((product, idx) => {
             const isLow = product.min_stock != null && product.min_stock > 0 && product.stock_quantity <= product.min_stock;
-            const fiscalStatus = getProductFiscalStatus(product, fiscalCategories, taxRegime);
-            const hasFiscalIssue = fiscalStatus.hasFiscalGap;
+                    const fiscalStatus = fiscalStatusMap.get(product.id) || getProductFiscalStatus(product, fiscalCategories, taxRegime);
+                    const hasFiscalIssue = fiscalStatus.hasFiscalGap;
             const hasCriticalConflict = fiscalStatus.hasCriticalConflict;
             return (
               <motion.div key={product.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(idx, 10) * 0.03 }} className={`bg-card rounded-2xl border p-3 space-y-2 hover:shadow-md transition-shadow ${hasCriticalConflict ? "border-destructive/30 bg-destructive/[0.03]" : hasFiscalIssue ? "border-amber-500/30 bg-amber-500/[0.03]" : "border-border"}`}>
