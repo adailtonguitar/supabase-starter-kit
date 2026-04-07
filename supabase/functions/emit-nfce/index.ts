@@ -1295,18 +1295,29 @@ async function handleEmitNfe(supabase: any, body: any) {
     totalVProd += vProd;
     totalVDesc += discount;
 
-    // ─── Tax Classification Engine: enriquecer item com regra tributária por NCM ───
+    // ─── Tax Classification Engine: score-based matching por NCM (NF-e) ───
     if (taxRulesByNcmNfe.length > 0) {
       const regime = isSimples ? "simples" : "normal";
       const destUfForRule = destUF || emitUF;
-      const matchedRule = taxRulesByNcmNfe.find((r: any) => {
-        const rNcm = (r.ncm || "").replace(/\D/g, "");
-        if (!ncm.startsWith(rNcm) && rNcm !== "*") return false;
-        if (r.regime !== regime) return false;
-        if (r.uf_origem !== "*" && r.uf_origem !== emitUF) return false;
-        if (r.uf_destino !== "*" && r.uf_destino !== destUfForRule) return false;
-        return true;
-      });
+      let bestRuleNfe: any = null;
+      let bestScoreNfe = -1;
+      for (const r of taxRulesByNcmNfe) {
+        const rawNcm = (r.ncm || "").trim();
+        const rNcm = rawNcm === "*" ? "*" : rawNcm.replace(/\D/g, "");
+        let sc = 0;
+        if (rNcm === "*") sc += 10;
+        else if (rNcm === ncm) sc += 100;
+        else if (ncm.startsWith(rNcm) && rNcm.length >= 4) sc += 60;
+        else if (ncm.startsWith(rNcm) && rNcm.length >= 2) sc += 30;
+        else continue;
+        if (r.regime !== regime) continue;
+        sc += 40;
+        if (r.uf_origem === emitUF) sc += 30; else if (r.uf_origem === "*") sc += 5; else continue;
+        if (r.uf_destino === destUfForRule) sc += 30; else if (r.uf_destino === "*") sc += 5; else continue;
+        if (r.tipo_cliente === "*") sc += 5; else sc += 30;
+        if (sc > bestScoreNfe) { bestScoreNfe = sc; bestRuleNfe = r; }
+      }
+      const matchedRule = bestScoreNfe >= 50 ? bestRuleNfe : null;
       if (matchedRule) {
         if (!item.cst && matchedRule.cst) item.cst = matchedRule.cst;
         if (!item.csosn && matchedRule.csosn) item.cst = matchedRule.csosn;
@@ -1314,9 +1325,9 @@ async function handleEmitNfe(supabase: any, body: any) {
         if (matchedRule.icms_st && (!item.mva || item.mva === 0) && matchedRule.mva > 0) item.mva = matchedRule.mva;
         if (matchedRule.icms_reducao_base > 0 && !item.reducao_base) item.reducao_base = matchedRule.icms_reducao_base;
         if (matchedRule.cest && !item.cest) item.cest = matchedRule.cest;
-        taxClassificationAuditNfe.push({ item: item.name, ncm, rule_id: matchedRule.id, fallback: false });
+        taxClassificationAuditNfe.push({ item: item.name, ncm, rule_id: matchedRule.id, score: bestScoreNfe, fallback: false });
       } else {
-        taxClassificationAuditNfe.push({ item: item.name, ncm, rule_id: null, fallback: true });
+        taxClassificationAuditNfe.push({ item: item.name, ncm, rule_id: null, score: bestScoreNfe, fallback: true });
       }
     }
 
