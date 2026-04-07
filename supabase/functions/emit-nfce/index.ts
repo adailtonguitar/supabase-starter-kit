@@ -1643,6 +1643,24 @@ async function handleEmitNfe(supabase: any, body: any) {
     rejection_reason: finalStatus === "rejeitada" ? providerReason || null : null,
   });
 
+  // ─── Audit log de decisão fiscal ───
+  await supabase.from("action_logs").insert({
+    company_id,
+    action: "fiscal_decision_nfe",
+    module: "fiscal",
+    details: JSON.stringify({
+      numero, finalStatus,
+      emitUF, destUF, crt, idDest, indPres, isInterstate,
+      applyDifal, destIsContribuinte,
+      difalValues: applyDifal && pICMSUFDest > pICMSInter ? {
+        pICMSInter, pICMSUFDest, pFCPUFDest,
+        totalVICMSUFDest: Math.round(totalVICMSUFDest * 100) / 100,
+        totalVFCPUFDest: Math.round(totalVFCPUFDest * 100) / 100,
+      } : null,
+      totalVNF: vNF,
+    }),
+  }).then(() => {}).catch((e: any) => console.warn("[emit-nfe] Falha ao registrar audit log:", e.message));
+
   console.log(`[emit-nfe] ✓ NF-e #${numero} → ${finalStatus} | provider_status=${emissionStatus.statusStr || "(vazio)"} cStat=${emissionStatus.cStatStr || "(vazio)"} | reason=${providerReason || "(vazio)"} | Chave: ${accessKey?.substring(0, 20)}... | ${Date.now() - t0}ms total`);
 
   return jsonResponse({
