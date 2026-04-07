@@ -300,6 +300,7 @@ async function ensureCompanyRegisteredOnNuvemFiscal(params: {
   const url = companyExists ? `${baseUrl}/empresas/${cnpj}` : `${baseUrl}/empresas`;
 
   console.log(`[emit-nfe] Empresa ${cnpj} — ${companyExists ? "atualizando" : "cadastrando"} na Nuvem Fiscal (${method})...`);
+  console.log(`[emit-nfe] Payload keys: ${Object.keys(empresaPayload).join(", ")}, has cert: ${!!empresaPayload.certificado}`);
 
   const createResp = await safeFetch(url, {
     method,
@@ -309,6 +310,7 @@ async function ensureCompanyRegisteredOnNuvemFiscal(params: {
   const createData = await parseResponseJsonSafe(createResp, "cadastro empresa Nuvem Fiscal").catch(() => null);
 
   if (!createResp.ok) {
+    console.error(`[emit-nfe] Nuvem Fiscal ${method} ${createResp.status}:`, JSON.stringify(createData));
     const providerMsg = extractProviderErrorMessage(createData, createResp.status, "Falha ao cadastrar empresa na Nuvem Fiscal");
     throw new Error(providerMsg);
   }
@@ -1445,7 +1447,9 @@ async function handleEmit(supabase: any, body: any) {
   } catch (regErr: any) {
     console.error(`[emit-nfce] Falha ao registrar empresa na Nuvem Fiscal:`, regErr.message);
     return jsonResponse({
-      error: `Falha ao cadastrar empresa na Nuvem Fiscal. ${regErr.message}`,
+      success: false,
+      error: regErr.message || "Falha ao cadastrar empresa na Nuvem Fiscal",
+      rejection_reason: regErr.message,
     }, 400);
   }
 
