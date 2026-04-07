@@ -227,7 +227,42 @@ function getApiBaseUrl(): string {
     : "https://api.nuvemfiscal.com.br";
 }
 
-async function ensureCompanyRegisteredOnNuvemFiscal(params: {
+// ─── Sync certificate to Nuvem Fiscal via PUT /empresas/{cnpj}/certificado ───
+async function syncCertificateToNuvemFiscal(
+  baseUrl: string,
+  token: string,
+  cnpj: string,
+  certificate: { base64: string; password: string },
+): Promise<void> {
+  const authHeaders = { Authorization: `Bearer ${token}` };
+  console.log(`[syncCert] Enviando certificado para Nuvem Fiscal: ${cnpj}...`);
+
+  const certResp = await safeFetch(`${baseUrl}/empresas/${cnpj}/certificado`, {
+    method: "PUT",
+    headers: { ...authHeaders, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      certificado: certificate.base64,
+      password: certificate.password,
+    }),
+  }, 10000);
+
+  const certBody = await certResp.text().catch(() => "");
+
+  if (!certResp.ok) {
+    console.error(`[syncCert] Falha ao enviar certificado (${certResp.status}):`, certBody);
+    // Try to extract meaningful error
+    let detail = `HTTP ${certResp.status}`;
+    try {
+      const parsed = JSON.parse(certBody);
+      detail = parsed?.error?.message || parsed?.message || parsed?.error || certBody.slice(0, 300);
+    } catch { detail = certBody.slice(0, 300) || detail; }
+    throw new Error(`Falha ao enviar certificado para Nuvem Fiscal: ${detail}`);
+  }
+
+  console.log(`[syncCert] ✅ Certificado sincronizado com sucesso para ${cnpj}`);
+}
+
+
   token: string;
   baseUrl: string;
   cnpj: string;
@@ -310,8 +345,7 @@ async function ensureCompanyRegisteredOnNuvemFiscal(params: {
     },
   };
 
-  // NOTE: "certificado" is NOT a valid field on the /empresas endpoint.
-  // Certificates must be uploaded via PUT /empresas/{cnpj}/certificado separately.
+  // Certificate is uploaded separately via syncCertificateToNuvemFiscal()
 
   // Use POST to create, PUT to update an existing company
   const method = companyExists ? "PUT" : "POST";
@@ -337,26 +371,9 @@ async function ensureCompanyRegisteredOnNuvemFiscal(params: {
     if (await checkCompanyExists()) {
       console.log(`[emit-nfe] Empresa ${cnpj} confirmada na Nuvem Fiscal`);
 
-      // Upload certificate via dedicated endpoint if available
+      // Sync certificate to Nuvem Fiscal via dedicated endpoint
       if (certificate?.base64 && certificate.password) {
-        try {
-          const certResp = await safeFetch(`${baseUrl}/empresas/${cnpj}/certificado`, {
-            method: "PUT",
-            headers: { ...authHeaders, "Content-Type": "application/json" },
-            body: JSON.stringify({
-              certificado: certificate.base64,
-              password: certificate.password,
-            }),
-          }, 8000);
-          const certBody = await certResp.text().catch(() => "");
-          if (!certResp.ok) {
-            console.warn(`[emit-nfe] Falha ao enviar certificado (${certResp.status}):`, certBody);
-          } else {
-            console.log(`[emit-nfe] Certificado enviado com sucesso para ${cnpj}`);
-          }
-        } catch (certErr: any) {
-          console.warn("[emit-nfe] Erro ao enviar certificado:", certErr.message);
-        }
+        await syncCertificateToNuvemFiscal(baseUrl, token, cnpj, certificate);
       }
 
       return;
@@ -594,6 +611,14 @@ async function handleUploadCertificate(supabase: any, body: any) {
     certificate,
     forceUpdate: true,
   });
+
+  // Always sync certificate to Nuvem Fiscal directly
+  try {
+    await syncCertificateToNuvemFiscal(baseUrl, token, context.cnpjClean, certificate);
+  } catch (syncErr: any) {
+    console.error("[handleUploadCertificate] Falha ao sincronizar certificado:", syncErr.message);
+    return jsonResponse({ success: false, error: syncErr.message }, 400);
+  }
 
   if (targetDocTypes.includes("nfe")) {
     const nfeConfig = context.configs.find((config) => String(config.doc_type) === "nfe");
