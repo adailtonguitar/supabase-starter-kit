@@ -1061,19 +1061,19 @@ async function handleEmit(supabase: any, body: any) {
 
   console.log(`[emit-nfce] ✓ NFC-e #${numero} → ${finalStatus} | Chave: ${accessKey?.substring(0, 20)}... | ${Date.now() - t0}ms total`);
 
-  // ─── Registrar risk log (não-bloqueante) ───
+  // ─── Registrar risk log (não-bloqueante, via engine) ───
   supabase.from("fiscal_risk_logs").insert({
     company_id, note_id: accessKey || String(numero), note_type: "nfce",
-    score: riskScore, level: riskLevel, reasons: riskReasons, blocked: false,
+    score: riskResult.score, level: riskResult.level, reasons: riskResult.reasons, blocked: false,
   }).then(() => {});
-  // Gerar alerta se score >= 50
-  if (riskScore >= 50) {
-    const alertSeverity = riskScore >= 70 ? "critical" : "warning";
+  // Gerar alerta via shouldGenerateAlert
+  const nfceAlert = shouldGenerateAlert(riskResult);
+  if (nfceAlert.generate) {
     supabase.from("fiscal_alerts").insert({
-      company_id, severity: alertSeverity, score: riskScore,
-      title: `NFC-e #${numero} com risco ${alertSeverity}`,
-      description: `Score: ${riskScore}/100`,
-      reasons: riskReasons,
+      company_id, severity: nfceAlert.severity, score: riskResult.score,
+      title: `NFC-e #${numero} com risco ${nfceAlert.severity}`,
+      description: `Score: ${riskResult.score}/100`,
+      reasons: riskResult.reasons,
     }).then(() => {});
   }
 
@@ -1083,8 +1083,8 @@ async function handleEmit(supabase: any, body: any) {
     number: numero,
     access_key: accessKey,
     protocol: protocolNumber,
-    risk_score: riskScore,
-    risk_level: riskLevel,
+    risk_score: riskResult.score,
+    risk_level: riskResult.level,
   });
 }
 
