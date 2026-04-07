@@ -223,11 +223,20 @@ async function ensureCompanyRegisteredOnNuvemFiscal(params: {
     return;
   }
 
+  const companyEmail = pickFirstNonEmpty(company.email, company.owner_email, company.contact_email);
+  const companyPhone = onlyDigits(pickFirstNonEmpty(company.phone, company.mobile, company.whatsapp));
+
+  if (!companyEmail) {
+    throw new Error("E-mail da empresa não configurado. Cadastre um e-mail na empresa antes de sincronizar com a Nuvem Fiscal.");
+  }
+
   const empresaPayload: Record<string, any> = {
     cpf_cnpj: cnpj,
     inscricao_estadual: ie,
     nome_razao_social: sanitizeSefazText(company.name || company.trade_name, "EMITENTE"),
     nome_fantasia: sanitizeSefazText(company.trade_name || company.name, "EMITENTE"),
+    fone: companyPhone || undefined,
+    email: String(companyEmail).trim(),
     endereco: {
       logradouro: sanitizeSefazText(companyStreet || "Rua não informada", "Rua não informada"),
       numero: companyNumber || "S/N",
