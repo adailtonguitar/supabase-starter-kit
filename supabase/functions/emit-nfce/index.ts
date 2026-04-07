@@ -348,7 +348,35 @@ function normalizeRequestedDocTypes(docTypes: unknown): Array<"nfe" | "nfce" | "
   return normalized.length > 0 ? Array.from(new Set(normalized)) : ["nfe", "nfce", "sat"];
 }
 
-async function ensureNfeConfigOnNuvemFiscal(params: {
+// Helper: resolve certificate from body params or storage fallback
+async function resolveCertificate(
+  supabase: any,
+  certificate_base64?: string | null,
+  certificate_password?: string | null,
+  config?: Record<string, any> | null,
+): Promise<{ base64: string; password: string } | null> {
+  if (certificate_base64 && certificate_password) {
+    return { base64: String(certificate_base64), password: String(certificate_password) };
+  }
+  // Fallback: try to download from storage
+  const certPath = config?.certificate_path;
+  if (!certPath) return null;
+  try {
+    const { data: certData } = await supabase.storage.from("company-backups").download(certPath);
+    if (!certData) return null;
+    const arrayBuf = await certData.arrayBuffer();
+    const bytes = new Uint8Array(arrayBuf);
+    let binary = "";
+    for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+    const pwd = config?.certificate_password || certificate_password || "";
+    return { base64: btoa(binary), password: String(pwd) };
+  } catch (err) {
+    console.warn("[resolveCertificate] Falha ao buscar certificado do storage:", err);
+    return null;
+  }
+}
+
+
   token: string;
   baseUrl: string;
   cnpj: string;
@@ -1325,6 +1353,9 @@ async function handleEmit(supabase: any, body: any) {
 
   console.log(`[emit-nfce] ▶ Enviando para Nuvem Fiscal...`);
 
+  // ─── Resolver certificado para enviar junto ao cadastro ───
+  const resolvedCert = await resolveCertificate(supabase, null, null, config);
+
   // ─── Garantir que a empresa existe na Nuvem Fiscal (NFC-e) ───
   try {
     await ensureCompanyRegisteredOnNuvemFiscal({
@@ -1340,6 +1371,7 @@ async function handleEmit(supabase: any, body: any) {
       companyCity,
       companyState,
       companyZip,
+      certificate: resolvedCert,
     });
   } catch (regErr: any) {
     console.error(`[emit-nfce] Falha ao registrar empresa na Nuvem Fiscal:`, regErr.message);
@@ -2072,6 +2104,9 @@ async function handleEmitNfe(supabase: any, body: any) {
   const token = await nfeTokenPromise;
   const baseUrl = getApiBaseUrl();
 
+  // ─── Resolver certificado para enviar junto ao cadastro ───
+  const resolvedCertNfe = await resolveCertificate(supabase, certificate_base64, certificate_password, config);
+
   // ─── Garantir que a empresa existe e tem config de NF-e na Nuvem Fiscal ───
   try {
     await ensureCompanyRegisteredOnNuvemFiscal({
@@ -2087,6 +2122,7 @@ async function handleEmitNfe(supabase: any, body: any) {
       companyCity,
       companyState,
       companyZip,
+      certificate: resolvedCertNfe,
     });
 
     const checkResp = await safeFetch(`${baseUrl}/empresas/${cnpjClean}/nfe`, {
@@ -2101,31 +2137,12 @@ async function handleEmitNfe(supabase: any, body: any) {
         ambiente: ambiente === "producao" ? "producao" : "homologacao",
       };
 
-      // Certificado A1 (se disponível)
-      if (certificate_base64) {
+      // Reutilizar certificado já resolvido
+      if (resolvedCertNfe) {
         nfeConfigPayload.certificado = {
-          base64: certificate_base64,
-          password: certificate_password || "",
+          base64: resolvedCertNfe.base64,
+          password: resolvedCertNfe.password,
         };
-      } else if (config.certificate_path) {
-        // Tentar buscar certificado do storage
-        try {
-          const { data: certData } = await supabase.storage
-            .from("company-backups")
-            .download(config.certificate_path);
-          if (certData) {
-            const arrayBuf = await certData.arrayBuffer();
-            const bytes = new Uint8Array(arrayBuf);
-            let binary = "";
-            for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
-            nfeConfigPayload.certificado = {
-              base64: btoa(binary),
-              password: config.certificate_password || "",
-            };
-          }
-        } catch (certErr) {
-          console.warn("[emit-nfe] Falha ao buscar certificado do storage:", certErr);
-        }
       }
 
       const nfeConfigResp = await safeFetch(`${baseUrl}/empresas/${cnpjClean}/nfe`, {
