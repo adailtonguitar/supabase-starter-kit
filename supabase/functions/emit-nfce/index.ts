@@ -2104,6 +2104,9 @@ async function handleEmitNfe(supabase: any, body: any) {
   const token = await nfeTokenPromise;
   const baseUrl = getApiBaseUrl();
 
+  // ─── Resolver certificado para enviar junto ao cadastro ───
+  const resolvedCertNfe = await resolveCertificate(supabase, certificate_base64, certificate_password, config);
+
   // ─── Garantir que a empresa existe e tem config de NF-e na Nuvem Fiscal ───
   try {
     await ensureCompanyRegisteredOnNuvemFiscal({
@@ -2119,6 +2122,7 @@ async function handleEmitNfe(supabase: any, body: any) {
       companyCity,
       companyState,
       companyZip,
+      certificate: resolvedCertNfe,
     });
 
     const checkResp = await safeFetch(`${baseUrl}/empresas/${cnpjClean}/nfe`, {
