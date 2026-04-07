@@ -33,6 +33,8 @@ export interface TaxClassificationInput {
   valor: number;
 }
 
+export type ConfidenceLevel = "high" | "medium" | "low";
+
 export interface TaxClassificationResult {
   cst_or_csosn: string;
   icms_type: "normal" | "st" | "isento" | "reducao" | "st_reducao";
@@ -50,6 +52,8 @@ export interface TaxClassificationResult {
   warnings: string[];
   match_score?: number;
   match_log?: MatchDecisionLog;
+  confidence_level: ConfidenceLevel;
+  confidence_reason: string;
 }
 
 // ─── Match Decision Log ───

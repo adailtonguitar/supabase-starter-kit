@@ -31,11 +31,8 @@ export interface FiscalRiskInput {
   itemCount?: number;
   totalValue?: number;
 
-  // Validações
-  ncmInvalid?: boolean;
-  cstInconsistent?: boolean;
-  missingIE?: boolean;
-  presenceAutoCorrected?: boolean;
+  // Confiança da regra tributária
+  lowConfidenceRule?: boolean;
 
   // Histórico (bloqueio inteligente)
   recentCriticalCount?: number; // notas críticas nas últimas 24h
