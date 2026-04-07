@@ -1548,7 +1548,7 @@ async function handleEmit(supabase: any, body: any) {
       "Content-Type": "application/json",
     },
     body: JSON.stringify(payload),
-  }, 10000);
+  }, 60000);
 
   const nfData = await parseResponseJsonSafe(nfResp, "emissão NFC-e");
 
