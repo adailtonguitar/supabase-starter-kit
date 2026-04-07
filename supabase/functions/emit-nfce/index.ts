@@ -32,6 +32,7 @@ interface FiscalRiskInput {
   cfopAutoCorrected?: boolean; cpfInterstate?: boolean; taxRuleAbsent?: boolean;
   isInterstate?: boolean; itemCount?: number; totalValue?: number;
   ncmInvalid?: boolean; cstInconsistent?: boolean; missingIE?: boolean; presenceAutoCorrected?: boolean;
+  lowConfidenceRule?: boolean;
   recentCriticalCount?: number; sameErrorRepeatCount?: number;
 }
 interface _ScoringRule { key: keyof FiscalRiskInput; points: number; condition: (v: any, input?: FiscalRiskInput) => boolean; reason: string; }
@@ -46,6 +47,7 @@ const _SCORING_RULES: _ScoringRule[] = [
   { key: "cstInconsistent", points: 20, condition: (v) => v === true, reason: "CST/CSOSN inconsistente com operação" },
   { key: "missingIE", points: 15, condition: (v) => v === true, reason: "IE ausente em operação que exigiria" },
   { key: "presenceAutoCorrected", points: 5, condition: (v) => v === true, reason: "Tipo de presença auto-corrigido (indPres)" },
+  { key: "lowConfidenceRule", points: 25, condition: (v) => v === true, reason: "Regra tributária com baixa confiança — revisão recomendada" },
   { key: "difalRequired", points: 35, condition: (v, input) => v === true && !input?.difalApplied, reason: "DIFAL obrigatório mas NÃO aplicado — risco de autuação" },
   { key: "recentCriticalCount", points: 15, condition: (v) => typeof v === "number" && v >= 3, reason: "3+ notas críticas nas últimas 24h — padrão de risco" },
   { key: "sameErrorRepeatCount", points: 20, condition: (v) => typeof v === "number" && v >= 5, reason: "Mesmo erro fiscal repetido 5+ vezes — correção necessária" },
