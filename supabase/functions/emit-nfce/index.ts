@@ -256,8 +256,9 @@ async function ensureCompanyRegisteredOnNuvemFiscal(params: {
   };
 
   const companyExists = await checkCompanyExists();
+  const hasCertificateForSync = !!(certificate?.base64 && certificate.password);
 
-  if (!forceUpdate && companyExists) {
+  if (!forceUpdate && companyExists && !hasCertificateForSync) {
     return;
   }
 
