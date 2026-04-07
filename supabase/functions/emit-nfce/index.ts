@@ -173,6 +173,94 @@ function getApiBaseUrl(): string {
     : "https://api.nuvemfiscal.com.br";
 }
 
+async function ensureCompanyRegisteredOnNuvemFiscal(params: {
+  token: string;
+  baseUrl: string;
+  cnpj: string;
+  ie: string;
+  company: Record<string, any>;
+  companyStreet: string;
+  companyNumber: string;
+  companyNeighborhood: string;
+  companyCity: string;
+  companyState: string;
+  companyZip: string;
+}) {
+  const {
+    token,
+    baseUrl,
+    cnpj,
+    ie,
+    company,
+    companyStreet,
+    companyNumber,
+    companyNeighborhood,
+    companyCity,
+    companyState,
+    companyZip,
+  } = params;
+
+  const authHeaders = { Authorization: `Bearer ${token}` };
+  const checkCompanyExists = async () => {
+    const response = await safeFetch(`${baseUrl}/empresas/${cnpj}`, { headers: authHeaders }, 5000);
+    if (response.ok) {
+      await response.text().catch(() => "");
+      return true;
+    }
+    await response.text().catch(() => "");
+    return false;
+  };
+
+  if (await checkCompanyExists()) {
+    return;
+  }
+
+  const empresaPayload: Record<string, any> = {
+    cpf_cnpj: cnpj,
+    inscricao_estadual: ie,
+    nome_razao_social: sanitizeSefazText(company.name || company.trade_name, "EMITENTE"),
+    nome_fantasia: sanitizeSefazText(company.trade_name || company.name, "EMITENTE"),
+    endereco: {
+      logradouro: sanitizeSefazText(companyStreet || "Rua não informada", "Rua não informada"),
+      numero: companyNumber || "S/N",
+      bairro: sanitizeSefazText(companyNeighborhood || "Centro", "Centro"),
+      codigo_municipio: onlyDigits(company.ibge_code),
+      cidade: sanitizeSefazText(companyCity || "Não informada", "Não informada"),
+      uf: (companyState || "MA").toUpperCase(),
+      cep: companyZip || "00000000",
+      codigo_pais: "1058",
+      pais: "Brasil",
+    },
+  };
+
+  console.log(`[emit-nfe] Empresa ${cnpj} não encontrada na Nuvem Fiscal. Cadastrando...`);
+
+  const createResp = await safeFetch(`${baseUrl}/empresas`, {
+    method: "PUT",
+    headers: { ...authHeaders, "Content-Type": "application/json" },
+    body: JSON.stringify(empresaPayload),
+  }, 8000);
+  const createData = await parseResponseJsonSafe(createResp, "cadastro empresa Nuvem Fiscal").catch(() => null);
+
+  if (!createResp.ok) {
+    const providerMsg = extractProviderErrorMessage(createData, createResp.status, "Falha ao cadastrar empresa na Nuvem Fiscal");
+    throw new Error(providerMsg);
+  }
+
+  for (let attempt = 1; attempt <= 4; attempt++) {
+    if (await checkCompanyExists()) {
+      console.log(`[emit-nfe] Empresa ${cnpj} confirmada na Nuvem Fiscal`);
+      return;
+    }
+
+    if (attempt < 4) {
+      await new Promise((resolve) => setTimeout(resolve, 600 * attempt));
+    }
+  }
+
+  throw new Error("A empresa foi enviada para a Nuvem Fiscal, mas ainda não ficou disponível para configuração. Tente novamente em alguns segundos.");
+}
+
 function onlyDigits(v: unknown): string {
   return String(v ?? "").replace(/[^0-9]/g, "");
 }
@@ -1688,40 +1776,28 @@ async function handleEmitNfe(supabase: any, body: any) {
   const token = await nfeTokenPromise;
   const baseUrl = getApiBaseUrl();
 
-  // ─── Garantir que a empresa tem config de NF-e na Nuvem Fiscal ───
+  // ─── Garantir que a empresa existe e tem config de NF-e na Nuvem Fiscal ───
   try {
+    await ensureCompanyRegisteredOnNuvemFiscal({
+      token,
+      baseUrl,
+      cnpj: cnpjClean,
+      ie: ieEmitClean,
+      company,
+      companyStreet,
+      companyNumber,
+      companyNeighborhood,
+      companyCity,
+      companyState,
+      companyZip,
+    });
+
     const checkResp = await safeFetch(`${baseUrl}/empresas/${cnpjClean}/nfe`, {
       headers: { Authorization: `Bearer ${token}` },
     }, 5000);
 
     if (checkResp.status === 404 || !checkResp.ok) {
       console.log(`[emit-nfe] Config NF-e não encontrada na Nuvem Fiscal. Criando...`);
-
-      // Primeiro garantir que a empresa existe na Nuvem Fiscal
-      const empresaPayload: any = {
-        cpf_cnpj: cnpjClean,
-        inscricao_estadual: ieEmitClean,
-        nome_razao_social: sanitizeSefazText(company.name || company.trade_name, "EMITENTE"),
-        nome_fantasia: sanitizeSefazText(company.trade_name || company.name, "EMITENTE"),
-        endereco: {
-          logradouro: sanitizeSefazText(company.street || company.address || "Rua não informada", "Rua não informada"),
-          numero: company.number || company.address_number || "S/N",
-          bairro: sanitizeSefazText(company.neighborhood || "Centro", "Centro"),
-          codigo_municipio: ibgeClean,
-          cidade: sanitizeSefazText(company.city || "Não informada", "Não informada"),
-          uf: (company.state || "MA").toUpperCase(),
-          cep: (company.zip_code || company.cep || "00000000").replace(/\D/g, ""),
-          codigo_pais: "1058",
-          pais: "Brasil",
-        },
-      };
-
-      // Criar/atualizar empresa
-      await safeFetch(`${baseUrl}/empresas`, {
-        method: "PUT",
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify(empresaPayload),
-      }, 8000);
 
       // Configurar NF-e
       const nfeConfigPayload: any = {
@@ -1760,12 +1836,13 @@ async function handleEmitNfe(supabase: any, body: any) {
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
         body: JSON.stringify(nfeConfigPayload),
       }, 8000);
+      const nfeConfigData = await parseResponseJsonSafe(nfeConfigResp, "configuração NF-e Nuvem Fiscal").catch(() => null);
 
       if (!nfeConfigResp.ok) {
-        const errData = await nfeConfigResp.text().catch(() => "");
-        console.error(`[emit-nfe] Falha ao configurar NF-e na Nuvem Fiscal:`, errData);
+        const providerMsg = extractProviderErrorMessage(nfeConfigData, nfeConfigResp.status, "Falha ao configurar NF-e na Nuvem Fiscal");
+        console.error(`[emit-nfe] Falha ao configurar NF-e na Nuvem Fiscal:`, providerMsg);
         return jsonResponse({
-          error: `Falha ao configurar NF-e na Nuvem Fiscal. Verifique o certificado digital e tente novamente. Detalhe: ${errData.slice(0, 300)}`,
+          error: `Falha ao configurar NF-e na Nuvem Fiscal. ${providerMsg}`,
         }, 400);
       }
 
