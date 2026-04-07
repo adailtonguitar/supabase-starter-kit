@@ -217,7 +217,9 @@ async function ensureCompanyRegisteredOnNuvemFiscal(params: {
     return false;
   };
 
-  if (!forceUpdate && await checkCompanyExists()) {
+  const companyExists = await checkCompanyExists();
+
+  if (!forceUpdate && companyExists) {
     return;
   }
 
@@ -246,10 +248,14 @@ async function ensureCompanyRegisteredOnNuvemFiscal(params: {
     };
   }
 
-  console.log(`[emit-nfe] Empresa ${cnpj} não encontrada na Nuvem Fiscal. Cadastrando...`);
+  // Use POST to create, PUT to update an existing company
+  const method = companyExists ? "PUT" : "POST";
+  const url = companyExists ? `${baseUrl}/empresas/${cnpj}` : `${baseUrl}/empresas`;
 
-  const createResp = await safeFetch(`${baseUrl}/empresas`, {
-    method: "PUT",
+  console.log(`[emit-nfe] Empresa ${cnpj} — ${companyExists ? "atualizando" : "cadastrando"} na Nuvem Fiscal (${method})...`);
+
+  const createResp = await safeFetch(url, {
+    method,
     headers: { ...authHeaders, "Content-Type": "application/json" },
     body: JSON.stringify(empresaPayload),
   }, 8000);
