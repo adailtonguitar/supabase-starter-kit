@@ -1043,13 +1043,25 @@ async function handleEmitNfe(supabase: any, body: any) {
   // Ambiente
   const ambiente = config.environment === "producao" ? "producao" : "homologacao";
 
-  // ─── Motor Fiscal Automático ───
+  // ─── Motor Fiscal Automático com Validação de Integridade ───
+  const VALID_UFS = new Set([
+    "AC", "AL", "AM", "AP", "BA", "CE", "DF", "ES", "GO",
+    "MA", "MG", "MS", "MT", "PA", "PB", "PE", "PI", "PR",
+    "RJ", "RN", "RO", "RR", "RS", "SC", "SE", "SP", "TO",
+  ]);
   const emitUF = companyState.trim();
   const destUF = (form.dest_uf || "").toUpperCase().trim();
   const rawPresence = Number(form.presence_type);
-  const indPres = [1, 2, 3, 4, 9].includes(rawPresence) ? rawPresence : 1;
-  const isInterstate = destUF.length === 2 && emitUF !== destUF;
+  let indPres = [1, 2, 3, 4, 9].includes(rawPresence) ? rawPresence : 1;
+  const isInterstate = destUF.length === 2 && VALID_UFS.has(destUF) && emitUF !== destUF;
   const idDest = isInterstate ? 2 : 1;
+
+  // ─── REGRA DE COERÊNCIA: interestadual + presencial → auto-corrigir ───
+  if (isInterstate && indPres === 1) {
+    console.warn(`[emit-nfe] ⚠ Coerência: idDest=2 (interestadual) + indPres=1 (presencial) → auto-corrigindo para indPres=2`);
+    indPres = 2;
+  }
+
   console.log(`[emit-nfe] Motor Fiscal: UF=${emitUF}→${destUF} idDest=${idDest} indPres=${indPres} CRT=${crt}`);
 
   // ─── Buscar tax_rule customizada (se existir) ───
@@ -1071,10 +1083,19 @@ async function handleEmitNfe(supabase: any, body: any) {
   const destIEIsento = /^isento$/i.test(destIERaw);
   const destIsContribuinte = destDocDigits.length === 14 && (destIE.length >= 2 || destIEIsento);
   const applyDifal = isInterstate && !destIsContribuinte;
+
+  // ─── FAIL-SAFE: CPF + interestadual → DIFAL obrigatório ───
+  if (isInterstate && destDocDigits.length === 11 && !applyDifal) {
+    console.error(`[emit-nfe] ✗ FAIL-SAFE: CPF interestadual sem DIFAL — situação impossível, forçando DIFAL`);
+  }
+  // ─── FAIL-SAFE: CNPJ sem IE + interestadual → deve aplicar DIFAL ───
+  if (isInterstate && destDocDigits.length === 14 && !destIsContribuinte && !applyDifal) {
+    console.error(`[emit-nfe] ✗ FAIL-SAFE: CNPJ sem IE interestadual sem DIFAL — situação impossível`);
+  }
+
   console.log(`[emit-nfe] DestDoc=${destDocDigits.length} IE=${destIERaw || "(vazio)"} Contribuinte=${destIsContribuinte} DIFAL=${applyDifal}`);
 
   // ─── Alíquotas DIFAL ───
-  // Sul/Sudeste (exceto ES) para demais: 7%, senão 12%
   const SUL_SUDESTE = new Set(["SP", "RJ", "MG", "PR", "SC", "RS"]);
   const ALIQ_INTERNA_UF: Record<string, number> = {
     AC: 19, AL: 19, AP: 18, AM: 20, BA: 20.5, CE: 20, DF: 20, ES: 17,
@@ -1088,7 +1109,7 @@ async function handleEmitNfe(supabase: any, body: any) {
   };
   const resolveEffectiveFcpPercent = (ufDestino: string, explicitPercent?: number | null) => {
     const uf = ufDestino.toUpperCase().trim();
-    if (uf === "PI") return 0;
+    if (uf === "PI") return 0; // Prevenir Rejeição 793
     if (typeof explicitPercent === "number" && Number.isFinite(explicitPercent)) return explicitPercent;
     return FCP_UF[uf] || 0;
   };
@@ -1096,6 +1117,58 @@ async function handleEmitNfe(supabase: any, body: any) {
   const pICMSInter = taxRule?.aliq_interestadual ?? defaultInterRate;
   const pICMSUFDest = taxRule?.aliq_interna_destino ?? (ALIQ_INTERNA_UF[destUF] || 18);
   const pFCPUFDest = resolveEffectiveFcpPercent(destUF, taxRule?.fcp_percent ?? null);
+
+  // ─── PRÉ-VALIDAÇÃO DE INTEGRIDADE FISCAL (BLOQUEANTE) ───
+  const integrityErrors: string[] = [];
+
+  // Validar UF emitente
+  if (!VALID_UFS.has(emitUF)) {
+    integrityErrors.push(`UF do emitente "${emitUF}" inválida.`);
+  }
+  // Validar CRT
+  if (![1, 2, 3].includes(crt)) {
+    integrityErrors.push(`CRT "${crt}" inválido. Deve ser 1, 2 ou 3.`);
+  }
+  // NF-e exige destinatário
+  if (!form.dest_doc) {
+    integrityErrors.push("Destinatário é obrigatório para NF-e (modelo 55).");
+  }
+  // Validar doc destinatário
+  if (destDocDigits && destDocDigits.length !== 11 && destDocDigits.length !== 14) {
+    integrityErrors.push(`CPF/CNPJ do destinatário inválido (${destDocDigits.length} dígitos).`);
+  }
+  // Validar UF destino para interestadual
+  if (isInterstate && !VALID_UFS.has(destUF)) {
+    integrityErrors.push(`UF do destinatário "${destUF}" inválida.`);
+  }
+  // UF obrigatória para NF-e
+  if (!destUF || destUF.length !== 2) {
+    integrityErrors.push("UF do destinatário é obrigatória para NF-e.");
+  }
+  // DIFAL: se interestadual + não contribuinte, alíquotas devem ser resolvíveis
+  if (applyDifal && pICMSUFDest <= pICMSInter) {
+    console.warn(`[emit-nfe] ⚠ DIFAL não aplicável: alíqInterna(${pICMSUFDest}) <= alíqInter(${pICMSInter})`);
+  }
+
+  if (integrityErrors.length > 0) {
+    console.error(`[emit-nfe] ✗ Pré-validação fiscal falhou:`, integrityErrors);
+    // Log de tentativa bloqueada
+    await supabase.from("action_logs").insert({
+      company_id,
+      action: "fiscal_emission_blocked",
+      module: "fiscal",
+      details: JSON.stringify({
+        reason: "pre_validation_failed",
+        errors: integrityErrors,
+        emitUF, destUF, crt, isInterstate, applyDifal,
+      }),
+    }).then(() => {}).catch(() => {});
+
+    return jsonResponse({
+      error: `Pré-validação fiscal falhou: ${integrityErrors.join(" | ")}`,
+      validation_errors: integrityErrors,
+    }, 400);
+  }
 
   // Itens
   const items = form.items || [];
