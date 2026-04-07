@@ -302,7 +302,7 @@ export default function Produtos() {
               ) : (
                 paginatedProducts.map((product, idx) => {
                   const isLow = product.min_stock != null && product.min_stock > 0 && product.stock_quantity <= product.min_stock;
-                  const fiscalStatus = getProductFiscalStatus(product, fiscalCategories, taxRegime);
+                  const fiscalStatus = fiscalStatusMap.get(product.id) || getProductFiscalStatus(product, fiscalCategories, taxRegime);
                   const hasFiscalIssue = fiscalStatus.hasFiscalGap;
                   const hasCriticalConflict = fiscalStatus.hasCriticalConflict;
                   return (
