@@ -228,7 +228,7 @@ async function resolveIbgeCodeFromDestination(params: {
   const zipDigits = onlyDigits(params.zip);
   if (zipDigits.length === 8) {
     try {
-      const viacepResp = await safeFetch(`https://viacep.com.br/ws/${zipDigits}/json/`, {}, 5000);
+      const viacepResp = await safeFetch(`https://viacep.com.br/ws/${zipDigits}/json/`, {}, 3000);
       if (viacepResp.ok) {
         const viacepData = await viacepResp.json();
         const ibge = onlyDigits(viacepData?.ibge);
@@ -843,7 +843,7 @@ async function handleEmit(supabase: any, body: any) {
     const cepDigits = companyZip;
     if (cepDigits.length === 8) {
       try {
-        const viacepResp = await safeFetch(`https://viacep.com.br/ws/${cepDigits}/json/`, {}, 5000);
+        const viacepResp = await safeFetch(`https://viacep.com.br/ws/${cepDigits}/json/`, {}, 3000);
         if (viacepResp.ok) {
           const viacepData = await viacepResp.json();
           if (viacepData.ibge) {
@@ -1524,7 +1524,7 @@ async function handleEmitNfe(supabase: any, body: any) {
     const cepDigits = companyZip;
     if (cepDigits.length === 8) {
       try {
-        const viacepResp = await safeFetch(`https://viacep.com.br/ws/${cepDigits}/json/`, {}, 5000);
+        const viacepResp = await safeFetch(`https://viacep.com.br/ws/${cepDigits}/json/`, {}, 3000);
         if (viacepResp.ok) {
           const viacepData = await viacepResp.json();
           if (viacepData.ibge) {
