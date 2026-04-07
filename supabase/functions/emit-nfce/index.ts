@@ -285,6 +285,11 @@ async function ensureCompanyRegisteredOnNuvemFiscal(params: {
     throw new Error("E-mail da empresa não configurado. Cadastre um e-mail na empresa antes de sincronizar com a Nuvem Fiscal.");
   }
 
+  const codigoMunicipio = onlyDigits(companyIbgeCode || company.ibge_code || company.city_code || company.address_ibge_code || company.codigo_municipio || "");
+  if (!codigoMunicipio || codigoMunicipio.length < 7) {
+    throw new Error("Código IBGE do município não configurado. Acesse Configurações da Empresa e preencha o código IBGE da cidade.");
+  }
+
   const empresaPayload: Record<string, any> = {
     cpf_cnpj: cnpj,
     inscricao_estadual: ie,
