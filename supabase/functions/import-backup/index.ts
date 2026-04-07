@@ -126,10 +126,10 @@ Deno.serve(async (req) => {
       // Get existing clients for dedup
       const { data: existing } = await adminClient
         .from("clients")
-        .select("name, document")
+        .select("name, cpf_cnpj")
         .eq("company_id", cid);
 
-      const existingDocs = new Set((existing || []).filter((e: any) => e.document).map((e: any) => e.document));
+      const existingDocs = new Set((existing || []).filter((e: any) => e.cpf_cnpj).map((e: any) => e.cpf_cnpj));
       const existingNames = new Set((existing || []).map((e: any) => e.name?.toUpperCase()));
 
       const toInsert = clients.filter((c: any) => {
