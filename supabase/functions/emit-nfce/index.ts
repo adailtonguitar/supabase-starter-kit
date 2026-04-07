@@ -1973,12 +1973,13 @@ async function handleEmitNfe(supabase: any, body: any) {
     if (icmsData.vBCST) totalVBCST += icmsData.vBCST;
     if (icmsData.vICMSST) totalVST += icmsData.vICMSST;
 
-    const pisCst = item.pis_cst || (isSimples ? "49" : "01");
-    const cofinsCst = item.cofins_cst || (isSimples ? "49" : "01");
-    const { PIS, COFINS } = buildPisCofins(pisCst, cofinsCst, vProdLiq);
+    // ── PIS/COFINS: Simples Nacional NUNCA destaca (CST 49, valores zerados) ──
+    const pisCst = isSimples ? "49" : (item.pis_cst || "01");
+    const cofinsCst = isSimples ? "49" : (item.cofins_cst || "01");
+    const { PIS, COFINS } = buildPisCofins(pisCst, cofinsCst, vProdLiq, isSimples);
 
-    if (PIS.PISAliq) totalVPIS += PIS.PISAliq.vPIS;
-    if (COFINS.COFINSAliq) totalVCOFINS += COFINS.COFINSAliq.vCOFINS;
+    if (!isSimples && PIS.PISAliq) totalVPIS += PIS.PISAliq.vPIS;
+    if (!isSimples && COFINS.COFINSAliq) totalVCOFINS += COFINS.COFINSAliq.vCOFINS;
 
     const prodBlock: any = {
       cProd: item.product_code || item.product_id || String(i + 1),
