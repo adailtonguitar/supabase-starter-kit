@@ -201,7 +201,7 @@ function mergeCompanyFields(
 
   return {
     companyName: company.name ?? fallback.companyName,
-    logoUrl: company.logo_url ?? fallback.logoUrl,
+    logoUrl: company.logo_url ?? null,
     slogan: company.slogan ?? fallback.slogan,
     pixKey: company.pix_key ?? fallback.pixKey,
     pixKeyType: company.pix_key_type ?? fallback.pixKeyType,
