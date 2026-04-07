@@ -53,7 +53,7 @@ Deno.serve(async (req) => {
         .single(),
       supabaseAdmin
         .from("fiscal_configs")
-        .select("certificate_path, certificate_password, ie, ambiente")
+        .select("certificate_path, certificate_password_hash, ie, ambiente")
         .eq("company_id", company_id)
         .eq("is_active", true)
         .limit(1)
