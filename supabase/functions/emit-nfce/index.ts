@@ -1010,12 +1010,30 @@ async function handleEmit(supabase: any, body: any) {
 
   console.log(`[emit-nfce] ✓ NFC-e #${numero} → ${finalStatus} | Chave: ${accessKey?.substring(0, 20)}... | ${Date.now() - t0}ms total`);
 
+  // ─── Registrar risk log (não-bloqueante) ───
+  supabase.from("fiscal_risk_logs").insert({
+    company_id, note_id: accessKey || String(numero), note_type: "nfce",
+    score: riskScore, level: riskLevel, reasons: riskReasons, blocked: false,
+  }).then(() => {});
+  // Gerar alerta se score >= 50
+  if (riskScore >= 50) {
+    const alertSeverity = riskScore >= 70 ? "critical" : "warning";
+    supabase.from("fiscal_alerts").insert({
+      company_id, severity: alertSeverity, score: riskScore,
+      title: `NFC-e #${numero} com risco ${alertSeverity}`,
+      description: `Score: ${riskScore}/100`,
+      reasons: riskReasons,
+    }).then(() => {});
+  }
+
   return jsonResponse({
     success: true,
     status: finalStatus,
     number: numero,
     access_key: accessKey,
     protocol: protocolNumber,
+    risk_score: riskScore,
+    risk_level: riskLevel,
   });
 }
 
