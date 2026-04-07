@@ -152,7 +152,8 @@ export default function Produtos() {
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-foreground">Produtos & Estoque</h1>
           <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-            {products.length} produtos cadastrados
+            {filtered.length} produtos cadastrados
+            {filtered.length !== products.length && ` (de ${products.length} total)`}
           </p>
         </div>
         <div data-tour="product-import" className="flex items-center gap-2 flex-wrap">
