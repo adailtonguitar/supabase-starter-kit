@@ -612,6 +612,14 @@ async function handleUploadCertificate(supabase: any, body: any) {
     forceUpdate: true,
   });
 
+  // Always sync certificate to Nuvem Fiscal directly
+  try {
+    await syncCertificateToNuvemFiscal(baseUrl, token, context.cnpjClean, certificate);
+  } catch (syncErr: any) {
+    console.error("[handleUploadCertificate] Falha ao sincronizar certificado:", syncErr.message);
+    return jsonResponse({ success: false, error: syncErr.message }, 400);
+  }
+
   if (targetDocTypes.includes("nfe")) {
     const nfeConfig = context.configs.find((config) => String(config.doc_type) === "nfe");
     await ensureNfeConfigOnNuvemFiscal({
@@ -625,7 +633,6 @@ async function handleUploadCertificate(supabase: any, body: any) {
   }
 
   return jsonResponse({ success: true, certificate_path: storagePath });
-}
 
 async function handleDeleteCertificate(supabase: any, body: any) {
   const { company_id } = body;
