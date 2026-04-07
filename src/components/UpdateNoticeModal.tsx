@@ -5,15 +5,28 @@ import { useAuth } from "@/hooks/useAuth";
 export function UpdateNoticeModal() {
   const { user } = useAuth();
   const [show, setShow] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
   const waitingSWRef = useRef<ServiceWorker | null>(null);
+  const registrationRef = useRef<ServiceWorkerRegistration | null>(null);
+  const forceReloadTimeoutRef = useRef<number | null>(null);
+  const intervalRef = useRef<number | null>(null);
+  const reloadingRef = useRef(false);
 
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
+
+    const forceReload = () => {
+      if (reloadingRef.current) return;
+      reloadingRef.current = true;
+      window.location.reload();
+    };
 
     // Register SW manually (injectRegister: false)
     navigator.serviceWorker
       .register("/sw.js", { scope: "/" })
       .then((reg) => {
+        registrationRef.current = reg;
+
         // Check if there's already a waiting SW
         if (reg.waiting) {
           waitingSWRef.current = reg.waiting;
@@ -28,7 +41,7 @@ export function UpdateNoticeModal() {
             if (!newSW) return;
             newSW.addEventListener("statechange", () => {
               if (newSW.state === "installed" && navigator.serviceWorker.controller) {
-                waitingSWRef.current = newSW;
+                waitingSWRef.current = reg.waiting ?? newSW;
                 setShow(true);
               }
             });
@@ -38,33 +51,49 @@ export function UpdateNoticeModal() {
         });
 
         // Periodically check for updates (every 60s)
-        setInterval(() => {
+        intervalRef.current = window.setInterval(() => {
           try { reg.update().catch(() => {}); } catch { /* Safari quirk */ }
         }, 60 * 1000);
       })
       .catch(() => {});
 
-    // Reload when new SW takes control
-    let refreshing = false;
     const onControllerChange = () => {
-      if (refreshing) return;
-      refreshing = true;
-      window.location.reload();
+      forceReload();
     };
     navigator.serviceWorker.addEventListener("controllerchange", onControllerChange);
 
     return () => {
+      if (intervalRef.current) window.clearInterval(intervalRef.current);
+      if (forceReloadTimeoutRef.current) window.clearTimeout(forceReloadTimeoutRef.current);
       navigator.serviceWorker.removeEventListener("controllerchange", onControllerChange);
     };
   }, []);
 
-  const handleUpdate = () => {
-    const sw = waitingSWRef.current;
+  const handleUpdate = async () => {
+    if (isUpdating) return;
+
+    setIsUpdating(true);
+    setShow(false);
+
+    const registration = registrationRef.current ?? await navigator.serviceWorker.getRegistration().catch(() => null);
+    const sw = registration?.waiting ?? waitingSWRef.current;
+
     if (sw) {
+      waitingSWRef.current = sw;
       sw.postMessage({ type: "SKIP_WAITING" });
-    } else {
-      window.location.reload();
     }
+
+    try {
+      await registration?.update();
+    } catch {
+      // fallback below
+    }
+
+    forceReloadTimeoutRef.current = window.setTimeout(() => {
+      if (!reloadingRef.current) {
+        window.location.reload();
+      }
+    }, 1500);
   };
 
   if (!show || !user) return null;
@@ -82,10 +111,11 @@ export function UpdateNoticeModal() {
           </p>
           <button
             onClick={handleUpdate}
+            disabled={isUpdating}
             className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:opacity-90 transition-opacity"
           >
-            <RefreshCw className="w-3.5 h-3.5" />
-            Atualizar agora
+            <RefreshCw className={`w-3.5 h-3.5 ${isUpdating ? "animate-spin" : ""}`} />
+            {isUpdating ? "Atualizando..." : "Atualizar agora"}
           </button>
         </div>
         <button
