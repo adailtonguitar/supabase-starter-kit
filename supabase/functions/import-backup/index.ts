@@ -133,20 +133,23 @@ Deno.serve(async (req) => {
       const existingNames = new Set((existing || []).map((e: any) => e.name?.toUpperCase()));
 
       const toInsert = clients.filter((c: any) => {
-        if (c.document && existingDocs.has(c.document)) return false;
+        if (c.cpf_cnpj && existingDocs.has(c.cpf_cnpj)) return false;
         if (existingNames.has(c.name?.toUpperCase())) return false;
         return true;
       }).map((c: any) => ({
         company_id: cid,
         name: c.name,
-        document: c.document || null,
-        document_type: c.document_type || null,
+        cpf_cnpj: c.cpf_cnpj || null,
         phone: c.phone || null,
         email: c.email || null,
         address: c.address || null,
-        city: c.city || null,
-        state: c.state || null,
-        zip_code: c.zip_code || null,
+        address_city: c.address_city || null,
+        address_state: c.address_state || null,
+        address_zip: c.address_zip || null,
+        address_street: c.address_street || null,
+        address_number: c.address_number || null,
+        address_neighborhood: c.address_neighborhood || null,
+        notes: c.notes || null,
       }));
 
       if (toInsert.length === 0) {
