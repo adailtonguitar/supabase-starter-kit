@@ -461,12 +461,8 @@ async function ensureNfeConfigOnNuvemFiscal(params: {
     ambiente: ambiente === "producao" ? "producao" : "homologacao",
   };
 
-  if (certificate?.base64 && certificate.password) {
-    nfeConfigPayload.certificado = {
-      base64: certificate.base64,
-      password: certificate.password,
-    };
-  }
+  // NOTE: "certificado" does NOT belong on the /nfe config endpoint.
+  // It must be sent on PUT /empresas/{cnpj} (company registration) instead.
 
   console.log("[emit-nfce] PUT /empresas/" + cnpj + "/nfe payload keys:", Object.keys(nfeConfigPayload), "has cert:", !!nfeConfigPayload.certificado);
   const nfeConfigResp = await safeFetch(`${baseUrl}/empresas/${cnpj}/nfe`, {
