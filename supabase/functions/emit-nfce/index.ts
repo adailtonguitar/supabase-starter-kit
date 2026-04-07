@@ -1271,6 +1271,35 @@ async function handleEmit(supabase: any, body: any) {
     return jsonResponse({ error: "Nenhum item na venda" }, 400);
   }
 
+  // ─── PIS/COFINS auto-correção para Simples Nacional (NFC-e) ───
+  if (isSimples) {
+    for (let vi = 0; vi < items.length; vi++) {
+      const vItem = items[vi];
+      if (vItem.pis_cst && ["01", "02"].includes(vItem.pis_cst)) {
+        console.warn(`[emit-nfce] ⚠ Auto-corrigindo PIS CST ${vItem.pis_cst} → 49 para Simples Nacional (item ${vi + 1})`);
+        vItem.pis_cst = "49";
+      }
+      if (vItem.cofins_cst && ["01", "02"].includes(vItem.cofins_cst)) {
+        console.warn(`[emit-nfce] ⚠ Auto-corrigindo COFINS CST ${vItem.cofins_cst} → 49 para Simples Nacional (item ${vi + 1})`);
+        vItem.cofins_cst = "49";
+      }
+    }
+  }
+
+  // ─── LOG DE AUDITORIA PRÉ-EMISSÃO NFC-e ───
+  supabase.from("action_logs").insert({
+    company_id,
+    action: "nfce_pre_emission_audit",
+    module: "fiscal",
+    details: JSON.stringify({
+      regime: crt,
+      isSimples,
+      pisCofinsMode: isSimples ? "simples_sem_credito" : "regime_normal",
+      itemCount: items.length,
+      validado: true,
+    }),
+  }).then(() => {}).catch(() => {});
+
   // Totalizadores
   let totalVProd = 0, totalVDesc = 0, totalVICMS = 0, totalVBCST = 0, totalVST = 0, totalVPIS = 0, totalVCOFINS = 0;
 
