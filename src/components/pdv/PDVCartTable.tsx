@@ -3,7 +3,7 @@ import { AlertTriangle, Package } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import type { PDVProduct } from "@/hooks/usePDV";
 import type { CartItem } from "@/hooks/pdv/usePDVCart";
-import anthoLogo from "@/assets/logo-as.png";
+
 
 interface PDVCartTableProps {
   cartItems: CartItem[];
