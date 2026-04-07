@@ -1798,7 +1798,22 @@ async function handleEmitNfe(supabase: any, body: any) {
     }),
   }).then(() => {}).catch((e: any) => console.warn("[emit-nfe] Falha ao registrar audit log:", e.message));
 
-  console.log(`[emit-nfe] ✓ NF-e #${numero} → ${finalStatus} | provider_status=${emissionStatus.statusStr || "(vazio)"} cStat=${emissionStatus.cStatStr || "(vazio)"} | reason=${providerReason || "(vazio)"} | Chave: ${accessKey?.substring(0, 20)}... | ${Date.now() - t0}ms total`);
+  console.log(`[emit-nfe] ✓ NF-e #${numero} → ${finalStatus} | provider_status=${emissionStatus.statusStr || "(vazio)"} cStat=${emissionStatus.cStatStr || "(vazio)"} | reason=${providerReason || "(vazio)"} | Chave: ${accessKey?.substring(0, 20)}... | RiskScore: ${riskScoreNfe} | ${Date.now() - t0}ms total`);
+
+  // ─── Registrar risk log NF-e (não-bloqueante) ───
+  supabase.from("fiscal_risk_logs").insert({
+    company_id, note_id: accessKey || String(numero), note_type: "nfe",
+    score: riskScoreNfe, level: riskLevelNfe, reasons: riskReasonsNfe, blocked: false,
+  }).then(() => {});
+  if (riskScoreNfe >= 50) {
+    const alertSevNfe = riskScoreNfe >= 70 ? "critical" : "warning";
+    supabase.from("fiscal_alerts").insert({
+      company_id, severity: alertSevNfe, score: riskScoreNfe,
+      title: `NF-e #${numero} com risco ${alertSevNfe}`,
+      description: `Score: ${riskScoreNfe}/100`,
+      reasons: riskReasonsNfe,
+    }).then(() => {});
+  }
 
   return jsonResponse({
     success: finalStatus === "autorizada" || finalStatus === "contingencia",
