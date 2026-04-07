@@ -1052,6 +1052,28 @@ async function handleEmit(supabase: any, body: any) {
 
   console.log(`[emit-nfce] ▶ Enviando para Nuvem Fiscal...`);
 
+  // ─── Garantir que a empresa existe na Nuvem Fiscal (NFC-e) ───
+  try {
+    await ensureCompanyRegisteredOnNuvemFiscal({
+      token,
+      baseUrl,
+      cnpj: cnpjClean,
+      ie: ieEmitClean,
+      company,
+      companyStreet,
+      companyNumber,
+      companyNeighborhood,
+      companyCity,
+      companyState,
+      companyZip,
+    });
+  } catch (regErr: any) {
+    console.error(`[emit-nfce] Falha ao registrar empresa na Nuvem Fiscal:`, regErr.message);
+    return jsonResponse({
+      error: `Falha ao cadastrar empresa na Nuvem Fiscal. ${regErr.message}`,
+    }, 400);
+  }
+
   // ─── Emissão com safeFetch (timeout 10s) ───
   const nfResp = await safeFetch(`${baseUrl}/nfce`, {
     method: "POST",
