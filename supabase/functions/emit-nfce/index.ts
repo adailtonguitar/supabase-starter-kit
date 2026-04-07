@@ -1586,7 +1586,37 @@ async function handleEmitNfe(supabase: any, body: any) {
 
   if (Object.keys(infAdic).length > 0) payload.infNFe.infAdic = infAdic;
 
-  console.log(`[emit-nfe] ▶ Emitindo NF-e #${numero} | CNPJ: ${cnpjClean} | CRT: ${crt} | Amb: ${ambiente} | Itens: ${items.length} | Total: ${vNF} | Finalidade: ${finNFe}`);
+  // ─── FISCAL RISK SCORING NF-e (antes do envio à SEFAZ) ───
+  let riskScoreNfe = 0;
+  const riskReasonsNfe: string[] = [];
+  const hasFallbackNfe = taxClassificationAuditNfe.some((a: any) => a.fallback);
+  if (hasFallbackNfe) { riskScoreNfe += 30; riskReasonsNfe.push("[+30] NCM sem regra tributária"); }
+  if (hasFallbackNfe) { riskScoreNfe += 20; riskReasonsNfe.push("[+20] Fallback tributário utilizado"); }
+  if (taxClassificationAuditNfe.length > 0 && taxClassificationAuditNfe.every((a: any) => a.fallback)) {
+    riskScoreNfe += 15; riskReasonsNfe.push("[+15] Ausência total de tax_rules");
+  }
+  if (applyDifal) { riskScoreNfe -= 10; riskReasonsNfe.push("[-10] DIFAL aplicado corretamente"); }
+  if (isInterstate && !applyDifal && destDocDigits.length === 11) {
+    riskScoreNfe += 35; riskReasonsNfe.push("[+35] CPF interestadual sem DIFAL");
+  }
+  if (isInterstate && destDocDigits.length === 11) {
+    riskScoreNfe += 10; riskReasonsNfe.push("[+10] CPF em operação interestadual");
+  }
+  if (indPres !== Number(form.presence_type)) {
+    riskScoreNfe += 5; riskReasonsNfe.push("[+5] indPres auto-corrigido");
+  }
+  riskScoreNfe = Math.max(0, Math.min(100, riskScoreNfe));
+  const riskLevelNfe = riskScoreNfe >= 70 ? "critical" : riskScoreNfe >= 50 ? "high" : riskScoreNfe >= 25 ? "medium" : "low";
+
+  if (riskScoreNfe >= 70) {
+    console.error(`[emit-nfe] ✗ BLOQUEIO POR RISCO FISCAL: score=${riskScoreNfe}`);
+    supabase.from("fiscal_risk_logs").insert({
+      company_id, note_type: "nfe", score: riskScoreNfe, level: riskLevelNfe, reasons: riskReasonsNfe, blocked: true,
+    }).then(() => {});
+    return jsonResponse({ error: `Emissão NF-e bloqueada por risco fiscal elevado (score: ${riskScoreNfe}). Corrija as regras tributárias.`, risk_score: riskScoreNfe, risk_reasons: riskReasonsNfe }, 400);
+  }
+
+  console.log(`[emit-nfe] ▶ Emitindo NF-e #${numero} | CNPJ: ${cnpjClean} | CRT: ${crt} | Amb: ${ambiente} | Itens: ${items.length} | Total: ${vNF} | Finalidade: ${finNFe} | RiskScore: ${riskScoreNfe}`);
 
   // ─── Autenticação Nuvem Fiscal ───
   const token = await getNuvemFiscalToken();
