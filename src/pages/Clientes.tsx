@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react";
 import { useReadAudit } from "@/hooks/useReadAudit";
 import { motion } from "framer-motion";
-import { Users, Upload, User, Phone, Mail, MapPin, CreditCard, AlertTriangle, Search, Plus, Pencil, Trash2, X } from "lucide-react";
+import { Users, Upload, User, Phone, Mail, MapPin, CreditCard, AlertTriangle, Search, Plus, Pencil, Trash2, X, DatabaseBackup, Loader2 } from "lucide-react";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { useClients, useCreateClient, useUpdateClient, useDeleteClient } from "@/hooks/useClients";
 import { validateDoc } from "@/lib/cpf-cnpj-validator";
@@ -13,6 +13,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { CSVClientImportDialog } from "@/components/clients/CSVClientImportDialog";
 import { toast } from "sonner";
 import { useCnpjLookup } from "@/hooks/useCnpjLookup";
+import { supabase } from "@/integrations/supabase/client";
+import { useCompany } from "@/hooks/useCompany";
 
 import { maskCpfCnpj, DOC_FIELD_KEYS } from "@/lib/cpf-cnpj-mask";
 
