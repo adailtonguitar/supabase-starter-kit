@@ -468,15 +468,20 @@ async function ensureNfeConfigOnNuvemFiscal(params: {
     };
   }
 
+  console.log("[emit-nfce] PUT /empresas/" + cnpj + "/nfe payload keys:", Object.keys(nfeConfigPayload), "has cert:", !!nfeConfigPayload.certificado);
   const nfeConfigResp = await safeFetch(`${baseUrl}/empresas/${cnpj}/nfe`, {
     method: "PUT",
     headers: { ...authHeaders, "Content-Type": "application/json" },
     body: JSON.stringify(nfeConfigPayload),
   }, 8000);
-  const nfeConfigData = await parseResponseJsonSafe(nfeConfigResp, "configuração NF-e Nuvem Fiscal").catch(() => null);
+  const nfeConfigText = await nfeConfigResp.text().catch(() => "");
+  console.log("[emit-nfce] PUT /empresas/" + cnpj + "/nfe response:", nfeConfigResp.status, nfeConfigText.slice(0, 500));
 
   if (!nfeConfigResp.ok) {
-    throw new Error(extractProviderErrorMessage(nfeConfigData, nfeConfigResp.status, "Falha ao configurar NF-e na Nuvem Fiscal"));
+    let parsed: any = null;
+    try { parsed = JSON.parse(nfeConfigText); } catch {}
+    const detail = parsed?.error?.message || parsed?.message || nfeConfigText.slice(0, 300) || `status ${nfeConfigResp.status}`;
+    throw new Error(`Falha ao configurar NF-e na Nuvem Fiscal: ${detail}`);
   }
 }
 
