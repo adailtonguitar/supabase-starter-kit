@@ -47,7 +47,7 @@ export interface FiscalRiskInput {
 interface ScoringRule {
   key: keyof FiscalRiskInput;
   points: number;
-  condition: (value: any) => boolean;
+  condition: (value: any, input?: FiscalRiskInput) => boolean;
   reason: string;
 }
 
