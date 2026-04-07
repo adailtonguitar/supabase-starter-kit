@@ -959,7 +959,7 @@ async function handleEmit(supabase: any, body: any) {
   console.log(`[emit-nfce] ▶ pagBlock completo:`, JSON.stringify(pagBlock));
 
   // ─── Autenticação Nuvem Fiscal ───
-  const token = await getNuvemFiscalToken();
+  const token = await tokenPromise;
   const baseUrl = getApiBaseUrl();
 
   console.log(`[emit-nfce] ▶ Enviando para Nuvem Fiscal...`);
