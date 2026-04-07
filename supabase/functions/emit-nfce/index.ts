@@ -1112,7 +1112,7 @@ async function handleEmitNfe(supabase: any, body: any) {
     return jsonResponse({ error: "Limite de emissões excedido. Aguarde 1 minuto." }, 429);
   }
 
-  // Buscar empresa + config fiscal + regras tributárias em PARALELO
+  // Buscar empresa + config fiscal + regras tributárias + OAuth em PARALELO
   const companyPromise = supabase.from("companies").select("*").eq("id", company_id).single();
   const configPromise = config_id
     ? supabase.from("fiscal_configs").select("*").eq("id", config_id).single()
@@ -1123,6 +1123,7 @@ async function handleEmitNfe(supabase: any, body: any) {
     .select("*")
     .eq("company_id", company_id)
     .eq("is_active", true);
+  const nfeTokenPromise = getNuvemFiscalToken();
 
   const [companyRes, configRes, taxRulesNcmResNfe] = await Promise.all([companyPromise, configPromise, taxRulesNcmPromiseNfe]);
   const taxRulesByNcmNfe: any[] = taxRulesNcmResNfe.data || [];
