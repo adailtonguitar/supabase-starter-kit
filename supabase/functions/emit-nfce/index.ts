@@ -301,7 +301,7 @@ async function ensureCompanyRegisteredOnNuvemFiscal(params: {
       logradouro: sanitizeSefazText(companyStreet || "Rua não informada", "Rua não informada"),
       numero: companyNumber || "S/N",
       bairro: sanitizeSefazText(companyNeighborhood || "Centro", "Centro"),
-      codigo_municipio: onlyDigits(companyIbgeCode || company.ibge_code || company.city_code || company.address_ibge_code || company.codigo_municipio || ""),
+      codigo_municipio: codigoMunicipio,
       cidade: sanitizeSefazText(companyCity || "Não informada", "Não informada"),
       uf: (companyState || "MA").toUpperCase(),
       cep: companyZip || "00000000",
