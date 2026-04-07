@@ -92,7 +92,48 @@ function buildFallback(input: TaxClassificationInput, reason?: string): TaxClass
     fallback_used: true,
     warnings: [reason || `NCM ${input.ncm} sem regra tributária definida — fallback seguro aplicado`],
     match_score: 0,
+    confidence_level: "low",
+    confidence_reason: "Fallback — nenhuma regra aplicável encontrada",
   };
+}
+
+// ─── Confidence Level ───
+
+function computeConfidence(rule: TaxRuleByNcm, ncm: string): { level: ConfidenceLevel; reason: string } {
+  const rNcm = (rule.ncm || "").replace(/\D/g, "").trim();
+  const isNcmExact = rNcm === ncm && rNcm.length === 8;
+  const isNcmPartial = !isNcmExact && rNcm !== "*" && rNcm.length >= 4;
+  const isNcmWild = rNcm === "*" || rNcm.length < 4;
+  const isUfOrigExact = rule.uf_origem !== "*";
+  const isUfDestExact = rule.uf_destino !== "*";
+  const isTipoExact = rule.tipo_cliente !== "*";
+
+  // HIGH: NCM exato + ambas UFs exatas + tipo exato
+  if (isNcmExact && isUfOrigExact && isUfDestExact && isTipoExact) {
+    return { level: "high", reason: "NCM exato, UFs exatas, tipo cliente exato" };
+  }
+  // HIGH: NCM exato + pelo menos 2 campos exatos
+  const exactCount = (isUfOrigExact ? 1 : 0) + (isUfDestExact ? 1 : 0) + (isTipoExact ? 1 : 0);
+  if (isNcmExact && exactCount >= 2) {
+    return { level: "high", reason: "NCM exato com boa especificidade de UF/tipo" };
+  }
+
+  // MEDIUM: NCM parcial (4+ dígitos) + pelo menos uma UF exata
+  if (isNcmPartial && (isUfOrigExact || isUfDestExact)) {
+    return { level: "medium", reason: "NCM parcial com pelo menos uma UF exata" };
+  }
+  // MEDIUM: NCM exato mas campos genéricos
+  if (isNcmExact && exactCount < 2) {
+    return { level: "medium", reason: "NCM exato mas UFs/tipo genéricos" };
+  }
+
+  // LOW: wildcard ou NCM < 4 dígitos ou múltiplos campos genéricos
+  const genericCount = (isNcmWild ? 1 : 0) + (!isUfOrigExact ? 1 : 0) + (!isUfDestExact ? 1 : 0) + (!isTipoExact ? 1 : 0);
+  if (isNcmWild || genericCount >= 3) {
+    return { level: "low", reason: isNcmWild ? "NCM wildcard ou muito curto" : "Múltiplos campos genéricos" };
+  }
+
+  return { level: "medium", reason: "Especificidade parcial" };
 }
 
 // ─── Score-based Rule Matching ───
