@@ -4,7 +4,6 @@ import { MobileBottomNav } from "./MobileBottomNav";
 import { MobileTopBar } from "./MobileTopBar";
 import { SubscriptionBanner } from "./SubscriptionBanner";
 import { DemoBanner } from "./DemoBanner";
-import { UpdateNoticeModal } from "@/components/UpdateNoticeModal";
 import { OnlineStatusIndicator } from "./OnlineStatusIndicator";
 import { SyncStatusPanel } from "./SyncStatusPanel";
 import { AppHeader } from "./AppHeader";
@@ -29,7 +28,6 @@ export const AppLayout = memo(function AppLayout({ children }: AppLayoutProps) {
       <IdleWarningDialog open={showWarning} secondsLeft={secondsLeft} onContinue={dismissWarning} onLogout={doLogout} />
       <AppSidebar mobileOpen={mobileOpen} onMobileClose={() => setMobileOpen(false)} />
       <div className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden">
-        <UpdateNoticeModal />
         <OnlineStatusIndicator />
         <DemoBanner />
         <SubscriptionBanner />
