@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import {
   FileText, Send, Loader2, CheckCircle, AlertTriangle, X,
-  Plus, Trash2, User, Package, CreditCard, Truck, Info, Lock, ArrowLeft, Search, Save
+  Plus, Trash2, User, Package, CreditCard, Truck, Info, Lock, ArrowLeft, Search, Save,
+  FileDown, FolderOpen, Clock
 } from "lucide-react";
 import { useCnpjLookup } from "@/hooks/useCnpjLookup";
 import { DANFePrintButton } from "@/components/fiscal/DANFePrint";
