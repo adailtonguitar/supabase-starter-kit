@@ -1684,8 +1684,8 @@ async function handleEmitNfe(supabase: any, body: any) {
 
   console.log(`[emit-nfe] ▶ Emitindo NF-e #${numero} | CNPJ: ${cnpjClean} | CRT: ${crt} | Amb: ${ambiente} | Itens: ${items.length} | Total: ${vNF} | Finalidade: ${finNFe} | RiskScore: ${riskResultNfe.score}`);
 
-  // ─── Autenticação Nuvem Fiscal ───
-  const token = await getNuvemFiscalToken();
+  // ─── Autenticação Nuvem Fiscal (já iniciada em paralelo) ───
+  const token = await nfeTokenPromise;
   const baseUrl = getApiBaseUrl();
 
   // ─── Garantir que a empresa tem config de NF-e na Nuvem Fiscal ───
