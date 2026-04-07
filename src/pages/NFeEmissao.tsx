@@ -127,6 +127,35 @@ const emptyForm = (): NFeFormData => ({
   volumes: 0, grossWeight: 0, netWeight: 0,
 });
 
+const NFE_DRAFTS_KEY = "as_nfe_drafts";
+
+interface NFeDraft {
+  id: string;
+  label: string;
+  savedAt: string;
+  form: NFeFormData;
+}
+
+function loadDrafts(): NFeDraft[] {
+  try {
+    const raw = localStorage.getItem(NFE_DRAFTS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+
+function saveDrafts(drafts: NFeDraft[]) {
+  try { localStorage.setItem(NFE_DRAFTS_KEY, JSON.stringify(drafts)); } catch { /* */ }
+}
+
+function buildDraftLabel(form: NFeFormData): string {
+  const dest = form.destName?.trim();
+  const itemCount = form.items.length;
+  const parts: string[] = [];
+  if (dest) parts.push(dest.slice(0, 30));
+  if (itemCount > 0) parts.push(`${itemCount} ite${itemCount > 1 ? "ns" : "m"}`);
+  return parts.length > 0 ? parts.join(" · ") : "Rascunho sem dados";
+}
+
 // ── Item 6: Interfaces for successData and companyInfo ──
 interface NFeEmitentePayload {
   nome_razao_social: string;
