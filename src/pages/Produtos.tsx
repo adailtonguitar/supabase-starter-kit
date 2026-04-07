@@ -59,15 +59,30 @@ export default function Produtos() {
       : "simples_nacional";
 
   const filtered = useMemo(() => {
+    const q = search.toLowerCase();
     const matchesSearch = (p: Product) =>
-      p.name.toLowerCase().includes(search.toLowerCase()) ||
-      p.sku.toLowerCase().includes(search.toLowerCase()) ||
+      p.name.toLowerCase().includes(q) ||
+      p.sku.toLowerCase().includes(q) ||
       (p.barcode && p.barcode.includes(search));
 
     const hasFiscalIssue = (p: Product) => getProductFiscalStatus(p, fiscalCategories, taxRegime).blocksFiscalEmission;
 
     return products.filter((p) => matchesSearch(p) && (!fiscalPendingOnly || hasFiscalIssue(p)));
   }, [products, search, fiscalPendingOnly, fiscalCategories, taxRegime]);
+
+  // Reset page when search/filter changes
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages - 1);
+  const paginatedProducts = useMemo(
+    () => filtered.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE),
+    [filtered, safePage],
+  );
+
+  // Reset page on search change
+  const handleSearch = (val: string) => {
+    setSearch(val);
+    setPage(0);
+  };
 
   const bulkFixAnalysis = useMemo(
     () => getBulkFiscalFixAnalysis(products, fiscalCategories, taxRegime),
