@@ -102,7 +102,8 @@ interface ScoredRule {
 }
 
 function scoreRule(rule: TaxRuleByNcm, ncm: string, ufO: string, ufD: string, regime: string, tipoCliente: string): ScoredRule | null {
-  const rNcm = (rule.ncm || "").replace(/\D/g, "").trim();
+  const rawNcm = (rule.ncm || "").trim();
+  const rNcm = rawNcm === "*" ? "*" : rawNcm.replace(/\D/g, "").trim();
   const breakdown: string[] = [];
   let score = 0;
 
