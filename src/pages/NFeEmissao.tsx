@@ -302,6 +302,8 @@ export default function NFeEmissao() {
   const [showProductDropdown, setShowProductDropdown] = useState<number | null>(null);
   const [showAddSearch, setShowAddSearch] = useState(false);
   const [addSearchTerm, setAddSearchTerm] = useState("");
+  const [addProductPage, setAddProductPage] = useState(0);
+  const ADD_PRODUCTS_PER_PAGE = 20;
   const [showQuickRegister, setShowQuickRegister] = useState(false);
   const [quickForm, setQuickForm] = useState({ name: "", sku: "", ncm: "", unit: "UN", price: "", cfop: "5102", origin: "0", csosn: "", cst_icms: "" });
   const [quickSaving, setQuickSaving] = useState(false);
