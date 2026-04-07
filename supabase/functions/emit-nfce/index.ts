@@ -633,7 +633,7 @@ async function handleEmit(supabase: any, body: any) {
     }
   }
 
-  // Buscar empresa + config fiscal + regras tributárias em PARALELO (reduz latência ~50%)
+  // Buscar empresa + config fiscal + regras tributárias + OAuth em PARALELO (reduz latência ~60%)
   const companyPromise = supabase.from("companies").select("*").eq("id", company_id).single();
   const configPromise = config_id
     ? supabase.from("fiscal_configs").select("*").eq("id", config_id).single()
@@ -644,6 +644,8 @@ async function handleEmit(supabase: any, body: any) {
     .select("*")
     .eq("company_id", company_id)
     .eq("is_active", true);
+  // Iniciar OAuth em paralelo — economiza ~1-3s por não esperar sequencialmente
+  const tokenPromise = getNuvemFiscalToken();
 
   const [companyRes, configRes, taxRulesNcmRes] = await Promise.all([companyPromise, configPromise, taxRulesNcmPromise]);
   const taxRulesByNcm: any[] = taxRulesNcmRes.data || [];
