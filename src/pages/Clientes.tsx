@@ -53,6 +53,29 @@ export default function Clientes() {
   const update = useUpdateClient();
   const del = useDeleteClient();
   const [showCSVImport, setShowCSVImport] = useState(false);
+  const [importingMigration, setImportingMigration] = useState(false);
+  const { companyId } = useCompany();
+
+  const handleMigrationImport = async () => {
+    if (!companyId) return;
+    setImportingMigration(true);
+    try {
+      const res = await fetch("/migration-clients.json");
+      if (!res.ok) { toast.error("Arquivo de migração não encontrado"); return; }
+      const clients = await res.json();
+      const { data, error } = await supabase.functions.invoke("import-backup", {
+        body: { action: "bulk_import_clients", company_id: companyId, clients },
+      });
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || "Erro na importação");
+      toast.success(`${data.inserted} cliente(s) importado(s), ${data.skipped} ignorado(s)`);
+      window.location.reload();
+    } catch (e: any) {
+      toast.error(e.message || "Erro ao importar clientes");
+    } finally {
+      setImportingMigration(false);
+    }
+  };
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
