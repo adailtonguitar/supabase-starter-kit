@@ -1353,6 +1353,9 @@ async function handleEmit(supabase: any, body: any) {
 
   console.log(`[emit-nfce] ▶ Enviando para Nuvem Fiscal...`);
 
+  // ─── Resolver certificado para enviar junto ao cadastro ───
+  const resolvedCert = await resolveCertificate(supabase, null, null, config);
+
   // ─── Garantir que a empresa existe na Nuvem Fiscal (NFC-e) ───
   try {
     await ensureCompanyRegisteredOnNuvemFiscal({
@@ -1368,6 +1371,7 @@ async function handleEmit(supabase: any, body: any) {
       companyCity,
       companyState,
       companyZip,
+      certificate: resolvedCert,
     });
   } catch (regErr: any) {
     console.error(`[emit-nfce] Falha ao registrar empresa na Nuvem Fiscal:`, regErr.message);
