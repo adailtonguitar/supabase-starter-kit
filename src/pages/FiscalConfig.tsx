@@ -73,7 +73,8 @@ export default function FiscalConfig() {
         const nfce = configs.find((c) => c.doc_type === "nfce" && c.is_active);
         const nfe = configs.find((c) => c.doc_type === "nfe" && c.is_active);
         const sat = configs.find((c) => c.doc_type === "sat" && c.is_active);
-        const first = configs[0];
+        // Priorizar config ativo para exibir ambiente correto (NF-e > NFC-e > primeiro)
+        const activeConfig = nfe || nfce || sat || configs[0];
         const firstWithA1 = configs.find((c) => c.certificate_path);
         const firstWithA3 = configs.find((c) => (c as any).a3_thumbprint);
         const hasCert = !!(firstWithA1 || firstWithA3);
@@ -83,7 +84,7 @@ export default function FiscalConfig() {
           hasNfe: !!nfe,
           hasSat: !!sat,
           certType,
-          environment: first.environment || "homologacao",
+          environment: activeConfig.environment || "homologacao",
           hasCert,
         });
       }
