@@ -376,7 +376,7 @@ async function resolveCertificate(
   }
 }
 
-
+async function ensureNfeConfigOnNuvemFiscal(params: {
   token: string;
   baseUrl: string;
   cnpj: string;
