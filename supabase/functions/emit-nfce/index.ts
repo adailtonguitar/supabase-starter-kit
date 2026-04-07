@@ -310,8 +310,7 @@ async function ensureCompanyRegisteredOnNuvemFiscal(params: {
     },
   };
 
-  // NOTE: "certificado" is NOT a valid field on the /empresas endpoint.
-  // Certificates must be uploaded via PUT /empresas/{cnpj}/certificado separately.
+  // Certificate is uploaded separately via syncCertificateToNuvemFiscal()
 
   // Use POST to create, PUT to update an existing company
   const method = companyExists ? "PUT" : "POST";
