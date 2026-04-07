@@ -873,7 +873,34 @@ async function handleEmit(supabase: any, body: any) {
   if (dest) payload.infNFe.dest = dest;
   if (Object.keys(infAdic).length > 0) payload.infNFe.infAdic = infAdic;
 
-  console.log(`[emit-nfce] ▶ Emitindo NFC-e #${numero} | CNPJ: ${cnpjClean} | CRT: ${crt} | Amb: ${ambiente} | Itens: ${items.length} | Total: ${vNF}`);
+  // ─── FISCAL RISK SCORING (antes do envio à SEFAZ) ───
+  const riskInput: Record<string, any> = {
+    fallbackUsed: taxClassificationAudit.some((a: any) => a.fallback),
+    ncmWithoutRule: taxClassificationAudit.some((a: any) => a.fallback),
+    taxRuleAbsent: taxClassificationAudit.length > 0 && taxClassificationAudit.every((a: any) => a.fallback),
+    itemCount: items.length,
+    totalValue: vNF,
+  };
+
+  // Score calculation inline (engine não importável em Deno diretamente)
+  let riskScore = 0;
+  const riskReasons: string[] = [];
+  if (riskInput.ncmWithoutRule) { riskScore += 30; riskReasons.push("[+30] NCM sem regra tributária"); }
+  if (riskInput.fallbackUsed) { riskScore += 20; riskReasons.push("[+20] Fallback tributário utilizado"); }
+  if (riskInput.taxRuleAbsent) { riskScore += 15; riskReasons.push("[+15] Ausência total de tax_rules"); }
+  riskScore = Math.max(0, Math.min(100, riskScore));
+  const riskLevel = riskScore >= 70 ? "critical" : riskScore >= 50 ? "high" : riskScore >= 25 ? "medium" : "low";
+  const shouldBlockRisk = riskScore >= 70;
+
+  if (shouldBlockRisk) {
+    console.error(`[emit-nfce] ✗ BLOQUEIO POR RISCO FISCAL: score=${riskScore} reasons=${JSON.stringify(riskReasons)}`);
+    await supabase.from("fiscal_risk_logs").insert({
+      company_id, note_type: "nfce", score: riskScore, level: riskLevel, reasons: riskReasons, blocked: true,
+    }).then(() => {});
+    return jsonResponse({ error: `Emissão bloqueada por risco fiscal elevado (score: ${riskScore}). Corrija as regras tributárias antes de emitir.`, risk_score: riskScore, risk_reasons: riskReasons }, 400);
+  }
+
+  console.log(`[emit-nfce] ▶ Emitindo NFC-e #${numero} | CNPJ: ${cnpjClean} | CRT: ${crt} | Amb: ${ambiente} | Itens: ${items.length} | Total: ${vNF} | RiskScore: ${riskScore}`);
   console.log(`[emit-nfce] ▶ pagBlock completo:`, JSON.stringify(pagBlock));
 
   // ─── Autenticação Nuvem Fiscal ───
@@ -983,12 +1010,30 @@ async function handleEmit(supabase: any, body: any) {
 
   console.log(`[emit-nfce] ✓ NFC-e #${numero} → ${finalStatus} | Chave: ${accessKey?.substring(0, 20)}... | ${Date.now() - t0}ms total`);
 
+  // ─── Registrar risk log (não-bloqueante) ───
+  supabase.from("fiscal_risk_logs").insert({
+    company_id, note_id: accessKey || String(numero), note_type: "nfce",
+    score: riskScore, level: riskLevel, reasons: riskReasons, blocked: false,
+  }).then(() => {});
+  // Gerar alerta se score >= 50
+  if (riskScore >= 50) {
+    const alertSeverity = riskScore >= 70 ? "critical" : "warning";
+    supabase.from("fiscal_alerts").insert({
+      company_id, severity: alertSeverity, score: riskScore,
+      title: `NFC-e #${numero} com risco ${alertSeverity}`,
+      description: `Score: ${riskScore}/100`,
+      reasons: riskReasons,
+    }).then(() => {});
+  }
+
   return jsonResponse({
     success: true,
     status: finalStatus,
     number: numero,
     access_key: accessKey,
     protocol: protocolNumber,
+    risk_score: riskScore,
+    risk_level: riskLevel,
   });
 }
 
@@ -1541,7 +1586,37 @@ async function handleEmitNfe(supabase: any, body: any) {
 
   if (Object.keys(infAdic).length > 0) payload.infNFe.infAdic = infAdic;
 
-  console.log(`[emit-nfe] ▶ Emitindo NF-e #${numero} | CNPJ: ${cnpjClean} | CRT: ${crt} | Amb: ${ambiente} | Itens: ${items.length} | Total: ${vNF} | Finalidade: ${finNFe}`);
+  // ─── FISCAL RISK SCORING NF-e (antes do envio à SEFAZ) ───
+  let riskScoreNfe = 0;
+  const riskReasonsNfe: string[] = [];
+  const hasFallbackNfe = taxClassificationAuditNfe.some((a: any) => a.fallback);
+  if (hasFallbackNfe) { riskScoreNfe += 30; riskReasonsNfe.push("[+30] NCM sem regra tributária"); }
+  if (hasFallbackNfe) { riskScoreNfe += 20; riskReasonsNfe.push("[+20] Fallback tributário utilizado"); }
+  if (taxClassificationAuditNfe.length > 0 && taxClassificationAuditNfe.every((a: any) => a.fallback)) {
+    riskScoreNfe += 15; riskReasonsNfe.push("[+15] Ausência total de tax_rules");
+  }
+  if (applyDifal) { riskScoreNfe -= 10; riskReasonsNfe.push("[-10] DIFAL aplicado corretamente"); }
+  if (isInterstate && !applyDifal && destDocDigits.length === 11) {
+    riskScoreNfe += 35; riskReasonsNfe.push("[+35] CPF interestadual sem DIFAL");
+  }
+  if (isInterstate && destDocDigits.length === 11) {
+    riskScoreNfe += 10; riskReasonsNfe.push("[+10] CPF em operação interestadual");
+  }
+  if (indPres !== Number(form.presence_type)) {
+    riskScoreNfe += 5; riskReasonsNfe.push("[+5] indPres auto-corrigido");
+  }
+  riskScoreNfe = Math.max(0, Math.min(100, riskScoreNfe));
+  const riskLevelNfe = riskScoreNfe >= 70 ? "critical" : riskScoreNfe >= 50 ? "high" : riskScoreNfe >= 25 ? "medium" : "low";
+
+  if (riskScoreNfe >= 70) {
+    console.error(`[emit-nfe] ✗ BLOQUEIO POR RISCO FISCAL: score=${riskScoreNfe}`);
+    supabase.from("fiscal_risk_logs").insert({
+      company_id, note_type: "nfe", score: riskScoreNfe, level: riskLevelNfe, reasons: riskReasonsNfe, blocked: true,
+    }).then(() => {});
+    return jsonResponse({ error: `Emissão NF-e bloqueada por risco fiscal elevado (score: ${riskScoreNfe}). Corrija as regras tributárias.`, risk_score: riskScoreNfe, risk_reasons: riskReasonsNfe }, 400);
+  }
+
+  console.log(`[emit-nfe] ▶ Emitindo NF-e #${numero} | CNPJ: ${cnpjClean} | CRT: ${crt} | Amb: ${ambiente} | Itens: ${items.length} | Total: ${vNF} | Finalidade: ${finNFe} | RiskScore: ${riskScoreNfe}`);
 
   // ─── Autenticação Nuvem Fiscal ───
   const token = await getNuvemFiscalToken();
@@ -1723,7 +1798,22 @@ async function handleEmitNfe(supabase: any, body: any) {
     }),
   }).then(() => {}).catch((e: any) => console.warn("[emit-nfe] Falha ao registrar audit log:", e.message));
 
-  console.log(`[emit-nfe] ✓ NF-e #${numero} → ${finalStatus} | provider_status=${emissionStatus.statusStr || "(vazio)"} cStat=${emissionStatus.cStatStr || "(vazio)"} | reason=${providerReason || "(vazio)"} | Chave: ${accessKey?.substring(0, 20)}... | ${Date.now() - t0}ms total`);
+  console.log(`[emit-nfe] ✓ NF-e #${numero} → ${finalStatus} | provider_status=${emissionStatus.statusStr || "(vazio)"} cStat=${emissionStatus.cStatStr || "(vazio)"} | reason=${providerReason || "(vazio)"} | Chave: ${accessKey?.substring(0, 20)}... | RiskScore: ${riskScoreNfe} | ${Date.now() - t0}ms total`);
+
+  // ─── Registrar risk log NF-e (não-bloqueante) ───
+  supabase.from("fiscal_risk_logs").insert({
+    company_id, note_id: accessKey || String(numero), note_type: "nfe",
+    score: riskScoreNfe, level: riskLevelNfe, reasons: riskReasonsNfe, blocked: false,
+  }).then(() => {});
+  if (riskScoreNfe >= 50) {
+    const alertSevNfe = riskScoreNfe >= 70 ? "critical" : "warning";
+    supabase.from("fiscal_alerts").insert({
+      company_id, severity: alertSevNfe, score: riskScoreNfe,
+      title: `NF-e #${numero} com risco ${alertSevNfe}`,
+      description: `Score: ${riskScoreNfe}/100`,
+      reasons: riskReasonsNfe,
+    }).then(() => {});
+  }
 
   return jsonResponse({
     success: finalStatus === "autorizada" || finalStatus === "contingencia",
