@@ -201,7 +201,7 @@ function mergeCompanyFields(
 
   return {
     companyName: company.name ?? fallback.companyName,
-    logoUrl: company.logo_url ?? fallback.logoUrl,
+    logoUrl: company.logo_url ?? null,
     slogan: company.slogan ?? fallback.slogan,
     pixKey: company.pix_key ?? fallback.pixKey,
     pixKeyType: company.pix_key_type ?? fallback.pixKeyType,
@@ -258,15 +258,16 @@ export function useCompany(): CompanyData {
   const retryTimer = useRef<ReturnType<typeof setTimeout>>();
 
   const applyCompany = useCallback((resolvedId: string, company: CompanyRow | null | undefined) => {
+    const isSameCompany = companyId === resolvedId;
     setCompanyId(resolvedId);
     setFields((prev) => {
-      const cachedFallback = cached ? { ...nullFields, ...cached } : nullFields;
-      const baseFallback = hasCompanyIdentity(prev) ? prev : cachedFallback;
+      const cachedFallback = cached?.companyId === resolvedId ? { ...nullFields, ...cached } : nullFields;
+      const baseFallback = isSameCompany && hasCompanyIdentity(prev) ? prev : cachedFallback;
       const next = mergeCompanyFields(company, baseFallback);
       cacheCompany({ companyId: resolvedId, ...next });
       return next;
     });
-  }, [cached]);
+  }, [cached, companyId]);
 
   useEffect(() => {
     retryCount.current = 0;
