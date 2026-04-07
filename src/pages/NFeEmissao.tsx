@@ -318,6 +318,8 @@ export default function NFeEmissao() {
   const { lookup: cnpjLookup, loading: cnpjLoading } = useCnpjLookup();
 
   const [form, setForm] = useState<NFeFormData>(emptyForm());
+  const [drafts, setDrafts] = useState<NFeDraft[]>(loadDrafts);
+  const [showDrafts, setShowDrafts] = useState(false);
   const [emitting, setEmitting] = useState(false);
   const [step, setStep] = useState<"edit" | "success" | "error">("edit");
   const [errorMsg, setErrorMsg] = useState("");
