@@ -45,19 +45,31 @@ Deno.serve(async (req) => {
     const supabaseAdmin = createServiceClient() as any;
     const supabase = auth.supabase as any;
 
-    // Get company CNPJ
-    const { data: companyRow, error: compErr } = await supabase
-      .from("companies")
-      .select("cnpj, name")
-      .eq("id", company_id)
-      .single();
-    const company = companyRow as { cnpj?: string; name?: string } | null;
+    // Get company data + fiscal config in parallel
+    const [companyResult, fiscalConfigResult] = await Promise.all([
+      supabase
+        .from("companies")
+        .select("cnpj, name, trade_name, street, address, number, address_number, neighborhood, city, state, zip_code, cep, ibge_code")
+        .eq("id", company_id)
+        .single(),
+      supabase
+        .from("fiscal_configs")
+        .select("certificate_path, certificate_password, ie, ambiente")
+        .eq("company_id", company_id)
+        .eq("is_active", true)
+        .limit(1)
+        .maybeSingle(),
+    ]);
+
+    const { data: companyRow, error: compErr } = companyResult;
+    const company = companyRow as Record<string, any> | null;
 
     if (compErr || !company?.cnpj) {
       throw new Error("Empresa não encontrada ou CNPJ não cadastrado");
     }
 
     const cnpj = company.cnpj.replace(/\D/g, "");
+    const fiscalConfig = fiscalConfigResult.data as Record<string, any> | null;
     const nfToken = await getNuvemFiscalToken();
     const nfHeaders = {
       Authorization: `Bearer ${nfToken}`,
@@ -69,6 +81,79 @@ Deno.serve(async (req) => {
       ? "https://api.sandbox.nuvemfiscal.com.br"
       : "https://api.nuvemfiscal.com.br";
     const ambiente = isSandbox ? "homologacao" : "producao";
+
+    // ─── Ensure company + certificate registered on Nuvem Fiscal ───
+    async function ensureCompanyOnNuvemFiscal() {
+      try {
+        const checkRes = await fetch(`${apiBase}/empresas/${cnpj}`, {
+          method: "GET",
+          headers: nfHeaders,
+        });
+
+        if (checkRes.ok) {
+          await checkRes.text();
+          console.log("[fetch-dfe] Empresa já cadastrada na Nuvem Fiscal");
+          return;
+        }
+        await checkRes.text();
+      } catch (e) {
+        console.log("[fetch-dfe] Check empresa falhou:", e);
+      }
+
+      // Register company
+      const ie = (fiscalConfig?.ie || "").replace(/\D/g, "");
+      const empresaPayload: Record<string, any> = {
+        cpf_cnpj: cnpj,
+        inscricao_estadual: ie || undefined,
+        nome_razao_social: company.name || "EMPRESA",
+        nome_fantasia: company.trade_name || company.name || "EMPRESA",
+        endereco: {
+          logradouro: company.street || company.address || "Rua não informada",
+          numero: company.number || company.address_number || "S/N",
+          bairro: company.neighborhood || "Centro",
+          codigo_municipio: company.ibge_code || "",
+          cidade: company.city || "Não informada",
+          uf: (company.state || "MA").toUpperCase(),
+          cep: (company.zip_code || company.cep || "00000000").replace(/\D/g, ""),
+          codigo_pais: "1058",
+          pais: "Brasil",
+        },
+      };
+
+      // Upload certificate if available
+      if (fiscalConfig?.certificate_path) {
+        try {
+          const { data: certData } = await supabaseAdmin.storage
+            .from("company-backups")
+            .download(fiscalConfig.certificate_path);
+          if (certData) {
+            const arrayBuf = await certData.arrayBuffer();
+            const bytes = new Uint8Array(arrayBuf);
+            let binary = "";
+            for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+            empresaPayload.certificado = {
+              base64: btoa(binary),
+              password: fiscalConfig.certificate_password || "",
+            };
+          }
+        } catch (certErr) {
+          console.warn("[fetch-dfe] Falha ao buscar certificado do storage:", certErr);
+        }
+      }
+
+      console.log("[fetch-dfe] Cadastrando empresa na Nuvem Fiscal...");
+      const createRes = await fetch(`${apiBase}/empresas`, {
+        method: "PUT",
+        headers: nfHeaders,
+        body: JSON.stringify(empresaPayload),
+      });
+      const createText = await createRes.text();
+      console.log("[fetch-dfe] PUT empresas:", createRes.status, createText.slice(0, 200));
+
+      if (!createRes.ok) {
+        console.warn("[fetch-dfe] Falha ao cadastrar empresa, tentando prosseguir...");
+      }
+    }
 
     // ─── Auto-configure DistNFe if needed ───
     async function ensureDistNfeConfig() {
