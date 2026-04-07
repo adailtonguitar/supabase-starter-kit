@@ -24,6 +24,50 @@ import {
 } from "../_shared/company-fiscal-fallback.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
+// ─── Fiscal Risk Engine (inline — fonte única de verdade, espelho de shared/fiscal/fiscal-risk-engine.ts) ───
+type RiskLevel = "low" | "medium" | "high" | "critical";
+interface FiscalRiskResult { score: number; level: RiskLevel; reasons: string[]; shouldBlock: boolean; }
+interface FiscalRiskInput {
+  difalApplied?: boolean; difalRequired?: boolean; ncmWithoutRule?: boolean; fallbackUsed?: boolean;
+  cfopAutoCorrected?: boolean; cpfInterstate?: boolean; taxRuleAbsent?: boolean;
+  isInterstate?: boolean; itemCount?: number; totalValue?: number;
+  ncmInvalid?: boolean; cstInconsistent?: boolean; missingIE?: boolean; presenceAutoCorrected?: boolean;
+  recentCriticalCount?: number; sameErrorRepeatCount?: number;
+}
+interface _ScoringRule { key: keyof FiscalRiskInput; points: number; condition: (v: any, input?: FiscalRiskInput) => boolean; reason: string; }
+const _SCORING_RULES: _ScoringRule[] = [
+  { key: "difalApplied", points: -10, condition: (v) => v === true, reason: "DIFAL aplicado corretamente" },
+  { key: "ncmWithoutRule", points: 30, condition: (v) => v === true, reason: "NCM sem regra tributária definida" },
+  { key: "fallbackUsed", points: 20, condition: (v) => v === true, reason: "Fallback tributário utilizado" },
+  { key: "taxRuleAbsent", points: 15, condition: (v) => v === true, reason: "Ausência de tax_rule para rota interestadual" },
+  { key: "cfopAutoCorrected", points: 10, condition: (v) => v === true, reason: "CFOP auto-corrigido pelo motor" },
+  { key: "cpfInterstate", points: 10, condition: (v) => v === true, reason: "CPF em operação interestadual" },
+  { key: "ncmInvalid", points: 25, condition: (v) => v === true, reason: "NCM inválido ou ausente em item" },
+  { key: "cstInconsistent", points: 20, condition: (v) => v === true, reason: "CST/CSOSN inconsistente com operação" },
+  { key: "missingIE", points: 15, condition: (v) => v === true, reason: "IE ausente em operação que exigiria" },
+  { key: "presenceAutoCorrected", points: 5, condition: (v) => v === true, reason: "Tipo de presença auto-corrigido (indPres)" },
+  { key: "difalRequired", points: 35, condition: (v, input) => v === true && !input?.difalApplied, reason: "DIFAL obrigatório mas NÃO aplicado — risco de autuação" },
+  { key: "recentCriticalCount", points: 15, condition: (v) => typeof v === "number" && v >= 3, reason: "3+ notas críticas nas últimas 24h — padrão de risco" },
+  { key: "sameErrorRepeatCount", points: 20, condition: (v) => typeof v === "number" && v >= 5, reason: "Mesmo erro fiscal repetido 5+ vezes — correção necessária" },
+];
+function calculateFiscalRisk(input: FiscalRiskInput): FiscalRiskResult {
+  let score = 0; const reasons: string[] = [];
+  for (const rule of _SCORING_RULES) {
+    const value = input[rule.key];
+    if (rule.key === "difalRequired") { if (rule.condition(value, input)) { score += rule.points; reasons.push(`[+${rule.points}] ${rule.reason}`); } continue; }
+    if (value !== undefined && rule.condition(value)) { score += rule.points; reasons.push(rule.points > 0 ? `[+${rule.points}] ${rule.reason}` : `[${rule.points}] ${rule.reason}`); }
+  }
+  score = Math.max(0, Math.min(100, score));
+  const level: RiskLevel = score >= 70 ? "critical" : score >= 50 ? "high" : score >= 25 ? "medium" : "low";
+  return { score, level, reasons, shouldBlock: score >= 70 || (input.sameErrorRepeatCount ?? 0) >= 5 };
+}
+function shouldGenerateAlert(result: FiscalRiskResult): { generate: boolean; severity: "warning" | "critical" } {
+  if (result.score >= 70) return { generate: true, severity: "critical" };
+  if (result.score >= 50) return { generate: true, severity: "warning" };
+  return { generate: false, severity: "warning" };
+}
+// ─── Fim Fiscal Risk Engine ───
+
 function getRequiredEnv(name: string): string {
   const value = Deno.env.get(name);
   if (!value) {
