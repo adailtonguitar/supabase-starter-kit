@@ -331,6 +331,29 @@ async function ensureCompanyRegisteredOnNuvemFiscal(params: {
   for (let attempt = 1; attempt <= 4; attempt++) {
     if (await checkCompanyExists()) {
       console.log(`[emit-nfe] Empresa ${cnpj} confirmada na Nuvem Fiscal`);
+
+      // Upload certificate via dedicated endpoint if available
+      if (certificate?.base64 && certificate.password) {
+        try {
+          const certResp = await safeFetch(`${baseUrl}/empresas/${cnpj}/certificado`, {
+            method: "PUT",
+            headers: { ...authHeaders, "Content-Type": "application/json" },
+            body: JSON.stringify({
+              certificado: certificate.base64,
+              password: certificate.password,
+            }),
+          }, 8000);
+          const certBody = await certResp.text().catch(() => "");
+          if (!certResp.ok) {
+            console.warn(`[emit-nfe] Falha ao enviar certificado (${certResp.status}):`, certBody);
+          } else {
+            console.log(`[emit-nfe] Certificado enviado com sucesso para ${cnpj}`);
+          }
+        } catch (certErr: any) {
+          console.warn("[emit-nfe] Erro ao enviar certificado:", certErr.message);
+        }
+      }
+
       return;
     }
 
