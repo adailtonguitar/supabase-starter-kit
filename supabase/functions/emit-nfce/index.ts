@@ -1318,6 +1318,7 @@ async function handleEmit(supabase: any, body: any) {
       cnpj: cnpjClean,
       ie: ieEmitClean,
       company,
+      companyIbgeCode: ibgeClean,
       companyStreet,
       companyNumber,
       companyNeighborhood,
@@ -2064,6 +2065,7 @@ async function handleEmitNfe(supabase: any, body: any) {
       cnpj: cnpjClean,
       ie: ieEmitClean,
       company,
+      companyIbgeCode: ibgeClean,
       companyStreet,
       companyNumber,
       companyNeighborhood,
@@ -2129,7 +2131,12 @@ async function handleEmitNfe(supabase: any, body: any) {
       console.log(`[emit-nfe] ✓ Config NF-e criada na Nuvem Fiscal para CNPJ ${cnpjClean}`);
     }
   } catch (configErr: any) {
-    console.warn("[emit-nfe] Erro ao verificar/criar config NF-e na Nuvem Fiscal (tentando emitir mesmo assim):", configErr.message);
+    console.error("[emit-nfe] Erro ao verificar/criar config NF-e na Nuvem Fiscal:", configErr.message);
+    return jsonResponse({
+      success: false,
+      error: configErr.message || "Falha ao sincronizar empresa/configuração NF-e na Nuvem Fiscal",
+      rejection_reason: configErr.message || "Falha ao sincronizar empresa/configuração NF-e na Nuvem Fiscal",
+    }, 400);
   }
 
   console.log(`[emit-nfe] ▶ Enviando para Nuvem Fiscal (NF-e)...`);
@@ -2882,6 +2889,12 @@ Deno.serve(async (req) => {
         return await handleInutilize(supabase, body, userId);
       case "backup_xmls":
         return await handleBackupXmls(supabase, body);
+      case "upload_certificate":
+        return await handleUploadCertificate(supabase, body);
+      case "delete_certificate":
+        return await handleDeleteCertificate(supabase, body);
+      case "sync_company":
+        return await handleSyncCompany(supabase, body);
       default:
         return jsonResponse({ error: `Ação desconhecida: ${action}` }, 400);
     }
