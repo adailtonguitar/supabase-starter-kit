@@ -109,6 +109,8 @@ describe("Fiscal Risk Engine", () => {
     it("scores missing IE", () => {
       const result = calculateFiscalRisk({ missingIE: true });
       expect(result.score).toBe(15);
+    });
+
     it("scores low confidence rule", () => {
       const result = calculateFiscalRisk({ lowConfidenceRule: true });
       expect(result.score).toBe(25);
