@@ -492,6 +492,7 @@ async function handleUploadCertificate(supabase: any, body: any) {
       cnpj: context.cnpjClean,
       ambiente: (nfeConfig?.environment === "producao" ? "producao" : "homologacao"),
       certificate,
+      forceUpdate: true,
     });
   }
 
