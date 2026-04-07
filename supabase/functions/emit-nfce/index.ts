@@ -587,14 +587,20 @@ async function handleEmit(supabase: any, body: any) {
     }
   }
 
-  // Buscar empresa + config fiscal em PARALELO (reduz latência ~50%)
+  // Buscar empresa + config fiscal + regras tributárias em PARALELO (reduz latência ~50%)
   const companyPromise = supabase.from("companies").select("*").eq("id", company_id).single();
   const configPromise = config_id
     ? supabase.from("fiscal_configs").select("*").eq("id", config_id).single()
     : supabase.from("fiscal_configs").select("*")
         .eq("company_id", company_id).eq("doc_type", "nfce").eq("is_active", true).limit(1).maybeSingle();
+  const taxRulesNcmPromise = supabase
+    .from("tax_rules_by_ncm")
+    .select("*")
+    .eq("company_id", company_id)
+    .eq("is_active", true);
 
-  const [companyRes, configRes] = await Promise.all([companyPromise, configPromise]);
+  const [companyRes, configRes, taxRulesNcmRes] = await Promise.all([companyPromise, configPromise, taxRulesNcmPromise]);
+  const taxRulesByNcm: any[] = taxRulesNcmRes.data || [];
 
   if (companyRes.error || !companyRes.data) {
     return jsonResponse({ error: "Empresa não encontrada" }, 404);
@@ -661,6 +667,7 @@ async function handleEmit(supabase: any, body: any) {
   // Totalizadores
   let totalVProd = 0, totalVDesc = 0, totalVICMS = 0, totalVBCST = 0, totalVST = 0, totalVPIS = 0, totalVCOFINS = 0;
 
+  const taxClassificationAudit: any[] = [];
   const detItems = items.map((item: any, i: number) => {
     const ncm = (item.ncm || "").replace(/\D/g, "");
     if (!ncm || ncm.length < 2 || ncm === "00000000") {
@@ -680,6 +687,29 @@ async function handleEmit(supabase: any, body: any) {
 
     totalVProd += vProd;
     totalVDesc += discount;
+
+    // ─── Tax Classification Engine: enriquecer item com regra tributária por NCM ───
+    if (taxRulesByNcm.length > 0) {
+      const regime = isSimples ? "simples" : "normal";
+      const matchedRule = taxRulesByNcm.find((r: any) => {
+        const rNcm = (r.ncm || "").replace(/\D/g, "");
+        if (!ncm.startsWith(rNcm) && rNcm !== "*") return false;
+        if (r.regime !== regime) return false;
+        if (r.uf_origem !== "*" && r.uf_origem !== companyState) return false;
+        if (r.uf_destino !== "*" && r.uf_destino !== companyState) return false;
+        return true;
+      });
+      if (matchedRule) {
+        if (!item.cst && matchedRule.cst) item.cst = matchedRule.cst;
+        if (!item.csosn && matchedRule.csosn) item.cst = matchedRule.csosn;
+        if ((!item.icms_aliquota || item.icms_aliquota === 0) && matchedRule.icms_aliquota > 0) item.icms_aliquota = matchedRule.icms_aliquota;
+        if (matchedRule.icms_st && (!item.mva || item.mva === 0) && matchedRule.mva > 0) item.mva = matchedRule.mva;
+        if (matchedRule.icms_reducao_base > 0 && !item.reducao_base) item.reducao_base = matchedRule.icms_reducao_base;
+        taxClassificationAudit.push({ item: item.name, ncm, rule_id: matchedRule.id, fallback: false });
+      } else {
+        taxClassificationAudit.push({ item: item.name, ncm, rule_id: null, fallback: true });
+      }
+    }
 
     const icmsBlock = buildIcmsBlock({ ...item, qty, unit_price: unitPrice, discount }, isSimples);
 
@@ -982,14 +1012,20 @@ async function handleEmitNfe(supabase: any, body: any) {
     return jsonResponse({ error: "Limite de emissões excedido. Aguarde 1 minuto." }, 429);
   }
 
-  // Buscar empresa + config fiscal em PARALELO
+  // Buscar empresa + config fiscal + regras tributárias em PARALELO
   const companyPromise = supabase.from("companies").select("*").eq("id", company_id).single();
   const configPromise = config_id
     ? supabase.from("fiscal_configs").select("*").eq("id", config_id).single()
     : supabase.from("fiscal_configs").select("*")
         .eq("company_id", company_id).eq("doc_type", "nfe").eq("is_active", true).limit(1).maybeSingle();
+  const taxRulesNcmPromiseNfe = supabase
+    .from("tax_rules_by_ncm")
+    .select("*")
+    .eq("company_id", company_id)
+    .eq("is_active", true);
 
-  const [companyRes, configRes] = await Promise.all([companyPromise, configPromise]);
+  const [companyRes, configRes, taxRulesNcmResNfe] = await Promise.all([companyPromise, configPromise, taxRulesNcmPromiseNfe]);
+  const taxRulesByNcmNfe: any[] = taxRulesNcmResNfe.data || [];
 
   if (companyRes.error || !companyRes.data) {
     return jsonResponse({ error: "Empresa não encontrada" }, 404);
@@ -1181,6 +1217,7 @@ async function handleEmitNfe(supabase: any, body: any) {
   let totalVFCPUFDest = 0, totalVICMSUFDest = 0, totalVICMSUFRemet = 0;
 
   const resolvedItemsForReturn: Array<Record<string, unknown>> = [];
+  const taxClassificationAuditNfe: any[] = [];
 
   const detItems = items.map((item: any, i: number) => {
     const ncm = (item.ncm || "").replace(/\D/g, "");
@@ -1201,6 +1238,31 @@ async function handleEmitNfe(supabase: any, body: any) {
 
     totalVProd += vProd;
     totalVDesc += discount;
+
+    // ─── Tax Classification Engine: enriquecer item com regra tributária por NCM ───
+    if (taxRulesByNcmNfe.length > 0) {
+      const regime = isSimples ? "simples" : "normal";
+      const destUfForRule = destUF || emitUF;
+      const matchedRule = taxRulesByNcmNfe.find((r: any) => {
+        const rNcm = (r.ncm || "").replace(/\D/g, "");
+        if (!ncm.startsWith(rNcm) && rNcm !== "*") return false;
+        if (r.regime !== regime) return false;
+        if (r.uf_origem !== "*" && r.uf_origem !== emitUF) return false;
+        if (r.uf_destino !== "*" && r.uf_destino !== destUfForRule) return false;
+        return true;
+      });
+      if (matchedRule) {
+        if (!item.cst && matchedRule.cst) item.cst = matchedRule.cst;
+        if (!item.csosn && matchedRule.csosn) item.cst = matchedRule.csosn;
+        if ((!item.icms_aliquota || item.icms_aliquota === 0) && matchedRule.icms_aliquota > 0) item.icms_aliquota = matchedRule.icms_aliquota;
+        if (matchedRule.icms_st && (!item.mva || item.mva === 0) && matchedRule.mva > 0) item.mva = matchedRule.mva;
+        if (matchedRule.icms_reducao_base > 0 && !item.reducao_base) item.reducao_base = matchedRule.icms_reducao_base;
+        if (matchedRule.cest && !item.cest) item.cest = matchedRule.cest;
+        taxClassificationAuditNfe.push({ item: item.name, ncm, rule_id: matchedRule.id, fallback: false });
+      } else {
+        taxClassificationAuditNfe.push({ item: item.name, ncm, rule_id: null, fallback: true });
+      }
+    }
 
     const icmsBlock = buildIcmsBlock({ ...item, qty, unit_price: unitPrice, discount }, isSimples);
 
