@@ -2704,6 +2704,13 @@ async function handleDownloadPdf(supabase: any, body: any, callerUserId?: string
   const baseUrl = getApiBaseUrl();
   const endpoint = doc_type === "nfe" ? "nfe" : "nfce";
 
+  // Check if company has a logo to decide whether to show it on the PDF
+  let hasLogo = false;
+  if (effectiveCompanyId) {
+    const { data: companyRow } = await supabase.from("companies").select("logo_url").eq("id", effectiveCompanyId).maybeSingle();
+    hasLogo = !!(companyRow?.logo_url);
+  }
+
   const docIdOrKey = await resolveProviderDocRef({
     supabase,
     token,
@@ -2718,8 +2725,11 @@ async function handleDownloadPdf(supabase: any, body: any, callerUserId?: string
     pdfUrl.searchParams.set("largura", "80");
     pdfUrl.searchParams.set("resumido", "false");
     pdfUrl.searchParams.set("margem", "2");
-    pdfUrl.searchParams.set("logotipo", "true");
+    pdfUrl.searchParams.set("logotipo", hasLogo ? "true" : "false");
     pdfUrl.searchParams.set("nome_fantasia", "true");
+  } else {
+    // NF-e DANFE: only show logo if company has one
+    pdfUrl.searchParams.set("logotipo", hasLogo ? "true" : "false");
   }
 
   const resp = await safeFetch(pdfUrl.toString(), {
