@@ -320,8 +320,28 @@ async function ensureCompanyRegisteredOnNuvemFiscal(params: {
     throw new Error("E-mail da empresa não configurado. Cadastre um e-mail na empresa antes de sincronizar com a Nuvem Fiscal.");
   }
 
-  const codigoMunicipio = onlyDigits(companyIbgeCode || company.ibge_code || company.city_code || company.address_ibge_code || company.codigo_municipio || "");
-  if (!codigoMunicipio || codigoMunicipio.length < 7) {
+  let codigoMunicipio = onlyDigits(companyIbgeCode || company.ibge_code || company.city_code || company.address_ibge_code || company.codigo_municipio || "");
+  if ((!codigoMunicipio || codigoMunicipio.length < 7 || codigoMunicipio === "0000000") && companyZip) {
+    const cepDigits = onlyDigits(companyZip);
+    if (cepDigits.length === 8) {
+      try {
+        const viacepResp = await safeFetch(`https://viacep.com.br/ws/${cepDigits}/json/`, {}, 3000);
+        if (viacepResp.ok) {
+          const viacepData = await viacepResp.json();
+          const resolvedIbge = onlyDigits(viacepData?.ibge);
+          if (resolvedIbge.length >= 7) {
+            codigoMunicipio = resolvedIbge;
+            console.log(`[emit-nfe] IBGE da empresa resolvido via ViaCEP: ${codigoMunicipio}`);
+            await supabase.from("companies").update({ ibge_code: codigoMunicipio, address_ibge_code: codigoMunicipio }).eq("id", company.id).catch(() => undefined);
+          }
+        }
+      } catch (e) {
+        console.warn("[emit-nfe] Falha ao consultar ViaCEP para IBGE da empresa:", e);
+      }
+    }
+  }
+
+  if (!codigoMunicipio || codigoMunicipio.length < 7 || codigoMunicipio === "0000000") {
     throw new Error("Código IBGE do município não configurado. Acesse Configurações da Empresa e preencha o código IBGE da cidade.");
   }
 
