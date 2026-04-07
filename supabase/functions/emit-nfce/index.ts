@@ -78,6 +78,44 @@ function getRequiredEnv(name: string): string {
   return value;
 }
 
+// ─── Certificate Password Encryption (AES-GCM via Web Crypto) ───
+async function _getCertEncryptionKey(): Promise<CryptoKey> {
+  const rawKey = Deno.env.get("FISCAL_CERT_ENCRYPTION_KEY");
+  if (!rawKey) throw new Error("FISCAL_CERT_ENCRYPTION_KEY not configured");
+  const encoder = new TextEncoder();
+  const keyMaterial = await crypto.subtle.importKey(
+    "raw", encoder.encode(rawKey).slice(0, 32),
+    { name: "PBKDF2" }, false, ["deriveKey"],
+  );
+  return crypto.subtle.deriveKey(
+    { name: "PBKDF2", salt: encoder.encode("fiscal-cert-v1"), iterations: 100000, hash: "SHA-256" },
+    keyMaterial, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"],
+  );
+}
+
+async function encryptCertPassword(plaintext: string): Promise<string> {
+  const key = await _getCertEncryptionKey();
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const encoded = new TextEncoder().encode(plaintext);
+  const ciphertext = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, encoded);
+  const combined = new Uint8Array(iv.length + new Uint8Array(ciphertext).length);
+  combined.set(iv, 0);
+  combined.set(new Uint8Array(ciphertext), iv.length);
+  return "enc:" + btoa(String.fromCharCode(...combined));
+}
+
+async function decryptCertPassword(encrypted: string): Promise<string> {
+  if (!encrypted.startsWith("enc:")) return encrypted; // legacy plain text
+  const key = await _getCertEncryptionKey();
+  const raw = atob(encrypted.slice(4));
+  const bytes = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
+  const iv = bytes.slice(0, 12);
+  const ciphertext = bytes.slice(12);
+  const decrypted = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, ciphertext);
+  return new TextDecoder().decode(decrypted);
+}
+
 function getSupabaseRuntimeConfig() {
   return {
     supabaseUrl: getRequiredEnv("SUPABASE_URL"),
