@@ -2794,17 +2794,53 @@ async function handleCancel(supabase: any, body: any, callerUserId?: string | nu
   const baseUrl = getApiBaseUrl();
   const endpoint = doc_type === "nfe" ? "nfe" : "nfce";
 
-  const resp = await safeFetch(`${baseUrl}/${endpoint}/${access_key || doc_id}/cancelamento`, {
+  // Resolve the provider document reference (UUID) for the cancel endpoint
+  let docRef = access_key || doc_id;
+  
+  // If we have an access_key, try to resolve the Nuvem Fiscal UUID
+  if (access_key) {
+    try {
+      const resolvedRef = await resolveProviderDocRef({
+        supabase,
+        token,
+        baseUrl,
+        endpoint,
+        companyId: company_id || null,
+        accessKey: String(access_key),
+      });
+      if (resolvedRef) docRef = resolvedRef;
+    } catch (_) {
+      // fallback to access_key
+    }
+  }
+
+  if (!docRef) {
+    return jsonResponse({ success: false, error: "Chave de acesso ou ID do documento não informado" }, 400);
+  }
+
+  const resp = await safeFetch(`${baseUrl}/${endpoint}/${docRef}/cancelamento`, {
     method: "POST",
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
     body: JSON.stringify({ justificativa }),
-  }, 10000);
+  }, 15000);
 
   const data = await parseResponseJsonSafe(resp, "cancelamento");
   if (!resp.ok) {
-    return jsonResponse({ success: false, error: data?.mensagem || "Erro ao cancelar" });
+    const errMsg = data?.error?.message || data?.mensagem || data?.message || `Erro ao cancelar (HTTP ${resp.status})`;
+    return jsonResponse({ success: false, error: errMsg });
   }
 
+  // Check if SEFAZ actually processed the cancellation
+  const sefazStatus = data?.status_sefaz || data?.status || "";
+  const isRejected = typeof sefazStatus === "string" && 
+    ["rejeitado", "rejeicao", "erro"].some(s => sefazStatus.toLowerCase().includes(s));
+  
+  if (isRejected) {
+    const motivo = data?.motivo_status || data?.mensagem_sefaz || data?.xMotivo || "Cancelamento rejeitado pela SEFAZ";
+    return jsonResponse({ success: false, error: motivo });
+  }
+
+  // Update fiscal_documents status
   if (access_key && company_id) {
     await supabase.from("fiscal_documents").update({ status: "cancelada" })
       .eq("access_key", access_key).eq("company_id", company_id);

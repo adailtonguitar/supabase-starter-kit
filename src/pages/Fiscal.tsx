@@ -981,6 +981,7 @@ export default function Fiscal() {
                         fiscalDocId: selectedDoc.id,
                         docType: selectedDoc.doc_type as "nfce" | "nfe",
                         justificativa: cancelJustificativa,
+                        companyId: companyId || undefined,
                       });
                       if (result.success) {
                         toast.success("Documento cancelado com sucesso!");
