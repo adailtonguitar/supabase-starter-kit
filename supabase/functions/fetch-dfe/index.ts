@@ -296,6 +296,7 @@ Deno.serve(async (req) => {
       }
 
       // Fallback: fetch from Nuvem Fiscal API
+      await ensureCompanyOnNuvemFiscal();
       await ensureDistNfeConfig();
       const url = new URL(`${apiBase}/distribuicao/nfe/documentos`);
       url.searchParams.set("cpf_cnpj", cnpj);
