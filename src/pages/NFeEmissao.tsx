@@ -613,8 +613,9 @@ export default function NFeEmissao() {
     setForm((prev) => ({ ...prev, items: [...prev.items, emptyItem()] }));
   };
 
-  const addProductAsItem = (product: NFeProduct) => {
+  const addProductAsItem = (product: NFeProduct, overrideQty?: number) => {
     const isSN = companyCrt === 1 || companyCrt === 2;
+    const qty = overrideQty ?? 1;
     let newItem: NFeItem = {
       name: product.name || "",
       productCode: product.sku || product.barcode || "",
@@ -622,10 +623,10 @@ export default function NFeEmissao() {
       cfop: product.cfop || "5102",
       cst: (isSN ? product.csosn : product.cst_icms) || "",
       unit: product.unit || "UN",
-      qty: 1,
+      qty,
       unitPrice: product.price || 0,
       discount: 0,
-      total: product.price || 0,
+      total: (product.price || 0) * qty,
       pisCst: (product.pis_rate ?? 0) > 0 ? "01" : "49",
       cofinsCst: (product.cofins_rate ?? 0) > 0 ? "01" : "49",
       icmsAliquota: product.icms_rate || 0,
