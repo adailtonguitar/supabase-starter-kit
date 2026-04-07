@@ -13,6 +13,13 @@ interface HealthResult {
   error?: string;
 }
 
+const DEFAULT_EDGE_TIMEOUT_MS = 12_000;
+const EDGE_TIMEOUT_OVERRIDES_MS: Record<string, number> = {
+  "emit-nfce": 20_000,
+  "ai-support": 15_000,
+  "generate-ai-report": 20_000,
+};
+
 // ── Infrastructure checks ──
 
 async function checkDatabase(client: any): Promise<HealthResult> {
@@ -70,9 +77,10 @@ async function checkStorage(client: any): Promise<HealthResult> {
  */
 async function checkEdgeFunction(supabaseUrl: string, fnName: string): Promise<HealthResult> {
   const start = Date.now();
+  const timeoutMs = EDGE_TIMEOUT_OVERRIDES_MS[fnName] ?? DEFAULT_EDGE_TIMEOUT_MS;
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 8000);
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
     const resp = await fetch(`${supabaseUrl}/functions/v1/${fnName}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -93,7 +101,7 @@ async function checkEdgeFunction(supabaseUrl: string, fnName: string): Promise<H
       service: `edge:${fnName}`,
       status: "error",
       latency_ms: Date.now() - start,
-      error: err.name === "AbortError" ? "Timeout (8s)" : err.message,
+      error: err.name === "AbortError" ? `Timeout (${Math.round(timeoutMs / 1000)}s)` : err.message,
     };
   }
 }
