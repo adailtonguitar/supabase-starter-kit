@@ -29,8 +29,11 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
+const PAGE_SIZE = 50;
+
 export default function Produtos() {
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(0);
   const { data: products = [], isLoading } = useProducts();
   const deleteProduct = useDeleteProduct();
   const bulkUpdateProducts = useBulkUpdateProducts();
@@ -56,15 +59,30 @@ export default function Produtos() {
       : "simples_nacional";
 
   const filtered = useMemo(() => {
+    const q = search.toLowerCase();
     const matchesSearch = (p: Product) =>
-      p.name.toLowerCase().includes(search.toLowerCase()) ||
-      p.sku.toLowerCase().includes(search.toLowerCase()) ||
+      p.name.toLowerCase().includes(q) ||
+      p.sku.toLowerCase().includes(q) ||
       (p.barcode && p.barcode.includes(search));
 
     const hasFiscalIssue = (p: Product) => getProductFiscalStatus(p, fiscalCategories, taxRegime).blocksFiscalEmission;
 
     return products.filter((p) => matchesSearch(p) && (!fiscalPendingOnly || hasFiscalIssue(p)));
   }, [products, search, fiscalPendingOnly, fiscalCategories, taxRegime]);
+
+  // Reset page when search/filter changes
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages - 1);
+  const paginatedProducts = useMemo(
+    () => filtered.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE),
+    [filtered, safePage],
+  );
+
+  // Reset page on search change
+  const handleSearch = (val: string) => {
+    setSearch(val);
+    setPage(0);
+  };
 
   const bulkFixAnalysis = useMemo(
     () => getBulkFiscalFixAnalysis(products, fiscalCategories, taxRegime),
@@ -134,7 +152,8 @@ export default function Produtos() {
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-foreground">Produtos & Estoque</h1>
           <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-            {products.length} produtos cadastrados
+            {filtered.length} produtos cadastrados
+            {filtered.length !== products.length && ` (de ${products.length} total)`}
           </p>
         </div>
         <div data-tour="product-import" className="flex items-center gap-2 flex-wrap">
@@ -225,7 +244,7 @@ export default function Produtos() {
           type="text"
           placeholder="Buscar por nome, SKU ou código de barras..."
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+        onChange={(e) => handleSearch(e.target.value)}
           className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-card border border-border text-foreground placeholder:text-muted-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
         />
       </div>
@@ -267,7 +286,7 @@ export default function Produtos() {
                   </td>
                 </tr>
               ) : (
-                filtered.map((product) => {
+                paginatedProducts.map((product, idx) => {
                   const isLow = product.min_stock != null && product.min_stock > 0 && product.stock_quantity <= product.min_stock;
                   const fiscalStatus = getProductFiscalStatus(product, fiscalCategories, taxRegime);
                   const hasFiscalIssue = fiscalStatus.hasFiscalGap;
@@ -275,7 +294,7 @@ export default function Produtos() {
                   return (
                     <tr
                       key={product.id}
-                      className={`border-b border-border last:border-0 hover:bg-primary/[0.03] transition-colors ${filtered.indexOf(product) % 2 === 1 ? "bg-muted/15" : ""} ${hasCriticalConflict ? "bg-destructive/[0.06]" : hasFiscalIssue ? "bg-amber-500/[0.06]" : ""}`}
+                      className={`border-b border-border last:border-0 hover:bg-primary/[0.03] transition-colors ${idx % 2 === 1 ? "bg-muted/15" : ""} ${hasCriticalConflict ? "bg-destructive/[0.06]" : hasFiscalIssue ? "bg-amber-500/[0.06]" : ""}`}
                     >
                       <td className="px-3 py-3">
                         <div className="flex items-center gap-2 min-w-0">
@@ -342,6 +361,25 @@ export default function Produtos() {
             </tbody>
           </table>
         </div>
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between px-4 py-3 border-t border-border">
+            <span className="text-xs text-muted-foreground">
+              {safePage * PAGE_SIZE + 1}–{Math.min((safePage + 1) * PAGE_SIZE, filtered.length)} de {filtered.length}
+            </span>
+            <div className="flex items-center gap-1">
+              <Button variant="outline" size="sm" disabled={safePage === 0} onClick={() => setPage(safePage - 1)}>
+                Anterior
+              </Button>
+              <span className="text-xs text-muted-foreground px-2">
+                {safePage + 1}/{totalPages}
+              </span>
+              <Button variant="outline" size="sm" disabled={safePage >= totalPages - 1} onClick={() => setPage(safePage + 1)}>
+                Próximo
+              </Button>
+            </div>
+          </div>
+        )}
       </motion.div>
 
       {/* Mobile cards */}
@@ -353,13 +391,13 @@ export default function Produtos() {
             {products.length === 0 ? "Nenhum produto cadastrado." : "Nenhum produto encontrado."}
           </div>
         ) : (
-          filtered.map((product) => {
+          paginatedProducts.map((product, idx) => {
             const isLow = product.min_stock != null && product.min_stock > 0 && product.stock_quantity <= product.min_stock;
             const fiscalStatus = getProductFiscalStatus(product, fiscalCategories, taxRegime);
             const hasFiscalIssue = fiscalStatus.hasFiscalGap;
             const hasCriticalConflict = fiscalStatus.hasCriticalConflict;
             return (
-              <motion.div key={product.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: filtered.indexOf(product) * 0.03 }} className={`bg-card rounded-2xl border p-3 space-y-2 hover:shadow-md transition-shadow ${hasCriticalConflict ? "border-destructive/30 bg-destructive/[0.03]" : hasFiscalIssue ? "border-amber-500/30 bg-amber-500/[0.03]" : "border-border"}`}>
+              <motion.div key={product.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(idx, 10) * 0.03 }} className={`bg-card rounded-2xl border p-3 space-y-2 hover:shadow-md transition-shadow ${hasCriticalConflict ? "border-destructive/30 bg-destructive/[0.03]" : hasFiscalIssue ? "border-amber-500/30 bg-amber-500/[0.03]" : "border-border"}`}>
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-center gap-2 min-w-0">
                     <div className="w-8 h-8 rounded-lg bg-accent flex items-center justify-center shrink-0 overflow-hidden">
@@ -418,6 +456,23 @@ export default function Produtos() {
               </motion.div>
             );
           })
+        )}
+        {/* Mobile pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between py-3">
+            <span className="text-xs text-muted-foreground">
+              {safePage * PAGE_SIZE + 1}–{Math.min((safePage + 1) * PAGE_SIZE, filtered.length)} de {filtered.length}
+            </span>
+            <div className="flex items-center gap-1">
+              <Button variant="outline" size="sm" disabled={safePage === 0} onClick={() => setPage(safePage - 1)}>
+                Anterior
+              </Button>
+              <span className="text-xs text-muted-foreground px-2">{safePage + 1}/{totalPages}</span>
+              <Button variant="outline" size="sm" disabled={safePage >= totalPages - 1} onClick={() => setPage(safePage + 1)}>
+                Próximo
+              </Button>
+            </div>
+          </div>
         )}
       </div>
 
