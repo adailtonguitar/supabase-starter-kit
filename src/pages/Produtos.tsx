@@ -397,7 +397,7 @@ export default function Produtos() {
             const hasFiscalIssue = fiscalStatus.hasFiscalGap;
             const hasCriticalConflict = fiscalStatus.hasCriticalConflict;
             return (
-              <motion.div key={product.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: filtered.indexOf(product) * 0.03 }} className={`bg-card rounded-2xl border p-3 space-y-2 hover:shadow-md transition-shadow ${hasCriticalConflict ? "border-destructive/30 bg-destructive/[0.03]" : hasFiscalIssue ? "border-amber-500/30 bg-amber-500/[0.03]" : "border-border"}`}>
+              <motion.div key={product.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(idx, 10) * 0.03 }} className={`bg-card rounded-2xl border p-3 space-y-2 hover:shadow-md transition-shadow ${hasCriticalConflict ? "border-destructive/30 bg-destructive/[0.03]" : hasFiscalIssue ? "border-amber-500/30 bg-amber-500/[0.03]" : "border-border"}`}>
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-center gap-2 min-w-0">
                     <div className="w-8 h-8 rounded-lg bg-accent flex items-center justify-center shrink-0 overflow-hidden">
