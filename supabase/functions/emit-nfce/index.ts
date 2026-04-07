@@ -1104,11 +1104,23 @@ function buildIcmsBlock(item: any, isSimples: boolean) {
 }
 
 // ─── Construtor de PIS/COFINS ───
-function buildPisCofins(pisCst: string, cofinsCst: string, vProd: number) {
+// REGRA CRÍTICA: Simples Nacional (CRT 1/2) NUNCA destaca PIS/COFINS na NF-e/NFC-e.
+// O cálculo real ocorre no DAS. Usar CST 49 (Outras Operações de Saída) com valores zerados.
+function buildPisCofins(pisCst: string, cofinsCst: string, vProd: number, isSimples = false) {
   const pis: any = {};
   const cofins: any = {};
   const ntCst = new Set(["04", "05", "06", "07", "08", "09"]);
 
+  // ── SIMPLES NACIONAL: forçar CST 49 com valores zerados ──
+  if (isSimples) {
+    const safePisCst = (pisCst === "49" || pisCst === "99") ? pisCst : "49";
+    const safeCofCst = (cofinsCst === "49" || cofinsCst === "99") ? cofinsCst : "49";
+    pis.PISOutr = { CST: safePisCst, vBC: 0, pPIS: 0, vPIS: 0 };
+    cofins.COFINSOutr = { CST: safeCofCst, vBC: 0, pCOFINS: 0, vCOFINS: 0 };
+    return { PIS: pis, COFINS: cofins };
+  }
+
+  // ── REGIME NORMAL: destaca PIS/COFINS conforme CST ──
   if (["01", "02"].includes(pisCst)) {
     pis.PISAliq = { CST: pisCst, vBC: Math.round(vProd * 100) / 100, pPIS: 0.65, vPIS: Math.round(vProd * 0.0065 * 100) / 100 };
   } else if (ntCst.has(pisCst)) {
@@ -1259,6 +1271,35 @@ async function handleEmit(supabase: any, body: any) {
     return jsonResponse({ error: "Nenhum item na venda" }, 400);
   }
 
+  // ─── PIS/COFINS auto-correção para Simples Nacional (NFC-e) ───
+  if (isSimples) {
+    for (let vi = 0; vi < items.length; vi++) {
+      const vItem = items[vi];
+      if (vItem.pis_cst && ["01", "02"].includes(vItem.pis_cst)) {
+        console.warn(`[emit-nfce] ⚠ Auto-corrigindo PIS CST ${vItem.pis_cst} → 49 para Simples Nacional (item ${vi + 1})`);
+        vItem.pis_cst = "49";
+      }
+      if (vItem.cofins_cst && ["01", "02"].includes(vItem.cofins_cst)) {
+        console.warn(`[emit-nfce] ⚠ Auto-corrigindo COFINS CST ${vItem.cofins_cst} → 49 para Simples Nacional (item ${vi + 1})`);
+        vItem.cofins_cst = "49";
+      }
+    }
+  }
+
+  // ─── LOG DE AUDITORIA PRÉ-EMISSÃO NFC-e ───
+  supabase.from("action_logs").insert({
+    company_id,
+    action: "nfce_pre_emission_audit",
+    module: "fiscal",
+    details: JSON.stringify({
+      regime: crt,
+      isSimples,
+      pisCofinsMode: isSimples ? "simples_sem_credito" : "regime_normal",
+      itemCount: items.length,
+      validado: true,
+    }),
+  }).then(() => {}).catch(() => {});
+
   // Totalizadores
   let totalVProd = 0, totalVDesc = 0, totalVICMS = 0, totalVBCST = 0, totalVST = 0, totalVPIS = 0, totalVCOFINS = 0;
 
@@ -1325,12 +1366,13 @@ async function handleEmit(supabase: any, body: any) {
     if (icmsData.vBCST) totalVBCST += icmsData.vBCST;
     if (icmsData.vICMSST) totalVST += icmsData.vICMSST;
 
-    const pisCst = item.pis_cst || (isSimples ? "49" : "01");
-    const cofinsCst = item.cofins_cst || (isSimples ? "49" : "01");
-    const { PIS, COFINS } = buildPisCofins(pisCst, cofinsCst, vProdLiq);
+    // ── PIS/COFINS: Simples Nacional NUNCA destaca (CST 49, valores zerados) ──
+    const pisCst = isSimples ? "49" : (item.pis_cst || "01");
+    const cofinsCst = isSimples ? "49" : (item.cofins_cst || "01");
+    const { PIS, COFINS } = buildPisCofins(pisCst, cofinsCst, vProdLiq, isSimples);
 
-    if (PIS.PISAliq) totalVPIS += PIS.PISAliq.vPIS;
-    if (COFINS.COFINSAliq) totalVCOFINS += COFINS.COFINSAliq.vCOFINS;
+    if (!isSimples && PIS.PISAliq) totalVPIS += PIS.PISAliq.vPIS;
+    if (!isSimples && COFINS.COFINSAliq) totalVCOFINS += COFINS.COFINSAliq.vCOFINS;
 
     const prodBlock: any = {
       cProd: item.product_id || String(i + 1),
@@ -1889,6 +1931,97 @@ async function handleEmitNfe(supabase: any, body: any) {
     return jsonResponse({ error: "Nenhum item na nota" }, 400);
   }
 
+  // ─── ST Auto-detection: verificar NCMs com ST obrigatória ───
+  const ST_NCMS: Record<string, Record<string, { mva: number; aliquotaInterna: number; cest?: string }>> = {
+    "22021000": { _default: { mva: 70, aliquotaInterna: 18 }, MA: { mva: 70, aliquotaInterna: 22 } },
+    "22011000": { _default: { mva: 70, aliquotaInterna: 18 }, MA: { mva: 70, aliquotaInterna: 22 } },
+    "22021010": { _default: { mva: 40, aliquotaInterna: 18 }, MA: { mva: 40, aliquotaInterna: 22 } },
+    "22030000": { _default: { mva: 70, aliquotaInterna: 25 }, MA: { mva: 70, aliquotaInterna: 22 } },
+    "24022000": { _default: { mva: 0, aliquotaInterna: 25 } },
+    "40111000": { _default: { mva: 42, aliquotaInterna: 18 }, MA: { mva: 42, aliquotaInterna: 22 } },
+    "25232900": { _default: { mva: 20, aliquotaInterna: 18 }, MA: { mva: 20, aliquotaInterna: 22 } },
+    "32091000": { _default: { mva: 35, aliquotaInterna: 18 }, MA: { mva: 35, aliquotaInterna: 22 } },
+  };
+  function getSTConfigInline(ncm: string, uf: string) {
+    const entry = ST_NCMS[ncm];
+    if (entry) {
+      const cfg = entry[uf] || entry._default;
+      if (cfg) return { temST: true, ...cfg };
+    }
+    // Prefix match (4 digits)
+    const p4 = ncm.slice(0, 4);
+    for (const [k, v] of Object.entries(ST_NCMS)) {
+      if (k.startsWith(p4)) {
+        const cfg = v[uf] || v._default;
+        if (cfg) return { temST: true, ...cfg };
+      }
+    }
+    return { temST: false, mva: 0, aliquotaInterna: 0 };
+  }
+
+  // ─── PRÉ-VALIDAÇÃO FISCAL OBRIGATÓRIA (PIS/COFINS, ST, NCM) ───
+  const preValidationErrors: string[] = [];
+  for (let vi = 0; vi < items.length; vi++) {
+    const vItem = items[vi];
+    const vNcm = (vItem.ncm || "").replace(/\D/g, "");
+    // PIS/COFINS para Simples: bloquear CST 01/02
+    if (isSimples) {
+      const vPisCst = (vItem.pis_cst || "").trim();
+      if (vPisCst && ["01", "02"].includes(vPisCst)) {
+        console.warn(`[emit-nfe] ⚠ Auto-corrigindo PIS CST ${vPisCst} → 49 para Simples Nacional (item ${vi + 1})`);
+        vItem.pis_cst = "49";
+      }
+      const vCofCst = (vItem.cofins_cst || "").trim();
+      if (vCofCst && ["01", "02"].includes(vCofCst)) {
+        console.warn(`[emit-nfe] ⚠ Auto-corrigindo COFINS CST ${vCofCst} → 49 para Simples Nacional (item ${vi + 1})`);
+        vItem.cofins_cst = "49";
+      }
+    }
+    // ST auto-detection
+    if (vNcm && vNcm.length === 8) {
+      const stCfg = getSTConfigInline(vNcm, destUF || emitUF);
+      if (stCfg.temST) {
+        const itemCst = (vItem.cst || "").trim();
+        const stCsosns = new Set(["201", "202", "203", "500"]);
+        const stCsts = new Set(["10", "30", "60", "70"]);
+        const hasST = isSimples ? stCsosns.has(itemCst) : stCsts.has(itemCst);
+        if (!hasST && !vItem.mva) {
+          // Auto-apply ST
+          vItem.mva = stCfg.mva;
+          vItem.icms_aliquota = vItem.icms_aliquota || stCfg.aliquotaInterna;
+          if (isSimples) {
+            vItem.cst = "202"; // ST a recolher
+            console.log(`[emit-nfe] ST auto-aplicado: item ${vi + 1} NCM=${vNcm} → CSOSN 202, MVA=${stCfg.mva}%`);
+          } else {
+            vItem.cst = "10"; // Com ST
+            console.log(`[emit-nfe] ST auto-aplicado: item ${vi + 1} NCM=${vNcm} → CST 10, MVA=${stCfg.mva}%`);
+          }
+        }
+      }
+    }
+  }
+
+  // ─── LOG DE AUDITORIA PRÉ-EMISSÃO ───
+  const auditPayload = {
+    company_id,
+    action: "nfe_pre_emission_audit",
+    module: "fiscal",
+    details: JSON.stringify({
+      regime: crt,
+      isSimples,
+      cfopSample: items[0]?.cfop || "5102",
+      pisCofinsMode: isSimples ? "simples_sem_credito" : "regime_normal",
+      itemCount: items.length,
+      ufEmit: emitUF,
+      ufDest: destUF,
+      isInterstate,
+      applyDifal,
+      preValidationErrors,
+      validado: preValidationErrors.length === 0,
+    }),
+  };
+  supabase.from("action_logs").insert(auditPayload).then(() => {}).catch(() => {});
+
   // Totalizadores
   let totalVProd = 0, totalVDesc = 0, totalVICMS = 0, totalVBCST = 0, totalVST = 0, totalVPIS = 0, totalVCOFINS = 0;
   let totalVFCPUFDest = 0, totalVICMSUFDest = 0, totalVICMSUFRemet = 0;
@@ -1960,12 +2093,13 @@ async function handleEmitNfe(supabase: any, body: any) {
     if (icmsData.vBCST) totalVBCST += icmsData.vBCST;
     if (icmsData.vICMSST) totalVST += icmsData.vICMSST;
 
-    const pisCst = item.pis_cst || (isSimples ? "49" : "01");
-    const cofinsCst = item.cofins_cst || (isSimples ? "49" : "01");
-    const { PIS, COFINS } = buildPisCofins(pisCst, cofinsCst, vProdLiq);
+    // ── PIS/COFINS: Simples Nacional NUNCA destaca (CST 49, valores zerados) ──
+    const pisCst = isSimples ? "49" : (item.pis_cst || "01");
+    const cofinsCst = isSimples ? "49" : (item.cofins_cst || "01");
+    const { PIS, COFINS } = buildPisCofins(pisCst, cofinsCst, vProdLiq, isSimples);
 
-    if (PIS.PISAliq) totalVPIS += PIS.PISAliq.vPIS;
-    if (COFINS.COFINSAliq) totalVCOFINS += COFINS.COFINSAliq.vCOFINS;
+    if (!isSimples && PIS.PISAliq) totalVPIS += PIS.PISAliq.vPIS;
+    if (!isSimples && COFINS.COFINSAliq) totalVCOFINS += COFINS.COFINSAliq.vCOFINS;
 
     const prodBlock: any = {
       cProd: item.product_code || item.product_id || String(i + 1),

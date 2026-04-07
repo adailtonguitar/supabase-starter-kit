@@ -560,8 +560,8 @@ Deno.serve(async (req) => {
         qty: item.quantity,
         unit_price: item.unit_price,
         discount: Math.round(discountValue * 100) / 100, // 🔴 CORREÇÃO: sempre valor absoluto
-        pis_cst: firstNonEmptyStr(product.cst_pis, snap.cst_pis) || defaultPisCofins,
-        cofins_cst: firstNonEmptyStr(product.cst_cofins, snap.cst_cofins) || defaultPisCofins,
+        pis_cst: isSimples ? "49" : (firstNonEmptyStr(product.cst_pis, snap.cst_pis) || defaultPisCofins),
+        cofins_cst: isSimples ? "49" : (firstNonEmptyStr(product.cst_cofins, snap.cst_cofins) || defaultPisCofins),
         icms_aliquota: Number(product.aliq_icms ?? snap.aliq_icms ?? snap.icms_rate ?? 0) || 0,
         mva: Number(product.mva) || Number(snap.mva) || undefined,
         cest: firstNonEmptyStr(product.cest, snap.cest) || undefined,
