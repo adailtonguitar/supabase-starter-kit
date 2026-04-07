@@ -246,6 +246,9 @@ export default function FiscalConfigEdit() {
               company_id: companyId,
               certificate_base64: certBase64,
               certificate_password: certPassword,
+              certificate_expires_at: certExpiry ? new Date(certExpiry).toISOString() : null,
+              certificate_file_name: certFile,
+              doc_types: configs.map((config) => config.docType),
             },
           });
           if (uploadErr) {

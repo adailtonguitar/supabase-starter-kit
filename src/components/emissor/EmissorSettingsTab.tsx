@@ -162,6 +162,7 @@ export default function EmissorSettingsTab({ companyId }: { companyId: string })
   const [certType, setCertType] = useState<"A1" | "A3">("A1");
   const [certPassword, setCertPassword] = useState("");
   const [certFile, setCertFile] = useState<string | null>(null);
+  const [certBase64, setCertBase64] = useState<string | null>(null);
   const [certExpiry, setCertExpiry] = useState("");
   const [certValidating, setCertValidating] = useState(false);
   const [environment, setEnvironment] = useState<"homologacao" | "producao">("homologacao");
@@ -283,6 +284,13 @@ export default function EmissorSettingsTab({ companyId }: { companyId: string })
         address_state: form.address_state, address_zip: cleanCep, address_ibge_code: addressIbgeCode,
       } as any).eq("id", companyId);
       if (error) throw error;
+
+      const { data: syncResult, error: syncError } = await supabase.functions.invoke("emit-nfce", {
+        body: { action: "sync_company", company_id: companyId },
+      });
+      if (syncError) throw syncError;
+      if (syncResult?.error) throw new Error(syncResult.error);
+
       logAction({ companyId, action: "Dados empresa emissor atualizados", module: "fiscal", details: form.name.trim() });
       toast.success("Dados da empresa atualizados!");
     } catch (err: any) {
@@ -319,6 +327,22 @@ export default function EmissorSettingsTab({ companyId }: { companyId: string })
         const { data, error } = await supabase.from("fiscal_configs").insert(record as any).select("id").single();
         if (error) throw error;
         if (data) setFiscalConfig(prev => ({ ...prev, id: data.id }));
+      }
+
+      if (certType === "A1" && certBase64 && certPassword) {
+        const { data: uploadResult, error: uploadError } = await supabase.functions.invoke("emit-nfce", {
+          body: {
+            action: "upload_certificate",
+            company_id: companyId,
+            certificate_base64: certBase64,
+            certificate_password: certPassword,
+            certificate_expires_at: certExpiry ? new Date(certExpiry).toISOString() : null,
+            certificate_file_name: certFile,
+            doc_types: ["nfe"],
+          },
+        });
+        if (uploadError) throw uploadError;
+        if (uploadResult?.error) throw new Error(uploadResult.error);
       }
 
       const hasCert = certType === "A1" ? !!certFile : !!a3SelectedThumbprint;
@@ -425,6 +449,10 @@ export default function EmissorSettingsTab({ companyId }: { companyId: string })
                             setCertExpiry(validTo.toISOString().split("T")[0]);
                           }
                           setCertFile(file.name);
+                          const uint8 = new Uint8Array(arrayBuffer);
+                          let binaryStr = "";
+                          for (let i = 0; i < uint8.length; i++) binaryStr += String.fromCharCode(uint8[i]);
+                          setCertBase64(btoa(binaryStr));
                           const storeResult = await storeCertificateA1(arrayBuffer, certPassword, companyId);
                           if (storeResult.success) {
                             toast.success(`Certificado A1 validado e armazenado! (${storeResult.subject})`);
