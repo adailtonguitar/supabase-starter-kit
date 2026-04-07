@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useDeferredValue, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Search, Plus, Edit, Package, Upload, Trash2, FileText, ArrowUpDown, History, Zap, AlertTriangle } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
