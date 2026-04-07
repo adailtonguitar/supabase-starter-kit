@@ -667,6 +667,7 @@ async function handleEmit(supabase: any, body: any) {
   // Totalizadores
   let totalVProd = 0, totalVDesc = 0, totalVICMS = 0, totalVBCST = 0, totalVST = 0, totalVPIS = 0, totalVCOFINS = 0;
 
+  const taxClassificationAudit: any[] = [];
   const detItems = items.map((item: any, i: number) => {
     const ncm = (item.ncm || "").replace(/\D/g, "");
     if (!ncm || ncm.length < 2 || ncm === "00000000") {
@@ -686,6 +687,29 @@ async function handleEmit(supabase: any, body: any) {
 
     totalVProd += vProd;
     totalVDesc += discount;
+
+    // ─── Tax Classification Engine: enriquecer item com regra tributária por NCM ───
+    if (taxRulesByNcm.length > 0) {
+      const regime = isSimples ? "simples" : "normal";
+      const matchedRule = taxRulesByNcm.find((r: any) => {
+        const rNcm = (r.ncm || "").replace(/\D/g, "");
+        if (!ncm.startsWith(rNcm) && rNcm !== "*") return false;
+        if (r.regime !== regime) return false;
+        if (r.uf_origem !== "*" && r.uf_origem !== companyState) return false;
+        if (r.uf_destino !== "*" && r.uf_destino !== companyState) return false;
+        return true;
+      });
+      if (matchedRule) {
+        if (!item.cst && matchedRule.cst) item.cst = matchedRule.cst;
+        if (!item.csosn && matchedRule.csosn) item.cst = matchedRule.csosn;
+        if ((!item.icms_aliquota || item.icms_aliquota === 0) && matchedRule.icms_aliquota > 0) item.icms_aliquota = matchedRule.icms_aliquota;
+        if (matchedRule.icms_st && (!item.mva || item.mva === 0) && matchedRule.mva > 0) item.mva = matchedRule.mva;
+        if (matchedRule.icms_reducao_base > 0 && !item.reducao_base) item.reducao_base = matchedRule.icms_reducao_base;
+        taxClassificationAudit.push({ item: item.name, ncm, rule_id: matchedRule.id, fallback: false });
+      } else {
+        taxClassificationAudit.push({ item: item.name, ncm, rule_id: null, fallback: true });
+      }
+    }
 
     const icmsBlock = buildIcmsBlock({ ...item, qty, unit_price: unitPrice, discount }, isSimples);
 
