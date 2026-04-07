@@ -275,7 +275,32 @@ describe("Tax Classification Engine — Score-Based", () => {
     });
   });
 
-  describe("validateTaxClassification", () => {
+  describe("confidence_level", () => {
+    it("returns high confidence for exact NCM + exact UFs + exact tipo", () => {
+      const result = classifyTaxByNCM({
+        ncm: "22021000", uf_origem: "SP", uf_destino: "MG", crt: 1, tipo_cliente: "cpf", valor: 100,
+      }, RULES);
+      expect(result.confidence_level).toBe("high");
+    });
+
+    it("returns medium confidence for exact NCM with all generic fields", () => {
+      const result = classifyTaxByNCM({
+        ncm: "22021000", uf_origem: "MA", uf_destino: "MA", crt: 1, tipo_cliente: "cpf", valor: 100,
+      }, RULES);
+      // rule-st: NCM exact, UF orig *, UF dest *, tipo * → exactCount=0 → medium
+      expect(result.confidence_level).toBe("medium");
+    });
+
+    it("forces fallback for low confidence wildcard rule", () => {
+      const result = classifyTaxByNCM({
+        ncm: "99999999", uf_origem: "SP", uf_destino: "SP", crt: 3, tipo_cliente: "cpf", valor: 100,
+      }, RULES);
+      expect(result.confidence_level).toBe("low");
+      expect(result.fallback_used).toBe(true);
+    });
+  });
+
+
     it("warns on fallback", () => {
       const result = classifyTaxByNCM({
         ncm: "99999999", uf_origem: "SP", uf_destino: "SP", crt: 1, tipo_cliente: "cpf", valor: 100,
