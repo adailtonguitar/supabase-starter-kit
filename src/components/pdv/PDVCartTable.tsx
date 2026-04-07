@@ -46,10 +46,8 @@ export function PDVCartTable({
                 <tr className="sm:hidden">
                   <td colSpan={4} className="text-center py-0">
                     <div className="flex flex-col items-center justify-center py-8 gap-3">
-                      {logoUrl ? (
+                      {logoUrl && (
                         <img src={logoUrl} alt={companyName || "Logo"} className="h-24 object-contain" />
-                      ) : (
-                        <img src={anthoLogo} alt="AnthoSystem" className="h-20 object-contain opacity-70" />
                       )}
                       <span className="text-xs text-muted-foreground/50">Aguardando leitura...</span>
                     </div>
