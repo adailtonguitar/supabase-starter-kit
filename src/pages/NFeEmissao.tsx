@@ -686,12 +686,23 @@ export default function NFeEmissao() {
 
   const getAddFilteredProducts = () => {
     const search = addSearchTerm.toLowerCase();
-    if (!search) return products.slice(0, 15);
-    return products.filter(p =>
-      p.name?.toLowerCase().includes(search) ||
-      p.sku?.toLowerCase().includes(search) ||
-      p.barcode?.includes(search)
-    ).slice(0, 15);
+    const filtered = search
+      ? products.filter(p =>
+          p.name?.toLowerCase().includes(search) ||
+          p.sku?.toLowerCase().includes(search) ||
+          p.barcode?.includes(search)
+        )
+      : products;
+    return filtered;
+  };
+  const getAddPagedProducts = () => {
+    const all = getAddFilteredProducts();
+    const start = addProductPage * ADD_PRODUCTS_PER_PAGE;
+    return {
+      items: all.slice(start, start + ADD_PRODUCTS_PER_PAGE),
+      total: all.length,
+      totalPages: Math.ceil(all.length / ADD_PRODUCTS_PER_PAGE),
+    };
   };
   const selectProduct = (idx: number, product: NFeProduct) => {
     const isSN = companyCrt === 1 || companyCrt === 2;
