@@ -1012,14 +1012,20 @@ async function handleEmitNfe(supabase: any, body: any) {
     return jsonResponse({ error: "Limite de emissões excedido. Aguarde 1 minuto." }, 429);
   }
 
-  // Buscar empresa + config fiscal em PARALELO
+  // Buscar empresa + config fiscal + regras tributárias em PARALELO
   const companyPromise = supabase.from("companies").select("*").eq("id", company_id).single();
   const configPromise = config_id
     ? supabase.from("fiscal_configs").select("*").eq("id", config_id).single()
     : supabase.from("fiscal_configs").select("*")
         .eq("company_id", company_id).eq("doc_type", "nfe").eq("is_active", true).limit(1).maybeSingle();
+  const taxRulesNcmPromiseNfe = supabase
+    .from("tax_rules_by_ncm")
+    .select("*")
+    .eq("company_id", company_id)
+    .eq("is_active", true);
 
-  const [companyRes, configRes] = await Promise.all([companyPromise, configPromise]);
+  const [companyRes, configRes, taxRulesNcmResNfe] = await Promise.all([companyPromise, configPromise, taxRulesNcmPromiseNfe]);
+  const taxRulesByNcmNfe: any[] = taxRulesNcmResNfe.data || [];
 
   if (companyRes.error || !companyRes.data) {
     return jsonResponse({ error: "Empresa não encontrada" }, 404);
