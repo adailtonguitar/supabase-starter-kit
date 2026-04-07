@@ -382,20 +382,21 @@ async function ensureNfeConfigOnNuvemFiscal(params: {
   cnpj: string;
   ambiente: "homologacao" | "producao";
   certificate?: { base64: string; password: string } | null;
+  forceUpdate?: boolean;
 }) {
-  const { token, baseUrl, cnpj, ambiente, certificate } = params;
+  const { token, baseUrl, cnpj, ambiente, certificate, forceUpdate = false } = params;
   const authHeaders = { Authorization: `Bearer ${token}` };
 
   const checkResp = await safeFetch(`${baseUrl}/empresas/${cnpj}/nfe`, {
     headers: authHeaders,
   }, 5000);
 
-  if (checkResp.ok) {
-    await checkResp.text().catch(() => "");
+  const configExists = checkResp.ok;
+  await checkResp.text().catch(() => "");
+
+  if (configExists && !forceUpdate) {
     return;
   }
-
-  await checkResp.text().catch(() => "");
 
   const nfeConfigPayload: Record<string, any> = {
     ambiente: ambiente === "producao" ? "producao" : "homologacao",
