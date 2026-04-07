@@ -65,6 +65,7 @@ export class FiscalEmissionService {
     docType: DocType;
     justificativa: string;
     nuvemFiscalId?: string;
+    companyId?: string;
   }): Promise<FiscalResponse> {
 
     if (!params.justificativa || params.justificativa.length < 15) {
@@ -85,10 +86,12 @@ export class FiscalEmissionService {
           doc_type: params.docType,
           doc_id: params.nuvemFiscalId,
           justificativa: params.justificativa,
+          company_id: params.companyId,
         },
       });
 
       if (error) return { success: false, error: error.message };
+      if (data && data.success === false) return { success: false, error: data.error || "Erro ao cancelar" };
       return { success: true, data };
     } catch (err: unknown) {
       return { success: false, error: getErrorMessage(err) };
