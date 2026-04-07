@@ -290,6 +290,19 @@ export function classifyTaxByNCM(
     return fb;
   }
 
+  // ── Confidence check ──
+  const confidence = computeConfidence(rule, ncm);
+
+  // LOW confidence → forçar fallback com warning
+  if (confidence.level === "low") {
+    const fb = buildFallback(input, `Regra com baixa confiança — revisão recomendada (${confidence.reason})`);
+    fb.match_log = log;
+    fb.confidence_level = "low";
+    fb.confidence_reason = confidence.reason;
+    fb.warnings.push(`Regra ${rule.id || rule.ncm} descartada por confiança baixa (score: ${log.chosen_score}, motivo: ${confidence.reason})`);
+    return fb;
+  }
+
   const isSimples = input.crt === 1 || input.crt === 2;
   const cst_or_csosn = isSimples ? (rule.csosn || "102") : (rule.cst || "00");
 
@@ -318,6 +331,11 @@ export function classifyTaxByNCM(
   else if (base_reduzida) icms_type = "reducao";
   else if (aliquota === 0) icms_type = "isento";
 
+  const warnings: string[] = [];
+  if (confidence.level === "medium") {
+    warnings.push(`Confiança média na regra tributária: ${confidence.reason}`);
+  }
+
   return {
     cst_or_csosn,
     icms_type,
@@ -332,9 +350,11 @@ export function classifyTaxByNCM(
     fcp: rule.fcp,
     applied_rule_id: rule.id || null,
     fallback_used: false,
-    warnings: [],
+    warnings,
     match_score: log.chosen_score,
     match_log: log,
+    confidence_level: confidence.level,
+    confidence_reason: confidence.reason,
   };
 }
 
