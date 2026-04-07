@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react";
 import { useReadAudit } from "@/hooks/useReadAudit";
 import { motion } from "framer-motion";
-import { Users, Upload, User, Phone, Mail, MapPin, CreditCard, AlertTriangle, Search, Plus, Pencil, Trash2, X } from "lucide-react";
+import { Users, Upload, User, Phone, Mail, MapPin, CreditCard, AlertTriangle, Search, Plus, Pencil, Trash2, X, DatabaseBackup, Loader2 } from "lucide-react";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { useClients, useCreateClient, useUpdateClient, useDeleteClient } from "@/hooks/useClients";
 import { validateDoc } from "@/lib/cpf-cnpj-validator";
@@ -13,6 +13,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { CSVClientImportDialog } from "@/components/clients/CSVClientImportDialog";
 import { toast } from "sonner";
 import { useCnpjLookup } from "@/hooks/useCnpjLookup";
+import { supabase } from "@/integrations/supabase/client";
+import { useCompany } from "@/hooks/useCompany";
 
 import { maskCpfCnpj, DOC_FIELD_KEYS } from "@/lib/cpf-cnpj-mask";
 
@@ -51,6 +53,29 @@ export default function Clientes() {
   const update = useUpdateClient();
   const del = useDeleteClient();
   const [showCSVImport, setShowCSVImport] = useState(false);
+  const [importingMigration, setImportingMigration] = useState(false);
+  const { companyId } = useCompany();
+
+  const handleMigrationImport = async () => {
+    if (!companyId) return;
+    setImportingMigration(true);
+    try {
+      const res = await fetch("/migration-clients.json");
+      if (!res.ok) { toast.error("Arquivo de migração não encontrado"); return; }
+      const clients = await res.json();
+      const { data, error } = await supabase.functions.invoke("import-backup", {
+        body: { action: "bulk_import_clients", company_id: companyId, clients },
+      });
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || "Erro na importação");
+      toast.success(`${data.inserted} cliente(s) importado(s), ${data.skipped} ignorado(s)`);
+      window.location.reload();
+    } catch (e: any) {
+      toast.error(e.message || "Erro ao importar clientes");
+    } finally {
+      setImportingMigration(false);
+    }
+  };
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
@@ -164,6 +189,10 @@ export default function Clientes() {
           <p className="text-sm text-muted-foreground mt-1">{filtered.length} cliente{filtered.length !== 1 ? "s" : ""} cadastrado{filtered.length !== 1 ? "s" : ""}</p>
         </div>
         <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={handleMigrationImport} disabled={importingMigration}>
+            {importingMigration ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <DatabaseBackup className="w-4 h-4 mr-1.5" />}
+            Importar Migração (200)
+          </Button>
           <Button variant="outline" size="sm" onClick={() => setShowCSVImport(true)}>
             <Upload className="w-4 h-4 mr-1.5" /> Importar CSV
           </Button>

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useDeferredValue, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Search, Plus, Edit, Package, Upload, Trash2, FileText, ArrowUpDown, History, Zap, AlertTriangle } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
@@ -58,17 +58,31 @@ export default function Produtos() {
       ? "lucro_real"
       : "simples_nacional";
 
+  const deferredSearch = useDeferredValue(search);
+
+  // Pre-compute fiscal status map once for all products
+  const fiscalStatusMap = useMemo(() => {
+    const map = new Map<string, ReturnType<typeof getProductFiscalStatus>>();
+    for (const p of products) {
+      map.set(p.id, getProductFiscalStatus(p, fiscalCategories, taxRegime));
+    }
+    return map;
+  }, [products, fiscalCategories, taxRegime]);
+
   const filtered = useMemo(() => {
-    const q = search.toLowerCase();
-    const matchesSearch = (p: Product) =>
-      p.name.toLowerCase().includes(q) ||
-      p.sku.toLowerCase().includes(q) ||
-      (p.barcode && p.barcode.includes(search));
-
-    const hasFiscalIssue = (p: Product) => getProductFiscalStatus(p, fiscalCategories, taxRegime).blocksFiscalEmission;
-
-    return products.filter((p) => matchesSearch(p) && (!fiscalPendingOnly || hasFiscalIssue(p)));
-  }, [products, search, fiscalPendingOnly, fiscalCategories, taxRegime]);
+    const q = deferredSearch.toLowerCase();
+    return products.filter((p) => {
+      const matchesSearch = p.name.toLowerCase().includes(q) ||
+        p.sku.toLowerCase().includes(q) ||
+        (p.barcode && p.barcode.includes(deferredSearch));
+      if (!matchesSearch) return false;
+      if (fiscalPendingOnly) {
+        const fs = fiscalStatusMap.get(p.id);
+        return fs?.blocksFiscalEmission ?? false;
+      }
+      return true;
+    });
+  }, [products, deferredSearch, fiscalPendingOnly, fiscalStatusMap]);
 
   // Reset page when search/filter changes
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
@@ -79,10 +93,10 @@ export default function Produtos() {
   );
 
   // Reset page on search change
-  const handleSearch = (val: string) => {
+  const handleSearch = useCallback((val: string) => {
     setSearch(val);
     setPage(0);
-  };
+  }, []);
 
   const bulkFixAnalysis = useMemo(
     () => getBulkFiscalFixAnalysis(products, fiscalCategories, taxRegime),
@@ -288,7 +302,7 @@ export default function Produtos() {
               ) : (
                 paginatedProducts.map((product, idx) => {
                   const isLow = product.min_stock != null && product.min_stock > 0 && product.stock_quantity <= product.min_stock;
-                  const fiscalStatus = getProductFiscalStatus(product, fiscalCategories, taxRegime);
+                  const fiscalStatus = fiscalStatusMap.get(product.id) || getProductFiscalStatus(product, fiscalCategories, taxRegime);
                   const hasFiscalIssue = fiscalStatus.hasFiscalGap;
                   const hasCriticalConflict = fiscalStatus.hasCriticalConflict;
                   return (
@@ -393,8 +407,8 @@ export default function Produtos() {
         ) : (
           paginatedProducts.map((product, idx) => {
             const isLow = product.min_stock != null && product.min_stock > 0 && product.stock_quantity <= product.min_stock;
-            const fiscalStatus = getProductFiscalStatus(product, fiscalCategories, taxRegime);
-            const hasFiscalIssue = fiscalStatus.hasFiscalGap;
+                    const fiscalStatus = fiscalStatusMap.get(product.id) || getProductFiscalStatus(product, fiscalCategories, taxRegime);
+                    const hasFiscalIssue = fiscalStatus.hasFiscalGap;
             const hasCriticalConflict = fiscalStatus.hasCriticalConflict;
             return (
               <motion.div key={product.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(idx, 10) * 0.03 }} className={`bg-card rounded-2xl border p-3 space-y-2 hover:shadow-md transition-shadow ${hasCriticalConflict ? "border-destructive/30 bg-destructive/[0.03]" : hasFiscalIssue ? "border-amber-500/30 bg-amber-500/[0.03]" : "border-border"}`}>
