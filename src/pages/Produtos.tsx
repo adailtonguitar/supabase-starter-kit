@@ -243,7 +243,7 @@ export default function Produtos() {
           type="text"
           placeholder="Buscar por nome, SKU ou código de barras..."
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+        onChange={(e) => handleSearch(e.target.value)}
           className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-card border border-border text-foreground placeholder:text-muted-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
         />
       </div>
