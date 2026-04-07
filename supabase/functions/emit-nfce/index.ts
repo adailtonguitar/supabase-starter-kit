@@ -382,20 +382,21 @@ async function ensureNfeConfigOnNuvemFiscal(params: {
   cnpj: string;
   ambiente: "homologacao" | "producao";
   certificate?: { base64: string; password: string } | null;
+  forceUpdate?: boolean;
 }) {
-  const { token, baseUrl, cnpj, ambiente, certificate } = params;
+  const { token, baseUrl, cnpj, ambiente, certificate, forceUpdate = false } = params;
   const authHeaders = { Authorization: `Bearer ${token}` };
 
   const checkResp = await safeFetch(`${baseUrl}/empresas/${cnpj}/nfe`, {
     headers: authHeaders,
   }, 5000);
 
-  if (checkResp.ok) {
-    await checkResp.text().catch(() => "");
+  const configExists = checkResp.ok;
+  await checkResp.text().catch(() => "");
+
+  if (configExists && !forceUpdate) {
     return;
   }
-
-  await checkResp.text().catch(() => "");
 
   const nfeConfigPayload: Record<string, any> = {
     ambiente: ambiente === "producao" ? "producao" : "homologacao",
@@ -491,6 +492,7 @@ async function handleUploadCertificate(supabase: any, body: any) {
       cnpj: context.cnpjClean,
       ambiente: (nfeConfig?.environment === "producao" ? "producao" : "homologacao"),
       certificate,
+      forceUpdate: true,
     });
   }
 
@@ -2125,43 +2127,14 @@ async function handleEmitNfe(supabase: any, body: any) {
       certificate: resolvedCertNfe,
     });
 
-    const checkResp = await safeFetch(`${baseUrl}/empresas/${cnpjClean}/nfe`, {
-      headers: { Authorization: `Bearer ${token}` },
-    }, 5000);
-
-    if (checkResp.status === 404 || !checkResp.ok) {
-      console.log(`[emit-nfe] Config NF-e não encontrada na Nuvem Fiscal. Criando...`);
-
-      // Configurar NF-e
-      const nfeConfigPayload: any = {
-        ambiente: ambiente === "producao" ? "producao" : "homologacao",
-      };
-
-      // Reutilizar certificado já resolvido
-      if (resolvedCertNfe) {
-        nfeConfigPayload.certificado = {
-          base64: resolvedCertNfe.base64,
-          password: resolvedCertNfe.password,
-        };
-      }
-
-      const nfeConfigResp = await safeFetch(`${baseUrl}/empresas/${cnpjClean}/nfe`, {
-        method: "PUT",
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify(nfeConfigPayload),
-      }, 8000);
-      const nfeConfigData = await parseResponseJsonSafe(nfeConfigResp, "configuração NF-e Nuvem Fiscal").catch(() => null);
-
-      if (!nfeConfigResp.ok) {
-        const providerMsg = extractProviderErrorMessage(nfeConfigData, nfeConfigResp.status, "Falha ao configurar NF-e na Nuvem Fiscal");
-        console.error(`[emit-nfe] Falha ao configurar NF-e na Nuvem Fiscal:`, providerMsg);
-        return jsonResponse({
-          error: `Falha ao configurar NF-e na Nuvem Fiscal. ${providerMsg}`,
-        }, 400);
-      }
-
-      console.log(`[emit-nfe] ✓ Config NF-e criada na Nuvem Fiscal para CNPJ ${cnpjClean}`);
-    }
+    await ensureNfeConfigOnNuvemFiscal({
+      token,
+      baseUrl,
+      cnpj: cnpjClean,
+      ambiente,
+      certificate: resolvedCertNfe,
+      forceUpdate: !!resolvedCertNfe,
+    });
   } catch (configErr: any) {
     console.error("[emit-nfe] Erro ao verificar/criar config NF-e na Nuvem Fiscal:", configErr.message);
     return jsonResponse({
