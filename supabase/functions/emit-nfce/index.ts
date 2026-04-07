@@ -1447,7 +1447,9 @@ async function handleEmit(supabase: any, body: any) {
   } catch (regErr: any) {
     console.error(`[emit-nfce] Falha ao registrar empresa na Nuvem Fiscal:`, regErr.message);
     return jsonResponse({
-      error: `Falha ao cadastrar empresa na Nuvem Fiscal. ${regErr.message}`,
+      success: false,
+      error: regErr.message || "Falha ao cadastrar empresa na Nuvem Fiscal",
+      rejection_reason: regErr.message,
     }, 400);
   }
 
