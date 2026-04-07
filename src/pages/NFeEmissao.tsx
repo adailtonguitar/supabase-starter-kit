@@ -1672,17 +1672,45 @@ export default function NFeEmissao() {
                               <p className="text-center py-4 text-xs text-muted-foreground">Nenhum produto encontrado</p>
                             ) : (
                               pagedItems.map((p) => (
-                                <button
-                                  key={p.id}
-                                  type="button"
-                                  onClick={() => addProductAsItem(p)}
-                                  className="w-full text-left px-3 py-2.5 hover:bg-muted text-sm flex justify-between items-center transition-colors border-b border-border last:border-b-0"
-                                >
-                                  <span className="text-foreground truncate font-medium">{p.name}</span>
-                                  <span className="text-xs text-muted-foreground ml-2 shrink-0">
-                                    {p.sku || ""} — {formatCurrency(p.price || 0)}
-                                  </span>
-                                </button>
+                                <div key={p.id} className="border-b border-border last:border-b-0">
+                                  <button
+                                    type="button"
+                                    onClick={() => setPreAddProduct(prev => prev?.product.id === p.id ? null : { product: p, qty: 1, unitPrice: p.price || 0 })}
+                                    className={`w-full text-left px-3 py-2.5 hover:bg-muted text-sm flex justify-between items-center transition-colors ${preAddProduct?.product.id === p.id ? 'bg-primary/10' : ''}`}
+                                  >
+                                    <span className="text-foreground truncate font-medium">{p.name}</span>
+                                    <span className="text-xs text-muted-foreground ml-2 shrink-0">
+                                      {p.sku || ""} — {formatCurrency(p.price || 0)}
+                                    </span>
+                                  </button>
+                                  {preAddProduct?.product.id === p.id && (
+                                    <div className="px-3 py-2 bg-muted/30 flex items-end gap-2 flex-wrap">
+                                      <div>
+                                        <label className="text-[10px] text-muted-foreground">Qtd</label>
+                                        <input type="number" min={1} value={preAddProduct.qty}
+                                          onChange={e => setPreAddProduct(prev => prev ? { ...prev, qty: Math.max(1, parseFloat(e.target.value) || 1) } : null)}
+                                          className="w-20 mt-0.5 px-2 py-1 rounded border border-border bg-background text-xs font-mono text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30" />
+                                      </div>
+                                      <div>
+                                        <label className="text-[10px] text-muted-foreground">Vlr. Unit.</label>
+                                        <input type="number" step="0.01" value={preAddProduct.unitPrice}
+                                          onChange={e => setPreAddProduct(prev => prev ? { ...prev, unitPrice: parseFloat(e.target.value) || 0 } : null)}
+                                          className="w-24 mt-0.5 px-2 py-1 rounded border border-border bg-background text-xs font-mono text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30" />
+                                      </div>
+                                      <div className="text-xs font-mono font-semibold text-primary py-1">
+                                        = {formatCurrency(preAddProduct.qty * preAddProduct.unitPrice)}
+                                      </div>
+                                      <button type="button"
+                                        onClick={() => {
+                                          addProductAsItem({ ...preAddProduct.product, price: preAddProduct.unitPrice }, preAddProduct.qty);
+                                          setPreAddProduct(null);
+                                        }}
+                                        className="ml-auto px-3 py-1 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:opacity-90 transition-all flex items-center gap-1">
+                                        <Plus className="w-3 h-3" /> Adicionar
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
                               ))
                             )}
                           </div>
