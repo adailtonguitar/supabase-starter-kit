@@ -262,7 +262,7 @@ async function syncCertificateToNuvemFiscal(
   console.log(`[syncCert] ✅ Certificado sincronizado com sucesso para ${cnpj}`);
 }
 
-
+async function ensureCompanyRegisteredOnNuvemFiscal(params: {
   token: string;
   baseUrl: string;
   cnpj: string;
