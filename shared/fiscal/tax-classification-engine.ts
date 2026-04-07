@@ -1,8 +1,8 @@
 /**
  * Tax Classification Engine — Motor de Classificação Tributária por NCM
  * 
- * Determina automaticamente CST/CSOSN, alíquota, redução de base,
- * ST e regra fiscal aplicada com base em NCM, UF e regime tributário.
+ * Score-based matching com pontuação precisa por NCM, UF, regime e tipo de cliente.
+ * Fail-safe: score < 50 → fallback com warning.
  */
 
 // ─── Tipos ───
@@ -48,11 +48,29 @@ export interface TaxClassificationResult {
   applied_rule_id: string | null;
   fallback_used: boolean;
   warnings: string[];
+  match_score?: number;
+  match_log?: MatchDecisionLog;
+}
+
+// ─── Match Decision Log ───
+
+export interface RuleCandidateScore {
+  rule_id: string | null;
+  ncm: string;
+  score: number;
+  breakdown: string[];
+}
+
+export interface MatchDecisionLog {
+  chosen_score: number;
+  chosen_rule_id: string | null;
+  reason: string;
+  top_candidates: RuleCandidateScore[];
 }
 
 // ─── Fallback seguro ───
 
-function buildFallback(input: TaxClassificationInput): TaxClassificationResult {
+function buildFallback(input: TaxClassificationInput, reason?: string): TaxClassificationResult {
   const isSimples = input.crt === 1 || input.crt === 2;
   return {
     cst_or_csosn: isSimples ? "102" : "00",
@@ -68,58 +86,137 @@ function buildFallback(input: TaxClassificationInput): TaxClassificationResult {
     fcp: 0,
     applied_rule_id: null,
     fallback_used: true,
-    warnings: [`NCM ${input.ncm} sem regra tributária definida — fallback seguro aplicado`],
+    warnings: [reason || `NCM ${input.ncm} sem regra tributária definida — fallback seguro aplicado`],
+    match_score: 0,
   };
 }
 
-// ─── Busca de regra ───
+// ─── Score-based Rule Matching ───
 
-export function findBestRule(rules: TaxRuleByNcm[], input: TaxClassificationInput): TaxRuleByNcm | null {
+const MIN_SCORE_THRESHOLD = 50;
+
+interface ScoredRule {
+  rule: TaxRuleByNcm;
+  score: number;
+  breakdown: string[];
+}
+
+function scoreRule(rule: TaxRuleByNcm, ncm: string, ufO: string, ufD: string, regime: string, tipoCliente: string): ScoredRule | null {
+  const rNcm = (rule.ncm || "").replace(/\D/g, "").trim();
+  const breakdown: string[] = [];
+  let score = 0;
+
+  // ── NCM matching ──
+  if (rNcm === "*") {
+    score += 10;
+    breakdown.push("NCM genérico (*): +10");
+  } else if (rNcm === ncm) {
+    score += 100;
+    breakdown.push(`NCM exato (${rNcm}): +100`);
+  } else if (ncm.startsWith(rNcm) && rNcm.length >= 4) {
+    score += 60;
+    breakdown.push(`NCM parcial (${rNcm}→${ncm}): +60`);
+  } else if (ncm.startsWith(rNcm) && rNcm.length >= 2) {
+    score += 30;
+    breakdown.push(`NCM prefixo curto (${rNcm}): +30`);
+  } else {
+    return null; // NCM não compatível
+  }
+
+  // ── Regime ──
+  if (rule.regime !== regime) return null; // obrigatório
+  score += 40;
+  breakdown.push(`Regime ${regime}: +40`);
+
+  // ── UF origem ──
+  if (rule.uf_origem === ufO) {
+    score += 30;
+    breakdown.push(`UF origem exata (${ufO}): +30`);
+  } else if (rule.uf_origem === "*") {
+    score += 5;
+    breakdown.push("UF origem genérica (*): +5");
+  } else {
+    return null; // UF incompatível
+  }
+
+  // ── UF destino ──
+  if (rule.uf_destino === ufD) {
+    score += 30;
+    breakdown.push(`UF destino exata (${ufD}): +30`);
+  } else if (rule.uf_destino === "*") {
+    score += 5;
+    breakdown.push("UF destino genérica (*): +5");
+  } else {
+    return null; // UF incompatível
+  }
+
+  // ── Tipo cliente ──
+  if (rule.tipo_cliente === tipoCliente) {
+    score += 30;
+    breakdown.push(`Tipo cliente exato (${tipoCliente}): +30`);
+  } else if (rule.tipo_cliente === "*") {
+    score += 5;
+    breakdown.push("Tipo cliente genérico (*): +5");
+  } else {
+    return null; // tipo incompatível
+  }
+
+  return { rule, score, breakdown };
+}
+
+export function findBestRule(
+  rules: TaxRuleByNcm[],
+  input: TaxClassificationInput,
+): { rule: TaxRuleByNcm | null; log: MatchDecisionLog } {
   const ncm = (input.ncm || "").replace(/\D/g, "").trim();
   const regime = (input.crt === 1 || input.crt === 2) ? "simples" : "normal";
   const ufO = input.uf_origem.toUpperCase().trim();
   const ufD = input.uf_destino.toUpperCase().trim();
 
-  // Score-based matching: more specific = higher score
-  let bestRule: TaxRuleByNcm | null = null;
-  let bestScore = -1;
+  const scored: ScoredRule[] = [];
 
   for (const rule of rules) {
-    const rNcm = (rule.ncm || "").replace(/\D/g, "").trim();
-    
-    // NCM must match (exact or prefix)
-    if (!ncm.startsWith(rNcm) && rNcm !== "*") continue;
-    
-    // Regime must match
-    if (rule.regime !== regime) continue;
-
-    let score = 0;
-
-    // UF origem
-    if (rule.uf_origem === ufO) score += 10;
-    else if (rule.uf_origem === "*") score += 1;
-    else continue;
-
-    // UF destino
-    if (rule.uf_destino === ufD) score += 10;
-    else if (rule.uf_destino === "*") score += 1;
-    else continue;
-
-    // Tipo cliente
-    if (rule.tipo_cliente === input.tipo_cliente) score += 5;
-    else if (rule.tipo_cliente === "*") score += 1;
-    else continue;
-
-    // NCM length (more specific = better)
-    score += rNcm.length;
-
-    if (score > bestScore) {
-      bestScore = score;
-      bestRule = rule;
-    }
+    const result = scoreRule(rule, ncm, ufO, ufD, regime, input.tipo_cliente);
+    if (result) scored.push(result);
   }
 
-  return bestRule;
+  // Sort descending by score, then by NCM specificity (longer = better), then UF specificity
+  scored.sort((a, b) => {
+    if (b.score !== a.score) return b.score - a.score;
+    const aNcmLen = (a.rule.ncm || "").replace(/\D/g, "").length;
+    const bNcmLen = (b.rule.ncm || "").replace(/\D/g, "").length;
+    if (bNcmLen !== aNcmLen) return bNcmLen - aNcmLen;
+    const aUfSpec = (a.rule.uf_origem !== "*" ? 1 : 0) + (a.rule.uf_destino !== "*" ? 1 : 0);
+    const bUfSpec = (b.rule.uf_origem !== "*" ? 1 : 0) + (b.rule.uf_destino !== "*" ? 1 : 0);
+    return bUfSpec - aUfSpec;
+  });
+
+  const top3: RuleCandidateScore[] = scored.slice(0, 3).map(s => ({
+    rule_id: s.rule.id || null,
+    ncm: s.rule.ncm,
+    score: s.score,
+    breakdown: s.breakdown,
+  }));
+
+  const best = scored[0] || null;
+
+  const log: MatchDecisionLog = {
+    chosen_score: best?.score || 0,
+    chosen_rule_id: best?.rule.id || null,
+    reason: !best
+      ? "Nenhuma regra compatível encontrada"
+      : best.score < MIN_SCORE_THRESHOLD
+        ? `Score ${best.score} abaixo do mínimo (${MIN_SCORE_THRESHOLD}) — fallback aplicado`
+        : `Regra ${best.rule.id || best.rule.ncm} selecionada com score ${best.score}`,
+    top_candidates: top3,
+  };
+
+  // Fail-safe: score abaixo do threshold → fallback
+  if (!best || best.score < MIN_SCORE_THRESHOLD) {
+    return { rule: null, log };
+  }
+
+  return { rule: best.rule, log };
 }
 
 // ─── Engine Principal ───
@@ -128,31 +225,29 @@ export function classifyTaxByNCM(
   input: TaxClassificationInput,
   rules: TaxRuleByNcm[],
 ): TaxClassificationResult {
-  const warnings: string[] = [];
   const ncm = (input.ncm || "").replace(/\D/g, "").trim();
 
-  // Validação básica
   if (!ncm || ncm.length < 2) {
     return {
-      ...buildFallback(input),
-      warnings: ["NCM ausente ou inválido — fallback aplicado"],
+      ...buildFallback(input, "NCM ausente ou inválido — fallback aplicado"),
     };
   }
 
-  const rule = findBestRule(rules, input);
+  const { rule, log } = findBestRule(rules, input);
 
   if (!rule) {
-    return buildFallback(input);
+    const fb = buildFallback(input);
+    if (log.chosen_score > 0 && log.chosen_score < MIN_SCORE_THRESHOLD) {
+      fb.warnings.push(`Regra fraca encontrada (score: ${log.chosen_score}/${MIN_SCORE_THRESHOLD}) — fallback forçado`);
+    }
+    fb.match_log = log;
+    return fb;
   }
 
   const isSimples = input.crt === 1 || input.crt === 2;
-  
-  // Regra 1 — CST ou CSOSN por regime
-  const cst_or_csosn = isSimples
-    ? (rule.csosn || "102")
-    : (rule.cst || "00");
+  const cst_or_csosn = isSimples ? (rule.csosn || "102") : (rule.cst || "00");
 
-  // Regra 3 — Redução de base
+  // Redução de base
   const reducao = rule.icms_reducao_base > 0 ? rule.icms_reducao_base / 100 : 0;
   const baseCalculo = round2(input.valor * (1 - reducao));
   const base_reduzida = reducao > 0;
@@ -161,18 +256,16 @@ export function classifyTaxByNCM(
   const aliquota = rule.icms_aliquota;
   const icmsValor = round2(baseCalculo * aliquota / 100);
 
-  // Regra 2 — Substituição Tributária
+  // ST
   let icms_st = rule.icms_st;
   let icms_st_base = 0;
   let icms_st_valor = 0;
-
   if (icms_st && rule.mva > 0) {
     icms_st_base = round2(input.valor * (1 + rule.mva / 100));
     const stTotal = round2(icms_st_base * aliquota / 100);
     icms_st_valor = Math.max(0, round2(stTotal - icmsValor));
   }
 
-  // Determinar tipo
   let icms_type: TaxClassificationResult["icms_type"] = "normal";
   if (icms_st && base_reduzida) icms_type = "st_reducao";
   else if (icms_st) icms_type = "st";
@@ -193,7 +286,9 @@ export function classifyTaxByNCM(
     fcp: rule.fcp,
     applied_rule_id: rule.id || null,
     fallback_used: false,
-    warnings,
+    warnings: [],
+    match_score: log.chosen_score,
+    match_log: log,
   };
 }
 
@@ -258,11 +353,13 @@ function round2(v: number): number {
 export interface TaxAuditEntry {
   ncm: string;
   rule_id: string | null;
-  classification: string; // icms_type
+  classification: string;
   fallback: boolean;
   cst_or_csosn: string;
   aliquota: number;
   st_applied: boolean;
+  match_score: number;
+  top_candidates: RuleCandidateScore[];
 }
 
 export function buildTaxAuditEntry(input: TaxClassificationInput, result: TaxClassificationResult): TaxAuditEntry {
@@ -274,5 +371,7 @@ export function buildTaxAuditEntry(input: TaxClassificationInput, result: TaxCla
     cst_or_csosn: result.cst_or_csosn,
     aliquota: result.aliquota,
     st_applied: result.icms_st,
+    match_score: result.match_score || 0,
+    top_candidates: result.match_log?.top_candidates || [],
   };
 }
