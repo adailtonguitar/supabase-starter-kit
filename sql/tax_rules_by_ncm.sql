@@ -10,8 +10,8 @@ CREATE TABLE IF NOT EXISTS public.tax_rules_by_ncm (
   uf_destino CHAR(2) NOT NULL DEFAULT '*',
   regime TEXT NOT NULL CHECK (regime IN ('simples', 'normal')),
   tipo_cliente TEXT NOT NULL DEFAULT '*' CHECK (tipo_cliente IN ('cpf', 'cnpj_contribuinte', 'cnpj_nao_contribuinte', '*')),
-  cst TEXT,                          -- para regime normal
-  csosn TEXT,                        -- para simples
+  cst TEXT,
+  csosn TEXT,
   icms_aliquota NUMERIC(5,2) NOT NULL DEFAULT 0,
   icms_reducao_base NUMERIC(5,2) NOT NULL DEFAULT 0,
   icms_st BOOLEAN NOT NULL DEFAULT false,
@@ -32,12 +32,12 @@ ALTER TABLE public.tax_rules_by_ncm ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Users can read own company tax_rules_by_ncm" ON public.tax_rules_by_ncm;
 CREATE POLICY "Users can read own company tax_rules_by_ncm"
   ON public.tax_rules_by_ncm FOR SELECT TO authenticated
-  USING (company_id IN (SELECT company_id FROM public.company_members WHERE user_id = auth.uid()));
+  USING (company_id IN (SELECT company_id FROM public.company_users WHERE user_id = auth.uid()));
 
 DROP POLICY IF EXISTS "Users can manage own company tax_rules_by_ncm" ON public.tax_rules_by_ncm;
 CREATE POLICY "Users can manage own company tax_rules_by_ncm"
   ON public.tax_rules_by_ncm FOR ALL TO authenticated
-  USING (company_id IN (SELECT company_id FROM public.company_members WHERE user_id = auth.uid()))
-  WITH CHECK (company_id IN (SELECT company_id FROM public.company_members WHERE user_id = auth.uid()));
+  USING (company_id IN (SELECT company_id FROM public.company_users WHERE user_id = auth.uid()))
+  WITH CHECK (company_id IN (SELECT company_id FROM public.company_users WHERE user_id = auth.uid()));
 
 COMMENT ON TABLE public.tax_rules_by_ncm IS 'Regras tributárias configuráveis por NCM, UF, regime e tipo de cliente para classificação automática de ICMS/ST';
