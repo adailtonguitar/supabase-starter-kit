@@ -587,14 +587,20 @@ async function handleEmit(supabase: any, body: any) {
     }
   }
 
-  // Buscar empresa + config fiscal em PARALELO (reduz latência ~50%)
+  // Buscar empresa + config fiscal + regras tributárias em PARALELO (reduz latência ~50%)
   const companyPromise = supabase.from("companies").select("*").eq("id", company_id).single();
   const configPromise = config_id
     ? supabase.from("fiscal_configs").select("*").eq("id", config_id).single()
     : supabase.from("fiscal_configs").select("*")
         .eq("company_id", company_id).eq("doc_type", "nfce").eq("is_active", true).limit(1).maybeSingle();
+  const taxRulesNcmPromise = supabase
+    .from("tax_rules_by_ncm")
+    .select("*")
+    .eq("company_id", company_id)
+    .eq("is_active", true);
 
-  const [companyRes, configRes] = await Promise.all([companyPromise, configPromise]);
+  const [companyRes, configRes, taxRulesNcmRes] = await Promise.all([companyPromise, configPromise, taxRulesNcmPromise]);
+  const taxRulesByNcm: any[] = taxRulesNcmRes.data || [];
 
   if (companyRes.error || !companyRes.data) {
     return jsonResponse({ error: "Empresa não encontrada" }, 404);
