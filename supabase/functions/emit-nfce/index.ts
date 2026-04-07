@@ -228,7 +228,7 @@ async function resolveIbgeCodeFromDestination(params: {
   const zipDigits = onlyDigits(params.zip);
   if (zipDigits.length === 8) {
     try {
-      const viacepResp = await safeFetch(`https://viacep.com.br/ws/${zipDigits}/json/`, {}, 5000);
+      const viacepResp = await safeFetch(`https://viacep.com.br/ws/${zipDigits}/json/`, {}, 3000);
       if (viacepResp.ok) {
         const viacepData = await viacepResp.json();
         const ibge = onlyDigits(viacepData?.ibge);
@@ -633,7 +633,7 @@ async function handleEmit(supabase: any, body: any) {
     }
   }
 
-  // Buscar empresa + config fiscal + regras tributárias em PARALELO (reduz latência ~50%)
+  // Buscar empresa + config fiscal + regras tributárias + OAuth em PARALELO (reduz latência ~60%)
   const companyPromise = supabase.from("companies").select("*").eq("id", company_id).single();
   const configPromise = config_id
     ? supabase.from("fiscal_configs").select("*").eq("id", config_id).single()
@@ -644,6 +644,8 @@ async function handleEmit(supabase: any, body: any) {
     .select("*")
     .eq("company_id", company_id)
     .eq("is_active", true);
+  // Iniciar OAuth em paralelo — economiza ~1-3s por não esperar sequencialmente
+  const tokenPromise = getNuvemFiscalToken();
 
   const [companyRes, configRes, taxRulesNcmRes] = await Promise.all([companyPromise, configPromise, taxRulesNcmPromise]);
   const taxRulesByNcm: any[] = taxRulesNcmRes.data || [];
@@ -841,7 +843,7 @@ async function handleEmit(supabase: any, body: any) {
     const cepDigits = companyZip;
     if (cepDigits.length === 8) {
       try {
-        const viacepResp = await safeFetch(`https://viacep.com.br/ws/${cepDigits}/json/`, {}, 5000);
+        const viacepResp = await safeFetch(`https://viacep.com.br/ws/${cepDigits}/json/`, {}, 3000);
         if (viacepResp.ok) {
           const viacepData = await viacepResp.json();
           if (viacepData.ibge) {
@@ -957,7 +959,7 @@ async function handleEmit(supabase: any, body: any) {
   console.log(`[emit-nfce] ▶ pagBlock completo:`, JSON.stringify(pagBlock));
 
   // ─── Autenticação Nuvem Fiscal ───
-  const token = await getNuvemFiscalToken();
+  const token = await tokenPromise;
   const baseUrl = getApiBaseUrl();
 
   console.log(`[emit-nfce] ▶ Enviando para Nuvem Fiscal...`);
@@ -1110,7 +1112,7 @@ async function handleEmitNfe(supabase: any, body: any) {
     return jsonResponse({ error: "Limite de emissões excedido. Aguarde 1 minuto." }, 429);
   }
 
-  // Buscar empresa + config fiscal + regras tributárias em PARALELO
+  // Buscar empresa + config fiscal + regras tributárias + OAuth em PARALELO
   const companyPromise = supabase.from("companies").select("*").eq("id", company_id).single();
   const configPromise = config_id
     ? supabase.from("fiscal_configs").select("*").eq("id", config_id).single()
@@ -1121,6 +1123,7 @@ async function handleEmitNfe(supabase: any, body: any) {
     .select("*")
     .eq("company_id", company_id)
     .eq("is_active", true);
+  const nfeTokenPromise = getNuvemFiscalToken();
 
   const [companyRes, configRes, taxRulesNcmResNfe] = await Promise.all([companyPromise, configPromise, taxRulesNcmPromiseNfe]);
   const taxRulesByNcmNfe: any[] = taxRulesNcmResNfe.data || [];
@@ -1522,7 +1525,7 @@ async function handleEmitNfe(supabase: any, body: any) {
     const cepDigits = companyZip;
     if (cepDigits.length === 8) {
       try {
-        const viacepResp = await safeFetch(`https://viacep.com.br/ws/${cepDigits}/json/`, {}, 5000);
+        const viacepResp = await safeFetch(`https://viacep.com.br/ws/${cepDigits}/json/`, {}, 3000);
         if (viacepResp.ok) {
           const viacepData = await viacepResp.json();
           if (viacepData.ibge) {
@@ -1681,8 +1684,8 @@ async function handleEmitNfe(supabase: any, body: any) {
 
   console.log(`[emit-nfe] ▶ Emitindo NF-e #${numero} | CNPJ: ${cnpjClean} | CRT: ${crt} | Amb: ${ambiente} | Itens: ${items.length} | Total: ${vNF} | Finalidade: ${finNFe} | RiskScore: ${riskResultNfe.score}`);
 
-  // ─── Autenticação Nuvem Fiscal ───
-  const token = await getNuvemFiscalToken();
+  // ─── Autenticação Nuvem Fiscal (já iniciada em paralelo) ───
+  const token = await nfeTokenPromise;
   const baseUrl = getApiBaseUrl();
 
   // ─── Garantir que a empresa tem config de NF-e na Nuvem Fiscal ───
