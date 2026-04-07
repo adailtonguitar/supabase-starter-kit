@@ -151,9 +151,25 @@ async function parseResponseJsonSafe(resp: Response, label: string): Promise<any
 function extractProviderErrorMessage(data: any, status: number, fallback: string): string {
   if (typeof data === "string" && data.trim()) return data;
   if (data && typeof data === "object") {
+    // Deep extract: check nested error objects and validation arrays
+    const nestedError = data.error;
+    if (nestedError && typeof nestedError === "object") {
+      const nestedMsg = nestedError.message || nestedError.mensagem || nestedError.detail;
+      if (typeof nestedMsg === "string" && nestedMsg.trim()) return nestedMsg;
+    }
+    // Check for validation errors array
+    if (Array.isArray(data.errors) && data.errors.length > 0) {
+      const msgs = data.errors.map((e: any) => typeof e === "string" ? e : (e?.message || e?.mensagem || JSON.stringify(e))).join("; ");
+      if (msgs) return msgs;
+    }
     const candidates = [data.mensagem, data.message, data.error, data.detail, data.title]
       .filter((value) => typeof value === "string" && value.trim().length > 0);
     if (candidates.length > 0) return String(candidates[0]);
+    // Last resort: stringify the whole response for debugging
+    try {
+      const full = JSON.stringify(data);
+      if (full.length < 500) return `${fallback} (status ${status}): ${full}`;
+    } catch {}
   }
   return `${fallback} (status ${status})`;
 }
