@@ -1153,6 +1153,39 @@ export default function NFeEmissao() {
     setActiveTab("dest");
   };
 
+  const handleSaveDraft = () => {
+    const hasContent = form.destName || form.destDoc || form.items.length > 0;
+    if (!hasContent) { toast.error("Nota vazia — nada para salvar"); return; }
+    const draft: NFeDraft = {
+      id: crypto.randomUUID(),
+      label: buildDraftLabel(form),
+      savedAt: new Date().toISOString(),
+      form: { ...form },
+    };
+    const updated = [draft, ...drafts].slice(0, 20);
+    saveDrafts(updated);
+    setDrafts(updated);
+    toast.success("Rascunho salvo com sucesso!");
+  };
+
+  const handleLoadDraft = (draft: NFeDraft) => {
+    setForm(draft.form);
+    setStep("edit");
+    setErrorMsg("");
+    setRejection(null);
+    setSuccessData(null);
+    setShowDrafts(false);
+    setActiveTab("dest");
+    toast.success(`Rascunho "${draft.label}" restaurado`);
+  };
+
+  const handleDeleteDraft = (draftId: string) => {
+    const updated = drafts.filter(d => d.id !== draftId);
+    saveDrafts(updated);
+    setDrafts(updated);
+    toast.info("Rascunho excluído");
+  };
+
   const tabs = [
     { key: "dest" as const, label: "Destinatário", icon: User },
     { key: "items" as const, label: "Itens", icon: Package },
