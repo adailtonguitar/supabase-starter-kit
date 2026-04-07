@@ -457,6 +457,23 @@ export default function Produtos() {
             );
           })
         )}
+        {/* Mobile pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between py-3">
+            <span className="text-xs text-muted-foreground">
+              {safePage * PAGE_SIZE + 1}–{Math.min((safePage + 1) * PAGE_SIZE, filtered.length)} de {filtered.length}
+            </span>
+            <div className="flex items-center gap-1">
+              <Button variant="outline" size="sm" disabled={safePage === 0} onClick={() => setPage(safePage - 1)}>
+                Anterior
+              </Button>
+              <span className="text-xs text-muted-foreground px-2">{safePage + 1}/{totalPages}</span>
+              <Button variant="outline" size="sm" disabled={safePage >= totalPages - 1} onClick={() => setPage(safePage + 1)}>
+                Próximo
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
 
       {movementProduct && (
