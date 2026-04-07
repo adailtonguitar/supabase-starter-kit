@@ -286,7 +286,7 @@ export default function Produtos() {
                   </td>
                 </tr>
               ) : (
-                filtered.map((product) => {
+                paginatedProducts.map((product, idx) => {
                   const isLow = product.min_stock != null && product.min_stock > 0 && product.stock_quantity <= product.min_stock;
                   const fiscalStatus = getProductFiscalStatus(product, fiscalCategories, taxRegime);
                   const hasFiscalIssue = fiscalStatus.hasFiscalGap;
@@ -294,7 +294,7 @@ export default function Produtos() {
                   return (
                     <tr
                       key={product.id}
-                      className={`border-b border-border last:border-0 hover:bg-primary/[0.03] transition-colors ${filtered.indexOf(product) % 2 === 1 ? "bg-muted/15" : ""} ${hasCriticalConflict ? "bg-destructive/[0.06]" : hasFiscalIssue ? "bg-amber-500/[0.06]" : ""}`}
+                      className={`border-b border-border last:border-0 hover:bg-primary/[0.03] transition-colors ${idx % 2 === 1 ? "bg-muted/15" : ""} ${hasCriticalConflict ? "bg-destructive/[0.06]" : hasFiscalIssue ? "bg-amber-500/[0.06]" : ""}`}
                     >
                       <td className="px-3 py-3">
                         <div className="flex items-center gap-2 min-w-0">
@@ -361,6 +361,25 @@ export default function Produtos() {
             </tbody>
           </table>
         </div>
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between px-4 py-3 border-t border-border">
+            <span className="text-xs text-muted-foreground">
+              {safePage * PAGE_SIZE + 1}–{Math.min((safePage + 1) * PAGE_SIZE, filtered.length)} de {filtered.length}
+            </span>
+            <div className="flex items-center gap-1">
+              <Button variant="outline" size="sm" disabled={safePage === 0} onClick={() => setPage(safePage - 1)}>
+                Anterior
+              </Button>
+              <span className="text-xs text-muted-foreground px-2">
+                {safePage + 1}/{totalPages}
+              </span>
+              <Button variant="outline" size="sm" disabled={safePage >= totalPages - 1} onClick={() => setPage(safePage + 1)}>
+                Próximo
+              </Button>
+            </div>
+          </div>
+        )}
       </motion.div>
 
       {/* Mobile cards */}
@@ -372,7 +391,7 @@ export default function Produtos() {
             {products.length === 0 ? "Nenhum produto cadastrado." : "Nenhum produto encontrado."}
           </div>
         ) : (
-          filtered.map((product) => {
+          paginatedProducts.map((product, idx) => {
             const isLow = product.min_stock != null && product.min_stock > 0 && product.stock_quantity <= product.min_stock;
             const fiscalStatus = getProductFiscalStatus(product, fiscalCategories, taxRegime);
             const hasFiscalIssue = fiscalStatus.hasFiscalGap;
