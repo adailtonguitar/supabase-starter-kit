@@ -179,12 +179,15 @@ async function ensureCompanyRegisteredOnNuvemFiscal(params: {
   cnpj: string;
   ie: string;
   company: Record<string, any>;
+  companyIbgeCode?: string;
   companyStreet: string;
   companyNumber: string;
   companyNeighborhood: string;
   companyCity: string;
   companyState: string;
   companyZip: string;
+  certificate?: { base64: string; password: string } | null;
+  forceUpdate?: boolean;
 }) {
   const {
     token,
@@ -192,12 +195,15 @@ async function ensureCompanyRegisteredOnNuvemFiscal(params: {
     cnpj,
     ie,
     company,
+    companyIbgeCode,
     companyStreet,
     companyNumber,
     companyNeighborhood,
     companyCity,
     companyState,
     companyZip,
+    certificate,
+    forceUpdate = false,
   } = params;
 
   const authHeaders = { Authorization: `Bearer ${token}` };
@@ -211,7 +217,7 @@ async function ensureCompanyRegisteredOnNuvemFiscal(params: {
     return false;
   };
 
-  if (await checkCompanyExists()) {
+  if (!forceUpdate && await checkCompanyExists()) {
     return;
   }
 
@@ -224,7 +230,7 @@ async function ensureCompanyRegisteredOnNuvemFiscal(params: {
       logradouro: sanitizeSefazText(companyStreet || "Rua não informada", "Rua não informada"),
       numero: companyNumber || "S/N",
       bairro: sanitizeSefazText(companyNeighborhood || "Centro", "Centro"),
-      codigo_municipio: onlyDigits(company.ibge_code),
+      codigo_municipio: onlyDigits(companyIbgeCode || company.ibge_code || company.city_code || company.address_ibge_code),
       cidade: sanitizeSefazText(companyCity || "Não informada", "Não informada"),
       uf: (companyState || "MA").toUpperCase(),
       cep: companyZip || "00000000",
@@ -232,6 +238,13 @@ async function ensureCompanyRegisteredOnNuvemFiscal(params: {
       pais: "Brasil",
     },
   };
+
+  if (certificate?.base64 && certificate.password) {
+    empresaPayload.certificado = {
+      base64: certificate.base64,
+      password: certificate.password,
+    };
+  }
 
   console.log(`[emit-nfe] Empresa ${cnpj} não encontrada na Nuvem Fiscal. Cadastrando...`);
 
@@ -259,6 +272,251 @@ async function ensureCompanyRegisteredOnNuvemFiscal(params: {
   }
 
   throw new Error("A empresa foi enviada para a Nuvem Fiscal, mas ainda não ficou disponível para configuração. Tente novamente em alguns segundos.");
+}
+
+async function loadCompanyFiscalContext(supabase: any, companyId: string) {
+  const [companyRes, configsRes] = await Promise.all([
+    supabase.from("companies").select("*").eq("id", companyId).single(),
+    supabase.from("fiscal_configs").select("*").eq("company_id", companyId),
+  ]);
+
+  if (companyRes.error || !companyRes.data) {
+    throw new Error("Empresa não encontrada");
+  }
+
+  const company = (await fillCompanyRowFromServicePeerFallback(
+    supabase,
+    await resolveCompanyFiscalRowWithParent(supabase, companyRes.data as Record<string, unknown>),
+    String(companyId),
+  )) as Record<string, any>;
+
+  const companyStreet = pickFirstNonEmpty(company.street, company.address_street, company.address);
+  const companyNumber = pickFirstNonEmpty(company.number, company.address_number);
+  const companyNeighborhood = pickFirstNonEmpty(company.neighborhood, company.address_neighborhood);
+  const companyCity = pickFirstNonEmpty(company.city, company.address_city);
+  const companyState = pickFirstNonEmpty(company.state, company.address_state, "MA").toUpperCase();
+  const companyZip = onlyDigits(pickFirstNonEmpty(company.zip_code, company.address_zip, company.cep));
+  const cnpjClean = onlyDigits(company.cnpj);
+  const ieClean = onlyDigits(company.ie || company.state_registration);
+  const ibgeCode = onlyDigits(company.ibge_code || company.city_code || company.address_ibge_code);
+
+  if (cnpjClean.length !== 14) {
+    throw new Error("CNPJ da empresa não configurado corretamente.");
+  }
+
+  if (ieClean.length < 2) {
+    throw new Error("Inscrição Estadual (IE) não configurada.");
+  }
+
+  return {
+    company,
+    configs: (configsRes.data || []) as Record<string, any>[],
+    companyStreet,
+    companyNumber,
+    companyNeighborhood,
+    companyCity,
+    companyState,
+    companyZip,
+    cnpjClean,
+    ieClean,
+    ibgeCode,
+  };
+}
+
+function normalizeRequestedDocTypes(docTypes: unknown): Array<"nfe" | "nfce" | "sat"> {
+  const allowed = new Set(["nfe", "nfce", "sat"]);
+  const requested = Array.isArray(docTypes) ? docTypes : [];
+  const normalized = requested
+    .map((value) => String(value || "").toLowerCase())
+    .filter((value): value is "nfe" | "nfce" | "sat" => allowed.has(value));
+
+  return normalized.length > 0 ? Array.from(new Set(normalized)) : ["nfe", "nfce", "sat"];
+}
+
+async function ensureNfeConfigOnNuvemFiscal(params: {
+  token: string;
+  baseUrl: string;
+  cnpj: string;
+  ambiente: "homologacao" | "producao";
+  certificate?: { base64: string; password: string } | null;
+}) {
+  const { token, baseUrl, cnpj, ambiente, certificate } = params;
+  const authHeaders = { Authorization: `Bearer ${token}` };
+
+  const checkResp = await safeFetch(`${baseUrl}/empresas/${cnpj}/nfe`, {
+    headers: authHeaders,
+  }, 5000);
+
+  if (checkResp.ok) {
+    await checkResp.text().catch(() => "");
+    return;
+  }
+
+  await checkResp.text().catch(() => "");
+
+  const nfeConfigPayload: Record<string, any> = {
+    ambiente: ambiente === "producao" ? "producao" : "homologacao",
+  };
+
+  if (certificate?.base64 && certificate.password) {
+    nfeConfigPayload.certificado = {
+      base64: certificate.base64,
+      password: certificate.password,
+    };
+  }
+
+  const nfeConfigResp = await safeFetch(`${baseUrl}/empresas/${cnpj}/nfe`, {
+    method: "PUT",
+    headers: { ...authHeaders, "Content-Type": "application/json" },
+    body: JSON.stringify(nfeConfigPayload),
+  }, 8000);
+  const nfeConfigData = await parseResponseJsonSafe(nfeConfigResp, "configuração NF-e Nuvem Fiscal").catch(() => null);
+
+  if (!nfeConfigResp.ok) {
+    throw new Error(extractProviderErrorMessage(nfeConfigData, nfeConfigResp.status, "Falha ao configurar NF-e na Nuvem Fiscal"));
+  }
+}
+
+async function handleUploadCertificate(supabase: any, body: any) {
+  const { company_id, certificate_base64, certificate_password, certificate_expires_at, certificate_file_name, doc_types } = body;
+
+  if (!company_id || !certificate_base64 || !certificate_password) {
+    return jsonResponse({ success: false, error: "company_id, certificate_base64 e certificate_password são obrigatórios" }, 400);
+  }
+
+  const context = await loadCompanyFiscalContext(supabase, String(company_id));
+  const cleanFileName = String(certificate_file_name || "certificado-a1.pfx")
+    .replace(/[^a-zA-Z0-9._-]/g, "-")
+    .replace(/-+/g, "-");
+  const storagePath = `${company_id}/certificates/${Date.now()}-${cleanFileName}`;
+  const binary = atob(String(certificate_base64));
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+
+  const uploadBlob = new Blob([bytes], { type: "application/x-pkcs12" });
+  const { error: storageError } = await supabase.storage
+    .from("company-backups")
+    .upload(storagePath, uploadBlob, { upsert: true, contentType: "application/x-pkcs12" });
+
+  if (storageError) {
+    return jsonResponse({ success: false, error: `Erro ao salvar certificado: ${storageError.message}` }, 400);
+  }
+
+  const targetDocTypes = normalizeRequestedDocTypes(doc_types);
+  const expiresAtIso = certificate_expires_at ? new Date(certificate_expires_at).toISOString() : null;
+  const { error: updateConfigError } = await supabase
+    .from("fiscal_configs")
+    .update({
+      certificate_type: "A1",
+      certificate_path: storagePath,
+      certificate_expires_at: expiresAtIso,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("company_id", company_id)
+    .in("doc_type", targetDocTypes);
+
+  if (updateConfigError) {
+    return jsonResponse({ success: false, error: `Erro ao atualizar configuração fiscal: ${updateConfigError.message}` }, 400);
+  }
+
+  const token = await getNuvemFiscalToken();
+  const baseUrl = getApiBaseUrl();
+  const certificate = { base64: String(certificate_base64), password: String(certificate_password) };
+
+  await ensureCompanyRegisteredOnNuvemFiscal({
+    token,
+    baseUrl,
+    cnpj: context.cnpjClean,
+    ie: context.ieClean,
+    company: context.company,
+    companyIbgeCode: context.ibgeCode,
+    companyStreet: context.companyStreet,
+    companyNumber: context.companyNumber,
+    companyNeighborhood: context.companyNeighborhood,
+    companyCity: context.companyCity,
+    companyState: context.companyState,
+    companyZip: context.companyZip,
+    certificate,
+    forceUpdate: true,
+  });
+
+  if (targetDocTypes.includes("nfe")) {
+    const nfeConfig = context.configs.find((config) => String(config.doc_type) === "nfe");
+    await ensureNfeConfigOnNuvemFiscal({
+      token,
+      baseUrl,
+      cnpj: context.cnpjClean,
+      ambiente: (nfeConfig?.environment === "producao" ? "producao" : "homologacao"),
+      certificate,
+    });
+  }
+
+  return jsonResponse({ success: true, certificate_path: storagePath });
+}
+
+async function handleDeleteCertificate(supabase: any, body: any) {
+  const { company_id } = body;
+  if (!company_id) {
+    return jsonResponse({ success: false, error: "company_id é obrigatório" }, 400);
+  }
+
+  const { data: configs, error: configError } = await supabase
+    .from("fiscal_configs")
+    .select("id, certificate_path")
+    .eq("company_id", company_id);
+
+  if (configError) {
+    return jsonResponse({ success: false, error: configError.message }, 400);
+  }
+
+  const paths = Array.from(new Set((configs || []).map((config: { certificate_path?: string | null }) => config.certificate_path).filter(Boolean))) as string[];
+  if (paths.length > 0) {
+    await supabase.storage.from("company-backups").remove(paths).catch(() => undefined);
+  }
+
+  const { error: updateError } = await supabase
+    .from("fiscal_configs")
+    .update({
+      certificate_path: null,
+      certificate_expires_at: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("company_id", company_id);
+
+  if (updateError) {
+    return jsonResponse({ success: false, error: updateError.message }, 400);
+  }
+
+  return jsonResponse({ success: true });
+}
+
+async function handleSyncCompany(supabase: any, body: any) {
+  const { company_id } = body;
+  if (!company_id) {
+    return jsonResponse({ success: false, error: "company_id é obrigatório" }, 400);
+  }
+
+  const context = await loadCompanyFiscalContext(supabase, String(company_id));
+  const token = await getNuvemFiscalToken();
+  const baseUrl = getApiBaseUrl();
+
+  await ensureCompanyRegisteredOnNuvemFiscal({
+    token,
+    baseUrl,
+    cnpj: context.cnpjClean,
+    ie: context.ieClean,
+    company: context.company,
+    companyIbgeCode: context.ibgeCode,
+    companyStreet: context.companyStreet,
+    companyNumber: context.companyNumber,
+    companyNeighborhood: context.companyNeighborhood,
+    companyCity: context.companyCity,
+    companyState: context.companyState,
+    companyZip: context.companyZip,
+    forceUpdate: true,
+  });
+
+  return jsonResponse({ success: true });
 }
 
 function onlyDigits(v: unknown): string {
@@ -1060,6 +1318,7 @@ async function handleEmit(supabase: any, body: any) {
       cnpj: cnpjClean,
       ie: ieEmitClean,
       company,
+      companyIbgeCode: ibgeClean,
       companyStreet,
       companyNumber,
       companyNeighborhood,
@@ -1806,6 +2065,7 @@ async function handleEmitNfe(supabase: any, body: any) {
       cnpj: cnpjClean,
       ie: ieEmitClean,
       company,
+      companyIbgeCode: ibgeClean,
       companyStreet,
       companyNumber,
       companyNeighborhood,
@@ -1871,7 +2131,12 @@ async function handleEmitNfe(supabase: any, body: any) {
       console.log(`[emit-nfe] ✓ Config NF-e criada na Nuvem Fiscal para CNPJ ${cnpjClean}`);
     }
   } catch (configErr: any) {
-    console.warn("[emit-nfe] Erro ao verificar/criar config NF-e na Nuvem Fiscal (tentando emitir mesmo assim):", configErr.message);
+    console.error("[emit-nfe] Erro ao verificar/criar config NF-e na Nuvem Fiscal:", configErr.message);
+    return jsonResponse({
+      success: false,
+      error: configErr.message || "Falha ao sincronizar empresa/configuração NF-e na Nuvem Fiscal",
+      rejection_reason: configErr.message || "Falha ao sincronizar empresa/configuração NF-e na Nuvem Fiscal",
+    }, 400);
   }
 
   console.log(`[emit-nfe] ▶ Enviando para Nuvem Fiscal (NF-e)...`);
@@ -2624,6 +2889,12 @@ Deno.serve(async (req) => {
         return await handleInutilize(supabase, body, userId);
       case "backup_xmls":
         return await handleBackupXmls(supabase, body);
+      case "upload_certificate":
+        return await handleUploadCertificate(supabase, body);
+      case "delete_certificate":
+        return await handleDeleteCertificate(supabase, body);
+      case "sync_company":
+        return await handleSyncCompany(supabase, body);
       default:
         return jsonResponse({ error: `Ação desconhecida: ${action}` }, 400);
     }
