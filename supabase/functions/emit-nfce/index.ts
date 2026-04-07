@@ -78,6 +78,44 @@ function getRequiredEnv(name: string): string {
   return value;
 }
 
+// ─── Certificate Password Encryption (AES-GCM via Web Crypto) ───
+async function _getCertEncryptionKey(): Promise<CryptoKey> {
+  const rawKey = Deno.env.get("FISCAL_CERT_ENCRYPTION_KEY");
+  if (!rawKey) throw new Error("FISCAL_CERT_ENCRYPTION_KEY not configured");
+  const encoder = new TextEncoder();
+  const keyMaterial = await crypto.subtle.importKey(
+    "raw", encoder.encode(rawKey).slice(0, 32),
+    { name: "PBKDF2" }, false, ["deriveKey"],
+  );
+  return crypto.subtle.deriveKey(
+    { name: "PBKDF2", salt: encoder.encode("fiscal-cert-v1"), iterations: 100000, hash: "SHA-256" },
+    keyMaterial, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"],
+  );
+}
+
+async function encryptCertPassword(plaintext: string): Promise<string> {
+  const key = await _getCertEncryptionKey();
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const encoded = new TextEncoder().encode(plaintext);
+  const ciphertext = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, encoded);
+  const combined = new Uint8Array(iv.length + new Uint8Array(ciphertext).length);
+  combined.set(iv, 0);
+  combined.set(new Uint8Array(ciphertext), iv.length);
+  return "enc:" + btoa(String.fromCharCode(...combined));
+}
+
+async function decryptCertPassword(encrypted: string): Promise<string> {
+  if (!encrypted.startsWith("enc:")) return encrypted; // legacy plain text
+  const key = await _getCertEncryptionKey();
+  const raw = atob(encrypted.slice(4));
+  const bytes = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
+  const iv = bytes.slice(0, 12);
+  const ciphertext = bytes.slice(12);
+  const decrypted = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, ciphertext);
+  return new TextDecoder().decode(decrypted);
+}
+
 function getSupabaseRuntimeConfig() {
   return {
     supabaseUrl: getRequiredEnv("SUPABASE_URL"),
@@ -358,7 +396,7 @@ async function resolveCertificate(
   if (certificate_base64 && certificate_password) {
     return { base64: String(certificate_base64), password: String(certificate_password) };
   }
-  // Fallback: try to download from storage
+  // Fallback: try to download from storage and decrypt stored password
   const certPath = config?.certificate_path;
   if (!certPath) return null;
   try {
@@ -368,8 +406,27 @@ async function resolveCertificate(
     const bytes = new Uint8Array(arrayBuf);
     let binary = "";
     for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
-    const pwd = config?.certificate_password || certificate_password || "";
-    return { base64: btoa(binary), password: String(pwd) };
+
+    // Try to decrypt stored password from certificate_password_hash
+    let pwd = certificate_password || "";
+    const storedEncrypted = config?.certificate_password_hash;
+    if (storedEncrypted && typeof storedEncrypted === "string" && storedEncrypted.startsWith("enc:")) {
+      try {
+        pwd = await decryptCertPassword(storedEncrypted);
+      } catch (decErr) {
+        console.warn("[resolveCertificate] Falha ao descriptografar senha:", decErr);
+      }
+    } else if (!pwd && storedEncrypted) {
+      // Legacy: might be plain text
+      pwd = String(storedEncrypted);
+    }
+
+    if (!pwd) {
+      console.warn("[resolveCertificate] Senha do certificado não disponível");
+      return null;
+    }
+
+    return { base64: btoa(binary), password: pwd };
   } catch (err) {
     console.warn("[resolveCertificate] Falha ao buscar certificado do storage:", err);
     return null;
@@ -448,12 +505,22 @@ async function handleUploadCertificate(supabase: any, body: any) {
 
   const targetDocTypes = normalizeRequestedDocTypes(doc_types);
   const expiresAtIso = certificate_expires_at ? new Date(certificate_expires_at).toISOString() : null;
+
+  // Encrypt certificate password for server-side recovery
+  let encryptedPassword: string | null = null;
+  try {
+    encryptedPassword = await encryptCertPassword(String(certificate_password));
+  } catch (encErr) {
+    console.warn("[handleUploadCertificate] Falha ao criptografar senha do certificado:", encErr);
+  }
+
   const { error: updateConfigError } = await supabase
     .from("fiscal_configs")
     .update({
       certificate_type: "A1",
       certificate_path: storagePath,
       certificate_expires_at: expiresAtIso,
+      certificate_password_hash: encryptedPassword,
       updated_at: new Date().toISOString(),
     })
     .eq("company_id", company_id)
