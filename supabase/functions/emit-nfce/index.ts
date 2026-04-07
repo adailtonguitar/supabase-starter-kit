@@ -900,7 +900,7 @@ async function handleEmit(supabase: any, body: any) {
         tpNF: 1, idDest: 1, cMunFG: ibgeClean,
         tpImp: 4, tpEmis: 1,
         tpAmb: ambiente === "producao" ? 1 : 2,
-        finNFe: 1, indFinal: 1, indPres: 1,
+        finNFe: 1, indFinal: 1, indPres: 1, indIntermed: 0,
         procEmi: 0, verProc: "AnthoSystem 1.0",
       },
       emit,
