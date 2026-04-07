@@ -68,6 +68,7 @@ const SCORING_RULES: ScoringRule[] = [
   { key: "cstInconsistent", points: 20, condition: (v) => v === true, reason: "CST/CSOSN inconsistente com operação" },
   { key: "missingIE", points: 15, condition: (v) => v === true, reason: "IE ausente em operação que exigiria" },
   { key: "presenceAutoCorrected", points: 5, condition: (v) => v === true, reason: "Tipo de presença auto-corrigido (indPres)" },
+  { key: "lowConfidenceRule", points: 25, condition: (v) => v === true, reason: "Regra tributária com baixa confiança — revisão recomendada" },
 
   // DIFAL requerido mas não aplicado
   { key: "difalRequired", points: 35, condition: (v, input) => v === true && !input?.difalApplied, reason: "DIFAL obrigatório mas NÃO aplicado — risco de autuação" },
