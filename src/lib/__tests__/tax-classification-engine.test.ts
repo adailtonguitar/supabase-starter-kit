@@ -263,15 +263,40 @@ describe("Tax Classification Engine — Score-Based", () => {
       expect(result.icms_type).toBe("isento");
     });
 
-    it("uses wildcard fallback for unknown NCM in normal regime", () => {
+    it("forces fallback for wildcard NCM (low confidence)", () => {
       const result = classifyTaxByNCM({
         ncm: "99999999", uf_origem: "SP", uf_destino: "SP", crt: 3, tipo_cliente: "cpf", valor: 100,
       }, RULES);
 
-      // Wildcard rule should catch it with score 65
-      expect(result.fallback_used).toBe(false);
-      expect(result.applied_rule_id).toBe("rule-wildcard");
-      expect(result.match_score).toBe(65);
+      // Wildcard rule has low confidence → fallback forçado
+      expect(result.fallback_used).toBe(true);
+      expect(result.confidence_level).toBe("low");
+      expect(result.warnings.some(w => w.includes("baixa confiança"))).toBe(true);
+    });
+  });
+
+  describe("confidence_level", () => {
+    it("returns high confidence for exact NCM + exact UFs + exact tipo", () => {
+      const result = classifyTaxByNCM({
+        ncm: "22021000", uf_origem: "SP", uf_destino: "MG", crt: 1, tipo_cliente: "cpf", valor: 100,
+      }, RULES);
+      expect(result.confidence_level).toBe("high");
+    });
+
+    it("returns medium confidence for exact NCM with all generic fields", () => {
+      const result = classifyTaxByNCM({
+        ncm: "22021000", uf_origem: "MA", uf_destino: "MA", crt: 1, tipo_cliente: "cpf", valor: 100,
+      }, RULES);
+      // rule-st: NCM exact, UF orig *, UF dest *, tipo * → exactCount=0 → medium
+      expect(result.confidence_level).toBe("medium");
+    });
+
+    it("forces fallback for low confidence wildcard rule", () => {
+      const result = classifyTaxByNCM({
+        ncm: "99999999", uf_origem: "SP", uf_destino: "SP", crt: 3, tipo_cliente: "cpf", valor: 100,
+      }, RULES);
+      expect(result.confidence_level).toBe("low");
+      expect(result.fallback_used).toBe(true);
     });
   });
 

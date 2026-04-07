@@ -33,6 +33,8 @@ export interface TaxClassificationInput {
   valor: number;
 }
 
+export type ConfidenceLevel = "high" | "medium" | "low";
+
 export interface TaxClassificationResult {
   cst_or_csosn: string;
   icms_type: "normal" | "st" | "isento" | "reducao" | "st_reducao";
@@ -50,6 +52,8 @@ export interface TaxClassificationResult {
   warnings: string[];
   match_score?: number;
   match_log?: MatchDecisionLog;
+  confidence_level: ConfidenceLevel;
+  confidence_reason: string;
 }
 
 // ─── Match Decision Log ───
@@ -88,7 +92,48 @@ function buildFallback(input: TaxClassificationInput, reason?: string): TaxClass
     fallback_used: true,
     warnings: [reason || `NCM ${input.ncm} sem regra tributária definida — fallback seguro aplicado`],
     match_score: 0,
+    confidence_level: "low",
+    confidence_reason: "Fallback — nenhuma regra aplicável encontrada",
   };
+}
+
+// ─── Confidence Level ───
+
+function computeConfidence(rule: TaxRuleByNcm, ncm: string): { level: ConfidenceLevel; reason: string } {
+  const rNcm = (rule.ncm || "").replace(/\D/g, "").trim();
+  const isNcmExact = rNcm === ncm && rNcm.length === 8;
+  const isNcmPartial = !isNcmExact && rNcm !== "*" && rNcm.length >= 4;
+  const isNcmWild = rNcm === "*" || rNcm.length < 4;
+  const isUfOrigExact = rule.uf_origem !== "*";
+  const isUfDestExact = rule.uf_destino !== "*";
+  const isTipoExact = rule.tipo_cliente !== "*";
+
+  // HIGH: NCM exato + ambas UFs exatas + tipo exato
+  if (isNcmExact && isUfOrigExact && isUfDestExact && isTipoExact) {
+    return { level: "high", reason: "NCM exato, UFs exatas, tipo cliente exato" };
+  }
+  // HIGH: NCM exato + pelo menos 2 campos exatos
+  const exactCount = (isUfOrigExact ? 1 : 0) + (isUfDestExact ? 1 : 0) + (isTipoExact ? 1 : 0);
+  if (isNcmExact && exactCount >= 2) {
+    return { level: "high", reason: "NCM exato com boa especificidade de UF/tipo" };
+  }
+
+  // MEDIUM: NCM parcial (4+ dígitos) + pelo menos uma UF exata
+  if (isNcmPartial && (isUfOrigExact || isUfDestExact)) {
+    return { level: "medium", reason: "NCM parcial com pelo menos uma UF exata" };
+  }
+  // MEDIUM: NCM exato mas campos genéricos
+  if (isNcmExact && exactCount < 2) {
+    return { level: "medium", reason: "NCM exato mas UFs/tipo genéricos" };
+  }
+
+  // LOW: wildcard ou NCM < 4 dígitos ou múltiplos campos genéricos
+  const genericCount = (isNcmWild ? 1 : 0) + (!isUfOrigExact ? 1 : 0) + (!isUfDestExact ? 1 : 0) + (!isTipoExact ? 1 : 0);
+  if (isNcmWild || genericCount >= 3) {
+    return { level: "low", reason: isNcmWild ? "NCM wildcard ou muito curto" : "Múltiplos campos genéricos" };
+  }
+
+  return { level: "medium", reason: "Especificidade parcial" };
 }
 
 // ─── Score-based Rule Matching ───
@@ -245,6 +290,19 @@ export function classifyTaxByNCM(
     return fb;
   }
 
+  // ── Confidence check ──
+  const confidence = computeConfidence(rule, ncm);
+
+  // LOW confidence → forçar fallback com warning
+  if (confidence.level === "low") {
+    const fb = buildFallback(input, `Regra com baixa confiança — revisão recomendada (${confidence.reason})`);
+    fb.match_log = log;
+    fb.confidence_level = "low";
+    fb.confidence_reason = confidence.reason;
+    fb.warnings.push(`Regra ${rule.id || rule.ncm} descartada por confiança baixa (score: ${log.chosen_score}, motivo: ${confidence.reason})`);
+    return fb;
+  }
+
   const isSimples = input.crt === 1 || input.crt === 2;
   const cst_or_csosn = isSimples ? (rule.csosn || "102") : (rule.cst || "00");
 
@@ -273,6 +331,11 @@ export function classifyTaxByNCM(
   else if (base_reduzida) icms_type = "reducao";
   else if (aliquota === 0) icms_type = "isento";
 
+  const warnings: string[] = [];
+  if (confidence.level === "medium") {
+    warnings.push(`Confiança média na regra tributária: ${confidence.reason}`);
+  }
+
   return {
     cst_or_csosn,
     icms_type,
@@ -287,9 +350,11 @@ export function classifyTaxByNCM(
     fcp: rule.fcp,
     applied_rule_id: rule.id || null,
     fallback_used: false,
-    warnings: [],
+    warnings,
     match_score: log.chosen_score,
     match_log: log,
+    confidence_level: confidence.level,
+    confidence_reason: confidence.reason,
   };
 }
 
@@ -361,6 +426,8 @@ export interface TaxAuditEntry {
   st_applied: boolean;
   match_score: number;
   top_candidates: RuleCandidateScore[];
+  confidence_level: ConfidenceLevel;
+  confidence_reason: string;
 }
 
 export function buildTaxAuditEntry(input: TaxClassificationInput, result: TaxClassificationResult): TaxAuditEntry {
@@ -374,5 +441,7 @@ export function buildTaxAuditEntry(input: TaxClassificationInput, result: TaxCla
     st_applied: result.icms_st,
     match_score: result.match_score || 0,
     top_candidates: result.match_log?.top_candidates || [],
+    confidence_level: result.confidence_level,
+    confidence_reason: result.confidence_reason,
   };
 }

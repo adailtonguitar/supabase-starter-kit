@@ -110,6 +110,12 @@ describe("Fiscal Risk Engine", () => {
       const result = calculateFiscalRisk({ missingIE: true });
       expect(result.score).toBe(15);
     });
+
+    it("scores low confidence rule", () => {
+      const result = calculateFiscalRisk({ lowConfidenceRule: true });
+      expect(result.score).toBe(25);
+      expect(result.reasons.some(r => r.includes("baixa confiança"))).toBe(true);
+    });
   });
 
   describe("shouldGenerateAlert", () => {
