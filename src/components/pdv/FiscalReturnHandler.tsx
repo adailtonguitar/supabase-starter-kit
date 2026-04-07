@@ -77,6 +77,7 @@ export function FiscalReturnHandler({ saleId, companyId, onFiscalComplete }: Fis
         docType: fiscalDoc.doc_type,
         nuvemFiscalId: fiscalDoc.nuvem_fiscal_id,
         justificativa: "Cancelamento por devolução de mercadoria ao consumidor",
+        companyId,
       });
 
       if (result.success) {
