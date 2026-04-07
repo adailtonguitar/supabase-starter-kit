@@ -348,7 +348,35 @@ function normalizeRequestedDocTypes(docTypes: unknown): Array<"nfe" | "nfce" | "
   return normalized.length > 0 ? Array.from(new Set(normalized)) : ["nfe", "nfce", "sat"];
 }
 
-async function ensureNfeConfigOnNuvemFiscal(params: {
+// Helper: resolve certificate from body params or storage fallback
+async function resolveCertificate(
+  supabase: any,
+  certificate_base64?: string | null,
+  certificate_password?: string | null,
+  config?: Record<string, any> | null,
+): Promise<{ base64: string; password: string } | null> {
+  if (certificate_base64 && certificate_password) {
+    return { base64: String(certificate_base64), password: String(certificate_password) };
+  }
+  // Fallback: try to download from storage
+  const certPath = config?.certificate_path;
+  if (!certPath) return null;
+  try {
+    const { data: certData } = await supabase.storage.from("company-backups").download(certPath);
+    if (!certData) return null;
+    const arrayBuf = await certData.arrayBuffer();
+    const bytes = new Uint8Array(arrayBuf);
+    let binary = "";
+    for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+    const pwd = config?.certificate_password || certificate_password || "";
+    return { base64: btoa(binary), password: String(pwd) };
+  } catch (err) {
+    console.warn("[resolveCertificate] Falha ao buscar certificado do storage:", err);
+    return null;
+  }
+}
+
+
   token: string;
   baseUrl: string;
   cnpj: string;
