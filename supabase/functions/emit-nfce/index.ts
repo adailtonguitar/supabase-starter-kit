@@ -1613,7 +1613,7 @@ async function handleEmitNfe(supabase: any, body: any) {
         tpNF: 1, idDest, cMunFG: ibgeClean,
         tpImp: 1, tpEmis: 1,
         tpAmb: ambiente === "producao" ? 1 : 2,
-        finNFe, indFinal: 1, indPres: indPres,
+        finNFe, indFinal: 1, indPres: indPres, indIntermed: 0,
         procEmi: 0, verProc: "AnthoSystem 1.0",
       },
       emit,
