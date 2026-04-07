@@ -6,11 +6,11 @@
  * Fluxo obrigatório antes de qualquer emissão NF-e/NFC-e.
  */
 
-import { classifyFiscalItem, type ClassificationInput } from "./classifiers/fiscal-classifier.ts";
-import { getPisCofinsConfig, type PisCofinsConfig } from "./pis-cofins/pis-cofins-engine.ts";
-import { calculateIcms, type IcmsResult } from "./icms/icms-engine.ts";
-import { getSTConfig } from "./st-engine.ts";
-import { validateFiscalDocument, type DocValidationResult, type DocValidationItem } from "./validators/document-validator.ts";
+import { classifyFiscalItem, type ClassificationInput } from "./classifiers/fiscal-classifier";
+import { getPisCofinsConfig, type PisCofinsConfig } from "./pis-cofins/pis-cofins-engine";
+import { calculateIcms, type IcmsResult } from "./icms/icms-engine";
+import { getSTConfig } from "./st-engine";
+import { validateFiscalDocument, type DocValidationResult, type DocValidationItem } from "./validators/document-validator";
 
 // ─── Tipos ───
 

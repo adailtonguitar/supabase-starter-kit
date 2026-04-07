@@ -16,13 +16,13 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { classifyFiscalItem } from "../../shared/fiscal/classifiers/fiscal-classifier";
-import { getPisCofinsConfig, validatePisCofins } from "../../shared/fiscal/pis-cofins/pis-cofins-engine";
-import { calculateIcms } from "../../shared/fiscal/icms/icms-engine";
-import { validateFiscalDocument } from "../../shared/fiscal/validators/document-validator";
-import { runFiscalPipeline } from "../../shared/fiscal/fiscal-pipeline";
-import { getSTConfig, calculateST } from "../../shared/fiscal/st-engine";
-import { FiscalRulesCache } from "../../shared/fiscal/rules/rules-cache";
+import { classifyFiscalItem } from "../../../shared/fiscal/classifiers/fiscal-classifier";
+import { getPisCofinsConfig, validatePisCofins } from "../../../shared/fiscal/pis-cofins/pis-cofins-engine";
+import { calculateIcms } from "../../../shared/fiscal/icms/icms-engine";
+import { validateFiscalDocument } from "../../../shared/fiscal/validators/document-validator";
+import { runFiscalPipeline } from "../../../shared/fiscal/fiscal-pipeline";
+import { getSTConfig, calculateST } from "../../../shared/fiscal/st-engine";
+import { FiscalRulesCache } from "../../../shared/fiscal/rules/rules-cache";
 
 // ═══════════════════════════════════════════════
 // 1. CLASSIFICADOR FISCAL

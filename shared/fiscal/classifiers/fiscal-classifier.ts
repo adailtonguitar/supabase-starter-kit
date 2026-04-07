@@ -5,7 +5,7 @@
  * ST, DIFAL, regime, tipo operação, CEST, PIS/COFINS mode.
  */
 
-import { getSTConfig } from "../st-engine.ts";
+import { getSTConfig } from "../st-engine";
 
 // ─── Tipos ───
 
