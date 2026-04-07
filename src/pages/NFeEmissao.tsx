@@ -1801,184 +1801,160 @@ export default function NFeEmissao() {
                   </div>
                 )}
 
-                {form.items.map((item, idx) => {
-                  const isEditing = editingItemIdx === idx;
+                {editingItemIdx !== null && form.items[editingItemIdx] && (() => {
+                  const idx = editingItemIdx;
+                  const item = form.items[idx];
                   return (
-                  <div key={idx} className="border border-border rounded-lg p-3 space-y-2">
-                    {/* Compact summary row */}
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-3 flex-1 min-w-0">
-                        <span className="text-xs font-medium text-muted-foreground shrink-0">#{idx + 1}</span>
-                        <span className="text-sm font-medium text-foreground truncate">{item.name || "Sem descrição"}</span>
-                        <span className="text-xs text-muted-foreground shrink-0 font-mono">{item.productCode}</span>
+                    <div className="border border-primary/30 rounded-lg p-3 space-y-3 bg-muted/20">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-semibold text-foreground">Editando Item #{idx + 1}: {item.name || "Sem descrição"}</span>
+                        <button type="button" onClick={() => setEditingItemIdx(null)}
+                          className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:opacity-90 transition-all">
+                          Concluir Edição
+                        </button>
                       </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <span className="text-xs text-muted-foreground">{item.qty} x {formatCurrency(item.unitPrice)}</span>
-                        <span className="text-sm font-semibold text-primary font-mono">{formatCurrency(item.total)}</span>
-                        <button onClick={() => setEditingItemIdx(isEditing ? null : idx)}
-                          className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors" title="Editar item">
-                          <Edit2 className="w-3.5 h-3.5" />
-                        </button>
-                        <button onClick={() => removeItem(idx)}
-                          className="p-1.5 rounded-lg hover:bg-destructive/10 text-destructive transition-colors" title="Remover item">
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                      <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
+                        <div className="sm:col-span-3 relative">
+                          <label className="text-xs text-muted-foreground">Descrição * (busque pelo nome ou código)</label>
+                          <input
+                            data-product-search
+                            value={showProductDropdown === idx && productSearch[idx] !== undefined ? productSearch[idx] : item.name}
+                            onChange={e => {
+                              const val = e.target.value;
+                              setProductSearch(prev => ({ ...prev, [idx]: val }));
+                              updateItem(idx, "name", val);
+                              setShowProductDropdown(idx);
+                            }}
+                            onFocus={() => {
+                              setProductSearch(prev => ({ ...prev, [idx]: item.name }));
+                              setShowProductDropdown(idx);
+                            }}
+                            onBlur={() => setTimeout(() => {
+                              setShowProductDropdown(null);
+                              setProductSearch(prev => {
+                                const next = { ...prev };
+                                delete next[idx];
+                                return next;
+                              });
+                            }, 200)}
+                            className="w-full mt-1 px-3 py-2 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+                            placeholder="Digite para buscar produto..."
+                          />
+                          {showProductDropdown === idx && getFilteredProducts(idx).length > 0 && (
+                            <div className="absolute z-20 left-0 right-0 mt-1 bg-card border border-border rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                              {getFilteredProducts(idx).map((p) => (
+                                <button
+                                  key={p.id}
+                                  type="button"
+                                  onMouseDown={() => selectProduct(idx, p)}
+                                  className="w-full text-left px-3 py-2 hover:bg-muted text-sm flex justify-between items-center transition-colors"
+                                >
+                                  <span className="text-foreground truncate">{p.name}</span>
+                                  <span className="text-xs text-muted-foreground ml-2 shrink-0">
+                                    {p.sku || p.barcode || ""} — {formatCurrency(p.price || 0)}
+                                  </span>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        <div>
+                          <label className="text-xs text-muted-foreground">Cód. Produto</label>
+                          <input value={item.productCode} onChange={e => updateItem(idx, "productCode", e.target.value)}
+                            className="w-full mt-1 px-3 py-2 rounded-lg border border-border bg-background text-sm font-mono text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30" />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                        <div className="relative">
+                          <label className="text-xs text-muted-foreground">NCM *</label>
+                          <input
+                            value={showNcmDropdown === idx && ncmSearch[idx] !== undefined ? ncmSearch[idx] : item.ncm}
+                            onChange={e => {
+                              const val = e.target.value;
+                              setNcmSearch(prev => ({ ...prev, [idx]: val }));
+                              updateItem(idx, "ncm", val.replace(/\D/g, "").slice(0, 8));
+                              setShowNcmDropdown(idx);
+                            }}
+                            onFocus={() => {
+                              setNcmSearch(prev => ({ ...prev, [idx]: item.ncm }));
+                              setShowNcmDropdown(idx);
+                            }}
+                            onBlur={() => setTimeout(() => {
+                              setShowNcmDropdown(null);
+                              setNcmSearch(prev => { const n = { ...prev }; delete n[idx]; return n; });
+                            }, 200)}
+                            className="w-full mt-1 px-3 py-2 rounded-lg border border-border bg-background text-sm font-mono text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+                            placeholder="Buscar NCM..."
+                            maxLength={8}
+                          />
+                          {showNcmDropdown === idx && getNcmSuggestions(ncmSearch[idx] || "").length > 0 && (
+                            <div className="absolute z-30 left-0 right-0 mt-1 bg-card border border-border rounded-lg shadow-lg max-h-48 overflow-y-auto min-w-[280px]">
+                              {getNcmSuggestions(ncmSearch[idx] || "").map((s) => (
+                                <button
+                                  key={s.ncm}
+                                  type="button"
+                                  onMouseDown={() => {
+                                    updateItem(idx, "ncm", s.ncm);
+                                    setNcmSearch(prev => { const n = { ...prev }; delete n[idx]; return n; });
+                                    setShowNcmDropdown(null);
+                                  }}
+                                  className="w-full text-left px-3 py-2 hover:bg-muted text-xs flex gap-2 items-start transition-colors border-b border-border last:border-b-0"
+                                >
+                                  <span className="font-mono font-bold text-primary shrink-0">{s.ncm}</span>
+                                  <span className="text-muted-foreground truncate">{s.description}</span>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        <div>
+                          <label className="text-xs text-muted-foreground">CFOP</label>
+                          <input value={item.cfop} onChange={e => updateItem(idx, "cfop", e.target.value)}
+                            className="w-full mt-1 px-3 py-2 rounded-lg border border-border bg-background text-sm font-mono text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+                            maxLength={4} />
+                        </div>
+                        <div>
+                          <label className="text-xs text-muted-foreground">CST/CSOSN</label>
+                          <input value={item.cst} onChange={e => updateItem(idx, "cst", e.target.value)}
+                            className="w-full mt-1 px-3 py-2 rounded-lg border border-border bg-background text-sm font-mono text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30" />
+                        </div>
+                        <div>
+                          <label className="text-xs text-muted-foreground">Unidade</label>
+                          <input value={item.unit} onChange={e => updateItem(idx, "unit", e.target.value)}
+                            className="w-full mt-1 px-3 py-2 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30" />
+                        </div>
+                        <div>
+                          <label className="text-xs text-muted-foreground">Alíq. ICMS %</label>
+                          <input type="number" value={item.icmsAliquota} onChange={e => updateItem(idx, "icmsAliquota", parseFloat(e.target.value) || 0)}
+                            className="w-full mt-1 px-3 py-2 rounded-lg border border-border bg-background text-sm font-mono text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30" />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        <div>
+                          <label className="text-xs text-muted-foreground">Qtd</label>
+                          <input type="number" value={item.qty} onChange={e => updateItem(idx, "qty", parseFloat(e.target.value) || 0)}
+                            className="w-full mt-1 px-3 py-2 rounded-lg border border-border bg-background text-sm font-mono text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30" />
+                        </div>
+                        <div>
+                          <label className="text-xs text-muted-foreground">Vlr. Unitário</label>
+                          <input type="number" step="0.01" value={item.unitPrice} onChange={e => updateItem(idx, "unitPrice", parseFloat(e.target.value) || 0)}
+                            className="w-full mt-1 px-3 py-2 rounded-lg border border-border bg-background text-sm font-mono text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30" />
+                        </div>
+                        <div>
+                          <label className="text-xs text-muted-foreground">Desconto</label>
+                          <input type="number" step="0.01" value={item.discount} onChange={e => updateItem(idx, "discount", parseFloat(e.target.value) || 0)}
+                            className="w-full mt-1 px-3 py-2 rounded-lg border border-border bg-background text-sm font-mono text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30" />
+                        </div>
+                        <div>
+                          <label className="text-xs text-muted-foreground">Total</label>
+                          <div className="mt-1 px-3 py-2 rounded-lg bg-muted text-sm font-mono font-semibold text-foreground">
+                            {formatCurrency(item.total)}
+                          </div>
+                        </div>
                       </div>
                     </div>
-
-                    {/* Expanded edit form */}
-                    {isEditing && (
-                      <div className="space-y-3 pt-2 border-t border-border">
-                        <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
-                          <div className="sm:col-span-3 relative">
-                            <label className="text-xs text-muted-foreground">Descrição * (busque pelo nome ou código)</label>
-                            <input
-                              data-product-search
-                              value={showProductDropdown === idx && productSearch[idx] !== undefined ? productSearch[idx] : item.name}
-                              onChange={e => {
-                                const val = e.target.value;
-                                setProductSearch(prev => ({ ...prev, [idx]: val }));
-                                updateItem(idx, "name", val);
-                                setShowProductDropdown(idx);
-                              }}
-                              onFocus={() => {
-                                setProductSearch(prev => ({ ...prev, [idx]: item.name }));
-                                setShowProductDropdown(idx);
-                              }}
-                              onBlur={() => setTimeout(() => {
-                                setShowProductDropdown(null);
-                                setProductSearch(prev => {
-                                  const next = { ...prev };
-                                  delete next[idx];
-                                  return next;
-                                });
-                              }, 200)}
-                              className="w-full mt-1 px-3 py-2 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
-                              placeholder="Digite para buscar produto..."
-                            />
-                            {showProductDropdown === idx && getFilteredProducts(idx).length > 0 && (
-                              <div className="absolute z-20 left-0 right-0 mt-1 bg-card border border-border rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                                {getFilteredProducts(idx).map((p) => (
-                                  <button
-                                    key={p.id}
-                                    type="button"
-                                    onMouseDown={() => selectProduct(idx, p)}
-                                    className="w-full text-left px-3 py-2 hover:bg-muted text-sm flex justify-between items-center transition-colors"
-                                  >
-                                    <span className="text-foreground truncate">{p.name}</span>
-                                    <span className="text-xs text-muted-foreground ml-2 shrink-0">
-                                      {p.sku || p.barcode || ""} — {formatCurrency(p.price || 0)}
-                                    </span>
-                                  </button>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                          <div>
-                            <label className="text-xs text-muted-foreground">Cód. Produto</label>
-                            <input value={item.productCode} onChange={e => updateItem(idx, "productCode", e.target.value)}
-                              className="w-full mt-1 px-3 py-2 rounded-lg border border-border bg-background text-sm font-mono text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30" />
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-                          <div className="relative">
-                            <label className="text-xs text-muted-foreground">NCM *</label>
-                            <input
-                              value={showNcmDropdown === idx && ncmSearch[idx] !== undefined ? ncmSearch[idx] : item.ncm}
-                              onChange={e => {
-                                const val = e.target.value;
-                                setNcmSearch(prev => ({ ...prev, [idx]: val }));
-                                updateItem(idx, "ncm", val.replace(/\D/g, "").slice(0, 8));
-                                setShowNcmDropdown(idx);
-                              }}
-                              onFocus={() => {
-                                setNcmSearch(prev => ({ ...prev, [idx]: item.ncm }));
-                                setShowNcmDropdown(idx);
-                              }}
-                              onBlur={() => setTimeout(() => {
-                                setShowNcmDropdown(null);
-                                setNcmSearch(prev => { const n = { ...prev }; delete n[idx]; return n; });
-                              }, 200)}
-                              className="w-full mt-1 px-3 py-2 rounded-lg border border-border bg-background text-sm font-mono text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
-                              placeholder="Buscar NCM..."
-                              maxLength={8}
-                            />
-                            {showNcmDropdown === idx && getNcmSuggestions(ncmSearch[idx] || "").length > 0 && (
-                              <div className="absolute z-30 left-0 right-0 mt-1 bg-card border border-border rounded-lg shadow-lg max-h-48 overflow-y-auto min-w-[280px]">
-                                {getNcmSuggestions(ncmSearch[idx] || "").map((s) => (
-                                  <button
-                                    key={s.ncm}
-                                    type="button"
-                                    onMouseDown={() => {
-                                      updateItem(idx, "ncm", s.ncm);
-                                      setNcmSearch(prev => { const n = { ...prev }; delete n[idx]; return n; });
-                                      setShowNcmDropdown(null);
-                                    }}
-                                    className="w-full text-left px-3 py-2 hover:bg-muted text-xs flex gap-2 items-start transition-colors border-b border-border last:border-b-0"
-                                  >
-                                    <span className="font-mono font-bold text-primary shrink-0">{s.ncm}</span>
-                                    <span className="text-muted-foreground truncate">{s.description}</span>
-                                  </button>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                          <div>
-                            <label className="text-xs text-muted-foreground">CFOP</label>
-                            <input value={item.cfop} onChange={e => updateItem(idx, "cfop", e.target.value)}
-                              className="w-full mt-1 px-3 py-2 rounded-lg border border-border bg-background text-sm font-mono text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
-                              maxLength={4} />
-                          </div>
-                          <div>
-                            <label className="text-xs text-muted-foreground">CST/CSOSN</label>
-                            <input value={item.cst} onChange={e => updateItem(idx, "cst", e.target.value)}
-                              className="w-full mt-1 px-3 py-2 rounded-lg border border-border bg-background text-sm font-mono text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30" />
-                          </div>
-                          <div>
-                            <label className="text-xs text-muted-foreground">Unidade</label>
-                            <input value={item.unit} onChange={e => updateItem(idx, "unit", e.target.value)}
-                              className="w-full mt-1 px-3 py-2 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30" />
-                          </div>
-                          <div>
-                            <label className="text-xs text-muted-foreground">Alíq. ICMS %</label>
-                            <input type="number" value={item.icmsAliquota} onChange={e => updateItem(idx, "icmsAliquota", parseFloat(e.target.value) || 0)}
-                              className="w-full mt-1 px-3 py-2 rounded-lg border border-border bg-background text-sm font-mono text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30" />
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                          <div>
-                            <label className="text-xs text-muted-foreground">Qtd</label>
-                            <input type="number" value={item.qty} onChange={e => updateItem(idx, "qty", parseFloat(e.target.value) || 0)}
-                              className="w-full mt-1 px-3 py-2 rounded-lg border border-border bg-background text-sm font-mono text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30" />
-                          </div>
-                          <div>
-                            <label className="text-xs text-muted-foreground">Vlr. Unitário</label>
-                            <input type="number" step="0.01" value={item.unitPrice} onChange={e => updateItem(idx, "unitPrice", parseFloat(e.target.value) || 0)}
-                              className="w-full mt-1 px-3 py-2 rounded-lg border border-border bg-background text-sm font-mono text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30" />
-                          </div>
-                          <div>
-                            <label className="text-xs text-muted-foreground">Desconto</label>
-                            <input type="number" step="0.01" value={item.discount} onChange={e => updateItem(idx, "discount", parseFloat(e.target.value) || 0)}
-                              className="w-full mt-1 px-3 py-2 rounded-lg border border-border bg-background text-sm font-mono text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30" />
-                          </div>
-                          <div>
-                            <label className="text-xs text-muted-foreground">Total</label>
-                            <div className="mt-1 px-3 py-2 rounded-lg bg-muted text-sm font-mono font-semibold text-foreground">
-                              {formatCurrency(item.total)}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex justify-end">
-                          <button type="button" onClick={() => setEditingItemIdx(null)}
-                            className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:opacity-90 transition-all">
-                            Concluir Edição
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
                   );
-                })}
+                })()}
               </div>
             )}
 
