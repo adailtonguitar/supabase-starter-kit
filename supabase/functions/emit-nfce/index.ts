@@ -24,6 +24,50 @@ import {
 } from "../_shared/company-fiscal-fallback.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
+// ─── Fiscal Risk Engine (inline — fonte única de verdade, espelho de shared/fiscal/fiscal-risk-engine.ts) ───
+type RiskLevel = "low" | "medium" | "high" | "critical";
+interface FiscalRiskResult { score: number; level: RiskLevel; reasons: string[]; shouldBlock: boolean; }
+interface FiscalRiskInput {
+  difalApplied?: boolean; difalRequired?: boolean; ncmWithoutRule?: boolean; fallbackUsed?: boolean;
+  cfopAutoCorrected?: boolean; cpfInterstate?: boolean; taxRuleAbsent?: boolean;
+  isInterstate?: boolean; itemCount?: number; totalValue?: number;
+  ncmInvalid?: boolean; cstInconsistent?: boolean; missingIE?: boolean; presenceAutoCorrected?: boolean;
+  recentCriticalCount?: number; sameErrorRepeatCount?: number;
+}
+interface _ScoringRule { key: keyof FiscalRiskInput; points: number; condition: (v: any, input?: FiscalRiskInput) => boolean; reason: string; }
+const _SCORING_RULES: _ScoringRule[] = [
+  { key: "difalApplied", points: -10, condition: (v) => v === true, reason: "DIFAL aplicado corretamente" },
+  { key: "ncmWithoutRule", points: 30, condition: (v) => v === true, reason: "NCM sem regra tributária definida" },
+  { key: "fallbackUsed", points: 20, condition: (v) => v === true, reason: "Fallback tributário utilizado" },
+  { key: "taxRuleAbsent", points: 15, condition: (v) => v === true, reason: "Ausência de tax_rule para rota interestadual" },
+  { key: "cfopAutoCorrected", points: 10, condition: (v) => v === true, reason: "CFOP auto-corrigido pelo motor" },
+  { key: "cpfInterstate", points: 10, condition: (v) => v === true, reason: "CPF em operação interestadual" },
+  { key: "ncmInvalid", points: 25, condition: (v) => v === true, reason: "NCM inválido ou ausente em item" },
+  { key: "cstInconsistent", points: 20, condition: (v) => v === true, reason: "CST/CSOSN inconsistente com operação" },
+  { key: "missingIE", points: 15, condition: (v) => v === true, reason: "IE ausente em operação que exigiria" },
+  { key: "presenceAutoCorrected", points: 5, condition: (v) => v === true, reason: "Tipo de presença auto-corrigido (indPres)" },
+  { key: "difalRequired", points: 35, condition: (v, input) => v === true && !input?.difalApplied, reason: "DIFAL obrigatório mas NÃO aplicado — risco de autuação" },
+  { key: "recentCriticalCount", points: 15, condition: (v) => typeof v === "number" && v >= 3, reason: "3+ notas críticas nas últimas 24h — padrão de risco" },
+  { key: "sameErrorRepeatCount", points: 20, condition: (v) => typeof v === "number" && v >= 5, reason: "Mesmo erro fiscal repetido 5+ vezes — correção necessária" },
+];
+function calculateFiscalRisk(input: FiscalRiskInput): FiscalRiskResult {
+  let score = 0; const reasons: string[] = [];
+  for (const rule of _SCORING_RULES) {
+    const value = input[rule.key];
+    if (rule.key === "difalRequired") { if (rule.condition(value, input)) { score += rule.points; reasons.push(`[+${rule.points}] ${rule.reason}`); } continue; }
+    if (value !== undefined && rule.condition(value)) { score += rule.points; reasons.push(rule.points > 0 ? `[+${rule.points}] ${rule.reason}` : `[${rule.points}] ${rule.reason}`); }
+  }
+  score = Math.max(0, Math.min(100, score));
+  const level: RiskLevel = score >= 70 ? "critical" : score >= 50 ? "high" : score >= 25 ? "medium" : "low";
+  return { score, level, reasons, shouldBlock: score >= 70 || (input.sameErrorRepeatCount ?? 0) >= 5 };
+}
+function shouldGenerateAlert(result: FiscalRiskResult): { generate: boolean; severity: "warning" | "critical" } {
+  if (result.score >= 70) return { generate: true, severity: "critical" };
+  if (result.score >= 50) return { generate: true, severity: "warning" };
+  return { generate: false, severity: "warning" };
+}
+// ─── Fim Fiscal Risk Engine ───
+
 function getRequiredEnv(name: string): string {
   const value = Deno.env.get(name);
   if (!value) {
@@ -884,34 +928,30 @@ async function handleEmit(supabase: any, body: any) {
   if (dest) payload.infNFe.dest = dest;
   if (Object.keys(infAdic).length > 0) payload.infNFe.infAdic = infAdic;
 
-  // ─── FISCAL RISK SCORING (antes do envio à SEFAZ) ───
-  const riskInput: Record<string, any> = {
-    fallbackUsed: taxClassificationAudit.some((a: any) => a.fallback),
-    ncmWithoutRule: taxClassificationAudit.some((a: any) => a.fallback),
-    taxRuleAbsent: taxClassificationAudit.length > 0 && taxClassificationAudit.every((a: any) => a.fallback),
-    itemCount: items.length,
-    totalValue: vNF,
-  };
-
-  // Score calculation inline (engine não importável em Deno diretamente)
-  let riskScore = 0;
-  const riskReasons: string[] = [];
-  if (riskInput.ncmWithoutRule) { riskScore += 30; riskReasons.push("[+30] NCM sem regra tributária"); }
-  if (riskInput.fallbackUsed) { riskScore += 20; riskReasons.push("[+20] Fallback tributário utilizado"); }
-  if (riskInput.taxRuleAbsent) { riskScore += 15; riskReasons.push("[+15] Ausência total de tax_rules"); }
-  riskScore = Math.max(0, Math.min(100, riskScore));
-  const riskLevel = riskScore >= 70 ? "critical" : riskScore >= 50 ? "high" : riskScore >= 25 ? "medium" : "low";
-  const shouldBlockRisk = riskScore >= 70;
-
-  if (shouldBlockRisk) {
-    console.error(`[emit-nfce] ✗ BLOQUEIO POR RISCO FISCAL: score=${riskScore} reasons=${JSON.stringify(riskReasons)}`);
-    await supabase.from("fiscal_risk_logs").insert({
-      company_id, note_type: "nfce", score: riskScore, level: riskLevel, reasons: riskReasons, blocked: true,
-    }).then(() => {});
-    return jsonResponse({ error: `Emissão bloqueada por risco fiscal elevado (score: ${riskScore}). Corrija as regras tributárias antes de emitir.`, risk_score: riskScore, risk_reasons: riskReasons }, 400);
+  // ─── FISCAL RISK SCORING (via engine centralizado) ───
+  let riskResult: FiscalRiskResult;
+  try {
+    riskResult = calculateFiscalRisk({
+      fallbackUsed: taxClassificationAudit.some((a: any) => a.fallback),
+      ncmWithoutRule: taxClassificationAudit.some((a: any) => a.fallback),
+      taxRuleAbsent: taxClassificationAudit.length > 0 && taxClassificationAudit.every((a: any) => a.fallback),
+      itemCount: items.length,
+      totalValue: vNF,
+    });
+  } catch (engineErr: any) {
+    console.error(`[emit-nfce] ✗ FALHA CRÍTICA no fiscal risk engine: ${engineErr.message}`);
+    return jsonResponse({ error: "Erro interno no motor de risco fiscal. Emissão bloqueada por segurança." }, 500);
   }
 
-  console.log(`[emit-nfce] ▶ Emitindo NFC-e #${numero} | CNPJ: ${cnpjClean} | CRT: ${crt} | Amb: ${ambiente} | Itens: ${items.length} | Total: ${vNF} | RiskScore: ${riskScore}`);
+  if (riskResult.shouldBlock) {
+    console.error(`[emit-nfce] ✗ BLOQUEIO POR RISCO FISCAL: score=${riskResult.score} reasons=${JSON.stringify(riskResult.reasons)}`);
+    await supabase.from("fiscal_risk_logs").insert({
+      company_id, note_type: "nfce", score: riskResult.score, level: riskResult.level, reasons: riskResult.reasons, blocked: true,
+    }).then(() => {});
+    return jsonResponse({ error: `Emissão bloqueada por risco fiscal elevado (score: ${riskResult.score}). Corrija as regras tributárias antes de emitir.`, risk_score: riskResult.score, risk_reasons: riskResult.reasons }, 400);
+  }
+
+  console.log(`[emit-nfce] ▶ Emitindo NFC-e #${numero} | CNPJ: ${cnpjClean} | CRT: ${crt} | Amb: ${ambiente} | Itens: ${items.length} | Total: ${vNF} | RiskScore: ${riskResult.score}`);
   console.log(`[emit-nfce] ▶ pagBlock completo:`, JSON.stringify(pagBlock));
 
   // ─── Autenticação Nuvem Fiscal ───
@@ -1021,19 +1061,19 @@ async function handleEmit(supabase: any, body: any) {
 
   console.log(`[emit-nfce] ✓ NFC-e #${numero} → ${finalStatus} | Chave: ${accessKey?.substring(0, 20)}... | ${Date.now() - t0}ms total`);
 
-  // ─── Registrar risk log (não-bloqueante) ───
+  // ─── Registrar risk log (não-bloqueante, via engine) ───
   supabase.from("fiscal_risk_logs").insert({
     company_id, note_id: accessKey || String(numero), note_type: "nfce",
-    score: riskScore, level: riskLevel, reasons: riskReasons, blocked: false,
+    score: riskResult.score, level: riskResult.level, reasons: riskResult.reasons, blocked: false,
   }).then(() => {});
-  // Gerar alerta se score >= 50
-  if (riskScore >= 50) {
-    const alertSeverity = riskScore >= 70 ? "critical" : "warning";
+  // Gerar alerta via shouldGenerateAlert
+  const nfceAlert = shouldGenerateAlert(riskResult);
+  if (nfceAlert.generate) {
     supabase.from("fiscal_alerts").insert({
-      company_id, severity: alertSeverity, score: riskScore,
-      title: `NFC-e #${numero} com risco ${alertSeverity}`,
-      description: `Score: ${riskScore}/100`,
-      reasons: riskReasons,
+      company_id, severity: nfceAlert.severity, score: riskResult.score,
+      title: `NFC-e #${numero} com risco ${nfceAlert.severity}`,
+      description: `Score: ${riskResult.score}/100`,
+      reasons: riskResult.reasons,
     }).then(() => {});
   }
 
@@ -1043,8 +1083,8 @@ async function handleEmit(supabase: any, body: any) {
     number: numero,
     access_key: accessKey,
     protocol: protocolNumber,
-    risk_score: riskScore,
-    risk_level: riskLevel,
+    risk_score: riskResult.score,
+    risk_level: riskResult.level,
   });
 }
 
@@ -1608,37 +1648,36 @@ async function handleEmitNfe(supabase: any, body: any) {
 
   if (Object.keys(infAdic).length > 0) payload.infNFe.infAdic = infAdic;
 
-  // ─── FISCAL RISK SCORING NF-e (antes do envio à SEFAZ) ───
-  let riskScoreNfe = 0;
-  const riskReasonsNfe: string[] = [];
+  // ─── FISCAL RISK SCORING NF-e (via engine centralizado) ───
   const hasFallbackNfe = taxClassificationAuditNfe.some((a: any) => a.fallback);
-  if (hasFallbackNfe) { riskScoreNfe += 30; riskReasonsNfe.push("[+30] NCM sem regra tributária"); }
-  if (hasFallbackNfe) { riskScoreNfe += 20; riskReasonsNfe.push("[+20] Fallback tributário utilizado"); }
-  if (taxClassificationAuditNfe.length > 0 && taxClassificationAuditNfe.every((a: any) => a.fallback)) {
-    riskScoreNfe += 15; riskReasonsNfe.push("[+15] Ausência total de tax_rules");
+  let riskResultNfe: FiscalRiskResult;
+  try {
+    riskResultNfe = calculateFiscalRisk({
+      fallbackUsed: hasFallbackNfe,
+      ncmWithoutRule: hasFallbackNfe,
+      taxRuleAbsent: taxClassificationAuditNfe.length > 0 && taxClassificationAuditNfe.every((a: any) => a.fallback),
+      difalApplied: applyDifal,
+      difalRequired: isInterstate && !applyDifal && destDocDigits.length === 11,
+      cpfInterstate: isInterstate && destDocDigits.length === 11,
+      isInterstate,
+      presenceAutoCorrected: indPres !== Number(form.presence_type),
+      itemCount: items.length,
+      totalValue: vNF,
+    });
+  } catch (engineErr: any) {
+    console.error(`[emit-nfe] ✗ FALHA CRÍTICA no fiscal risk engine: ${engineErr.message}`);
+    return jsonResponse({ error: "Erro interno no motor de risco fiscal. Emissão bloqueada por segurança." }, 500);
   }
-  if (applyDifal) { riskScoreNfe -= 10; riskReasonsNfe.push("[-10] DIFAL aplicado corretamente"); }
-  if (isInterstate && !applyDifal && destDocDigits.length === 11) {
-    riskScoreNfe += 35; riskReasonsNfe.push("[+35] CPF interestadual sem DIFAL");
-  }
-  if (isInterstate && destDocDigits.length === 11) {
-    riskScoreNfe += 10; riskReasonsNfe.push("[+10] CPF em operação interestadual");
-  }
-  if (indPres !== Number(form.presence_type)) {
-    riskScoreNfe += 5; riskReasonsNfe.push("[+5] indPres auto-corrigido");
-  }
-  riskScoreNfe = Math.max(0, Math.min(100, riskScoreNfe));
-  const riskLevelNfe = riskScoreNfe >= 70 ? "critical" : riskScoreNfe >= 50 ? "high" : riskScoreNfe >= 25 ? "medium" : "low";
 
-  if (riskScoreNfe >= 70) {
-    console.error(`[emit-nfe] ✗ BLOQUEIO POR RISCO FISCAL: score=${riskScoreNfe}`);
+  if (riskResultNfe.shouldBlock) {
+    console.error(`[emit-nfe] ✗ BLOQUEIO POR RISCO FISCAL: score=${riskResultNfe.score}`);
     supabase.from("fiscal_risk_logs").insert({
-      company_id, note_type: "nfe", score: riskScoreNfe, level: riskLevelNfe, reasons: riskReasonsNfe, blocked: true,
+      company_id, note_type: "nfe", score: riskResultNfe.score, level: riskResultNfe.level, reasons: riskResultNfe.reasons, blocked: true,
     }).then(() => {});
-    return jsonResponse({ error: `Emissão NF-e bloqueada por risco fiscal elevado (score: ${riskScoreNfe}). Corrija as regras tributárias.`, risk_score: riskScoreNfe, risk_reasons: riskReasonsNfe }, 400);
+    return jsonResponse({ error: `Emissão NF-e bloqueada por risco fiscal elevado (score: ${riskResultNfe.score}). Corrija as regras tributárias.`, risk_score: riskResultNfe.score, risk_reasons: riskResultNfe.reasons }, 400);
   }
 
-  console.log(`[emit-nfe] ▶ Emitindo NF-e #${numero} | CNPJ: ${cnpjClean} | CRT: ${crt} | Amb: ${ambiente} | Itens: ${items.length} | Total: ${vNF} | Finalidade: ${finNFe} | RiskScore: ${riskScoreNfe}`);
+  console.log(`[emit-nfe] ▶ Emitindo NF-e #${numero} | CNPJ: ${cnpjClean} | CRT: ${crt} | Amb: ${ambiente} | Itens: ${items.length} | Total: ${vNF} | Finalidade: ${finNFe} | RiskScore: ${riskResultNfe.score}`);
 
   // ─── Autenticação Nuvem Fiscal ───
   const token = await getNuvemFiscalToken();
@@ -1820,20 +1859,20 @@ async function handleEmitNfe(supabase: any, body: any) {
     }),
   }).then(() => {}).catch((e: any) => console.warn("[emit-nfe] Falha ao registrar audit log:", e.message));
 
-  console.log(`[emit-nfe] ✓ NF-e #${numero} → ${finalStatus} | provider_status=${emissionStatus.statusStr || "(vazio)"} cStat=${emissionStatus.cStatStr || "(vazio)"} | reason=${providerReason || "(vazio)"} | Chave: ${accessKey?.substring(0, 20)}... | RiskScore: ${riskScoreNfe} | ${Date.now() - t0}ms total`);
+  console.log(`[emit-nfe] ✓ NF-e #${numero} → ${finalStatus} | provider_status=${emissionStatus.statusStr || "(vazio)"} cStat=${emissionStatus.cStatStr || "(vazio)"} | reason=${providerReason || "(vazio)"} | Chave: ${accessKey?.substring(0, 20)}... | RiskScore: ${riskResultNfe.score} | ${Date.now() - t0}ms total`);
 
-  // ─── Registrar risk log NF-e (não-bloqueante) ───
+  // ─── Registrar risk log NF-e (não-bloqueante, via engine) ───
   supabase.from("fiscal_risk_logs").insert({
     company_id, note_id: accessKey || String(numero), note_type: "nfe",
-    score: riskScoreNfe, level: riskLevelNfe, reasons: riskReasonsNfe, blocked: false,
+    score: riskResultNfe.score, level: riskResultNfe.level, reasons: riskResultNfe.reasons, blocked: false,
   }).then(() => {});
-  if (riskScoreNfe >= 50) {
-    const alertSevNfe = riskScoreNfe >= 70 ? "critical" : "warning";
+  const nfeAlert = shouldGenerateAlert(riskResultNfe);
+  if (nfeAlert.generate) {
     supabase.from("fiscal_alerts").insert({
-      company_id, severity: alertSevNfe, score: riskScoreNfe,
-      title: `NF-e #${numero} com risco ${alertSevNfe}`,
-      description: `Score: ${riskScoreNfe}/100`,
-      reasons: riskReasonsNfe,
+      company_id, severity: nfeAlert.severity, score: riskResultNfe.score,
+      title: `NF-e #${numero} com risco ${nfeAlert.severity}`,
+      description: `Score: ${riskResultNfe.score}/100`,
+      reasons: riskResultNfe.reasons,
     }).then(() => {});
   }
 
