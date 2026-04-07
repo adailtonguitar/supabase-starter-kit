@@ -332,6 +332,7 @@ async function ensureCompanyRegisteredOnNuvemFiscal(params: {
           if (resolvedIbge.length >= 7) {
             codigoMunicipio = resolvedIbge;
             console.log(`[emit-nfe] IBGE da empresa resolvido via ViaCEP: ${codigoMunicipio}`);
+            await supabase.from("companies").update({ ibge_code: codigoMunicipio, address_ibge_code: codigoMunicipio }).eq("id", company.id).catch(() => undefined);
           }
         }
       } catch (e) {
