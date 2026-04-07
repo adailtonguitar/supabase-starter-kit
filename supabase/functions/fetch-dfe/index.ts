@@ -208,6 +208,7 @@ Deno.serve(async (req) => {
 
     // ─── ACTION: distribute ───
     if (action === "distribute") {
+      await ensureCompanyOnNuvemFiscal();
       await ensureDistNfeConfig();
 
       // Get last NSU from DB using integer format expected by Nuvem Fiscal
