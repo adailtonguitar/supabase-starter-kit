@@ -112,6 +112,64 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json();
+    const { action } = body;
+
+    // ── Bulk import clients action ──
+    if (action === "bulk_import_clients") {
+      const { company_id: cid, clients } = body;
+      if (!cid || !Array.isArray(clients) || clients.length === 0) {
+        return new Response(JSON.stringify({ error: "company_id and clients[] required" }), {
+          status: 400, headers: getCorsHeaders(req),
+        });
+      }
+
+      // Get existing clients for dedup
+      const { data: existing } = await adminClient
+        .from("clients")
+        .select("name, document")
+        .eq("company_id", cid);
+
+      const existingDocs = new Set((existing || []).filter((e: any) => e.document).map((e: any) => e.document));
+      const existingNames = new Set((existing || []).map((e: any) => e.name?.toUpperCase()));
+
+      const toInsert = clients.filter((c: any) => {
+        if (c.document && existingDocs.has(c.document)) return false;
+        if (existingNames.has(c.name?.toUpperCase())) return false;
+        return true;
+      }).map((c: any) => ({
+        company_id: cid,
+        name: c.name,
+        document: c.document || null,
+        document_type: c.document_type || null,
+        phone: c.phone || null,
+        email: c.email || null,
+        address: c.address || null,
+        city: c.city || null,
+        state: c.state || null,
+        zip_code: c.zip_code || null,
+      }));
+
+      if (toInsert.length === 0) {
+        return new Response(JSON.stringify({ success: true, inserted: 0, skipped: clients.length }), {
+          headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
+        });
+      }
+
+      let inserted = 0;
+      let errors = 0;
+      for (let i = 0; i < toInsert.length; i += 50) {
+        const batch = toInsert.slice(i, i + 50);
+        const { error: batchErr } = await adminClient.from("clients").insert(batch);
+        if (batchErr) { console.error("Batch insert error:", batchErr); errors += batch.length; }
+        else { inserted += batch.length; }
+      }
+
+      return new Response(JSON.stringify({ success: true, inserted, skipped: clients.length - toInsert.length, errors }), {
+        headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
+      });
+    }
+
+    // ── Standard backup import ──
     const { company_id, backup_data, confirm_company_name } = body;
 
     if (!company_id || !backup_data || !confirm_company_name) {
