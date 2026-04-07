@@ -150,7 +150,19 @@ Deno.serve(async (req) => {
 
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data?.error?.message || JSON.stringify(data) || `Erro ${res.status}`);
+        console.error("[fetch-dfe] distribute error:", res.status, JSON.stringify(data));
+        const apiMsg = data?.error?.message || data?.message || data?.title || "";
+        if (res.status === 400 || res.status === 422 || apiMsg.toLowerCase().includes("validation")) {
+          throw new Error(
+            "Falha na validação da consulta SEFAZ. Verifique se o Certificado Digital A1 (.pfx) foi cadastrado corretamente em Configurações Fiscais e se a empresa está ativa na Nuvem Fiscal."
+          );
+        }
+        if (res.status === 404) {
+          throw new Error(
+            "Sua empresa ainda não está cadastrada no serviço fiscal. Acesse Configurações Fiscais, preencha os dados e faça upload do Certificado Digital."
+          );
+        }
+        throw new Error(apiMsg || `Erro ${res.status} ao consultar SEFAZ`);
       }
 
       return new Response(JSON.stringify({ success: true, data }), {
