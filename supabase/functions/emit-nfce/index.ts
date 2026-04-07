@@ -305,12 +305,8 @@ async function ensureCompanyRegisteredOnNuvemFiscal(params: {
     },
   };
 
-  if (certificate?.base64 && certificate.password) {
-    empresaPayload.certificado = {
-      base64: certificate.base64,
-      password: certificate.password,
-    };
-  }
+  // NOTE: "certificado" is NOT a valid field on the /empresas endpoint.
+  // Certificates must be uploaded via PUT /empresas/{cnpj}/certificado separately.
 
   // Use POST to create, PUT to update an existing company
   const method = companyExists ? "PUT" : "POST";
