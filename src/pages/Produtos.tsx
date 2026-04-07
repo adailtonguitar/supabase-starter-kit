@@ -58,17 +58,31 @@ export default function Produtos() {
       ? "lucro_real"
       : "simples_nacional";
 
+  const deferredSearch = useDeferredValue(search);
+
+  // Pre-compute fiscal status map once for all products
+  const fiscalStatusMap = useMemo(() => {
+    const map = new Map<string, ReturnType<typeof getProductFiscalStatus>>();
+    for (const p of products) {
+      map.set(p.id, getProductFiscalStatus(p, fiscalCategories, taxRegime));
+    }
+    return map;
+  }, [products, fiscalCategories, taxRegime]);
+
   const filtered = useMemo(() => {
-    const q = search.toLowerCase();
-    const matchesSearch = (p: Product) =>
-      p.name.toLowerCase().includes(q) ||
-      p.sku.toLowerCase().includes(q) ||
-      (p.barcode && p.barcode.includes(search));
-
-    const hasFiscalIssue = (p: Product) => getProductFiscalStatus(p, fiscalCategories, taxRegime).blocksFiscalEmission;
-
-    return products.filter((p) => matchesSearch(p) && (!fiscalPendingOnly || hasFiscalIssue(p)));
-  }, [products, search, fiscalPendingOnly, fiscalCategories, taxRegime]);
+    const q = deferredSearch.toLowerCase();
+    return products.filter((p) => {
+      const matchesSearch = p.name.toLowerCase().includes(q) ||
+        p.sku.toLowerCase().includes(q) ||
+        (p.barcode && p.barcode.includes(deferredSearch));
+      if (!matchesSearch) return false;
+      if (fiscalPendingOnly) {
+        const fs = fiscalStatusMap.get(p.id);
+        return fs?.blocksFiscalEmission ?? false;
+      }
+      return true;
+    });
+  }, [products, deferredSearch, fiscalPendingOnly, fiscalStatusMap]);
 
   // Reset page when search/filter changes
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
@@ -79,10 +93,10 @@ export default function Produtos() {
   );
 
   // Reset page on search change
-  const handleSearch = (val: string) => {
+  const handleSearch = useCallback((val: string) => {
     setSearch(val);
     setPage(0);
-  };
+  }, []);
 
   const bulkFixAnalysis = useMemo(
     () => getBulkFiscalFixAnalysis(products, fiscalCategories, taxRegime),
