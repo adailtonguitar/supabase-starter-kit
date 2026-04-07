@@ -426,6 +426,8 @@ export interface TaxAuditEntry {
   st_applied: boolean;
   match_score: number;
   top_candidates: RuleCandidateScore[];
+  confidence_level: ConfidenceLevel;
+  confidence_reason: string;
 }
 
 export function buildTaxAuditEntry(input: TaxClassificationInput, result: TaxClassificationResult): TaxAuditEntry {
@@ -439,5 +441,7 @@ export function buildTaxAuditEntry(input: TaxClassificationInput, result: TaxCla
     st_applied: result.icms_st,
     match_score: result.match_score || 0,
     top_candidates: result.match_log?.top_candidates || [],
+    confidence_level: result.confidence_level,
+    confidence_reason: result.confidence_reason,
   };
 }
