@@ -633,6 +633,7 @@ async function handleUploadCertificate(supabase: any, body: any) {
   }
 
   return jsonResponse({ success: true, certificate_path: storagePath });
+}
 
 async function handleDeleteCertificate(supabase: any, body: any) {
   const { company_id } = body;
