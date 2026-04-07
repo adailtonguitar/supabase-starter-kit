@@ -2137,31 +2137,12 @@ async function handleEmitNfe(supabase: any, body: any) {
         ambiente: ambiente === "producao" ? "producao" : "homologacao",
       };
 
-      // Certificado A1 (se disponível)
-      if (certificate_base64) {
+      // Reutilizar certificado já resolvido
+      if (resolvedCertNfe) {
         nfeConfigPayload.certificado = {
-          base64: certificate_base64,
-          password: certificate_password || "",
+          base64: resolvedCertNfe.base64,
+          password: resolvedCertNfe.password,
         };
-      } else if (config.certificate_path) {
-        // Tentar buscar certificado do storage
-        try {
-          const { data: certData } = await supabase.storage
-            .from("company-backups")
-            .download(config.certificate_path);
-          if (certData) {
-            const arrayBuf = await certData.arrayBuffer();
-            const bytes = new Uint8Array(arrayBuf);
-            let binary = "";
-            for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
-            nfeConfigPayload.certificado = {
-              base64: btoa(binary),
-              password: config.certificate_password || "",
-            };
-          }
-        } catch (certErr) {
-          console.warn("[emit-nfe] Falha ao buscar certificado do storage:", certErr);
-        }
       }
 
       const nfeConfigResp = await safeFetch(`${baseUrl}/empresas/${cnpjClean}/nfe`, {
