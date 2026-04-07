@@ -130,9 +130,39 @@ Deno.serve(async (req) => {
             const bytes = new Uint8Array(arrayBuf);
             let binary = "";
             for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+
+            // Decrypt stored password
+            let certPwd = "";
+            const storedHash = fiscalConfig.certificate_password_hash;
+            if (storedHash && typeof storedHash === "string" && storedHash.startsWith("enc:")) {
+              try {
+                const encKey = Deno.env.get("FISCAL_CERT_ENCRYPTION_KEY");
+                if (encKey) {
+                  const encoder = new TextEncoder();
+                  const keyMaterial = await crypto.subtle.importKey(
+                    "raw", encoder.encode(encKey).slice(0, 32),
+                    { name: "PBKDF2" }, false, ["deriveKey"],
+                  );
+                  const derivedKey = await crypto.subtle.deriveKey(
+                    { name: "PBKDF2", salt: encoder.encode("fiscal-cert-v1"), iterations: 100000, hash: "SHA-256" },
+                    keyMaterial, { name: "AES-GCM", length: 256 }, false, ["decrypt"],
+                  );
+                  const raw = atob(storedHash.slice(4));
+                  const encBytes = new Uint8Array(raw.length);
+                  for (let j = 0; j < raw.length; j++) encBytes[j] = raw.charCodeAt(j);
+                  const iv = encBytes.slice(0, 12);
+                  const ciphertext = encBytes.slice(12);
+                  const decrypted = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, derivedKey, ciphertext);
+                  certPwd = new TextDecoder().decode(decrypted);
+                }
+              } catch (decErr) {
+                console.warn("[fetch-dfe] Falha ao descriptografar senha:", decErr);
+              }
+            }
+
             empresaPayload.certificado = {
               base64: btoa(binary),
-              password: fiscalConfig.certificate_password || "",
+              password: certPwd,
             };
           }
         } catch (certErr) {
