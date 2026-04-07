@@ -29,8 +29,11 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
+const PAGE_SIZE = 50;
+
 export default function Produtos() {
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(0);
   const { data: products = [], isLoading } = useProducts();
   const deleteProduct = useDeleteProduct();
   const bulkUpdateProducts = useBulkUpdateProducts();
