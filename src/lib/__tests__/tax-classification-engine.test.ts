@@ -300,7 +300,7 @@ describe("Tax Classification Engine — Score-Based", () => {
     });
   });
 
-
+  describe("validateTaxClassification", () => {
     it("warns on fallback", () => {
       const result = classifyTaxByNCM({
         ncm: "99999999", uf_origem: "SP", uf_destino: "SP", crt: 1, tipo_cliente: "cpf", valor: 100,
