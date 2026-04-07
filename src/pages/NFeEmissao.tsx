@@ -1582,29 +1582,62 @@ export default function NFeEmissao() {
                     <input
                       autoFocus
                       value={addSearchTerm}
-                      onChange={e => setAddSearchTerm(e.target.value)}
+                      onChange={e => { setAddSearchTerm(e.target.value); setAddProductPage(0); }}
                       className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
-                      placeholder="Digite nome, SKU ou código de barras..."
+                      placeholder="Digite nome, SKU ou código de barras... (ou navegue abaixo)"
                     />
-                    <div className="max-h-52 overflow-y-auto rounded-lg border border-border bg-card">
-                      {getAddFilteredProducts().length === 0 ? (
-                        <p className="text-center py-4 text-xs text-muted-foreground">Nenhum produto encontrado</p>
-                      ) : (
-                        getAddFilteredProducts().map((p) => (
-                          <button
-                            key={p.id}
-                            type="button"
-                            onClick={() => addProductAsItem(p)}
-                            className="w-full text-left px-3 py-2.5 hover:bg-muted text-sm flex justify-between items-center transition-colors border-b border-border last:border-b-0"
-                          >
-                            <span className="text-foreground truncate font-medium">{p.name}</span>
-                            <span className="text-xs text-muted-foreground ml-2 shrink-0">
-                              {p.sku || ""} — {formatCurrency(p.price || 0)}
-                            </span>
-                          </button>
-                        ))
-                      )}
-                    </div>
+                    {(() => {
+                      const { items: pagedItems, total, totalPages } = getAddPagedProducts();
+                      return (
+                        <>
+                          <div className="flex items-center justify-between px-1">
+                            <span className="text-[10px] text-muted-foreground">{total} produto{total !== 1 ? "s" : ""}</span>
+                            {totalPages > 1 && (
+                              <span className="text-[10px] text-muted-foreground">Página {addProductPage + 1} de {totalPages}</span>
+                            )}
+                          </div>
+                          <div className="max-h-64 overflow-y-auto rounded-lg border border-border bg-card">
+                            {pagedItems.length === 0 ? (
+                              <p className="text-center py-4 text-xs text-muted-foreground">Nenhum produto encontrado</p>
+                            ) : (
+                              pagedItems.map((p) => (
+                                <button
+                                  key={p.id}
+                                  type="button"
+                                  onClick={() => addProductAsItem(p)}
+                                  className="w-full text-left px-3 py-2.5 hover:bg-muted text-sm flex justify-between items-center transition-colors border-b border-border last:border-b-0"
+                                >
+                                  <span className="text-foreground truncate font-medium">{p.name}</span>
+                                  <span className="text-xs text-muted-foreground ml-2 shrink-0">
+                                    {p.sku || ""} — {formatCurrency(p.price || 0)}
+                                  </span>
+                                </button>
+                              ))
+                            )}
+                          </div>
+                          {totalPages > 1 && (
+                            <div className="flex items-center justify-center gap-2 pt-1">
+                              <button
+                                type="button"
+                                disabled={addProductPage === 0}
+                                onClick={() => setAddProductPage(p => Math.max(0, p - 1))}
+                                className="px-3 py-1 rounded-md border border-border text-xs font-medium text-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                              >
+                                ← Anterior
+                              </button>
+                              <button
+                                type="button"
+                                disabled={addProductPage >= totalPages - 1}
+                                onClick={() => setAddProductPage(p => Math.min(totalPages - 1, p + 1))}
+                                className="px-3 py-1 rounded-md border border-border text-xs font-medium text-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                              >
+                                Próxima →
+                              </button>
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
                     <button
                       type="button"
                       onClick={() => { setShowQuickRegister(true); setQuickForm(f => ({ ...f, name: addSearchTerm })); }}
