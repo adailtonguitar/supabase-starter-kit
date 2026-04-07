@@ -873,7 +873,34 @@ async function handleEmit(supabase: any, body: any) {
   if (dest) payload.infNFe.dest = dest;
   if (Object.keys(infAdic).length > 0) payload.infNFe.infAdic = infAdic;
 
-  console.log(`[emit-nfce] ▶ Emitindo NFC-e #${numero} | CNPJ: ${cnpjClean} | CRT: ${crt} | Amb: ${ambiente} | Itens: ${items.length} | Total: ${vNF}`);
+  // ─── FISCAL RISK SCORING (antes do envio à SEFAZ) ───
+  const riskInput: Record<string, any> = {
+    fallbackUsed: taxClassificationAudit.some((a: any) => a.fallback),
+    ncmWithoutRule: taxClassificationAudit.some((a: any) => a.fallback),
+    taxRuleAbsent: taxClassificationAudit.length > 0 && taxClassificationAudit.every((a: any) => a.fallback),
+    itemCount: items.length,
+    totalValue: vNF,
+  };
+
+  // Score calculation inline (engine não importável em Deno diretamente)
+  let riskScore = 0;
+  const riskReasons: string[] = [];
+  if (riskInput.ncmWithoutRule) { riskScore += 30; riskReasons.push("[+30] NCM sem regra tributária"); }
+  if (riskInput.fallbackUsed) { riskScore += 20; riskReasons.push("[+20] Fallback tributário utilizado"); }
+  if (riskInput.taxRuleAbsent) { riskScore += 15; riskReasons.push("[+15] Ausência total de tax_rules"); }
+  riskScore = Math.max(0, Math.min(100, riskScore));
+  const riskLevel = riskScore >= 70 ? "critical" : riskScore >= 50 ? "high" : riskScore >= 25 ? "medium" : "low";
+  const shouldBlockRisk = riskScore >= 70;
+
+  if (shouldBlockRisk) {
+    console.error(`[emit-nfce] ✗ BLOQUEIO POR RISCO FISCAL: score=${riskScore} reasons=${JSON.stringify(riskReasons)}`);
+    await supabase.from("fiscal_risk_logs").insert({
+      company_id, note_type: "nfce", score: riskScore, level: riskLevel, reasons: riskReasons, blocked: true,
+    }).then(() => {});
+    return jsonResponse({ error: `Emissão bloqueada por risco fiscal elevado (score: ${riskScore}). Corrija as regras tributárias antes de emitir.`, risk_score: riskScore, risk_reasons: riskReasons }, 400);
+  }
+
+  console.log(`[emit-nfce] ▶ Emitindo NFC-e #${numero} | CNPJ: ${cnpjClean} | CRT: ${crt} | Amb: ${ambiente} | Itens: ${items.length} | Total: ${vNF} | RiskScore: ${riskScore}`);
   console.log(`[emit-nfce] ▶ pagBlock completo:`, JSON.stringify(pagBlock));
 
   // ─── Autenticação Nuvem Fiscal ───
