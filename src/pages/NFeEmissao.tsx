@@ -344,6 +344,7 @@ export default function NFeEmissao() {
   const [quickNcmSearch, setQuickNcmSearch] = useState("");
   const [showQuickNcmDropdown, setShowQuickNcmDropdown] = useState(false);
   const [editingItemIdx, setEditingItemIdx] = useState<number | null>(null);
+  const [preAddProduct, setPreAddProduct] = useState<{ product: NFeProduct; qty: number; unitPrice: number } | null>(null);
   const [fiscalCategories, setFiscalCategories] = useState<NFeFiscalCategory[]>([]);
   const [clients, setClients] = useState<NFeClient[]>([]);
   const [clientSearch, setClientSearch] = useState("");
