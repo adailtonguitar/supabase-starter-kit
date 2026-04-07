@@ -31,7 +31,6 @@ function buildDataSummary(
   const totalRevenue = sales.reduce((s, r) => s + Number(r.total || 0), 0);
   const ticketMedio = sales.length > 0 ? totalRevenue / sales.length : 0;
 
-  // Payment methods
   const paymentMethods: Record<string, number> = {};
   sales.forEach((s) => {
     try {
@@ -48,7 +47,6 @@ function buildDataSummary(
     } catch {}
   });
 
-  // Top products from sales items
   const productSalesMap: Record<string, { name: string; qty: number; revenue: number; category: string }> = {};
   for (const sale of sales) {
     const items = Array.isArray(sale.items) ? sale.items : [];
@@ -68,20 +66,13 @@ function buildDataSummary(
     .sort((a, b) => b.revenue - a.revenue)
     .slice(0, 10);
 
-  // Categories
   const categoryMap: Record<string, { qty: number; revenue: number }> = {};
   for (const p of Object.values(productSalesMap)) {
     if (!categoryMap[p.category]) categoryMap[p.category] = { qty: 0, revenue: 0 };
     categoryMap[p.category].qty += p.qty;
     categoryMap[p.category].revenue += p.revenue;
   }
-  // Enrich with product catalog categories
-  const prodCatMap: Record<string, string> = {};
-  products.forEach((p: any) => {
-    if (p.name && p.category) prodCatMap[p.name] = p.category;
-  });
 
-  // Stock analysis
   const lowStock = products.filter(
     (p) => p.min_stock > 0 && (p.stock_quantity ?? 0) <= p.min_stock
   );
@@ -92,13 +83,11 @@ function buildDataSummary(
   const avgMargin =
     productsWithMargin.length > 0
       ? productsWithMargin.reduce(
-          (s, p) =>
-            s + ((p.price - p.cost_price) / p.price) * 100,
+          (s, p) => s + ((p.price - p.cost_price) / p.price) * 100,
           0
         ) / productsWithMargin.length
       : 0;
 
-  // Financial
   const receitas = financial
     .filter((f) => f.type === "receber" && f.status === "pago")
     .reduce((s, f) => s + Number(f.amount || 0), 0);
@@ -116,7 +105,6 @@ function buildDataSummary(
     0
   );
 
-  // Daily distribution
   const dailySales: Record<string, number> = {};
   sales.forEach((s) => {
     const day = (s.created_at || "").split("T")[0];
@@ -142,8 +130,7 @@ function buildDataSummary(
     Object.entries(paymentMethods)
       .sort((a, b) => b[1] - a[1])
       .forEach(([m, v]) => {
-        const pct =
-          totalRevenue > 0 ? ((v / totalRevenue) * 100).toFixed(0) : "0";
+        const pct = totalRevenue > 0 ? ((v / totalRevenue) * 100).toFixed(0) : "0";
         lines.push(`  - ${m}: ${formatBRL(v)} (${pct}%)`);
       });
   }
@@ -151,9 +138,7 @@ function buildDataSummary(
   if (topProducts.length > 0) {
     lines.push(`\n--- TOP 10 PRODUTOS ---`);
     topProducts.forEach((p, i) => {
-      lines.push(
-        `${i + 1}. ${p.name} — ${p.qty} un. — ${formatBRL(p.revenue)}`
-      );
+      lines.push(`${i + 1}. ${p.name} — ${p.qty} un. — ${formatBRL(p.revenue)}`);
     });
   }
 
@@ -207,69 +192,67 @@ Estruture em markdown com as seguintes seções:
 Use valores em R$. Seja analítico, use emojis nos títulos, e forneça insights acionáveis.
 Não invente dados — use exclusivamente o que foi fornecido.`;
 
+/** Fetch with manual AbortController timeout (compatible with edge runtime) */
+function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: number): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  return fetch(url, { ...init, signal: controller.signal }).finally(() => clearTimeout(timer));
+}
+
 async function callGemini(
   apiKey: string,
   dataSummary: string
 ): Promise<string | null> {
-  for (let attempt = 0; attempt < 3; attempt++) {
-    if (attempt > 0) {
-      await new Promise((r) => setTimeout(r, Math.pow(2, attempt) * 1000));
-    }
-    try {
-      const resp = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [
-              {
-                parts: [
-                  {
-                    text: `${SYSTEM_PROMPT}\n\n---\n\nDADOS DA EMPRESA:\n${dataSummary}`,
-                  },
-                ],
-              },
-            ],
-            generationConfig: {
-              maxOutputTokens: 4096,
-              temperature: 0.7,
+  try {
+    const resp = await fetchWithTimeout(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [
+                {
+                  text: `${SYSTEM_PROMPT}\n\n---\n\nDADOS DA EMPRESA:\n${dataSummary}`,
+                },
+              ],
             },
-          }),
-        }
-      );
+          ],
+          generationConfig: {
+            maxOutputTokens: 3000,
+            temperature: 0.7,
+          },
+        }),
+      },
+      25000 // 25s timeout for Gemini (leaves margin within edge function limits)
+    );
 
-      if (resp.status === 429) {
-        console.warn("[generate-ai-report] Gemini rate limited, retrying...");
-        await resp.text();
-        continue;
-      }
-
-      if (resp.ok) {
-        const data = await resp.json();
-        const content =
-          data?.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (content) return content;
-        console.error(
-          "[generate-ai-report] No content in Gemini response:",
-          JSON.stringify(data).substring(0, 300)
-        );
-        return null;
-      }
-
-      const errText = await resp.text();
-      console.error(
-        "[generate-ai-report] Gemini error:",
-        resp.status,
-        errText.substring(0, 300)
-      );
+    if (resp.status === 429) {
+      console.warn("[generate-ai-report] Gemini rate limited");
+      await resp.text();
       return null;
-    } catch (err: any) {
-      console.error("[generate-ai-report] Fetch error:", err?.message);
-      if (attempt === 2) return null;
     }
+
+    if (resp.ok) {
+      const data = await resp.json();
+      const content = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (content) return content;
+      console.error("[generate-ai-report] No content in Gemini response");
+      return null;
+    }
+
+    const errText = await resp.text();
+    console.error("[generate-ai-report] Gemini error:", resp.status, errText.substring(0, 300));
+    return null;
+  } catch (err: any) {
+    if (err?.name === "AbortError") {
+      console.error("[generate-ai-report] Gemini request timed out (25s)");
+    } else {
+      console.error("[generate-ai-report] Fetch error:", err?.message);
+    }
+    return null;
   }
-  return null;
 }
 
 Deno.serve(async (req) => {
@@ -278,11 +261,13 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Health-check probe — respond immediately without processing
-    const rawBody = await req.text();
     let body: any = {};
-    try { body = JSON.parse(rawBody); } catch { /* empty or invalid */ }
+    try {
+      const rawBody = await req.text();
+      body = JSON.parse(rawBody);
+    } catch { /* empty or invalid */ }
 
+    // Health-check probe — respond immediately
     if (body.health_check) {
       return new Response(JSON.stringify({ status: "ok" }), {
         headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
@@ -313,45 +298,27 @@ Deno.serve(async (req) => {
 
     if (!company_id || !start_date || !end_date) {
       return new Response(
-        JSON.stringify({
-          error: "company_id, start_date e end_date são obrigatórios",
-        }),
+        JSON.stringify({ error: "company_id, start_date e end_date são obrigatórios" }),
         { status: 400, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } }
       );
     }
 
-    // ── Validação de pertencimento à empresa (anti-IDOR) ──
-    const { data: membership } = await supabase
-      .from("company_users")
-      .select("id")
-      .eq("user_id", user.id)
-      .eq("company_id", company_id)
-      .eq("is_active", true)
-      .maybeSingle();
-
-    if (!membership) {
-      return new Response(
-        JSON.stringify({ error: "Acesso negado a esta empresa" }),
-        { status: 403, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } }
-      );
-    }
-
-    // Rate limiting: max 3 reports per minute per company
-    const { data: allowed } = await supabase.rpc("check_rate_limit", {
-      p_company_id: company_id,
-      p_fn_name: "generate-ai-report",
-      p_max_calls: 3,
-      p_window_sec: 60,
-    });
-    if (allowed === false) {
-      return new Response(JSON.stringify({ error: "Limite de relatórios excedido. Aguarde 1 minuto." }), {
-        status: 429, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
-      });
-    }
-
-    // Fetch real data in parallel
-    const [salesRes, productsRes, clientsRes, financialRes] =
+    // ── Membership + Rate limit + All data queries IN PARALLEL ──
+    const [membershipRes, rateLimitRes, salesRes, productsRes, clientsRes, financialRes] =
       await Promise.all([
+        supabase
+          .from("company_users")
+          .select("id")
+          .eq("user_id", user.id)
+          .eq("company_id", company_id)
+          .eq("is_active", true)
+          .maybeSingle(),
+        supabase.rpc("check_rate_limit", {
+          p_company_id: company_id,
+          p_fn_name: "generate-ai-report",
+          p_max_calls: 3,
+          p_window_sec: 60,
+        }),
         supabase
           .from("sales")
           .select("total, created_at, payments, status, items")
@@ -362,9 +329,7 @@ Deno.serve(async (req) => {
           .limit(1000),
         supabase
           .from("products")
-          .select(
-            "name, stock_quantity, min_stock, price, cost_price, category, is_active"
-          )
+          .select("name, stock_quantity, min_stock, price, cost_price, category, is_active")
           .eq("company_id", company_id)
           .limit(1000),
         supabase
@@ -381,27 +346,34 @@ Deno.serve(async (req) => {
           .limit(500),
       ]);
 
+    // Check membership
+    if (!membershipRes.data) {
+      return new Response(
+        JSON.stringify({ error: "Acesso negado a esta empresa" }),
+        { status: 403, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } }
+      );
+    }
+
+    // Check rate limit
+    if (rateLimitRes.data === false) {
+      return new Response(JSON.stringify({ error: "Limite de relatórios excedido. Aguarde 1 minuto." }), {
+        status: 429, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
+      });
+    }
+
     const sales = salesRes.data || [];
     const products = productsRes.data || [];
     const clients = clientsRes.data || [];
     const financial = financialRes.data || [];
 
     console.log(
-      `[generate-ai-report] Fetched: ${sales.length} sales, ${products.length} products, ${clients.length} clients, ${financial.length} financial entries`
+      `[generate-ai-report] Fetched: ${sales.length} sales, ${products.length} products, ${clients.length} clients, ${financial.length} financial`
     );
 
-    const dataSummary = buildDataSummary(
-      sales,
-      products,
-      clients,
-      financial,
-      start_date,
-      end_date
-    );
+    const dataSummary = buildDataSummary(sales, products, clients, financial, start_date, end_date);
 
     // Try Gemini API
     const GEMINI_KEY = Deno.env.get("GOOGLE_GEMINI_KEY");
-    console.log("[generate-ai-report] GOOGLE_GEMINI_KEY present:", !!GEMINI_KEY);
 
     if (GEMINI_KEY) {
       const aiReport = await callGemini(GEMINI_KEY, dataSummary);
@@ -417,19 +389,14 @@ Deno.serve(async (req) => {
               period: `${start_date} a ${end_date}`,
             },
           }),
-          {
-            headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
-          }
+          { headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } }
         );
       }
-      console.warn("[generate-ai-report] Gemini failed, no fallback for full reports");
     }
 
-    // No API key or API failed — return error (no mock!)
     return new Response(
       JSON.stringify({
-        error:
-          "GOOGLE_GEMINI_KEY não configurada ou API indisponível. Configure a secret no Supabase Dashboard > Edge Functions > Secrets.",
+        error: "GOOGLE_GEMINI_KEY não configurada ou API indisponível. Configure a secret no Supabase Dashboard > Edge Functions > Secrets.",
         data_summary: {
           sales_count: sales.length,
           products_count: products.length,
@@ -437,19 +404,13 @@ Deno.serve(async (req) => {
           period: `${start_date} a ${end_date}`,
         },
       }),
-      {
-        status: 503,
-        headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
-      }
+      { status: 503, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } }
     );
   } catch (err: any) {
     console.error("[generate-ai-report] error:", err?.message || err);
     return new Response(
       JSON.stringify({ error: "Erro interno na edge function." }),
-      {
-        status: 500,
-        headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
-      }
+      { status: 500, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } }
     );
   }
 });
