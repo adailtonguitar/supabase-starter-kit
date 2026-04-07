@@ -396,7 +396,7 @@ async function resolveCertificate(
   if (certificate_base64 && certificate_password) {
     return { base64: String(certificate_base64), password: String(certificate_password) };
   }
-  // Fallback: try to download from storage
+  // Fallback: try to download from storage and decrypt stored password
   const certPath = config?.certificate_path;
   if (!certPath) return null;
   try {
@@ -406,8 +406,27 @@ async function resolveCertificate(
     const bytes = new Uint8Array(arrayBuf);
     let binary = "";
     for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
-    const pwd = config?.certificate_password || certificate_password || "";
-    return { base64: btoa(binary), password: String(pwd) };
+
+    // Try to decrypt stored password from certificate_password_hash
+    let pwd = certificate_password || "";
+    const storedEncrypted = config?.certificate_password_hash;
+    if (storedEncrypted && typeof storedEncrypted === "string" && storedEncrypted.startsWith("enc:")) {
+      try {
+        pwd = await decryptCertPassword(storedEncrypted);
+      } catch (decErr) {
+        console.warn("[resolveCertificate] Falha ao descriptografar senha:", decErr);
+      }
+    } else if (!pwd && storedEncrypted) {
+      // Legacy: might be plain text
+      pwd = String(storedEncrypted);
+    }
+
+    if (!pwd) {
+      console.warn("[resolveCertificate] Senha do certificado não disponível");
+      return null;
+    }
+
+    return { base64: btoa(binary), password: pwd };
   } catch (err) {
     console.warn("[resolveCertificate] Falha ao buscar certificado do storage:", err);
     return null;
