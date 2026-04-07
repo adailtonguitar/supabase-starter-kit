@@ -1612,7 +1612,7 @@ export default function NFeEmissao() {
                           <th className="text-center px-3 py-1.5 font-semibold text-muted-foreground">Qtd</th>
                           <th className="text-right px-3 py-1.5 font-semibold text-muted-foreground">Unit.</th>
                           <th className="text-right px-3 py-1.5 font-semibold text-muted-foreground">Total</th>
-                          <th className="w-8" />
+                          <th className="w-16" />
                         </tr>
                       </thead>
                       <tbody>
@@ -1623,8 +1623,12 @@ export default function NFeEmissao() {
                             <td className="px-3 py-1.5 text-center text-foreground">{it.qty}</td>
                             <td className="px-3 py-1.5 text-right font-mono text-muted-foreground">{formatCurrency(it.unitPrice)}</td>
                             <td className="px-3 py-1.5 text-right font-mono font-bold text-foreground">{formatCurrency(it.total)}</td>
-                            <td className="px-1 py-1.5">
-                              <button onClick={() => removeItem(idx)} className="p-1 rounded hover:bg-destructive/10 text-destructive transition-colors">
+                            <td className="px-1 py-1.5 flex gap-0.5">
+                              <button onClick={() => { setActiveTab("items"); setEditingItemIdx(editingItemIdx === idx ? null : idx); }}
+                                className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors" title="Editar">
+                                <Edit2 className="w-3 h-3" />
+                              </button>
+                              <button onClick={() => removeItem(idx)} className="p-1 rounded hover:bg-destructive/10 text-destructive transition-colors" title="Remover">
                                 <Trash2 className="w-3 h-3" />
                               </button>
                             </td>
