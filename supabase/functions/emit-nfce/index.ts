@@ -285,6 +285,11 @@ async function ensureCompanyRegisteredOnNuvemFiscal(params: {
     throw new Error("E-mail da empresa não configurado. Cadastre um e-mail na empresa antes de sincronizar com a Nuvem Fiscal.");
   }
 
+  const codigoMunicipio = onlyDigits(companyIbgeCode || company.ibge_code || company.city_code || company.address_ibge_code || company.codigo_municipio || "");
+  if (!codigoMunicipio || codigoMunicipio.length < 7) {
+    throw new Error("Código IBGE do município não configurado. Acesse Configurações da Empresa e preencha o código IBGE da cidade.");
+  }
+
   const empresaPayload: Record<string, any> = {
     cpf_cnpj: cnpj,
     inscricao_estadual: ie,
@@ -296,7 +301,7 @@ async function ensureCompanyRegisteredOnNuvemFiscal(params: {
       logradouro: sanitizeSefazText(companyStreet || "Rua não informada", "Rua não informada"),
       numero: companyNumber || "S/N",
       bairro: sanitizeSefazText(companyNeighborhood || "Centro", "Centro"),
-      codigo_municipio: onlyDigits(companyIbgeCode || company.ibge_code || company.city_code || company.address_ibge_code),
+      codigo_municipio: codigoMunicipio,
       cidade: sanitizeSefazText(companyCity || "Não informada", "Não informada"),
       uf: (companyState || "MA").toUpperCase(),
       cep: companyZip || "00000000",
