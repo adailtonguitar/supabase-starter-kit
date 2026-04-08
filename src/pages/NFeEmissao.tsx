@@ -144,7 +144,46 @@ function getDraftsKey(companyId: string | null): string {
 function loadDrafts(companyId: string | null): NFeDraft[] {
   try {
     const raw = localStorage.getItem(getDraftsKey(companyId));
-    return raw ? JSON.parse(raw) : [];
+    const drafts: NFeDraft[] = raw ? JSON.parse(raw) : [];
+
+    // Recuperar rascunhos que foram salvos sob companyId errado (bug do cache global)
+    if (companyId) {
+      const keysToCheck: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (
+          key &&
+          key.startsWith(NFE_DRAFTS_KEY_PREFIX) &&
+          key !== getDraftsKey(companyId) &&
+          key !== "as_nfe_drafts_unknown"
+        ) {
+          keysToCheck.push(key);
+        }
+      }
+      // Se esta empresa NÃO tem rascunhos mas outra chave tem, migrar para cá
+      // (só faz isso uma vez — se já tem rascunhos, não mexe)
+      if (drafts.length === 0 && keysToCheck.length > 0) {
+        let migrated: NFeDraft[] = [];
+        for (const key of keysToCheck) {
+          try {
+            const otherRaw = localStorage.getItem(key);
+            if (otherRaw) {
+              const otherDrafts: NFeDraft[] = JSON.parse(otherRaw);
+              if (otherDrafts.length > 0) {
+                migrated = [...migrated, ...otherDrafts];
+                localStorage.removeItem(key);
+              }
+            }
+          } catch { /* ignore */ }
+        }
+        if (migrated.length > 0) {
+          saveDrafts(migrated, companyId);
+          return migrated;
+        }
+      }
+    }
+
+    return drafts;
   } catch { return []; }
 }
 
