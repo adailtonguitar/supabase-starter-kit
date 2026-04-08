@@ -32,6 +32,10 @@ interface CachedCompany {
   pdvAutoEmitNfce: boolean;
 }
 
+function getScopedStorageKey(baseKey: string, userId?: string | null) {
+  return userId ? `${baseKey}:${userId}` : baseKey;
+}
+
 type CompanyRow = {
   name?: string | null;
   logo_url?: string | null;
@@ -52,16 +56,42 @@ type CompanyRow = {
   pdv_auto_emit_nfce?: boolean | null;
 };
 
-function cacheCompany(data: CachedCompany) {
-  try { localStorage.setItem(COMPANY_CACHE_KEY, JSON.stringify(data)); } catch { /* */ }
+function cacheCompany(data: CachedCompany, userId?: string | null) {
+  try { localStorage.setItem(getScopedStorageKey(COMPANY_CACHE_KEY, userId), JSON.stringify(data)); } catch { /* */ }
 }
 
-function getCachedCompany(): CachedCompany | null {
+function getCachedCompany(userId?: string | null): CachedCompany | null {
   try {
-    const raw = localStorage.getItem(COMPANY_CACHE_KEY);
-    if (raw) return JSON.parse(raw);
+    const scopedRaw = localStorage.getItem(getScopedStorageKey(COMPANY_CACHE_KEY, userId));
+    if (scopedRaw) return JSON.parse(scopedRaw);
+    if (!userId) return null;
+    const legacyRaw = localStorage.getItem(COMPANY_CACHE_KEY);
+    if (legacyRaw) return JSON.parse(legacyRaw);
   } catch { /* */ }
   return null;
+}
+
+function getSelectedCompany(userId?: string | null): string | null {
+  try {
+    const scoped = localStorage.getItem(getScopedStorageKey(SELECTED_COMPANY_KEY, userId));
+    if (scoped) return scoped;
+    if (!userId) return null;
+    return localStorage.getItem(SELECTED_COMPANY_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function setSelectedCompany(companyId: string, userId?: string | null) {
+  try { localStorage.setItem(getScopedStorageKey(SELECTED_COMPANY_KEY, userId), companyId); } catch { /* */ }
+}
+
+function clearSelectedCompany(userId?: string | null) {
+  try { localStorage.removeItem(getScopedStorageKey(SELECTED_COMPANY_KEY, userId)); } catch { /* */ }
+}
+
+function clearCachedCompany(userId?: string | null) {
+  try { localStorage.removeItem(getScopedStorageKey(COMPANY_CACHE_KEY, userId)); } catch { /* */ }
 }
 
 /** Ordena tenants ativos por volume (vendas, depois produtos) — primeiro = operação principal na prática. */
