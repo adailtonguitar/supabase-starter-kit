@@ -2745,6 +2745,22 @@ async function handleEmitNfe(supabase: any, body: any) {
     totalVProd += vProd;
     totalVDesc += discount;
 
+    // ─── Motor Fiscal Dinâmico: regras do banco (NF-e) ───
+    const dynamicRegimeNfe = isSimples ? "simples" : "normal" as const;
+    const destUfForDynamic = destUF || emitUF;
+    const dynamicMatchNfe = getTaxRule(dynamicTaxRulesNfe, ncm, emitUF, destUfForDynamic, dynamicRegimeNfe);
+    const dynamicAppliedNfe = applyDynamicTaxRule(item, dynamicMatchNfe, isSimples);
+    if (dynamicMatchNfe.rule || dynamicMatchNfe.score > 0) {
+      console.log(`[FISCAL-RULE] NF-e item=${i + 1}`, JSON.stringify({
+        ncm, regra_encontrada: dynamicMatchNfe.rule?.id || null,
+        origem: emitUF, destino: destUfForDynamic, regime: dynamicRegimeNfe,
+        source: dynamicMatchNfe.source, score: dynamicMatchNfe.score,
+        decisao_final: dynamicMatchNfe.reason,
+        tipo_pis_cofins: dynamicMatchNfe.rule?.tipo_pis_cofins || "fallback",
+        tem_st: dynamicMatchNfe.rule?.tem_st || false,
+      }));
+    }
+
     // ─── Tax Classification Engine: score-based matching por NCM (NF-e) ───
     if (taxRulesByNcmNfe.length > 0) {
       const regime = isSimples ? "simples" : "normal";
