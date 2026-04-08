@@ -3,7 +3,7 @@ import {
   mergeChildCompanyWithParentFiscal,
   pickPeerDonorForFiscalMerge,
   supplementCnpjFromRowTextFields,
-} from "../../../shared/fiscal/company-fiscal-merge.ts";
+} from "./company-fiscal-merge.ts";
 
 const MAX_PARENT_HOPS = 5;
 

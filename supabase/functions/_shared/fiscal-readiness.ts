@@ -10,10 +10,10 @@ import {
   productsFiscalInvalidMessage,
   stCategoryConflictMessage,
   unnamedProductLabel,
-} from "../../../shared/fiscal/fiscal-copy.ts";
-import { productIdsExcludedFromCatalogFiscalReadiness } from "../../../shared/fiscal/acquisition-readiness.ts";
-import { isExcludedFromGlobalFiscalReadinessCatalog } from "../../../shared/fiscal/fiscal-readiness-exclusions.ts";
-import { supplementCnpjFromRowTextFields } from "../../../shared/fiscal/company-fiscal-merge.ts";
+} from "./fiscal-copy.ts";
+import { productIdsExcludedFromCatalogFiscalReadiness } from "./acquisition-readiness.ts";
+import { isExcludedFromGlobalFiscalReadinessCatalog } from "./fiscal-readiness-exclusions.ts";
+import { supplementCnpjFromRowTextFields } from "./company-fiscal-merge.ts";
 import {
   fillCompanyRowFromServicePeerFallback,
   resolveCompanyFiscalRowWithParent,
