@@ -141,10 +141,9 @@ export function getPisCofinsConfig(input: PisCofinsInput): PisCofinsConfig {
     };
   }
 
-  // ── 4. Tributação normal (regime cumulativo padrão para Lucro Presumido) ──
-  const isLucroReal = input.crt === 3; // Pode ser LP ou LR, default cumulativo
-  const aliqPis = isLucroReal ? ALIQ_PIS_CUMULATIVO : ALIQ_PIS_CUMULATIVO;
-  const aliqCofins = isLucroReal ? ALIQ_COFINS_CUMULATIVO : ALIQ_COFINS_CUMULATIVO;
+  // ── 4. Tributação normal (não-cumulativo padrão) ──
+  const aliqPis = ALIQ_PIS_NAO_CUMULATIVO;
+  const aliqCofins = ALIQ_COFINS_NAO_CUMULATIVO;
 
   const vPis = round2(valor * aliqPis / 100);
   const vCofins = round2(valor * aliqCofins / 100);
