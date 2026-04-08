@@ -116,10 +116,12 @@ export interface PipelineResult {
     monoCount: number;
     warnings: string[];
     timestamp: string;
+    learningApplied?: boolean;
+    learningAdjustments?: LearningAdjustment[];
   };
 }
 
-// ─── Pipeline Principal ───
+// ─── Pipeline Principal (síncrona — sem aprendizado) ───
 
 export function runFiscalPipeline(
   items: PipelineItemInput[],
