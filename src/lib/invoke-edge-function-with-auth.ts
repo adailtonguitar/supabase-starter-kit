@@ -14,41 +14,63 @@ type EdgeInvokeResponse<T> = {
   } | null;
 };
 
-/**
- * Calls an Edge Function with a freshly-refreshed access token using raw fetch().
- * This bypasses the Supabase SDK's functions.invoke() which can silently
- * override the Authorization header, causing "Invalid JWT" errors.
- */
-export async function invokeEdgeFunctionWithAuth<T = any>(
-  functionName: string,
-  options: EdgeInvokeOptions = {},
-): Promise<EdgeInvokeResponse<T>> {
-  // 1. Get fresh access token
-  let accessToken: string | null = null;
+const JWT_REFRESH_SKEW_MS = 30_000;
+
+function decodeJwtExp(token: string): number | null {
+  try {
+    const [, payload] = token.split(".");
+    if (!payload) return null;
+    const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "=");
+    const decoded = JSON.parse(atob(padded)) as { exp?: number };
+    return typeof decoded.exp === "number" ? decoded.exp : null;
+  } catch {
+    return null;
+  }
+}
+
+function isTokenStillValid(token: string | null | undefined): token is string {
+  if (!token) return false;
+  const exp = decodeJwtExp(token);
+  if (!exp) return true;
+  return exp * 1000 > Date.now() + JWT_REFRESH_SKEW_MS;
+}
+
+async function getValidAccessToken(forceRefresh = false): Promise<string | null> {
+  if (!forceRefresh) {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    if (isTokenStillValid(session?.access_token)) {
+      return session.access_token;
+    }
+  }
 
   try {
-    const { data: refreshData } = await supabase.auth.refreshSession();
-    accessToken = refreshData.session?.access_token ?? null;
+    const { data } = await supabase.auth.refreshSession();
+    if (isTokenStillValid(data.session?.access_token)) {
+      return data.session.access_token;
+    }
   } catch {
-    // refresh failed, try current session
+    // ignore and fall back to the latest in-memory session below
   }
 
-  if (!accessToken) {
-    const { data: { session } } = await supabase.auth.getSession();
-    accessToken = session?.access_token ?? null;
-  }
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
 
-  if (!accessToken) {
-    return {
-      data: null,
-      error: { message: "Sessão expirada. Faça login novamente." },
-    };
-  }
+  return isTokenStillValid(session?.access_token) ? session.access_token : null;
+}
 
-  // 2. Call via raw fetch (bypasses SDK header issues)
+async function invokeWithToken<T>(functionName: string, options: EdgeInvokeOptions, accessToken: string): Promise<{
+  response: Response;
+  text: string;
+  parsed: T | null;
+}> {
   const url = `${SUPABASE_URL}/functions/v1/${functionName}`;
 
-  const resp = await fetch(url, {
+  const response = await fetch(url, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -59,26 +81,76 @@ export async function invokeEdgeFunctionWithAuth<T = any>(
     body: JSON.stringify(options.body ?? {}),
   });
 
-  const text = await resp.text();
-  let parsed: T | null = null;
-  try {
-    parsed = text ? (JSON.parse(text) as T) : null;
-  } catch {
-    if (!resp.ok) {
-      return { data: null, error: { message: text || `HTTP ${resp.status}` } };
-    }
-    return { data: null, error: null };
-  }
+  const text = await response.text();
 
-  if (!resp.ok) {
+  try {
+    return {
+      response,
+      text,
+      parsed: text ? (JSON.parse(text) as T) : null,
+    };
+  } catch {
+    return {
+      response,
+      text,
+      parsed: null,
+    };
+  }
+}
+
+function extractEdgeErrorMessage<T>(response: Response, text: string, parsed: T | null): string {
+  if (!response.ok) {
     const errObj = parsed as Record<string, unknown> | null;
-    const msg =
+    return (
       (typeof errObj?.error === "string" ? errObj.error : null) ??
       (typeof errObj?.message === "string" ? errObj.message : null) ??
       text ??
-      `HTTP ${resp.status}`;
-    return { data: parsed, error: { message: msg } };
+      `HTTP ${response.status}`
+    );
   }
 
-  return { data: parsed, error: null };
+  return "";
+}
+
+/**
+ * Calls an Edge Function with a freshly-refreshed access token using raw fetch().
+ * This bypasses the Supabase SDK's functions.invoke() which can silently
+ * override the Authorization header, causing "Invalid JWT" errors.
+ */
+export async function invokeEdgeFunctionWithAuth<T = any>(
+  functionName: string,
+  options: EdgeInvokeOptions = {},
+): Promise<EdgeInvokeResponse<T>> {
+  let accessToken = await getValidAccessToken();
+
+  if (!accessToken) {
+    return {
+      data: null,
+      error: { message: "Sessão expirada. Faça login novamente." },
+    };
+  }
+
+  let result = await invokeWithToken<T>(functionName, options, accessToken);
+  let message = extractEdgeErrorMessage(result.response, result.text, result.parsed);
+
+  if (
+    result.response.status === 401 &&
+    /invalid jwt|missing authorization header|invalid token/i.test(message)
+  ) {
+    const refreshedAccessToken = await getValidAccessToken(true);
+    if (refreshedAccessToken && refreshedAccessToken !== accessToken) {
+      accessToken = refreshedAccessToken;
+      result = await invokeWithToken<T>(functionName, options, accessToken);
+      message = extractEdgeErrorMessage(result.response, result.text, result.parsed);
+    }
+  }
+
+  if (!result.response.ok) {
+    return {
+      data: result.parsed,
+      error: { message, context: result.response },
+    };
+  }
+
+  return { data: result.parsed, error: null };
 }
