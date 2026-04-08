@@ -111,6 +111,8 @@ interface DynamicTaxRule {
   cst?: string;
   prioridade: number;
   descricao?: string;
+  vigencia_inicio?: string;
+  vigencia_fim?: string | null;
 }
 
 interface StructuredTaxRule {
