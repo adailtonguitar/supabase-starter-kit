@@ -2,3 +2,9 @@ project_id = "yrswvxsypndvzspmlogo"
 
 [functions.emit-nfce]
 verify_jwt = false
+
+[functions.check-subscription]
+verify_jwt = false
+
+[functions.process-fiscal-queue]
+verify_jwt = false
