@@ -1,4 +1,4 @@
-import { ST_TYPICAL_NCMS } from "../../../shared/fiscal/st-typical-ncms.ts";
+import { ST_TYPICAL_NCMS } from "./st-typical-ncms.ts";
 import {
   buildFiscalIssueSample,
   cfopConflictMessage,
