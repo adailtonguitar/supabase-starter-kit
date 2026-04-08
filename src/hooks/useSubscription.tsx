@@ -83,10 +83,12 @@ const CHECK_SUBSCRIPTION_INVOKE_MS = 6_000;
 function cacheSubState(s: SubscriptionState) { try { localStorage.setItem(SUB_CACHE_KEY, JSON.stringify(s)); } catch { /* */ } }
 function getCachedSubState(): SubscriptionState | null { try { const raw = localStorage.getItem(SUB_CACHE_KEY); if (raw) return JSON.parse(raw); } catch { /* */ } return null; }
 
-async function invokeCheckSubscriptionWithTimeout(): Promise<
-  Awaited<ReturnType<typeof supabase.functions.invoke<Record<string, unknown>>>>
-> {
-  const invoke = supabase.functions.invoke("check-subscription");
+async function invokeCheckSubscriptionWithTimeout(): Promise<{
+  data: Record<string, unknown> | null;
+  error: { message: string } | null;
+}> {
+  const { invokeEdgeFunctionWithAuth } = await import("@/lib/invoke-edge-function-with-auth");
+  const invoke = invokeEdgeFunctionWithAuth<Record<string, unknown>>("check-subscription");
   const timeout = new Promise<{ data: null; error: { message: string } }>((resolve) =>
     setTimeout(
       () => resolve({ data: null, error: { message: "check-subscription timeout (fallback DB)" } }),
