@@ -339,7 +339,10 @@ export default function NFeEmissao() {
   const { lookup: cnpjLookup, loading: cnpjLoading } = useCnpjLookup();
 
   const [form, setForm] = useState<NFeFormData>(emptyForm());
-  const [drafts, setDrafts] = useState<NFeDraft[]>(loadDrafts);
+  const [drafts, setDrafts] = useState<NFeDraft[]>(() => {
+    migrateGlobalDrafts(companyId);
+    return loadDrafts(companyId);
+  });
   const [showDrafts, setShowDrafts] = useState(false);
   const [emitting, setEmitting] = useState(false);
   const [step, setStep] = useState<"edit" | "success" | "error">("edit");
