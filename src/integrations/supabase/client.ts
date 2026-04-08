@@ -5,8 +5,9 @@ import { createClient } from '@supabase/supabase-js';
 // Strict types for RPCs and critical tables are in database.types.ts.
 type Database = any;
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+export const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
+export const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
+const SUPABASE_PUBLISHABLE_KEY = SUPABASE_ANON_KEY;
 
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
@@ -18,3 +19,23 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     autoRefreshToken: true,
   }
 });
+
+// ─── safeRpc: wrapper resiliente para RPCs ───
+export interface SafeRpcResult<T> {
+  success: boolean;
+  data: T | null;
+  error: string | null;
+}
+
+export async function safeRpc<T = any>(
+  fnName: string,
+  params?: Record<string, unknown>,
+): Promise<SafeRpcResult<T>> {
+  try {
+    const { data, error } = await supabase.rpc(fnName, params);
+    if (error) return { success: false, data: null, error: error.message };
+    return { success: true, data: data as T, error: null };
+  } catch (e: any) {
+    return { success: false, data: null, error: e?.message || "RPC failed" };
+  }
+}
