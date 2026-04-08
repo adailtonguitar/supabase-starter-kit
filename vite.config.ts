@@ -96,7 +96,7 @@ export default defineConfig(({ mode }) => ({
     ? {}
     : {
         "import.meta.env.VITE_SUPABASE_URL": JSON.stringify("https://fsvxpxziotklbxkivyug.supabase.co"),
-        "import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY": JSON.stringify("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZzdnhweHppb3RrbGJ4a2l2eXVnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzc1NTcwNTAsImV4cCI6MjA1MzEzMzA1MH0.GJFxTGh3DFNJmVE7Nj6FMxFqFUPuBjM2nGS4EfTqsfU"),
+        "import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY": JSON.stringify("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZzdnhweHppb3RrbGJ4a2l2eXVnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE3ODU5NTMsImV4cCI6MjA4NzM2MTk1M30.8I3ABsRZBZuE1IpK_g9z3PdRUd9Omt_F5qNx0Pgqvyo"),
       },
   build: {
     rollupOptions: {
