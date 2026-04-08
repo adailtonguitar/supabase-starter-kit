@@ -36,6 +36,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
 import { useAuth } from "@/hooks/useAuth";
 import { logAction } from "@/services/ActionLogger";
+import { invokeEdgeFunctionWithAuth } from "@/lib/invoke-edge-function-with-auth";
 import forge from "node-forge";
 import { type CRT, isValidCrt } from "@/lib/fiscal-config-lookup";
 
@@ -181,7 +182,7 @@ export default function FiscalConfigEdit() {
           throw new Error("Informe a senha do certificado para concluir a exclusão.");
         }
 
-        const { data: deleteResult, error: deleteError } = await supabase.functions.invoke("emit-nfce", {
+        const { data: deleteResult, error: deleteError } = await invokeEdgeFunctionWithAuth("emit-nfce", {
           body: {
             action: "delete_certificate",
             company_id: companyId,
@@ -240,7 +241,7 @@ export default function FiscalConfigEdit() {
 
       if (certType === "A1" && !certMarkedForRemoval && certBase64 && certPassword) {
         try {
-          const { data: uploadResult, error: uploadErr } = await supabase.functions.invoke("emit-nfce", {
+          const { data: uploadResult, error: uploadErr } = await invokeEdgeFunctionWithAuth("emit-nfce", {
             body: {
               action: "upload_certificate",
               company_id: companyId,

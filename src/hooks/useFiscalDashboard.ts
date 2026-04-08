@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { getFunctionErrorMessage } from "@/lib/get-function-error-message";
+import { invokeEdgeFunctionWithAuth } from "@/lib/invoke-edge-function-with-auth";
 import { useCompany } from "./useCompany";
 import { toast } from "sonner";
 import { useState, useMemo } from "react";
@@ -181,7 +182,7 @@ export function useFiscalDashboard() {
     if (!companyId) return;
     setIsProcessing(true);
     try {
-      const { data, error } = await supabase.functions.invoke("process-fiscal-queue", {
+      const { data, error } = await invokeEdgeFunctionWithAuth("process-fiscal-queue", {
         body: { company_id: companyId },
       });
       if (error) throw error;

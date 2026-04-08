@@ -3518,17 +3518,32 @@ async function validateCaller(req: Request): Promise<{ userId: string | null; is
 
   if (token === serviceRoleKey) return { userId: null, isServiceCall: true };
 
-  const userClient = createClient(supabaseUrl, anonKey, {
-    global: { headers: { Authorization: authHeader } },
-  });
+  try {
+    const userClient = createClient(supabaseUrl, anonKey, {
+      global: { headers: { Authorization: authHeader } },
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+    const { data, error } = await (userClient.auth as any).getClaims(token);
+    if (!error && data?.claims?.sub) {
+      return { userId: data.claims.sub as string, isServiceCall: false };
+    }
+  } catch {
+    // fallback below
+  }
 
   try {
-    const { data, error } = await userClient.auth.getClaims(token);
-    if (error || !data?.claims?.sub) return { userId: null, isServiceCall: false };
-    return { userId: data.claims.sub as string, isServiceCall: false };
+    const adminClient = createClient(supabaseUrl, serviceRoleKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+    const { data, error } = await adminClient.auth.getUser(token);
+    if (!error && data?.user?.id) {
+      return { userId: data.user.id, isServiceCall: false };
+    }
   } catch {
-    return { userId: null, isServiceCall: false };
+    // ignore
   }
+
+  return { userId: null, isServiceCall: false };
 }
 
 // ════════════════════════════════════════════════
