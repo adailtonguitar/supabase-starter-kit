@@ -2407,7 +2407,7 @@ async function handleEmitNfe(supabase: any, body: any) {
       mva: item.mva,
       exige_st: stCfg.temST,
     });
-    const icmsBlock = buildIcmsBlock({ ...item, qty, unit_price: unitPrice, discount }, isSimples, preIndIEDest);
+    const icmsBlock = buildIcmsBlock({ ...item, qty, unit_price: unitPrice, discount }, isSimples, preIndIEDest, 55);
 
     const icmsKey = Object.keys(icmsBlock)[0];
     const icmsData = (icmsBlock as any)[icmsKey];
