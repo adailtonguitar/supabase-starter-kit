@@ -2531,18 +2531,31 @@ async function handleEmitNfe(supabase: any, body: any) {
   console.log(`[emit-nfe] ◀ Resposta Nuvem Fiscal: status=${nfResp.status} | ${Date.now() - t0}ms`);
 
   if (!nfResp.ok) {
-    const baseErrMsg = nfData?.mensagem || nfData?.error?.message || nfData?.message || JSON.stringify(nfData);
+    // Log full response for debugging
+    console.error(`[emit-nfe] ✗ Resposta completa Nuvem Fiscal [${nfResp.status}]:`, JSON.stringify(nfData).slice(0, 2000));
+
+    const baseErrMsg = nfData?.mensagem || nfData?.error?.message || nfData?.message || "Erro de validação";
     const validationList = [
       ...(Array.isArray(nfData?.errors) ? nfData.errors : []),
       ...(Array.isArray(nfData?.violations) ? nfData.violations : []),
       ...(Array.isArray(nfData?.details) ? nfData.details : []),
     ];
-    const firstValidation = validationList[0];
-    const fieldPath = firstValidation?.propertyPath || firstValidation?.field || firstValidation?.path || "";
-    const fieldMessage = firstValidation?.message || firstValidation?.error || firstValidation?.reason || "";
-    const validationHint = fieldPath && fieldMessage ? `${fieldPath}: ${fieldMessage}` : (fieldMessage || "");
-    const errMsg = validationHint ? `${baseErrMsg} — ${validationHint}` : baseErrMsg;
-    console.error(`[emit-nfe] ✗ Erro Nuvem Fiscal [${nfResp.status}]:`, errMsg);
+
+    // Collect ALL validation errors, not just the first
+    const allHints = validationList.map((v: any) => {
+      const fp = v?.propertyPath || v?.field || v?.path || "";
+      const fm = v?.message || v?.error || v?.reason || "";
+      return fp && fm ? `${fp}: ${fm}` : (fm || fp || "");
+    }).filter(Boolean);
+
+    const validationHint = allHints.length > 0 ? allHints.join(" | ") : "";
+    const errMsg = validationHint
+      ? `${baseErrMsg} — ${validationHint}`
+      : baseErrMsg !== "Erro de validação"
+        ? baseErrMsg
+        : `Erro de validação — ${JSON.stringify(nfData).slice(0, 500)}`;
+
+    console.error(`[emit-nfe] ✗ Erro NF-e formatado:`, errMsg);
 
     const rejAccessKey = nfData?.chave || nfData?.chave_acesso || null;
     const rejProtocol = nfData?.protocolo || nfData?.numero_protocolo || null;
