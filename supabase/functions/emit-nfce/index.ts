@@ -254,12 +254,18 @@ function getTaxRule(
   }
 
   if (bestRule && bestScore >= 50) {
+    console.log(`[FISCAL-VERSION]`, JSON.stringify({
+      ncm: cleanNcm, data_emissao: refDate,
+      regra_usada: bestRule.id,
+      vigencia_inicio: bestRule.vigencia_inicio || null,
+      vigencia_fim: bestRule.vigencia_fim || null,
+    }));
     return {
       rule: bestRule,
       structured: structureTaxRule(bestRule),
       score: bestScore,
       source: "dynamic_db",
-      reason: `Regra dinâmica: ${bestRule.descricao || bestRule.id} (score=${bestScore})`,
+      reason: `Regra dinâmica: ${bestRule.descricao || bestRule.id} (score=${bestScore}, vigência=${bestRule.vigencia_inicio || "?"})`,
     };
   }
 
