@@ -19,6 +19,7 @@ import { motion } from "framer-motion";
 import { NCM_TABLE } from "@/lib/ncm-table";
 import { getStoredCertificateA1 } from "@/services/LocalXmlSigner";
 import { type CRT, isValidCrt } from "@/lib/fiscal-config-lookup";
+import { preValidateBeforeEmission, formatValidationSummary } from "@/services/fiscal/sefaz/pre-validation-service";
 
 const PAYMENT_OPTIONS = [
   { value: "01", label: "Dinheiro" },
