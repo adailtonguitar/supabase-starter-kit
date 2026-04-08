@@ -40,6 +40,9 @@ export interface PipelineContext {
   tipoCliente: "cpf" | "cnpj_contribuinte" | "cnpj_nao_contribuinte";
   indIEDest?: number;
   fiscalMode?: FiscalMode;
+  /** Para aprendizado fiscal — requer companyId e supabase */
+  companyId?: string;
+  supabase?: any;
 }
 
 export interface PipelineItemResult {
