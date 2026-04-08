@@ -785,7 +785,7 @@ export default function Fiscal() {
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-card rounded-2xl border border-border card-shadow w-full max-w-lg mx-4 p-6"
+            className="bg-card rounded-2xl border border-border card-shadow w-full max-w-lg mx-4 p-6 max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-4">
