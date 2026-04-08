@@ -1040,10 +1040,24 @@ function buildIcmsBlock(item: any, isSimples: boolean, indIEDest?: number, model
 
   if (isSimples) {
     // SEFAZ rejeição 600: CSOSN 201/202/203 incompatível com Não Contribuinte (indIEDest=9)
-    // APENAS para NFC-e (modelo 65). Para NF-e (modelo 55) CSOSN ST é válido com indIEDest=9.
-    if (CSOSN_ST.has(cst) && indIEDest === 9 && modelo === 65) {
-      console.warn(`[buildIcmsBlock] ⚠ CSOSN ${cst} incompatível com indIEDest=9 (Não Contribuinte). Auto-corrigindo para CSOSN 102.`);
-      return { ICMSSN102: { orig: origem, CSOSN: "102" } };
+    if (CSOSN_ST.has(cst) && indIEDest === 9) {
+      if (modelo === 65) {
+        // NFC-e: converte para CSOSN 102 (sem ST)
+        console.warn(`[buildIcmsBlock] ⚠ NFC-e: CSOSN ${cst} incompatível com indIEDest=9. Auto-corrigindo para CSOSN 102.`);
+        return { ICMSSN102: { orig: origem, CSOSN: "102" } };
+      } else {
+        // NF-e (modelo 55): converte para CSOSN 500 (ST retido anteriormente)
+        const mva = item.mva != null && item.mva > 0 ? item.mva : 40;
+        const bcST = vProd * (1 + mva / 100);
+        const icmsST = bcST * (aliqIcms / 100);
+        const vBCSTRet = Math.round(bcST * 100) / 100;
+        const vICMSSTRet = Math.round(icmsST * 100) / 100;
+        console.warn(`[buildIcmsBlock] ⚠ NF-e: CSOSN ${cst} + indIEDest=9 → convertendo para CSOSN 500. vBCSTRet=${vBCSTRet}, vICMSSTRet=${vICMSSTRet}`);
+        const sn500: any = { orig: origem, CSOSN: "500" };
+        if (vBCSTRet > 0) sn500.vBCSTRet = vBCSTRet;
+        if (vICMSSTRet > 0) sn500.vICMSSTRet = vICMSSTRet;
+        return { ICMSSN500: sn500 };
+      }
     }
     if (CSOSN_ST.has(cst)) {
       const mva = item.mva != null && item.mva > 0 ? item.mva : 40;
