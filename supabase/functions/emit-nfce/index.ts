@@ -1944,8 +1944,8 @@ async function handleEmitNfe(supabase: any, body: any) {
     const stPromises = uniqueNcms.map(async (ncm: string) => {
       try {
         const [ruleRes, overrideRes] = await Promise.all([
-          admin.rpc("resolve_st_from_db", { p_ncm: ncm, p_uf: stUf, p_tipo_operacao: "todos" }),
-          admin.rpc("get_st_override", { p_company_id: company_id, p_ncm: ncm, p_uf: stUf }),
+          supabase.rpc("resolve_st_from_db", { p_ncm: ncm, p_uf: stUf, p_tipo_operacao: "todos" }),
+          supabase.rpc("get_st_override", { p_company_id: company_id, p_ncm: ncm, p_uf: stUf }),
         ]);
         if (ruleRes.data) stDbRules[ncm] = ruleRes.data;
         if (overrideRes.data) stOverrides[ncm] = overrideRes.data;
@@ -2074,7 +2074,7 @@ async function handleEmitNfe(supabase: any, body: any) {
 
   // Log ST decisions to DB (fire-and-forget)
   if (stDecisionLogs.length > 0) {
-    admin.from("fiscal_st_decision_log").insert(
+    supabase.from("fiscal_st_decision_log").insert(
       stDecisionLogs.map((l: any) => ({ ...l, company_id }))
     ).then(() => {}).catch((e: any) => console.warn("[emit-nfe] ST log insert failed:", e));
   }
