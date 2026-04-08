@@ -1032,7 +1032,7 @@ const CST_ST = new Set(["10", "30", "70"]);
 const CSOSN_ICMSSN102_ALLOWED = new Set(["102", "103", "300", "400", "900"]);
 
 // ─── Construtor de bloco ICMS por regime ───
-function buildIcmsBlock(item: any, isSimples: boolean, indIEDest?: number) {
+function buildIcmsBlock(item: any, isSimples: boolean, indIEDest?: number, modelo: number = 65) {
   const cst = (item.cst || "").trim();
   const origem = Number(item.origem) || 0;
   const vProd = item.qty * item.unit_price - (item.discount || 0);
@@ -1040,8 +1040,8 @@ function buildIcmsBlock(item: any, isSimples: boolean, indIEDest?: number) {
 
   if (isSimples) {
     // SEFAZ rejeição 600: CSOSN 201/202/203 incompatível com Não Contribuinte (indIEDest=9)
-    // Auto-corrige para CSOSN 102 (sem ST) quando dest é não contribuinte
-    if (CSOSN_ST.has(cst) && indIEDest === 9) {
+    // APENAS para NFC-e (modelo 65). Para NF-e (modelo 55) CSOSN ST é válido com indIEDest=9.
+    if (CSOSN_ST.has(cst) && indIEDest === 9 && modelo === 65) {
       console.warn(`[buildIcmsBlock] ⚠ CSOSN ${cst} incompatível com indIEDest=9 (Não Contribuinte). Auto-corrigindo para CSOSN 102.`);
       return { ICMSSN102: { orig: origem, CSOSN: "102" } };
     }
@@ -2407,7 +2407,7 @@ async function handleEmitNfe(supabase: any, body: any) {
       mva: item.mva,
       exige_st: stCfg.temST,
     });
-    const icmsBlock = buildIcmsBlock({ ...item, qty, unit_price: unitPrice, discount }, isSimples, preIndIEDest);
+    const icmsBlock = buildIcmsBlock({ ...item, qty, unit_price: unitPrice, discount }, isSimples, preIndIEDest, 55);
 
     const icmsKey = Object.keys(icmsBlock)[0];
     const icmsData = (icmsBlock as any)[icmsKey];
