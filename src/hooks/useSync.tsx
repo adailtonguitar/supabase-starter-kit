@@ -23,6 +23,7 @@ import type {
 } from "@/services/types";
 import { toast } from "sonner";
 import { fiscalCircuitBreaker, CircuitBreakerOpenError } from "@/lib/circuit-breaker";
+import { invokeEdgeFunctionWithAuth } from "@/lib/invoke-edge-function-with-auth";
 
 const SYNC_INTERVAL_MS = 15_000;
 const CLEANUP_INTERVAL_MS = 60 * 60 * 1000;
@@ -34,6 +35,11 @@ type RpcFinalizeSaleResult = {
   error?: string;
   sale_id?: string;
   message?: string;
+};
+
+type FiscalContingencyResponse = {
+  success?: boolean;
+  error?: string;
 };
 
 const parseString = (v: unknown): string | null => (typeof v === "string" ? v : null);
@@ -222,7 +228,7 @@ const processors: Record<string, SyncProcessor> = {
 
     try {
       const { data, error } = await fiscalCircuitBreaker.call(() =>
-        supabase.functions.invoke("emit-nfce", {
+          invokeEdgeFunctionWithAuth<FiscalContingencyResponse>("emit-nfce", {
           body: {
             action: "emit_contingency",
             sale_id: saleId,
