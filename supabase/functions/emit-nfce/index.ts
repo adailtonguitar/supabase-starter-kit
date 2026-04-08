@@ -1032,13 +1032,19 @@ const CST_ST = new Set(["10", "30", "70"]);
 const CSOSN_ICMSSN102_ALLOWED = new Set(["102", "103", "300", "400", "900"]);
 
 // ─── Construtor de bloco ICMS por regime ───
-function buildIcmsBlock(item: any, isSimples: boolean) {
+function buildIcmsBlock(item: any, isSimples: boolean, indIEDest?: number) {
   const cst = (item.cst || "").trim();
   const origem = Number(item.origem) || 0;
   const vProd = item.qty * item.unit_price - (item.discount || 0);
   const aliqIcms = item.icms_aliquota || 0;
 
   if (isSimples) {
+    // SEFAZ rejeição 600: CSOSN 201/202/203 incompatível com Não Contribuinte (indIEDest=9)
+    // Auto-corrige para CSOSN 102 (sem ST) quando dest é não contribuinte
+    if (CSOSN_ST.has(cst) && indIEDest === 9) {
+      console.warn(`[buildIcmsBlock] ⚠ CSOSN ${cst} incompatível com indIEDest=9 (Não Contribuinte). Auto-corrigindo para CSOSN 102.`);
+      return { ICMSSN102: { orig: origem, CSOSN: "102" } };
+    }
     if (CSOSN_ST.has(cst)) {
       const mva = item.mva != null && item.mva > 0 ? item.mva : 40;
       const bcST = vProd * (1 + mva / 100);
