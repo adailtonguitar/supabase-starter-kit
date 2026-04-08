@@ -1,1 +1,4 @@
 project_id = "yrswvxsypndvzspmlogo"
+
+[functions.emit-nfce]
+verify_jwt = false
