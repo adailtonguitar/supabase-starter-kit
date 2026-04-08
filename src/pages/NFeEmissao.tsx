@@ -1774,6 +1774,7 @@ export default function NFeEmissao() {
                                       <div>
                                         <label className="text-[10px] text-muted-foreground">Vlr. Unit.</label>
                                         <input type="number" step="0.01" value={preAddProduct.unitPrice}
+                                          onFocus={e => e.target.select()}
                                           onChange={e => setPreAddProduct(prev => prev ? { ...prev, unitPrice: parseFloat(e.target.value) || 0 } : null)}
                                           className="w-24 mt-0.5 px-2 py-1 rounded border border-border bg-background text-xs font-mono text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30" />
                                       </div>
