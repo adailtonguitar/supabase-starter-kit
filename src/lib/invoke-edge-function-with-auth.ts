@@ -6,21 +6,30 @@ type EdgeInvokeOptions = {
   headers?: Record<string, string>;
 };
 
-export async function invokeEdgeFunctionWithAuth<T = unknown>(
+type EdgeInvokeResponse<T> = {
+  data: T | null;
+  error: {
+    message?: string;
+    context?: Response;
+  } | null;
+  response?: Response;
+};
+
+export async function invokeEdgeFunctionWithAuth<T = any>(
   functionName: string,
   options: EdgeInvokeOptions = {},
-) {
+): Promise<EdgeInvokeResponse<T>> {
   const auth = await getAccessTokenForEdgeFunctions();
 
   if ("error" in auth) {
     throw new Error(auth.error);
   }
 
-  return supabase.functions.invoke<T>(functionName, {
+  return await supabase.functions.invoke<T>(functionName, {
     body: options.body,
     headers: {
       ...(options.headers ?? {}),
       Authorization: `Bearer ${auth.token}`,
     },
-  });
+  }) as EdgeInvokeResponse<T>;
 }
