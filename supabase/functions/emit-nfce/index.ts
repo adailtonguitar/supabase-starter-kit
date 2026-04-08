@@ -1918,7 +1918,7 @@ async function handleEmit(supabase: any, body: any) {
 
     // ─── Motor Fiscal Dinâmico: regras do banco (prioridade sobre hardcoded) ───
     const dynamicRegime = isSimples ? "simples" : "normal" as const;
-    const dynamicMatch = getTaxRule(dynamicTaxRules, ncm, companyState, companyState, dynamicRegime);
+    const dynamicMatch = getTaxRule(dynamicTaxRules, ncm, companyState, companyState, dynamicRegime, item.cest);
     const dynamicApplied = applyDynamicTaxRule(item, dynamicMatch, isSimples);
     if (dynamicMatch.rule || dynamicMatch.score > 0) {
       console.log(`[FISCAL-RULE] NFC-e item=${i + 1}`, JSON.stringify({
@@ -1926,8 +1926,9 @@ async function handleEmit(supabase: any, body: any) {
         origem: companyState, destino: companyState, regime: dynamicRegime,
         source: dynamicMatch.source, score: dynamicMatch.score,
         decisao_final: dynamicMatch.reason,
-        tipo_pis_cofins: dynamicMatch.rule?.tipo_pis_cofins || "fallback",
-        tem_st: dynamicMatch.rule?.tem_st || false,
+        structured: dynamicMatch.structured,
+        tipo_pis_cofins: dynamicMatch.structured?.pis_cofins?.tipo || "fallback",
+        tem_st: dynamicMatch.structured?.st?.tem_st || false,
       }));
     }
 
