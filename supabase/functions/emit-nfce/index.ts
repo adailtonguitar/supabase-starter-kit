@@ -2123,6 +2123,12 @@ async function handleEmitNfe(supabase: any, body: any) {
   };
   supabase.from("action_logs").insert(auditPayload).then(() => {}).catch(() => {});
 
+  // Pre-compute indIEDest for ICMS block decisions (needed before dest object is built)
+  const destDocPre = (form.dest_doc || form.customer_doc || "").replace(/\D/g, "");
+  const destIEPre = String(form.dest_ie || "").trim().replace(/\D/g, "");
+  const destIEIsentoPre = /^isento$/i.test(String(form.dest_ie || "").trim());
+  const preIndIEDest = (destIEPre && destIEPre.length >= 2) ? 1 : (destDocPre.length === 14 && destIEIsentoPre) ? 2 : 9;
+
   // Totalizadores
   let totalVProd = 0, totalVDesc = 0, totalVICMS = 0, totalVBCST = 0, totalVST = 0, totalVPIS = 0, totalVCOFINS = 0;
   let totalVFCPUFDest = 0, totalVICMSUFDest = 0, totalVICMSUFRemet = 0;
