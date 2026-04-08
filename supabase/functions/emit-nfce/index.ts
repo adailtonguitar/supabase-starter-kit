@@ -1309,6 +1309,138 @@ async function handleEmit(supabase: any, body: any) {
     }
   }
 
+  // ─── ST Auto-Detection v2 para NFC-e (DB → Override → Fallback) ───
+  const uniqueNcmsNfce = [...new Set(items.map((it: any) => (it.ncm || "").replace(/\D/g, "")).filter((n: string) => n.length === 8))];
+  const stUfNfce = companyState;
+  
+  // ST Fallback inline (mesma base do NF-e)
+  const ST_FALLBACK_NFCE: Record<string, Record<string, { mva: number; aliquotaInterna: number; cest?: string }>> = {
+    "22021000": { _default: { mva: 70, aliquotaInterna: 18 }, MA: { mva: 70, aliquotaInterna: 22 } },
+    "22011000": { _default: { mva: 70, aliquotaInterna: 18 }, MA: { mva: 70, aliquotaInterna: 22 } },
+    "22021010": { _default: { mva: 40, aliquotaInterna: 18 }, MA: { mva: 40, aliquotaInterna: 22 } },
+    "22030000": { _default: { mva: 70, aliquotaInterna: 25 }, MA: { mva: 70, aliquotaInterna: 22 } },
+    "24022000": { _default: { mva: 0, aliquotaInterna: 25 } },
+    "40111000": { _default: { mva: 42, aliquotaInterna: 18 }, MA: { mva: 42, aliquotaInterna: 22 } },
+    "25232900": { _default: { mva: 20, aliquotaInterna: 18 }, MA: { mva: 20, aliquotaInterna: 22 } },
+    "32091000": { _default: { mva: 35, aliquotaInterna: 18 }, MA: { mva: 35, aliquotaInterna: 22 } },
+    "85361000": { _default: { mva: 37, aliquotaInterna: 18 }, MA: { mva: 37, aliquotaInterna: 22 } },
+    "33051000": { _default: { mva: 38.90, aliquotaInterna: 18 }, MA: { mva: 38.90, aliquotaInterna: 22 } },
+    "34022000": { _default: { mva: 43.53, aliquotaInterna: 18 }, MA: { mva: 43.53, aliquotaInterna: 22 } },
+  };
+
+  // Batch fetch ST rules from DB
+  const stDbRulesNfce: Record<string, any> = {};
+  const stOverridesNfce: Record<string, any> = {};
+  
+  if (uniqueNcmsNfce.length > 0) {
+    const stNfcePromises = uniqueNcmsNfce.map(async (ncm: string) => {
+      try {
+        const [ruleRes, overrideRes] = await Promise.all([
+          supabase.rpc("resolve_st_from_db", { p_ncm: ncm, p_uf: stUfNfce, p_tipo_operacao: "todos" }),
+          supabase.rpc("get_st_override", { p_company_id: company_id, p_ncm: ncm, p_uf: stUfNfce }),
+        ]);
+        if (ruleRes.data) stDbRulesNfce[ncm] = ruleRes.data;
+        if (overrideRes.data) stOverridesNfce[ncm] = overrideRes.data;
+      } catch (e) {
+        console.warn(`[emit-nfce] ST DB lookup falhou para NCM ${ncm}: ${e}`);
+      }
+    });
+    await Promise.all(stNfcePromises);
+  }
+
+  function getSTConfigNfce(ncm: string, uf: string) {
+    // 1. Override
+    const ovr = stOverridesNfce[ncm];
+    if (ovr?.found) {
+      if (ovr.forcar_st === false) return { temST: false, mva: 0, aliquotaInterna: 0, source: "override_negado" };
+      if (ovr.forcar_st === true) return {
+        temST: true, mva: ovr.mva_forcado ?? 0, aliquotaInterna: ovr.aliquota_forcada ?? 18,
+        cest: undefined, csosn_forcado: ovr.csosn_forcado, source: "override",
+      };
+    }
+    // 2. DB rule
+    const rule = stDbRulesNfce[ncm];
+    if (rule?.found && rule.exige_st) {
+      return { temST: true, mva: rule.mva ?? 0, aliquotaInterna: rule.aliquota_interna ?? 18, cest: rule.cest, convenio: rule.convenio, source: "db_rule" };
+    }
+    // 3. Fallback
+    const entry = ST_FALLBACK_NFCE[ncm];
+    if (entry) {
+      const cfg = entry[uf] || entry._default;
+      if (cfg) return { temST: true, ...cfg, source: "fallback" };
+    }
+    const p4 = ncm.slice(0, 4);
+    for (const [k, v] of Object.entries(ST_FALLBACK_NFCE)) {
+      if (k.startsWith(p4)) {
+        const cfg = v[uf] || v._default;
+        if (cfg) return { temST: true, ...cfg, source: "fallback_prefix" };
+      }
+    }
+    return { temST: false, mva: 0, aliquotaInterna: 0, source: "none" };
+  }
+
+  // Apply ST auto-detection to NFC-e items
+  const stDecisionLogsNfce: any[] = [];
+  for (let vi = 0; vi < items.length; vi++) {
+    const vItem = items[vi];
+    const vNcm = (vItem.ncm || "").replace(/\D/g, "");
+    if (vNcm && vNcm.length === 8) {
+      const stCfg = getSTConfigNfce(vNcm, stUfNfce) as any;
+      const stLog = {
+        ncm: vNcm, cest: stCfg.cest || null, uf: stUfNfce,
+        regra_usada: stCfg.source || "none", convenio: stCfg.convenio || null,
+        mva: stCfg.mva || 0, aplicou_st: false, motivo: "",
+        confianca: stCfg.source === "db_rule" || stCfg.source === "override" ? "alta" : stCfg.source === "fallback" ? "media" : "baixa",
+        override_aplicado: stCfg.source === "override" || stCfg.source === "override_negado",
+        risk_score: stCfg.source === "fallback_prefix" ? 40 : stCfg.source === "fallback" ? 20 : 0,
+      };
+
+      if (stCfg.temST) {
+        const itemCst = (vItem.cst || "").trim();
+        const stCsosns = new Set(["201", "202", "203", "500"]);
+        const hasST = isSimples ? stCsosns.has(itemCst) : new Set(["10", "30", "60", "70"]).has(itemCst);
+        if (!hasST && !vItem.mva) {
+          vItem.mva = stCfg.mva;
+          vItem.icms_aliquota = vItem.icms_aliquota || stCfg.aliquotaInterna;
+          if (isSimples) {
+            // NFC-e é sempre para consumidor final (indIEDest=9), então CSOSN ST (201/202/203) → 102
+            // Apenas CSOSN 500 (já retido) é válido para não-contribuinte
+            if (vItem.origem_tem_st) {
+              vItem.cst = "500";
+              console.log(`[emit-nfce] ST retido: item ${vi + 1} NCM=${vNcm} → CSOSN 500`);
+            } else {
+              // Para NFC-e (consumidor final), ST já retida na cadeia anterior = 500
+              // Se precisa calcular ST, a rejeição 600 bloqueia CSOSN 201/202/203
+              // Portanto usamos CSOSN 102 (sem crédito) para consumidor final
+              vItem.cst = "102";
+              console.log(`[emit-nfce] ST detectado (${stCfg.source}): item ${vi + 1} NCM=${vNcm} → CSOSN 102 (NFC-e consumidor final)`);
+            }
+          } else {
+            vItem.cst = "60";
+            console.log(`[emit-nfce] ST aplicado (${stCfg.source}): item ${vi + 1} NCM=${vNcm} → CST 60`);
+          }
+          stLog.aplicou_st = true;
+          stLog.motivo = `ST auto-detectado via ${stCfg.source} (NFC-e)`;
+        } else {
+          stLog.motivo = hasST ? "Item já possui CST/CSOSN de ST" : "Item já possui MVA definida";
+          stLog.aplicou_st = hasST || (vItem.mva > 0);
+        }
+      } else {
+        stLog.motivo = stCfg.source === "override_negado"
+          ? "ST desativada por override manual"
+          : `NCM ${vNcm} sem ST na UF ${stUfNfce}`;
+      }
+      stDecisionLogsNfce.push(stLog);
+    }
+  }
+
+  // Log ST decisions (fire-and-forget)
+  if (stDecisionLogsNfce.length > 0) {
+    supabase.from("fiscal_st_decision_log").insert(
+      stDecisionLogsNfce.map((l: any) => ({ ...l, company_id }))
+    ).then(() => {}).catch((e: any) => console.warn("[emit-nfce] ST log insert failed:", e));
+  }
+
   // ─── LOG DE AUDITORIA PRÉ-EMISSÃO NFC-e ───
   supabase.from("action_logs").insert({
     company_id,
@@ -1319,6 +1451,7 @@ async function handleEmit(supabase: any, body: any) {
       isSimples,
       pisCofinsMode: isSimples ? "simples_sem_credito" : "regime_normal",
       itemCount: items.length,
+      stDecisions: stDecisionLogsNfce.length,
       validado: true,
     }),
   }).then(() => {}).catch(() => {});
