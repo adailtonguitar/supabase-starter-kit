@@ -2400,6 +2400,12 @@ async function handleEmitNfe(supabase: any, body: any) {
       }
     }
 
+    console.log("DEBUG ST:", {
+      ncm: item.ncm,
+      csosn: item.cst,
+      mva: item.mva,
+      exige_st: item.temST,
+    });
     const icmsBlock = buildIcmsBlock({ ...item, qty, unit_price: unitPrice, discount }, isSimples, preIndIEDest);
 
     const icmsKey = Object.keys(icmsBlock)[0];
