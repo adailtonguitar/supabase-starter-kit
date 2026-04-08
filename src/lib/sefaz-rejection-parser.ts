@@ -38,6 +38,7 @@ const REJECTION_MAP: Record<string, Omit<SefazRejection, "code">> = {
   // ── ICMS / CST ──
   "388": { title: "CST incompatível com CFOP", guidance: "O CST/CSOSN informado não combina com o CFOP. Exemplo: CFOP 5405 exige CST 60 ou CSOSN 500.", field: "items" },
   "389": { title: "CST incompatível com regime tributário", guidance: "Simples Nacional deve usar CSOSN (101-900). Regime Normal deve usar CST ICMS (00-90). Corrija na aba Itens.", field: "items" },
+  "600": { title: "CSOSN incompatível com Não Contribuinte", guidance: "CSOSNs 201/202/203 (Substituição Tributária com crédito) não são aceitos quando o destinatário é Não Contribuinte (indIEDest=9). O sistema corrigirá automaticamente para CSOSN 102 ou 500. Tente emitir novamente.", field: "items" },
   "696": { title: "FCP: Base de cálculo obrigatória", guidance: "O estado exige o preenchimento da base de cálculo do FCP. Verifique se a alíquota FCP está configurada.", field: "items" },
   "697": { title: "FCP: Valor obrigatório", guidance: "O estado exige o valor do FCP (Fundo de Combate à Pobreza). O sistema calcula automaticamente — verifique se o estado está correto.", field: "items" },
 

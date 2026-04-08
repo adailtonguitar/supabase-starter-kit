@@ -1032,13 +1032,19 @@ const CST_ST = new Set(["10", "30", "70"]);
 const CSOSN_ICMSSN102_ALLOWED = new Set(["102", "103", "300", "400", "900"]);
 
 // ─── Construtor de bloco ICMS por regime ───
-function buildIcmsBlock(item: any, isSimples: boolean) {
+function buildIcmsBlock(item: any, isSimples: boolean, indIEDest?: number) {
   const cst = (item.cst || "").trim();
   const origem = Number(item.origem) || 0;
   const vProd = item.qty * item.unit_price - (item.discount || 0);
   const aliqIcms = item.icms_aliquota || 0;
 
   if (isSimples) {
+    // SEFAZ rejeição 600: CSOSN 201/202/203 incompatível com Não Contribuinte (indIEDest=9)
+    // Auto-corrige para CSOSN 102 (sem ST) quando dest é não contribuinte
+    if (CSOSN_ST.has(cst) && indIEDest === 9) {
+      console.warn(`[buildIcmsBlock] ⚠ CSOSN ${cst} incompatível com indIEDest=9 (Não Contribuinte). Auto-corrigindo para CSOSN 102.`);
+      return { ICMSSN102: { orig: origem, CSOSN: "102" } };
+    }
     if (CSOSN_ST.has(cst)) {
       const mva = item.mva != null && item.mva > 0 ? item.mva : 40;
       const bcST = vProd * (1 + mva / 100);
@@ -1375,7 +1381,7 @@ async function handleEmit(supabase: any, body: any) {
       }
     }
 
-    const icmsBlock = buildIcmsBlock({ ...item, qty, unit_price: unitPrice, discount }, isSimples);
+    const icmsBlock = buildIcmsBlock({ ...item, qty, unit_price: unitPrice, discount }, isSimples, 9);
 
     const icmsKey = Object.keys(icmsBlock)[0];
     const icmsData = (icmsBlock as any)[icmsKey];
@@ -2117,6 +2123,12 @@ async function handleEmitNfe(supabase: any, body: any) {
   };
   supabase.from("action_logs").insert(auditPayload).then(() => {}).catch(() => {});
 
+  // Pre-compute indIEDest for ICMS block decisions (needed before dest object is built)
+  const destDocPre = (form.dest_doc || form.customer_doc || "").replace(/\D/g, "");
+  const destIEPre = String(form.dest_ie || "").trim().replace(/\D/g, "");
+  const destIEIsentoPre = /^isento$/i.test(String(form.dest_ie || "").trim());
+  const preIndIEDest = (destIEPre && destIEPre.length >= 2) ? 1 : (destDocPre.length === 14 && destIEIsentoPre) ? 2 : 9;
+
   // Totalizadores
   let totalVProd = 0, totalVDesc = 0, totalVICMS = 0, totalVBCST = 0, totalVST = 0, totalVPIS = 0, totalVCOFINS = 0;
   let totalVFCPUFDest = 0, totalVICMSUFDest = 0, totalVICMSUFRemet = 0;
@@ -2180,7 +2192,7 @@ async function handleEmitNfe(supabase: any, body: any) {
       }
     }
 
-    const icmsBlock = buildIcmsBlock({ ...item, qty, unit_price: unitPrice, discount }, isSimples);
+    const icmsBlock = buildIcmsBlock({ ...item, qty, unit_price: unitPrice, discount }, isSimples, preIndIEDest);
 
     const icmsKey = Object.keys(icmsBlock)[0];
     const icmsData = (icmsBlock as any)[icmsKey];
