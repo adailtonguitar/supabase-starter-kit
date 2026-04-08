@@ -9,6 +9,7 @@ import { DANFePrintButton } from "@/components/fiscal/DANFePrint";
 import { supabase } from "@/integrations/supabase/client";
 import { PRODUCTS_ACTIVE_OR_LEGACY_NULL } from "@/lib/product-active-filter";
 import { useCompany } from "@/hooks/useCompany";
+import { useAuth } from "@/hooks/useAuth";
 import { formatCurrency } from "@/lib/utils";
 import { toast } from "sonner";
 import { validateCstCsosn, getSuggestedCodes, type TaxRegime } from "@/lib/cst-csosn-validator";
