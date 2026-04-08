@@ -9,6 +9,7 @@ import { DANFePrintButton } from "@/components/fiscal/DANFePrint";
 import { supabase } from "@/integrations/supabase/client";
 import { PRODUCTS_ACTIVE_OR_LEGACY_NULL } from "@/lib/product-active-filter";
 import { useCompany } from "@/hooks/useCompany";
+import { useAuth } from "@/hooks/useAuth";
 import { formatCurrency } from "@/lib/utils";
 import { toast } from "sonner";
 import { validateCstCsosn, getSuggestedCodes, type TaxRegime } from "@/lib/cst-csosn-validator";
@@ -137,58 +138,22 @@ interface NFeDraft {
   form: NFeFormData;
 }
 
-function getDraftsKey(companyId: string | null): string {
-  return companyId ? `${NFE_DRAFTS_KEY_PREFIX}${companyId}` : "as_nfe_drafts_unknown";
+function getDraftsKey(companyId: string | null, userId?: string | null): string {
+  if (!companyId || !userId) return "as_nfe_drafts_unknown";
+  return `${NFE_DRAFTS_KEY_PREFIX}${userId}_${companyId}`;
 }
 
-function loadDrafts(companyId: string | null): NFeDraft[] {
+function loadDrafts(companyId: string | null, userId?: string | null): NFeDraft[] {
   try {
-    const raw = localStorage.getItem(getDraftsKey(companyId));
-    const drafts: NFeDraft[] = raw ? JSON.parse(raw) : [];
-
-    // Recuperar rascunhos que foram salvos sob companyId errado (bug do cache global)
-    if (companyId) {
-      const keysToCheck: string[] = [];
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (
-          key &&
-          key.startsWith(NFE_DRAFTS_KEY_PREFIX) &&
-          key !== getDraftsKey(companyId) &&
-          key !== "as_nfe_drafts_unknown"
-        ) {
-          keysToCheck.push(key);
-        }
-      }
-      // Se esta empresa NÃO tem rascunhos mas outra chave tem, migrar para cá
-      // (só faz isso uma vez — se já tem rascunhos, não mexe)
-      if (drafts.length === 0 && keysToCheck.length > 0) {
-        let migrated: NFeDraft[] = [];
-        for (const key of keysToCheck) {
-          try {
-            const otherRaw = localStorage.getItem(key);
-            if (otherRaw) {
-              const otherDrafts: NFeDraft[] = JSON.parse(otherRaw);
-              if (otherDrafts.length > 0) {
-                migrated = [...migrated, ...otherDrafts];
-                localStorage.removeItem(key);
-              }
-            }
-          } catch { /* ignore */ }
-        }
-        if (migrated.length > 0) {
-          saveDrafts(migrated, companyId);
-          return migrated;
-        }
-      }
-    }
-
-    return drafts;
-  } catch { return []; }
+    const raw = localStorage.getItem(getDraftsKey(companyId, userId));
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
 }
 
-function saveDrafts(drafts: NFeDraft[], companyId: string | null) {
-  try { localStorage.setItem(getDraftsKey(companyId), JSON.stringify(drafts)); } catch { /* */ }
+function saveDrafts(drafts: NFeDraft[], companyId: string | null, userId?: string | null) {
+  try { localStorage.setItem(getDraftsKey(companyId, userId), JSON.stringify(drafts)); } catch { /* */ }
 }
 
 
@@ -358,6 +323,7 @@ interface NFeFiscalCategory {
 }
 
 export default function NFeEmissao() {
+  const { user } = useAuth();
   const { companyId, companyName, logoUrl, cnpj: hookCnpj, ie: hookIe, phone: hookPhone, addressStreet: hookStreet, addressNumber: hookNumber, addressNeighborhood: hookNeighborhood, addressCity: hookCity, addressState: hookState } = useCompany();
   const plan = usePlanFeatures();
   const { lookup: cnpjLookup, loading: cnpjLoading } = useCnpjLookup();
@@ -586,6 +552,10 @@ export default function NFeEmissao() {
   }, [companyId]);
 
   useEffect(() => { fetchClients(); }, [fetchClients]);
+
+  useEffect(() => {
+    setDrafts(loadDrafts(companyId, user?.id));
+  }, [companyId, user?.id]);
 
   // Load fiscal categories for auto-fill
   useEffect(() => {
@@ -1292,7 +1262,7 @@ export default function NFeEmissao() {
       form: { ...form },
     };
     const updated = [draft, ...drafts].slice(0, 20);
-    saveDrafts(updated, companyId);
+    saveDrafts(updated, companyId, user?.id);
     setDrafts(updated);
     toast.success("Rascunho salvo com sucesso!");
   };
@@ -1310,7 +1280,7 @@ export default function NFeEmissao() {
 
   const handleDeleteDraft = (draftId: string) => {
     const updated = drafts.filter(d => d.id !== draftId);
-    saveDrafts(updated, companyId);
+    saveDrafts(updated, companyId, user?.id);
     setDrafts(updated);
     toast.info("Rascunho excluído");
   };
