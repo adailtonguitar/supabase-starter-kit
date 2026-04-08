@@ -1175,10 +1175,11 @@ export default function NFeEmissao() {
         }
 
         // Safely parse data (may be Response object)
-        let parsed = result?.data;
+        let parsed: NFeSuccessData | null = result?.data as NFeSuccessData | null;
         try {
-          if (parsed && typeof parsed === "object" && typeof parsed.json === "function") {
-            parsed = await parsed.json();
+          const responseLike = parsed as { json?: () => Promise<NFeSuccessData> } | null;
+          if (responseLike && typeof responseLike === "object" && typeof responseLike.json === "function") {
+            parsed = await responseLike.json();
           }
         } catch (parseErr) {
           console.error("[NFeEmissao] Failed to parse response data:", parseErr);

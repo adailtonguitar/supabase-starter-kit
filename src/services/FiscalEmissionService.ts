@@ -9,6 +9,11 @@ type FiscalResponse<T = unknown> = {
   error?: string;
 };
 
+type CancelFunctionResponse = {
+  success?: boolean;
+  error?: string;
+};
+
 function isValidAccessKey(key: string): boolean {
   return /^[0-9]{44}$/.test(key);
 }
@@ -78,7 +83,7 @@ export class FiscalEmissionService {
     }
 
     try {
-      const { data, error } = await invokeEdgeFunctionWithAuth(getFunctionName(params.docType), {
+      const { data, error } = await invokeEdgeFunctionWithAuth<CancelFunctionResponse>(getFunctionName(params.docType), {
         body: {
           action: "cancel",
           access_key: params.accessKey,

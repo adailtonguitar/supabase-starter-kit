@@ -37,6 +37,11 @@ type RpcFinalizeSaleResult = {
   message?: string;
 };
 
+type FiscalContingencyResponse = {
+  success?: boolean;
+  error?: string;
+};
+
 const parseString = (v: unknown): string | null => (typeof v === "string" ? v : null);
 const parseFiniteNumber = (v: unknown): number | null => {
   if (typeof v === "number" && Number.isFinite(v)) return v;
@@ -223,7 +228,7 @@ const processors: Record<string, SyncProcessor> = {
 
     try {
       const { data, error } = await fiscalCircuitBreaker.call(() =>
-          invokeEdgeFunctionWithAuth("emit-nfce", {
+          invokeEdgeFunctionWithAuth<FiscalContingencyResponse>("emit-nfce", {
           body: {
             action: "emit_contingency",
             sale_id: saleId,

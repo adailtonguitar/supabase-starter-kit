@@ -58,6 +58,13 @@ interface NfceItem {
   product_id?: string;
 }
 
+type FiscalEmitResponse = {
+  success?: boolean;
+  status?: string;
+  error?: string;
+  details?: unknown;
+};
+
 interface NfceFormData {
   customerName: string;
   customerDoc: string;
@@ -566,7 +573,7 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
         return;
       }
 
-      const { data, error } = await invokeEdgeFunctionWithAuth("emit-nfce", {
+      const { data, error } = await invokeEdgeFunctionWithAuth<FiscalEmitResponse>("emit-nfce", {
         body: {
           sale_id: sale.id,
           company_id: companyId,
