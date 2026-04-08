@@ -45,6 +45,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let authResolved = false;
+
+    const applyAuthState = (nextSession: Session | null) => {
+      authResolved = true;
+      setSession(nextSession);
+      setUser(nextSession?.user ?? null);
+      cacheUser(nextSession?.user ?? null);
+      setErrorTrackerUser(nextSession?.user?.id ?? null, nextSession?.user?.email ?? null);
+      setLoading(false);
+    };
+
+    const clearAuthState = () => {
+      authResolved = true;
+      setSession(null);
+      setUser(null);
+      cacheUser(null);
+      setErrorTrackerUser(null, null);
+      setLoading(false);
+    };
+
     // Intercept recovery/invite hash BEFORE Supabase clears it
     const hash = window.location.hash;
     if (hash) {
@@ -69,36 +89,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (event === "SIGNED_OUT") {
         // Logged at signOut method below
       }
-      setSession(session);
-      setUser(session?.user ?? null);
-      cacheUser(session?.user ?? null);
-      setErrorTrackerUser(session?.user?.id ?? null, session?.user?.email ?? null);
-      setLoading(false);
+      applyAuthState(session);
     });
 
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      cacheUser(session?.user ?? null);
-      setErrorTrackerUser(session?.user?.id ?? null, session?.user?.email ?? null);
-      setLoading(false);
+      applyAuthState(session);
     }).catch(() => {
       if (!navigator.onLine && getCachedUser()) {
         // Offline — using cached user
+        authResolved = true;
+        setLoading(false);
       } else {
-        setSession(null);
-        setUser(null);
-        cacheUser(null);
+        clearAuthState();
       }
-      setLoading(false);
     });
 
-    // Safety timeout: if auth never resolves in 8s, stop loading
+    // Safety timeout: if auth never resolves in 8s, clear stale cached auth online.
     const timeout = setTimeout(() => {
-      setLoading((prev) => {
-        if (prev) return false;
-        return prev;
-      });
+      if (authResolved) return;
+
+      if (!navigator.onLine && getCachedUser()) {
+        authResolved = true;
+        setLoading(false);
+        return;
+      }
+
+      clearAuthState();
     }, 8000);
 
     return () => {
