@@ -152,21 +152,6 @@ function saveDrafts(drafts: NFeDraft[], companyId: string | null) {
   try { localStorage.setItem(getDraftsKey(companyId), JSON.stringify(drafts)); } catch { /* */ }
 }
 
-/** One-time migration: move old global drafts to the current company */
-function migrateGlobalDrafts(companyId: string | null) {
-  if (!companyId) return;
-  try {
-    const oldKey = "as_nfe_drafts";
-    const raw = localStorage.getItem(oldKey);
-    if (!raw) return;
-    const oldDrafts: NFeDraft[] = JSON.parse(raw);
-    if (!oldDrafts.length) { localStorage.removeItem(oldKey); return; }
-    const existing = loadDrafts(companyId);
-    const merged = [...oldDrafts, ...existing].slice(0, 20);
-    saveDrafts(merged, companyId);
-    localStorage.removeItem(oldKey);
-  } catch { /* */ }
-}
 
 function buildDraftLabel(form: NFeFormData): string {
   const dest = form.destName?.trim();
