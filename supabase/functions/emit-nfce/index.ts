@@ -176,6 +176,7 @@ function getTaxRule(
   ufDestino: string,
   regime: "simples" | "normal",
   cest?: string,
+  dataEmissao?: string,
 ): TaxRuleMatch {
   if (!dynamicRules || dynamicRules.length === 0) {
     return { rule: null, structured: null, score: 0, source: "fallback_hardcoded", reason: "Nenhuma regra dinâmica carregada" };
@@ -187,6 +188,8 @@ function getTaxRule(
   }
 
   const cleanCest = (cest || "").replace(/\D/g, "");
+  // Data de referência para vigência: dhEmi ou hoje
+  const refDate = (dataEmissao || new Date().toISOString()).slice(0, 10);
   let bestRule: DynamicTaxRule | null = null;
   let bestScore = -1;
 
@@ -194,6 +197,19 @@ function getTaxRule(
     // Validate rule before considering
     const validation = validarTaxRule(r);
     if (!validation.valid) continue;
+
+    // ─── Filtro por vigência (versionamento por data) ───
+    if (r.vigencia_inicio) {
+      const vInicio = r.vigencia_inicio.slice(0, 10);
+      if (vInicio > refDate) continue; // regra futura → ignorar
+    }
+    if (r.vigencia_fim) {
+      const vFim = r.vigencia_fim.slice(0, 10);
+      if (vFim < refDate) {
+        console.log(`[FISCAL-VERSION] Regra ${r.id} ignorada: vigência expirada (fim=${vFim}, emissão=${refDate})`);
+        continue; // regra expirada → ignorar
+      }
+    }
 
     if (r.regime !== regime) continue;
 
