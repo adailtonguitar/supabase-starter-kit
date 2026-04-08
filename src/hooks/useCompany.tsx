@@ -32,6 +32,10 @@ interface CachedCompany {
   pdvAutoEmitNfce: boolean;
 }
 
+function getScopedStorageKey(baseKey: string, userId?: string | null) {
+  return userId ? `${baseKey}:${userId}` : baseKey;
+}
+
 type CompanyRow = {
   name?: string | null;
   logo_url?: string | null;
@@ -52,16 +56,42 @@ type CompanyRow = {
   pdv_auto_emit_nfce?: boolean | null;
 };
 
-function cacheCompany(data: CachedCompany) {
-  try { localStorage.setItem(COMPANY_CACHE_KEY, JSON.stringify(data)); } catch { /* */ }
+function cacheCompany(data: CachedCompany, userId?: string | null) {
+  try { localStorage.setItem(getScopedStorageKey(COMPANY_CACHE_KEY, userId), JSON.stringify(data)); } catch { /* */ }
 }
 
-function getCachedCompany(): CachedCompany | null {
+function getCachedCompany(userId?: string | null): CachedCompany | null {
   try {
-    const raw = localStorage.getItem(COMPANY_CACHE_KEY);
-    if (raw) return JSON.parse(raw);
+    const scopedRaw = localStorage.getItem(getScopedStorageKey(COMPANY_CACHE_KEY, userId));
+    if (scopedRaw) return JSON.parse(scopedRaw);
+    if (!userId) return null;
+    const legacyRaw = localStorage.getItem(COMPANY_CACHE_KEY);
+    if (legacyRaw) return JSON.parse(legacyRaw);
   } catch { /* */ }
   return null;
+}
+
+function getSelectedCompany(userId?: string | null): string | null {
+  try {
+    const scoped = localStorage.getItem(getScopedStorageKey(SELECTED_COMPANY_KEY, userId));
+    if (scoped) return scoped;
+    if (!userId) return null;
+    return localStorage.getItem(SELECTED_COMPANY_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function setSelectedCompany(companyId: string, userId?: string | null) {
+  try { localStorage.setItem(getScopedStorageKey(SELECTED_COMPANY_KEY, userId), companyId); } catch { /* */ }
+}
+
+function clearSelectedCompany(userId?: string | null) {
+  try { localStorage.removeItem(getScopedStorageKey(SELECTED_COMPANY_KEY, userId)); } catch { /* */ }
+}
+
+function clearCachedCompany(userId?: string | null) {
+  try { localStorage.removeItem(getScopedStorageKey(COMPANY_CACHE_KEY, userId)); } catch { /* */ }
 }
 
 /** Ordena tenants ativos por volume (vendas, depois produtos) — primeiro = operação principal na prática. */
@@ -250,7 +280,7 @@ const nullFields: Omit<CachedCompany, 'companyId'> = {
 
 export function useCompany(): CompanyData {
   const { user, session } = useAuth();
-  const cached = getCachedCompany();
+  const cached = getCachedCompany(user?.id);
   const [companyId, setCompanyId] = useState<string | null>(cached?.companyId ?? null);
   const [fields, setFields] = useState<Omit<CachedCompany, 'companyId'>>(cached ? { ...nullFields, ...cached } : nullFields);
   const [loading, setLoading] = useState(true);
@@ -261,13 +291,14 @@ export function useCompany(): CompanyData {
     const isSameCompany = companyId === resolvedId;
     setCompanyId(resolvedId);
     setFields((prev) => {
-      const cachedFallback = cached?.companyId === resolvedId ? { ...nullFields, ...cached } : nullFields;
+      const latestCached = getCachedCompany(user?.id);
+      const cachedFallback = latestCached?.companyId === resolvedId ? { ...nullFields, ...latestCached } : nullFields;
       const baseFallback = isSameCompany && hasCompanyIdentity(prev) ? prev : cachedFallback;
       const next = mergeCompanyFields(company, baseFallback);
-      cacheCompany({ companyId: resolvedId, ...next });
+      cacheCompany({ companyId: resolvedId, ...next }, user?.id);
       return next;
     });
-  }, [cached, companyId]);
+  }, [companyId, user?.id]);
 
   useEffect(() => {
     retryCount.current = 0;
@@ -280,10 +311,10 @@ export function useCompany(): CompanyData {
       return;
     }
 
-    if (!navigator.onLine && cached?.companyId) {
-      // console.log("[useCompany] Offline — using cached company data");
-      setCompanyId(cached.companyId);
-      setFields({ ...nullFields, ...cached });
+    const latestCached = getCachedCompany(user.id);
+    if (!navigator.onLine && latestCached?.companyId) {
+      setCompanyId(latestCached.companyId);
+      setFields({ ...nullFields, ...latestCached });
       setLoading(false);
       return;
     }
@@ -292,7 +323,7 @@ export function useCompany(): CompanyData {
 
     const fetchCompany = async (targetCompanyId?: string) => {
       try {
-        const selectedId = targetCompanyId || localStorage.getItem(SELECTED_COMPANY_KEY);
+        const selectedId = targetCompanyId || getSelectedCompany(user.id);
         let resolvedCompanyId: string | null = null;
 
         const memberships = await fetchMyCompanyMemberships(user.id);
@@ -301,7 +332,7 @@ export function useCompany(): CompanyData {
         if (selectedId) {
           const sel = memberships.find((m) => m.company_id === selectedId && m.is_active);
           if (sel) resolvedCompanyId = selectedId;
-          else localStorage.removeItem(SELECTED_COMPANY_KEY);
+          else clearSelectedCompany(user.id);
         }
 
         const activeIds = memberships.filter((m) => m.is_active).map((m) => m.company_id);
@@ -334,11 +365,11 @@ export function useCompany(): CompanyData {
           retryTimer.current = setTimeout(() => { if (!cancelled) fetchCompany(); }, Math.min(400 * retryCount.current, 1200));
           return;
         }
-        if (!navigator.onLine && cached?.companyId) {
-          setCompanyId(cached.companyId);
-          setFields({ ...nullFields, ...cached });
+        const offlineCached = getCachedCompany(user.id);
+        if (!navigator.onLine && offlineCached?.companyId) {
+          setCompanyId(offlineCached.companyId);
+          setFields({ ...nullFields, ...offlineCached });
         } else {
-          /* Último recurso: evita companyId null com membership ativo (modal enganoso no ProtectedRoute). */
           try {
             const m = await fetchMyCompanyMemberships(user.id);
             const ids = m.filter((x) => x.is_active).map((x) => x.company_id);
@@ -364,7 +395,7 @@ export function useCompany(): CompanyData {
       const access = memberships.find((m) => m.company_id === newCompanyId && m.is_active);
       if (!access) { setLoading(false); return; }
 
-      localStorage.setItem(SELECTED_COMPANY_KEY, newCompanyId);
+      setSelectedCompany(newCompanyId, user.id);
 
       const activeIds = memberships.filter((m) => m.is_active).map((m) => m.company_id);
       const { id, row } = await resolveActiveCompany(activeIds, newCompanyId);
