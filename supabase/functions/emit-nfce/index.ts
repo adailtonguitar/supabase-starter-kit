@@ -2837,6 +2837,29 @@ async function handleEmitNfe(supabase: any, body: any) {
     rejection_reason: finalStatus === "rejeitada" ? providerReason || null : null,
   });
 
+  // ─── Persistir XML completo na nfe_documents ───
+  try {
+    const xmlEnviado = JSON.stringify(payload);
+    const xmlAutorizado = nfData ? JSON.stringify(nfData) : null;
+    await supabase.from("nfe_documents").upsert({
+      company_id,
+      chave_nfe: accessKey || `pending_${numero}_${Date.now()}`,
+      numero,
+      serie: config.serie || 1,
+      modelo: 55,
+      valor_total: vNF,
+      data_emissao: new Date().toISOString(),
+      xml_enviado: xmlEnviado,
+      xml_autorizado: finalStatus === "autorizada" || finalStatus === "contingencia" ? xmlAutorizado : null,
+      protocolo: protocolNumber || null,
+      status: finalStatus,
+      nuvem_fiscal_id: nuvemFiscalId || null,
+    }, { onConflict: "chave_nfe" });
+    console.log(`[emit-nfe] ✓ nfe_documents persistido: chave=${accessKey?.substring(0, 20)}... status=${finalStatus}`);
+  } catch (persistErr: any) {
+    console.error("[emit-nfe] ⚠ Falha ao persistir nfe_documents:", persistErr.message);
+  }
+
   // ─── Audit log de decisão fiscal ───
   await supabase.from("action_logs").insert({
     company_id,
