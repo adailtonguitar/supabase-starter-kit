@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { invokeEdgeFunctionWithAuth } from "@/lib/invoke-edge-function-with-auth";
 
 type DocType = "nfce" | "nfe";
 
@@ -28,7 +29,7 @@ export class FiscalEmissionService {
     }
 
     try {
-      const { data, error } = await supabase.functions.invoke(getFunctionName(docType), {
+      const { data, error } = await invokeEdgeFunctionWithAuth(getFunctionName(docType), {
         body: { action: "download_pdf", access_key: accessKey, doc_type: docType },
       });
 
@@ -47,7 +48,7 @@ export class FiscalEmissionService {
     }
 
     try {
-      const { data, error } = await supabase.functions.invoke(getFunctionName(docType), {
+      const { data, error } = await invokeEdgeFunctionWithAuth(getFunctionName(docType), {
         body: { action: "download_xml", access_key: accessKey, doc_type: docType },
       });
 
@@ -77,7 +78,7 @@ export class FiscalEmissionService {
     }
 
     try {
-      const { data, error } = await supabase.functions.invoke(getFunctionName(params.docType), {
+      const { data, error } = await invokeEdgeFunctionWithAuth(getFunctionName(params.docType), {
         body: {
           action: "cancel",
           access_key: params.accessKey,
@@ -133,7 +134,7 @@ export class FiscalEmissionService {
     }
 
     try {
-      const { data, error } = await supabase.functions.invoke(getFunctionName(params.docType), {
+      const { data, error } = await invokeEdgeFunctionWithAuth(getFunctionName(params.docType), {
         body: {
           action: "inutilize",
           company_id: params.companyId,
@@ -169,7 +170,7 @@ export class FiscalEmissionService {
     }
 
     try {
-      const { data, error } = await supabase.functions.invoke(getFunctionName(params.docType), {
+      const { data, error } = await invokeEdgeFunctionWithAuth(getFunctionName(params.docType), {
         body: {
           action: "consult_status",
           access_key: params.accessKey,
@@ -221,7 +222,7 @@ export class FiscalEmissionService {
 
   static async backupXmls(companyId: string): Promise<FiscalResponse> {
     try {
-      const { data, error } = await supabase.functions.invoke("emit-nfce", {
+      const { data, error } = await invokeEdgeFunctionWithAuth("emit-nfce", {
         body: { action: "backup_xmls", company_id: companyId },
       });
 

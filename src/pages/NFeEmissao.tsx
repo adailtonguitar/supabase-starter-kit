@@ -21,6 +21,7 @@ import { NCM_TABLE } from "@/lib/ncm-table";
 import { getStoredCertificateA1 } from "@/services/LocalXmlSigner";
 import { type CRT, isValidCrt } from "@/lib/fiscal-config-lookup";
 import { preValidateBeforeEmission, formatValidationSummary } from "@/services/fiscal/sefaz/pre-validation-service";
+import { invokeEdgeFunctionWithAuth } from "@/lib/invoke-edge-function-with-auth";
 
 const PAYMENT_OPTIONS = [
   { value: "01", label: "Dinheiro" },
@@ -1070,15 +1071,8 @@ export default function NFeEmissao() {
 
       let data: NFeSuccessData | null = null;
 
-      // Refresh session to avoid "Invalid JWT" on long-open tabs
       try {
-        await supabase.auth.refreshSession();
-      } catch (_refreshErr) {
-        console.warn("[NFeEmissao] Falha ao renovar sessão, tentando com token atual");
-      }
-
-      try {
-        const result = await supabase.functions.invoke("emit-nfce", {
+        const result = await invokeEdgeFunctionWithAuth("emit-nfce", {
           body: {
             action: "emit_nfe",
             company_id: companyId,

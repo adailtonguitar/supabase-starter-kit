@@ -23,6 +23,7 @@ import { getFunctionErrorMessage } from "@/lib/get-function-error-message";
 import { type CRT, isValidCrt } from "@/lib/fiscal-config-lookup";
 import { getFiscalReadiness, getFiscalReadinessBlockReason, getFiscalReadinessPrimaryFixRoute } from "@/lib/fiscal-readiness";
 import { useNavigate } from "react-router-dom";
+import { invokeEdgeFunctionWithAuth } from "@/lib/invoke-edge-function-with-auth";
 
 interface NfceEmissionDialogProps {
   sale: {
@@ -565,7 +566,7 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
         return;
       }
 
-      const { data, error } = await supabase.functions.invoke("emit-nfce", {
+      const { data, error } = await invokeEdgeFunctionWithAuth("emit-nfce", {
         body: {
           sale_id: sale.id,
           company_id: companyId,
