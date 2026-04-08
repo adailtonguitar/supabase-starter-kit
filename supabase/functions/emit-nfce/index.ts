@@ -70,6 +70,28 @@ function shouldGenerateAlert(result: FiscalRiskResult): { generate: boolean; sev
 }
 // ─── Fim Fiscal Risk Engine ───
 
+// ─── Decisão automática de tipo ST (CSOSN 202/500/102) ───
+function decidirTipoST(
+  item: any,
+  stCfg: any,
+  indIEDest: number
+): "500" | "202" | "102" {
+  // Regra 1: consumidor final (não contribuinte) → ST retido
+  if (indIEDest === 9 && stCfg.temST) {
+    return "500";
+  }
+  // Regra 2: produto já vem com ST retido
+  if (item.origem_com_st === true) {
+    return "500";
+  }
+  // Regra 3: precisa calcular ST
+  if (stCfg.temST) {
+    return "202";
+  }
+  return "102";
+}
+// ─── Fim Decisão ST ───
+
 function getRequiredEnv(name: string): string {
   const value = Deno.env.get(name);
   if (!value) {
