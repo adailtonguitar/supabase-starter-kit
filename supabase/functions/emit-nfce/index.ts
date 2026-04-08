@@ -1942,7 +1942,8 @@ async function handleEmit(supabase: any, body: any) {
 
     // ─── Motor Fiscal Dinâmico: regras do banco (prioridade sobre hardcoded) ───
     const dynamicRegime = isSimples ? "simples" : "normal" as const;
-    const dynamicMatch = getTaxRule(dynamicTaxRules, ncm, companyState, companyState, dynamicRegime, item.cest);
+    const nfceDhEmi = new Date().toISOString();
+    const dynamicMatch = getTaxRule(dynamicTaxRules, ncm, companyState, companyState, dynamicRegime, item.cest, nfceDhEmi);
     const dynamicApplied = applyDynamicTaxRule(item, dynamicMatch, isSimples);
     if (dynamicMatch.rule || dynamicMatch.score > 0) {
       console.log(`[FISCAL-RULE] NFC-e item=${i + 1}`, JSON.stringify({
