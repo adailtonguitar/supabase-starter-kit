@@ -996,7 +996,7 @@ export default function NFeEmissao() {
             code: it.productCode,
             name: it.name,
             ncm: it.ncm,
-            cest: it.cest || undefined,
+            cest: undefined,
             cfop: it.cfop,
             unit: it.unit,
             quantity: it.qty,
