@@ -1562,11 +1562,18 @@ async function handleEmit(supabase: any, body: any) {
     .select("*")
     .eq("company_id", company_id)
     .eq("is_active", true);
+  // Motor fiscal dinâmico: buscar regras globais + empresa
+  const dynamicTaxRulesPromise = supabase
+    .from("fiscal_tax_rules")
+    .select("*")
+    .eq("is_active", true)
+    .or(`is_global.eq.true,company_id.eq.${company_id}`);
   // Iniciar OAuth em paralelo — economiza ~1-3s por não esperar sequencialmente
   const tokenPromise = getNuvemFiscalToken();
 
-  const [companyRes, configRes, taxRulesNcmRes] = await Promise.all([companyPromise, configPromise, taxRulesNcmPromise]);
+  const [companyRes, configRes, taxRulesNcmRes, dynamicTaxRulesRes] = await Promise.all([companyPromise, configPromise, taxRulesNcmPromise, dynamicTaxRulesPromise]);
   const taxRulesByNcm: any[] = taxRulesNcmRes.data || [];
+  const dynamicTaxRules: DynamicTaxRule[] = (dynamicTaxRulesRes.data || []) as DynamicTaxRule[];
 
   if (companyRes.error || !companyRes.data) {
     return jsonResponse({ error: "Empresa não encontrada" }, 404);
