@@ -2298,10 +2298,17 @@ async function handleEmitNfe(supabase: any, body: any) {
     .select("*")
     .eq("company_id", company_id)
     .eq("is_active", true);
+  // Motor fiscal dinâmico: buscar regras globais + empresa (NF-e)
+  const dynamicTaxRulesPromiseNfe = supabase
+    .from("fiscal_tax_rules")
+    .select("*")
+    .eq("is_active", true)
+    .or(`is_global.eq.true,company_id.eq.${company_id}`);
   const nfeTokenPromise = getNuvemFiscalToken();
 
-  const [companyRes, configRes, taxRulesNcmResNfe] = await Promise.all([companyPromise, configPromise, taxRulesNcmPromiseNfe]);
+  const [companyRes, configRes, taxRulesNcmResNfe, dynamicTaxRulesResNfe] = await Promise.all([companyPromise, configPromise, taxRulesNcmPromiseNfe, dynamicTaxRulesPromiseNfe]);
   const taxRulesByNcmNfe: any[] = taxRulesNcmResNfe.data || [];
+  const dynamicTaxRulesNfe: DynamicTaxRule[] = (dynamicTaxRulesResNfe.data || []) as DynamicTaxRule[];
 
   if (companyRes.error || !companyRes.data) {
     return jsonResponse({ error: "Empresa não encontrada" }, 404);
