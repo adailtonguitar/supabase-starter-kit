@@ -194,6 +194,87 @@ export type Database = {
         }
         Relationships: []
       }
+      fiscal_tax_rules: {
+        Row: {
+          aliq_cofins: number
+          aliq_pis: number
+          cest: string | null
+          company_id: string | null
+          created_at: string
+          csosn: string | null
+          cst: string | null
+          descricao: string | null
+          icms_aliquota: number
+          icms_reducao_base: number
+          id: string
+          is_active: boolean
+          is_global: boolean
+          mva: number
+          ncm_prefix: string
+          prioridade: number
+          regime: string
+          tem_st: boolean
+          tipo_pis_cofins: string
+          uf_destino: string
+          uf_origem: string
+          updated_at: string
+          vigencia_fim: string | null
+          vigencia_inicio: string
+        }
+        Insert: {
+          aliq_cofins?: number
+          aliq_pis?: number
+          cest?: string | null
+          company_id?: string | null
+          created_at?: string
+          csosn?: string | null
+          cst?: string | null
+          descricao?: string | null
+          icms_aliquota?: number
+          icms_reducao_base?: number
+          id?: string
+          is_active?: boolean
+          is_global?: boolean
+          mva?: number
+          ncm_prefix: string
+          prioridade?: number
+          regime: string
+          tem_st?: boolean
+          tipo_pis_cofins?: string
+          uf_destino?: string
+          uf_origem?: string
+          updated_at?: string
+          vigencia_fim?: string | null
+          vigencia_inicio?: string
+        }
+        Update: {
+          aliq_cofins?: number
+          aliq_pis?: number
+          cest?: string | null
+          company_id?: string | null
+          created_at?: string
+          csosn?: string | null
+          cst?: string | null
+          descricao?: string | null
+          icms_aliquota?: number
+          icms_reducao_base?: number
+          id?: string
+          is_active?: boolean
+          is_global?: boolean
+          mva?: number
+          ncm_prefix?: string
+          prioridade?: number
+          regime?: string
+          tem_st?: boolean
+          tipo_pis_cofins?: string
+          uf_destino?: string
+          uf_origem?: string
+          updated_at?: string
+          vigencia_fim?: string | null
+          vigencia_inicio?: string
+        }
+        Relationships: []
+      }
       nfe_documents: {
         Row: {
           chave_nfe: string
