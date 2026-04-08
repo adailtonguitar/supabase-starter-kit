@@ -298,7 +298,7 @@ function LandingRedirectWrapper() {
 }
 
 function AppRoutes() {
-  const { user } = useAuth();
+  const { user, session } = useAuth();
 
   return (
     <Suspense fallback={<PageSpinner />}>
@@ -308,6 +308,7 @@ function AppRoutes() {
           path="/auth"
           element={
             user &&
+            session &&
             !window.location.hash.includes("type=") &&
             sessionStorage.getItem("needs-password-setup") !== "true" ? (
               <Navigate to="/dashboard" replace />
@@ -316,16 +317,16 @@ function AppRoutes() {
             )
           }
         />
-        <Route path="/landing" element={user ? <Navigate to="/dashboard" replace /> : <LandingPage />} />
-        <Route path="/emissor" element={user ? <Navigate to="/emissor-nfe" replace /> : <EmissorLanding />} />
+        <Route path="/landing" element={user && session ? <Navigate to="/dashboard" replace /> : <LandingPage />} />
+        <Route path="/emissor" element={user && session ? <Navigate to="/emissor-nfe" replace /> : <EmissorLanding />} />
         <Route path="/install" element={<Instalar />} />
         <Route path="/termos" element={<Termos />} />
         <Route path="/contrato" element={<ContratoSaaS />} />
         <Route path="/privacidade" element={<Privacidade />} />
         <Route path="/reset-password" element={<ResetPassword />} />
-        <Route path="/trial-expirado" element={user ? <TrialExpirado /> : <Navigate to="/" replace />} />
+        <Route path="/trial-expirado" element={user && session ? <TrialExpirado /> : <Navigate to="/" replace />} />
         <Route path="/pdv-display" element={<PDVCustomerDisplayPage />} />
-        <Route path="/renovar" element={user ? <Renovar /> : <Navigate to="/auth" replace />} />
+        <Route path="/renovar" element={user && session ? <Renovar /> : <Navigate to="/auth" replace />} />
         <Route
           path="/pdv"
           element={
@@ -346,7 +347,7 @@ function AppRoutes() {
         />
         <Route
           path="/*"
-          element={user ? (
+          element={user && session ? (
             <ProtectedRoute>
               <EmissorGuard>
                 <AppLayout>
