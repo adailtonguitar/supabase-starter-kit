@@ -4,6 +4,8 @@
  * classifyItem → applyTaxRules → validate → resultado pronto para XML
  * 
  * Fluxo obrigatório antes de qualquer emissão NF-e/NFC-e.
+ * 
+ * v2: Inclui aprendizado fiscal + override manual via runFiscalPipelineWithLearning()
  */
 
 import { classifyFiscalItem, type ClassificationInput } from "./classifiers/fiscal-classifier";
@@ -11,6 +13,7 @@ import { getPisCofinsConfig, type PisCofinsConfig } from "./pis-cofins/pis-cofin
 import { calculateIcms, type IcmsResult } from "./icms/icms-engine";
 import { getSTConfig } from "./st-engine";
 import { validateFiscalDocument, type DocValidationResult, type DocValidationItem } from "./validators/document-validator";
+import { applyLearning, type LearningResult, type LearningAdjustment } from "./learning/fiscal-learning-engine";
 
 // ─── Tipos ───
 
