@@ -111,6 +111,8 @@ interface DynamicTaxRule {
   cst?: string;
   prioridade: number;
   descricao?: string;
+  vigencia_inicio?: string;
+  vigencia_fim?: string | null;
 }
 
 interface StructuredTaxRule {
@@ -174,6 +176,7 @@ function getTaxRule(
   ufDestino: string,
   regime: "simples" | "normal",
   cest?: string,
+  dataEmissao?: string,
 ): TaxRuleMatch {
   if (!dynamicRules || dynamicRules.length === 0) {
     return { rule: null, structured: null, score: 0, source: "fallback_hardcoded", reason: "Nenhuma regra dinâmica carregada" };
@@ -185,6 +188,8 @@ function getTaxRule(
   }
 
   const cleanCest = (cest || "").replace(/\D/g, "");
+  // Data de referência para vigência: dhEmi ou hoje
+  const refDate = (dataEmissao || new Date().toISOString()).slice(0, 10);
   let bestRule: DynamicTaxRule | null = null;
   let bestScore = -1;
 
@@ -192,6 +197,19 @@ function getTaxRule(
     // Validate rule before considering
     const validation = validarTaxRule(r);
     if (!validation.valid) continue;
+
+    // ─── Filtro por vigência (versionamento por data) ───
+    if (r.vigencia_inicio) {
+      const vInicio = r.vigencia_inicio.slice(0, 10);
+      if (vInicio > refDate) continue; // regra futura → ignorar
+    }
+    if (r.vigencia_fim) {
+      const vFim = r.vigencia_fim.slice(0, 10);
+      if (vFim < refDate) {
+        console.log(`[FISCAL-VERSION] Regra ${r.id} ignorada: vigência expirada (fim=${vFim}, emissão=${refDate})`);
+        continue; // regra expirada → ignorar
+      }
+    }
 
     if (r.regime !== regime) continue;
 
@@ -236,12 +254,18 @@ function getTaxRule(
   }
 
   if (bestRule && bestScore >= 50) {
+    console.log(`[FISCAL-VERSION]`, JSON.stringify({
+      ncm: cleanNcm, data_emissao: refDate,
+      regra_usada: bestRule.id,
+      vigencia_inicio: bestRule.vigencia_inicio || null,
+      vigencia_fim: bestRule.vigencia_fim || null,
+    }));
     return {
       rule: bestRule,
       structured: structureTaxRule(bestRule),
       score: bestScore,
       source: "dynamic_db",
-      reason: `Regra dinâmica: ${bestRule.descricao || bestRule.id} (score=${bestScore})`,
+      reason: `Regra dinâmica: ${bestRule.descricao || bestRule.id} (score=${bestScore}, vigência=${bestRule.vigencia_inicio || "?"})`,
     };
   }
 
@@ -1918,7 +1942,8 @@ async function handleEmit(supabase: any, body: any) {
 
     // ─── Motor Fiscal Dinâmico: regras do banco (prioridade sobre hardcoded) ───
     const dynamicRegime = isSimples ? "simples" : "normal" as const;
-    const dynamicMatch = getTaxRule(dynamicTaxRules, ncm, companyState, companyState, dynamicRegime, item.cest);
+    const nfceDhEmi = new Date().toISOString();
+    const dynamicMatch = getTaxRule(dynamicTaxRules, ncm, companyState, companyState, dynamicRegime, item.cest, nfceDhEmi);
     const dynamicApplied = applyDynamicTaxRule(item, dynamicMatch, isSimples);
     if (dynamicMatch.rule || dynamicMatch.score > 0) {
       console.log(`[FISCAL-RULE] NFC-e item=${i + 1}`, JSON.stringify({
@@ -2810,7 +2835,8 @@ async function handleEmitNfe(supabase: any, body: any) {
     // ─── Motor Fiscal Dinâmico: regras do banco (NF-e) ───
     const dynamicRegimeNfe = isSimples ? "simples" : "normal" as const;
     const destUfForDynamic = destUF || emitUF;
-    const dynamicMatchNfe = getTaxRule(dynamicTaxRulesNfe, ncm, emitUF, destUfForDynamic, dynamicRegimeNfe, item.cest);
+    const nfeDhEmi = new Date().toISOString();
+    const dynamicMatchNfe = getTaxRule(dynamicTaxRulesNfe, ncm, emitUF, destUfForDynamic, dynamicRegimeNfe, item.cest, nfeDhEmi);
     const dynamicAppliedNfe = applyDynamicTaxRule(item, dynamicMatchNfe, isSimples);
     if (dynamicMatchNfe.rule || dynamicMatchNfe.score > 0) {
       console.log(`[FISCAL-RULE] NF-e item=${i + 1}`, JSON.stringify({
