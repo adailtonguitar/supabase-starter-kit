@@ -1389,6 +1389,7 @@ async function handleEmit(supabase: any, body: any) {
 
   // Apply ST auto-detection to NFC-e items
   const stDecisionLogsNfce: any[] = [];
+  const stBlockErrorsNfce: string[] = [];
   for (let vi = 0; vi < items.length; vi++) {
     const vItem = items[vi];
     const vNcm = (vItem.ncm || "").replace(/\D/g, "");
@@ -1401,6 +1402,8 @@ async function handleEmit(supabase: any, body: any) {
         confianca: stCfg.source === "db_rule" || stCfg.source === "override" ? "alta" : stCfg.source === "fallback" ? "media" : "baixa",
         override_aplicado: stCfg.source === "override" || stCfg.source === "override_negado",
         risk_score: stCfg.source === "fallback_prefix" ? 40 : stCfg.source === "fallback" ? 20 : 0,
+        blocked: false,
+        block_reason: null,
       };
 
       if (stCfg.temST) {
@@ -1437,9 +1440,38 @@ async function handleEmit(supabase: any, body: any) {
         stLog.motivo = stCfg.source === "override_negado"
           ? "ST desativada por override manual"
           : `NCM ${vNcm} sem ST na UF ${stUfNfce}`;
+        if (stCfg.source === "none") {
+          stLog.blocked = true;
+          stLog.block_reason = "NCM sem regra de ST — emissão bloqueada";
+          stLog.risk_score = 100;
+          stBlockErrorsNfce.push(`Item ${vi + 1} (${vItem.name || vNcm}): NCM sem regra de ST — emissão bloqueada`);
+        }
       }
       stDecisionLogsNfce.push(stLog);
     }
+  }
+
+  if (stBlockErrorsNfce.length > 0) {
+    await supabase.from("fiscal_st_decision_log").insert(
+      stDecisionLogsNfce.map((l: any) => ({ ...l, company_id }))
+    ).then(() => {}).catch((e: any) => console.warn("[emit-nfce] ST block log insert failed:", e));
+
+    await supabase.from("action_logs").insert({
+      company_id,
+      action: "fiscal_emission_blocked",
+      module: "fiscal",
+      details: JSON.stringify({
+        reason: "st_rule_missing",
+        errors: stBlockErrorsNfce,
+        st_logs: stDecisionLogsNfce,
+      }),
+    }).then(() => {}).catch(() => {});
+
+    return jsonResponse({
+      error: stBlockErrorsNfce[0],
+      validation_errors: stBlockErrorsNfce,
+      st_logs: stDecisionLogsNfce,
+    }, 400);
   }
 
   // Log ST decisions (fire-and-forget)
@@ -2205,6 +2237,8 @@ async function handleEmitNfe(supabase: any, body: any) {
         confianca: stCfg.source === "db_rule" || stCfg.source === "override" ? "alta" : stCfg.source === "fallback" ? "media" : "baixa",
         override_aplicado: stCfg.source === "override" || stCfg.source === "override_negado",
         risk_score: stCfg.source === "fallback_prefix" ? 40 : stCfg.source === "fallback" ? 20 : 0,
+        blocked: false,
+        block_reason: null,
       };
 
       if (stCfg.temST) {
@@ -2233,9 +2267,40 @@ async function handleEmitNfe(supabase: any, body: any) {
         stLog.motivo = stCfg.source === "override_negado"
           ? "ST desativada por override manual"
           : `NCM ${vNcm} sem ST na UF ${stUf}`;
+        if (stCfg.source === "none") {
+          stLog.blocked = true;
+          stLog.block_reason = "NCM sem regra de ST — emissão bloqueada";
+          stLog.risk_score = 100;
+          preValidationErrors.push(`Item ${vi + 1} (${vItem.name || vNcm}): NCM sem regra de ST — emissão bloqueada`);
+        }
       }
       stDecisionLogs.push(stLog);
     }
+  }
+
+  if (preValidationErrors.length > 0) {
+    await supabase.from("fiscal_st_decision_log").insert(
+      stDecisionLogs.map((l: any) => ({ ...l, company_id }))
+    ).then(() => {}).catch((e: any) => console.warn("[emit-nfe] ST log insert failed:", e));
+
+    await supabase.from("action_logs").insert({
+      company_id,
+      action: "fiscal_emission_blocked",
+      module: "fiscal",
+      details: JSON.stringify({
+        reason: "st_rule_missing",
+        errors: preValidationErrors,
+        emitUF,
+        destUF,
+        st_logs: stDecisionLogs,
+      }),
+    }).then(() => {}).catch(() => {});
+
+    return jsonResponse({
+      error: preValidationErrors[0],
+      validation_errors: preValidationErrors,
+      st_logs: stDecisionLogs,
+    }, 400);
   }
 
   // Log ST decisions to DB (fire-and-forget)
