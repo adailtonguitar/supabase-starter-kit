@@ -1053,8 +1053,10 @@ function buildIcmsBlock(item: any, isSimples: boolean, indIEDest?: number, model
         const vBCSTRet = Math.round(bcST * 100) / 100;
         const vICMSSTRet = Math.round(icmsST * 100) / 100;
         console.warn(`[buildIcmsBlock] ⚠ NF-e: CSOSN ${cst} + indIEDest=9 → convertendo para CSOSN 500. vBCSTRet=${vBCSTRet}, vICMSSTRet=${vICMSSTRet}`);
+        const pST = aliqIcms || 0;
         const sn500: any = { orig: origem, CSOSN: "500" };
         if (vBCSTRet > 0) sn500.vBCSTRet = vBCSTRet;
+        sn500.pST = Math.round(pST * 100) / 100;
         if (vICMSSTRet > 0) sn500.vICMSSTRet = vICMSSTRet;
         return { ICMSSN500: sn500 };
       }
