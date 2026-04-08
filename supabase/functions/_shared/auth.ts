@@ -39,6 +39,39 @@ export function createServiceClient(): SupabaseClient {
   return createClient(supabaseUrl, serviceKey);
 }
 
+async function resolveUserIdFromToken(token: string, authHeader: string): Promise<string | null> {
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+  try {
+    const userClient = createClient(supabaseUrl, anonKey, {
+      global: { headers: { Authorization: authHeader } },
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+    const { data, error } = await (userClient.auth as any).getClaims(token);
+    if (!error && data?.claims?.sub) {
+      return String(data.claims.sub);
+    }
+  } catch {
+    // fallback below
+  }
+
+  try {
+    const adminClient = createClient(supabaseUrl, serviceKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+    const { data, error } = await adminClient.auth.getUser(token);
+    if (!error && data?.user?.id) {
+      return String(data.user.id);
+    }
+  } catch {
+    // ignore
+  }
+
+  return null;
+}
+
 export async function requireUser(req: Request): Promise<
   | { ok: true; authHeader: string; token: string; userId: string; supabase: SupabaseClient }
   | { ok: false; response: Response }
@@ -50,14 +83,13 @@ export async function requireUser(req: Request): Promise<
 
   const token = authHeader.replace("Bearer ", "");
   const supabase = createUserClient(authHeader);
+  const userId = await resolveUserIdFromToken(token, authHeader);
 
-  // Validate JWT and extract subject (consistent with admin-action)
-  const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
-  if (claimsError || !claimsData?.claims?.sub) {
+  if (!userId) {
     return { ok: false, response: jsonResponse({ error: "Não autorizado" }, 401) };
   }
 
-  return { ok: true, authHeader, token, userId: String(claimsData.claims.sub), supabase };
+  return { ok: true, authHeader, token, userId, supabase };
 }
 
 export async function requireCompanyMembership(args: {

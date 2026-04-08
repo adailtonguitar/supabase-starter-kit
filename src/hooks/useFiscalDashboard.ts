@@ -182,7 +182,7 @@ export function useFiscalDashboard() {
     if (!companyId) return;
     setIsProcessing(true);
     try {
-      const { data, error } = await supabase.functions.invoke("process-fiscal-queue", {
+      const { data, error } = await invokeEdgeFunctionWithAuth("process-fiscal-queue", {
         body: { company_id: companyId },
       });
       if (error) throw error;

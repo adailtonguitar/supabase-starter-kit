@@ -286,7 +286,7 @@ export default function EmissorSettingsTab({ companyId }: { companyId: string })
       } as any).eq("id", companyId);
       if (error) throw error;
 
-      const { data: syncResult, error: syncError } = await supabase.functions.invoke("emit-nfce", {
+      const { data: syncResult, error: syncError } = await invokeEdgeFunctionWithAuth("emit-nfce", {
         body: { action: "sync_company", company_id: companyId },
       });
       if (syncError) throw syncError;
@@ -331,7 +331,7 @@ export default function EmissorSettingsTab({ companyId }: { companyId: string })
       }
 
       if (certType === "A1" && certBase64 && certPassword) {
-        const { data: uploadResult, error: uploadError } = await supabase.functions.invoke("emit-nfce", {
+        const { data: uploadResult, error: uploadError } = await invokeEdgeFunctionWithAuth("emit-nfce", {
           body: {
             action: "upload_certificate",
             company_id: companyId,

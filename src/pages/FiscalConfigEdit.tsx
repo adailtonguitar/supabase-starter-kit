@@ -241,7 +241,7 @@ export default function FiscalConfigEdit() {
 
       if (certType === "A1" && !certMarkedForRemoval && certBase64 && certPassword) {
         try {
-          const { data: uploadResult, error: uploadErr } = await supabase.functions.invoke("emit-nfce", {
+          const { data: uploadResult, error: uploadErr } = await invokeEdgeFunctionWithAuth("emit-nfce", {
             body: {
               action: "upload_certificate",
               company_id: companyId,

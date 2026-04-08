@@ -107,7 +107,7 @@ export function usePDVFiscal(companyId: string | null) {
   const triggerQueueProcessing = useCallback(async (saleId: string, queueId: string, fiscalCustomer?: FiscalCustomerOverride) => {
     if (!companyId) throw new Error("Empresa não identificada");
 
-    const { error } = await supabase.functions.invoke("process-fiscal-queue", {
+    const { error } = await invokeEdgeFunctionWithAuth("process-fiscal-queue", {
       body: {
         company_id: companyId,
         sale_id: saleId,
