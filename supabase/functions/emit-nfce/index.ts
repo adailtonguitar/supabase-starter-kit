@@ -113,11 +113,58 @@ interface DynamicTaxRule {
   descricao?: string;
 }
 
+interface StructuredTaxRule {
+  st: { tem_st: boolean; mva: number; aliquota_icms: number; reducao_base: number; cest?: string };
+  pis_cofins: { tipo: "monofasico" | "isento" | "normal"; aliq_pis: number; aliq_cofins: number };
+  csosn?: string;
+  cst?: string;
+}
+
 interface TaxRuleMatch {
   rule: DynamicTaxRule | null;
+  structured: StructuredTaxRule | null;
   score: number;
   source: "dynamic_db" | "fallback_hardcoded";
   reason: string;
+}
+
+/** Organiza regra dinâmica em blocos lógicos ST vs PIS/COFINS */
+function structureTaxRule(r: DynamicTaxRule): StructuredTaxRule {
+  return {
+    st: { tem_st: r.tem_st, mva: r.mva, aliquota_icms: r.icms_aliquota, reducao_base: r.icms_reducao_base, cest: r.cest },
+    pis_cofins: { tipo: r.tipo_pis_cofins, aliq_pis: r.aliq_pis, aliq_cofins: r.aliq_cofins },
+    csosn: r.csosn,
+    cst: r.cst,
+  };
+}
+
+/** Valida consistência interna de regra fiscal */
+function validarTaxRule(r: DynamicTaxRule): { valid: boolean; errors: string[]; alerts: string[] } {
+  const errors: string[] = [];
+  const alerts: string[] = [];
+  const ncm = (r.ncm_prefix || "").replace(/\D/g, "");
+
+  if (!ncm || (ncm !== "*" && ncm.length < 2)) {
+    errors.push(`NCM inválido ou vazio: "${r.ncm_prefix}"`);
+  }
+  if (r.uf_origem !== "*" && !/^[A-Z]{2}$/.test(r.uf_origem || "")) {
+    errors.push(`UF origem inválida: "${r.uf_origem}"`);
+  }
+  if (r.uf_destino !== "*" && !/^[A-Z]{2}$/.test(r.uf_destino || "")) {
+    errors.push(`UF destino inválida: "${r.uf_destino}"`);
+  }
+  if (!r.tem_st && (r.mva > 0 || r.icms_aliquota > 0)) {
+    alerts.push(`tem_st=false mas mva=${r.mva} / aliquota=${r.icms_aliquota} (NCM ${ncm})`);
+  }
+  if (r.tem_st && r.mva <= 0) {
+    alerts.push(`tem_st=true mas mva=0 (NCM ${ncm})`);
+  }
+
+  if (errors.length > 0 || alerts.length > 0) {
+    console.log(`[FISCAL-RULE-VALIDATION] rule=${r.id}`, JSON.stringify({ ncm: r.ncm_prefix, errors, alerts }));
+  }
+
+  return { valid: errors.length === 0, errors, alerts };
 }
 
 function getTaxRule(
@@ -126,20 +173,26 @@ function getTaxRule(
   ufOrigem: string,
   ufDestino: string,
   regime: "simples" | "normal",
+  cest?: string,
 ): TaxRuleMatch {
   if (!dynamicRules || dynamicRules.length === 0) {
-    return { rule: null, score: 0, source: "fallback_hardcoded", reason: "Nenhuma regra dinâmica carregada" };
+    return { rule: null, structured: null, score: 0, source: "fallback_hardcoded", reason: "Nenhuma regra dinâmica carregada" };
   }
 
   const cleanNcm = (ncm || "").replace(/\D/g, "");
   if (!cleanNcm || cleanNcm.length < 2) {
-    return { rule: null, score: 0, source: "fallback_hardcoded", reason: "NCM insuficiente para matching" };
+    return { rule: null, structured: null, score: 0, source: "fallback_hardcoded", reason: "NCM insuficiente para matching" };
   }
 
+  const cleanCest = (cest || "").replace(/\D/g, "");
   let bestRule: DynamicTaxRule | null = null;
   let bestScore = -1;
 
   for (const r of dynamicRules) {
+    // Validate rule before considering
+    const validation = validarTaxRule(r);
+    if (!validation.valid) continue;
+
     if (r.regime !== regime) continue;
 
     const rNcm = (r.ncm_prefix || "").replace(/\D/g, "");
@@ -156,6 +209,12 @@ function getTaxRule(
       sc += 30; // prefix 2-3 digits
     } else {
       continue; // no match
+    }
+
+    // CEST matching bonus
+    if (cleanCest && r.cest) {
+      const rCest = (r.cest || "").replace(/\D/g, "");
+      if (rCest === cleanCest) sc += 20;
     }
 
     // UF matching
@@ -179,6 +238,7 @@ function getTaxRule(
   if (bestRule && bestScore >= 50) {
     return {
       rule: bestRule,
+      structured: structureTaxRule(bestRule),
       score: bestScore,
       source: "dynamic_db",
       reason: `Regra dinâmica: ${bestRule.descricao || bestRule.id} (score=${bestScore})`,
@@ -187,6 +247,7 @@ function getTaxRule(
 
   return {
     rule: null,
+    structured: null,
     score: bestScore,
     source: "fallback_hardcoded",
     reason: bestScore > 0 ? `Score ${bestScore} abaixo do threshold (50)` : "Nenhuma regra compatível",
@@ -201,46 +262,46 @@ function applyDynamicTaxRule(item: any, match: TaxRuleMatch, isSimples: boolean)
   if (match.source !== "dynamic_db" || !match.rule) return false;
 
   const rule = match.rule;
+  const s = match.structured!;
 
   // ICMS: aplicar CST/CSOSN e alíquota somente se não definidos
   if (isSimples) {
-    if (!item.cst && rule.csosn) item.cst = rule.csosn;
+    if (!item.cst && s.csosn) item.cst = s.csosn;
   } else {
-    if (!item.cst && rule.cst) item.cst = rule.cst;
+    if (!item.cst && s.cst) item.cst = s.cst;
   }
 
-  if ((!item.icms_aliquota || item.icms_aliquota === 0) && rule.icms_aliquota > 0) {
-    item.icms_aliquota = rule.icms_aliquota;
+  if ((!item.icms_aliquota || item.icms_aliquota === 0) && s.st.aliquota_icms > 0) {
+    item.icms_aliquota = s.st.aliquota_icms;
   }
 
   // ST
-  if (rule.tem_st) {
+  if (s.st.tem_st) {
     item.temST = true;
-    if ((!item.mva || item.mva === 0) && rule.mva > 0) item.mva = rule.mva;
+    if ((!item.mva || item.mva === 0) && s.st.mva > 0) item.mva = s.st.mva;
   }
 
   // Redução BC
-  if (rule.icms_reducao_base > 0 && !item.reducao_base) {
-    item.reducao_base = rule.icms_reducao_base;
+  if (s.st.reducao_base > 0 && !item.reducao_base) {
+    item.reducao_base = s.st.reducao_base;
   }
 
   // CEST
-  if (rule.cest && !item.cest) item.cest = rule.cest;
+  if (s.st.cest && !item.cest) item.cest = s.st.cest;
 
   // PIS/COFINS overrides (apenas Regime Normal)
   if (!isSimples) {
-    if (rule.tipo_pis_cofins === "monofasico") {
+    if (s.pis_cofins.tipo === "monofasico") {
       item.pis_cst = "04";
       item.cofins_cst = "04";
-    } else if (rule.tipo_pis_cofins === "isento") {
+    } else if (s.pis_cofins.tipo === "isento") {
       item.pis_cst = "06";
       item.cofins_cst = "06";
-    } else if (rule.tipo_pis_cofins === "normal" && rule.aliq_pis > 0) {
+    } else if (s.pis_cofins.tipo === "normal" && s.pis_cofins.aliq_pis > 0) {
       item.pis_cst = item.pis_cst || "01";
       item.cofins_cst = item.cofins_cst || "01";
-      // Alíquotas customizadas propagadas via item para buildPisCofins
-      item._dynamic_aliq_pis = rule.aliq_pis;
-      item._dynamic_aliq_cofins = rule.aliq_cofins;
+      item._dynamic_aliq_pis = s.pis_cofins.aliq_pis;
+      item._dynamic_aliq_cofins = s.pis_cofins.aliq_cofins;
     }
   }
 
@@ -1857,7 +1918,7 @@ async function handleEmit(supabase: any, body: any) {
 
     // ─── Motor Fiscal Dinâmico: regras do banco (prioridade sobre hardcoded) ───
     const dynamicRegime = isSimples ? "simples" : "normal" as const;
-    const dynamicMatch = getTaxRule(dynamicTaxRules, ncm, companyState, companyState, dynamicRegime);
+    const dynamicMatch = getTaxRule(dynamicTaxRules, ncm, companyState, companyState, dynamicRegime, item.cest);
     const dynamicApplied = applyDynamicTaxRule(item, dynamicMatch, isSimples);
     if (dynamicMatch.rule || dynamicMatch.score > 0) {
       console.log(`[FISCAL-RULE] NFC-e item=${i + 1}`, JSON.stringify({
@@ -1865,8 +1926,9 @@ async function handleEmit(supabase: any, body: any) {
         origem: companyState, destino: companyState, regime: dynamicRegime,
         source: dynamicMatch.source, score: dynamicMatch.score,
         decisao_final: dynamicMatch.reason,
-        tipo_pis_cofins: dynamicMatch.rule?.tipo_pis_cofins || "fallback",
-        tem_st: dynamicMatch.rule?.tem_st || false,
+        structured: dynamicMatch.structured,
+        tipo_pis_cofins: dynamicMatch.structured?.pis_cofins?.tipo || "fallback",
+        tem_st: dynamicMatch.structured?.st?.tem_st || false,
       }));
     }
 
@@ -2748,7 +2810,7 @@ async function handleEmitNfe(supabase: any, body: any) {
     // ─── Motor Fiscal Dinâmico: regras do banco (NF-e) ───
     const dynamicRegimeNfe = isSimples ? "simples" : "normal" as const;
     const destUfForDynamic = destUF || emitUF;
-    const dynamicMatchNfe = getTaxRule(dynamicTaxRulesNfe, ncm, emitUF, destUfForDynamic, dynamicRegimeNfe);
+    const dynamicMatchNfe = getTaxRule(dynamicTaxRulesNfe, ncm, emitUF, destUfForDynamic, dynamicRegimeNfe, item.cest);
     const dynamicAppliedNfe = applyDynamicTaxRule(item, dynamicMatchNfe, isSimples);
     if (dynamicMatchNfe.rule || dynamicMatchNfe.score > 0) {
       console.log(`[FISCAL-RULE] NF-e item=${i + 1}`, JSON.stringify({
@@ -2756,8 +2818,9 @@ async function handleEmitNfe(supabase: any, body: any) {
         origem: emitUF, destino: destUfForDynamic, regime: dynamicRegimeNfe,
         source: dynamicMatchNfe.source, score: dynamicMatchNfe.score,
         decisao_final: dynamicMatchNfe.reason,
-        tipo_pis_cofins: dynamicMatchNfe.rule?.tipo_pis_cofins || "fallback",
-        tem_st: dynamicMatchNfe.rule?.tem_st || false,
+        structured: dynamicMatchNfe.structured,
+        tipo_pis_cofins: dynamicMatchNfe.structured?.pis_cofins?.tipo || "fallback",
+        tem_st: dynamicMatchNfe.structured?.st?.tem_st || false,
       }));
     }
 
