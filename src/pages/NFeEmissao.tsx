@@ -1285,7 +1285,7 @@ export default function NFeEmissao() {
 
   const handleDeleteDraft = (draftId: string) => {
     const updated = drafts.filter(d => d.id !== draftId);
-    saveDrafts(updated);
+    saveDrafts(updated, companyId);
     setDrafts(updated);
     toast.info("Rascunho excluído");
   };
