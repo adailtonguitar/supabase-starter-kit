@@ -1096,8 +1096,10 @@ function buildIcmsBlock(item: any, isSimples: boolean, indIEDest?: number, model
         : (item.mva != null && item.mva > 0 ? Math.round(vProd * (1 + item.mva / 100) * 100) / 100 : 0);
       const vICMSSTRet = item.v_icms_st_ret != null ? Math.round(item.v_icms_st_ret * 100) / 100
         : (vBCSTRet > 0 && aliqIcms > 0 ? Math.round(vBCSTRet * (aliqIcms / 100) * 100) / 100 : 0);
+      const pST = aliqIcms || 0;
       const sn500: any = { orig: origem, CSOSN: "500" };
       if (vBCSTRet > 0) sn500.vBCSTRet = vBCSTRet;
+      sn500.pST = Math.round(pST * 100) / 100;
       if (vICMSSTRet > 0) sn500.vICMSSTRet = vICMSSTRet;
       return { ICMSSN500: sn500 };
     }
