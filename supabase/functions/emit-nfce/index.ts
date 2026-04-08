@@ -2341,7 +2341,9 @@ async function handleEmitNfe(supabase: any, body: any) {
     const icmsData = (icmsBlock as any)[icmsKey];
     if (icmsData.vICMS) totalVICMS += icmsData.vICMS;
     if (icmsData.vBCST) totalVBCST += icmsData.vBCST;
+    if (icmsData.vBCSTRet) totalVBCST += icmsData.vBCSTRet;
     if (icmsData.vICMSST) totalVST += icmsData.vICMSST;
+    if (icmsData.vICMSSTRet) totalVST += icmsData.vICMSSTRet;
 
     // ── PIS/COFINS: Simples Nacional NUNCA destaca (CST 49, valores zerados) ──
     const pisCst = isSimples ? "49" : (item.pis_cst || "01");
