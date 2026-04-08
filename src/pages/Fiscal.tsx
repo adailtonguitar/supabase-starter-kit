@@ -939,16 +939,17 @@ export default function Fiscal() {
                   selectedDoc.created_at,
                   selectedDoc.doc_type === "sat" ? "nfce" : selectedDoc.doc_type as "nfce" | "nfe"
                 );
+                const formatDeadline = (hours: number) => hours < 1 ? `${Math.round(hours * 60)}min` : `${Math.round(hours)}h`;
                 return deadline.expired ? (
                   <div className="flex-1 py-2.5 rounded-xl bg-destructive/10 text-destructive text-xs font-medium text-center px-2">
-                    Prazo expirado ({deadline.hoursElapsed}h / máx {deadline.maxHours}h)
+                    Prazo expirado ({formatDeadline(deadline.hoursElapsed)} / máx {formatDeadline(deadline.maxHours)})
                   </div>
                 ) : (
                   <button
                     onClick={() => { setCancelJustificativa(""); setShowCancelConfirm(true); }}
                     className="flex-1 py-2.5 rounded-xl bg-destructive text-destructive-foreground text-sm font-medium hover:opacity-90 transition-all"
                   >
-                    Cancelar ({deadline.maxHours - deadline.hoursElapsed}h restantes)
+                    Cancelar ({formatDeadline(deadline.maxHours - deadline.hoursElapsed)} restantes)
                   </button>
                 );
               })()}
