@@ -85,7 +85,7 @@ function getCachedSubState(): SubscriptionState | null { try { const raw = local
 
 async function invokeCheckSubscriptionWithTimeout(): Promise<{
   data: Record<string, unknown> | null;
-  error: { message: string } | null;
+  error: { message?: string } | null;
 }> {
   const { invokeEdgeFunctionWithAuth } = await import("@/lib/invoke-edge-function-with-auth");
   const invoke = invokeEdgeFunctionWithAuth<Record<string, unknown>>("check-subscription");
