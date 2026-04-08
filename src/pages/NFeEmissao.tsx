@@ -1070,6 +1070,13 @@ export default function NFeEmissao() {
 
       let data: NFeSuccessData | null = null;
 
+      // Refresh session to avoid "Invalid JWT" on long-open tabs
+      try {
+        await supabase.auth.refreshSession();
+      } catch (_refreshErr) {
+        console.warn("[NFeEmissao] Falha ao renovar sessão, tentando com token atual");
+      }
+
       try {
         const result = await supabase.functions.invoke("emit-nfce", {
           body: {
