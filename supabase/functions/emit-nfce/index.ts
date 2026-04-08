@@ -1174,16 +1174,104 @@ function buildIcmsBlock(item: any, isSimples: boolean, indIEDest?: number, model
 }
 
 // ─── Classificação PIS/COFINS por NCM (monofásico, isento, normal) ───
-const MONOFASICO_PREFIXES_PIS = new Set(["2710", "2711", "3003", "3004", "3303", "3304", "3305", "3401"]);
-const ISENTO_PREFIXES_PIS = ["0201", "0202", "0207", "0401", "0402", "0701", "0702", "0703", "1001", "1005", "1006", "1101", "1901", "1507", "1701"];
+const MONOFASICO_PREFIXES_PIS = new Set([
+  "2710", "2711",                   // Combustíveis
+  "3003", "3004",                   // Medicamentos
+  "3303", "3304", "3305",           // Cosméticos e perfumaria
+  "3401",                           // Sabões
+  "2202",                           // Bebidas frias (refrigerantes, energéticos)
+  "2203",                           // Cerveja
+]);
+const MONOFASICO_EXACT_NCMS = new Set([
+  "22011000", "22021000", "22021010", "22021090", // Águas e refrigerantes
+  "22030000",                                      // Cerveja de malte
+  "30049099",                                      // Medicamentos genéricos
+  "33049100",                                      // Cosméticos
+  "40111000",                                      // Pneus (autopeças)
+]);
+const ISENTO_PREFIXES_PIS = [
+  "0201", "0202",           // Carnes bovinas
+  "0207",                   // Carnes de aves
+  "0401", "0402",           // Leite
+  "0701", "0702", "0703",   // Hortícolas
+  "1001", "1005", "1006",   // Cereais
+  "1101",                   // Farinha de trigo
+  "1901",                   // Preparações alimentícias
+  "1507",                   // Óleo de soja
+  "1701",                   // Açúcar
+];
+// Prefixos ampliados de 2 dígitos para cesta básica
+const ISENTO_BROAD_PREFIXES = ["02", "04", "10"];
 
-function classifyPisCofinsNCM(ncm: string): "monofasico" | "isento" | "normal" {
+type TipoTributacaoProduto = "monofasico" | "isento" | "normal" | "pendente";
+
+function classifyPisCofinsNCM(ncm: string): TipoTributacaoProduto {
   const clean = (ncm || "").replace(/\D/g, "");
-  if (!clean || clean.length < 4) return "normal";
-  const p4 = clean.slice(0, 4);
-  if (MONOFASICO_PREFIXES_PIS.has(p4)) return "monofasico";
+  if (!clean || clean.length < 2) return "pendente"; // MODO SEGURO: NCM insuficiente
+  // 1. Exato monofásico (8 dígitos)
+  if (clean.length === 8 && MONOFASICO_EXACT_NCMS.has(clean)) return "monofasico";
+  // 2. Prefixo 4 dígitos monofásico
+  if (clean.length >= 4) {
+    const p4 = clean.slice(0, 4);
+    if (MONOFASICO_PREFIXES_PIS.has(p4)) return "monofasico";
+  }
+  // 3. Isento exato (4 dígitos)
   if (ISENTO_PREFIXES_PIS.some(p => clean.startsWith(p))) return "isento";
+  // 4. Isento ampliado (2 dígitos — cesta básica genérica)
+  if (clean.length >= 2) {
+    const p2 = clean.slice(0, 2);
+    if (ISENTO_BROAD_PREFIXES.includes(p2)) return "isento";
+  }
   return "normal";
+}
+
+// ─── Validador de Consistência Fiscal (ETAPA 1) ───
+interface FiscalConsistencyResult {
+  errors: string[];   // Bloqueantes
+  alerts: string[];   // Informativos (não bloqueiam)
+}
+
+function validarConsistenciaFiscal(
+  item: any,
+  imposto: any,
+  isSimples: boolean,
+  ncmClass: TipoTributacaoProduto,
+): FiscalConsistencyResult {
+  const errors: string[] = [];
+  const alerts: string[] = [];
+  const cst = (item.cst || "").trim();
+  const temST = item.temST === true || item.origem_com_st === true;
+
+  // ERRO CRÍTICO: CSOSN 500 em produto que NÃO é ST
+  if (cst === "500" && !temST) {
+    // Verificar se stCfg marcou como ST (pode vir do DB)
+    if (!item._stDetected) {
+      errors.push(`CSOSN 500 aplicado em produto não-ST (NCM ${item.ncm || "?"})`);
+    }
+  }
+
+  // ALERTA: produto com ST mas CSOSN não é 500/201/202/203
+  if (temST && isSimples && !["500", "201", "202", "203"].includes(cst)) {
+    alerts.push(`Produto ST (NCM ${item.ncm || "?"}) com CSOSN ${cst} — esperado 500 ou 202`);
+  }
+
+  // ALERTA: PIS/COFINS CST incompatível com classificação NCM
+  if (!isSimples) {
+    const pisCst = item.pis_cst || "";
+    if (ncmClass === "monofasico" && ["01", "02"].includes(pisCst)) {
+      alerts.push(`PIS CST ${pisCst} incompatível com NCM monofásico ${item.ncm || "?"} — esperado CST 04`);
+    }
+    if (ncmClass === "isento" && ["01", "02"].includes(pisCst)) {
+      alerts.push(`PIS CST ${pisCst} incompatível com NCM isento/cesta básica ${item.ncm || "?"} — esperado CST 06`);
+    }
+  }
+
+  // ALERTA: classificação pendente (modo seguro)
+  if (ncmClass === "pendente") {
+    alerts.push(`NCM ${item.ncm || "?"} com classificação PIS/COFINS pendente — NCM insuficiente para classificar`);
+  }
+
+  return { errors, alerts };
 }
 
 // ─── Construtor de PIS/COFINS ───
@@ -1218,6 +1306,13 @@ function buildPisCofins(pisCst: string, cofinsCst: string, vProd: number, isSimp
   if (ncmClass === "isento") {
     pis.PISNT = { CST: "06" };
     cofins.COFINSNT = { CST: "06" };
+    return { PIS: pis, COFINS: cofins };
+  }
+
+  // Pendente (modo seguro): usar CST 49 (outras) — NÃO assumir tributação
+  if (ncmClass === "pendente") {
+    pis.PISOutr = { CST: "49", vBC: 0, pPIS: 0, vPIS: 0 };
+    cofins.COFINSOutr = { CST: "49", vBC: 0, pCOFINS: 0, vCOFINS: 0 };
     return { PIS: pis, COFINS: cofins };
   }
 
