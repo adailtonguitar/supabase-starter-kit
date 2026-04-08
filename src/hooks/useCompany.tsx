@@ -280,7 +280,7 @@ const nullFields: Omit<CachedCompany, 'companyId'> = {
 
 export function useCompany(): CompanyData {
   const { user, session } = useAuth();
-  const cached = getCachedCompany();
+  const cached = getCachedCompany(user?.id);
   const [companyId, setCompanyId] = useState<string | null>(cached?.companyId ?? null);
   const [fields, setFields] = useState<Omit<CachedCompany, 'companyId'>>(cached ? { ...nullFields, ...cached } : nullFields);
   const [loading, setLoading] = useState(true);
@@ -291,13 +291,14 @@ export function useCompany(): CompanyData {
     const isSameCompany = companyId === resolvedId;
     setCompanyId(resolvedId);
     setFields((prev) => {
-      const cachedFallback = cached?.companyId === resolvedId ? { ...nullFields, ...cached } : nullFields;
+      const latestCached = getCachedCompany(user?.id);
+      const cachedFallback = latestCached?.companyId === resolvedId ? { ...nullFields, ...latestCached } : nullFields;
       const baseFallback = isSameCompany && hasCompanyIdentity(prev) ? prev : cachedFallback;
       const next = mergeCompanyFields(company, baseFallback);
-      cacheCompany({ companyId: resolvedId, ...next });
+      cacheCompany({ companyId: resolvedId, ...next }, user?.id);
       return next;
     });
-  }, [cached, companyId]);
+  }, [companyId, user?.id]);
 
   useEffect(() => {
     retryCount.current = 0;
@@ -310,10 +311,10 @@ export function useCompany(): CompanyData {
       return;
     }
 
-    if (!navigator.onLine && cached?.companyId) {
-      // console.log("[useCompany] Offline — using cached company data");
-      setCompanyId(cached.companyId);
-      setFields({ ...nullFields, ...cached });
+    const latestCached = getCachedCompany(user.id);
+    if (!navigator.onLine && latestCached?.companyId) {
+      setCompanyId(latestCached.companyId);
+      setFields({ ...nullFields, ...latestCached });
       setLoading(false);
       return;
     }
@@ -322,7 +323,7 @@ export function useCompany(): CompanyData {
 
     const fetchCompany = async (targetCompanyId?: string) => {
       try {
-        const selectedId = targetCompanyId || localStorage.getItem(SELECTED_COMPANY_KEY);
+        const selectedId = targetCompanyId || getSelectedCompany(user.id);
         let resolvedCompanyId: string | null = null;
 
         const memberships = await fetchMyCompanyMemberships(user.id);
@@ -331,7 +332,7 @@ export function useCompany(): CompanyData {
         if (selectedId) {
           const sel = memberships.find((m) => m.company_id === selectedId && m.is_active);
           if (sel) resolvedCompanyId = selectedId;
-          else localStorage.removeItem(SELECTED_COMPANY_KEY);
+          else clearSelectedCompany(user.id);
         }
 
         const activeIds = memberships.filter((m) => m.is_active).map((m) => m.company_id);
@@ -364,11 +365,11 @@ export function useCompany(): CompanyData {
           retryTimer.current = setTimeout(() => { if (!cancelled) fetchCompany(); }, Math.min(400 * retryCount.current, 1200));
           return;
         }
-        if (!navigator.onLine && cached?.companyId) {
-          setCompanyId(cached.companyId);
-          setFields({ ...nullFields, ...cached });
+        const offlineCached = getCachedCompany(user.id);
+        if (!navigator.onLine && offlineCached?.companyId) {
+          setCompanyId(offlineCached.companyId);
+          setFields({ ...nullFields, ...offlineCached });
         } else {
-          /* Último recurso: evita companyId null com membership ativo (modal enganoso no ProtectedRoute). */
           try {
             const m = await fetchMyCompanyMemberships(user.id);
             const ids = m.filter((x) => x.is_active).map((x) => x.company_id);
@@ -394,7 +395,7 @@ export function useCompany(): CompanyData {
       const access = memberships.find((m) => m.company_id === newCompanyId && m.is_active);
       if (!access) { setLoading(false); return; }
 
-      localStorage.setItem(SELECTED_COMPANY_KEY, newCompanyId);
+      setSelectedCompany(newCompanyId, user.id);
 
       const activeIds = memberships.filter((m) => m.is_active).map((m) => m.company_id);
       const { id, row } = await resolveActiveCompany(activeIds, newCompanyId);
