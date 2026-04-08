@@ -2419,10 +2419,15 @@ async function handleEmitNfe(supabase: any, body: any) {
     }
 
     const stCfg = ncm.length === 8 ? getSTConfigResolved(ncm, stUf) as any : { temST: false };
+    // Propagar CEST do stCfg (resolve_st_from_db) se o item ainda não tiver
+    if (!item.cest && stCfg.cest) {
+      item.cest = stCfg.cest;
+    }
     console.log("DEBUG ST:", {
       ncm: item.ncm,
       csosn: item.cst,
       mva: item.mva,
+      cest: item.cest,
       exige_st: stCfg.temST,
     });
     const icmsBlock = buildIcmsBlock({ ...item, qty, unit_price: unitPrice, discount }, isSimples, preIndIEDest, 55);
