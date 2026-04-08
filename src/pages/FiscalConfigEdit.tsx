@@ -36,6 +36,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
 import { useAuth } from "@/hooks/useAuth";
 import { logAction } from "@/services/ActionLogger";
+import { invokeEdgeFunctionWithAuth } from "@/lib/invoke-edge-function-with-auth";
 import forge from "node-forge";
 import { type CRT, isValidCrt } from "@/lib/fiscal-config-lookup";
 

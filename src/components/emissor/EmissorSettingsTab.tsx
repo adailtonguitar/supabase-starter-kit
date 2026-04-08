@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { storeCertificateA1 } from "@/services/LocalXmlSigner";
 import { localSignerService, type CertificateInfo } from "@/services/WebPKIService";
+import { invokeEdgeFunctionWithAuth } from "@/lib/invoke-edge-function-with-auth";
 import forge from "node-forge";
 
 const UF_OPTIONS = [
