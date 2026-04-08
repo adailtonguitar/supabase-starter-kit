@@ -6,6 +6,16 @@ import { VitePWA } from "vite-plugin-pwa";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
+  define: {
+    // Fallback: ensure Supabase env vars are always embedded in production builds
+    // even when the build environment does not inject them automatically.
+    'import.meta.env.VITE_SUPABASE_URL': JSON.stringify(
+      process.env.VITE_SUPABASE_URL || "https://fsvxpxziotklbxkivyug.supabase.co"
+    ),
+    'import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY': JSON.stringify(
+      process.env.VITE_SUPABASE_PUBLISHABLE_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZzdnhweHppb3RrbGJ4a2l2eXVnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE3ODU5NTMsImV4cCI6MjA4NzM2MTk1M30.8I3ABsRZBZuE1IpK_g9z3PdRUd9Omt_F5qNx0Pgqvyo"
+    ),
+  },
   server: {
     host: "::",
     port: 8080,
