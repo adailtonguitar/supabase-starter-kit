@@ -103,9 +103,11 @@ export class FiscalEmissionService {
     const now = Date.now();
     const hoursElapsed = (now - created) / (1000 * 60 * 60);
 
+    // NFC-e: maioria dos estados permite apenas 30 min (alguns até 2h)
+    // NF-e: 24h na maioria dos estados (168h = 7 dias em poucos casos)
     const CANCEL_LIMITS = {
-      nfce: 24,
-      nfe: 168,
+      nfce: 0.5, // 30 minutos
+      nfe: 24,   // 24 horas
     };
 
     const maxHours = CANCEL_LIMITS[docType];
