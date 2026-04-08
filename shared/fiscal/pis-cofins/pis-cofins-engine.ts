@@ -63,6 +63,8 @@ const MONOFASICO_RULES: Record<string, MonofasicoRule> = {
 const MONOFASICO_PREFIXES: Record<string, MonofasicoRule> = {
   "2710": { aliqPis: 0, aliqCofins: 0, description: "Derivados de petróleo — monofásico" },
   "2711": { aliqPis: 0, aliqCofins: 0, description: "Gás — monofásico" },
+  "2202": { aliqPis: 0, aliqCofins: 0, description: "Bebidas frias — monofásico" },
+  "2203": { aliqPis: 0, aliqCofins: 0, description: "Cerveja — monofásico" },
   "3003": { aliqPis: 0, aliqCofins: 0, description: "Medicamento — monofásico" },
   "3004": { aliqPis: 0, aliqCofins: 0, description: "Medicamento — monofásico" },
   "3303": { aliqPis: 0, aliqCofins: 0, description: "Perfumaria — monofásico" },
@@ -83,6 +85,9 @@ const ISENTO_PREFIXES = [
   "1507",                   // Óleo de soja
   "1701",                   // Açúcar
 ];
+
+// Prefixos ampliados de 2 dígitos para cesta básica
+const ISENTO_BROAD_PREFIXES = ["02", "04", "10"];
 
 // ─── Alíquotas padrão PIS/COFINS regime cumulativo e não-cumulativo ───
 
@@ -126,7 +131,7 @@ export function getPisCofinsConfig(input: PisCofinsInput): PisCofinsConfig {
   }
 
   // ── 3. Isento / Alíquota zero (cesta básica) ──
-  if (ISENTO_PREFIXES.some(p => ncm.startsWith(p))) {
+  if (ISENTO_PREFIXES.some(p => ncm.startsWith(p)) || ISENTO_BROAD_PREFIXES.some(p => ncm.startsWith(p))) {
     return {
       mode: "aliquota_zero",
       cstPis: input.pisCstOverride || "06",
