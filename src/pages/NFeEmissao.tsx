@@ -1767,6 +1767,7 @@ export default function NFeEmissao() {
                                       <div>
                                         <label className="text-[10px] text-muted-foreground">Qtd</label>
                                         <input type="number" min={1} value={preAddProduct.qty}
+                                          onFocus={e => e.target.select()}
                                           onChange={e => setPreAddProduct(prev => prev ? { ...prev, qty: Math.max(1, parseFloat(e.target.value) || 1) } : null)}
                                           className="w-20 mt-0.5 px-2 py-1 rounded border border-border bg-background text-xs font-mono text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30" />
                                       </div>
