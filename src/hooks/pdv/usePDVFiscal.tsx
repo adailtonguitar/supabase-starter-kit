@@ -5,6 +5,7 @@
 import { useCallback } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeEdgeFunctionWithAuth } from "@/lib/invoke-edge-function-with-auth";
 
 type FiscalQueueState = "pending" | "processing" | "done" | "error" | "dead_letter" | "unknown";
 
