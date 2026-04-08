@@ -1043,8 +1043,25 @@ function buildIcmsBlock(item: any, isSimples: boolean) {
       const mva = item.mva != null && item.mva > 0 ? item.mva : 40;
       const bcST = vProd * (1 + mva / 100);
       const icmsST = bcST * (aliqIcms / 100);
+
+      // CSOSN 201: com permissão de crédito — exige pCredSN e vCredICMSSN
+      if (cst === "201") {
+        const pCredSN = item.p_cred_sn != null ? item.p_cred_sn : aliqIcms || 0;
+        const vCredICMSSN = Math.round(vProd * (pCredSN / 100) * 100) / 100;
+        return {
+          ICMSSN201: {
+            orig: origem, CSOSN: "201", modBCST: 4, pMVAST: mva,
+            vBCST: Math.round(bcST * 100) / 100, pICMSST: aliqIcms,
+            vICMSST: Math.round(icmsST * 100) / 100,
+            pCredSN: Math.round(pCredSN * 100) / 100,
+            vCredICMSSN,
+          },
+        };
+      }
+
+      // CSOSN 202 e 203: sem permissão de crédito — bloco ICMSSN202
       return {
-        ICMSSN201: {
+        ICMSSN202: {
           orig: origem, CSOSN: cst, modBCST: 4, pMVAST: mva,
           vBCST: Math.round(bcST * 100) / 100, pICMSST: aliqIcms,
           vICMSST: Math.round(icmsST * 100) / 100,
