@@ -515,10 +515,11 @@ export default function NFeEmissao() {
           });
         }
       });
+  }, [companyId, companyName, hookCnpj, hookIe, hookPhone, hookStreet, hookNumber, hookNeighborhood, hookCity, hookState, logoUrl]);
+
   useEffect(() => {
     setDrafts(loadDrafts(companyId));
   }, [companyId]);
-
 
   useEffect(() => {
     if (!companyId) return;
