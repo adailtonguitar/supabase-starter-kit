@@ -2246,22 +2246,22 @@ async function handleEmitNfe(supabase: any, body: any) {
         const stCsosns = new Set(["201", "202", "203", "500"]);
         const stCsts = new Set(["10", "30", "60", "70"]);
         const hasST = isSimples ? stCsosns.has(itemCst) : stCsts.has(itemCst);
-        if (!hasST && !vItem.mva) {
-          // Auto-apply ST
-          vItem.mva = stCfg.mva;
-          vItem.icms_aliquota = vItem.icms_aliquota || stCfg.aliquotaInterna;
+        if (!hasST) {
+          // Auto-apply ST — SEMPRE aplica CST/CSOSN de ST quando exige_st=true
+          vItem.mva = stCfg.mva || vItem.mva || 0;
+          vItem.icms_aliquota = stCfg.aliquotaInterna || vItem.icms_aliquota || 18;
           if (isSimples) {
             vItem.cst = stCfg.csosn_forcado || "202";
-            console.log(`[emit-nfe] ST aplicado (${stCfg.source}): item ${vi + 1} NCM=${vNcm} → CSOSN ${vItem.cst}, MVA=${stCfg.mva}%`);
+            console.log(`[emit-nfe] ST aplicado (${stCfg.source}): item ${vi + 1} NCM=${vNcm} → CSOSN ${vItem.cst}, MVA=${vItem.mva}%, aliq=${vItem.icms_aliquota}%`);
           } else {
             vItem.cst = stCfg.cst_forcado || "10";
-            console.log(`[emit-nfe] ST aplicado (${stCfg.source}): item ${vi + 1} NCM=${vNcm} → CST ${vItem.cst}, MVA=${stCfg.mva}%`);
+            console.log(`[emit-nfe] ST aplicado (${stCfg.source}): item ${vi + 1} NCM=${vNcm} → CST ${vItem.cst}, MVA=${vItem.mva}%, aliq=${vItem.icms_aliquota}%`);
           }
           stLog.aplicou_st = true;
           stLog.motivo = `ST auto-aplicado via ${stCfg.source}`;
         } else {
-          stLog.motivo = hasST ? "Item já possui CST/CSOSN de ST" : "Item já possui MVA definida";
-          stLog.aplicou_st = hasST || (vItem.mva > 0);
+          stLog.motivo = "Item já possui CST/CSOSN de ST";
+          stLog.aplicou_st = true;
         }
       } else {
         stLog.motivo = stCfg.source === "override_negado"
