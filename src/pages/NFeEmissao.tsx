@@ -973,6 +973,83 @@ export default function NFeEmissao() {
         return;
       }
 
+      // ─── PRÉ-VALIDAÇÃO SEFAZ COMPLETA ───
+      try {
+        const preValidation = await preValidateBeforeEmission({
+          company_id: companyId,
+          config_id: nfeConfig.id,
+          crt: companyCrt,
+          modelo: 55,
+          serie: nfeConfig.serie || 1,
+          nat_op: form.natOp,
+          presence_type: Number(form.presenceType) || 1,
+          fin_nfe: Number(form.finalidade) || 1,
+          emit_cnpj: companyInfo?.cnpj || hookCnpj || "",
+          emit_ie: companyInfo?.ie || hookIe || "",
+          emit_uf: (companyInfo?.address_state || hookState || "MA").toUpperCase(),
+          dest_doc: form.destDoc,
+          dest_nome: form.destName,
+          dest_uf: form.destUF,
+          dest_ie: form.destIE,
+          ind_ie_dest: form.destIE?.trim() ? 1 : ((form.destDoc || "").replace(/\D/g, "").length === 14 ? 2 : 9),
+          items: form.items.map((it) => ({
+            code: it.productCode,
+            name: it.name,
+            ncm: it.ncm,
+            cest: it.cest || undefined,
+            cfop: it.cfop,
+            unit: it.unit,
+            quantity: it.qty,
+            unit_price: it.unitPrice,
+            total: it.qty * it.unitPrice - (it.discount || 0),
+            discount: it.discount || 0,
+            origem: Number(it.origem) || 0,
+            cst: it.cst,
+            csosn: it.cst,
+            pis_cst: it.pisCst,
+            cofins_cst: it.cofinsCst,
+            icms_aliq: it.icmsAliquota || 0,
+          })),
+        }, "AUTO");
+
+        if (!preValidation.approved) {
+          const summary = formatValidationSummary(preValidation);
+          console.error("[NFeEmissao] Pré-validação SEFAZ reprovada:", preValidation);
+          setStep("error");
+          setErrorMsg(summary);
+          setEmitting(false);
+
+          // Log para auditoria
+          supabase.from("action_logs").insert({
+            company_id: companyId,
+            action: "nfe_pre_validation_blocked",
+            module: "fiscal",
+            details: JSON.stringify({
+              riskScore: preValidation.riskScore,
+              riskLevel: preValidation.riskLevel,
+              errorCount: preValidation.errors.length,
+              warningCount: preValidation.warnings.length,
+              autoFixes: preValidation.autoFixes.length,
+            }),
+          }).then(() => {}).catch(() => {});
+
+          return;
+        }
+
+        // Log auto-fixes aplicados
+        if (preValidation.autoFixes.length > 0) {
+          console.log("[NFeEmissao] Auto-fixes aplicados:", preValidation.autoFixes);
+          toast.info(`${preValidation.autoFixes.length} correção(ões) fiscal(is) automática(s) aplicada(s).`);
+        }
+
+        if (preValidation.warnings.length > 0) {
+          console.warn("[NFeEmissao] Warnings da pré-validação:", preValidation.warnings);
+        }
+      } catch (preValError: any) {
+        // Pré-validação com erro não deve bloquear emissão — apenas logar
+        console.warn("[NFeEmissao] Erro na pré-validação (não bloqueante):", preValError?.message);
+      }
+
       let data: NFeSuccessData | null = null;
 
       try {
