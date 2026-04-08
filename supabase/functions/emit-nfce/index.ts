@@ -2074,7 +2074,7 @@ async function handleEmitNfe(supabase: any, body: any) {
 
   // Log ST decisions to DB (fire-and-forget)
   if (stDecisionLogs.length > 0) {
-    admin.from("fiscal_st_decision_log").insert(
+    supabase.from("fiscal_st_decision_log").insert(
       stDecisionLogs.map((l: any) => ({ ...l, company_id }))
     ).then(() => {}).catch((e: any) => console.warn("[emit-nfe] ST log insert failed:", e));
   }
