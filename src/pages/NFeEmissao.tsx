@@ -323,9 +323,9 @@ interface NFeFiscalCategory {
 }
 
 export default function NFeEmissao() {
+  const { user } = useAuth();
   const { companyId, companyName, logoUrl, cnpj: hookCnpj, ie: hookIe, phone: hookPhone, addressStreet: hookStreet, addressNumber: hookNumber, addressNeighborhood: hookNeighborhood, addressCity: hookCity, addressState: hookState } = useCompany();
   const plan = usePlanFeatures();
-  const { lookup: cnpjLookup, loading: cnpjLoading } = useCnpjLookup();
 
   const [form, setForm] = useState<NFeFormData>(emptyForm());
   const [drafts, setDrafts] = useState<NFeDraft[]>([]);
