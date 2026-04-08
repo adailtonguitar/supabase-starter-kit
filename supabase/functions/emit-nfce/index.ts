@@ -92,6 +92,162 @@ function decidirTipoST(
 }
 // ─── Fim Decisão ST ───
 
+// ─── Motor Fiscal Dinâmico: getTaxRule (camada sobre regras hardcoded) ───
+interface DynamicTaxRule {
+  id: string;
+  ncm_prefix: string;
+  cest?: string;
+  uf_origem: string;
+  uf_destino: string;
+  regime: string;
+  tem_st: boolean;
+  tipo_pis_cofins: "monofasico" | "isento" | "normal";
+  aliq_pis: number;
+  aliq_cofins: number;
+  icms_aliquota: number;
+  icms_reducao_base: number;
+  mva: number;
+  csosn?: string;
+  cst?: string;
+  prioridade: number;
+  descricao?: string;
+}
+
+interface TaxRuleMatch {
+  rule: DynamicTaxRule | null;
+  score: number;
+  source: "dynamic_db" | "fallback_hardcoded";
+  reason: string;
+}
+
+function getTaxRule(
+  dynamicRules: DynamicTaxRule[],
+  ncm: string,
+  ufOrigem: string,
+  ufDestino: string,
+  regime: "simples" | "normal",
+): TaxRuleMatch {
+  if (!dynamicRules || dynamicRules.length === 0) {
+    return { rule: null, score: 0, source: "fallback_hardcoded", reason: "Nenhuma regra dinâmica carregada" };
+  }
+
+  const cleanNcm = (ncm || "").replace(/\D/g, "");
+  if (!cleanNcm || cleanNcm.length < 2) {
+    return { rule: null, score: 0, source: "fallback_hardcoded", reason: "NCM insuficiente para matching" };
+  }
+
+  let bestRule: DynamicTaxRule | null = null;
+  let bestScore = -1;
+
+  for (const r of dynamicRules) {
+    if (r.regime !== regime) continue;
+
+    const rNcm = (r.ncm_prefix || "").replace(/\D/g, "");
+    let sc = 0;
+
+    // NCM matching (score by specificity)
+    if (rNcm === "*") {
+      sc += 10;
+    } else if (rNcm === cleanNcm) {
+      sc += 100; // exact 8-digit match
+    } else if (cleanNcm.startsWith(rNcm) && rNcm.length >= 4) {
+      sc += 60; // prefix 4+ digits
+    } else if (cleanNcm.startsWith(rNcm) && rNcm.length >= 2) {
+      sc += 30; // prefix 2-3 digits
+    } else {
+      continue; // no match
+    }
+
+    // UF matching
+    if (r.uf_origem === ufOrigem) sc += 30;
+    else if (r.uf_origem === "*") sc += 5;
+    else continue;
+
+    if (r.uf_destino === ufDestino) sc += 30;
+    else if (r.uf_destino === "*") sc += 5;
+    else continue;
+
+    // Prioridade como tiebreaker
+    sc += Math.min(r.prioridade || 0, 50);
+
+    if (sc > bestScore) {
+      bestScore = sc;
+      bestRule = r;
+    }
+  }
+
+  if (bestRule && bestScore >= 50) {
+    return {
+      rule: bestRule,
+      score: bestScore,
+      source: "dynamic_db",
+      reason: `Regra dinâmica: ${bestRule.descricao || bestRule.id} (score=${bestScore})`,
+    };
+  }
+
+  return {
+    rule: null,
+    score: bestScore,
+    source: "fallback_hardcoded",
+    reason: bestScore > 0 ? `Score ${bestScore} abaixo do threshold (50)` : "Nenhuma regra compatível",
+  };
+}
+
+/**
+ * Aplica regra dinâmica ao item SEM sobrescrever valores já definidos.
+ * Retorna true se aplicou algo, false se caiu no fallback.
+ */
+function applyDynamicTaxRule(item: any, match: TaxRuleMatch, isSimples: boolean): boolean {
+  if (match.source !== "dynamic_db" || !match.rule) return false;
+
+  const rule = match.rule;
+
+  // ICMS: aplicar CST/CSOSN e alíquota somente se não definidos
+  if (isSimples) {
+    if (!item.cst && rule.csosn) item.cst = rule.csosn;
+  } else {
+    if (!item.cst && rule.cst) item.cst = rule.cst;
+  }
+
+  if ((!item.icms_aliquota || item.icms_aliquota === 0) && rule.icms_aliquota > 0) {
+    item.icms_aliquota = rule.icms_aliquota;
+  }
+
+  // ST
+  if (rule.tem_st) {
+    item.temST = true;
+    if ((!item.mva || item.mva === 0) && rule.mva > 0) item.mva = rule.mva;
+  }
+
+  // Redução BC
+  if (rule.icms_reducao_base > 0 && !item.reducao_base) {
+    item.reducao_base = rule.icms_reducao_base;
+  }
+
+  // CEST
+  if (rule.cest && !item.cest) item.cest = rule.cest;
+
+  // PIS/COFINS overrides (apenas Regime Normal)
+  if (!isSimples) {
+    if (rule.tipo_pis_cofins === "monofasico") {
+      item.pis_cst = "04";
+      item.cofins_cst = "04";
+    } else if (rule.tipo_pis_cofins === "isento") {
+      item.pis_cst = "06";
+      item.cofins_cst = "06";
+    } else if (rule.tipo_pis_cofins === "normal" && rule.aliq_pis > 0) {
+      item.pis_cst = item.pis_cst || "01";
+      item.cofins_cst = item.cofins_cst || "01";
+      // Alíquotas customizadas propagadas via item para buildPisCofins
+      item._dynamic_aliq_pis = rule.aliq_pis;
+      item._dynamic_aliq_cofins = rule.aliq_cofins;
+    }
+  }
+
+  return true;
+}
+// ─── Fim Motor Fiscal Dinâmico ───
+
 function getRequiredEnv(name: string): string {
   const value = Deno.env.get(name);
   if (!value) {
