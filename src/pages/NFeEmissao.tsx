@@ -1031,7 +1031,7 @@ export default function NFeEmissao() {
               warningCount: preValidation.warnings.length,
               autoFixes: preValidation.autoFixes.length,
             }),
-          }).then(() => {}).catch(() => {});
+          });
 
           return;
         }
