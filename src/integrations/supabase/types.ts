@@ -14,13 +14,203 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      fiscal_override_rules: {
+        Row: {
+          aliquota_forcada: number | null
+          company_id: string
+          created_at: string
+          csosn_forcado: string | null
+          cst_forcado: string | null
+          forcar_st: boolean | null
+          id: string
+          is_active: boolean
+          motivo: string | null
+          mva_forcado: number | null
+          ncm: string
+          prioridade: number
+          reducao_bc_forcada: number | null
+          uf: string
+          updated_at: string
+        }
+        Insert: {
+          aliquota_forcada?: number | null
+          company_id: string
+          created_at?: string
+          csosn_forcado?: string | null
+          cst_forcado?: string | null
+          forcar_st?: boolean | null
+          id?: string
+          is_active?: boolean
+          motivo?: string | null
+          mva_forcado?: number | null
+          ncm: string
+          prioridade?: number
+          reducao_bc_forcada?: number | null
+          uf?: string
+          updated_at?: string
+        }
+        Update: {
+          aliquota_forcada?: number | null
+          company_id?: string
+          created_at?: string
+          csosn_forcado?: string | null
+          cst_forcado?: string | null
+          forcar_st?: boolean | null
+          id?: string
+          is_active?: boolean
+          motivo?: string | null
+          mva_forcado?: number | null
+          ncm?: string
+          prioridade?: number
+          reducao_bc_forcada?: number | null
+          uf?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      fiscal_st_decision_log: {
+        Row: {
+          aplicou_st: boolean
+          block_reason: string | null
+          blocked: boolean
+          cest: string | null
+          company_id: string | null
+          confianca: string
+          convenio: string | null
+          created_at: string
+          id: string
+          motivo: string | null
+          mva: number
+          ncm: string
+          override_aplicado: boolean
+          regra_usada: string
+          risk_score: number
+          uf: string
+        }
+        Insert: {
+          aplicou_st?: boolean
+          block_reason?: string | null
+          blocked?: boolean
+          cest?: string | null
+          company_id?: string | null
+          confianca?: string
+          convenio?: string | null
+          created_at?: string
+          id?: string
+          motivo?: string | null
+          mva?: number
+          ncm: string
+          override_aplicado?: boolean
+          regra_usada?: string
+          risk_score?: number
+          uf: string
+        }
+        Update: {
+          aplicou_st?: boolean
+          block_reason?: string | null
+          blocked?: boolean
+          cest?: string | null
+          company_id?: string | null
+          confianca?: string
+          convenio?: string | null
+          created_at?: string
+          id?: string
+          motivo?: string | null
+          mva?: number
+          ncm?: string
+          override_aplicado?: boolean
+          regra_usada?: string
+          risk_score?: number
+          uf?: string
+        }
+        Relationships: []
+      }
+      fiscal_st_rules: {
+        Row: {
+          aliquota: number
+          cest: string | null
+          company_id: string | null
+          convenio: string | null
+          created_at: string
+          data_fim: string | null
+          data_inicio: string
+          exige_cest: boolean
+          exige_st: boolean
+          id: string
+          is_active: boolean
+          is_global: boolean
+          mva: number
+          ncm: string
+          observacoes: string | null
+          protocolo: string | null
+          reducao_bc: number
+          segmento: string | null
+          uf: string
+          updated_at: string
+        }
+        Insert: {
+          aliquota?: number
+          cest?: string | null
+          company_id?: string | null
+          convenio?: string | null
+          created_at?: string
+          data_fim?: string | null
+          data_inicio?: string
+          exige_cest?: boolean
+          exige_st?: boolean
+          id?: string
+          is_active?: boolean
+          is_global?: boolean
+          mva?: number
+          ncm: string
+          observacoes?: string | null
+          protocolo?: string | null
+          reducao_bc?: number
+          segmento?: string | null
+          uf: string
+          updated_at?: string
+        }
+        Update: {
+          aliquota?: number
+          cest?: string | null
+          company_id?: string | null
+          convenio?: string | null
+          created_at?: string
+          data_fim?: string | null
+          data_inicio?: string
+          exige_cest?: boolean
+          exige_st?: boolean
+          id?: string
+          is_active?: boolean
+          is_global?: boolean
+          mva?: number
+          ncm?: string
+          observacoes?: string | null
+          protocolo?: string | null
+          reducao_bc?: number
+          segmento?: string | null
+          uf?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_st_override: {
+        Args: { p_company_id: string; p_ncm: string; p_uf: string }
+        Returns: Json
+      }
+      resolve_st_from_db: {
+        Args: { p_ncm: string; p_tipo_operacao?: string; p_uf: string }
+        Returns: Json
+      }
+      user_belongs_to_company: {
+        Args: { p_company_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never
