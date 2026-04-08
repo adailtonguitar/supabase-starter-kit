@@ -2400,11 +2400,12 @@ async function handleEmitNfe(supabase: any, body: any) {
       }
     }
 
+    const stCfg = ncm.length === 8 ? getSTConfigResolved(ncm, stUf) as any : { temST: false };
     console.log("DEBUG ST:", {
       ncm: item.ncm,
       csosn: item.cst,
       mva: item.mva,
-      exige_st: item.temST,
+      exige_st: stCfg.temST,
     });
     const icmsBlock = buildIcmsBlock({ ...item, qty, unit_price: unitPrice, discount }, isSimples, preIndIEDest);
 
