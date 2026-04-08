@@ -194,6 +194,63 @@ export type Database = {
         }
         Relationships: []
       }
+      nfe_documents: {
+        Row: {
+          chave_nfe: string
+          company_id: string
+          created_at: string
+          data_emissao: string
+          id: string
+          modelo: number
+          numero: number
+          nuvem_fiscal_id: string | null
+          protocolo: string | null
+          sale_id: string | null
+          serie: number
+          status: string
+          updated_at: string
+          valor_total: number
+          xml_autorizado: string | null
+          xml_enviado: string | null
+        }
+        Insert: {
+          chave_nfe: string
+          company_id: string
+          created_at?: string
+          data_emissao?: string
+          id?: string
+          modelo?: number
+          numero: number
+          nuvem_fiscal_id?: string | null
+          protocolo?: string | null
+          sale_id?: string | null
+          serie?: number
+          status?: string
+          updated_at?: string
+          valor_total?: number
+          xml_autorizado?: string | null
+          xml_enviado?: string | null
+        }
+        Update: {
+          chave_nfe?: string
+          company_id?: string
+          created_at?: string
+          data_emissao?: string
+          id?: string
+          modelo?: number
+          numero?: number
+          nuvem_fiscal_id?: string | null
+          protocolo?: string | null
+          sale_id?: string | null
+          serie?: number
+          status?: string
+          updated_at?: string
+          valor_total?: number
+          xml_autorizado?: string | null
+          xml_enviado?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
