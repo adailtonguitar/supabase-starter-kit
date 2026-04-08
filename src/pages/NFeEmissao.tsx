@@ -1267,7 +1267,7 @@ export default function NFeEmissao() {
       form: { ...form },
     };
     const updated = [draft, ...drafts].slice(0, 20);
-    saveDrafts(updated);
+    saveDrafts(updated, companyId);
     setDrafts(updated);
     toast.success("Rascunho salvo com sucesso!");
   };
