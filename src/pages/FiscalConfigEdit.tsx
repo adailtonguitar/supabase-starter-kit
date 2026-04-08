@@ -182,7 +182,7 @@ export default function FiscalConfigEdit() {
           throw new Error("Informe a senha do certificado para concluir a exclusão.");
         }
 
-        const { data: deleteResult, error: deleteError } = await supabase.functions.invoke("emit-nfce", {
+        const { data: deleteResult, error: deleteError } = await invokeEdgeFunctionWithAuth("emit-nfce", {
           body: {
             action: "delete_certificate",
             company_id: companyId,
