@@ -1931,8 +1931,33 @@ async function handleEmitNfe(supabase: any, body: any) {
     return jsonResponse({ error: "Nenhum item na nota" }, 400);
   }
 
-  // ─── ST Auto-detection: verificar NCMs com ST obrigatória ───
-  const ST_NCMS: Record<string, Record<string, { mva: number; aliquotaInterna: number; cest?: string }>> = {
+  // ─── ST Auto-detection v2: DB-backed + override + fallback ───
+  // Buscar regras ST e overrides do banco para todos os NCMs únicos
+  const uniqueNcms = [...new Set(items.map((it: any) => (it.ncm || "").replace(/\D/g, "")).filter((n: string) => n.length === 8))];
+  const stUf = destUF || emitUF;
+  
+  // Batch fetch ST rules from DB
+  const stDbRules: Record<string, any> = {};
+  const stOverrides: Record<string, any> = {};
+  
+  if (uniqueNcms.length > 0) {
+    const stPromises = uniqueNcms.map(async (ncm: string) => {
+      try {
+        const [ruleRes, overrideRes] = await Promise.all([
+          admin.rpc("resolve_st_from_db", { p_ncm: ncm, p_uf: stUf, p_tipo_operacao: "todos" }),
+          admin.rpc("get_st_override", { p_company_id: company_id, p_ncm: ncm, p_uf: stUf }),
+        ]);
+        if (ruleRes.data) stDbRules[ncm] = ruleRes.data;
+        if (overrideRes.data) stOverrides[ncm] = overrideRes.data;
+      } catch (e) {
+        console.warn(`[emit-nfe] ST DB lookup falhou para NCM ${ncm}: ${e}`);
+      }
+    });
+    await Promise.all(stPromises);
+  }
+
+  // Fallback inline (mesma lógica do shared/fiscal/st-engine.ts)
+  const ST_FALLBACK: Record<string, Record<string, { mva: number; aliquotaInterna: number; cest?: string }>> = {
     "22021000": { _default: { mva: 70, aliquotaInterna: 18 }, MA: { mva: 70, aliquotaInterna: 22 } },
     "22011000": { _default: { mva: 70, aliquotaInterna: 18 }, MA: { mva: 70, aliquotaInterna: 22 } },
     "22021010": { _default: { mva: 40, aliquotaInterna: 18 }, MA: { mva: 40, aliquotaInterna: 22 } },
@@ -1942,25 +1967,52 @@ async function handleEmitNfe(supabase: any, body: any) {
     "25232900": { _default: { mva: 20, aliquotaInterna: 18 }, MA: { mva: 20, aliquotaInterna: 22 } },
     "32091000": { _default: { mva: 35, aliquotaInterna: 18 }, MA: { mva: 35, aliquotaInterna: 22 } },
   };
-  function getSTConfigInline(ncm: string, uf: string) {
-    const entry = ST_NCMS[ncm];
+  function getSTConfigResolved(ncm: string, uf: string) {
+    // 1. Override
+    const ovr = stOverrides[ncm];
+    if (ovr?.found) {
+      if (ovr.forcar_st === false) return { temST: false, mva: 0, aliquotaInterna: 0, source: "override_negado" };
+      if (ovr.forcar_st === true) return {
+        temST: true,
+        mva: ovr.mva_forcado ?? 0,
+        aliquotaInterna: ovr.aliquota_forcada ?? 18,
+        cest: undefined,
+        cst_forcado: ovr.cst_forcado,
+        csosn_forcado: ovr.csosn_forcado,
+        source: "override",
+      };
+    }
+    // 2. DB rule
+    const rule = stDbRules[ncm];
+    if (rule?.found && rule.exige_st) {
+      return {
+        temST: true,
+        mva: rule.mva ?? 0,
+        aliquotaInterna: rule.aliquota_interna ?? 18,
+        cest: rule.cest,
+        convenio: rule.convenio,
+        source: "db_rule",
+      };
+    }
+    // 3. Fallback
+    const entry = ST_FALLBACK[ncm];
     if (entry) {
       const cfg = entry[uf] || entry._default;
-      if (cfg) return { temST: true, ...cfg };
+      if (cfg) return { temST: true, ...cfg, source: "fallback" };
     }
-    // Prefix match (4 digits)
     const p4 = ncm.slice(0, 4);
-    for (const [k, v] of Object.entries(ST_NCMS)) {
+    for (const [k, v] of Object.entries(ST_FALLBACK)) {
       if (k.startsWith(p4)) {
         const cfg = v[uf] || v._default;
-        if (cfg) return { temST: true, ...cfg };
+        if (cfg) return { temST: true, ...cfg, source: "fallback_prefix" };
       }
     }
-    return { temST: false, mva: 0, aliquotaInterna: 0 };
+    return { temST: false, mva: 0, aliquotaInterna: 0, source: "none" };
   }
 
   // ─── PRÉ-VALIDAÇÃO FISCAL OBRIGATÓRIA (PIS/COFINS, ST, NCM) ───
   const preValidationErrors: string[] = [];
+  const stDecisionLogs: any[] = [];
   for (let vi = 0; vi < items.length; vi++) {
     const vItem = items[vi];
     const vNcm = (vItem.ncm || "").replace(/\D/g, "");
@@ -1977,9 +2029,18 @@ async function handleEmitNfe(supabase: any, body: any) {
         vItem.cofins_cst = "49";
       }
     }
-    // ST auto-detection
+    // ST auto-detection v2 (DB → Override → Fallback)
     if (vNcm && vNcm.length === 8) {
-      const stCfg = getSTConfigInline(vNcm, destUF || emitUF);
+      const stCfg = getSTConfigResolved(vNcm, stUf) as any;
+      const stLog = {
+        ncm: vNcm, cest: stCfg.cest || null, uf: stUf,
+        regra_usada: stCfg.source || "none", convenio: stCfg.convenio || null,
+        mva: stCfg.mva || 0, aplicou_st: false, motivo: "",
+        confianca: stCfg.source === "db_rule" || stCfg.source === "override" ? "alta" : stCfg.source === "fallback" ? "media" : "baixa",
+        override_aplicado: stCfg.source === "override" || stCfg.source === "override_negado",
+        risk_score: stCfg.source === "fallback_prefix" ? 40 : stCfg.source === "fallback" ? 20 : 0,
+      };
+
       if (stCfg.temST) {
         const itemCst = (vItem.cst || "").trim();
         const stCsosns = new Set(["201", "202", "203", "500"]);
@@ -1990,15 +2051,32 @@ async function handleEmitNfe(supabase: any, body: any) {
           vItem.mva = stCfg.mva;
           vItem.icms_aliquota = vItem.icms_aliquota || stCfg.aliquotaInterna;
           if (isSimples) {
-            vItem.cst = "202"; // ST a recolher
-            console.log(`[emit-nfe] ST auto-aplicado: item ${vi + 1} NCM=${vNcm} → CSOSN 202, MVA=${stCfg.mva}%`);
+            vItem.cst = stCfg.csosn_forcado || "202";
+            console.log(`[emit-nfe] ST aplicado (${stCfg.source}): item ${vi + 1} NCM=${vNcm} → CSOSN ${vItem.cst}, MVA=${stCfg.mva}%`);
           } else {
-            vItem.cst = "10"; // Com ST
-            console.log(`[emit-nfe] ST auto-aplicado: item ${vi + 1} NCM=${vNcm} → CST 10, MVA=${stCfg.mva}%`);
+            vItem.cst = stCfg.cst_forcado || "10";
+            console.log(`[emit-nfe] ST aplicado (${stCfg.source}): item ${vi + 1} NCM=${vNcm} → CST ${vItem.cst}, MVA=${stCfg.mva}%`);
           }
+          stLog.aplicou_st = true;
+          stLog.motivo = `ST auto-aplicado via ${stCfg.source}`;
+        } else {
+          stLog.motivo = hasST ? "Item já possui CST/CSOSN de ST" : "Item já possui MVA definida";
+          stLog.aplicou_st = hasST || (vItem.mva > 0);
         }
+      } else {
+        stLog.motivo = stCfg.source === "override_negado"
+          ? "ST desativada por override manual"
+          : `NCM ${vNcm} sem ST na UF ${stUf}`;
       }
+      stDecisionLogs.push(stLog);
     }
+  }
+
+  // Log ST decisions to DB (fire-and-forget)
+  if (stDecisionLogs.length > 0) {
+    admin.from("fiscal_st_decision_log").insert(
+      stDecisionLogs.map((l: any) => ({ ...l, company_id }))
+    ).then(() => {}).catch((e: any) => console.warn("[emit-nfe] ST log insert failed:", e));
   }
 
   // ─── LOG DE AUDITORIA PRÉ-EMISSÃO ───
