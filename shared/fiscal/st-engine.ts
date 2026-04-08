@@ -94,41 +94,48 @@ export interface STDbRule {
 // ─── Fallback Hardcoded (último recurso) ───
 
 const ST_FALLBACK: Record<string, Record<string, Omit<STConfig, "temST">>> = {
-  "22021000": {
-    _default: { mva: 70, aliquotaInterna: 18, cest: "0300100" },
-    MA: { mva: 70, aliquotaInterna: 22, cest: "0300100" },
-    SP: { mva: 70, aliquotaInterna: 18, cest: "0300100" },
-  },
-  "22011000": {
-    _default: { mva: 70, aliquotaInterna: 18, cest: "0300100" },
-    MA: { mva: 70, aliquotaInterna: 22, cest: "0300100" },
-  },
-  "22021010": {
-    _default: { mva: 40, aliquotaInterna: 18, cest: "0300200" },
-    MA: { mva: 40, aliquotaInterna: 22, cest: "0300200" },
-  },
-  "22030000": {
-    _default: { mva: 70, aliquotaInterna: 25, cest: "0300500" },
-    MA: { mva: 70, aliquotaInterna: 22, cest: "0300500" },
-  },
+  // Bebidas
+  "22021000": { _default: { mva: 70, aliquotaInterna: 18, cest: "0300100" }, MA: { mva: 70, aliquotaInterna: 22, cest: "0300100" }, SP: { mva: 70, aliquotaInterna: 18, cest: "0300100" } },
+  "22011000": { _default: { mva: 70, aliquotaInterna: 18, cest: "0300100" }, MA: { mva: 70, aliquotaInterna: 22, cest: "0300100" } },
+  "22021010": { _default: { mva: 40, aliquotaInterna: 18, cest: "0300200" }, MA: { mva: 40, aliquotaInterna: 22, cest: "0300200" } },
+  "22030000": { _default: { mva: 70, aliquotaInterna: 25, cest: "0300500" }, MA: { mva: 70, aliquotaInterna: 22, cest: "0300500" } },
+  "22041000": { _default: { mva: 29.04, aliquotaInterna: 25, cest: "0300300" }, MA: { mva: 29.04, aliquotaInterna: 22, cest: "0300300" } },
+  "22089000": { _default: { mva: 44.72, aliquotaInterna: 25, cest: "0300400" }, MA: { mva: 44.72, aliquotaInterna: 22, cest: "0300400" } },
+  "20091100": { _default: { mva: 40, aliquotaInterna: 18, cest: "0300600" }, MA: { mva: 40, aliquotaInterna: 22, cest: "0300600" } },
+  "22021090": { _default: { mva: 40, aliquotaInterna: 25, cest: "0300700" }, MA: { mva: 40, aliquotaInterna: 22, cest: "0300700" } },
+  // Tabaco
   "24022000": { _default: { mva: 0, aliquotaInterna: 25, cest: "0400100" } },
+  // Combustíveis
   "27101259": { _default: { mva: 0, aliquotaInterna: 25, cest: "0600100" } },
-  "40111000": {
-    _default: { mva: 42, aliquotaInterna: 18, cest: "1600100" },
-    MA: { mva: 42, aliquotaInterna: 22, cest: "1600100" },
-  },
-  "25232900": {
-    _default: { mva: 20, aliquotaInterna: 18, cest: "0500100" },
-    MA: { mva: 20, aliquotaInterna: 22, cest: "0500100" },
-  },
-  "32091000": {
-    _default: { mva: 35, aliquotaInterna: 18, cest: "2400100" },
-    MA: { mva: 35, aliquotaInterna: 22, cest: "2400100" },
-  },
-  "85361000": {
-    _default: { mva: 37, aliquotaInterna: 18, cest: "1200100" },
-    MA: { mva: 37, aliquotaInterna: 22, cest: "1200100" },
-  },
+  "27101921": { _default: { mva: 0, aliquotaInterna: 25, cest: "0600200" } },
+  "22071000": { _default: { mva: 0, aliquotaInterna: 25, cest: "0600300" } },
+  "27111300": { _default: { mva: 0, aliquotaInterna: 25, cest: "0600400" } },
+  // Autopeças/Pneus
+  "40111000": { _default: { mva: 42, aliquotaInterna: 18, cest: "1600100" }, MA: { mva: 42, aliquotaInterna: 22, cest: "1600100" } },
+  "87089990": { _default: { mva: 36.56, aliquotaInterna: 18, cest: "1600200" }, MA: { mva: 36.56, aliquotaInterna: 22, cest: "1600200" } },
+  // Construção
+  "25232900": { _default: { mva: 20, aliquotaInterna: 18, cest: "0500100" }, MA: { mva: 20, aliquotaInterna: 22, cest: "0500100" } },
+  // Tintas
+  "32091000": { _default: { mva: 35, aliquotaInterna: 18, cest: "2400100" }, MA: { mva: 35, aliquotaInterna: 22, cest: "2400100" } },
+  // Materiais elétricos
+  "85361000": { _default: { mva: 37, aliquotaInterna: 18, cest: "1200100" }, MA: { mva: 37, aliquotaInterna: 22, cest: "1200100" } },
+  "85395200": { _default: { mva: 37, aliquotaInterna: 18, cest: "1200200" }, MA: { mva: 37, aliquotaInterna: 22, cest: "1200200" } },
+  "85061000": { _default: { mva: 40, aliquotaInterna: 18, cest: "1200300" }, MA: { mva: 40, aliquotaInterna: 22, cest: "1200300" } },
+  // Higiene
+  "33051000": { _default: { mva: 38.90, aliquotaInterna: 18, cest: "2000100" }, MA: { mva: 38.90, aliquotaInterna: 22, cest: "2000100" } },
+  "34011100": { _default: { mva: 38.90, aliquotaInterna: 18, cest: "2000200" }, MA: { mva: 38.90, aliquotaInterna: 22, cest: "2000200" } },
+  "96190000": { _default: { mva: 40, aliquotaInterna: 18, cest: "2000300" }, MA: { mva: 40, aliquotaInterna: 22, cest: "2000300" } },
+  // Limpeza
+  "34022000": { _default: { mva: 43.53, aliquotaInterna: 18, cest: "1100100" }, MA: { mva: 43.53, aliquotaInterna: 22, cest: "1100100" } },
+  "28289011": { _default: { mva: 43.53, aliquotaInterna: 18, cest: "1100200" }, MA: { mva: 43.53, aliquotaInterna: 22, cest: "1100200" } },
+  // Cosméticos
+  "33030010": { _default: { mva: 38.90, aliquotaInterna: 25, cest: "2000400" }, MA: { mva: 38.90, aliquotaInterna: 22, cest: "2000400" } },
+  // Medicamentos
+  "30049099": { _default: { mva: 33.05, aliquotaInterna: 18, cest: "1300100" }, MA: { mva: 33.05, aliquotaInterna: 22, cest: "1300100" } },
+  // Ferramentas
+  "82055900": { _default: { mva: 37, aliquotaInterna: 18, cest: "0800100" }, MA: { mva: 37, aliquotaInterna: 22, cest: "0800100" } },
+  // Brinquedos
+  "95030099": { _default: { mva: 43.64, aliquotaInterna: 18, cest: "0200100" }, MA: { mva: 43.64, aliquotaInterna: 22, cest: "0200100" } },
 };
 
 // ─── Funções Internas ───
@@ -377,4 +384,112 @@ export function getSTConfig(ncm: string, ufDestino: string): STConfig {
   if (fallback) return fallback;
 
   return { temST: false, mva: 0, aliquotaInterna: 0 };
+}
+
+// ─── 6. Normalização de dados ST ───
+
+export interface RawSTRule {
+  ncm: string;
+  cest?: string;
+  uf: string;
+  segmento?: string;
+  mva: number;
+  aliquota?: number;
+  aliquotaInterna?: number;
+  convenio?: string;
+  exige_st?: boolean;
+  data_inicio?: string;
+  data_fim?: string;
+}
+
+export function normalizeSTRules(rawData: RawSTRule[]): RawSTRule[] {
+  const seen = new Set<string>();
+  const normalized: RawSTRule[] = [];
+
+  for (const raw of rawData) {
+    const ncm = (raw.ncm || "").replace(/\D/g, "");
+    if (ncm.length !== 8) continue;
+
+    const cest = raw.cest ? raw.cest.replace(/\D/g, "") : undefined;
+    if (cest && cest.length !== 7) continue;
+
+    const uf = (raw.uf || "").toUpperCase().trim();
+    if (uf.length !== 2) continue;
+
+    const key = `${ncm}:${uf}:${cest || ""}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+
+    normalized.push({
+      ncm,
+      cest: cest || undefined,
+      uf,
+      segmento: raw.segmento,
+      mva: raw.mva || 0,
+      aliquotaInterna: raw.aliquotaInterna || raw.aliquota || 18,
+      convenio: raw.convenio,
+      exige_st: raw.exige_st !== false,
+      data_inicio: raw.data_inicio,
+      data_fim: raw.data_fim,
+    });
+  }
+
+  return normalized;
+}
+
+// ─── 7. Validação final antes de aplicar ST ───
+
+export interface STValidationResult {
+  valid: boolean;
+  errors: string[];
+  warnings: string[];
+}
+
+export function validateSTBeforeApply(
+  config: STConfig,
+  ctx: STResolveContext,
+): STValidationResult {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+  const ncm = (ctx.ncm || "").replace(/\D/g, "");
+
+  // Regra vigente?
+  // (checked at DB level, but double-check here)
+
+  // CEST obrigatório?
+  if (config.exigeCest && !config.cest && !ctx.cest) {
+    if (ctx.modo === "PRODUCTION") {
+      errors.push(`CEST obrigatório ausente para NCM ${ncm} UF ${ctx.ufDestino}`);
+    } else {
+      warnings.push(`CEST recomendado para NCM ${ncm} UF ${ctx.ufDestino}`);
+    }
+  }
+
+  // MVA zero com ST ativa?
+  if (config.temST && config.mva === 0 && ncm.slice(0, 2) !== "24" && ncm.slice(0, 2) !== "27") {
+    warnings.push(`MVA = 0% para NCM ${ncm} — verificar se correto`);
+  }
+
+  // Consistência alíquota
+  if (config.temST && config.aliquotaInterna <= 0) {
+    errors.push(`Alíquota interna inválida (${config.aliquotaInterna}%) para NCM ${ncm}`);
+  }
+
+  return { valid: errors.length === 0, errors, warnings };
+}
+
+// ─── 8. Lista de NCMs conhecidos com ST (para UI de alertas) ───
+
+export function isKnownSTNcm(ncm: string): boolean {
+  const clean = (ncm || "").replace(/\D/g, "");
+  if (ST_FALLBACK[clean]) return true;
+  const p4 = clean.slice(0, 4);
+  for (const k of Object.keys(ST_FALLBACK)) {
+    if (k.startsWith(p4)) return true;
+  }
+  return false;
+}
+
+export function getAllKnownSTNcms(): string[] {
+  return Object.keys(ST_FALLBACK);
 }
