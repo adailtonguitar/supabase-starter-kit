@@ -94,41 +94,48 @@ export interface STDbRule {
 // ─── Fallback Hardcoded (último recurso) ───
 
 const ST_FALLBACK: Record<string, Record<string, Omit<STConfig, "temST">>> = {
-  "22021000": {
-    _default: { mva: 70, aliquotaInterna: 18, cest: "0300100" },
-    MA: { mva: 70, aliquotaInterna: 22, cest: "0300100" },
-    SP: { mva: 70, aliquotaInterna: 18, cest: "0300100" },
-  },
-  "22011000": {
-    _default: { mva: 70, aliquotaInterna: 18, cest: "0300100" },
-    MA: { mva: 70, aliquotaInterna: 22, cest: "0300100" },
-  },
-  "22021010": {
-    _default: { mva: 40, aliquotaInterna: 18, cest: "0300200" },
-    MA: { mva: 40, aliquotaInterna: 22, cest: "0300200" },
-  },
-  "22030000": {
-    _default: { mva: 70, aliquotaInterna: 25, cest: "0300500" },
-    MA: { mva: 70, aliquotaInterna: 22, cest: "0300500" },
-  },
+  // Bebidas
+  "22021000": { _default: { mva: 70, aliquotaInterna: 18, cest: "0300100" }, MA: { mva: 70, aliquotaInterna: 22, cest: "0300100" }, SP: { mva: 70, aliquotaInterna: 18, cest: "0300100" } },
+  "22011000": { _default: { mva: 70, aliquotaInterna: 18, cest: "0300100" }, MA: { mva: 70, aliquotaInterna: 22, cest: "0300100" } },
+  "22021010": { _default: { mva: 40, aliquotaInterna: 18, cest: "0300200" }, MA: { mva: 40, aliquotaInterna: 22, cest: "0300200" } },
+  "22030000": { _default: { mva: 70, aliquotaInterna: 25, cest: "0300500" }, MA: { mva: 70, aliquotaInterna: 22, cest: "0300500" } },
+  "22041000": { _default: { mva: 29.04, aliquotaInterna: 25, cest: "0300300" }, MA: { mva: 29.04, aliquotaInterna: 22, cest: "0300300" } },
+  "22089000": { _default: { mva: 44.72, aliquotaInterna: 25, cest: "0300400" }, MA: { mva: 44.72, aliquotaInterna: 22, cest: "0300400" } },
+  "20091100": { _default: { mva: 40, aliquotaInterna: 18, cest: "0300600" }, MA: { mva: 40, aliquotaInterna: 22, cest: "0300600" } },
+  "22021090": { _default: { mva: 40, aliquotaInterna: 25, cest: "0300700" }, MA: { mva: 40, aliquotaInterna: 22, cest: "0300700" } },
+  // Tabaco
   "24022000": { _default: { mva: 0, aliquotaInterna: 25, cest: "0400100" } },
+  // Combustíveis
   "27101259": { _default: { mva: 0, aliquotaInterna: 25, cest: "0600100" } },
-  "40111000": {
-    _default: { mva: 42, aliquotaInterna: 18, cest: "1600100" },
-    MA: { mva: 42, aliquotaInterna: 22, cest: "1600100" },
-  },
-  "25232900": {
-    _default: { mva: 20, aliquotaInterna: 18, cest: "0500100" },
-    MA: { mva: 20, aliquotaInterna: 22, cest: "0500100" },
-  },
-  "32091000": {
-    _default: { mva: 35, aliquotaInterna: 18, cest: "2400100" },
-    MA: { mva: 35, aliquotaInterna: 22, cest: "2400100" },
-  },
-  "85361000": {
-    _default: { mva: 37, aliquotaInterna: 18, cest: "1200100" },
-    MA: { mva: 37, aliquotaInterna: 22, cest: "1200100" },
-  },
+  "27101921": { _default: { mva: 0, aliquotaInterna: 25, cest: "0600200" } },
+  "22071000": { _default: { mva: 0, aliquotaInterna: 25, cest: "0600300" } },
+  "27111300": { _default: { mva: 0, aliquotaInterna: 25, cest: "0600400" } },
+  // Autopeças/Pneus
+  "40111000": { _default: { mva: 42, aliquotaInterna: 18, cest: "1600100" }, MA: { mva: 42, aliquotaInterna: 22, cest: "1600100" } },
+  "87089990": { _default: { mva: 36.56, aliquotaInterna: 18, cest: "1600200" }, MA: { mva: 36.56, aliquotaInterna: 22, cest: "1600200" } },
+  // Construção
+  "25232900": { _default: { mva: 20, aliquotaInterna: 18, cest: "0500100" }, MA: { mva: 20, aliquotaInterna: 22, cest: "0500100" } },
+  // Tintas
+  "32091000": { _default: { mva: 35, aliquotaInterna: 18, cest: "2400100" }, MA: { mva: 35, aliquotaInterna: 22, cest: "2400100" } },
+  // Materiais elétricos
+  "85361000": { _default: { mva: 37, aliquotaInterna: 18, cest: "1200100" }, MA: { mva: 37, aliquotaInterna: 22, cest: "1200100" } },
+  "85395200": { _default: { mva: 37, aliquotaInterna: 18, cest: "1200200" }, MA: { mva: 37, aliquotaInterna: 22, cest: "1200200" } },
+  "85061000": { _default: { mva: 40, aliquotaInterna: 18, cest: "1200300" }, MA: { mva: 40, aliquotaInterna: 22, cest: "1200300" } },
+  // Higiene
+  "33051000": { _default: { mva: 38.90, aliquotaInterna: 18, cest: "2000100" }, MA: { mva: 38.90, aliquotaInterna: 22, cest: "2000100" } },
+  "34011100": { _default: { mva: 38.90, aliquotaInterna: 18, cest: "2000200" }, MA: { mva: 38.90, aliquotaInterna: 22, cest: "2000200" } },
+  "96190000": { _default: { mva: 40, aliquotaInterna: 18, cest: "2000300" }, MA: { mva: 40, aliquotaInterna: 22, cest: "2000300" } },
+  // Limpeza
+  "34022000": { _default: { mva: 43.53, aliquotaInterna: 18, cest: "1100100" }, MA: { mva: 43.53, aliquotaInterna: 22, cest: "1100100" } },
+  "28289011": { _default: { mva: 43.53, aliquotaInterna: 18, cest: "1100200" }, MA: { mva: 43.53, aliquotaInterna: 22, cest: "1100200" } },
+  // Cosméticos
+  "33030010": { _default: { mva: 38.90, aliquotaInterna: 25, cest: "2000400" }, MA: { mva: 38.90, aliquotaInterna: 22, cest: "2000400" } },
+  // Medicamentos
+  "30049099": { _default: { mva: 33.05, aliquotaInterna: 18, cest: "1300100" }, MA: { mva: 33.05, aliquotaInterna: 22, cest: "1300100" } },
+  // Ferramentas
+  "82055900": { _default: { mva: 37, aliquotaInterna: 18, cest: "0800100" }, MA: { mva: 37, aliquotaInterna: 22, cest: "0800100" } },
+  // Brinquedos
+  "95030099": { _default: { mva: 43.64, aliquotaInterna: 18, cest: "0200100" }, MA: { mva: 43.64, aliquotaInterna: 22, cest: "0200100" } },
 };
 
 // ─── Funções Internas ───
