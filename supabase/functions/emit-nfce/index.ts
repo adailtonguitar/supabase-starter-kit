@@ -1381,7 +1381,7 @@ async function handleEmit(supabase: any, body: any) {
       }
     }
 
-    const icmsBlock = buildIcmsBlock({ ...item, qty, unit_price: unitPrice, discount }, isSimples);
+    const icmsBlock = buildIcmsBlock({ ...item, qty, unit_price: unitPrice, discount }, isSimples, 9);
 
     const icmsKey = Object.keys(icmsBlock)[0];
     const icmsData = (icmsBlock as any)[icmsKey];
