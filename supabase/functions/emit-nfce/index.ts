@@ -70,6 +70,28 @@ function shouldGenerateAlert(result: FiscalRiskResult): { generate: boolean; sev
 }
 // ─── Fim Fiscal Risk Engine ───
 
+// ─── Decisão automática de tipo ST (CSOSN 202/500/102) ───
+function decidirTipoST(
+  item: any,
+  stCfg: any,
+  indIEDest: number
+): "500" | "202" | "102" {
+  // Regra 1: consumidor final (não contribuinte) → ST retido
+  if (indIEDest === 9 && stCfg.temST) {
+    return "500";
+  }
+  // Regra 2: produto já vem com ST retido
+  if (item.origem_com_st === true) {
+    return "500";
+  }
+  // Regra 3: precisa calcular ST
+  if (stCfg.temST) {
+    return "202";
+  }
+  return "102";
+}
+// ─── Fim Decisão ST ───
+
 function getRequiredEnv(name: string): string {
   const value = Deno.env.get(name);
   if (!value) {
@@ -2427,13 +2449,36 @@ async function handleEmitNfe(supabase: any, body: any) {
     if (!item.cest && stCfg.cest) {
       item.cest = stCfg.cest;
     }
-    console.log("DEBUG ST:", {
+    // ─── Decisão automática ST (202/500/102) ───
+    const tipoST = decidirTipoST(item, stCfg, preIndIEDest);
+    console.log("DEBUG ST DECISAO:", {
       ncm: item.ncm,
-      csosn: item.cst,
+      csosn_original: item.cst,
+      tipoST_decidido: tipoST,
       mva: item.mva,
       cest: item.cest,
       exige_st: stCfg.temST,
+      indIEDest: preIndIEDest,
     });
+
+    if (tipoST === "500") {
+      item.cst = "500";
+    } else if (tipoST === "202") {
+      item.cst = "202";
+      const vProdST = Number(qty * unitPrice - (discount || 0));
+      const mvaST = Number(stCfg.mva || item.mva || 0);
+      const aliqST = Number(stCfg.aliquotaInterna || item.icms_aliquota || 18);
+      if (!item.mva || item.mva === 0) item.mva = mvaST;
+      if (!item.icms_aliquota || item.icms_aliquota === 0) item.icms_aliquota = aliqST;
+      item.vBCST = Number((vProdST * (1 + mvaST / 100)).toFixed(2));
+      item.vICMSST = Number((item.vBCST * (aliqST / 100)).toFixed(2));
+    }
+
+    // Bloqueio: ST obrigatória mas CSOSN ficou 102
+    if (stCfg.temST && item.cst === "102") {
+      throw new Error(`ST obrigatória não aplicada para NCM ${item.ncm || ncm} UF ${stUf}`);
+    }
+
     const icmsBlock = buildIcmsBlock({ ...item, qty, unit_price: unitPrice, discount }, isSimples, preIndIEDest, 55);
 
     const icmsKey = Object.keys(icmsBlock)[0];
