@@ -1572,6 +1572,12 @@ async function handleEmit(supabase: any, body: any) {
       }
     }
 
+    // Propagar CEST do stCfg (resolve_st_from_db) se o item ainda não tiver
+    const stCfgForCest = ncm.length === 8 ? getSTConfigNfce(ncm, companyState) as any : null;
+    if (!item.cest && stCfgForCest?.cest) {
+      item.cest = stCfgForCest.cest;
+    }
+
     const icmsBlock = buildIcmsBlock({ ...item, qty, unit_price: unitPrice, discount }, isSimples, 9);
 
     const icmsKey = Object.keys(icmsBlock)[0];
