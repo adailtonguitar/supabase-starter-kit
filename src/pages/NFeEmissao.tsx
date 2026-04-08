@@ -553,6 +553,10 @@ export default function NFeEmissao() {
 
   useEffect(() => { fetchClients(); }, [fetchClients]);
 
+  useEffect(() => {
+    setDrafts(loadDrafts(companyId, user?.id));
+  }, [companyId, user?.id]);
+
   // Load fiscal categories for auto-fill
   useEffect(() => {
     if (!companyId) return;
