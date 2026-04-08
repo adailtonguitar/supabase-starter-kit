@@ -2835,7 +2835,8 @@ async function handleEmitNfe(supabase: any, body: any) {
     // ─── Motor Fiscal Dinâmico: regras do banco (NF-e) ───
     const dynamicRegimeNfe = isSimples ? "simples" : "normal" as const;
     const destUfForDynamic = destUF || emitUF;
-    const dynamicMatchNfe = getTaxRule(dynamicTaxRulesNfe, ncm, emitUF, destUfForDynamic, dynamicRegimeNfe, item.cest);
+    const nfeDhEmi = new Date().toISOString();
+    const dynamicMatchNfe = getTaxRule(dynamicTaxRulesNfe, ncm, emitUF, destUfForDynamic, dynamicRegimeNfe, item.cest, nfeDhEmi);
     const dynamicAppliedNfe = applyDynamicTaxRule(item, dynamicMatchNfe, isSimples);
     if (dynamicMatchNfe.rule || dynamicMatchNfe.score > 0) {
       console.log(`[FISCAL-RULE] NF-e item=${i + 1}`, JSON.stringify({
