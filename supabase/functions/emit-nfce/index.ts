@@ -1075,7 +1075,15 @@ function buildIcmsBlock(item: any, isSimples: boolean, indIEDest?: number) {
       };
     }
     if (cst === "500") {
-      return { ICMSSN500: { orig: origem, CSOSN: "500" } };
+      // CSOSN 500: ST retido anteriormente — inclui vBCSTRet e vICMSSTRet se disponíveis
+      const vBCSTRet = item.v_bc_st_ret != null ? Math.round(item.v_bc_st_ret * 100) / 100
+        : (item.mva != null && item.mva > 0 ? Math.round(vProd * (1 + item.mva / 100) * 100) / 100 : 0);
+      const vICMSSTRet = item.v_icms_st_ret != null ? Math.round(item.v_icms_st_ret * 100) / 100
+        : (vBCSTRet > 0 && aliqIcms > 0 ? Math.round(vBCSTRet * (aliqIcms / 100) * 100) / 100 : 0);
+      const sn500: any = { orig: origem, CSOSN: "500" };
+      if (vBCSTRet > 0) sn500.vBCSTRet = vBCSTRet;
+      if (vICMSSTRet > 0) sn500.vICMSSTRet = vICMSSTRet;
+      return { ICMSSN500: sn500 };
     }
     // API rejeita CSOSN 101 dentro do bloco ICMSSN102; normalizamos para códigos válidos desse bloco.
     let safeCsosn = cst || "102";
