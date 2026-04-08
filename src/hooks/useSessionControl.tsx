@@ -177,7 +177,7 @@ export function useSessionControl() {
       if (!sessionToken || !accessToken) return;
 
       const url = `${import.meta.env.VITE_SUPABASE_URL || ""}/rest/v1/rpc/invalidate_session`;
-      const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || "";
+      const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY || "";
       fetch(url, {
         method: "POST",
         headers: {
