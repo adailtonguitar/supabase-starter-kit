@@ -128,7 +128,7 @@ const emptyForm = (): NFeFormData => ({
   volumes: 0, grossWeight: 0, netWeight: 0,
 });
 
-const NFE_DRAFTS_KEY = "as_nfe_drafts";
+const NFE_DRAFTS_KEY_PREFIX = "as_nfe_drafts_";
 
 interface NFeDraft {
   id: string;
@@ -137,15 +137,35 @@ interface NFeDraft {
   form: NFeFormData;
 }
 
-function loadDrafts(): NFeDraft[] {
+function getDraftsKey(companyId: string | null): string {
+  return companyId ? `${NFE_DRAFTS_KEY_PREFIX}${companyId}` : "as_nfe_drafts_unknown";
+}
+
+function loadDrafts(companyId: string | null): NFeDraft[] {
   try {
-    const raw = localStorage.getItem(NFE_DRAFTS_KEY);
+    const raw = localStorage.getItem(getDraftsKey(companyId));
     return raw ? JSON.parse(raw) : [];
   } catch { return []; }
 }
 
-function saveDrafts(drafts: NFeDraft[]) {
-  try { localStorage.setItem(NFE_DRAFTS_KEY, JSON.stringify(drafts)); } catch { /* */ }
+function saveDrafts(drafts: NFeDraft[], companyId: string | null) {
+  try { localStorage.setItem(getDraftsKey(companyId), JSON.stringify(drafts)); } catch { /* */ }
+}
+
+/** One-time migration: move old global drafts to the current company */
+function migrateGlobalDrafts(companyId: string | null) {
+  if (!companyId) return;
+  try {
+    const oldKey = "as_nfe_drafts";
+    const raw = localStorage.getItem(oldKey);
+    if (!raw) return;
+    const oldDrafts: NFeDraft[] = JSON.parse(raw);
+    if (!oldDrafts.length) { localStorage.removeItem(oldKey); return; }
+    const existing = loadDrafts(companyId);
+    const merged = [...oldDrafts, ...existing].slice(0, 20);
+    saveDrafts(merged, companyId);
+    localStorage.removeItem(oldKey);
+  } catch { /* */ }
 }
 
 function buildDraftLabel(form: NFeFormData): string {
