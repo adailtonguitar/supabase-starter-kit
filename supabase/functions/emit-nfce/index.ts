@@ -1741,9 +1741,29 @@ async function handleEmit(supabase: any, body: any) {
     if (icmsData.vICMSST) totalVST += icmsData.vICMSST;
 
     // ── PIS/COFINS: classificação automática por NCM ──
+    const ncmClassNfce = classifyPisCofinsNCM(ncm);
+    const tipoTributacaoProdutoNfce = ncmClassNfce;
     const pisCst = isSimples ? "49" : (item.pis_cst || "01");
     const cofinsCst = isSimples ? "49" : (item.cofins_cst || "01");
     const { PIS, COFINS } = buildPisCofins(pisCst, cofinsCst, vProdLiq, isSimples, ncm);
+
+    // ── Validação de consistência fiscal NFC-e ──
+    const stCfgCheck = ncm.length === 8 ? getSTConfigNfce(ncm, companyState) as any : { temST: false };
+    item._stDetected = stCfgCheck.temST;
+    const fiscalCheckNfce = validarConsistenciaFiscal(item, { ICMS: icmsBlock, PIS, COFINS }, isSimples, ncmClassNfce);
+    if (fiscalCheckNfce.errors.length > 0) {
+      throw new Error(`[Validação Fiscal NFC-e] ${fiscalCheckNfce.errors[0]}`);
+    }
+    if (fiscalCheckNfce.alerts.length > 0) {
+      console.warn(`[emit-nfce] ALERTAS FISCAIS item ${i + 1}:`, fiscalCheckNfce.alerts);
+    }
+
+    // ── Log fiscal estruturado por item (NFC-e) ──
+    console.log(`[FISCAL-AUDIT-NFCE] item=${i + 1}`, JSON.stringify({
+      produto: item.name, NCM: ncm, tipoTributacaoProduto: tipoTributacaoProdutoNfce,
+      CSTaplicado: item.cst || "102", pisCst, cofinsCst,
+      inconsistencias: fiscalCheckNfce.alerts,
+    }));
 
     if (!isSimples && PIS.PISAliq) totalVPIS += PIS.PISAliq.vPIS;
     if (!isSimples && COFINS.COFINSAliq) totalVCOFINS += COFINS.COFINSAliq.vCOFINS;
