@@ -2620,9 +2620,29 @@ async function handleEmitNfe(supabase: any, body: any) {
     if (icmsData.vICMSST) totalVST += icmsData.vICMSST;
 
     // ── PIS/COFINS: classificação automática por NCM ──
+    const ncmClass = classifyPisCofinsNCM(ncm);
+    const tipoTributacaoProduto = ncmClass; // conceito interno — não altera XML
     const pisCst = isSimples ? "49" : (item.pis_cst || "01");
     const cofinsCst = isSimples ? "49" : (item.cofins_cst || "01");
     const { PIS, COFINS } = buildPisCofins(pisCst, cofinsCst, vProdLiq, isSimples, ncm);
+
+    // ── Validação de consistência fiscal (não-bloqueante para alertas) ──
+    item._stDetected = stCfg.temST;
+    const fiscalCheck = validarConsistenciaFiscal(item, { ICMS: icmsBlock, PIS, COFINS }, isSimples, ncmClass);
+    if (fiscalCheck.errors.length > 0) {
+      throw new Error(`[Validação Fiscal] ${fiscalCheck.errors[0]}`);
+    }
+    if (fiscalCheck.alerts.length > 0) {
+      console.warn(`[emit-nfe] ALERTAS FISCAIS item ${i + 1}:`, fiscalCheck.alerts);
+    }
+
+    // ── Log fiscal estruturado por item ──
+    console.log(`[FISCAL-AUDIT] item=${i + 1}`, JSON.stringify({
+      produto: item.name, NCM: ncm, tipoTributacaoProduto,
+      CSTaplicado: item.cst, pisCst, cofinsCst,
+      decisoes: { stSource: stCfg.source || "n/a", tipoST, stCfg_temST: stCfg.temST },
+      inconsistencias: fiscalCheck.alerts,
+    }));
 
     if (!isSimples && PIS.PISAliq) totalVPIS += PIS.PISAliq.vPIS;
     if (!isSimples && COFINS.COFINSAliq) totalVCOFINS += COFINS.COFINSAliq.vCOFINS;
