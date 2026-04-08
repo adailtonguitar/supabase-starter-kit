@@ -1174,10 +1174,24 @@ function buildIcmsBlock(item: any, isSimples: boolean, indIEDest?: number, model
   };
 }
 
+// ─── Classificação PIS/COFINS por NCM (monofásico, isento, normal) ───
+const MONOFASICO_PREFIXES_PIS = new Set(["2710", "2711", "3003", "3004", "3303", "3304", "3305", "3401"]);
+const ISENTO_PREFIXES_PIS = ["0201", "0202", "0207", "0401", "0402", "0701", "0702", "0703", "1001", "1005", "1006", "1101", "1901", "1507", "1701"];
+
+function classifyPisCofinsNCM(ncm: string): "monofasico" | "isento" | "normal" {
+  const clean = (ncm || "").replace(/\D/g, "");
+  if (!clean || clean.length < 4) return "normal";
+  const p4 = clean.slice(0, 4);
+  if (MONOFASICO_PREFIXES_PIS.has(p4)) return "monofasico";
+  if (ISENTO_PREFIXES_PIS.some(p => clean.startsWith(p))) return "isento";
+  return "normal";
+}
+
 // ─── Construtor de PIS/COFINS ───
 // REGRA CRÍTICA: Simples Nacional (CRT 1/2) NUNCA destaca PIS/COFINS na NF-e/NFC-e.
 // O cálculo real ocorre no DAS. Usar CST 49 (Outras Operações de Saída) com valores zerados.
-function buildPisCofins(pisCst: string, cofinsCst: string, vProd: number, isSimples = false) {
+// Regime Normal: CST depende do NCM (monofásico=04, isento=06, normal=01 com 1.65%/7.60%)
+function buildPisCofins(pisCst: string, cofinsCst: string, vProd: number, isSimples = false, ncm = "") {
   const pis: any = {};
   const cofins: any = {};
   const ntCst = new Set(["04", "05", "06", "07", "08", "09"]);
@@ -1191,21 +1205,45 @@ function buildPisCofins(pisCst: string, cofinsCst: string, vProd: number, isSimp
     return { PIS: pis, COFINS: cofins };
   }
 
-  // ── REGIME NORMAL: destaca PIS/COFINS conforme CST ──
-  if (["01", "02"].includes(pisCst)) {
-    pis.PISAliq = { CST: pisCst, vBC: Math.round(vProd * 100) / 100, pPIS: 0.65, vPIS: Math.round(vProd * 0.0065 * 100) / 100 };
-  } else if (ntCst.has(pisCst)) {
-    pis.PISNT = { CST: pisCst };
-  } else {
-    pis.PISOutr = { CST: pisCst || "49", vBC: 0, pPIS: 0, vPIS: 0 };
+  // ── REGIME NORMAL: classificar por NCM antes de aplicar CST ──
+  const ncmClass = classifyPisCofinsNCM(ncm);
+
+  // Monofásico: CST 04 — sem cálculo (recolhido na origem)
+  if (ncmClass === "monofasico") {
+    pis.PISNT = { CST: "04" };
+    cofins.COFINSNT = { CST: "04" };
+    return { PIS: pis, COFINS: cofins };
   }
 
-  if (["01", "02"].includes(cofinsCst)) {
-    cofins.COFINSAliq = { CST: cofinsCst, vBC: Math.round(vProd * 100) / 100, pCOFINS: 3.0, vCOFINS: Math.round(vProd * 0.03 * 100) / 100 };
-  } else if (ntCst.has(cofinsCst)) {
-    cofins.COFINSNT = { CST: cofinsCst };
+  // Isento/Alíquota zero (cesta básica): CST 06
+  if (ncmClass === "isento") {
+    pis.PISNT = { CST: "06" };
+    cofins.COFINSNT = { CST: "06" };
+    return { PIS: pis, COFINS: cofins };
+  }
+
+  // Tributação normal: CST 01 com 1.65% PIS e 7.60% COFINS (não-cumulativo)
+  const effectivePisCst = pisCst || "01";
+  const effectiveCofCst = cofinsCst || "01";
+
+  if (["01", "02"].includes(effectivePisCst)) {
+    const pPIS = 1.65;
+    const vPIS = Math.round(vProd * pPIS / 100 * 100) / 100;
+    pis.PISAliq = { CST: effectivePisCst, vBC: Math.round(vProd * 100) / 100, pPIS, vPIS };
+  } else if (ntCst.has(effectivePisCst)) {
+    pis.PISNT = { CST: effectivePisCst };
   } else {
-    cofins.COFINSOutr = { CST: cofinsCst || "49", vBC: 0, pCOFINS: 0, vCOFINS: 0 };
+    pis.PISOutr = { CST: effectivePisCst, vBC: 0, pPIS: 0, vPIS: 0 };
+  }
+
+  if (["01", "02"].includes(effectiveCofCst)) {
+    const pCOFINS = 7.6;
+    const vCOFINS = Math.round(vProd * pCOFINS / 100 * 100) / 100;
+    cofins.COFINSAliq = { CST: effectiveCofCst, vBC: Math.round(vProd * 100) / 100, pCOFINS, vCOFINS };
+  } else if (ntCst.has(effectiveCofCst)) {
+    cofins.COFINSNT = { CST: effectiveCofCst };
+  } else {
+    cofins.COFINSOutr = { CST: effectiveCofCst, vBC: 0, pCOFINS: 0, vCOFINS: 0 };
   }
 
   return { PIS: pis, COFINS: cofins };
