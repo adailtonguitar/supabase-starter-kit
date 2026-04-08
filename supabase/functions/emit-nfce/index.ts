@@ -1645,10 +1645,10 @@ async function handleEmit(supabase: any, body: any) {
     if (icmsData.vBCST) totalVBCST += icmsData.vBCST;
     if (icmsData.vICMSST) totalVST += icmsData.vICMSST;
 
-    // ── PIS/COFINS: Simples Nacional NUNCA destaca (CST 49, valores zerados) ──
+    // ── PIS/COFINS: classificação automática por NCM ──
     const pisCst = isSimples ? "49" : (item.pis_cst || "01");
     const cofinsCst = isSimples ? "49" : (item.cofins_cst || "01");
-    const { PIS, COFINS } = buildPisCofins(pisCst, cofinsCst, vProdLiq, isSimples);
+    const { PIS, COFINS } = buildPisCofins(pisCst, cofinsCst, vProdLiq, isSimples, ncm);
 
     if (!isSimples && PIS.PISAliq) totalVPIS += PIS.PISAliq.vPIS;
     if (!isSimples && COFINS.COFINSAliq) totalVCOFINS += COFINS.COFINSAliq.vCOFINS;
