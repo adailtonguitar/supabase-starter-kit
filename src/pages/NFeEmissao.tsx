@@ -1262,7 +1262,7 @@ export default function NFeEmissao() {
       form: { ...form },
     };
     const updated = [draft, ...drafts].slice(0, 20);
-    saveDrafts(updated, companyId);
+    saveDrafts(updated, companyId, user?.id);
     setDrafts(updated);
     toast.success("Rascunho salvo com sucesso!");
   };
@@ -1280,7 +1280,7 @@ export default function NFeEmissao() {
 
   const handleDeleteDraft = (draftId: string) => {
     const updated = drafts.filter(d => d.id !== draftId);
-    saveDrafts(updated, companyId);
+    saveDrafts(updated, companyId, user?.id);
     setDrafts(updated);
     toast.info("Rascunho excluído");
   };
