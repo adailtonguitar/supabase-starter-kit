@@ -131,7 +131,7 @@ export function getPisCofinsConfig(input: PisCofinsInput): PisCofinsConfig {
   }
 
   // ── 3. Isento / Alíquota zero (cesta básica) ──
-  if (ISENTO_PREFIXES.some(p => ncm.startsWith(p))) {
+  if (ISENTO_PREFIXES.some(p => ncm.startsWith(p)) || ISENTO_BROAD_PREFIXES.some(p => ncm.startsWith(p))) {
     return {
       mode: "aliquota_zero",
       cstPis: input.pisCstOverride || "06",
