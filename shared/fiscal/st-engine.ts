@@ -385,3 +385,111 @@ export function getSTConfig(ncm: string, ufDestino: string): STConfig {
 
   return { temST: false, mva: 0, aliquotaInterna: 0 };
 }
+
+// ─── 6. Normalização de dados ST ───
+
+export interface RawSTRule {
+  ncm: string;
+  cest?: string;
+  uf: string;
+  segmento?: string;
+  mva: number;
+  aliquota?: number;
+  aliquotaInterna?: number;
+  convenio?: string;
+  exige_st?: boolean;
+  data_inicio?: string;
+  data_fim?: string;
+}
+
+export function normalizeSTRules(rawData: RawSTRule[]): RawSTRule[] {
+  const seen = new Set<string>();
+  const normalized: RawSTRule[] = [];
+
+  for (const raw of rawData) {
+    const ncm = (raw.ncm || "").replace(/\D/g, "");
+    if (ncm.length !== 8) continue;
+
+    const cest = raw.cest ? raw.cest.replace(/\D/g, "") : undefined;
+    if (cest && cest.length !== 7) continue;
+
+    const uf = (raw.uf || "").toUpperCase().trim();
+    if (uf.length !== 2) continue;
+
+    const key = `${ncm}:${uf}:${cest || ""}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+
+    normalized.push({
+      ncm,
+      cest: cest || undefined,
+      uf,
+      segmento: raw.segmento,
+      mva: raw.mva || 0,
+      aliquotaInterna: raw.aliquotaInterna || raw.aliquota || 18,
+      convenio: raw.convenio,
+      exige_st: raw.exige_st !== false,
+      data_inicio: raw.data_inicio,
+      data_fim: raw.data_fim,
+    });
+  }
+
+  return normalized;
+}
+
+// ─── 7. Validação final antes de aplicar ST ───
+
+export interface STValidationResult {
+  valid: boolean;
+  errors: string[];
+  warnings: string[];
+}
+
+export function validateSTBeforeApply(
+  config: STConfig,
+  ctx: STResolveContext,
+): STValidationResult {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+  const ncm = (ctx.ncm || "").replace(/\D/g, "");
+
+  // Regra vigente?
+  // (checked at DB level, but double-check here)
+
+  // CEST obrigatório?
+  if (config.exigeCest && !config.cest && !ctx.cest) {
+    if (ctx.modo === "PRODUCTION") {
+      errors.push(`CEST obrigatório ausente para NCM ${ncm} UF ${ctx.ufDestino}`);
+    } else {
+      warnings.push(`CEST recomendado para NCM ${ncm} UF ${ctx.ufDestino}`);
+    }
+  }
+
+  // MVA zero com ST ativa?
+  if (config.temST && config.mva === 0 && ncm.slice(0, 2) !== "24" && ncm.slice(0, 2) !== "27") {
+    warnings.push(`MVA = 0% para NCM ${ncm} — verificar se correto`);
+  }
+
+  // Consistência alíquota
+  if (config.temST && config.aliquotaInterna <= 0) {
+    errors.push(`Alíquota interna inválida (${config.aliquotaInterna}%) para NCM ${ncm}`);
+  }
+
+  return { valid: errors.length === 0, errors, warnings };
+}
+
+// ─── 8. Lista de NCMs conhecidos com ST (para UI de alertas) ───
+
+export function isKnownSTNcm(ncm: string): boolean {
+  const clean = (ncm || "").replace(/\D/g, "");
+  if (ST_FALLBACK[clean]) return true;
+  const p4 = clean.slice(0, 4);
+  for (const k of Object.keys(ST_FALLBACK)) {
+    if (k.startsWith(p4)) return true;
+  }
+  return false;
+}
+
+export function getAllKnownSTNcms(): string[] {
+  return Object.keys(ST_FALLBACK);
+}
