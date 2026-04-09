@@ -78,7 +78,7 @@ Deno.serve(async (req) => {
     const supabaseAdmin = createServiceClient() as any;
 
     // Get company data + fiscal config in parallel
-    const [companyResult, fiscalConfigResult] = await Promise.all([
+    const [companyResult, fiscalConfigsResult] = await Promise.all([
       supabaseAdmin
         .from("companies")
         .select("*")
@@ -88,10 +88,8 @@ Deno.serve(async (req) => {
         .from("fiscal_configs")
         .select("*")
         .eq("company_id", company_id)
-        .eq("is_active", true)
-        .order("updated_at", { ascending: false })
-        .limit(1)
-        .maybeSingle(),
+        .order("is_active", { ascending: false })
+        .order("updated_at", { ascending: false }),
     ]);
 
     const { data: companyRow, error: compErr } = companyResult;
@@ -100,7 +98,36 @@ Deno.serve(async (req) => {
       throw new Error("Empresa não encontrada ou CNPJ não cadastrado");
     }
 
-    const fiscalConfig = fiscalConfigResult.data as Record<string, any> | null;
+    const fiscalConfigs = Array.isArray(fiscalConfigsResult.data)
+      ? fiscalConfigsResult.data as Record<string, any>[]
+      : [];
+
+    const pickFiscalConfig = (configs: Record<string, any>[]) => {
+      const withCert = (config: Record<string, any>) => Boolean(config?.certificate_path);
+      return (
+        configs.find((c) => c?.doc_type === "nfe" && c?.is_active && withCert(c)) ??
+        configs.find((c) => c?.doc_type === "nfce" && c?.is_active && withCert(c)) ??
+        configs.find((c) => c?.is_active && withCert(c)) ??
+        configs.find((c) => c?.doc_type === "nfe" && c?.is_active) ??
+        configs.find((c) => c?.doc_type === "nfce" && c?.is_active) ??
+        configs.find((c) => c?.is_active) ??
+        configs.find((c) => c?.doc_type === "nfe" && withCert(c)) ??
+        configs.find((c) => c?.doc_type === "nfce" && withCert(c)) ??
+        configs.find((c) => withCert(c)) ??
+        configs[0] ??
+        null
+      );
+    };
+
+    const fiscalConfig = pickFiscalConfig(fiscalConfigs);
+    console.log("[fetch-dfe] Config fiscal selecionada:", {
+      total_configs: fiscalConfigs.length,
+      doc_type: fiscalConfig?.doc_type ?? null,
+      is_active: fiscalConfig?.is_active ?? null,
+      has_certificate_path: !!fiscalConfig?.certificate_path,
+      has_a3_thumbprint: !!fiscalConfig?.a3_thumbprint,
+      updated_at: fiscalConfig?.updated_at ?? null,
+    });
 
     const onlyDigits = (value: unknown) => String(value ?? "").replace(/\D/g, "");
     const pickFirstNonEmpty = (...values: unknown[]) => {
