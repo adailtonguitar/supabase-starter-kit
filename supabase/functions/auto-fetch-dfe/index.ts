@@ -7,6 +7,13 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
+function parseExpectedDistNsu(message: string): number | null {
+  const match = message.match(/dist_nsu[^\d]*(\d+)/i);
+  if (!match) return null;
+  const parsed = Number(match[1]);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -40,26 +47,79 @@ Deno.serve(async (req) => {
 
       try {
         // 1. Distribute (request new documents from SEFAZ)
-        const { data: lastDoc } = await supabaseAdmin
-          .from("notas_recebidas")
-          .select("nsu")
-          .eq("company_id", company.id)
-          .order("nsu", { ascending: false })
-          .limit(1)
-          .maybeSingle();
+        const [{ data: syncControl }, { data: lastDoc }] = await Promise.all([
+          supabaseAdmin
+            .from("dfe_sync_control")
+            .select("ultimo_nsu")
+            .eq("company_id", company.id)
+            .maybeSingle(),
+          supabaseAdmin
+            .from("notas_recebidas")
+            .select("nsu")
+            .eq("company_id", company.id)
+            .order("nsu", { ascending: false })
+            .limit(1)
+            .maybeSingle(),
+        ]);
 
+        const normalizedSyncNsu = Number(String(syncControl?.ultimo_nsu ?? 0).replace(/\D/g, "") || 0);
         const normalizedLastNsu = Number(String(lastDoc?.nsu ?? 0).replace(/\D/g, "") || 0);
+        let requestNsu = Math.max(normalizedSyncNsu, normalizedLastNsu, 0);
 
-        await nuvemFiscalRequest("https://api.nuvemfiscal.com.br/distribuicao/nfe", {
-          method: "POST",
-          body: JSON.stringify({
-            cpf_cnpj: cnpj,
-            ambiente: "producao",
-            tipo_consulta: "dist-nsu",
-            dist_nsu: normalizedLastNsu,
-            ignorar_tempo_espera: true,
-          }),
-        });
+        const callDistribution = async (distNsu: number) => {
+          return nuvemFiscalRequest("https://api.nuvemfiscal.com.br/distribuicao/nfe", {
+            method: "POST",
+            body: JSON.stringify({
+              cpf_cnpj: cnpj,
+              ambiente: "producao",
+              tipo_consulta: "dist-nsu",
+              dist_nsu: distNsu,
+              ignorar_tempo_espera: true,
+            }),
+          });
+        };
+
+        let distributionRes = await callDistribution(requestNsu);
+        let distributionText = await distributionRes.text().catch(() => "");
+
+        if (!distributionRes.ok) {
+          const expectedNsu = parseExpectedDistNsu(distributionText);
+          if ((distributionRes.status === 400 || distributionRes.status === 422) && expectedNsu !== null && expectedNsu !== requestNsu) {
+            requestNsu = expectedNsu;
+            await supabaseAdmin.from("dfe_sync_control").upsert({
+              company_id: company.id,
+              ultimo_nsu: requestNsu,
+              ultima_consulta: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            }, { onConflict: "company_id" });
+            distributionRes = await callDistribution(requestNsu);
+            distributionText = await distributionRes.text().catch(() => "");
+          }
+        }
+
+        if (!distributionRes.ok) {
+          companyResult.errors.push(`Erro ao distribuir: ${distributionRes.status} ${distributionText}`);
+          results.push(companyResult);
+          continue;
+        }
+
+        try {
+          const distributionData = distributionText ? JSON.parse(distributionText) : {};
+          const responseNsu = Number(String(distributionData?.max_nsu ?? distributionData?.ult_nsu ?? requestNsu).replace(/\D/g, "") || requestNsu || 0);
+          await supabaseAdmin.from("dfe_sync_control").upsert({
+            company_id: company.id,
+            ultimo_nsu: responseNsu,
+            ultima_consulta: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          }, { onConflict: "company_id" });
+        } catch {
+          await supabaseAdmin.from("dfe_sync_control").upsert({
+            company_id: company.id,
+            ultimo_nsu: requestNsu,
+            ultima_consulta: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          }, { onConflict: "company_id" });
+        }
 
         // 2. Wait briefly then fetch documents
         await new Promise((r) => setTimeout(r, 3000));
