@@ -1,4 +1,9 @@
 import { createServiceClient, getCorsHeaders, jsonResponse, requireCompanyMembership, requireUser } from "../_shared/auth.ts";
+import {
+  fillCompanyRowFromServicePeerFallback,
+  resolveCompanyFiscalRowWithParent,
+} from "../_shared/company-fiscal-fallback.ts";
+import { supplementCnpjFromRowTextFields } from "../_shared/company-fiscal-merge.ts";
 import { nuvemFiscalRequest } from "../_shared/nuvem-fiscal-auth.ts";
 
 Deno.serve(async (req) => {
@@ -42,7 +47,7 @@ Deno.serve(async (req) => {
     const [companyResult, fiscalConfigResult] = await Promise.all([
       supabaseAdmin
         .from("companies")
-        .select("cnpj, name, trade_name, street, address, number, address_number, neighborhood, city, state, zip_code, cep, ibge_code")
+        .select("id, cnpj, name, trade_name, ie, state_registration, parent_company_id, crt, street, address, address_street, number, address_number, neighborhood, address_neighborhood, city, address_city, state, address_state, zip_code, cep, address_zip, ibge_code, city_code, address_ibge_code")
         .eq("id", company_id)
         .single(),
       supabaseAdmin
@@ -55,13 +60,33 @@ Deno.serve(async (req) => {
     ]);
 
     const { data: companyRow, error: compErr } = companyResult;
-    const company = companyRow as Record<string, any> | null;
-
-    if (compErr || !company?.cnpj) {
+    if (compErr || !companyRow) {
       throw new Error("Empresa não encontrada ou CNPJ não cadastrado");
     }
 
-    const cnpj = company.cnpj.replace(/\D/g, "");
+    let company = await resolveCompanyFiscalRowWithParent(
+      supabaseAdmin,
+      companyRow as Record<string, unknown>,
+    );
+    company = await fillCompanyRowFromServicePeerFallback(
+      supabaseAdmin,
+      company,
+      String(company_id),
+    );
+    company = supplementCnpjFromRowTextFields(company);
+
+    const cnpj = String(company.cnpj || "").replace(/\D/g, "");
+    if (cnpj.length !== 14) {
+      console.error("[fetch-dfe] CNPJ não resolvido para company_id:", company_id, {
+        raw_cnpj: company.cnpj,
+        parent_company_id: company.parent_company_id,
+        company_name: company.name,
+        trade_name: company.trade_name,
+      });
+      throw new Error("Empresa não encontrada ou CNPJ não cadastrado");
+    }
+
+    console.log("[fetch-dfe] CNPJ resolvido com sucesso para DFe:", cnpj);
     const fiscalConfig = fiscalConfigResult.data as Record<string, any> | null;
 
     const isSandbox = Deno.env.get("NUVEM_FISCAL_SANDBOX") === "true";
