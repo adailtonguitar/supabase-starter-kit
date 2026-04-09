@@ -2012,7 +2012,15 @@ async function handleEmit(supabase: any, body: any) {
         item.cest = dbRule.cest;
         console.log(`[FISCAL-CEST-FALLBACK] NFC-e NCM ${ncm}: CEST ${dbRule.cest} obtido de fiscal_st_rules`);
       } else {
-        console.warn(`[FISCAL-CEST-MISSING] NFC-e NCM ${ncm} com ST ativo mas sem CEST disponível`);
+        // Última camada: mapeamento NCM→CEST por prefixo
+        const p4 = ncm.slice(0, 4);
+        const cestFromMap = CEST_FALLBACK_MAP_NFCE[ncm] || CEST_FALLBACK_MAP_NFCE[p4] || CEST_FALLBACK_MAP_NFCE[ncm.slice(0, 2)];
+        if (cestFromMap) {
+          item.cest = cestFromMap;
+          console.log(`[FISCAL-CEST-FALLBACK-MAP] NFC-e NCM ${ncm}: CEST ${cestFromMap} via mapeamento interno`);
+        } else {
+          console.warn(`[FISCAL-CEST-MISSING] NFC-e NCM ${ncm} com ST ativo mas sem CEST disponível`);
+        }
       }
     }
 
