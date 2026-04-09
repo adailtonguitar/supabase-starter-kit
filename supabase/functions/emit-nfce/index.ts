@@ -71,23 +71,14 @@ function shouldGenerateAlert(result: FiscalRiskResult): { generate: boolean; sev
 // ─── Fim Fiscal Risk Engine ───
 
 // ─── Decisão automática de tipo ST (CSOSN 202/500/102) ───
+// MIGRAÇÃO: forçar CSOSN 102 para Simples Nacional sem cálculo real de ST
 function decidirTipoST(
   item: any,
   stCfg: any,
   indIEDest: number
 ): "500" | "202" | "102" {
-  // Regra 1: consumidor final (não contribuinte) → ST retido
-  if (indIEDest === 9 && stCfg.temST) {
-    return "500";
-  }
-  // Regra 2: produto já vem com ST retido
-  if (item.origem_com_st === true) {
-    return "500";
-  }
-  // Regra 3: precisa calcular ST
-  if (stCfg.temST) {
-    return "202";
-  }
+  // Sem cálculo real de ST → sempre CSOSN 102
+  console.log(`[decidirTipoST] Forçando CSOSN 102 (sem cálculo real de ST). indIEDest=${indIEDest}, temST=${stCfg.temST}`);
   return "102";
 }
 // ─── Fim Decisão ST ───
@@ -1302,66 +1293,11 @@ function buildIcmsBlock(item: any, isSimples: boolean, indIEDest?: number, model
   const aliqIcms = item.icms_aliquota || 0;
 
   if (isSimples) {
-    // SEFAZ rejeição 600: CSOSN 201/202/203 incompatível com Não Contribuinte (indIEDest=9)
-    if (CSOSN_ST.has(cst) && indIEDest === 9) {
-      if (modelo === 65) {
-        // NFC-e: converte para CSOSN 102 (sem ST)
-        console.warn(`[buildIcmsBlock] ⚠ NFC-e: CSOSN ${cst} incompatível com indIEDest=9. Auto-corrigindo para CSOSN 102.`);
-        return { ICMSSN102: { orig: origem, CSOSN: "102" } };
-      } else {
-        // NF-e (modelo 55): converte para CSOSN 500 (ST retido anteriormente)
-        const mva = item.mva != null && item.mva > 0 ? item.mva : 40;
-        const bcST = vProd * (1 + mva / 100);
-        const icmsST = bcST * (aliqIcms / 100);
-        const vBCSTRet = Math.round(bcST * 100) / 100;
-        const vICMSSTRet = Math.round(icmsST * 100) / 100;
-        console.warn(`[buildIcmsBlock] ⚠ NF-e: CSOSN ${cst} + indIEDest=9 → convertendo para CSOSN 500. vBCSTRet=${vBCSTRet}, vICMSSTRet=${vICMSSTRet}`);
-        const pST = aliqIcms || 0;
-        const sn500: any = { orig: origem, CSOSN: "500" };
-        if (vBCSTRet > 0) sn500.vBCSTRet = vBCSTRet;
-        if (vICMSSTRet > 0) sn500.vICMSSTRet = vICMSSTRet;
-        return { ICMSSN500: sn500 };
-      }
-    }
-    if (CSOSN_ST.has(cst)) {
-      const mva = item.mva != null && item.mva > 0 ? item.mva : 40;
-      const bcST = vProd * (1 + mva / 100);
-      const icmsST = bcST * (aliqIcms / 100);
-
-      // CSOSN 201: com permissão de crédito — exige pCredSN e vCredICMSSN
-      if (cst === "201") {
-        const pCredSN = item.p_cred_sn != null ? item.p_cred_sn : aliqIcms || 0;
-        const vCredICMSSN = Math.round(vProd * (pCredSN / 100) * 100) / 100;
-        return {
-          ICMSSN201: {
-            orig: origem, CSOSN: "201", modBCST: 4, pMVAST: mva,
-            vBCST: Math.round(bcST * 100) / 100, pICMSST: aliqIcms,
-            vICMSST: Math.round(icmsST * 100) / 100,
-            pCredSN: Math.round(pCredSN * 100) / 100,
-            vCredICMSSN,
-          },
-        };
-      }
-
-      // CSOSN 202 e 203: sem permissão de crédito — bloco ICMSSN202
-      return {
-        ICMSSN202: {
-          orig: origem, CSOSN: cst, modBCST: 4, pMVAST: mva,
-          vBCST: Math.round(bcST * 100) / 100, pICMSST: aliqIcms,
-          vICMSST: Math.round(icmsST * 100) / 100,
-        },
-      };
-    }
-    if (cst === "500") {
-      // CSOSN 500: ST retido anteriormente — PROIBIDO calcular ST
-      // Somente usar valores retidos informados (v_bc_st_ret / v_icms_st_ret)
-      const vBCSTRet = item.v_bc_st_ret != null ? Math.round(item.v_bc_st_ret * 100) / 100 : 0;
-      const vICMSSTRet = item.v_icms_st_ret != null ? Math.round(item.v_icms_st_ret * 100) / 100 : 0;
-      const pST = item.p_st != null ? Math.round(item.p_st * 100) / 100 : (vBCSTRet > 0 && vICMSSTRet > 0 ? Math.round(vICMSSTRet / vBCSTRet * 100 * 100) / 100 : 0);
-      const sn500: any = { orig: origem, CSOSN: "500" };
-      if (vBCSTRet > 0) sn500.vBCSTRet = vBCSTRet;
-      if (vICMSSTRet > 0) sn500.vICMSSTRet = vICMSSTRet;
-      return { ICMSSN500: sn500 };
+    // MIGRAÇÃO CSOSN 102: Simples Nacional sem cálculo real de ST
+    // Qualquer CSOSN de ST (201/202/203/500) é convertido para 102
+    if (CSOSN_ST.has(cst) || cst === "500") {
+      console.warn(`[buildIcmsBlock] ⚠ CSOSN ${cst} migrado para 102 (sem cálculo real de ST). NCM=${item.ncm || "?"}`);
+      return { ICMSSN102: { orig: origem, CSOSN: "102" } };
     }
     // API rejeita CSOSN 101 dentro do bloco ICMSSN102; normalizamos para códigos válidos desse bloco.
     let safeCsosn = cst || "102";
@@ -1481,17 +1417,14 @@ function validarConsistenciaFiscal(
   const cst = (item.cst || "").trim();
   const temST = item.temST === true || item.origem_com_st === true;
 
-  // ERRO CRÍTICO: CSOSN 500 em produto que NÃO é ST
-  if (cst === "500" && !temST) {
-    // Verificar se stCfg marcou como ST (pode vir do DB)
-    if (!item._stDetected) {
-      errors.push(`CSOSN 500 aplicado em produto não-ST (NCM ${item.ncm || "?"})`);
-    }
+  // MIGRAÇÃO: CSOSN 500 não é mais usado — alertar se ainda aparecer
+  if (cst === "500") {
+    alerts.push(`CSOSN 500 detectado em NCM ${item.ncm || "?"} — deveria ser 102 após migração`);
   }
 
-  // ALERTA: produto com ST mas CSOSN não é 500/201/202/203
-  if (temST && isSimples && !["500", "201", "202", "203"].includes(cst)) {
-    alerts.push(`Produto ST (NCM ${item.ncm || "?"}) com CSOSN ${cst} — esperado 500 ou 202`);
+  // ALERTA: produto com ST mas CSOSN não é 102 (migração ativa)
+  if (temST && isSimples && cst !== "102") {
+    alerts.push(`Produto ST (NCM ${item.ncm || "?"}) com CSOSN ${cst} — esperado 102 após migração`);
   }
 
   // ALERTA: PIS/COFINS CST incompatível com classificação NCM
@@ -1834,35 +1767,14 @@ async function handleEmit(supabase: any, body: any) {
       };
 
       if (stCfg.temST) {
-        const itemCst = (vItem.cst || "").trim();
-        const stCsosns = new Set(["201", "202", "203", "500"]);
-        const hasST = isSimples ? stCsosns.has(itemCst) : new Set(["10", "30", "60", "70"]).has(itemCst);
-        if (!hasST && !vItem.mva) {
-          vItem.mva = stCfg.mva;
-          vItem.icms_aliquota = vItem.icms_aliquota || stCfg.aliquotaInterna;
-          if (isSimples) {
-            // NFC-e é sempre para consumidor final (indIEDest=9), então CSOSN ST (201/202/203) → 102
-            // Apenas CSOSN 500 (já retido) é válido para não-contribuinte
-            if (vItem.origem_tem_st) {
-              vItem.cst = "500";
-              console.log(`[emit-nfce] ST retido: item ${vi + 1} NCM=${vNcm} → CSOSN 500`);
-            } else {
-              // Para NFC-e (consumidor final), ST já retida na cadeia anterior = 500
-              // Se precisa calcular ST, a rejeição 600 bloqueia CSOSN 201/202/203
-              // Portanto usamos CSOSN 102 (sem crédito) para consumidor final
-              vItem.cst = "102";
-              console.log(`[emit-nfce] ST detectado (${stCfg.source}): item ${vi + 1} NCM=${vNcm} → CSOSN 102 (NFC-e consumidor final)`);
-            }
-          } else {
-            vItem.cst = "60";
-            console.log(`[emit-nfce] ST aplicado (${stCfg.source}): item ${vi + 1} NCM=${vNcm} → CST 60`);
-          }
-          stLog.aplicou_st = true;
-          stLog.motivo = `ST auto-detectado via ${stCfg.source} (NFC-e)`;
-        } else {
-          stLog.motivo = hasST ? "Item já possui CST/CSOSN de ST" : "Item já possui MVA definida";
-          stLog.aplicou_st = hasST || (vItem.mva > 0);
-        }
+        // MIGRAÇÃO: não aplicar ST automaticamente — forçar CSOSN 102
+        // Apenas registra no log que ST foi detectado mas não aplicado
+        vItem.cst = "102";
+        vItem.temST = false;
+        console.log(`[emit-nfce] ST detectado (${stCfg.source}) NCM=${vNcm} mas MIGRADO para CSOSN 102 (sem cálculo real de ST)`);
+        stLog.aplicou_st = false;
+        stLog.motivo = `ST detectado via ${stCfg.source} mas migrado para CSOSN 102 (sem cálculo real)`;
+      }
       } else {
         stLog.motivo = stCfg.source === "override_negado"
           ? "ST desativada por override manual"
