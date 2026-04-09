@@ -2919,7 +2919,15 @@ async function handleEmitNfe(supabase: any, body: any) {
         item.cest = dbRule.cest;
         console.log(`[FISCAL-CEST-FALLBACK] NCM ${ncm}: CEST ${dbRule.cest} obtido de fiscal_st_rules`);
       } else {
-        console.warn(`[FISCAL-CEST-MISSING] NCM ${ncm} com ST ativo mas sem CEST disponível — risco de Rejeição 806`);
+        // Última camada: mapeamento NCM→CEST por prefixo
+        const p4 = ncm.slice(0, 4);
+        const cestFromMap = CEST_FALLBACK_MAP[ncm] || CEST_FALLBACK_MAP[p4] || CEST_FALLBACK_MAP[ncm.slice(0, 2)];
+        if (cestFromMap) {
+          item.cest = cestFromMap;
+          console.log(`[FISCAL-CEST-FALLBACK-MAP] NCM ${ncm}: CEST ${cestFromMap} via mapeamento interno`);
+        } else {
+          console.warn(`[FISCAL-CEST-MISSING] NCM ${ncm} com ST ativo mas sem CEST disponível — risco de Rejeição 806`);
+        }
       }
     }
     // ─── Decisão automática ST (202/500/102) ───
