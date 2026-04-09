@@ -1861,10 +1861,12 @@ async function handleEmit(supabase: any, body: any) {
           ? "ST desativada por override manual"
           : `NCM ${vNcm} sem ST na UF ${stUfNfce}`;
         if (stCfg.source === "none") {
-          stLog.blocked = true;
-          stLog.block_reason = "NCM sem regra de ST — emissão bloqueada";
-          stLog.risk_score = 100;
-          stBlockErrorsNfce.push(`Item ${vi + 1} (${vItem.name || vNcm}): NCM sem regra de ST — emissão bloqueada`);
+          console.warn("[FISCAL-ST-FALLBACK]", { ncm: vNcm, uf: stUfNfce, motivo: "sem_regra" });
+          stLog.blocked = false;
+          stLog.block_reason = null;
+          stLog.risk_score = 0;
+          stLog.motivo = `NCM ${vNcm} sem regra de ST — seguindo sem ST (fallback)`;
+          stLog.regra_usada = "fallback_sem_regra";
         }
       }
       stDecisionLogsNfce.push(stLog);
