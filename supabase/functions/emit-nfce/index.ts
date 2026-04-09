@@ -1996,6 +1996,16 @@ async function handleEmit(supabase: any, body: any) {
     if (!item.cest && stCfgForCest?.cest) {
       item.cest = stCfgForCest.cest;
     }
+    // Fallback CEST: buscar da tabela fiscal_st_rules via stDbRulesNfce quando ST ativo mas CEST ausente
+    if (!item.cest && stCfgForCest?.temST && ncm.length === 8) {
+      const dbRule = stDbRulesNfce[ncm];
+      if (dbRule?.cest) {
+        item.cest = dbRule.cest;
+        console.log(`[FISCAL-CEST-FALLBACK] NFC-e NCM ${ncm}: CEST ${dbRule.cest} obtido de fiscal_st_rules`);
+      } else {
+        console.warn(`[FISCAL-CEST-MISSING] NFC-e NCM ${ncm} com ST ativo mas sem CEST disponível`);
+      }
+    }
 
     const icmsBlock = buildIcmsBlock({ ...item, qty, unit_price: unitPrice, discount }, isSimples, 9);
 
