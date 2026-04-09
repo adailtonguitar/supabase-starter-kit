@@ -885,6 +885,7 @@ export const ProductFormDialog = forwardRef<HTMLDivElement, Props>(function Prod
                       onApply={(ncm) => { field.onChange(ncm); runNcmValidation(ncm); }}
                     />
                     <FormMessage />
+                  </FormItem>
                 )} />
                 <FormField control={form.control} name="category" render={({ field }) => (
                   <FormItem>
