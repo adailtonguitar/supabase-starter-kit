@@ -1319,7 +1319,6 @@ function buildIcmsBlock(item: any, isSimples: boolean, indIEDest?: number, model
         const pST = aliqIcms || 0;
         const sn500: any = { orig: origem, CSOSN: "500" };
         if (vBCSTRet > 0) sn500.vBCSTRet = vBCSTRet;
-        sn500.pST = Math.round(pST * 100) / 100;
         if (vICMSSTRet > 0) sn500.vICMSSTRet = vICMSSTRet;
         return { ICMSSN500: sn500 };
       }
