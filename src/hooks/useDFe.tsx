@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "./useCompany";
 import { toast } from "sonner";
+import { invokeEdgeFunctionWithAuth } from "@/lib/invoke-edge-function-with-auth";
 
 export interface DFeDocument {
   id: string;
@@ -33,20 +33,12 @@ export function useDFe() {
       if (!companyId) return { documents: [], total: 0 };
 
       try {
-        const { data, error } = await supabase.functions.invoke("fetch-dfe", {
+        const { data, error } = await invokeEdgeFunctionWithAuth("fetch-dfe", {
           body: { action: "list", company_id: companyId },
         });
 
         if (error) {
-          let errMsg = "Erro ao buscar documentos";
-          try {
-            if (error?.context?.json) {
-              const body = await error.context.json();
-              errMsg = body?.error || body?.message || errMsg;
-            } else if (typeof error === "object" && "message" in error) {
-              errMsg = error.message;
-            }
-          } catch { /* fallback */ }
+          const errMsg = error.message || "Erro ao buscar documentos";
           toast.error(errMsg);
           return { documents: [], total: 0 };
         }
@@ -96,10 +88,10 @@ export function useDFe() {
     if (!companyId) return;
     setIsDistributing(true);
     try {
-      const { data, error } = await supabase.functions.invoke("fetch-dfe", {
+      const { data, error } = await invokeEdgeFunctionWithAuth("fetch-dfe", {
         body: { action: "distribute", company_id: companyId },
       });
-      if (error) throw error;
+      if (error) throw new Error(error.message || "Erro na distribuição");
       if (!data?.success) throw new Error(data?.error || "Erro na distribuição");
       toast.success("Consulta SEFAZ realizada! Atualizando lista...");
       setTimeout(() => {
@@ -116,7 +108,7 @@ export function useDFe() {
   const manifest = async (documentId: string, chaveNfe: string, tipoEvento = "ciencia") => {
     if (!companyId) return false;
     try {
-      const { data, error } = await supabase.functions.invoke("fetch-dfe", {
+      const { data, error } = await invokeEdgeFunctionWithAuth("fetch-dfe", {
         body: {
           action: "manifest",
           company_id: companyId,
@@ -125,7 +117,7 @@ export function useDFe() {
           tipo_evento: tipoEvento,
         },
       });
-      if (error) throw error;
+      if (error) throw new Error(error.message || "Erro na manifestação");
       if (!data?.success) throw new Error(data?.error || "Erro na manifestação");
       toast.success("Manifestação realizada com sucesso!");
       documentsQuery.refetch();
@@ -140,10 +132,10 @@ export function useDFe() {
   const downloadXml = async (documentId: string): Promise<string | null> => {
     if (!companyId) return null;
     try {
-      const { data, error } = await supabase.functions.invoke("fetch-dfe", {
+      const { data, error } = await invokeEdgeFunctionWithAuth("fetch-dfe", {
         body: { action: "detail", company_id: companyId, document_id: documentId },
       });
-      if (error) throw error;
+      if (error) throw new Error(error.message || "Erro ao baixar XML");
       if (!data?.success) throw new Error(data?.error || "Erro ao baixar XML");
       return data.xml as string;
     } catch (e: unknown) {
