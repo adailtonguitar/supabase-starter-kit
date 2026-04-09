@@ -6,6 +6,40 @@ import {
 import { supplementCnpjFromRowTextFields } from "../_shared/company-fiscal-merge.ts";
 import { nuvemFiscalRequest } from "../_shared/nuvem-fiscal-auth.ts";
 
+function parseJsonSafe(raw: string): Record<string, any> | null {
+  if (!raw.trim()) return null;
+  try {
+    return JSON.parse(raw) as Record<string, any>;
+  } catch {
+    return null;
+  }
+}
+
+function extractProviderErrorMessage(data: unknown, status: number, fallback: string): string {
+  if (typeof data === "string" && data.trim()) return data;
+  if (data && typeof data === "object") {
+    const payload = data as Record<string, any>;
+    const nestedError = payload.error;
+    if (nestedError && typeof nestedError === "object") {
+      const nestedMsg = nestedError.message || nestedError.mensagem || nestedError.detail;
+      if (typeof nestedMsg === "string" && nestedMsg.trim()) return nestedMsg;
+    }
+
+    if (Array.isArray(payload.errors) && payload.errors.length > 0) {
+      const joined = payload.errors
+        .map((entry: any) => typeof entry === "string" ? entry : entry?.message || entry?.mensagem || JSON.stringify(entry))
+        .join("; ");
+      if (joined) return joined;
+    }
+
+    for (const candidate of [payload.mensagem, payload.message, payload.error, payload.detail, payload.title]) {
+      if (typeof candidate === "string" && candidate.trim()) return candidate;
+    }
+  }
+
+  return `${fallback} (status ${status})`;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: getCorsHeaders(req) });
@@ -127,101 +161,146 @@ Deno.serve(async (req) => {
 
     // ─── Ensure company + certificate registered on Nuvem Fiscal ───
     async function ensureCompanyOnNuvemFiscal() {
-      try {
-        const checkRes = await nuvemFiscalRequest(`${apiBase}/empresas/${cnpj}`, {
-          method: "GET",
-        });
+      const resolveStoredCertificate = async (): Promise<{ base64: string; password: string } | null> => {
+        if (!fiscalConfig?.certificate_path) return null;
 
-        if (checkRes.ok) {
-          await checkRes.text();
-          console.log("[fetch-dfe] Empresa já cadastrada na Nuvem Fiscal");
-          return;
-        }
-        await checkRes.text();
-      } catch (e) {
-        console.log("[fetch-dfe] Check empresa falhou:", e);
-      }
-
-      // Register company
-      const empresaPayload: Record<string, any> = {
-        cpf_cnpj: cnpj,
-        inscricao_estadual: ie || undefined,
-        nome_razao_social: company.name || "EMPRESA",
-        nome_fantasia: company.trade_name || company.name || "EMPRESA",
-        endereco: {
-          logradouro: companyStreet || "Rua não informada",
-          numero: companyNumber,
-          bairro: companyNeighborhood,
-          codigo_municipio: ibgeCode || "",
-          cidade: companyCity || "Não informada",
-          uf: companyState,
-          cep: companyZip || "00000000",
-          codigo_pais: "1058",
-          pais: "Brasil",
-        },
-      };
-
-      // Upload certificate if available
-      if (fiscalConfig?.certificate_path) {
         try {
           const { data: certData } = await supabaseAdmin.storage
             .from("company-backups")
             .download(fiscalConfig.certificate_path);
-          if (certData) {
-            const arrayBuf = await certData.arrayBuffer();
-            const bytes = new Uint8Array(arrayBuf);
-            let binary = "";
-            for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+          if (!certData) return null;
 
-            // Decrypt stored password
-            let certPwd = "";
-            const storedHash = fiscalConfig.certificate_password_hash;
-            if (storedHash && typeof storedHash === "string" && storedHash.startsWith("enc:")) {
-              try {
-                const encKey = Deno.env.get("FISCAL_CERT_ENCRYPTION_KEY");
-                if (encKey) {
-                  const encoder = new TextEncoder();
-                  const keyMaterial = await crypto.subtle.importKey(
-                    "raw", encoder.encode(encKey).slice(0, 32),
-                    { name: "PBKDF2" }, false, ["deriveKey"],
-                  );
-                  const derivedKey = await crypto.subtle.deriveKey(
-                    { name: "PBKDF2", salt: encoder.encode("fiscal-cert-v1"), iterations: 100000, hash: "SHA-256" },
-                    keyMaterial, { name: "AES-GCM", length: 256 }, false, ["decrypt"],
-                  );
-                  const raw = atob(storedHash.slice(4));
-                  const encBytes = new Uint8Array(raw.length);
-                  for (let j = 0; j < raw.length; j++) encBytes[j] = raw.charCodeAt(j);
-                  const iv = encBytes.slice(0, 12);
-                  const ciphertext = encBytes.slice(12);
-                  const decrypted = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, derivedKey, ciphertext);
-                  certPwd = new TextDecoder().decode(decrypted);
-                }
-              } catch (decErr) {
-                console.warn("[fetch-dfe] Falha ao descriptografar senha:", decErr);
+          const arrayBuf = await certData.arrayBuffer();
+          const bytes = new Uint8Array(arrayBuf);
+          let binary = "";
+          for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+
+          let certPwd = "";
+          const storedHash = fiscalConfig.certificate_password_hash;
+          if (storedHash && typeof storedHash === "string" && storedHash.startsWith("enc:")) {
+            try {
+              const encKey = Deno.env.get("FISCAL_CERT_ENCRYPTION_KEY");
+              if (encKey) {
+                const encoder = new TextEncoder();
+                const keyMaterial = await crypto.subtle.importKey(
+                  "raw", encoder.encode(encKey).slice(0, 32),
+                  { name: "PBKDF2" }, false, ["deriveKey"],
+                );
+                const derivedKey = await crypto.subtle.deriveKey(
+                  { name: "PBKDF2", salt: encoder.encode("fiscal-cert-v1"), iterations: 100000, hash: "SHA-256" },
+                  keyMaterial, { name: "AES-GCM", length: 256 }, false, ["decrypt"],
+                );
+                const raw = atob(storedHash.slice(4));
+                const encBytes = new Uint8Array(raw.length);
+                for (let j = 0; j < raw.length; j++) encBytes[j] = raw.charCodeAt(j);
+                const iv = encBytes.slice(0, 12);
+                const ciphertext = encBytes.slice(12);
+                const decrypted = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, derivedKey, ciphertext);
+                certPwd = new TextDecoder().decode(decrypted);
               }
+            } catch (decErr) {
+              console.warn("[fetch-dfe] Falha ao descriptografar senha:", decErr);
             }
-
-            empresaPayload.certificado = {
-              base64: btoa(binary),
-              password: certPwd,
-            };
           }
+
+          if (!certPwd && storedHash && typeof storedHash === "string" && !storedHash.startsWith("enc:")) {
+            certPwd = storedHash;
+          }
+
+          if (!certPwd) {
+            console.warn("[fetch-dfe] Senha do certificado indisponível para sincronização");
+            return null;
+          }
+
+          return { base64: btoa(binary), password: certPwd };
         } catch (certErr) {
           console.warn("[fetch-dfe] Falha ao buscar certificado do storage:", certErr);
+          return null;
+        }
+      };
+
+      const syncCertificate = async (certificate: { base64: string; password: string }) => {
+        console.log("[fetch-dfe] Sincronizando certificado na Nuvem Fiscal...");
+        const certRes = await nuvemFiscalRequest(`${apiBase}/empresas/${cnpj}/certificado`, {
+          method: "PUT",
+          body: JSON.stringify({
+            certificado: certificate.base64,
+            password: certificate.password,
+          }),
+        });
+        const certText = await certRes.text().catch(() => "");
+        console.log("[fetch-dfe] PUT certificado:", certRes.status, certText.slice(0, 200));
+
+        if (!certRes.ok) {
+          throw new Error(
+            extractProviderErrorMessage(parseJsonSafe(certText) ?? certText, certRes.status, "Falha ao sincronizar certificado na Nuvem Fiscal")
+          );
+        }
+      };
+
+      let companyExists = false;
+      try {
+        const checkRes = await nuvemFiscalRequest(`${apiBase}/empresas/${cnpj}`, {
+          method: "GET",
+        });
+        const checkText = await checkRes.text().catch(() => "");
+        companyExists = checkRes.ok;
+        console.log("[fetch-dfe] GET empresa:", checkRes.status, checkText.slice(0, 200));
+      } catch (e) {
+        console.log("[fetch-dfe] Check empresa falhou:", e);
+      }
+
+      const certificate = await resolveStoredCertificate();
+
+      if (!companyExists || certificate) {
+        const empresaPayload: Record<string, any> = {
+          cpf_cnpj: cnpj,
+          inscricao_estadual: ie || undefined,
+          nome_razao_social: company.name || "EMPRESA",
+          nome_fantasia: company.trade_name || company.name || "EMPRESA",
+          endereco: {
+            logradouro: companyStreet || "Rua não informada",
+            numero: companyNumber,
+            bairro: companyNeighborhood,
+            codigo_municipio: ibgeCode || "",
+            cidade: companyCity || "Não informada",
+            uf: companyState,
+            cep: companyZip || "00000000",
+            codigo_pais: "1058",
+            pais: "Brasil",
+          },
+        };
+
+        const method = companyExists ? "PUT" : "POST";
+        const companyUrl = companyExists ? `${apiBase}/empresas/${cnpj}` : `${apiBase}/empresas`;
+
+        console.log(`[fetch-dfe] ${companyExists ? "Atualizando" : "Cadastrando"} empresa na Nuvem Fiscal...`);
+        const createRes = await nuvemFiscalRequest(companyUrl, {
+          method,
+          body: JSON.stringify(empresaPayload),
+        });
+        const createText = await createRes.text().catch(() => "");
+        console.log(`[fetch-dfe] ${method} empresa:`, createRes.status, createText.slice(0, 200));
+
+        if (!createRes.ok) {
+          const providerMsg = extractProviderErrorMessage(
+            parseJsonSafe(createText) ?? createText,
+            createRes.status,
+            "Falha ao cadastrar empresa na Nuvem Fiscal",
+          );
+          const alreadyExists = /já cadastr|already exists|duplicad|existente/i.test(providerMsg);
+          if (!alreadyExists) {
+            throw new Error(providerMsg);
+          }
+          console.warn("[fetch-dfe] Empresa já existia no cadastro externo:", providerMsg);
+          companyExists = true;
         }
       }
 
-      console.log("[fetch-dfe] Cadastrando empresa na Nuvem Fiscal...");
-      const createRes = await nuvemFiscalRequest(`${apiBase}/empresas`, {
-        method: "PUT",
-        body: JSON.stringify(empresaPayload),
-      });
-      const createText = await createRes.text();
-      console.log("[fetch-dfe] PUT empresas:", createRes.status, createText.slice(0, 200));
-
-      if (!createRes.ok) {
-        console.warn("[fetch-dfe] Falha ao cadastrar empresa, tentando prosseguir...");
+      if (certificate) {
+        await syncCertificate(certificate);
+      } else {
+        console.log("[fetch-dfe] Nenhum certificado disponível para sincronizar");
       }
     }
 
