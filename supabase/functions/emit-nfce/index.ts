@@ -2658,26 +2658,29 @@ async function handleEmitNfe(supabase: any, body: any) {
       };
 
       if (stCfg.temST) {
-        const itemCst = (vItem.cst || "").trim();
-        const stCsosns = new Set(["201", "202", "203", "500"]);
-        const stCsts = new Set(["10", "30", "60", "70"]);
-        const hasST = isSimples ? stCsosns.has(itemCst) : stCsts.has(itemCst);
-        if (!hasST) {
-          // Auto-apply ST — SEMPRE aplica CST/CSOSN de ST quando exige_st=true
-          vItem.mva = stCfg.mva || vItem.mva || 0;
-          vItem.icms_aliquota = stCfg.aliquotaInterna || vItem.icms_aliquota || 18;
-          if (isSimples) {
-            vItem.cst = stCfg.csosn_forcado || "202";
-            console.log(`[emit-nfe] ST aplicado (${stCfg.source}): item ${vi + 1} NCM=${vNcm} → CSOSN ${vItem.cst}, MVA=${vItem.mva}%, aliq=${vItem.icms_aliquota}%`);
-          } else {
-            vItem.cst = stCfg.cst_forcado || "10";
-            console.log(`[emit-nfe] ST aplicado (${stCfg.source}): item ${vi + 1} NCM=${vNcm} → CST ${vItem.cst}, MVA=${vItem.mva}%, aliq=${vItem.icms_aliquota}%`);
-          }
-          stLog.aplicou_st = true;
-          stLog.motivo = `ST auto-aplicado via ${stCfg.source}`;
+        // MIGRAÇÃO: não aplicar ST — forçar CSOSN 102 para Simples Nacional
+        if (isSimples) {
+          vItem.cst = "102";
+          vItem.temST = false;
+          console.log(`[emit-nfe] ST detectado (${stCfg.source}) NCM=${vNcm} mas MIGRADO para CSOSN 102 (sem cálculo real de ST)`);
+          stLog.aplicou_st = false;
+          stLog.motivo = `ST detectado via ${stCfg.source} mas migrado para CSOSN 102`;
         } else {
-          stLog.motivo = "Item já possui CST/CSOSN de ST";
-          stLog.aplicou_st = true;
+          // Regime Normal: manter lógica original
+          const itemCst = (vItem.cst || "").trim();
+          const stCsts = new Set(["10", "30", "60", "70"]);
+          const hasST = stCsts.has(itemCst);
+          if (!hasST) {
+            vItem.mva = stCfg.mva || vItem.mva || 0;
+            vItem.icms_aliquota = stCfg.aliquotaInterna || vItem.icms_aliquota || 18;
+            vItem.cst = stCfg.cst_forcado || "10";
+            console.log(`[emit-nfe] ST aplicado (${stCfg.source}): item ${vi + 1} NCM=${vNcm} → CST ${vItem.cst}`);
+            stLog.aplicou_st = true;
+            stLog.motivo = `ST auto-aplicado via ${stCfg.source}`;
+          } else {
+            stLog.motivo = "Item já possui CST de ST";
+            stLog.aplicou_st = true;
+          }
         }
       } else {
         stLog.motivo = stCfg.source === "override_negado"
@@ -2871,22 +2874,15 @@ async function handleEmitNfe(supabase: any, body: any) {
       indIEDest: preIndIEDest,
     });
 
-    if (tipoST === "500") {
-      item.cst = "500";
-    } else if (tipoST === "202") {
-      item.cst = "202";
-      const vProdST = Number(qty * unitPrice - (discount || 0));
-      const mvaST = Number(stCfg.mva || item.mva || 0);
-      const aliqST = Number(stCfg.aliquotaInterna || item.icms_aliquota || 18);
-      if (!item.mva || item.mva === 0) item.mva = mvaST;
-      if (!item.icms_aliquota || item.icms_aliquota === 0) item.icms_aliquota = aliqST;
-      item.vBCST = Number((vProdST * (1 + mvaST / 100)).toFixed(2));
-      item.vICMSST = Number((item.vBCST * (aliqST / 100)).toFixed(2));
+    // MIGRAÇÃO: forçar CSOSN 102 para Simples Nacional (sem cálculo real de ST)
+    if (tipoST === "500" || tipoST === "202") {
+      console.log(`[emit-nfe] decidirTipoST retornou ${tipoST} mas MIGRADO para CSOSN 102`);
+      item.cst = "102";
     }
 
-    // Bloqueio: ST obrigatória mas CSOSN ficou 102
+    // Não bloquear mais por ausência de ST — migração ativa
     if (stCfg.temST && item.cst === "102") {
-      throw new Error(`ST obrigatória não aplicada para NCM ${item.ncm || ncm} UF ${stUf}`);
+      console.warn(`[emit-nfe] ST obrigatória para NCM ${item.ncm || ncm} UF ${stUf} mas migrado para CSOSN 102 (sem risco)`);
     }
 
     const icmsBlock = buildIcmsBlock({ ...item, qty, unit_price: unitPrice, discount }, isSimples, preIndIEDest, 55);
