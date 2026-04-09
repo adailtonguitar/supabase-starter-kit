@@ -2634,14 +2634,23 @@ async function handleEmitNfe(supabase: any, body: any) {
 
   // Fallback inline (mesma lógica do shared/fiscal/st-engine.ts)
   const ST_FALLBACK: Record<string, Record<string, { mva: number; aliquotaInterna: number; cest?: string }>> = {
-    "22021000": { _default: { mva: 70, aliquotaInterna: 18 }, MA: { mva: 70, aliquotaInterna: 22 } },
-    "22011000": { _default: { mva: 70, aliquotaInterna: 18 }, MA: { mva: 70, aliquotaInterna: 22 } },
-    "22021010": { _default: { mva: 40, aliquotaInterna: 18 }, MA: { mva: 40, aliquotaInterna: 22 } },
-    "22030000": { _default: { mva: 70, aliquotaInterna: 25 }, MA: { mva: 70, aliquotaInterna: 22 } },
-    "24022000": { _default: { mva: 0, aliquotaInterna: 25 } },
-    "40111000": { _default: { mva: 42, aliquotaInterna: 18 }, MA: { mva: 42, aliquotaInterna: 22 } },
-    "25232900": { _default: { mva: 20, aliquotaInterna: 18 }, MA: { mva: 20, aliquotaInterna: 22 } },
-    "32091000": { _default: { mva: 35, aliquotaInterna: 18 }, MA: { mva: 35, aliquotaInterna: 22 } },
+    "22021000": { _default: { mva: 70, aliquotaInterna: 18, cest: "0300100" }, MA: { mva: 70, aliquotaInterna: 22, cest: "0300100" } },
+    "22011000": { _default: { mva: 70, aliquotaInterna: 18, cest: "0300100" }, MA: { mva: 70, aliquotaInterna: 22, cest: "0300100" } },
+    "22021010": { _default: { mva: 40, aliquotaInterna: 18, cest: "0300200" }, MA: { mva: 40, aliquotaInterna: 22, cest: "0300200" } },
+    "22030000": { _default: { mva: 70, aliquotaInterna: 25, cest: "0300500" }, MA: { mva: 70, aliquotaInterna: 22, cest: "0300500" } },
+    "24022000": { _default: { mva: 0, aliquotaInterna: 25, cest: "0400100" } },
+    "40111000": { _default: { mva: 42, aliquotaInterna: 18, cest: "1600100" }, MA: { mva: 42, aliquotaInterna: 22, cest: "1600100" } },
+    "25232900": { _default: { mva: 20, aliquotaInterna: 18, cest: "0500100" }, MA: { mva: 20, aliquotaInterna: 22, cest: "0500100" } },
+    "32091000": { _default: { mva: 35, aliquotaInterna: 18, cest: "2400100" }, MA: { mva: 35, aliquotaInterna: 22, cest: "2400100" } },
+  };
+  // Mapeamento NCM→CEST de último recurso (prefixos comuns)
+  const CEST_FALLBACK_MAP: Record<string, string> = {
+    "2202": "0300100", "2201": "0300100", "2203": "0300500", "2204": "0300300",
+    "2208": "0300400", "2402": "0400100", "2523": "0500100", "2710": "0600100",
+    "2711": "0600400", "3209": "2400100", "3304": "2000100", "3305": "2000100",
+    "3401": "2000300", "4011": "1600100", "8703": "0100100", "8704": "0100200",
+    "8708": "0100500", "7210": "1000100", "7306": "1000200", "9619": "2000300",
+    "3006": "1300100", "3004": "1300100", "3003": "1300100",
   };
   function getSTConfigResolved(ncm: string, uf: string) {
     // 1. Override
