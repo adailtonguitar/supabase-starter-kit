@@ -288,7 +288,7 @@ Deno.serve(async (req) => {
     // ─── ACTION: list ───
     if (action === "list") {
       // First try to return from local DB
-      const { data: localDocs } = await supabase
+      const { data: localDocs } = await supabaseAdmin
         .from("notas_recebidas")
         .select("*")
         .eq("company_id", company_id)
