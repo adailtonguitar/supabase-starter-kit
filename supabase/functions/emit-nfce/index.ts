@@ -1360,7 +1360,6 @@ function buildIcmsBlock(item: any, isSimples: boolean, indIEDest?: number, model
       const pST = item.p_st != null ? Math.round(item.p_st * 100) / 100 : (vBCSTRet > 0 && vICMSSTRet > 0 ? Math.round(vICMSSTRet / vBCSTRet * 100 * 100) / 100 : 0);
       const sn500: any = { orig: origem, CSOSN: "500" };
       if (vBCSTRet > 0) sn500.vBCSTRet = vBCSTRet;
-      sn500.pST = pST;
       if (vICMSSTRet > 0) sn500.vICMSSTRet = vICMSSTRet;
       return { ICMSSN500: sn500 };
     }
