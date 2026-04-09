@@ -29,6 +29,7 @@ import { useAdminRole } from "@/hooks/useAdminRole";
 import { type TaxRegime } from "@/lib/cst-csosn-validator";
 import { getSuggestedFiscalUpdate, getProductFiscalStatus } from "@/lib/fiscal-product-suggestions";
 import { aprenderNCM, sugerirNCM } from "@/lib/ncm-learning";
+import { NcmLearningSuggestion } from "./NcmLearningSuggestion";
 import { toast } from "sonner";
 
 interface NCMSuggestion {
@@ -878,6 +879,11 @@ export const ProductFormDialog = forwardRef<HTMLDivElement, Props>(function Prod
                         <span>Consultando tabela oficial...</span>
                       </div>
                     )}
+                    <NcmLearningSuggestion
+                      productName={form.watch("name")}
+                      currentNcm={field.value || ""}
+                      onApply={(ncm) => { field.onChange(ncm); runNcmValidation(ncm); }}
+                    />
                     <FormMessage />
                   </FormItem>
                 )} />
