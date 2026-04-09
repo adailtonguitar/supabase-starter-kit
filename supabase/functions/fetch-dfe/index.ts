@@ -47,22 +47,35 @@ Deno.serve(async (req) => {
     const [companyResult, fiscalConfigResult] = await Promise.all([
       supabaseAdmin
         .from("companies")
-        .select("id, cnpj, name, trade_name, ie, state_registration, parent_company_id, crt, street, address, address_street, number, address_number, neighborhood, address_neighborhood, city, address_city, state, address_state, zip_code, cep, address_zip, ibge_code, city_code, address_ibge_code")
+        .select("*")
         .eq("id", company_id)
         .single(),
       supabaseAdmin
         .from("fiscal_configs")
-        .select("certificate_path, certificate_password_hash, ie, ambiente")
+        .select("*")
         .eq("company_id", company_id)
         .eq("is_active", true)
+        .order("updated_at", { ascending: false })
         .limit(1)
         .maybeSingle(),
     ]);
 
     const { data: companyRow, error: compErr } = companyResult;
     if (compErr || !companyRow) {
+      console.error("[fetch-dfe] Linha da empresa não encontrada:", compErr?.message || compErr, "company_id:", company_id);
       throw new Error("Empresa não encontrada ou CNPJ não cadastrado");
     }
+
+    const fiscalConfig = fiscalConfigResult.data as Record<string, any> | null;
+
+    const onlyDigits = (value: unknown) => String(value ?? "").replace(/\D/g, "");
+    const pickFirstNonEmpty = (...values: unknown[]) => {
+      for (const value of values) {
+        const normalized = String(value ?? "").trim();
+        if (normalized) return normalized;
+      }
+      return "";
+    };
 
     let company = await resolveCompanyFiscalRowWithParent(
       supabaseAdmin,
@@ -75,7 +88,16 @@ Deno.serve(async (req) => {
     );
     company = supplementCnpjFromRowTextFields(company);
 
-    const cnpj = String(company.cnpj || "").replace(/\D/g, "");
+    const cnpj = onlyDigits(company.cnpj);
+    const ie = onlyDigits(pickFirstNonEmpty(company.ie, company.state_registration, fiscalConfig?.ie));
+    const companyStreet = pickFirstNonEmpty(company.street, company.address_street, company.address);
+    const companyNumber = pickFirstNonEmpty(company.number, company.address_number, "S/N");
+    const companyNeighborhood = pickFirstNonEmpty(company.neighborhood, company.address_neighborhood, "Centro");
+    const companyCity = pickFirstNonEmpty(company.city, company.address_city);
+    const companyState = pickFirstNonEmpty(company.state, company.address_state, "MA").toUpperCase();
+    const companyZip = onlyDigits(pickFirstNonEmpty(company.zip_code, company.address_zip, company.cep, "00000000"));
+    const ibgeCode = onlyDigits(pickFirstNonEmpty(company.ibge_code, company.city_code, company.address_ibge_code));
+
     if (cnpj.length !== 14) {
       console.error("[fetch-dfe] CNPJ não resolvido para company_id:", company_id, {
         raw_cnpj: company.cnpj,
@@ -86,8 +108,16 @@ Deno.serve(async (req) => {
       throw new Error("Empresa não encontrada ou CNPJ não cadastrado");
     }
 
-    console.log("[fetch-dfe] CNPJ resolvido com sucesso para DFe:", cnpj);
-    const fiscalConfig = fiscalConfigResult.data as Record<string, any> | null;
+    console.log("[fetch-dfe] Empresa fiscal resolvida:", {
+      company_id,
+      cnpj,
+      ie_present: ie.length >= 2,
+      street_present: !!companyStreet,
+      city_present: !!companyCity,
+      state_present: !!companyState,
+      ibge_present: ibgeCode.length >= 7,
+      parent_company_id: company.parent_company_id || null,
+    });
 
     const isSandbox = Deno.env.get("NUVEM_FISCAL_SANDBOX") === "true";
     const apiBase = isSandbox
@@ -113,20 +143,19 @@ Deno.serve(async (req) => {
       }
 
       // Register company
-      const ie = (fiscalConfig?.ie || "").replace(/\D/g, "");
       const empresaPayload: Record<string, any> = {
         cpf_cnpj: cnpj,
         inscricao_estadual: ie || undefined,
         nome_razao_social: company.name || "EMPRESA",
         nome_fantasia: company.trade_name || company.name || "EMPRESA",
         endereco: {
-          logradouro: company.street || company.address || "Rua não informada",
-          numero: company.number || company.address_number || "S/N",
-          bairro: company.neighborhood || "Centro",
-          codigo_municipio: company.ibge_code || "",
-          cidade: company.city || "Não informada",
-          uf: (company.state || "MA").toUpperCase(),
-          cep: (company.zip_code || company.cep || "00000000").replace(/\D/g, ""),
+          logradouro: companyStreet || "Rua não informada",
+          numero: companyNumber,
+          bairro: companyNeighborhood,
+          codigo_municipio: ibgeCode || "",
+          cidade: companyCity || "Não informada",
+          uf: companyState,
+          cep: companyZip || "00000000",
           codigo_pais: "1058",
           pais: "Brasil",
         },
