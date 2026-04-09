@@ -2581,10 +2581,22 @@ async function handleEmitNfe(supabase: any, body: any) {
   }
 
   // Itens
-  const items = form.items || [];
-  if (items.length === 0) {
-    return jsonResponse({ error: "Nenhum item na nota" }, 400);
-  }
+   const items = form.items || [];
+   if (items.length === 0) {
+     return jsonResponse({ error: "Nenhum item na nota" }, 400);
+   }
+
+   // ─── VALIDAÇÃO AUTOMÁTICA NCM (warning-only, NÃO bloqueia) — NF-e ───
+   for (let vi = 0; vi < items.length; vi++) {
+     const itVal = items[vi];
+     const ncmCheck = validarNCMporDescricao(
+       itVal.ncm || "",
+       itVal.name || itVal.xProd || itVal.descricao || ""
+     );
+     if (ncmCheck) {
+       console.warn(`[NCM-VALIDACAO] NF-e Item ${vi + 1} "${itVal.name || itVal.xProd || ""}" — NCM atual: ${itVal.ncm}, sugestão: ${ncmCheck.sugestao} (${ncmCheck.desc})`);
+     }
+   }
 
   // ─── ST Auto-detection v2: DB-backed + override + fallback ───
   // Buscar regras ST e overrides do banco para todos os NCMs únicos
