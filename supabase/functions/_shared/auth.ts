@@ -51,10 +51,14 @@ async function resolveUserIdFromToken(token: string, authHeader: string): Promis
     });
     const { data, error } = await (userClient.auth as any).getClaims(token);
     if (!error && data?.claims?.sub) {
+      console.log("[auth] getClaims OK, sub:", String(data.claims.sub).slice(0, 8));
       return String(data.claims.sub);
     }
+    if (error) {
+      console.warn("[auth] getClaims falhou:", error.message || JSON.stringify(error));
+    }
   } catch {
-    // fallback below
+    console.warn("[auth] getClaims exception, tentando getUser fallback");
   }
 
   try {
@@ -63,12 +67,17 @@ async function resolveUserIdFromToken(token: string, authHeader: string): Promis
     });
     const { data, error } = await adminClient.auth.getUser(token);
     if (!error && data?.user?.id) {
+      console.log("[auth] getUser OK, id:", String(data.user.id).slice(0, 8));
       return String(data.user.id);
     }
+    if (error) {
+      console.error("[auth] getUser também falhou:", error.message || JSON.stringify(error));
+    }
   } catch {
-    // ignore
+    console.error("[auth] getUser exception — token completamente inválido");
   }
 
+  console.error("[auth] Nenhum método conseguiu resolver o userId do token");
   return null;
 }
 

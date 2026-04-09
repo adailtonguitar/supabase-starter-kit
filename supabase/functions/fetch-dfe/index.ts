@@ -7,11 +7,20 @@ Deno.serve(async (req) => {
   }
 
   try {
+    console.log("[fetch-dfe] ── Nova requisição ──");
+    console.log("[fetch-dfe] Authorization presente:", !!req.headers.get("Authorization"));
+    console.log("[fetch-dfe] SUPABASE_URL:", Deno.env.get("SUPABASE_URL")?.slice(0, 40));
+
     const auth = await requireUser(req);
-    if (!auth.ok) return auth.response;
+    if (!auth.ok) {
+      console.error("[fetch-dfe] requireUser falhou — retornando 401");
+      return auth.response;
+    }
+    console.log("[fetch-dfe] Usuário autenticado:", auth.userId);
 
     const body = await req.json().catch(() => ({}));
     const { action, company_id, document_id } = body;
+    console.log("[fetch-dfe] action:", action, "company_id:", company_id);
 
     if (!company_id) throw new Error("company_id é obrigatório");
 
@@ -21,7 +30,11 @@ Deno.serve(async (req) => {
       userId: auth.userId,
       companyId: String(company_id),
     });
-    if (!membership.ok) return membership.response;
+    if (!membership.ok) {
+      console.error("[fetch-dfe] Membership check falhou para user:", auth.userId, "company:", company_id);
+      return membership.response;
+    }
+    console.log("[fetch-dfe] Membership OK");
 
     const supabaseAdmin = createServiceClient() as any;
 
