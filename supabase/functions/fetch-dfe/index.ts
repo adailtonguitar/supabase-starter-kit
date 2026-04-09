@@ -15,29 +15,72 @@ function parseJsonSafe(raw: string): Record<string, any> | null {
   }
 }
 
-function extractProviderErrorMessage(data: unknown, status: number, fallback: string): string {
-  if (typeof data === "string" && data.trim()) return data;
-  if (data && typeof data === "object") {
-    const payload = data as Record<string, any>;
-    const nestedError = payload.error;
-    if (nestedError && typeof nestedError === "object") {
-      const nestedMsg = nestedError.message || nestedError.mensagem || nestedError.detail;
-      if (typeof nestedMsg === "string" && nestedMsg.trim()) return nestedMsg;
-    }
-
-    if (Array.isArray(payload.errors) && payload.errors.length > 0) {
-      const joined = payload.errors
-        .map((entry: any) => typeof entry === "string" ? entry : entry?.message || entry?.mensagem || JSON.stringify(entry))
-        .join("; ");
-      if (joined) return joined;
-    }
-
-    for (const candidate of [payload.mensagem, payload.message, payload.error, payload.detail, payload.title]) {
-      if (typeof candidate === "string" && candidate.trim()) return candidate;
-    }
+function collectProviderMessages(value: unknown): string[] {
+  if (!value) return [];
+  if (typeof value === "string") {
+    const normalized = value.trim();
+    return normalized ? [normalized] : [];
   }
 
+  if (Array.isArray(value)) {
+    return value.flatMap((entry) => collectProviderMessages(entry));
+  }
+
+  if (typeof value === "object") {
+    const payload = value as Record<string, any>;
+    const direct = [payload.message, payload.mensagem, payload.detail, payload.title, payload.reason];
+    const nested = [payload.error, payload.errors, payload.violations, payload.details, payload.rejection_reason];
+    return [...direct, ...nested].flatMap((entry) => collectProviderMessages(entry));
+  }
+
+  return [];
+}
+
+function extractProviderErrorMessage(data: unknown, status: number, fallback: string): string {
+  const messages = [...new Set(collectProviderMessages(data))].filter(Boolean);
+  if (messages.length > 0) return messages.join("; ");
   return `${fallback} (status ${status})`;
+}
+
+async function readResponsePayload(response: Response): Promise<{ raw: string; parsed: Record<string, any> | null }> {
+  const raw = await response.text().catch(() => "");
+  return { raw, parsed: parseJsonSafe(raw) };
+}
+
+function onlyDigits(value: unknown): string {
+  return String(value ?? "").replace(/\D/g, "");
+}
+
+function pickFirstNonEmpty(...values: unknown[]): string {
+  for (const value of values) {
+    const normalized = String(value ?? "").trim();
+    if (normalized) return normalized;
+  }
+  return "";
+}
+
+function sanitizeSefazText(value: unknown, fallback: string): string {
+  const raw = typeof value === "string" ? value : "";
+  const normalized = raw.replace(/[\r\n\t]+/g, " ").replace(/\s+/g, " ").trim().replace(/[^\x21-\xFF ]/g, "");
+  return normalized || fallback;
+}
+
+async function resolveIbgeCodeFromCep(zip: string): Promise<string> {
+  const cepDigits = onlyDigits(zip);
+  if (cepDigits.length !== 8) return "";
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 3000);
+  try {
+    const response = await fetch(`https://viacep.com.br/ws/${cepDigits}/json/`, { signal: controller.signal });
+    if (!response.ok) return "";
+    const data = await response.json().catch(() => null);
+    return onlyDigits(data?.ibge);
+  } catch {
+    return "";
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 Deno.serve(async (req) => {
@@ -128,15 +171,6 @@ Deno.serve(async (req) => {
       has_a3_thumbprint: !!fiscalConfig?.a3_thumbprint,
       updated_at: fiscalConfig?.updated_at ?? null,
     });
-
-    const onlyDigits = (value: unknown) => String(value ?? "").replace(/\D/g, "");
-    const pickFirstNonEmpty = (...values: unknown[]) => {
-      for (const value of values) {
-        const normalized = String(value ?? "").trim();
-        if (normalized) return normalized;
-      }
-      return "";
-    };
 
     let company = await resolveCompanyFiscalRowWithParent(
       supabaseAdmin,
@@ -255,12 +289,12 @@ Deno.serve(async (req) => {
             password: certificate.password,
           }),
         });
-        const certText = await certRes.text().catch(() => "");
+        const { raw: certText, parsed: certData } = await readResponsePayload(certRes);
         console.log("[fetch-dfe] PUT certificado:", certRes.status, certText.slice(0, 200));
 
         if (!certRes.ok) {
           throw new Error(
-            extractProviderErrorMessage(parseJsonSafe(certText) ?? certText, certRes.status, "Falha ao sincronizar certificado na Nuvem Fiscal")
+            extractProviderErrorMessage(certData ?? certText, certRes.status, "Falha ao sincronizar certificado na Nuvem Fiscal")
           );
         }
       };
@@ -270,7 +304,7 @@ Deno.serve(async (req) => {
         const checkRes = await nuvemFiscalRequest(`${apiBase}/empresas/${cnpj}`, {
           method: "GET",
         });
-        const checkText = await checkRes.text().catch(() => "");
+        const { raw: checkText } = await readResponsePayload(checkRes);
         companyExists = checkRes.ok;
         console.log("[fetch-dfe] GET empresa:", checkRes.status, checkText.slice(0, 200));
       } catch (e) {
@@ -278,19 +312,36 @@ Deno.serve(async (req) => {
       }
 
       const certificate = await resolveStoredCertificate();
+      const companyEmail = pickFirstNonEmpty(company.email, company.owner_email, company.contact_email);
+      const companyPhone = onlyDigits(pickFirstNonEmpty(company.phone, company.mobile, company.whatsapp));
 
       if (!companyExists || certificate) {
+        let codigoMunicipio = onlyDigits(ibgeCode || company.ibge_code || company.city_code || company.address_ibge_code || company.codigo_municipio || "");
+        if ((!codigoMunicipio || codigoMunicipio.length < 7 || codigoMunicipio === "0000000") && companyZip) {
+          codigoMunicipio = await resolveIbgeCodeFromCep(companyZip);
+        }
+
+        if (!companyEmail) {
+          throw new Error("E-mail da empresa não configurado. Cadastre um e-mail na empresa antes de consultar DF-e.");
+        }
+
+        if (!codigoMunicipio || codigoMunicipio.length < 7 || codigoMunicipio === "0000000") {
+          throw new Error("Código IBGE do município não configurado. Preencha o código IBGE da empresa para consultar DF-e.");
+        }
+
         const empresaPayload: Record<string, any> = {
           cpf_cnpj: cnpj,
           inscricao_estadual: ie || undefined,
-          nome_razao_social: company.name || "EMPRESA",
-          nome_fantasia: company.trade_name || company.name || "EMPRESA",
+          nome_razao_social: sanitizeSefazText(company.name || company.trade_name, "EMITENTE"),
+          nome_fantasia: sanitizeSefazText(company.trade_name || company.name, "EMITENTE"),
+          fone: companyPhone || undefined,
+          email: String(companyEmail).trim(),
           endereco: {
-            logradouro: companyStreet || "Rua não informada",
+            logradouro: sanitizeSefazText(companyStreet || "Rua não informada", "Rua não informada"),
             numero: companyNumber,
-            bairro: companyNeighborhood,
-            codigo_municipio: ibgeCode || "",
-            cidade: companyCity || "Não informada",
+            bairro: sanitizeSefazText(companyNeighborhood || "Centro", "Centro"),
+            codigo_municipio: codigoMunicipio,
+            cidade: sanitizeSefazText(companyCity || "Não informada", "Não informada"),
             uf: companyState,
             cep: companyZip || "00000000",
             codigo_pais: "1058",
@@ -306,12 +357,12 @@ Deno.serve(async (req) => {
           method,
           body: JSON.stringify(empresaPayload),
         });
-        const createText = await createRes.text().catch(() => "");
+        const { raw: createText, parsed: createData } = await readResponsePayload(createRes);
         console.log(`[fetch-dfe] ${method} empresa:`, createRes.status, createText.slice(0, 200));
 
         if (!createRes.ok) {
           const providerMsg = extractProviderErrorMessage(
-            parseJsonSafe(createText) ?? createText,
+            createData ?? createText,
             createRes.status,
             "Falha ao cadastrar empresa na Nuvem Fiscal",
           );
@@ -406,13 +457,15 @@ Deno.serve(async (req) => {
         }),
       });
 
-      const data = await res.json();
+      const { raw, parsed } = await readResponsePayload(res);
+      const data = parsed ?? (raw ? { raw } : {});
       if (!res.ok) {
-        console.error("[fetch-dfe] distribute error:", res.status, JSON.stringify(data));
-        const apiMsg = data?.error?.message || data?.message || data?.title || "";
-        if (res.status === 400 || res.status === 422 || apiMsg.toLowerCase().includes("validation")) {
+        console.error("[fetch-dfe] distribute error:", res.status, raw || JSON.stringify(data));
+        const providerMsg = extractProviderErrorMessage(data, res.status, `Erro ${res.status} ao consultar SEFAZ`);
+        const usesOnlyA3 = !!fiscalConfig?.a3_thumbprint && !fiscalConfig?.certificate_path;
+        if (usesOnlyA3 && /certificado|certificate|validation|assinatura|a1|pfx/i.test(providerMsg.toLowerCase())) {
           throw new Error(
-            "Falha na validação da consulta SEFAZ. Verifique se o Certificado Digital A1 (.pfx) foi cadastrado corretamente em Configurações Fiscais e se a empresa está ativa na Nuvem Fiscal."
+            `A consulta DF-e exige Certificado Digital A1 (.pfx) sincronizado para o backend fiscal. A configuração atual parece usar apenas A3. Detalhe: ${providerMsg}`
           );
         }
         if (res.status === 404) {
@@ -420,7 +473,7 @@ Deno.serve(async (req) => {
             "Sua empresa ainda não está cadastrada no serviço fiscal. Acesse Configurações Fiscais, preencha os dados e faça upload do Certificado Digital."
           );
         }
-        throw new Error(apiMsg || `Erro ${res.status} ao consultar SEFAZ`);
+        throw new Error(providerMsg);
       }
 
       return new Response(JSON.stringify({ success: true, data }), {
