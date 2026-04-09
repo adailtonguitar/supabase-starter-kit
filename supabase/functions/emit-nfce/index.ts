@@ -70,6 +70,46 @@ function shouldGenerateAlert(result: FiscalRiskResult): { generate: boolean; sev
 }
 // ─── Fim Fiscal Risk Engine ───
 
+// ─── VALIDAÇÃO AUTOMÁTICA NCM por descrição (warning-only) ───
+const NCM_HINT_MAP: Record<string, { keywords: string[]; ncm: string; desc: string }[]> = {
+  "cerveja": [{ keywords: ["cerveja", "beer", "chopp"], ncm: "22030000", desc: "Cervejas de malte" }],
+  "refrigerante": [{ keywords: ["refrigerante", "refri", "soda", "guarana", "guaraná", "cola"], ncm: "22021000", desc: "Refrigerantes" }],
+  "agua_mineral": [{ keywords: ["agua mineral", "água mineral"], ncm: "22011000", desc: "Água mineral" }],
+  "cosmetico": [{ keywords: ["cosmetico", "cosmético", "creme", "shampoo", "condicionador", "hidratante"], ncm: "33049990", desc: "Cosméticos" }],
+  "cigarro": [{ keywords: ["cigarro", "tabaco", "fumo"], ncm: "24022000", desc: "Cigarros" }],
+  "combustivel": [{ keywords: ["gasolina", "diesel", "etanol", "combustivel", "combustível"], ncm: "27101259", desc: "Combustíveis" }],
+  "pneu": [{ keywords: ["pneu", "pneus"], ncm: "40111000", desc: "Pneus novos" }],
+  "cimento": [{ keywords: ["cimento"], ncm: "25232900", desc: "Cimento Portland" }],
+  "tinta": [{ keywords: ["tinta", "verniz", "esmalte"], ncm: "32091000", desc: "Tintas e vernizes" }],
+  "sorvete": [{ keywords: ["sorvete", "picolé", "picole"], ncm: "21050000", desc: "Sorvetes" }],
+  "chocolate": [{ keywords: ["chocolate", "bombom"], ncm: "18063100", desc: "Chocolates" }],
+  "cafe": [{ keywords: ["café", "cafe"], ncm: "09012100", desc: "Café torrado" }],
+  "acucar": [{ keywords: ["açúcar", "acucar", "açucar"], ncm: "17019900", desc: "Açúcar" }],
+  "farinha_trigo": [{ keywords: ["farinha de trigo", "farinha trigo"], ncm: "11010010", desc: "Farinha de trigo" }],
+  "arroz": [{ keywords: ["arroz"], ncm: "10063021", desc: "Arroz beneficiado" }],
+  "feijao": [{ keywords: ["feijão", "feijao"], ncm: "07133319", desc: "Feijão" }],
+  "oleo_soja": [{ keywords: ["óleo de soja", "oleo de soja", "óleo soja"], ncm: "15079011", desc: "Óleo de soja" }],
+  "leite": [{ keywords: ["leite uht", "leite longa vida", "leite integral"], ncm: "04012110", desc: "Leite UHT" }],
+};
+
+function validarNCMporDescricao(ncm: string, descricao: string): { sugestao: string; desc: string } | null {
+  if (!descricao) return null;
+  const descLower = descricao.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const ncmClean = (ncm || "").replace(/\D/g, "");
+  for (const cat of Object.values(NCM_HINT_MAP)) {
+    for (const entry of cat) {
+      const match = entry.keywords.some(kw => {
+        const kwNorm = kw.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        return descLower.includes(kwNorm);
+      });
+      if (match && ncmClean !== entry.ncm) {
+        return { sugestao: entry.ncm, desc: entry.desc };
+      }
+    }
+  }
+  return null;
+}
+
 // ─── Decisão automática de tipo ST (CSOSN 202/500/102) ───
 // MIGRAÇÃO: forçar CSOSN 102 para Simples Nacional sem cálculo real de ST
 function decidirTipoST(
