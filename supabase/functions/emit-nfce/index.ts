@@ -1996,6 +1996,16 @@ async function handleEmit(supabase: any, body: any) {
     if (!item.cest && stCfgForCest?.cest) {
       item.cest = stCfgForCest.cest;
     }
+    // Fallback CEST: buscar da tabela fiscal_st_rules via stDbRulesNfce quando ST ativo mas CEST ausente
+    if (!item.cest && stCfgForCest?.temST && ncm.length === 8) {
+      const dbRule = stDbRulesNfce[ncm];
+      if (dbRule?.cest) {
+        item.cest = dbRule.cest;
+        console.log(`[FISCAL-CEST-FALLBACK] NFC-e NCM ${ncm}: CEST ${dbRule.cest} obtido de fiscal_st_rules`);
+      } else {
+        console.warn(`[FISCAL-CEST-MISSING] NFC-e NCM ${ncm} com ST ativo mas sem CEST disponível`);
+      }
+    }
 
     const icmsBlock = buildIcmsBlock({ ...item, qty, unit_price: unitPrice, discount }, isSimples, 9);
 
@@ -2892,6 +2902,16 @@ async function handleEmitNfe(supabase: any, body: any) {
     // Propagar CEST do stCfg (resolve_st_from_db) se o item ainda não tiver
     if (!item.cest && stCfg.cest) {
       item.cest = stCfg.cest;
+    }
+    // Fallback CEST: buscar da tabela fiscal_st_rules via stDbRules quando ST ativo mas CEST ausente
+    if (!item.cest && stCfg.temST && ncm.length === 8) {
+      const dbRule = stDbRules[ncm];
+      if (dbRule?.cest) {
+        item.cest = dbRule.cest;
+        console.log(`[FISCAL-CEST-FALLBACK] NCM ${ncm}: CEST ${dbRule.cest} obtido de fiscal_st_rules`);
+      } else {
+        console.warn(`[FISCAL-CEST-MISSING] NCM ${ncm} com ST ativo mas sem CEST disponível — risco de Rejeição 806`);
+      }
     }
     // ─── Decisão automática ST (202/500/102) ───
     const tipoST = decidirTipoST(item, stCfg, preIndIEDest);
