@@ -65,6 +65,13 @@ function sanitizeSefazText(value: unknown, fallback: string): string {
   return normalized || fallback;
 }
 
+function parseExpectedDistNsu(message: string): number | null {
+  const match = message.match(/dist_nsu[^\d]*(\d+)/i);
+  if (!match) return null;
+  const parsed = Number(match[1]);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 async function resolveIbgeCodeFromCep(zip: string): Promise<string> {
   const cepDigits = onlyDigits(zip);
   if (cepDigits.length !== 8) return "";
@@ -436,32 +443,68 @@ Deno.serve(async (req) => {
       await ensureCompanyOnNuvemFiscal();
       await ensureDistNfeConfig();
 
-      const { data: lastDoc } = await supabaseAdmin
-        .from("notas_recebidas")
-        .select("nsu")
-        .eq("company_id", company_id)
-        .order("nsu", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+      const [{ data: syncControl }, { data: lastDoc }] = await Promise.all([
+        supabaseAdmin
+          .from("dfe_sync_control")
+          .select("ultimo_nsu")
+          .eq("company_id", company_id)
+          .maybeSingle(),
+        supabaseAdmin
+          .from("notas_recebidas")
+          .select("nsu")
+          .eq("company_id", company_id)
+          .order("nsu", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+      ]);
 
-      const normalizedLastNsu = Number(String(lastDoc?.nsu ?? 0).replace(/\D/g, "") || 0);
+      const normalizedSyncNsu = Number(String(syncControl?.ultimo_nsu ?? 0).replace(/\D/g, "") || 0);
+      const normalizedLastDocNsu = Number(String(lastDoc?.nsu ?? 0).replace(/\D/g, "") || 0);
+      let requestNsu = Math.max(normalizedSyncNsu, normalizedLastDocNsu, 0);
 
-      const res = await nuvemFiscalRequest(`${apiBase}/distribuicao/nfe`, {
-        method: "POST",
-        body: JSON.stringify({
-          cpf_cnpj: cnpj,
-          ambiente,
-          tipo_consulta: "dist-nsu",
-          dist_nsu: normalizedLastNsu,
-          ignorar_tempo_espera: true,
-        }),
-      });
+      const callDistribution = async (distNsu: number) => {
+        console.log("[fetch-dfe] Distribuição usando dist_nsu:", distNsu);
+        return nuvemFiscalRequest(`${apiBase}/distribuicao/nfe`, {
+          method: "POST",
+          body: JSON.stringify({
+            cpf_cnpj: cnpj,
+            ambiente,
+            tipo_consulta: "dist-nsu",
+            dist_nsu: distNsu,
+            ignorar_tempo_espera: true,
+          }),
+        });
+      };
 
-      const { raw, parsed } = await readResponsePayload(res);
-      const data = parsed ?? (raw ? { raw } : {});
+      let res = await callDistribution(requestNsu);
+
+      let { raw, parsed } = await readResponsePayload(res);
+      let data = parsed ?? (raw ? { raw } : {});
       if (!res.ok) {
         console.error("[fetch-dfe] distribute error:", res.status, raw || JSON.stringify(data));
-        const providerMsg = extractProviderErrorMessage(data, res.status, `Erro ${res.status} ao consultar SEFAZ`);
+        let providerMsg = extractProviderErrorMessage(data, res.status, `Erro ${res.status} ao consultar SEFAZ`);
+        const expectedDistNsu = parseExpectedDistNsu(providerMsg);
+
+        if ((res.status === 400 || res.status === 422) && expectedDistNsu !== null && expectedDistNsu !== requestNsu) {
+          console.warn("[fetch-dfe] Retentando distribuição com dist_nsu corrigido:", expectedDistNsu);
+          requestNsu = expectedDistNsu;
+          await supabaseAdmin.from("dfe_sync_control").upsert({
+            company_id,
+            ultimo_nsu: requestNsu,
+            ultima_consulta: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          }, { onConflict: "company_id" });
+
+          res = await callDistribution(requestNsu);
+          ({ raw, parsed } = await readResponsePayload(res));
+          data = parsed ?? (raw ? { raw } : {});
+          if (!res.ok) {
+            console.error("[fetch-dfe] distribute retry error:", res.status, raw || JSON.stringify(data));
+          }
+          providerMsg = extractProviderErrorMessage(data, res.status, `Erro ${res.status} ao consultar SEFAZ`);
+        }
+
+        if (!res.ok) {
         const usesOnlyA3 = !!fiscalConfig?.a3_thumbprint && !fiscalConfig?.certificate_path;
         if (usesOnlyA3 && /certificado|certificate|validation|assinatura|a1|pfx/i.test(providerMsg.toLowerCase())) {
           throw new Error(
@@ -474,7 +517,16 @@ Deno.serve(async (req) => {
           );
         }
         throw new Error(providerMsg);
+        }
       }
+
+      const responseNsu = Number(String((data as Record<string, any>)?.max_nsu ?? (data as Record<string, any>)?.ult_nsu ?? requestNsu).replace(/\D/g, "") || requestNsu || 0);
+      await supabaseAdmin.from("dfe_sync_control").upsert({
+        company_id,
+        ultimo_nsu: responseNsu,
+        ultima_consulta: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }, { onConflict: "company_id" });
 
       return new Response(JSON.stringify({ success: true, data }), {
         headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
