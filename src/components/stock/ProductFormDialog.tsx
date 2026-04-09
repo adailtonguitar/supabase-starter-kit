@@ -28,6 +28,7 @@ import { usePlanFeatures } from "@/hooks/usePlanFeatures";
 import { useAdminRole } from "@/hooks/useAdminRole";
 import { type TaxRegime } from "@/lib/cst-csosn-validator";
 import { getSuggestedFiscalUpdate, getProductFiscalStatus } from "@/lib/fiscal-product-suggestions";
+import { aprenderNCM, sugerirNCM } from "@/lib/ncm-learning";
 import { toast } from "sonner";
 
 interface NCMSuggestion {
@@ -441,11 +442,17 @@ export const ProductFormDialog = forwardRef<HTMLDivElement, Props>(function Prod
     }
 
     try {
-      // NCM validation by product description
+      // NCM validation by product description (blocking)
       const ncmHint = validarNCMporDescricao(data.ncm, data.name);
       if (ncmHint) {
         toast.error(`NCM possivelmente incorreto para "${data.name}". NCM sugerido: ${ncmHint.sugestao} (${ncmHint.desc}). Corrija antes de salvar.`);
         return;
+      }
+
+      // NCM Learning — sugestão não-bloqueante baseada no histórico de uso
+      const ncmAprendido = sugerirNCM(data.name);
+      if (ncmAprendido && data.ncm && data.ncm.replace(/\D/g, "") !== ncmAprendido.ncm) {
+        toast.warning(`Sugestão NCM (aprendizado): para "${data.name}", o NCM ${ncmAprendido.ncm} foi usado ${ncmAprendido.count}x. Verifique se ${data.ncm} está correto.`, { duration: 8000 });
       }
 
       const normalized = { ...(data as any) };
@@ -497,6 +504,11 @@ export const ProductFormDialog = forwardRef<HTMLDivElement, Props>(function Prod
           const { error: imageUpdateError } = await supabase.from("products").update({ image_url: imageUrl }).eq("id", productId);
           if (imageUpdateError) throw imageUpdateError;
         }
+      }
+
+      // NCM Learning — registra uso após salvar com sucesso
+      if (data.ncm && data.name) {
+        aprenderNCM(data.name, data.ncm);
       }
 
       toast.success(isEditing ? "Produto atualizado com sucesso" : "Produto cadastrado com sucesso");
