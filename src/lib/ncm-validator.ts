@@ -147,3 +147,60 @@ export function detectNcmDuplicates(
 
   return warnings;
 }
+
+/**
+ * NCM hint entries: keyword → expected NCM.
+ * Used to detect obvious mismatches between product description and NCM.
+ */
+const NCM_HINT_ENTRIES: Array<{ keywords: string[]; ncm: string; desc: string }> = [
+  { keywords: ["cerveja"], ncm: "22030000", desc: "Cerveja de malte" },
+  { keywords: ["refrigerante", "refri"], ncm: "22021000", desc: "Refrigerantes" },
+  { keywords: ["agua mineral", "água mineral"], ncm: "22011000", desc: "Água mineral" },
+  { keywords: ["suco", "néctar", "nectar"], ncm: "20098900", desc: "Sucos de frutas" },
+  { keywords: ["cosmetico", "cosmético", "maquiagem"], ncm: "33049990", desc: "Cosméticos" },
+  { keywords: ["shampoo", "xampu"], ncm: "33051000", desc: "Shampoo" },
+  { keywords: ["sabonete"], ncm: "34011190", desc: "Sabonetes" },
+  { keywords: ["cigarro", "cigarros"], ncm: "24022000", desc: "Cigarros" },
+  { keywords: ["gasolina"], ncm: "27101259", desc: "Gasolina" },
+  { keywords: ["etanol", "álcool combustível", "alcool combustivel"], ncm: "22071000", desc: "Etanol" },
+  { keywords: ["diesel", "óleo diesel", "oleo diesel"], ncm: "27101921", desc: "Diesel" },
+  { keywords: ["cimento"], ncm: "25232900", desc: "Cimento" },
+  { keywords: ["pneu", "pneus"], ncm: "40111000", desc: "Pneus" },
+  { keywords: ["tinta", "tintas", "verniz"], ncm: "32091000", desc: "Tintas e vernizes" },
+  { keywords: ["chocolate"], ncm: "18063100", desc: "Chocolate" },
+  { keywords: ["cafe", "café"], ncm: "09012100", desc: "Café torrado" },
+  { keywords: ["arroz"], ncm: "10063021", desc: "Arroz" },
+  { keywords: ["feijao", "feijão"], ncm: "07133319", desc: "Feijão" },
+  { keywords: ["açúcar", "acucar", "açucar"], ncm: "17019900", desc: "Açúcar" },
+  { keywords: ["farinha de trigo"], ncm: "11010010", desc: "Farinha de trigo" },
+  { keywords: ["oleo de soja", "óleo de soja"], ncm: "15079011", desc: "Óleo de soja" },
+  { keywords: ["leite"], ncm: "04012010", desc: "Leite" },
+];
+
+/**
+ * Validate NCM against product description using keyword hints.
+ * Returns the suggested NCM + description if a mismatch is detected, or null if OK.
+ */
+export function validarNCMporDescricao(
+  ncm: string | undefined | null,
+  descricao: string
+): { sugestao: string; desc: string } | null {
+  if (!ncm || !descricao) return null;
+  const cleaned = ncm.replace(/\D/g, "");
+  const descLower = descricao
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+
+  for (const entry of NCM_HINT_ENTRIES) {
+    const match = entry.keywords.some((kw) =>
+      descLower.includes(
+        kw.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      )
+    );
+    if (match && cleaned !== entry.ncm) {
+      return { sugestao: entry.ncm, desc: entry.desc };
+    }
+  }
+  return null;
+}

@@ -19,7 +19,7 @@ import { recordPriceChange } from "@/lib/price-history";
 import { Check, Search, Upload, X, Package, AlertTriangle, ShieldAlert, Info, Camera, Sparkles, Loader2, ScanBarcode } from "lucide-react";
 import { BarcodeCameraScanner } from "./BarcodeCameraScanner";
 import { NCM_TABLE } from "@/lib/ncm-table";
-import { validateNcm, detectNcmDuplicates, getNcmDescription, isValidNcmFormat, type NcmIssue } from "@/lib/ncm-validator";
+import { validateNcm, detectNcmDuplicates, getNcmDescription, isValidNcmFormat, validarNCMporDescricao, type NcmIssue } from "@/lib/ncm-validator";
 import { lookupNcmBackend } from "@/lib/ncm-backend";
 import { isTypicalStNcm } from "@/lib/icms-st-engine";
 import { useProducts } from "@/hooks/useProducts";
@@ -441,6 +441,13 @@ export const ProductFormDialog = forwardRef<HTMLDivElement, Props>(function Prod
     }
 
     try {
+      // NCM validation by product description
+      const ncmHint = validarNCMporDescricao(data.ncm, data.name);
+      if (ncmHint) {
+        toast.error(`NCM possivelmente incorreto para "${data.name}". NCM sugerido: ${ncmHint.sugestao} (${ncmHint.desc}). Corrija antes de salvar.`);
+        return;
+      }
+
       const normalized = { ...(data as any) };
       if (isSimples && isCrtMeiOrSn && String(normalized.csosn || "").trim() === "101") {
         toast.error("Para MEI/Simples use CSOSN 102 neste fluxo de NFC-e.");
