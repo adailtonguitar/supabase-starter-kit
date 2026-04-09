@@ -1774,7 +1774,6 @@ async function handleEmit(supabase: any, body: any) {
         console.log(`[emit-nfce] ST detectado (${stCfg.source}) NCM=${vNcm} mas MIGRADO para CSOSN 102 (sem cálculo real de ST)`);
         stLog.aplicou_st = false;
         stLog.motivo = `ST detectado via ${stCfg.source} mas migrado para CSOSN 102 (sem cálculo real)`;
-      }
       } else {
         stLog.motivo = stCfg.source === "override_negado"
           ? "ST desativada por override manual"
