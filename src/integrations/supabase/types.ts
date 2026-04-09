@@ -14,6 +14,254 @@ export type Database = {
   }
   public: {
     Tables: {
+      companies: {
+        Row: {
+          address: string | null
+          address_city: string | null
+          address_ibge_code: string | null
+          address_neighborhood: string | null
+          address_number: string | null
+          address_state: string | null
+          address_street: string | null
+          address_zip: string | null
+          cep: string | null
+          city: string | null
+          city_code: string | null
+          cnpj: string | null
+          complement: string | null
+          created_at: string
+          crt: number | null
+          email: string | null
+          ibge_code: string | null
+          id: string
+          ie: string | null
+          is_active: boolean
+          is_demo: boolean
+          name: string
+          neighborhood: string | null
+          number: string | null
+          parent_company_id: string | null
+          phone: string | null
+          state: string | null
+          state_registration: string | null
+          street: string | null
+          trade_name: string | null
+          updated_at: string
+          zip_code: string | null
+        }
+        Insert: {
+          address?: string | null
+          address_city?: string | null
+          address_ibge_code?: string | null
+          address_neighborhood?: string | null
+          address_number?: string | null
+          address_state?: string | null
+          address_street?: string | null
+          address_zip?: string | null
+          cep?: string | null
+          city?: string | null
+          city_code?: string | null
+          cnpj?: string | null
+          complement?: string | null
+          created_at?: string
+          crt?: number | null
+          email?: string | null
+          ibge_code?: string | null
+          id?: string
+          ie?: string | null
+          is_active?: boolean
+          is_demo?: boolean
+          name?: string
+          neighborhood?: string | null
+          number?: string | null
+          parent_company_id?: string | null
+          phone?: string | null
+          state?: string | null
+          state_registration?: string | null
+          street?: string | null
+          trade_name?: string | null
+          updated_at?: string
+          zip_code?: string | null
+        }
+        Update: {
+          address?: string | null
+          address_city?: string | null
+          address_ibge_code?: string | null
+          address_neighborhood?: string | null
+          address_number?: string | null
+          address_state?: string | null
+          address_street?: string | null
+          address_zip?: string | null
+          cep?: string | null
+          city?: string | null
+          city_code?: string | null
+          cnpj?: string | null
+          complement?: string | null
+          created_at?: string
+          crt?: number | null
+          email?: string | null
+          ibge_code?: string | null
+          id?: string
+          ie?: string | null
+          is_active?: boolean
+          is_demo?: boolean
+          name?: string
+          neighborhood?: string | null
+          number?: string | null
+          parent_company_id?: string | null
+          phone?: string | null
+          state?: string | null
+          state_registration?: string | null
+          street?: string | null
+          trade_name?: string | null
+          updated_at?: string
+          zip_code?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "companies_parent_company_id_fkey"
+            columns: ["parent_company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      company_users: {
+        Row: {
+          company_id: string
+          created_at: string
+          id: string
+          is_active: boolean
+          role: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          role?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          role?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_users_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dfe_sync_control: {
+        Row: {
+          company_id: string
+          id: string
+          ultima_consulta: string | null
+          ultimo_nsu: number | null
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          id?: string
+          ultima_consulta?: string | null
+          ultimo_nsu?: number | null
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          id?: string
+          ultima_consulta?: string | null
+          ultimo_nsu?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dfe_sync_control_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fiscal_configs: {
+        Row: {
+          a3_thumbprint: string | null
+          ambiente: string | null
+          certificate_password_hash: string | null
+          certificate_path: string | null
+          company_id: string
+          created_at: string
+          csc_id: string | null
+          csc_token: string | null
+          doc_type: string
+          environment: string
+          id: string
+          ie: string | null
+          is_active: boolean
+          next_number: number
+          serie: number
+          updated_at: string
+        }
+        Insert: {
+          a3_thumbprint?: string | null
+          ambiente?: string | null
+          certificate_password_hash?: string | null
+          certificate_path?: string | null
+          company_id: string
+          created_at?: string
+          csc_id?: string | null
+          csc_token?: string | null
+          doc_type?: string
+          environment?: string
+          id?: string
+          ie?: string | null
+          is_active?: boolean
+          next_number?: number
+          serie?: number
+          updated_at?: string
+        }
+        Update: {
+          a3_thumbprint?: string | null
+          ambiente?: string | null
+          certificate_password_hash?: string | null
+          certificate_path?: string | null
+          company_id?: string
+          created_at?: string
+          csc_id?: string | null
+          csc_token?: string | null
+          doc_type?: string
+          environment?: string
+          id?: string
+          ie?: string | null
+          is_active?: boolean
+          next_number?: number
+          serie?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fiscal_configs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fiscal_override_rules: {
         Row: {
           aliquota_forcada: number | null
@@ -330,6 +578,115 @@ export type Database = {
           xml_autorizado?: string | null
           xml_enviado?: string | null
         }
+        Relationships: [
+          {
+            foreignKeyName: "nfe_documents_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notas_recebidas: {
+        Row: {
+          chave_nfe: string
+          cnpj_emitente: string | null
+          company_id: string
+          created_at: string
+          data_emissao: string | null
+          id: string
+          importado: boolean | null
+          importado_em: string | null
+          nome_emitente: string | null
+          nsu: number | null
+          numero_nfe: number | null
+          nuvem_fiscal_id: string | null
+          schema_tipo: string | null
+          serie: number | null
+          situacao: string | null
+          status_manifestacao: string | null
+          updated_at: string
+          valor_total: number | null
+          xml_completo: string | null
+        }
+        Insert: {
+          chave_nfe: string
+          cnpj_emitente?: string | null
+          company_id: string
+          created_at?: string
+          data_emissao?: string | null
+          id?: string
+          importado?: boolean | null
+          importado_em?: string | null
+          nome_emitente?: string | null
+          nsu?: number | null
+          numero_nfe?: number | null
+          nuvem_fiscal_id?: string | null
+          schema_tipo?: string | null
+          serie?: number | null
+          situacao?: string | null
+          status_manifestacao?: string | null
+          updated_at?: string
+          valor_total?: number | null
+          xml_completo?: string | null
+        }
+        Update: {
+          chave_nfe?: string
+          cnpj_emitente?: string | null
+          company_id?: string
+          created_at?: string
+          data_emissao?: string | null
+          id?: string
+          importado?: boolean | null
+          importado_em?: string | null
+          nome_emitente?: string | null
+          nsu?: number | null
+          numero_nfe?: number | null
+          nuvem_fiscal_id?: string | null
+          schema_tipo?: string | null
+          serie?: number | null
+          situacao?: string | null
+          status_manifestacao?: string | null
+          updated_at?: string
+          valor_total?: number | null
+          xml_completo?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notas_recebidas_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          full_name: string | null
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          full_name?: string | null
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          full_name?: string | null
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
         Relationships: []
       }
     }
@@ -337,6 +694,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_my_company_memberships: { Args: never; Returns: Json }
       get_st_override: {
         Args: { p_company_id: string; p_ncm: string; p_uf: string }
         Returns: Json
