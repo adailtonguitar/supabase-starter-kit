@@ -32,6 +32,7 @@ import { AdminBackup } from "@/components/admin/AdminBackup";
 import { AdminPaymentLogs } from "@/components/admin/AdminPaymentLogs";
 import { AdminAuditoria } from "@/components/admin/AdminAuditoria";
 import { AdminSmokeRunner } from "@/components/admin/AdminSmokeRunner";
+import { AdminNcmLearning } from "@/components/admin/AdminNcmLearning";
 import { lazy, Suspense } from "react";
 import { adminQuery } from "@/lib/admin-query";
 
@@ -115,6 +116,7 @@ export default function Admin() {
           <TabsTrigger value="backup" className="text-xs sm:text-sm"><Database className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" /> Backup</TabsTrigger>
           <TabsTrigger value="payment-logs" className="text-xs sm:text-sm"><Receipt className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" /> Pagamentos</TabsTrigger>
           <TabsTrigger value="auditoria" className="text-xs sm:text-sm"><Bot className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" /> Auditoria</TabsTrigger>
+          <TabsTrigger value="ncm-ia" className="text-xs sm:text-sm"><Brain className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" /> NCM IA</TabsTrigger>
         </TabsList>
 
         <TabsContent value="dashboard">
@@ -179,6 +181,9 @@ export default function Admin() {
         </TabsContent>
         <TabsContent value="auditoria">
           <AdminAuditoria />
+        </TabsContent>
+        <TabsContent value="ncm-ia">
+          <AdminNcmLearning />
         </TabsContent>
       </Tabs>
     </div>
