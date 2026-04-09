@@ -1,30 +1,11 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { nuvemFiscalRequest } from "../_shared/nuvem-fiscal-auth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type",
 };
-
-async function getNuvemFiscalToken(): Promise<string> {
-  const clientId = Deno.env.get("NUVEM_FISCAL_CLIENT_ID");
-  const clientSecret = Deno.env.get("NUVEM_FISCAL_CLIENT_SECRET");
-  if (!clientId || !clientSecret) throw new Error("Credenciais Nuvem Fiscal não configuradas");
-
-  const res = await fetch("https://auth.nuvemfiscal.com.br/oauth/token", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      grant_type: "client_credentials",
-      client_id: clientId,
-      client_secret: clientSecret,
-      scope: "empresa cep cnpj nfe nfce distribuicao-nfe",
-    }),
-  });
-  const json = await res.json();
-  if (!json.access_token) throw new Error("Falha ao obter token Nuvem Fiscal");
-  return json.access_token;
-}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -39,7 +20,6 @@ Deno.serve(async (req) => {
   const results: { company: string; new_docs: number; errors: string[] }[] = [];
 
   try {
-    // Get all companies with CNPJ (excluding demo)
     const { data: companies } = await supabaseAdmin
       .from("companies")
       .select("id, cnpj, name")
@@ -51,12 +31,6 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-
-    const nfToken = await getNuvemFiscalToken();
-    const nfHeaders = {
-      Authorization: `Bearer ${nfToken}`,
-      "Content-Type": "application/json",
-    };
 
     for (const company of companies) {
       const cnpj = (company.cnpj || "").replace(/\D/g, "");
@@ -76,9 +50,8 @@ Deno.serve(async (req) => {
 
         const normalizedLastNsu = Number(String(lastDoc?.nsu ?? 0).replace(/\D/g, "") || 0);
 
-        await fetch("https://api.nuvemfiscal.com.br/distribuicao/nfe", {
+        await nuvemFiscalRequest("https://api.nuvemfiscal.com.br/distribuicao/nfe", {
           method: "POST",
-          headers: nfHeaders,
           body: JSON.stringify({
             cpf_cnpj: cnpj,
             ambiente: "producao",
@@ -98,7 +71,7 @@ Deno.serve(async (req) => {
         url.searchParams.set("$skip", "0");
         url.searchParams.set("$inlinecount", "true");
 
-        const listRes = await fetch(url.toString(), { method: "GET", headers: nfHeaders });
+        const listRes = await nuvemFiscalRequest(url.toString(), { method: "GET" });
         if (!listRes.ok) {
           companyResult.errors.push(`Erro ao listar: ${listRes.status}`);
           results.push(companyResult);
@@ -112,7 +85,6 @@ Deno.serve(async (req) => {
           const chave = d.chave || d.chNFe;
           if (!chave) continue;
 
-          // Check if already exists
           const { data: existing } = await supabaseAdmin
             .from("notas_recebidas")
             .select("id, status_manifestacao")
@@ -121,7 +93,6 @@ Deno.serve(async (req) => {
             .maybeSingle();
 
           if (!existing) {
-            // New document — insert and manifest
             const { error: insertErr } = await supabaseAdmin.from("notas_recebidas").insert({
               company_id: company.id,
               chave_nfe: chave,
@@ -143,11 +114,10 @@ Deno.serve(async (req) => {
               // Auto-manifest (ciência da operação)
               if (d.id) {
                 try {
-                  const mRes = await fetch(
+                  const mRes = await nuvemFiscalRequest(
                     `https://api.nuvemfiscal.com.br/distribuicao/nfe/documentos/${d.id}/manifestacao`,
                     {
                       method: "POST",
-                      headers: nfHeaders,
                       body: JSON.stringify({ tipo_evento: "ciencia" }),
                     }
                   );
@@ -168,7 +138,6 @@ Deno.serve(async (req) => {
 
         // 3. Create notification if new docs found
         if (companyResult.new_docs > 0) {
-          // Get a user from this company for notification
           const { data: companyUsers } = await supabaseAdmin
             .from("company_users")
             .select("user_id")

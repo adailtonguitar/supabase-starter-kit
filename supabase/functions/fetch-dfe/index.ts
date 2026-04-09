@@ -1,24 +1,5 @@
 import { createServiceClient, getCorsHeaders, jsonResponse, requireCompanyMembership, requireUser } from "../_shared/auth.ts";
-
-async function getNuvemFiscalToken(): Promise<string> {
-  const clientId = Deno.env.get("NUVEM_FISCAL_CLIENT_ID");
-  const clientSecret = Deno.env.get("NUVEM_FISCAL_CLIENT_SECRET");
-  if (!clientId || !clientSecret) throw new Error("Credenciais Nuvem Fiscal não configuradas");
-
-  const res = await fetch("https://auth.nuvemfiscal.com.br/oauth/token", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      grant_type: "client_credentials",
-      client_id: clientId,
-      client_secret: clientSecret,
-      scope: "empresa cep cnpj nfe nfce distribuicao-nfe",
-    }),
-  });
-  const json = await res.json();
-  if (!json.access_token) throw new Error("Falha ao obter token Nuvem Fiscal");
-  return json.access_token;
-}
+import { nuvemFiscalRequest } from "../_shared/nuvem-fiscal-auth.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -69,11 +50,6 @@ Deno.serve(async (req) => {
 
     const cnpj = company.cnpj.replace(/\D/g, "");
     const fiscalConfig = fiscalConfigResult.data as Record<string, any> | null;
-    const nfToken = await getNuvemFiscalToken();
-    const nfHeaders = {
-      Authorization: `Bearer ${nfToken}`,
-      "Content-Type": "application/json",
-    };
 
     const isSandbox = Deno.env.get("NUVEM_FISCAL_SANDBOX") === "true";
     const apiBase = isSandbox
@@ -84,9 +60,8 @@ Deno.serve(async (req) => {
     // ─── Ensure company + certificate registered on Nuvem Fiscal ───
     async function ensureCompanyOnNuvemFiscal() {
       try {
-        const checkRes = await fetch(`${apiBase}/empresas/${cnpj}`, {
+        const checkRes = await nuvemFiscalRequest(`${apiBase}/empresas/${cnpj}`, {
           method: "GET",
-          headers: nfHeaders,
         });
 
         if (checkRes.ok) {
@@ -171,9 +146,8 @@ Deno.serve(async (req) => {
       }
 
       console.log("[fetch-dfe] Cadastrando empresa na Nuvem Fiscal...");
-      const createRes = await fetch(`${apiBase}/empresas`, {
+      const createRes = await nuvemFiscalRequest(`${apiBase}/empresas`, {
         method: "PUT",
-        headers: nfHeaders,
         body: JSON.stringify(empresaPayload),
       });
       const createText = await createRes.text();
@@ -187,9 +161,8 @@ Deno.serve(async (req) => {
     // ─── Auto-configure DistNFe if needed ───
     async function ensureDistNfeConfig() {
       try {
-        const checkRes = await fetch(`${apiBase}/empresas/${cnpj}/distnfe`, {
+        const checkRes = await nuvemFiscalRequest(`${apiBase}/empresas/${cnpj}/distnfe`, {
           method: "GET",
-          headers: nfHeaders,
         });
         if (checkRes.ok) {
           console.log("DistNFe already configured for", cnpj);
@@ -216,9 +189,8 @@ Deno.serve(async (req) => {
 
       for (const configBody of payloads) {
         console.log("Trying PUT distnfe with body:", JSON.stringify(configBody));
-        const configRes = await fetch(`${apiBase}/empresas/${cnpj}/distnfe`, {
+        const configRes = await nuvemFiscalRequest(`${apiBase}/empresas/${cnpj}/distnfe`, {
           method: "PUT",
-          headers: nfHeaders,
           body: JSON.stringify(configBody),
         });
         const configText = await configRes.text();
@@ -231,7 +203,7 @@ Deno.serve(async (req) => {
         lastError = configText;
       }
 
-      // Non-blocking: log but don't throw - the API might work without explicit config
+      // Non-blocking: log but don't throw
       console.warn("DistNFe config failed, proceeding anyway. Last error:", lastError);
     }
 
@@ -240,7 +212,6 @@ Deno.serve(async (req) => {
       await ensureCompanyOnNuvemFiscal();
       await ensureDistNfeConfig();
 
-      // Get last NSU from DB using integer format expected by Nuvem Fiscal
       const { data: lastDoc } = await supabaseAdmin
         .from("notas_recebidas")
         .select("nsu")
@@ -251,9 +222,8 @@ Deno.serve(async (req) => {
 
       const normalizedLastNsu = Number(String(lastDoc?.nsu ?? 0).replace(/\D/g, "") || 0);
 
-      const res = await fetch(`${apiBase}/distribuicao/nfe`, {
+      const res = await nuvemFiscalRequest(`${apiBase}/distribuicao/nfe`, {
         method: "POST",
-        headers: nfHeaders,
         body: JSON.stringify({
           cpf_cnpj: cnpj,
           ambiente,
@@ -287,7 +257,6 @@ Deno.serve(async (req) => {
 
     // ─── ACTION: list ───
     if (action === "list") {
-      // First try to return from local DB
       const { data: localDocs } = await supabaseAdmin
         .from("notas_recebidas")
         .select("*")
@@ -334,7 +303,7 @@ Deno.serve(async (req) => {
       url.searchParams.set("$skip", "0");
       url.searchParams.set("$inlinecount", "true");
 
-      const res = await fetch(url.toString(), { method: "GET", headers: nfHeaders });
+      const res = await nuvemFiscalRequest(url.toString(), { method: "GET" });
       const data = await res.json();
       if (!res.ok) {
         throw new Error(data?.error?.message || JSON.stringify(data) || `Erro ${res.status}`);
@@ -380,11 +349,10 @@ Deno.serve(async (req) => {
       };
       const evento = eventoMap[tipoEvento] || "ciencia";
 
-      const res = await fetch(
+      const res = await nuvemFiscalRequest(
         `${apiBase}/distribuicao/nfe/documentos/${document_id}/manifestacao`,
         {
           method: "POST",
-          headers: nfHeaders,
           body: JSON.stringify({
             tipo_evento: evento,
             justificativa: body.justificativa || undefined,
@@ -415,9 +383,9 @@ Deno.serve(async (req) => {
     if (action === "detail") {
       if (!document_id) throw new Error("document_id é obrigatório");
 
-      const res = await fetch(
+      const res = await nuvemFiscalRequest(
         `${apiBase}/distribuicao/nfe/documentos/${document_id}/xml`,
-        { method: "GET", headers: { ...nfHeaders, Accept: "application/xml" } }
+        { method: "GET", headers: { Accept: "application/xml" } }
       );
 
       if (!res.ok) {
@@ -427,7 +395,6 @@ Deno.serve(async (req) => {
 
       const xml = await res.text();
 
-      // Save XML to local record and mark as completo
       await supabaseAdmin.from("notas_recebidas").update({
         xml_completo: xml,
         situacao: "completo",
@@ -453,7 +420,6 @@ Deno.serve(async (req) => {
         "O Certificado Digital da empresa está inválido ou expirado. Acesse Configurações Fiscais e faça upload de um certificado A1 (.pfx) válido.";
     }
 
-    // 200 + success:false: o cliente já trata; evita POST vermelho no DevTools para falhas esperadas
     return jsonResponse({ success: false, error: userMessage }, 200);
   }
 });
