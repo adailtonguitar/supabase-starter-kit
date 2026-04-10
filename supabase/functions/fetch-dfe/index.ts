@@ -574,17 +574,26 @@ Deno.serve(async (req) => {
         updated_at: new Date().toISOString(),
       }, { onConflict: "company_id" });
 
-      await new Promise((resolve) => setTimeout(resolve, 3000));
+      // Wait for SEFAZ to process the distribution, then list documents with retry
+      await new Promise((resolve) => setTimeout(resolve, 4000));
 
-      const listedData = await listDistributedDocuments();
-      const distDocs: any[] = Array.isArray(listedData?.data) ? listedData.data : [];
+      let listedData = await listDistributedDocuments();
+      let distDocs: any[] = Array.isArray(listedData?.data) ? listedData.data : [];
       let persisted = 0;
+
+      // Retry once if first listing returns empty (SEFAZ may need more time)
+      if (distDocs.length === 0) {
+        console.log("[fetch-dfe] Primeira listagem retornou 0 documentos, aguardando retry...");
+        await new Promise((resolve) => setTimeout(resolve, 5000));
+        listedData = await listDistributedDocuments();
+        distDocs = Array.isArray(listedData?.data) ? listedData.data : [];
+      }
 
       if (distDocs.length > 0) {
         console.log(`[fetch-dfe] Persistindo ${distDocs.length} documentos após distribuição`);
         persisted = await persistDocsToLocalDb(distDocs);
       } else {
-        console.log("[fetch-dfe] Distribuição concluída, mas a listagem retornou 0 documentos");
+        console.log("[fetch-dfe] Distribuição concluída, mas nenhum documento encontrado após retry. CNPJ:", cnpj, "Ambiente:", ambiente);
       }
 
       return new Response(JSON.stringify({ success: true, data: listedData, persisted }), {
