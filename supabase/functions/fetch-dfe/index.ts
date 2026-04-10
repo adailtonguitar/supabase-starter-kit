@@ -528,7 +528,34 @@ Deno.serve(async (req) => {
         updated_at: new Date().toISOString(),
       }, { onConflict: "company_id" });
 
-      return new Response(JSON.stringify({ success: true, data }), {
+      // ─── Persist returned documents to notas_recebidas ───
+      const distDocs: any[] = (data as any)?.documentos || (data as any)?.data || [];
+      if (Array.isArray(distDocs) && distDocs.length > 0) {
+        console.log(`[fetch-dfe] Persistindo ${distDocs.length} documentos da distribuição`);
+        for (const d of distDocs) {
+          const chave = d.chave || d.chNFe || d.chave_nfe || "";
+          if (!chave) continue;
+          await supabaseAdmin.from("notas_recebidas").upsert({
+            company_id,
+            chave_nfe: chave,
+            nsu: d.nsu || d.nsu_especifico || 0,
+            cnpj_emitente: d.cnpj_emitente || d.emit?.CNPJ || "",
+            nome_emitente: d.nome_emitente || d.emit?.xNome || "",
+            data_emissao: d.data_emissao || d.dh_emissao || d.dhEmi || null,
+            valor_total: d.valor_total || d.vNF || 0,
+            numero_nfe: d.numero || d.nNF || 0,
+            serie: d.serie || 0,
+            schema_tipo: d.schema || d.tipo_documento || d.tipo_schema || "NF-e",
+            situacao: d.situacao || "resumo",
+            nuvem_fiscal_id: d.id || null,
+            updated_at: new Date().toISOString(),
+          }, { onConflict: "company_id,chave_nfe" });
+        }
+      } else {
+        console.log("[fetch-dfe] Distribuição retornou 0 documentos novos");
+      }
+
+      return new Response(JSON.stringify({ success: true, data, persisted: distDocs.length }), {
         headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
       });
     }
