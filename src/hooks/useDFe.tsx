@@ -93,10 +93,8 @@ export function useDFe() {
       });
       if (error) throw new Error(error.message || "Erro na distribuição");
       if (!data?.success) throw new Error(data?.error || "Erro na distribuição");
-      toast.success("Consulta SEFAZ realizada! Atualizando lista...");
-      setTimeout(() => {
-        documentsQuery.refetch();
-      }, 5000);
+      await documentsQuery.refetch();
+      toast.success("Consulta SEFAZ realizada! Lista atualizada.");
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
       toast.error(msg || "Erro ao solicitar distribuição");
