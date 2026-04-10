@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.fetch-dfe]
 verify_jwt = false
+
+[functions.diagnose-dfe]
+verify_jwt = false
