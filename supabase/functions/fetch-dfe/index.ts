@@ -438,6 +438,52 @@ Deno.serve(async (req) => {
       console.warn("DistNFe config failed, proceeding anyway. Last error:", lastError);
     }
 
+    const listDistributedDocuments = async () => {
+      const url = new URL(`${apiBase}/distribuicao/nfe/documentos`);
+      url.searchParams.set("cpf_cnpj", cnpj);
+      url.searchParams.set("ambiente", ambiente);
+      url.searchParams.set("$top", "50");
+      url.searchParams.set("$skip", "0");
+      url.searchParams.set("$inlinecount", "true");
+
+      const listRes = await nuvemFiscalRequest(url.toString(), { method: "GET" });
+      const listData = await listRes.json();
+      if (!listRes.ok) {
+        throw new Error(listData?.error?.message || JSON.stringify(listData) || `Erro ${listRes.status}`);
+      }
+
+      return listData;
+    };
+
+    const persistDocsToLocalDb = async (docs: any[]) => {
+      let persistedCount = 0;
+
+      for (const d of docs) {
+        const chave = d.chave || d.chNFe || d.chave_nfe || "";
+        if (!chave) continue;
+
+        const { error: upsertErr } = await supabaseAdmin.from("notas_recebidas").upsert({
+          company_id,
+          chave_nfe: chave,
+          nsu: d.nsu || d.nsu_especifico || 0,
+          cnpj_emitente: d.cnpj_emitente || d.emit?.CNPJ || "",
+          nome_emitente: d.nome_emitente || d.emit?.xNome || "",
+          data_emissao: d.data_emissao || d.dh_emissao || d.dhEmi || null,
+          valor_total: d.valor_total || d.vNF || 0,
+          numero_nfe: d.numero || d.nNF || 0,
+          serie: d.serie || 0,
+          schema_tipo: d.schema || d.tipo_documento || d.tipo_schema || "NF-e",
+          situacao: d.situacao || "resumo",
+          nuvem_fiscal_id: d.id || null,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: "company_id,chave_nfe" });
+
+        if (!upsertErr) persistedCount += 1;
+      }
+
+      return persistedCount;
+    };
+
     // ─── ACTION: distribute ───
     if (action === "distribute") {
       await ensureCompanyOnNuvemFiscal();
@@ -528,34 +574,20 @@ Deno.serve(async (req) => {
         updated_at: new Date().toISOString(),
       }, { onConflict: "company_id" });
 
-      // ─── Persist returned documents to notas_recebidas ───
-      const distDocs: any[] = (data as any)?.documentos || (data as any)?.data || [];
-      if (Array.isArray(distDocs) && distDocs.length > 0) {
-        console.log(`[fetch-dfe] Persistindo ${distDocs.length} documentos da distribuição`);
-        for (const d of distDocs) {
-          const chave = d.chave || d.chNFe || d.chave_nfe || "";
-          if (!chave) continue;
-          await supabaseAdmin.from("notas_recebidas").upsert({
-            company_id,
-            chave_nfe: chave,
-            nsu: d.nsu || d.nsu_especifico || 0,
-            cnpj_emitente: d.cnpj_emitente || d.emit?.CNPJ || "",
-            nome_emitente: d.nome_emitente || d.emit?.xNome || "",
-            data_emissao: d.data_emissao || d.dh_emissao || d.dhEmi || null,
-            valor_total: d.valor_total || d.vNF || 0,
-            numero_nfe: d.numero || d.nNF || 0,
-            serie: d.serie || 0,
-            schema_tipo: d.schema || d.tipo_documento || d.tipo_schema || "NF-e",
-            situacao: d.situacao || "resumo",
-            nuvem_fiscal_id: d.id || null,
-            updated_at: new Date().toISOString(),
-          }, { onConflict: "company_id,chave_nfe" });
-        }
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+
+      const listedData = await listDistributedDocuments();
+      const distDocs: any[] = Array.isArray(listedData?.data) ? listedData.data : [];
+      let persisted = 0;
+
+      if (distDocs.length > 0) {
+        console.log(`[fetch-dfe] Persistindo ${distDocs.length} documentos após distribuição`);
+        persisted = await persistDocsToLocalDb(distDocs);
       } else {
-        console.log("[fetch-dfe] Distribuição retornou 0 documentos novos");
+        console.log("[fetch-dfe] Distribuição concluída, mas a listagem retornou 0 documentos");
       }
 
-      return new Response(JSON.stringify({ success: true, data, persisted: distDocs.length }), {
+      return new Response(JSON.stringify({ success: true, data: listedData, persisted }), {
         headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
       });
     }
@@ -601,40 +633,9 @@ Deno.serve(async (req) => {
       // Fallback: fetch from Nuvem Fiscal API
       await ensureCompanyOnNuvemFiscal();
       await ensureDistNfeConfig();
-      const url = new URL(`${apiBase}/distribuicao/nfe/documentos`);
-      url.searchParams.set("cpf_cnpj", cnpj);
-      url.searchParams.set("ambiente", ambiente);
-      url.searchParams.set("$top", "50");
-      url.searchParams.set("$skip", "0");
-      url.searchParams.set("$inlinecount", "true");
-
-      const res = await nuvemFiscalRequest(url.toString(), { method: "GET" });
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data?.error?.message || JSON.stringify(data) || `Erro ${res.status}`);
-      }
-
-      // Persist docs to local DB
-      const docs = data?.data || [];
-      for (const d of docs) {
-        const chave = d.chave || d.chNFe;
-        if (!chave) continue;
-        await supabaseAdmin.from("notas_recebidas").upsert({
-          company_id,
-          chave_nfe: chave,
-          nsu: d.nsu || 0,
-          cnpj_emitente: d.cnpj_emitente || "",
-          nome_emitente: d.nome_emitente || "",
-          data_emissao: d.data_emissao || d.dh_emissao || null,
-          valor_total: d.valor_total || d.vNF || 0,
-          numero_nfe: d.numero || 0,
-          serie: d.serie || 0,
-          schema_tipo: d.schema || d.tipo_documento || "NF-e",
-          situacao: d.situacao || "resumo",
-          nuvem_fiscal_id: d.id || null,
-          updated_at: new Date().toISOString(),
-        }, { onConflict: "company_id,chave_nfe" });
-      }
+      const data = await listDistributedDocuments();
+      const docs = Array.isArray(data?.data) ? data.data : [];
+      await persistDocsToLocalDb(docs);
 
       return new Response(JSON.stringify({ success: true, source: "api", data }), {
         headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
