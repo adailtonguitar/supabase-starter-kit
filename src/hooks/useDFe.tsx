@@ -93,8 +93,27 @@ export function useDFe() {
       });
       if (error) throw new Error(error.message || "Erro na distribuição");
       if (!data?.success) throw new Error(data?.error || "Erro na distribuição");
+
+      const distributedCount = data?.persisted ?? (Array.isArray(data?.data?.data) ? data.data.data.length : 0);
+
+      // First refetch
       await documentsQuery.refetch();
-      toast.success("Consulta SEFAZ realizada! Lista atualizada.");
+
+      // If distribute found docs but local list is still empty, retry after extra delay
+      const currentDocs = documentsQuery.data?.documents?.length ?? 0;
+      if (currentDocs === 0 && distributedCount === 0) {
+        // Give SEFAZ more time to process, then retry listing
+        await new Promise((r) => setTimeout(r, 5000));
+        await documentsQuery.refetch();
+      }
+
+      const finalDocs = documentsQuery.data?.documents?.length ?? 0;
+
+      if (finalDocs > 0 || distributedCount > 0) {
+        toast.success(`Consulta SEFAZ realizada! ${distributedCount > 0 ? `${distributedCount} nota(s) encontrada(s).` : "Lista atualizada."}`);
+      } else {
+        toast.info("Consulta SEFAZ concluída. Nenhuma NF-e nova encontrada para este CNPJ no momento. Se houver notas pendentes, elas aparecerão na próxima consulta automática.", { duration: 8000 });
+      }
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
       toast.error(msg || "Erro ao solicitar distribuição");
