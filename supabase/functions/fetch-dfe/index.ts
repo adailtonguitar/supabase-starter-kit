@@ -459,21 +459,27 @@ Deno.serve(async (req) => {
       let persistedCount = 0;
 
       for (const d of docs) {
-        const chave = d.chave || d.chNFe || d.chave_nfe || "";
+        const chave = d.chave_acesso || d.chave || d.chNFe || d.chave_nfe || "";
         if (!chave) continue;
+
+        // Extract numero from chave de acesso (positions 25-33 = 9 digits do numero)
+        let numero = 0;
+        if (chave.length === 44) {
+          numero = parseInt(chave.substring(25, 34), 10) || 0;
+        }
 
         const { error: upsertErr } = await supabaseAdmin.from("notas_recebidas").upsert({
           company_id,
           chave_nfe: chave,
           nsu: d.nsu || d.nsu_especifico || 0,
-          cnpj_emitente: d.cnpj_emitente || d.emit?.CNPJ || "",
-          nome_emitente: d.nome_emitente || d.emit?.xNome || "",
-          data_emissao: d.data_emissao || d.dh_emissao || d.dhEmi || null,
-          valor_total: d.valor_total || d.vNF || 0,
-          numero_nfe: d.numero || d.nNF || 0,
+          cnpj_emitente: d.emitente_cpf_cnpj || d.cnpj_emitente || d.emit?.CNPJ || "",
+          nome_emitente: d.emitente_nome_razao_social || d.nome_emitente || d.emit?.xNome || "",
+          data_emissao: d.data_evento || d.data_recebimento || d.data_emissao || d.dh_emissao || d.dhEmi || null,
+          valor_total: d.valor_nfe || d.valor_total || d.vNF || 0,
+          numero_nfe: d.numero || d.nNF || numero || 0,
           serie: d.serie || 0,
-          schema_tipo: d.schema || d.tipo_documento || d.tipo_schema || "NF-e",
-          situacao: d.situacao || "resumo",
+          schema_tipo: d.tipo_documento || d.schema || d.tipo_schema || "NF-e",
+          situacao: d.resumo === true ? "resumo" : (d.situacao || "resumo"),
           nuvem_fiscal_id: d.id || null,
           updated_at: new Date().toISOString(),
         }, { onConflict: "company_id,chave_nfe" });
