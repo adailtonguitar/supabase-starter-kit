@@ -7,6 +7,7 @@ import { autoSyncProductToBranches } from "./useBranches";
 import { recordPriceChange } from "@/lib/price-history";
 import { logAction, buildDiff } from "@/services/ActionLogger";
 import { PRODUCTS_ACTIVE_OR_LEGACY_NULL } from "@/lib/product-active-filter";
+import { ensureValidSku, sanitizeSkuInput, SKU_REGEX } from "@/lib/sku-sanitizer";
 
 export interface Product {
   id: string;
@@ -82,9 +83,11 @@ export function useCreateProduct() {
   return useMutation({
     mutationFn: async (product: Partial<Product>) => {
       if (!companyId) throw new Error("Empresa não encontrada");
+      // Blindagem final: garante SKU válido antes do INSERT (constraint products_sku_format_chk)
+      const safeSku = ensureValidSku(product.sku);
       const { data, error } = await supabase
         .from("products")
-        .insert({ ...product, company_id: companyId })
+        .insert({ ...product, sku: safeSku, company_id: companyId })
         .select()
         .single();
       if (error) throw error;
@@ -116,9 +119,16 @@ export function useUpdateProduct() {
         .eq("company_id", companyId)
         .single();
 
+      // Blindagem: se o caller mandou SKU, sanitiza antes do UPDATE.
+      // (Se não mandou, NÃO toca no SKU existente.)
+      const safeUpdates = { ...updates };
+      if (Object.prototype.hasOwnProperty.call(updates, "sku")) {
+        safeUpdates.sku = ensureValidSku(updates.sku);
+      }
+
       const { data, error } = await supabase
         .from("products")
-        .update(updates)
+        .update(safeUpdates)
         .eq("id", id)
         .eq("company_id", companyId)
         .select()
@@ -180,9 +190,15 @@ export function useBulkUpdateProducts() {
           .single();
         if (oldError) throw oldError;
 
+        // Blindagem em lote: sanitiza SKU se presente no payload
+        const safeItemData = { ...item.data };
+        if (Object.prototype.hasOwnProperty.call(item.data, "sku")) {
+          safeItemData.sku = ensureValidSku(item.data.sku);
+        }
+
         const { error } = await supabase
           .from("products")
-          .update(item.data)
+          .update(safeItemData)
           .eq("id", item.id)
           .eq("company_id", companyId);
         if (error) throw error;
