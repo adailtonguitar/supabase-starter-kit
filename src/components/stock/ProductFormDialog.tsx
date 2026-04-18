@@ -31,6 +31,7 @@ import { getSuggestedFiscalUpdate, getProductFiscalStatus } from "@/lib/fiscal-p
 import { aprenderNCM, sugerirNCM } from "@/lib/ncm-learning";
 import { NcmLearningSuggestion } from "./NcmLearningSuggestion";
 import { toast } from "sonner";
+import { sanitizeSkuInput, SKU_REGEX, SKU_ERROR_MESSAGE } from "@/lib/sku-sanitizer";
 
 interface NCMSuggestion {
   ncm: string;
@@ -39,7 +40,13 @@ interface NCMSuggestion {
 
 const schema = z.object({
   name: z.string().trim().min(1, "Nome obrigatório").max(200),
-  sku: z.string().trim().max(50).optional().or(z.literal("")),
+  sku: z
+    .string()
+    .trim()
+    .max(50)
+    .optional()
+    .or(z.literal(""))
+    .refine((v) => !v || SKU_REGEX.test(v), { message: SKU_ERROR_MESSAGE }),
   ncm: z.string().trim().max(20).optional(),
   category: z.string().trim().max(50).optional(),
   brand: z.string().trim().max(100).optional(),
@@ -762,7 +769,19 @@ export const ProductFormDialog = forwardRef<HTMLDivElement, Props>(function Prod
                   <FormField control={form.control} name="sku" render={({ field }) => (
                     <FormItem>
                       <FormLabel>SKU</FormLabel>
-                      <FormControl><Input placeholder="BEB001" {...field} /></FormControl>
+                      <FormControl>
+                        <Input
+                          placeholder="BEB001 (deixe vazio para gerar automático)"
+                          {...field}
+                          value={field.value ?? ""}
+                          onChange={(e) => field.onChange(sanitizeSkuInput(e.target.value))}
+                          onBlur={(e) => field.onChange(sanitizeSkuInput(e.target.value))}
+                          autoCapitalize="characters"
+                          autoComplete="off"
+                          spellCheck={false}
+                          maxLength={50}
+                        />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )} />
