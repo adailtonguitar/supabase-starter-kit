@@ -845,6 +845,34 @@ export const ProductFormDialog = forwardRef<HTMLDivElement, Props>(function Prod
                     <FormMessage />
                   </FormItem>
                 )} />
+                <FormField control={form.control} name={"modelo" as any} render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Modelo</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="Ex: iPhone 15, Galaxy S24..."
+                        autoComplete="off"
+                        {...field}
+                        value={field.value ?? ""}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                <FormField control={form.control} name={"tipo_material" as any} render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Tipo / Material / Variação</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="Ex: Vidro 9D, Algodão, 220V..."
+                        autoComplete="off"
+                        {...field}
+                        value={field.value ?? ""}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
                 <div className="grid grid-cols-2 gap-4">
                   <FormField control={form.control} name="sku" render={({ field }) => (
                     <FormItem>
