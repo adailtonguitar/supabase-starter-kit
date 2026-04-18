@@ -31,6 +31,7 @@ import { type TaxRegime } from "@/lib/cst-csosn-validator";
 import { getSuggestedFiscalUpdate, getProductFiscalStatus } from "@/lib/fiscal-product-suggestions";
 import { aprenderNCM, sugerirNCM } from "@/lib/ncm-learning";
 import { NcmLearningSuggestion } from "./NcmLearningSuggestion";
+import { NcmMappingSuggestion } from "./NcmMappingSuggestion";
 import { toast } from "sonner";
 import { sanitizeSkuInput, SKU_REGEX, SKU_ERROR_MESSAGE } from "@/lib/sku-sanitizer";
 import {
