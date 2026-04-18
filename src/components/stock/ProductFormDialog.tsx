@@ -914,6 +914,7 @@ export const ProductFormDialog = forwardRef<HTMLDivElement, Props>(function Prod
                     </FormItem>
                   )} />
                 </div>
+                <SkuStructuredPreview form={form} />
                 {/* Camera barcode scanner for mobile */}
                 <div className="sm:hidden mt-2">
                   <BarcodeCameraScanner
