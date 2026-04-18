@@ -18,6 +18,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { recordPriceChange } from "@/lib/price-history";
 import { Check, Search, Upload, X, Package, AlertTriangle, ShieldAlert, Info, Camera, Sparkles, Loader2, ScanBarcode } from "lucide-react";
 import { BarcodeCameraScanner } from "./BarcodeCameraScanner";
+import { SkuStructuredPreview } from "./SkuStructuredPreview";
 import { NCM_TABLE } from "@/lib/ncm-table";
 import { validateNcm, detectNcmDuplicates, getNcmDescription, isValidNcmFormat, validarNCMporDescricao, type NcmIssue } from "@/lib/ncm-validator";
 import { lookupNcmBackend } from "@/lib/ncm-backend";
