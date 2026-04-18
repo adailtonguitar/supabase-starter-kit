@@ -18,6 +18,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { recordPriceChange } from "@/lib/price-history";
 import { Check, Search, Upload, X, Package, AlertTriangle, ShieldAlert, Info, Camera, Sparkles, Loader2, ScanBarcode } from "lucide-react";
 import { BarcodeCameraScanner } from "./BarcodeCameraScanner";
+import { SkuStructuredPreview } from "./SkuStructuredPreview";
 import { NCM_TABLE } from "@/lib/ncm-table";
 import { validateNcm, detectNcmDuplicates, getNcmDescription, isValidNcmFormat, validarNCMporDescricao, type NcmIssue } from "@/lib/ncm-validator";
 import { lookupNcmBackend } from "@/lib/ncm-backend";
@@ -32,6 +33,13 @@ import { aprenderNCM, sugerirNCM } from "@/lib/ncm-learning";
 import { NcmLearningSuggestion } from "./NcmLearningSuggestion";
 import { toast } from "sonner";
 import { sanitizeSkuInput, SKU_REGEX, SKU_ERROR_MESSAGE } from "@/lib/sku-sanitizer";
+import {
+  generateSkuStructured,
+  buildSkuStructuredBase,
+  isValidSkuStructured,
+  SKU_STRUCTURED_REGEX,
+  SKU_STRUCTURED_MAX_LEN,
+} from "@/lib/sku-structured";
 
 interface NCMSuggestion {
   ncm: string;
@@ -75,6 +83,17 @@ const schema = z.object({
   voltage: z.string().optional().or(z.literal("")),
   warranty_months: z.coerce.number().min(0).optional(),
   serial_number: z.string().trim().max(100).optional(),
+  modelo: z.string().trim().max(100).optional().or(z.literal("")),
+  tipo_material: z.string().trim().max(100).optional().or(z.literal("")),
+  sku_structured: z
+    .string()
+    .trim()
+    .max(SKU_STRUCTURED_MAX_LEN)
+    .optional()
+    .or(z.literal(""))
+    .refine((v) => !v || SKU_STRUCTURED_REGEX.test(v), {
+      message: "SKU estruturado deve ser MAIÚSCULO, A-Z, 0-9 e hífen",
+    }),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -522,9 +541,27 @@ export const ProductFormDialog = forwardRef<HTMLDivElement, Props>(function Prod
       const { reorder_point, reorder_quantity, ...rest } = normalized as any;
       // Auto-generate SKU if empty to avoid unique constraint violation
       const finalSku = data.sku?.trim() || `PRD-${Date.now().toString(36).toUpperCase()}-${crypto.randomUUID().substring(0, 4)}`;
+
+      // SKU estruturado (CAT-MOD-VAR-SEQ) — não-bloqueante.
+      // Override manual tem prioridade; senão tenta gerar via RPC.
+      let finalSkuStructured: string | null = null;
+      const manualStructured = (data.sku_structured ?? "").trim().toUpperCase();
+      if (manualStructured && isValidSkuStructured(manualStructured)) {
+        finalSkuStructured = manualStructured;
+      } else if (companyId) {
+        finalSkuStructured = await generateSkuStructured(companyId, {
+          category: data.category,
+          modelo: (data as any).modelo,
+          tipo_material: (data as any).tipo_material,
+          voltage: data.voltage,
+          brand: data.brand,
+        });
+      }
+
       const payload = {
         ...rest,
         sku: finalSku,
+        sku_structured: finalSkuStructured, // null se faltar dados → fallback ao sku legado
         fiscal_category_id: data.fiscal_category_id || null,
         supplier_id: data.supplier_id || null,
         voltage: data.voltage || null,
@@ -809,6 +846,34 @@ export const ProductFormDialog = forwardRef<HTMLDivElement, Props>(function Prod
                     <FormMessage />
                   </FormItem>
                 )} />
+                <FormField control={form.control} name={"modelo" as any} render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Modelo</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="Ex: iPhone 15, Galaxy S24..."
+                        autoComplete="off"
+                        {...field}
+                        value={field.value ?? ""}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                <FormField control={form.control} name={"tipo_material" as any} render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Tipo / Material / Variação</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="Ex: Vidro 9D, Algodão, 220V..."
+                        autoComplete="off"
+                        {...field}
+                        value={field.value ?? ""}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
                 <div className="grid grid-cols-2 gap-4">
                   <FormField control={form.control} name="sku" render={({ field }) => (
                     <FormItem>
@@ -850,6 +915,7 @@ export const ProductFormDialog = forwardRef<HTMLDivElement, Props>(function Prod
                     </FormItem>
                   )} />
                 </div>
+                <SkuStructuredPreview form={form} />
                 {/* Camera barcode scanner for mobile */}
                 <div className="sm:hidden mt-2">
                   <BarcodeCameraScanner
