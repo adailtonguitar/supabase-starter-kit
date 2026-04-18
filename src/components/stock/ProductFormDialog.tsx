@@ -251,6 +251,16 @@ export const ProductFormDialog = forwardRef<HTMLDivElement, Props>(function Prod
     },
   });
 
+  const watchedName = form.watch("name");
+  const watchedSku = form.watch("sku");
+  const watchedUnit = form.watch("unit");
+  const watchedPrice = form.watch("price");
+  const watchedStockQuantity = form.watch("stock_quantity");
+  const watchedNcm = form.watch("ncm");
+  const watchedCfop = form.watch("cfop");
+  const watchedCsosn = form.watch("csosn");
+  const watchedCstIcms = form.watch("cst_icms");
+  const watchedOrigem = form.watch("origem");
   const selectedFiscalCategoryId = form.watch("fiscal_category_id");
   const selectedFiscalCategory = useMemo(
     () => fiscalCategories.find((category) => category.id === selectedFiscalCategoryId),
@@ -260,18 +270,18 @@ export const ProductFormDialog = forwardRef<HTMLDivElement, Props>(function Prod
   const suggestedFiscalDefaults = useMemo(() => {
     const suggestion = getSuggestedFiscalUpdate({
       id: product?.id || "preview",
-      name: product?.name || form.getValues("name") || "Produto",
-      sku: product?.sku || form.getValues("sku") || "",
-      price: product?.price || Number(form.getValues("price") || 0),
-      stock_quantity: product?.stock_quantity || Number(form.getValues("stock_quantity") || 0),
-      unit: product?.unit || form.getValues("unit") || "UN",
+      name: watchedName || product?.name || "Produto",
+      sku: watchedSku || product?.sku || "",
+      price: Number(watchedPrice ?? product?.price ?? 0),
+      stock_quantity: Number(watchedStockQuantity ?? product?.stock_quantity ?? 0),
+      unit: watchedUnit || product?.unit || "UN",
       company_id: product?.company_id || companyId || "",
       fiscal_category_id: selectedFiscalCategoryId || undefined,
-      ncm: form.getValues("ncm") || product?.ncm,
-      cfop: form.getValues("cfop") || product?.cfop,
-      csosn: form.getValues("csosn") || product?.csosn,
-      cst_icms: form.getValues("cst_icms") || product?.cst_icms,
-      origem: form.getValues("origem") ?? product?.origem,
+      ncm: watchedNcm || product?.ncm,
+      cfop: watchedCfop || product?.cfop,
+      csosn: watchedCsosn || product?.csosn,
+      cst_icms: watchedCstIcms || product?.cst_icms,
+      origem: watchedOrigem ?? product?.origem,
     }, fiscalCategories, taxRegime);
 
     return {
@@ -287,25 +297,59 @@ export const ProductFormDialog = forwardRef<HTMLDivElement, Props>(function Prod
       cstCofins: "01",
       aliqCofins: 7.6,
     };
-  }, [selectedFiscalCategory, selectedFiscalCategoryId, taxRegime, fiscalCategories, form, product, companyId, isSimples]);
+  }, [
+    watchedName,
+    watchedSku,
+    watchedPrice,
+    watchedStockQuantity,
+    watchedUnit,
+    watchedNcm,
+    watchedCfop,
+    watchedCsosn,
+    watchedCstIcms,
+    watchedOrigem,
+    selectedFiscalCategory,
+    selectedFiscalCategoryId,
+    taxRegime,
+    fiscalCategories,
+    product,
+    companyId,
+    isSimples,
+  ]);
 
   const fiscalStatus = useMemo(() => {
     return getProductFiscalStatus({
       id: product?.id || "preview",
-      name: product?.name || form.getValues("name") || "Produto",
-      sku: product?.sku || form.getValues("sku") || "",
-      price: product?.price || Number(form.getValues("price") || 0),
-      stock_quantity: product?.stock_quantity || Number(form.getValues("stock_quantity") || 0),
-      unit: product?.unit || form.getValues("unit") || "UN",
+      name: watchedName || product?.name || "Produto",
+      sku: watchedSku || product?.sku || "",
+      price: Number(watchedPrice ?? product?.price ?? 0),
+      stock_quantity: Number(watchedStockQuantity ?? product?.stock_quantity ?? 0),
+      unit: watchedUnit || product?.unit || "UN",
       company_id: product?.company_id || companyId || "",
       fiscal_category_id: selectedFiscalCategoryId || undefined,
-      ncm: form.getValues("ncm") || product?.ncm,
-      cfop: form.getValues("cfop") || product?.cfop,
-      csosn: form.getValues("csosn") || product?.csosn,
-      cst_icms: form.getValues("cst_icms") || product?.cst_icms,
-      origem: form.getValues("origem") ?? product?.origem,
+      ncm: watchedNcm || product?.ncm,
+      cfop: watchedCfop || product?.cfop,
+      csosn: watchedCsosn || product?.csosn,
+      cst_icms: watchedCstIcms || product?.cst_icms,
+      origem: watchedOrigem ?? product?.origem,
     }, fiscalCategories, taxRegime);
-  }, [product, form, companyId, selectedFiscalCategoryId, fiscalCategories, taxRegime]);
+  }, [
+    watchedName,
+    watchedSku,
+    watchedPrice,
+    watchedStockQuantity,
+    watchedUnit,
+    watchedNcm,
+    watchedCfop,
+    watchedCsosn,
+    watchedCstIcms,
+    watchedOrigem,
+    product,
+    companyId,
+    selectedFiscalCategoryId,
+    fiscalCategories,
+    taxRegime,
+  ]);
 
   const handleApplySuggestedStCategory = useCallback(() => {
     if (!fiscalStatus.diagnostics.suggestedStCategoryId) return;
