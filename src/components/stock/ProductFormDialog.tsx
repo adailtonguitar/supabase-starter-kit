@@ -32,6 +32,13 @@ import { aprenderNCM, sugerirNCM } from "@/lib/ncm-learning";
 import { NcmLearningSuggestion } from "./NcmLearningSuggestion";
 import { toast } from "sonner";
 import { sanitizeSkuInput, SKU_REGEX, SKU_ERROR_MESSAGE } from "@/lib/sku-sanitizer";
+import {
+  generateSkuStructured,
+  buildSkuStructuredBase,
+  isValidSkuStructured,
+  SKU_STRUCTURED_REGEX,
+  SKU_STRUCTURED_MAX_LEN,
+} from "@/lib/sku-structured";
 
 interface NCMSuggestion {
   ncm: string;
