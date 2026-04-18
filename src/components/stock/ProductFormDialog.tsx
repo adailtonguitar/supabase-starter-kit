@@ -82,6 +82,17 @@ const schema = z.object({
   voltage: z.string().optional().or(z.literal("")),
   warranty_months: z.coerce.number().min(0).optional(),
   serial_number: z.string().trim().max(100).optional(),
+  modelo: z.string().trim().max(100).optional().or(z.literal("")),
+  tipo_material: z.string().trim().max(100).optional().or(z.literal("")),
+  sku_structured: z
+    .string()
+    .trim()
+    .max(SKU_STRUCTURED_MAX_LEN)
+    .optional()
+    .or(z.literal(""))
+    .refine((v) => !v || SKU_STRUCTURED_REGEX.test(v), {
+      message: "SKU estruturado deve ser MAIÚSCULO, A-Z, 0-9 e hífen",
+    }),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -529,9 +540,27 @@ export const ProductFormDialog = forwardRef<HTMLDivElement, Props>(function Prod
       const { reorder_point, reorder_quantity, ...rest } = normalized as any;
       // Auto-generate SKU if empty to avoid unique constraint violation
       const finalSku = data.sku?.trim() || `PRD-${Date.now().toString(36).toUpperCase()}-${crypto.randomUUID().substring(0, 4)}`;
+
+      // SKU estruturado (CAT-MOD-VAR-SEQ) — não-bloqueante.
+      // Override manual tem prioridade; senão tenta gerar via RPC.
+      let finalSkuStructured: string | null = null;
+      const manualStructured = (data.sku_structured ?? "").trim().toUpperCase();
+      if (manualStructured && isValidSkuStructured(manualStructured)) {
+        finalSkuStructured = manualStructured;
+      } else if (companyId) {
+        finalSkuStructured = await generateSkuStructured(companyId, {
+          category: data.category,
+          modelo: (data as any).modelo,
+          tipo_material: (data as any).tipo_material,
+          voltage: data.voltage,
+          brand: data.brand,
+        });
+      }
+
       const payload = {
         ...rest,
         sku: finalSku,
+        sku_structured: finalSkuStructured, // null se faltar dados → fallback ao sku legado
         fiscal_category_id: data.fiscal_category_id || null,
         supplier_id: data.supplier_id || null,
         voltage: data.voltage || null,
