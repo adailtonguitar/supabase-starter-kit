@@ -4,6 +4,11 @@ import "./index.css";
 import "./styles/theme.css";
 import { loadScaleConfigFromStorage } from "./lib/scale-barcode";
 import { initErrorTracker } from "./services/ErrorTracker";
+import { assertProductionEnvironment } from "./lib/production-guard";
+import { SUPABASE_URL } from "./integrations/supabase/client";
+
+// Bloqueia execução em publish do Lovable e/ou Supabase incorreto em produção
+assertProductionEnvironment(SUPABASE_URL);
 
 async function clearStaleServiceWorkers() {
   if (!("serviceWorker" in navigator)) return;
