@@ -31,6 +31,7 @@ import { type TaxRegime } from "@/lib/cst-csosn-validator";
 import { getSuggestedFiscalUpdate, getProductFiscalStatus } from "@/lib/fiscal-product-suggestions";
 import { aprenderNCM, sugerirNCM } from "@/lib/ncm-learning";
 import { NcmLearningSuggestion } from "./NcmLearningSuggestion";
+import { NcmMappingSuggestion } from "./NcmMappingSuggestion";
 import { toast } from "sonner";
 import { sanitizeSkuInput, SKU_REGEX, SKU_ERROR_MESSAGE } from "@/lib/sku-sanitizer";
 import {
@@ -1012,6 +1013,20 @@ export const ProductFormDialog = forwardRef<HTMLDivElement, Props>(function Prod
                       productName={form.watch("name")}
                       currentNcm={field.value || ""}
                       onApply={(ncm) => { field.onChange(ncm); runNcmValidation(ncm); }}
+                    />
+                    <NcmMappingSuggestion
+                      companyId={companyId}
+                      category={form.watch("category")}
+                      variacao={(form.watch as any)("tipo_material") || form.watch("brand") || ""}
+                      descricao={form.watch("name")}
+                      currentNcm={field.value || ""}
+                      onApply={(ncm, cest) => {
+                        field.onChange(ncm);
+                        runNcmValidation(ncm);
+                        if (cest) {
+                          try { (form.setValue as any)("cest", cest, { shouldDirty: true }); } catch {}
+                        }
+                      }}
                     />
                     <FormMessage />
                   </FormItem>
