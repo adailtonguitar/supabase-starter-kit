@@ -24,6 +24,7 @@ import { type CRT, isValidCrt } from "@/lib/fiscal-config-lookup";
 import { getFiscalReadiness, getFiscalReadinessBlockReason, getFiscalReadinessPrimaryFixRoute } from "@/lib/fiscal-readiness";
 import { useNavigate } from "react-router-dom";
 import { invokeEdgeFunctionWithAuth } from "@/lib/invoke-edge-function-with-auth";
+import { runShadowPipelineBatch } from "@/lib/fiscal-shadow-pipeline";
 
 interface NfceEmissionDialogProps {
   sale: {
@@ -571,6 +572,26 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
         setErrorMsg("Certificado digital não configurado. Envie seu certificado A1 ou configure o A3.");
         setEmitting(false);
         return;
+      }
+
+      // ─── SHADOW PIPELINE (não-bloqueante, somente observação) ───
+      try {
+        const regimeShadow: "simples" | "normal" =
+          (nfceConfig as any)?.crt === 3 ? "normal" : "simples";
+        await runShadowPipelineBatch(
+          form.items.map((it) => ({
+            product_id: (it as any).product_id ?? null,
+            ncm: it.ncm,
+            cfop: it.cfop,
+            csosn: it.cst,
+            cst_pis: it.pisCst,
+            cst_cofins: it.cofinsCst,
+          })),
+          { companyId, regime: regimeShadow },
+          { apply: false },
+        );
+      } catch (e) {
+        console.warn("[SHADOW] NfceEmissionDialog ignorado", e);
       }
 
       const { data, error } = await invokeEdgeFunctionWithAuth<FiscalEmitResponse>("emit-nfce", {
