@@ -29,6 +29,7 @@ import {
   fillCompanyRowFromServicePeerFallback,
   resolveCompanyFiscalRowWithParent,
 } from "../_shared/company-fiscal-fallback.ts";
+import { validateCompanyData } from "../_shared/company-hard-validation.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 // ─── Fiscal Risk Engine (inline — fonte única de verdade, espelho de shared/fiscal/fiscal-risk-engine.ts) ───
