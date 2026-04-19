@@ -151,7 +151,14 @@ export async function processMpPayment(
   }
 
   if (!ref.user_id || !ref.plan_key) {
-    return { ok: false, reason: "missing_user_or_plan_in_external_reference" };
+    console.error(JSON.stringify({
+      type: "PAYMENT_FALLBACK_FAILED",
+      payment_id: String(payment.id),
+      reason: !ref.user_id ? "missing_user_id" : "missing_plan_key",
+      fallback_attempted: usedFallback,
+      ts: new Date().toISOString(),
+    }));
+    return { ok: false, reason: "missing_user_or_plan_after_fallback" };
   }
 
   // Validate amount (±1 BRL tolerance)
