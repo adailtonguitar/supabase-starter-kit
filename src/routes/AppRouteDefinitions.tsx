@@ -163,6 +163,7 @@ export function LayoutRoutes() {
       <Route path="/admin" element={<Admin />} />
       <Route path="/admin/erros" element={<RegistroErros />} />
       <Route path="/admin/diagnostico" element={<DiagnosticoSistema />} />
+      <Route path="/admin/fiscal-audit" element={<FiscalAudit />} />
       <Route path="/ajuda" element={<Ajuda />} />
       <Route path="/assistente" element={<Assistente />} />
       <Route path="*" element={<NotFound />} />
