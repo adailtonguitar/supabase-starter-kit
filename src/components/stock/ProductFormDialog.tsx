@@ -1029,6 +1029,28 @@ export const ProductFormDialog = forwardRef<HTMLDivElement, Props>(function Prod
                         }
                       }}
                     />
+                    <TaxRuleSuggestion
+                      companyId={companyId}
+                      productId={product?.id ?? null}
+                      regime={isSimples ? "simples" : "normal"}
+                      ufOrigem={(useCompany() as any)?.addressState ?? null}
+                      ufDestino={(useCompany() as any)?.addressState ?? null}
+                      ncm={field.value || ""}
+                      categoriaFiscalTipo={selectedFiscalCategory?.product_type ?? null}
+                      current={{
+                        csosn: form.watch("csosn"),
+                        cst_icms: form.watch("cst_icms"),
+                        cfop: form.watch("cfop"),
+                        origem: form.watch("origem") as any,
+                        cst_pis: form.watch("cst_pis"),
+                        aliq_pis: form.watch("aliq_pis") as any,
+                        cst_cofins: form.watch("cst_cofins"),
+                        aliq_cofins: form.watch("aliq_cofins") as any,
+                      }}
+                      onApplyField={(f, v) => {
+                        try { (form.setValue as any)(f, v, { shouldDirty: true, shouldValidate: true }); } catch {}
+                      }}
+                    />
                     <FormMessage />
                   </FormItem>
                 )} />
