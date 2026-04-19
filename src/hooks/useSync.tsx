@@ -226,6 +226,48 @@ const processors: Record<string, SyncProcessor> = {
       throw new Error("Payload inválido: fiscal_contingency incompleto");
     }
 
+    // ─── Shadow pipeline (contingência) — fail-safe absoluto ───
+    let formForEmission: any = p.form;
+    try {
+      const rawForm: any = p.form;
+      const rawItems: any[] = Array.isArray(rawForm?.items) ? rawForm.items : [];
+      if (rawItems.length > 0) {
+        const { runShadowPipelineBatch } = await import("@/lib/fiscal-shadow-pipeline");
+        const { isAutoApplyFiscalEnabled } = await import("@/lib/fiscal-auto-apply-flag");
+        const shadowInputs = rawItems.map((it: any) => ({
+          product_id: it.product_id ?? null,
+          ncm: it.ncm ?? null,
+          cfop: it.cfop ?? null,
+          cfop_manual: it.cfop_manual ?? null,
+          csosn: it.cst ?? it.csosn ?? null,
+          cst_pis: it.pis_cst ?? it.pisCst ?? null,
+          cst_cofins: it.cofins_cst ?? it.cofinsCst ?? null,
+          tipo_item: it.tipo_item ?? null,
+        }));
+        const results = await runShadowPipelineBatch(
+          shadowInputs,
+          { companyId, regime: "*" },
+          { apply: isAutoApplyFiscalEnabled() },
+        );
+        const finalItems = rawItems.map((it: any, idx: number) => {
+          const r: any = results[idx]?.item ?? {};
+          return {
+            ...it,
+            ncm: r.ncm ?? it.ncm,
+            cfop: r.cfop ?? it.cfop,
+            cst: r.csosn ?? it.cst,
+            pis_cst: r.cst_pis ?? it.pis_cst ?? it.pisCst,
+            cofins_cst: r.cst_cofins ?? it.cofins_cst ?? it.cofinsCst,
+          };
+        });
+        formForEmission = { ...rawForm, items: finalItems };
+        console.log({ type: "PIPELINE_APPLIED_ALL_FLOWS", flow: "contingency", items: finalItems.length });
+      }
+    } catch (e) {
+      console.warn("[SHADOW] useSync fail-safe (usando p.form)", e);
+      formForEmission = p.form;
+    }
+
     try {
       const { data, error } = await fiscalCircuitBreaker.call(() =>
           invokeEdgeFunctionWithAuth<FiscalContingencyResponse>("emit-nfce", {
@@ -236,7 +278,7 @@ const processors: Record<string, SyncProcessor> = {
             config_id: configId,
             contingency_number: contingencyNumber,
             serie,
-            form: p.form,
+            form: formForEmission,
           },
         })
       );

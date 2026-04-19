@@ -1116,6 +1116,49 @@ export default function NFeEmissao() {
 
       let data: NFeSuccessData | null = null;
 
+      // ─── Shadow pipeline (CFOP 5101→5102 / 6101→6102, etc) ───
+      // Aplica APENAS no payload final. NUNCA muta form.items (estado React intocado).
+      type ShadowItemForPayload = {
+        product_id: string | null;
+        ncm: string;
+        cfop: string;
+        csosn: string;
+        cst_icms: string;
+        cst_pis: string;
+        cst_cofins: string;
+        cfop_manual: string | null;
+      };
+      const isSimplesPipe = companyCrt === 1 || companyCrt === 2;
+      let processedByIndex: ShadowItemForPayload[] = form.items.map((it: any) => ({
+        product_id: it.product_id ?? null,
+        ncm: it.ncm,
+        cfop: it.cfop,
+        csosn: isSimplesPipe ? it.cst : "",
+        cst_icms: isSimplesPipe ? "" : it.cst,
+        cst_pis: it.pisCst,
+        cst_cofins: it.cofinsCst,
+        cfop_manual: (it.cfop_manual ?? null) as string | null,
+      }));
+      try {
+        const { runShadowPipelineBatch } = await import("@/lib/fiscal-shadow-pipeline");
+        const { isAutoApplyFiscalEnabled } = await import("@/lib/fiscal-auto-apply-flag");
+        const regimeShadow: "simples" | "normal" = isSimplesPipe ? "simples" : "normal";
+        const emitUfShadow = (companyInfo as any)?.uf || (companyInfo as any)?.state || "*";
+        const results = await runShadowPipelineBatch(
+          processedByIndex,
+          { companyId, regime: regimeShadow, ufOrigem: emitUfShadow, ufDestino: form.destUF || "*" },
+          { apply: isAutoApplyFiscalEnabled() },
+        );
+        processedByIndex = results.map((r) => r.item as ShadowItemForPayload);
+        console.log({
+          type: "PIPELINE_APPLIED_ALL_FLOWS",
+          flow: "nfe",
+          items: processedByIndex.length,
+        });
+      } catch (e) {
+        console.warn("[SHADOW] NFeEmissao fail-safe (usando form.items)", e);
+      }
+
       try {
         const result = await invokeEdgeFunctionWithAuth("emit-nfce", {
           body: {
@@ -1151,21 +1194,25 @@ export default function NFeEmissao() {
               volumes: form.volumes,
               gross_weight: form.grossWeight,
               net_weight: form.netWeight,
-              items: form.items.map((it) => ({
-                name: it.name,
-                product_code: it.productCode,
-                ncm: it.ncm,
-                cfop: it.cfop,
-                cst: it.cst,
-                unit: it.unit,
-                qty: it.qty,
-                unit_price: it.unitPrice,
-                discount: it.discount,
-                pis_cst: it.pisCst,
-                cofins_cst: it.cofinsCst,
-                icms_aliquota: it.icmsAliquota || undefined,
-                origem: it.origem,
-              })),
+              items: form.items.map((it, idx) => {
+                const p = processedByIndex[idx];
+                const cstFinal = isSimplesPipe ? (p?.csosn ?? it.cst) : (p?.cst_icms ?? it.cst);
+                return {
+                  name: it.name,
+                  product_code: it.productCode,
+                  ncm: p?.ncm ?? it.ncm,
+                  cfop: p?.cfop ?? it.cfop,
+                  cst: cstFinal,
+                  unit: it.unit,
+                  qty: it.qty,
+                  unit_price: it.unitPrice,
+                  discount: it.discount,
+                  pis_cst: p?.cst_pis ?? it.pisCst,
+                  cofins_cst: p?.cst_cofins ?? it.cofinsCst,
+                  icms_aliquota: it.icmsAliquota || undefined,
+                  origem: it.origem,
+                };
+              }),
             },
           },
         });
