@@ -134,18 +134,35 @@ export async function runShadowPipeline<T extends ShadowItemInput>(
     console.warn("[CFOP_PIPELINE] erro shadow (ignorado)", e);
   }
 
-  // --- ETAPA 1.5: CFOP REVENDA FIX (5101→5102 / 6101→6102) ---
+  // --- ETAPA 1.5: CFOP REVENDA FIX ---
+  // Cobre:
+  //   (a) 5101→5102 / 6101→6102 (produção→revenda)
+  //   (b) Flip interno↔interestadual baseado em UF (5xxx↔6xxx) para CFOPs de revenda comuns
   // Fail-safe absoluto: try/catch local, nunca lança, mantém CFOP original em erro.
+  // PROIBIDO: alterar ST (54xx/64xx), CFOP manual, ou CFOPs fora da whitelist segura.
   try {
     const isManual = !!(item.cfop_manual && String(item.cfop_manual).trim());
     const current = ((out.item as any).cfop ?? "").toString().trim();
     const suggested = out.cfop_suggestion || "";
-    const isST = !!suggested && suggested.startsWith("54");
+    const isSTSuggested = !!suggested && (suggested.startsWith("54") || suggested.startsWith("64"));
+    const isSTCurrent = /^(54|64)\d{2}$/.test(current);
+
+    // Interstate detection: ambas UFs preenchidas e diferentes
+    const ufO = (ctx.ufOrigem || "").trim().toUpperCase();
+    const ufD = (ctx.ufDestino || "").trim().toUpperCase();
+    const isInterstate = !!ufO && !!ufD && ufO !== ufD;
+
+    // Whitelist de CFOPs de revenda seguros para flip 5↔6
+    const SAFE_FLIP = new Set([
+      "5101", "5102", "5103", "5104", "5105", "5106",
+      "6101", "6102", "6103", "6104", "6105", "6106",
+    ]);
 
     let novoCfop = current;
-    let motivo: "no_change" | "fix_revenda_interna" | "fix_revenda_interestadual" = "no_change";
+    let motivo: "no_change" | "fix_revenda_interna" | "fix_revenda_interestadual" | "flip_to_interstate" | "flip_to_internal" = "no_change";
 
-    if (!isManual && !isST) {
+    if (!isManual && !isSTSuggested && !isSTCurrent) {
+      // (a) produção → revenda
       if (current === "5101") {
         novoCfop = "5102";
         motivo = "fix_revenda_interna";
@@ -153,9 +170,26 @@ export async function runShadowPipeline<T extends ShadowItemInput>(
         novoCfop = "6102";
         motivo = "fix_revenda_interestadual";
       }
+
+      // (b) flip de prefixo conforme destino
+      if (SAFE_FLIP.has(novoCfop)) {
+        if (isInterstate && novoCfop.startsWith("5")) {
+          const flipped = `6${novoCfop.slice(1)}`;
+          if (SAFE_FLIP.has(flipped)) {
+            novoCfop = flipped;
+            motivo = motivo === "no_change" ? "flip_to_interstate" : motivo;
+          }
+        } else if (!isInterstate && ufO && ufD && novoCfop.startsWith("6")) {
+          const flipped = `5${novoCfop.slice(1)}`;
+          if (SAFE_FLIP.has(flipped)) {
+            novoCfop = flipped;
+            motivo = motivo === "no_change" ? "flip_to_internal" : motivo;
+          }
+        }
+      }
     }
 
-    if (motivo !== "no_change" && apply) {
+    if (motivo !== "no_change" && novoCfop !== current && apply) {
       (out.item as any).cfop = novoCfop;
       if (!out.applied_fields.includes("cfop")) out.applied_fields.push("cfop");
       applyReason = motivo;
@@ -165,9 +199,11 @@ export async function runShadowPipeline<T extends ShadowItemInput>(
         cfop_original: current,
         cfop_novo: novoCfop,
         reason: motivo,
+        uf_origem: ufO || null,
+        uf_destino: ufD || null,
+        isInterstate,
       });
-    } else if (motivo !== "no_change") {
-      // shadow only — registra divergência sem aplicar
+    } else if (motivo !== "no_change" && novoCfop !== current) {
       console.log({
         type: "CFOP_FIX_SHADOW",
         produto_id: item.product_id ?? null,
@@ -175,6 +211,7 @@ export async function runShadowPipeline<T extends ShadowItemInput>(
         cfop_sugerido_fix: novoCfop,
         reason: motivo,
         applied: false,
+        isInterstate,
       });
     }
   } catch (e) {
