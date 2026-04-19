@@ -1,4 +1,3 @@
-import { corsHeaders } from "../_shared/cors.ts";
 import {
   fetchMpPayment,
   getAdminClient,
@@ -6,13 +5,11 @@ import {
   processMpPayment,
 } from "../_shared/billing.ts";
 
-const fallbackCors = {
+const headers = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type",
 };
-
-const headers = corsHeaders ?? fallbackCors;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
