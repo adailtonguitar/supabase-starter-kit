@@ -1166,9 +1166,10 @@ export default function NFeEmissao() {
         console.warn("[SHADOW] NFeEmissao fail-safe (usando form.items)", e);
       }
 
-      // ─── Camada 1: validação fiscal de CFOP (idDest depende do destino) ───
-      const idDestForValidation =
-        form.destUF && (companyInfo as any)?.uf && form.destUF !== (companyInfo as any).uf ? 2 : 1;
+      // ─── Camada 1: validação fiscal de CFOP (idDest sempre recalculado) ───
+      const { resolveIdDest } = await import("@/lib/fiscal-id-dest");
+      const emitUfForIdDest = (companyInfo?.address_state || (companyInfo as any)?.state || hookState || "").toUpperCase().trim();
+      const idDestForValidation = resolveIdDest(emitUfForIdDest, form.destUF);
       try {
         const { validateCfopBatch, formatCfopIssues } = await import("@/lib/fiscal-cfop-validator");
         const cfopItems = form.items.map((it: any, idx: number) => ({

@@ -2482,6 +2482,7 @@ async function handleEmitNfe(supabase: any, body: any) {
   let indPres = [1, 2, 3, 4, 9].includes(rawPresence) ? rawPresence : 1;
   const isInterstate = destUF.length === 2 && VALID_UFS.has(destUF) && emitUF !== destUF;
   const idDest = isInterstate ? 2 : 1;
+  console.log({ type: "IDDEST_RESOLVED", flow: "nfe", emitUF, destUF, idDest });
 
   // ─── REGRA DE COERÊNCIA: interestadual + presencial → auto-corrigir ───
   if (isInterstate && indPres === 1) {
