@@ -1907,6 +1907,7 @@ async function handleEmit(supabase: any, body: any) {
     }
 
     const cfop = (item.cfop || "5102").trim();
+    console.log({ type: "CFOP_INBOUND_DEBUG", flow: "nfce", item_index: i + 1, received_cfop: item.cfop, cfop_used: cfop, product_id: item.product_id ?? null });
     if (!cfop || cfop.length !== 4) {
       throw new Error(`Item ${i + 1} ("${item.name}") com CFOP inválido: "${cfop}"`);
     }
@@ -2843,6 +2844,7 @@ async function handleEmitNfe(supabase: any, body: any) {
     }
 
     const cfop = normalizeCfopForDestination(item.cfop || "5102", isInterstate);
+    console.log({ type: "CFOP_INBOUND_DEBUG", flow: "nfe", item_index: i + 1, received_cfop: item.cfop, cfop_after_normalize: cfop, isInterstate, ufEmit: emitUF, ufDest: destUF, product_id: item.product_id ?? null });
     if (!cfop || cfop.length !== 4) {
       throw new Error(`Item ${i + 1} ("${item.name}") com CFOP inválido: "${cfop}"`);
     }
@@ -3571,6 +3573,7 @@ async function handleEmitFromSale(supabase: any, body: any) {
     const product = pid ? (productsById.get(pid) || {}) : {};
     const qty = Number(item.quantity ?? 1);
     const unitPrice = Number(item.unit_price ?? 0);
+    console.log({ type: "CFOP_INBOUND_DEBUG", flow: "emit_from_sale", item_received_cfop: (item as any).cfop ?? null, product_cfop: (product as any)?.cfop ?? null, product_id: pid });
     const discountPercent = Number(item.discount_percent ?? 0);
     const discountValue = (discountPercent / 100) * unitPrice * qty;
     return {
