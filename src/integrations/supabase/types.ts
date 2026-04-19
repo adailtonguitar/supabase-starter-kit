@@ -46,6 +46,7 @@ export type Database = {
           state_registration: string | null
           street: string | null
           trade_name: string | null
+          trial_ends_at: string | null
           updated_at: string
           zip_code: string | null
         }
@@ -80,6 +81,7 @@ export type Database = {
           state_registration?: string | null
           street?: string | null
           trade_name?: string | null
+          trial_ends_at?: string | null
           updated_at?: string
           zip_code?: string | null
         }
@@ -114,6 +116,7 @@ export type Database = {
           state_registration?: string | null
           street?: string | null
           trade_name?: string | null
+          trial_ends_at?: string | null
           updated_at?: string
           zip_code?: string | null
         }
