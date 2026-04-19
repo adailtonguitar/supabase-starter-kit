@@ -9,6 +9,11 @@
  * Ações: emit, emit_from_sale, consult_status, cancel, download_pdf, download_xml, inutilize, backup_xmls
  */
 
+// 🔖 Marcador de versão para confirmar deploy ativo (boot-time + por requisição)
+const BACKEND_VERSION_MARKER = "CFOP_BACKEND_VERSION_FIX_V2";
+const DEPLOY_TIMESTAMP = new Date().toISOString();
+console.log(`[BOOT] ${BACKEND_VERSION_MARKER} deployed_at=${DEPLOY_TIMESTAMP}`);
+
 import { corsHeaders, createServiceClient, jsonResponse, requireCompanyMembership, requireUser } from "../_shared/auth.ts";
 import {
   classifyAndNormalizePayment,
