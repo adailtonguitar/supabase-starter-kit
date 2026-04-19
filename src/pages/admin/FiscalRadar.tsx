@@ -402,6 +402,52 @@ export default function FiscalRadar() {
             </div>
           )}
         </div>
+
+        {/* Dialog: Notificar dono (apenas super admin) */}
+        <Dialog open={notifyOpen} onOpenChange={setNotifyOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Mail className="w-4 h-4" /> Notificar dono da empresa
+              </DialogTitle>
+              <DialogDescription>
+                Será enviado um e-mail para o(s) responsável(is) cadastrado(s) na empresa
+                com a lista de produtos críticos e em alerta detectados pelo Radar Fiscal.
+                Esta ação não altera nenhum cadastro nem o fluxo de emissão.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3 text-sm">
+              <div className="flex items-center justify-between rounded-lg border border-border bg-muted/30 px-3 py-2">
+                <span className="text-muted-foreground">Críticos</span>
+                <Badge variant="destructive" className="font-mono">{kpis.critical}</Badge>
+              </div>
+              <div className="flex items-center justify-between rounded-lg border border-border bg-muted/30 px-3 py-2">
+                <span className="text-muted-foreground">Alertas</span>
+                <Badge variant="outline" className="bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30 font-mono">{kpis.warn}</Badge>
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Mensagem opcional ao dono</label>
+                <Textarea
+                  value={notifyNote}
+                  onChange={(e) => setNotifyNote(e.target.value)}
+                  placeholder="Ex.: Identificamos uso de CFOP 5101 em produtos de revenda. Ajuste para 5102 antes da próxima emissão."
+                  rows={3}
+                />
+              </div>
+              {lastNotify && (
+                <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+                  <Clock className="w-3 h-3" /> Última notificação: {new Date(lastNotify.ts).toLocaleString("pt-BR")} → {lastNotify.recipients.join(", ")}
+                </p>
+              )}
+            </div>
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => setNotifyOpen(false)} disabled={notifyLoading}>Cancelar</Button>
+              <Button onClick={handleNotifyOwner} disabled={notifyLoading}>
+                {notifyLoading ? <><Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> Enviando...</> : <><Mail className="w-3.5 h-3.5 mr-1" /> Enviar e-mail</>}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </TooltipProvider>
   );
