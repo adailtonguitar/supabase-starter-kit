@@ -779,6 +779,60 @@ export type Database = {
           },
         ]
       }
+      payment_webhook_logs: {
+        Row: {
+          created_at: string
+          id: string
+          mp_payment_id: string | null
+          payload: Json | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          mp_payment_id?: string | null
+          payload?: Json | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          mp_payment_id?: string | null
+          payload?: Json | null
+        }
+        Relationships: []
+      }
+      payments: {
+        Row: {
+          amount: number | null
+          company_id: string | null
+          created_at: string
+          id: string
+          mp_payment_id: string | null
+          plan_key: string | null
+          status: string
+          user_id: string | null
+        }
+        Insert: {
+          amount?: number | null
+          company_id?: string | null
+          created_at?: string
+          id?: string
+          mp_payment_id?: string | null
+          plan_key?: string | null
+          status?: string
+          user_id?: string | null
+        }
+        Update: {
+          amount?: number | null
+          company_id?: string | null
+          created_at?: string
+          id?: string
+          mp_payment_id?: string | null
+          plan_key?: string | null
+          status?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -801,6 +855,39 @@ export type Database = {
           created_at?: string
           full_name?: string | null
           id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      subscriptions: {
+        Row: {
+          company_id: string | null
+          created_at: string
+          id: string
+          plan_key: string
+          status: string
+          subscription_end: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          company_id?: string | null
+          created_at?: string
+          id?: string
+          plan_key: string
+          status?: string
+          subscription_end?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string
+          id?: string
+          plan_key?: string
+          status?: string
+          subscription_end?: string | null
           updated_at?: string
           user_id?: string
         }
