@@ -163,7 +163,7 @@ const navItems: NavEntry[] = [
       { icon: FileDown, label: "Entradas", path: "/entradas" },
       { icon: Shield, label: "Config. Fiscal", path: "/fiscal/config" },
       { icon: Scan, label: "Auditoria Fiscal", path: "/fiscal/auditoria" },
-      { icon: ArrowRightLeft, label: "Comparar XML", path: "/fiscal/comparar-xml" },
+      { icon: ShieldCheck, label: "Radar Fiscal", path: "/fiscal/radar" },
       { icon: FileDown, label: "Assinador Digital", path: "/fiscal/assinador" },
     ],
   },
