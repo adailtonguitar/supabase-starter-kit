@@ -15,16 +15,24 @@ import {
   Search,
   ShieldCheck,
   TrendingUp,
+  Mail,
+  Loader2,
+  Clock,
 } from "lucide-react";
 import { useProducts } from "@/hooks/useProducts";
 import { useCompany } from "@/hooks/useCompany";
+import { useAdminRole } from "@/hooks/useAdminRole";
 import { supabase } from "@/integrations/supabase/client";
 import { computeFiscalScore, suggestCfopFix, type FiscalRiskLevel } from "@/lib/fiscal-radar-score";
+import { appendNotifyLog, lastNotifyForCompany } from "@/lib/fiscal-radar-notify-log";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { toast } from "sonner";
 
 const PAGE_SIZE = 25;
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
@@ -72,10 +80,68 @@ type FilterMode = "all" | "critical" | "warn" | "st" | "top";
 export default function FiscalRadar() {
   const { data: products = [], isLoading } = useProducts();
   const { data: salesMap = {} } = useSales30dByProduct();
+  const { companyId } = useCompany();
+  const { isSuperAdmin } = useAdminRole();
   const [filter, setFilter] = useState<FilterMode>("all");
   const [category, setCategory] = useState<string>("all");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
+  const [notifyOpen, setNotifyOpen] = useState(false);
+  const [notifyNote, setNotifyNote] = useState("");
+  const [notifyLoading, setNotifyLoading] = useState(false);
+  const [lastNotify, setLastNotify] = useState(() => (companyId ? lastNotifyForCompany(companyId) : null));
+
+  useEffect(() => {
+    setLastNotify(companyId ? lastNotifyForCompany(companyId) : null);
+  }, [companyId, notifyOpen]);
+
+  const handleNotifyOwner = async () => {
+    if (!companyId) {
+      toast.error("Empresa não selecionada");
+      return;
+    }
+    const items = scored
+      .filter((r) => r.level === "critical" || r.level === "warn")
+      .slice(0, 100)
+      .map((r) => ({
+        product_id: r.product.id,
+        name: r.product.name,
+        cfop: r.product.cfop ?? null,
+        score: r.score,
+        problem: r.issues.map((i) => i.message).join("; ") || "—",
+        suggestion: suggestCfopFix(r.product.cfop),
+        sales_30d: r.sales.count,
+      }));
+    if (items.length === 0) {
+      toast.info("Nenhum produto crítico ou em alerta para notificar.");
+      return;
+    }
+    setNotifyLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("notify-fiscal-radar", {
+        body: { company_id: companyId, items, note: notifyNote || undefined },
+      });
+      if (error) throw error;
+      const sentTo = (data as any)?.sent_to || [];
+      appendNotifyLog({
+        ts: new Date().toISOString(),
+        company_id: companyId,
+        recipients: sentTo,
+        critical: (data as any)?.critical || 0,
+        warn: (data as any)?.warn || 0,
+        note: notifyNote || undefined,
+      });
+      toast.success(`E-mail enviado para ${sentTo.length} destinatário(s).`);
+      console.log("[FISCAL_RADAR_NOTIFY]", { company_id: companyId, sent_to: sentTo });
+      setNotifyOpen(false);
+      setNotifyNote("");
+    } catch (e: any) {
+      console.error("[FISCAL_RADAR_NOTIFY] erro:", e);
+      toast.error(`Falha ao notificar: ${e?.message || "erro desconhecido"}`);
+    } finally {
+      setNotifyLoading(false);
+    }
+  };
 
   const scored = useMemo(() => {
     return products.map((p) => {
@@ -159,12 +225,31 @@ export default function FiscalRadar() {
               Não altera dados nem o fluxo de emissão.
             </p>
           </div>
-          <Link
-            to="/produtos/auditoria-cfop"
-            className="text-xs text-primary hover:underline inline-flex items-center gap-1"
-          >
-            Auditoria CFOP detalhada <ExternalLink className="w-3 h-3" />
-          </Link>
+          <div className="flex items-center gap-2">
+            {isSuperAdmin && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setNotifyOpen(true)}
+                disabled={kpis.critical + kpis.warn === 0}
+                className="h-8 text-xs gap-1.5"
+              >
+                <Mail className="w-3.5 h-3.5" /> Notificar dono
+                {lastNotify && (
+                  <span className="ml-1 inline-flex items-center gap-0.5 text-[10px] text-muted-foreground">
+                    <Clock className="w-3 h-3" />
+                    {new Date(lastNotify.ts).toLocaleDateString("pt-BR")}
+                  </span>
+                )}
+              </Button>
+            )}
+            <Link
+              to="/produtos/auditoria-cfop"
+              className="text-xs text-primary hover:underline inline-flex items-center gap-1"
+            >
+              Auditoria CFOP detalhada <ExternalLink className="w-3 h-3" />
+            </Link>
+          </div>
         </header>
 
         {/* KPIs */}
@@ -317,6 +402,52 @@ export default function FiscalRadar() {
             </div>
           )}
         </div>
+
+        {/* Dialog: Notificar dono (apenas super admin) */}
+        <Dialog open={notifyOpen} onOpenChange={setNotifyOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Mail className="w-4 h-4" /> Notificar dono da empresa
+              </DialogTitle>
+              <DialogDescription>
+                Será enviado um e-mail para o(s) responsável(is) cadastrado(s) na empresa
+                com a lista de produtos críticos e em alerta detectados pelo Radar Fiscal.
+                Esta ação não altera nenhum cadastro nem o fluxo de emissão.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3 text-sm">
+              <div className="flex items-center justify-between rounded-lg border border-border bg-muted/30 px-3 py-2">
+                <span className="text-muted-foreground">Críticos</span>
+                <Badge variant="destructive" className="font-mono">{kpis.critical}</Badge>
+              </div>
+              <div className="flex items-center justify-between rounded-lg border border-border bg-muted/30 px-3 py-2">
+                <span className="text-muted-foreground">Alertas</span>
+                <Badge variant="outline" className="bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30 font-mono">{kpis.warn}</Badge>
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Mensagem opcional ao dono</label>
+                <Textarea
+                  value={notifyNote}
+                  onChange={(e) => setNotifyNote(e.target.value)}
+                  placeholder="Ex.: Identificamos uso de CFOP 5101 em produtos de revenda. Ajuste para 5102 antes da próxima emissão."
+                  rows={3}
+                />
+              </div>
+              {lastNotify && (
+                <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+                  <Clock className="w-3 h-3" /> Última notificação: {new Date(lastNotify.ts).toLocaleString("pt-BR")} → {lastNotify.recipients.join(", ")}
+                </p>
+              )}
+            </div>
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => setNotifyOpen(false)} disabled={notifyLoading}>Cancelar</Button>
+              <Button onClick={handleNotifyOwner} disabled={notifyLoading}>
+                {notifyLoading ? <><Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> Enviando...</> : <><Mail className="w-3.5 h-3.5 mr-1" /> Enviar e-mail</>}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </TooltipProvider>
   );

@@ -168,6 +168,7 @@ export function LayoutRoutes() {
       <Route path="/admin/fiscal-audit" element={<FiscalAudit />} />
       <Route path="/produtos/auditoria-cfop" element={<AuditoriaProdutosFiscal />} />
       <Route path="/admin/fiscal-radar" element={<FiscalRadar />} />
+      <Route path="/fiscal/radar" element={<FiscalRadar />} />
       <Route path="/ajuda" element={<Ajuda />} />
       <Route path="/assistente" element={<Assistente />} />
       <Route path="*" element={<NotFound />} />
