@@ -35,6 +35,11 @@ import { AdminSmokeRunner } from "@/components/admin/AdminSmokeRunner";
 import { AdminNcmLearning } from "@/components/admin/AdminNcmLearning";
 import { AdminFiscalAudit } from "@/components/admin/AdminFiscalAudit";
 import { lazy, Suspense } from "react";
+
+const FiscalRadarPage = lazy(() => import("./admin/FiscalRadar"));
+function FiscalRadarTab() {
+  return <Suspense fallback={<div className="py-8 text-center text-muted-foreground">Carregando...</div>}><FiscalRadarPage /></Suspense>;
+}
 import { adminQuery } from "@/lib/admin-query";
 
 const lazyRetry = (fn: () => Promise<any>) =>
@@ -119,6 +124,7 @@ export default function Admin() {
           <TabsTrigger value="auditoria" className="text-xs sm:text-sm"><Bot className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" /> Auditoria</TabsTrigger>
           <TabsTrigger value="ncm-ia" className="text-xs sm:text-sm"><Brain className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" /> NCM IA</TabsTrigger>
           <TabsTrigger value="fiscal-audit" className="text-xs sm:text-sm"><ShieldCheck className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" /> Auditoria Fiscal</TabsTrigger>
+          <TabsTrigger value="fiscal-radar" className="text-xs sm:text-sm"><Radio className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" /> Radar Fiscal</TabsTrigger>
         </TabsList>
 
         <TabsContent value="dashboard">
@@ -189,6 +195,9 @@ export default function Admin() {
         </TabsContent>
         <TabsContent value="fiscal-audit">
           <AdminFiscalAudit />
+        </TabsContent>
+        <TabsContent value="fiscal-radar">
+          <FiscalRadarTab />
         </TabsContent>
       </Tabs>
     </div>
