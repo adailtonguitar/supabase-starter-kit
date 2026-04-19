@@ -137,8 +137,36 @@ const Empresas = () => {
     setForm(prev => ({ ...prev, [key]: value }));
   };
 
+  const validateRequiredFields = (): string[] => {
+    const errors: string[] = [];
+    const cnpjDigits = form.cnpj.replace(/\D/g, "");
+    const cepDigits = form.address_zip.replace(/\D/g, "");
+    const ieDigits = form.ie.replace(/\D/g, "");
+    if (cnpjDigits.length !== 14) errors.push("CNPJ (14 dígitos)");
+    if (!form.name.trim()) errors.push("Razão Social");
+    if (!form.trade_name.trim()) errors.push("Nome Fantasia");
+    if (ieDigits.length < 2) errors.push("Inscrição Estadual (IE)");
+    if (!form.address_street.trim()) errors.push("Rua");
+    if (!form.address_number.trim()) errors.push("Número");
+    if (!form.address_neighborhood.trim()) errors.push("Bairro");
+    if (!form.address_city.trim()) errors.push("Cidade");
+    if (!form.address_state.trim() || form.address_state.length !== 2) errors.push("UF");
+    if (cepDigits.length !== 8) errors.push("CEP (8 dígitos)");
+    return errors;
+  };
+
   const handleSave = async () => {
     if (!companyId) return;
+
+    const missing = validateRequiredFields();
+    if (missing.length > 0) {
+      toast.error(
+        `Cadastro incompleto. Preencha: ${missing.join(", ")}.`,
+        { duration: 8000 },
+      );
+      return;
+    }
+
     setSaving(true);
     try {
       const { error } = await supabase.from("companies").update({
@@ -156,6 +184,13 @@ const Empresas = () => {
         address_city: form.address_city,
         address_state: form.address_state,
         address_zip: form.address_zip,
+        // Espelha em colunas legacy para que leitores antigos (emit-nfce) achem os dados
+        street: form.address_street,
+        number: form.address_number,
+        neighborhood: form.address_neighborhood,
+        city: form.address_city,
+        state: form.address_state,
+        zip_code: form.address_zip,
         slogan: form.slogan,
         pix_key: form.pix_key,
         pix_key_type: form.pix_key_type,
