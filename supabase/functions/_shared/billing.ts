@@ -74,12 +74,42 @@ export async function processMpPayment(
     /* ignore */
   }
 
+  // FALLBACK: se faltar dado essencial no external_reference, buscar na tabela payments
+  let usedFallback = false;
+  if (!ref.user_id || !ref.company_id || !ref.plan_key) {
+    const { data: existingPay } = await admin
+      .from("payments")
+      .select("user_id, company_id, plan_key")
+      .eq("mp_payment_id", String(payment.id))
+      .maybeSingle();
+    if (existingPay) {
+      const before = { ...ref };
+      ref.user_id = ref.user_id || existingPay.user_id || undefined;
+      ref.company_id = ref.company_id || existingPay.company_id || undefined;
+      ref.plan_key = ref.plan_key || existingPay.plan_key || undefined;
+      if (
+        ref.user_id !== before.user_id ||
+        ref.company_id !== before.company_id ||
+        ref.plan_key !== before.plan_key
+      ) {
+        usedFallback = true;
+        console.log(JSON.stringify({
+          type: "PAYMENT_FALLBACK_USED",
+          payment_id: String(payment.id),
+          company_id: ref.company_id ?? null,
+          plan_key: ref.plan_key ?? null,
+          ts: new Date().toISOString(),
+        }));
+      }
+    }
+  }
+
   // Validate plan_key against internal whitelist
   if (ref.plan_key && !ALLOWED_PLAN_KEYS.includes(ref.plan_key as any)) {
     return { ok: false, reason: `invalid_plan_key:${ref.plan_key}` };
   }
 
-  // Resolve company_id fallback
+  // Resolve company_id fallback via company_users
   let companyId = ref.company_id || null;
   if (!companyId && ref.user_id) {
     const { data: cu } = await admin
@@ -121,7 +151,14 @@ export async function processMpPayment(
   }
 
   if (!ref.user_id || !ref.plan_key) {
-    return { ok: false, reason: "missing_user_or_plan_in_external_reference" };
+    console.error(JSON.stringify({
+      type: "PAYMENT_FALLBACK_FAILED",
+      payment_id: String(payment.id),
+      reason: !ref.user_id ? "missing_user_id" : "missing_plan_key",
+      fallback_attempted: usedFallback,
+      ts: new Date().toISOString(),
+    }));
+    return { ok: false, reason: "missing_user_or_plan_after_fallback" };
   }
 
   // Validate amount (±1 BRL tolerance)
