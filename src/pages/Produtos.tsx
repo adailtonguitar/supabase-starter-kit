@@ -28,6 +28,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { ProductFiscalAuditBadge } from "@/components/produtos/ProductFiscalAuditBadge";
+import { auditProductFiscal, logProductAudit } from "@/lib/product-fiscal-audit";
 
 const PAGE_SIZE = 50;
 
@@ -171,6 +173,10 @@ export default function Produtos() {
           </p>
         </div>
         <div data-tour="product-import" className="flex items-center gap-2 flex-wrap">
+          <Button variant="outline" size="sm" onClick={() => navigate("/produtos/auditoria-cfop")}>
+            <AlertTriangle className="w-4 h-4 sm:mr-2" />
+            <span className="hidden sm:inline">Auditoria CFOP</span>
+          </Button>
           <Button variant="outline" size="sm" onClick={() => navigate("/importacao-nfe")}>
             <FileText className="w-4 h-4 sm:mr-2" />
             <span className="hidden sm:inline">Importar NF-e</span>
@@ -332,6 +338,9 @@ export default function Produtos() {
                                 {fiscalStatus.badgeLabel}
                               </span>
                             )}
+                            <span className="inline-block mt-1">
+                              <ProductFiscalAuditBadge product={{ id: product.id, name: product.name, cfop: product.cfop }} />
+                            </span>
                           </div>
                         </div>
                       </td>

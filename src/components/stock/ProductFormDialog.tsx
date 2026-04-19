@@ -528,6 +528,19 @@ export const ProductFormDialog = forwardRef<HTMLDivElement, Props>(function Prod
         toast.warning(`Sugestão NCM (aprendizado): para "${data.name}", o NCM ${ncmAprendido.ncm} foi usado ${ncmAprendido.count}x. Verifique se ${data.ncm} está correto.`, { duration: 8000 });
       }
 
+      // Auditoria de CFOP — apenas alerta (não bloqueia)
+      try {
+        const { auditProductFiscal, logProductAudit } = await import("@/lib/product-fiscal-audit");
+        const auditIssues = auditProductFiscal({ id: (product as any)?.id, name: data.name, cfop: data.cfop });
+        logProductAudit((product as any)?.id, auditIssues);
+        const errIssue = auditIssues.find((i) => i.severity === "error");
+        const warnIssue = auditIssues.find((i) => i.severity === "warn");
+        if (errIssue) toast.warning(`Auditoria CFOP: ${errIssue.message}`, { duration: 6000 });
+        else if (warnIssue) toast.info(`Auditoria CFOP: ${warnIssue.message}`, { duration: 5000 });
+      } catch (auditErr) {
+        console.warn("[ProductFormDialog] Falha na auditoria CFOP:", auditErr);
+      }
+
       const normalized = { ...(data as any) };
       if (isSimples && isCrtMeiOrSn && String(normalized.csosn || "").trim() === "101") {
         toast.error("Para MEI/Simples use CSOSN 102 neste fluxo de NFC-e.");
