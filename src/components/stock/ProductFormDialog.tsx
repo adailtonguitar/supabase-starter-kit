@@ -32,6 +32,7 @@ import { getSuggestedFiscalUpdate, getProductFiscalStatus } from "@/lib/fiscal-p
 import { aprenderNCM, sugerirNCM } from "@/lib/ncm-learning";
 import { NcmLearningSuggestion } from "./NcmLearningSuggestion";
 import { NcmMappingSuggestion } from "./NcmMappingSuggestion";
+import { TaxRuleSuggestion } from "./TaxRuleSuggestion";
 import { toast } from "sonner";
 import { sanitizeSkuInput, SKU_REGEX, SKU_ERROR_MESSAGE } from "@/lib/sku-sanitizer";
 import {
@@ -120,7 +121,7 @@ export const ProductFormDialog = forwardRef<HTMLDivElement, Props>(function Prod
   const canUseAiPhoto = isSuperAdmin || planFeatures.plan === "pro";
   const createProduct = useCreateProduct();
   const updateProduct = useUpdateProduct();
-  const { companyId, taxRegime: rawTaxRegime, crt } = useCompany();
+  const { companyId, taxRegime: rawTaxRegime, crt, addressState } = useCompany() as any;
   const isEditing = !!product;
   const initialMargin = product && product.cost_price && product.cost_price > 0
     ? ((product.price - product.cost_price) / product.cost_price) * 100
@@ -1026,6 +1027,28 @@ export const ProductFormDialog = forwardRef<HTMLDivElement, Props>(function Prod
                         if (cest) {
                           try { (form.setValue as any)("cest", cest, { shouldDirty: true }); } catch {}
                         }
+                      }}
+                    />
+                    <TaxRuleSuggestion
+                      companyId={companyId}
+                      productId={product?.id ?? null}
+                      regime={isSimples ? "simples" : "normal"}
+                      ufOrigem={addressState ?? null}
+                      ufDestino={addressState ?? null}
+                      ncm={field.value || ""}
+                      categoriaFiscalTipo={selectedFiscalCategory?.product_type ?? null}
+                      current={{
+                        csosn: form.watch("csosn"),
+                        cst_icms: form.watch("cst_icms"),
+                        cfop: form.watch("cfop"),
+                        origem: form.watch("origem") as any,
+                        cst_pis: form.watch("cst_pis"),
+                        aliq_pis: form.watch("aliq_pis") as any,
+                        cst_cofins: form.watch("cst_cofins"),
+                        aliq_cofins: form.watch("aliq_cofins") as any,
+                      }}
+                      onApplyField={(f, v) => {
+                        try { (form.setValue as any)(f, v, { shouldDirty: true, shouldValidate: true }); } catch {}
                       }}
                     />
                     <FormMessage />
