@@ -324,8 +324,9 @@ interface NFeFiscalCategory {
 }
 
 export default function NFeEmissao() {
-  const { user } = useAuth();
-  const { companyId, companyName, logoUrl, cnpj: hookCnpj, ie: hookIe, phone: hookPhone, addressStreet: hookStreet, addressNumber: hookNumber, addressNeighborhood: hookNeighborhood, addressCity: hookCity, addressState: hookState } = useCompany();
+  const { user, loading: authLoading } = useAuth();
+  const { companyId, companyName, logoUrl, cnpj: hookCnpj, ie: hookIe, phone: hookPhone, addressStreet: hookStreet, addressNumber: hookNumber, addressNeighborhood: hookNeighborhood, addressCity: hookCity, addressState: hookState, loading: companyLoading } = useCompany();
+  const isEmitReady = !!companyId && !authLoading && !companyLoading;
   const plan = usePlanFeatures();
   const { lookup: cnpjLookup, loading: cnpjLoading } = useCnpjLookup();
 
@@ -809,6 +810,12 @@ export default function NFeEmissao() {
   }
 
   const handleEmit = async () => {
+    // Gate: contexto pronto (companyId + auth/company resolvidos)
+    if (!isEmitReady) {
+      console.warn("[NFeEmissao] Emit bloqueado: contexto não pronto", { companyId, authLoading, companyLoading });
+      toast.error("Aguardando carregamento da empresa. Tente novamente em instantes.");
+      return;
+    }
     // ========== VALIDAÇÕES OBRIGATÓRIAS SEFAZ - NF-e modelo 55 ==========
 
     // --- Destinatário ---
@@ -2377,11 +2384,12 @@ export default function NFeEmissao() {
               </button>
               <button
                 onClick={handleEmit}
-                disabled={emitting}
+                disabled={emitting || !isEmitReady}
+                title={!isEmitReady ? "Aguardando carregamento da empresa..." : undefined}
                 className="flex items-center gap-2 px-5 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
               >
-                {emitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                {emitting ? "Emitindo..." : "Emitir NF-e"}
+                {emitting ? <Loader2 className="w-4 h-4 animate-spin" /> : !isEmitReady ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                {emitting ? "Emitindo..." : !isEmitReady ? "Aguardando..." : "Emitir NF-e"}
               </button>
             </div>
           </div>

@@ -129,8 +129,9 @@ function isMoneyConsistent(a: number, b: number): boolean {
 }
 
 export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: NfceEmissionDialogProps) {
-  const { companyId } = useCompany();
+  const { companyId, loading: companyLoading } = useCompany();
   const navigate = useNavigate();
+  const isEmitReady = !!companyId && !companyLoading;
   const plan = usePlanFeatures();
   const { data: allProducts = [] } = useProducts();
   const [emitting, setEmitting] = useState(false);
@@ -312,6 +313,12 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
   };
 
   const handleEmit = async () => {
+    // Gate: contexto pronto (companyId + auth/company loading concluído)
+    if (!isEmitReady) {
+      console.warn("[NfceEmissionDialog] Emit bloqueado: contexto não pronto", { companyId, companyLoading });
+      toast.error("Aguardando carregamento da empresa. Tente novamente em instantes.");
+      return;
+    }
     // Validate
     if (form.items.length === 0) {
       toast.error("Adicione pelo menos um item.");
@@ -1074,7 +1081,8 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
                 </button>
                 <button
                   onClick={handleEmit}
-                  disabled={emitting}
+                  disabled={emitting || !isEmitReady}
+                  title={!isEmitReady ? "Aguardando carregamento da empresa..." : undefined}
                   className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-all disabled:opacity-50"
                 >
                   {emitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
