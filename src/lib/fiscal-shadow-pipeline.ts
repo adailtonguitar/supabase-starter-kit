@@ -91,9 +91,25 @@ export async function runShadowPipeline<T extends ShadowItemInput>(
     out.cfop_suggestion = cfopSuggested;
     const current = (item.cfop ?? "").toString().trim();
     const hasManual = !!(item.cfop_manual && String(item.cfop_manual).trim());
+
+    // 🚨 BLOQUEIO DE SEGURANÇA FISCAL: CFOP de ST (54xx) NUNCA é auto-aplicado.
+    // ST exige análise manual (MVA, CEST, protocolo). Aplicar automaticamente
+    // gera risco fiscal crítico (cobrança duplicada/indevida de ICMS-ST).
+    const isST = !!cfopSuggested && cfopSuggested.startsWith("54");
+    if (isST) {
+      console.log({
+        type: "CFOP_ST_BLOCK",
+        produto_id: item.product_id ?? null,
+        cfop_atual: current || null,
+        cfop_sugerido: cfopSuggested,
+        blocked: true,
+        reason: "st_detected",
+      });
+    }
+
     // Regra estrita: aplica somente se vazio OU exatamente "5102" (fallback genérico)
-    // E NUNCA se houver cfop_manual.
-    const cfopApplicable = !hasManual && (!current || current === "5102");
+    // E NUNCA se houver cfop_manual. E NUNCA se sugestão for ST.
+    const cfopApplicable = !hasManual && !isST && (!current || current === "5102");
     const willApply = apply && cfopApplicable && !!cfopSuggested && cfopSuggested !== current;
 
     if (current && current !== cfopSuggested) {
@@ -111,6 +127,7 @@ export async function runShadowPipeline<T extends ShadowItemInput>(
       cfop_atual: current || null,
       cfop_sugerido: cfopSuggested,
       applied: willApply,
+      blocked_st: isST,
       source: cfopResult.source,
     });
   } catch (e) {
