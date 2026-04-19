@@ -2161,7 +2161,8 @@ async function handleEmit(supabase: any, body: any) {
         tpAmb: ambiente === "producao" ? 1 : 2,
         finNFe: 1, indFinal: 1, indPres: 1, indIntermed: 0,
         procEmi: 0, verProc: "AnthoSystem 1.0",
-      },
+        };
+      })(),
       emit,
       det: detItems,
       transp: { modFrete: 9 },
