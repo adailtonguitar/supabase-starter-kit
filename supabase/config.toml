@@ -29,3 +29,5 @@ verify_jwt = false
 
 [functions.retry-webhooks]
 verify_jwt = false
+[functions.test-webhook]
+verify_jwt = false
