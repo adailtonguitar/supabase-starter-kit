@@ -225,12 +225,31 @@ export default function FiscalRadar() {
               Não altera dados nem o fluxo de emissão.
             </p>
           </div>
-          <Link
-            to="/produtos/auditoria-cfop"
-            className="text-xs text-primary hover:underline inline-flex items-center gap-1"
-          >
-            Auditoria CFOP detalhada <ExternalLink className="w-3 h-3" />
-          </Link>
+          <div className="flex items-center gap-2">
+            {isSuperAdmin && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setNotifyOpen(true)}
+                disabled={kpis.critical + kpis.warn === 0}
+                className="h-8 text-xs gap-1.5"
+              >
+                <Mail className="w-3.5 h-3.5" /> Notificar dono
+                {lastNotify && (
+                  <span className="ml-1 inline-flex items-center gap-0.5 text-[10px] text-muted-foreground">
+                    <Clock className="w-3 h-3" />
+                    {new Date(lastNotify.ts).toLocaleDateString("pt-BR")}
+                  </span>
+                )}
+              </Button>
+            )}
+            <Link
+              to="/produtos/auditoria-cfop"
+              className="text-xs text-primary hover:underline inline-flex items-center gap-1"
+            >
+              Auditoria CFOP detalhada <ExternalLink className="w-3 h-3" />
+            </Link>
+          </div>
         </header>
 
         {/* KPIs */}
