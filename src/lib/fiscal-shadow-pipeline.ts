@@ -13,6 +13,7 @@
  */
 import { resolveCfop } from "../../shared/fiscal/cfop/resolve-cfop";
 import { resolveTaxRule, type TaxRuleResolved } from "./tax-rule-resolver";
+import { recordFiscalAuditEvent } from "./fiscal-audit-store";
 
 export interface ShadowItemInput {
   product_id?: string | null;
