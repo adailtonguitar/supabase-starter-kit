@@ -118,6 +118,7 @@ export default function Admin() {
           <TabsTrigger value="payment-logs" className="text-xs sm:text-sm"><Receipt className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" /> Pagamentos</TabsTrigger>
           <TabsTrigger value="auditoria" className="text-xs sm:text-sm"><Bot className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" /> Auditoria</TabsTrigger>
           <TabsTrigger value="ncm-ia" className="text-xs sm:text-sm"><Brain className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" /> NCM IA</TabsTrigger>
+          <TabsTrigger value="fiscal-audit" className="text-xs sm:text-sm"><ShieldCheck className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" /> Auditoria Fiscal</TabsTrigger>
         </TabsList>
 
         <TabsContent value="dashboard">
