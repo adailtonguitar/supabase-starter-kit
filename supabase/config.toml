@@ -14,3 +14,18 @@ verify_jwt = false
 
 [functions.diagnose-dfe]
 verify_jwt = false
+
+[functions.create-checkout]
+verify_jwt = false
+
+[functions.create-subscription-payment]
+verify_jwt = false
+
+[functions.mercadopago-webhook]
+verify_jwt = false
+
+[functions.reconcile-payments]
+verify_jwt = false
+
+[functions.retry-webhooks]
+verify_jwt = false
