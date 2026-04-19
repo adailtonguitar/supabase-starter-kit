@@ -3573,6 +3573,7 @@ async function handleEmitFromSale(supabase: any, body: any) {
     const product = pid ? (productsById.get(pid) || {}) : {};
     const qty = Number(item.quantity ?? 1);
     const unitPrice = Number(item.unit_price ?? 0);
+    console.log({ type: "CFOP_INBOUND_DEBUG", flow: "emit_from_sale", item_received_cfop: (item as any).cfop ?? null, product_cfop: (product as any)?.cfop ?? null, product_id: pid });
     const discountPercent = Number(item.discount_percent ?? 0);
     const discountValue = (discountPercent / 100) * unitPrice * qty;
     return {
