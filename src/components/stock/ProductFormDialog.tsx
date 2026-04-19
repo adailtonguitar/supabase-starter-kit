@@ -393,11 +393,14 @@ export const ProductFormDialog = forwardRef<HTMLDivElement, Props>(function Prod
   const applySuggestedFiscalDefaults = useCallback(() => {
     const current = form.getValues();
 
-    if (current.origem === undefined || current.origem === null || current.origem === 0) {
-      form.setValue("origem", suggestedFiscalDefaults.origem);
+    // Origem: aplica sempre que sugestão for diferente (clique explícito do usuário)
+    if (current.origem !== suggestedFiscalDefaults.origem) {
+      form.setValue("origem", suggestedFiscalDefaults.origem, { shouldDirty: true });
     }
-    if (!current.cfop?.trim() || current.cfop === "5102" || current.cfop === "5405") {
-      form.setValue("cfop", suggestedFiscalDefaults.cfop);
+    // CFOP: clique explícito sobrescreve. Para varejo (revenda) o correto é 5102, não 5101.
+    // 5101 = venda de produção própria (indústria); 5102 = revenda de mercadoria de terceiros.
+    if (suggestedFiscalDefaults.cfop && current.cfop !== suggestedFiscalDefaults.cfop) {
+      form.setValue("cfop", suggestedFiscalDefaults.cfop, { shouldDirty: true });
     }
 
     if (taxRegime === "simples_nacional") {
