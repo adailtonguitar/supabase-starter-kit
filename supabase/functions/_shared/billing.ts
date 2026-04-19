@@ -12,7 +12,7 @@ export const ALLOWED_PLAN_KEYS = [
 
 export const EXPECTED_PRICES: Record<string, number> = {
   emissor: 99.9,
-  starter: 149.9,
+  starter: 1.0, // TESTE: valor reduzido temporariamente
   essencial: 149.9,
   business: 199.9,
   profissional: 199.9,

@@ -17,7 +17,7 @@ function getCorsHeaders(req: Request) {
 }
 
 const PLANS: Record<string, { title: string; price: number }> = {
-  starter: { title: "Antho System — Starter", price: 149.9 },
+  starter: { title: "Antho System — Starter (TESTE)", price: 1.0 },
   business: { title: "Antho System — Business", price: 199.9 },
   pro: { title: "Antho System — Pro", price: 449.9 },
 };
