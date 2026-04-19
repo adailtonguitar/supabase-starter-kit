@@ -62,7 +62,7 @@ export function useProducts() {
       while (keepFetching) {
         const { data, error } = await supabase
           .from("products")
-          .select("id,name,sku,barcode,fiscal_category_id,ncm,cfop,csosn,cst_icms,origem,category,price,cost_price,stock_quantity,min_stock,unit,company_id,is_active,image_url,shelf_location,voltage,warranty_months,serial_number")
+          .select("id,name,sku,barcode,fiscal_category_id,ncm,cfop,csosn,cst_icms,aliq_icms,cst_pis,aliq_pis,cst_cofins,aliq_cofins,cest,gtin_tributavel,origem,category,price,cost_price,stock_quantity,min_stock,unit,company_id,is_active,image_url,shelf_location,voltage,warranty_months,serial_number")
           .eq("company_id", companyId)
           .or(PRODUCTS_ACTIVE_OR_LEGACY_NULL)
           .order("name")
