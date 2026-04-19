@@ -2,8 +2,28 @@ import { createContext, useContext, useEffect, useState, useCallback } from "rea
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
-const TRIAL_DAYS = 30;
 const GRACE_PERIOD_DAYS = 3;
+
+/**
+ * Single source of truth for trial expiration.
+ * Reads exclusively from companies.trial_ends_at.
+ * Fail-safe: if trial_ends_at is null, do NOT block (returns trialActive=true with null days).
+ */
+function calcTrialFromEndsAt(trialEndsAt: string | null): { trialActive: boolean; trialDaysLeft: number | null; trialExpired: boolean } {
+  if (!trialEndsAt) {
+    // Fail-safe: empresa sem trial_ends_at definido → liberar acesso
+    return { trialActive: true, trialDaysLeft: null, trialExpired: false };
+  }
+  const endMs = new Date(trialEndsAt).getTime();
+  const nowMs = Date.now();
+  if (Number.isNaN(endMs)) {
+    return { trialActive: true, trialDaysLeft: null, trialExpired: false };
+  }
+  const remainMs = endMs - nowMs;
+  const expired = remainMs <= 0;
+  const daysLeft = expired ? 0 : Math.ceil(remainMs / (24 * 60 * 60 * 1000));
+  return { trialActive: !expired, trialDaysLeft: daysLeft, trialExpired: expired };
+}
 
 export const PLANS = {
   starter: { key: "starter", name: "Starter", price: 149.90 },
@@ -48,15 +68,6 @@ const SubscriptionContext = createContext<SubscriptionContextType>({
   openCustomerPortal: async () => {},
 });
 
-function calcTrial(createdAt: string) {
-  const start = new Date(createdAt).getTime();
-  const now = Date.now();
-  const elapsed = now - start;
-  const totalMs = TRIAL_DAYS * 24 * 60 * 60 * 1000;
-  const remainMs = totalMs - elapsed;
-  const daysLeft = Math.max(0, Math.ceil(remainMs / (24 * 60 * 60 * 1000)));
-  return { trialActive: daysLeft > 0, trialDaysLeft: daysLeft, trialExpired: daysLeft <= 0 };
-}
 
 function calcGracePeriod(subscriptionEnd: string) {
   const endDate = new Date(subscriptionEnd).getTime();
