@@ -67,6 +67,25 @@ export async function processMpPayment(
   admin: SupabaseClient,
   payment: any,
 ): Promise<ProcessResult> {
+  console.log(JSON.stringify({
+    type: "PROCESS_PAYMENT_START",
+    payment_id: String(payment?.id ?? ""),
+    status_mp: payment?.status ?? null,
+    external_reference_present: !!payment?.external_reference,
+    ts: new Date().toISOString(),
+  }));
+
+  const fail = (reason: string): ProcessResult => {
+    console.error(JSON.stringify({
+      type: "PROCESS_PAYMENT_ERROR",
+      payment_id: String(payment?.id ?? ""),
+      reason,
+      status_mp: payment?.status ?? null,
+      ts: new Date().toISOString(),
+    }));
+    return { ok: false, reason };
+  };
+
   let ref: { user_id?: string; company_id?: string; plan_key?: string } = {};
   try {
     ref = JSON.parse(payment.external_reference || "{}");
@@ -106,7 +125,7 @@ export async function processMpPayment(
 
   // Validate plan_key against internal whitelist
   if (ref.plan_key && !ALLOWED_PLAN_KEYS.includes(ref.plan_key as any)) {
-    return { ok: false, reason: `invalid_plan_key:${ref.plan_key}` };
+    return fail(`invalid_plan_key:${ref.plan_key}`);
   }
 
   // Resolve company_id fallback via company_users
@@ -137,7 +156,7 @@ export async function processMpPayment(
       { onConflict: "mp_payment_id" },
     );
   if (payErr) {
-    return { ok: false, reason: `payments_upsert_error:${payErr.message}` };
+    return fail(`payments_upsert_error:${payErr.message}`);
   }
 
   if (payment.status !== "approved") {
@@ -158,16 +177,13 @@ export async function processMpPayment(
       fallback_attempted: usedFallback,
       ts: new Date().toISOString(),
     }));
-    return { ok: false, reason: "missing_user_or_plan_after_fallback" };
+    return fail("missing_user_or_plan_after_fallback");
   }
 
   // Validate amount (±1 BRL tolerance)
   const expected = EXPECTED_PRICES[ref.plan_key];
   if (expected && Math.abs((payment.transaction_amount ?? 0) - expected) > 1) {
-    return {
-      ok: false,
-      reason: `amount_mismatch:expected=${expected}:got=${payment.transaction_amount}`,
-    };
+    return fail(`amount_mismatch:expected=${expected}:got=${payment.transaction_amount}`);
   }
 
   // 2) Subscription upsert per company_id (single source of truth)
@@ -221,7 +237,7 @@ export async function processMpPayment(
   }
 
   if (subErr) {
-    return { ok: false, reason: `subscription_write_error:${subErr.message}` };
+    return fail(`subscription_write_error:${subErr.message}`);
   }
 
   console.log(JSON.stringify({
@@ -230,6 +246,17 @@ export async function processMpPayment(
     user_id: ref.user_id,
     plan_key: ref.plan_key,
     status: "active",
+    subscription_end: newEnd.toISOString(),
+    ts: new Date().toISOString(),
+  }));
+
+  console.log(JSON.stringify({
+    type: "PROCESS_PAYMENT_SUCCESS",
+    payment_id: String(payment?.id ?? ""),
+    company_id: companyId,
+    user_id: ref.user_id,
+    plan_key: ref.plan_key,
+    status_db: "active",
     subscription_end: newEnd.toISOString(),
     ts: new Date().toISOString(),
   }));
