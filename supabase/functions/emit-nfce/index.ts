@@ -2148,7 +2148,10 @@ async function handleEmit(supabase: any, body: any) {
     ambiente,
     infNFe: {
       versao: "4.00",
-      ide: {
+      ide: (() => {
+        // NFC-e: idDest sempre 1 (operação interna/presencial). Log obrigatório.
+        console.log({ type: "IDDEST_RESOLVED", flow: "nfce", emitUF: (company.state || "MA").toUpperCase(), destUF: (company.state || "MA").toUpperCase(), idDest: 1 });
+        return {
         cUF: getUfCode(company.state || "MA"),
         natOp: form.nat_op || "VENDA DE MERCADORIA",
         mod: 65, serie: config.serie || 1, nNF: numero,
