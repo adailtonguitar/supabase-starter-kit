@@ -190,12 +190,15 @@ export async function runShadowPipeline<T extends ShadowItemInput>(
   }
 
   // --- LOG OBRIGATÓRIO: AUTO_APPLY_DECISION ---
+  // ST tem precedência sobre qualquer outra razão (risco fiscal crítico).
+  const stBlocked = !!out.cfop_suggestion && out.cfop_suggestion.startsWith("54");
+  const finalReason = stBlocked ? "st_blocked" : applyReason;
   console.log({
     type: "AUTO_APPLY_DECISION",
     produto_id: item.product_id ?? null,
     applied_fields: out.applied_fields,
     skipped_fields: out.skipped_fields,
-    reason: applyReason,
+    reason: finalReason,
   });
 
   // Persistência local read-only para o Painel de Auditoria Fiscal.
@@ -208,7 +211,7 @@ export async function runShadowPipeline<T extends ShadowItemInput>(
     applied_fields: out.applied_fields,
     skipped_fields: out.skipped_fields,
     divergences: out.divergences,
-    reason: applyReason,
+    reason: finalReason,
   });
 
   return out;
