@@ -9,7 +9,7 @@
  * Ações: emit, emit_from_sale, consult_status, cancel, download_pdf, download_xml, inutilize, backup_xmls
  */
 
-import { normalizeFinalCfop, validateFinalCfop } from "./cfop-final-normalizer.ts";
+import { fixRevendaCfop, normalizeFinalCfop, validateFinalCfop } from "./cfop-final-normalizer.ts";
 
 // 🔖 Marcador de versão para confirmar deploy ativo (boot-time + por requisição)
 const BACKEND_VERSION_MARKER = "CFOP_FINAL_NORMALIZER_V1";
@@ -1910,11 +1910,15 @@ async function handleEmit(supabase: any, body: any) {
 
     const _cfopRaw = (item.cfop || "5102").trim();
     // NFC-e é sempre operação interna (idDest=1)
-    const cfop = normalizeFinalCfop(_cfopRaw, 1);
+    const _cfopRevenda = fixRevendaCfop(_cfopRaw, 1);
+    const cfop = normalizeFinalCfop(_cfopRevenda, 1);
     console.log({ type: "CFOP_INBOUND_DEBUG", flow: "nfce", item_index: i + 1, received_cfop: item.cfop, cfop_used: cfop, product_id: item.product_id ?? null });
     console.log({ type: "CFOP_FINAL_NORMALIZED", flow: "nfce", before: _cfopRaw, after: cfop, idDest: 1 });
     try {
       validateFinalCfop(cfop, 1);
+      if (cfop === "5101" || cfop === "6101") {
+        throw new Error(`CFOP inválido para operação de revenda: ${cfop}`);
+      }
     } catch (e) {
       throw new Error(`Item ${i + 1} ("${item.name}"): ${(e as Error).message}`);
     }
@@ -2856,12 +2860,16 @@ async function handleEmitNfe(supabase: any, body: any) {
     }
 
     const _cfopRaw = (item.cfop || "5102").trim();
-    const _cfopAfterDest = normalizeCfopForDestination(_cfopRaw, isInterstate);
+    const _cfopRevenda = fixRevendaCfop(_cfopRaw, idDest);
+    const _cfopAfterDest = normalizeCfopForDestination(_cfopRevenda, isInterstate);
     const cfop = normalizeFinalCfop(_cfopAfterDest, idDest);
     console.log({ type: "CFOP_INBOUND_DEBUG", flow: "nfe", item_index: i + 1, received_cfop: item.cfop, cfop_after_normalize: cfop, isInterstate, ufEmit: emitUF, ufDest: destUF, product_id: item.product_id ?? null });
     console.log({ type: "CFOP_FINAL_NORMALIZED", flow: "nfe", before: _cfopRaw, after: cfop, idDest });
     try {
       validateFinalCfop(cfop, idDest);
+      if (cfop === "5101" || cfop === "6101") {
+        throw new Error(`CFOP inválido para operação de revenda: ${cfop}`);
+      }
     } catch (e) {
       throw new Error(`Item ${i + 1} ("${item.name}"): ${(e as Error).message}`);
     }

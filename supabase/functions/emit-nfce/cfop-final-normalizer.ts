@@ -13,6 +13,31 @@
  *
  * NÃO altera estrutura do XML, assinatura, cálculo de impostos nem regras de ST.
  */
+/**
+ * fixRevendaCfop — corrige CFOP de produção própria (5101/6101) para revenda (5102/6102).
+ * Preserva ST (54xx/64xx). Loga toda mudança via CFOP_REV_FIX.
+ * Deve ser chamado ANTES de normalizeFinalCfop.
+ */
+export function fixRevendaCfop(cfop: string | null | undefined, idDest: number): string {
+  const c = String(cfop ?? "").trim();
+  if (!c) {
+    const fallback = idDest === 2 ? "6102" : "5102";
+    console.log({ type: "CFOP_REV_FIX", before: cfop, after: fallback, idDest, reason: "empty" });
+    return fallback;
+  }
+  // ST nunca é alterado
+  if (c.startsWith("54") || c.startsWith("64")) {
+    return c;
+  }
+  let out = c;
+  if (c === "5101") out = "5102";
+  else if (c === "6101") out = "6102";
+  if (out !== c) {
+    console.log({ type: "CFOP_REV_FIX", before: c, after: out, idDest });
+  }
+  return out;
+}
+
 export function normalizeFinalCfop(cfop: string | null | undefined, idDest: number): string {
   const c = String(cfop ?? "").trim();
   if (!c || !/^\d{4}$/.test(c)) return "5102";
