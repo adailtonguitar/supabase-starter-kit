@@ -1,4 +1,4 @@
-import { useMemo, useState, useDeferredValue, useCallback } from "react";
+import { useMemo, useState, useDeferredValue, useCallback, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Search, Plus, Edit, Package, Upload, Trash2, FileText, ArrowUpDown, History, Zap, AlertTriangle } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
@@ -54,6 +54,21 @@ export default function Produtos() {
   const [priceHistoryProduct, setPriceHistoryProduct] = useState<Product | null>(null);
   const [showBulkFiscalConfirm, setShowBulkFiscalConfirm] = useState(false);
   const fiscalPendingOnly = searchParams.get("fiscal") === "pending";
+
+  // Deep-link: abrir produto em edição direto com foco fiscal (vindo do Radar Fiscal)
+  useEffect(() => {
+    const editId = searchParams.get("edit");
+    if (!editId || !products.length || showForm) return;
+    const target = products.find(p => p.id === editId);
+    if (target) {
+      setEditingProduct(target);
+      setFocusFiscalSection(true);
+      setShowForm(true);
+      const next = new URLSearchParams(searchParams);
+      next.delete("edit");
+      setSearchParams(next, { replace: true });
+    }
+  }, [searchParams, products, showForm, setSearchParams]);
   const taxRegime: TaxRegime = rawTaxRegime === "lucro_presumido"
     ? "lucro_presumido"
     : rawTaxRegime === "lucro_real"
