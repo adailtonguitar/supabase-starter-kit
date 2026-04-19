@@ -782,21 +782,33 @@ export type Database = {
       payment_webhook_logs: {
         Row: {
           created_at: string
+          error_message: string | null
           id: string
           mp_payment_id: string | null
           payload: Json | null
+          processed: boolean
+          processed_at: string | null
+          retry_count: number
         }
         Insert: {
           created_at?: string
+          error_message?: string | null
           id?: string
           mp_payment_id?: string | null
           payload?: Json | null
+          processed?: boolean
+          processed_at?: string | null
+          retry_count?: number
         }
         Update: {
           created_at?: string
+          error_message?: string | null
           id?: string
           mp_payment_id?: string | null
           payload?: Json | null
+          processed?: boolean
+          processed_at?: string | null
+          retry_count?: number
         }
         Relationships: []
       }
