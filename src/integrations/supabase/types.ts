@@ -262,6 +262,54 @@ export type Database = {
           },
         ]
       }
+      fiscal_ncm_mapping: {
+        Row: {
+          categoria: string
+          cest: string | null
+          company_id: string | null
+          confianca: number
+          created_at: string
+          descricao_pattern: string | null
+          id: string
+          is_active: boolean
+          is_global: boolean
+          ncm: string
+          observacoes: string | null
+          updated_at: string
+          variacao: string | null
+        }
+        Insert: {
+          categoria: string
+          cest?: string | null
+          company_id?: string | null
+          confianca?: number
+          created_at?: string
+          descricao_pattern?: string | null
+          id?: string
+          is_active?: boolean
+          is_global?: boolean
+          ncm: string
+          observacoes?: string | null
+          updated_at?: string
+          variacao?: string | null
+        }
+        Update: {
+          categoria?: string
+          cest?: string | null
+          company_id?: string | null
+          confianca?: number
+          created_at?: string
+          descricao_pattern?: string | null
+          id?: string
+          is_active?: boolean
+          is_global?: boolean
+          ncm?: string
+          observacoes?: string | null
+          updated_at?: string
+          variacao?: string | null
+        }
+        Relationships: []
+      }
       fiscal_override_rules: {
         Row: {
           aliquota_forcada: number | null
@@ -697,6 +745,15 @@ export type Database = {
       get_my_company_memberships: { Args: never; Returns: Json }
       get_st_override: {
         Args: { p_company_id: string; p_ncm: string; p_uf: string }
+        Returns: Json
+      }
+      resolve_ncm_mapping: {
+        Args: {
+          p_categoria: string
+          p_company_id: string
+          p_descricao: string
+          p_variacao: string
+        }
         Returns: Json
       }
       resolve_st_from_db: {
