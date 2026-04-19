@@ -2148,7 +2148,10 @@ async function handleEmit(supabase: any, body: any) {
     ambiente,
     infNFe: {
       versao: "4.00",
-      ide: {
+      ide: (() => {
+        // NFC-e: idDest sempre 1 (operação interna/presencial). Log obrigatório.
+        console.log({ type: "IDDEST_RESOLVED", flow: "nfce", emitUF: (company.state || "MA").toUpperCase(), destUF: (company.state || "MA").toUpperCase(), idDest: 1 });
+        return {
         cUF: getUfCode(company.state || "MA"),
         natOp: form.nat_op || "VENDA DE MERCADORIA",
         mod: 65, serie: config.serie || 1, nNF: numero,
@@ -2158,7 +2161,8 @@ async function handleEmit(supabase: any, body: any) {
         tpAmb: ambiente === "producao" ? 1 : 2,
         finNFe: 1, indFinal: 1, indPres: 1, indIntermed: 0,
         procEmi: 0, verProc: "AnthoSystem 1.0",
-      },
+        };
+      })(),
       emit,
       det: detItems,
       transp: { modFrete: 9 },
@@ -2482,6 +2486,7 @@ async function handleEmitNfe(supabase: any, body: any) {
   let indPres = [1, 2, 3, 4, 9].includes(rawPresence) ? rawPresence : 1;
   const isInterstate = destUF.length === 2 && VALID_UFS.has(destUF) && emitUF !== destUF;
   const idDest = isInterstate ? 2 : 1;
+  console.log({ type: "IDDEST_RESOLVED", flow: "nfe", emitUF, destUF, idDest });
 
   // ─── REGRA DE COERÊNCIA: interestadual + presencial → auto-corrigir ───
   if (isInterstate && indPres === 1) {
