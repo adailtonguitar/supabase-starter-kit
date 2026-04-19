@@ -4,6 +4,7 @@
  */
 import type { FinalizeSaleItemInput, PaymentResult } from "@/services/types";
 import { runShadowPipelineBatch } from "@/lib/fiscal-shadow-pipeline";
+import { isAutoApplyFiscalEnabled } from "@/lib/fiscal-auto-apply-flag";
 
 /**
  * Roda observação shadow (CFOP + resolve_tax_rule) ANTES de emitir.
@@ -27,7 +28,7 @@ export async function runPdvFiscalShadow(
         cst_cofins: line.cst_cofins ?? null,
       })),
       { companyId: ctx.companyId, regime, ufOrigem: ctx.ufOrigem, ufDestino: ctx.ufDestino },
-      { apply: false },
+      { apply: isAutoApplyFiscalEnabled() },
     );
   } catch (e) {
     console.warn("[SHADOW] PDV ignorado", e);

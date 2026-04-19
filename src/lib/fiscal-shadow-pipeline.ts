@@ -77,6 +77,7 @@ export async function runShadowPipeline<T extends ShadowItemInput>(
     divergences: [],
   };
   const apply = opts.apply === true;
+  let applyReason = "shadow_only";
 
   // --- ETAPA 1: CFOP shadow ---
   let cfopSuggested = "";
@@ -88,7 +89,12 @@ export async function runShadowPipeline<T extends ShadowItemInput>(
     cfopSuggested = cfopResult.cfop;
     out.cfop_suggestion = cfopSuggested;
     const current = (item.cfop ?? "").toString().trim();
-    const willApply = apply && !current && !!cfopSuggested;
+    const hasManual = !!(item.cfop_manual && String(item.cfop_manual).trim());
+    // Regra estrita: aplica somente se vazio OU exatamente "5102" (fallback genérico)
+    // E NUNCA se houver cfop_manual.
+    const cfopApplicable = !hasManual && (!current || current === "5102");
+    const willApply = apply && cfopApplicable && !!cfopSuggested && cfopSuggested !== current;
+
     if (current && current !== cfopSuggested) {
       out.divergences.push({ field: "cfop", current, suggested: cfopSuggested });
     }
@@ -122,14 +128,13 @@ export async function runShadowPipeline<T extends ShadowItemInput>(
     });
     out.tax_rule = rule;
 
+    // CFOP NÃO entra aqui — já foi tratado na ETAPA 1 com regra estrita.
     const candidates: Array<[string, any]> = [
       ["csosn", rule.csosn],
       ["cst_icms", rule.cst_icms],
       ["origem", rule.origem],
       ["cst_pis", rule.cst_pis],
       ["cst_cofins", rule.cst_cofins],
-      // cfop só preenchido se vazio (regra do prompt)
-      ["cfop", rule.cfop],
     ];
 
     for (const [field, suggested] of candidates) {
@@ -157,9 +162,23 @@ export async function runShadowPipeline<T extends ShadowItemInput>(
       divergences: out.divergences,
       source: "rpc",
     });
+
+    applyReason = apply
+      ? (out.applied_fields.length > 0 ? "auto_applied_safe" : "no_safe_fields")
+      : "shadow_only";
   } catch (e) {
     console.warn("[TAX_RULE_PIPELINE] fallback (ignorado)", e);
+    applyReason = "rpc_failed_fail_safe";
   }
+
+  // --- LOG OBRIGATÓRIO: AUTO_APPLY_DECISION ---
+  console.log({
+    type: "AUTO_APPLY_DECISION",
+    produto_id: item.product_id ?? null,
+    applied_fields: out.applied_fields,
+    skipped_fields: out.skipped_fields,
+    reason: applyReason,
+  });
 
   return out;
 }

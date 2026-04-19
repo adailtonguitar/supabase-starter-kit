@@ -25,6 +25,7 @@ import { getFiscalReadiness, getFiscalReadinessBlockReason, getFiscalReadinessPr
 import { useNavigate } from "react-router-dom";
 import { invokeEdgeFunctionWithAuth } from "@/lib/invoke-edge-function-with-auth";
 import { runShadowPipelineBatch } from "@/lib/fiscal-shadow-pipeline";
+import { isAutoApplyFiscalEnabled } from "@/lib/fiscal-auto-apply-flag";
 
 interface NfceEmissionDialogProps {
   sale: {
@@ -588,7 +589,7 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
             cst_cofins: it.cofinsCst,
           })),
           { companyId, regime: regimeShadow },
-          { apply: false },
+          { apply: isAutoApplyFiscalEnabled() },
         );
       } catch (e) {
         console.warn("[SHADOW] NfceEmissionDialog ignorado", e);
