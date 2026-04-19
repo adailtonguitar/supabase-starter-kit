@@ -19,6 +19,13 @@ export interface Product {
   cfop?: string;
   csosn?: string;
   cst_icms?: string;
+  aliq_icms?: number;
+  cst_pis?: string;
+  aliq_pis?: number;
+  cst_cofins?: string;
+  aliq_cofins?: number;
+  cest?: string;
+  gtin_tributavel?: string;
   origem?: number;
   category?: string;
   price: number;
