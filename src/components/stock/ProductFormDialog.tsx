@@ -32,6 +32,7 @@ import { getSuggestedFiscalUpdate, getProductFiscalStatus } from "@/lib/fiscal-p
 import { aprenderNCM, sugerirNCM } from "@/lib/ncm-learning";
 import { NcmLearningSuggestion } from "./NcmLearningSuggestion";
 import { NcmMappingSuggestion } from "./NcmMappingSuggestion";
+import { TaxRuleSuggestion } from "./TaxRuleSuggestion";
 import { toast } from "sonner";
 import { sanitizeSkuInput, SKU_REGEX, SKU_ERROR_MESSAGE } from "@/lib/sku-sanitizer";
 import {
