@@ -571,6 +571,72 @@ export type Database = {
         }
         Relationships: []
       }
+      fiscal_tax_rules_v2: {
+        Row: {
+          aliq_cofins: number
+          aliq_pis: number
+          ativo: boolean
+          categoria_fiscal_tipo: string | null
+          cfop: string
+          company_id: string | null
+          created_at: string
+          csosn: string | null
+          cst_cofins: string
+          cst_icms: string | null
+          cst_pis: string
+          id: string
+          ncm: string
+          origem: number
+          prioridade: number
+          regime: string
+          uf_destino: string
+          uf_origem: string
+          updated_at: string
+        }
+        Insert: {
+          aliq_cofins?: number
+          aliq_pis?: number
+          ativo?: boolean
+          categoria_fiscal_tipo?: string | null
+          cfop?: string
+          company_id?: string | null
+          created_at?: string
+          csosn?: string | null
+          cst_cofins?: string
+          cst_icms?: string | null
+          cst_pis?: string
+          id?: string
+          ncm: string
+          origem?: number
+          prioridade?: number
+          regime?: string
+          uf_destino?: string
+          uf_origem?: string
+          updated_at?: string
+        }
+        Update: {
+          aliq_cofins?: number
+          aliq_pis?: number
+          ativo?: boolean
+          categoria_fiscal_tipo?: string | null
+          cfop?: string
+          company_id?: string | null
+          created_at?: string
+          csosn?: string | null
+          cst_cofins?: string
+          cst_icms?: string | null
+          cst_pis?: string
+          id?: string
+          ncm?: string
+          origem?: number
+          prioridade?: number
+          regime?: string
+          uf_destino?: string
+          uf_origem?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       nfe_documents: {
         Row: {
           chave_nfe: string
@@ -758,6 +824,17 @@ export type Database = {
       }
       resolve_st_from_db: {
         Args: { p_ncm: string; p_tipo_operacao?: string; p_uf: string }
+        Returns: Json
+      }
+      resolve_tax_rule: {
+        Args: {
+          p_categoria_fiscal_tipo: string
+          p_company_id: string
+          p_ncm: string
+          p_regime: string
+          p_uf_destino: string
+          p_uf_origem: string
+        }
         Returns: Json
       }
       user_belongs_to_company: {
