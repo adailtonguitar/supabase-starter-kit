@@ -575,24 +575,44 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
         return;
       }
 
-      // ─── SHADOW PIPELINE (não-bloqueante, somente observação) ───
+      // ─── SHADOW PIPELINE + APPLY-TO-PAYLOAD (não-bloqueante) ───
+      // Roda pipeline e CAPTURA o resultado para refletir correções (CFOP 5101→5102 etc.)
+      // no payload final. NÃO muta form.items (estado React intocado).
+      type ShadowItemForPayload = {
+        product_id: string | null;
+        ncm: string;
+        cfop: string;
+        csosn: string;
+        cst_pis: string;
+        cst_cofins: string;
+        cfop_manual: string | null;
+      };
+      let processedByIndex: ShadowItemForPayload[] = form.items.map((it) => ({
+        product_id: (it as any).product_id ?? null,
+        ncm: it.ncm,
+        cfop: it.cfop,
+        csosn: it.cst,
+        cst_pis: it.pisCst,
+        cst_cofins: it.cofinsCst,
+        cfop_manual: ((it as any).cfop_manual ?? null) as string | null,
+      }));
       try {
         const regimeShadow: "simples" | "normal" =
           (nfceConfig as any)?.crt === 3 ? "normal" : "simples";
-        await runShadowPipelineBatch(
-          form.items.map((it) => ({
-            product_id: (it as any).product_id ?? null,
-            ncm: it.ncm,
-            cfop: it.cfop,
-            csosn: it.cst,
-            cst_pis: it.pisCst,
-            cst_cofins: it.cofinsCst,
-          })),
+        const results = await runShadowPipelineBatch(
+          processedByIndex,
           { companyId, regime: regimeShadow },
           { apply: isAutoApplyFiscalEnabled() },
         );
+        processedByIndex = results.map((r) => r.item as ShadowItemForPayload);
+        console.log({
+          type: "PIPELINE_APPLIED_TO_PAYLOAD",
+          surface: "NfceEmissionDialog",
+          total_items: processedByIndex.length,
+        });
       } catch (e) {
-        console.warn("[SHADOW] NfceEmissionDialog ignorado", e);
+        console.warn("[SHADOW] NfceEmissionDialog fail-safe (usando form.items)", e);
+        // fail-safe: mantém os valores originais (já populados acima)
       }
 
       const { data, error } = await invokeEdgeFunctionWithAuth<FiscalEmitResponse>("emit-nfce", {
@@ -609,19 +629,22 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
             payment_method: form.paymentMethod,
             payment_value: form.paymentValue,
             change: form.change,
-            items: form.items.map((it) => ({
-              name: it.name,
-              ncm: it.ncm,
-              cfop: it.cfop,
-              cst: it.cst,
-              unit: it.unit,
-              qty: it.qty,
-              unit_price: it.unitPrice,
-              discount: it.discount,
-              pis_cst: it.pisCst,
-              cofins_cst: it.cofinsCst,
-              icms_aliquota: it.icmsAliquota || undefined,
-            })),
+            items: form.items.map((it, idx) => {
+              const p = processedByIndex[idx];
+              return {
+                name: it.name,
+                ncm: p?.ncm ?? it.ncm,
+                cfop: p?.cfop ?? it.cfop,
+                cst: p?.csosn ?? it.cst,
+                unit: it.unit,
+                qty: it.qty,
+                unit_price: it.unitPrice,
+                discount: it.discount,
+                pis_cst: p?.cst_pis ?? it.pisCst,
+                cofins_cst: p?.cst_cofins ?? it.cofinsCst,
+                icms_aliquota: it.icmsAliquota || undefined,
+              };
+            }),
           },
         },
       });
