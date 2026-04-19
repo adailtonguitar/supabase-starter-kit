@@ -134,6 +134,53 @@ export async function runShadowPipeline<T extends ShadowItemInput>(
     console.warn("[CFOP_PIPELINE] erro shadow (ignorado)", e);
   }
 
+  // --- ETAPA 1.5: CFOP REVENDA FIX (5101→5102 / 6101→6102) ---
+  // Fail-safe absoluto: try/catch local, nunca lança, mantém CFOP original em erro.
+  try {
+    const isManual = !!(item.cfop_manual && String(item.cfop_manual).trim());
+    const current = ((out.item as any).cfop ?? "").toString().trim();
+    const suggested = out.cfop_suggestion || "";
+    const isST = !!suggested && suggested.startsWith("54");
+
+    let novoCfop = current;
+    let motivo: "no_change" | "fix_revenda_interna" | "fix_revenda_interestadual" = "no_change";
+
+    if (!isManual && !isST) {
+      if (current === "5101") {
+        novoCfop = "5102";
+        motivo = "fix_revenda_interna";
+      } else if (current === "6101") {
+        novoCfop = "6102";
+        motivo = "fix_revenda_interestadual";
+      }
+    }
+
+    if (motivo !== "no_change" && apply) {
+      (out.item as any).cfop = novoCfop;
+      if (!out.applied_fields.includes("cfop")) out.applied_fields.push("cfop");
+      applyReason = motivo;
+      console.log({
+        type: "CFOP_FIX_APPLIED",
+        produto_id: item.product_id ?? null,
+        cfop_original: current,
+        cfop_novo: novoCfop,
+        reason: motivo,
+      });
+    } else if (motivo !== "no_change") {
+      // shadow only — registra divergência sem aplicar
+      console.log({
+        type: "CFOP_FIX_SHADOW",
+        produto_id: item.product_id ?? null,
+        cfop_original: current,
+        cfop_sugerido_fix: novoCfop,
+        reason: motivo,
+        applied: false,
+      });
+    }
+  } catch (e) {
+    console.warn("[CFOP_FIX] erro ignorado (fail-safe)", e);
+  }
+
   // --- ETAPA 2: resolve_tax_rule (sugestão) ---
   try {
     const rule = await resolveTaxRule({
