@@ -615,6 +615,14 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
         // fail-safe: mantém os valores originais (já populados acima)
       }
 
+      console.log("ANTES DO EMIT", {
+        surface: "NfceEmissionDialog",
+        sale_id: sale.id,
+        company_id: companyId,
+        config_id: nfceConfig.id,
+        items_count: form.items.length,
+        ts: new Date().toISOString(),
+      });
       const { data, error } = await invokeEdgeFunctionWithAuth<FiscalEmitResponse>("emit-nfce", {
         body: {
           sale_id: sale.id,
@@ -647,6 +655,13 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
             }),
           },
         },
+      });
+      console.log("DEPOIS DO EMIT", {
+        surface: "NfceEmissionDialog",
+        has_error: !!error,
+        error_message: error?.message,
+        has_data: !!data,
+        ts: new Date().toISOString(),
       });
 
       if (error) {
