@@ -121,7 +121,7 @@ export const ProductFormDialog = forwardRef<HTMLDivElement, Props>(function Prod
   const canUseAiPhoto = isSuperAdmin || planFeatures.plan === "pro";
   const createProduct = useCreateProduct();
   const updateProduct = useUpdateProduct();
-  const { companyId, taxRegime: rawTaxRegime, crt } = useCompany();
+  const { companyId, taxRegime: rawTaxRegime, crt, addressState } = useCompany() as any;
   const isEditing = !!product;
   const initialMargin = product && product.cost_price && product.cost_price > 0
     ? ((product.price - product.cost_price) / product.cost_price) * 100
@@ -1033,8 +1033,8 @@ export const ProductFormDialog = forwardRef<HTMLDivElement, Props>(function Prod
                       companyId={companyId}
                       productId={product?.id ?? null}
                       regime={isSimples ? "simples" : "normal"}
-                      ufOrigem={(useCompany() as any)?.addressState ?? null}
-                      ufDestino={(useCompany() as any)?.addressState ?? null}
+                      ufOrigem={addressState ?? null}
+                      ufDestino={addressState ?? null}
                       ncm={field.value || ""}
                       categoriaFiscalTipo={selectedFiscalCategory?.product_type ?? null}
                       current={{
