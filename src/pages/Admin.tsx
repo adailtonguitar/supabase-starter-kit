@@ -33,6 +33,7 @@ import { AdminPaymentLogs } from "@/components/admin/AdminPaymentLogs";
 import { AdminAuditoria } from "@/components/admin/AdminAuditoria";
 import { AdminSmokeRunner } from "@/components/admin/AdminSmokeRunner";
 import { AdminNcmLearning } from "@/components/admin/AdminNcmLearning";
+import { AdminFiscalAudit } from "@/components/admin/AdminFiscalAudit";
 import { lazy, Suspense } from "react";
 import { adminQuery } from "@/lib/admin-query";
 
