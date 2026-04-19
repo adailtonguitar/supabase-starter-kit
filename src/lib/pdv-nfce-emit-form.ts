@@ -3,6 +3,36 @@
  * a partir dos dados do carrinho no fechamento, evitando `emit_from_sale` (releitura DB + race).
  */
 import type { FinalizeSaleItemInput, PaymentResult } from "@/services/types";
+import { runShadowPipelineBatch } from "@/lib/fiscal-shadow-pipeline";
+
+/**
+ * Roda observação shadow (CFOP + resolve_tax_rule) ANTES de emitir.
+ * Não altera o form. Não bloqueia. Apenas loga.
+ */
+export async function runPdvFiscalShadow(
+  saleItems: FinalizeSaleItemInput[],
+  ctx: { companyId: string | null | undefined; crt: number; ufOrigem?: string | null; ufDestino?: string | null },
+): Promise<void> {
+  try {
+    const regime: "simples" | "normal" = ctx.crt === 3 ? "normal" : "simples";
+    await runShadowPipelineBatch(
+      saleItems.map((line) => ({
+        product_id: line.product_id ?? null,
+        ncm: line.ncm ?? null,
+        cfop: line.cfop ?? null,
+        csosn: line.csosn ?? null,
+        cst_icms: line.cst_icms ?? null,
+        origem: line.origem ?? null,
+        cst_pis: line.cst_pis ?? null,
+        cst_cofins: line.cst_cofins ?? null,
+      })),
+      { companyId: ctx.companyId, regime, ufOrigem: ctx.ufOrigem, ufDestino: ctx.ufDestino },
+      { apply: false },
+    );
+  } catch (e) {
+    console.warn("[SHADOW] PDV ignorado", e);
+  }
+}
 
 /** Contexto do fechamento no PDV para chamar `emit` com o mesmo `form` do histórico. */
 export interface PdvNfceEmitContext {
