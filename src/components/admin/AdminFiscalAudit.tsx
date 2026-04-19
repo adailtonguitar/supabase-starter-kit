@@ -102,7 +102,11 @@ export function AdminFiscalAudit() {
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" size="sm" onClick={() => setTick(t => t + 1)}>
+            <Button variant="outline" size="sm" onClick={() => {
+              setTick(t => t + 1);
+              const s = getFiscalAuditStats();
+              toast.success(`Dados atualizados — ${s.total} evento(s) registrado(s)`);
+            }}>
               <RefreshCw className="h-4 w-4 mr-1" /> Atualizar dados
             </Button>
             <Button
