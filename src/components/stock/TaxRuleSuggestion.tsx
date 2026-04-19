@@ -231,8 +231,8 @@ export function TaxRuleSuggestion({
               <div className="text-muted-foreground">{FIELD_LABELS[c.key]}</div>
               <div className="font-medium flex items-center gap-1">
                 {String(c.suggested)}
-                {isEq && <CheckCircle2 className="h-3 w-3 text-emerald-600" />}
-                {isConflict && <AlertCircle className="h-3 w-3 text-amber-600" />}
+                {isEq && <CheckCircle2 className="h-3 w-3 text-primary" />}
+                {isConflict && <AlertCircle className="h-3 w-3 text-destructive" />}
               </div>
               {isConflict && (
                 <div className="text-[10px] text-muted-foreground">atual: {String(c.currentVal)}</div>
