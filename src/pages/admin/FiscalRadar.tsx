@@ -15,16 +15,24 @@ import {
   Search,
   ShieldCheck,
   TrendingUp,
+  Mail,
+  Loader2,
+  Clock,
 } from "lucide-react";
 import { useProducts } from "@/hooks/useProducts";
 import { useCompany } from "@/hooks/useCompany";
+import { useAdminRole } from "@/hooks/useAdminRole";
 import { supabase } from "@/integrations/supabase/client";
 import { computeFiscalScore, suggestCfopFix, type FiscalRiskLevel } from "@/lib/fiscal-radar-score";
+import { appendNotifyLog, lastNotifyForCompany } from "@/lib/fiscal-radar-notify-log";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { toast } from "sonner";
 
 const PAGE_SIZE = 25;
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
