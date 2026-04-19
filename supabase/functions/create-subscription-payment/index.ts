@@ -18,7 +18,7 @@ function getCorsHeaders(req: Request) {
 
 const PLANS: Record<string, { title: string; price: number }> = {
   emissor: { title: "Renovação Licença — Emissor", price: 99.9 },
-  starter: { title: "Renovação Licença — Starter", price: 149.9 },
+  starter: { title: "Renovação Licença — Starter (TESTE)", price: 1.0 },
   business: { title: "Renovação Licença — Business", price: 199.9 },
   pro: { title: "Renovação Licença — Pro", price: 449.9 },
 };
