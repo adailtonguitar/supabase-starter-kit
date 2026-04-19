@@ -120,7 +120,8 @@ export function TaxRuleSuggestion({
   const origin = originLabel(rule.match);
 
   // Build field-by-field diff (suggestion vs current)
-  const candidates: Array<{ key: keyof TaxRuleSuggestionCurrent; suggested: any; currentVal: any }> = [
+  type Cand = { key: keyof TaxRuleSuggestionCurrent; suggested: any; currentVal: any };
+  const candidates: Cand[] = ([
     { key: "csosn", suggested: rule.csosn, currentVal: current.csosn },
     { key: "cst_icms", suggested: rule.cst_icms, currentVal: current.cst_icms },
     { key: "cfop", suggested: rule.cfop, currentVal: current.cfop },
@@ -129,7 +130,7 @@ export function TaxRuleSuggestion({
     { key: "aliq_pis", suggested: rule.aliq_pis, currentVal: current.aliq_pis },
     { key: "cst_cofins", suggested: rule.cst_cofins, currentVal: current.cst_cofins },
     { key: "aliq_cofins", suggested: rule.aliq_cofins, currentVal: current.aliq_cofins },
-  ].filter((c) => c.suggested !== null && c.suggested !== undefined && c.suggested !== "");
+  ] as Cand[]).filter((c) => c.suggested !== null && c.suggested !== undefined && c.suggested !== "");
 
   // Filter by regime: in simples, hide cst_icms; in normal, hide csosn
   const filtered = candidates.filter((c) => {
