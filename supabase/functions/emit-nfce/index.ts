@@ -4137,6 +4137,7 @@ Deno.serve(async (req) => {
       return jsonResponse({ ok: true, service: "emit-nfce" });
     }
     const action = body.action || "emit";
+    console.log(`[VERSION] ${BACKEND_VERSION_MARKER} action=${action} ts=${DEPLOY_TIMESTAMP}`);
 
     // Detectar chamadas do service_role (ex: process-fiscal-queue / cron)
     const { userId, isServiceCall } = await validateCaller(req);
