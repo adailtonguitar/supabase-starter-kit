@@ -80,10 +80,68 @@ type FilterMode = "all" | "critical" | "warn" | "st" | "top";
 export default function FiscalRadar() {
   const { data: products = [], isLoading } = useProducts();
   const { data: salesMap = {} } = useSales30dByProduct();
+  const { companyId } = useCompany();
+  const { isSuperAdmin } = useAdminRole();
   const [filter, setFilter] = useState<FilterMode>("all");
   const [category, setCategory] = useState<string>("all");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
+  const [notifyOpen, setNotifyOpen] = useState(false);
+  const [notifyNote, setNotifyNote] = useState("");
+  const [notifyLoading, setNotifyLoading] = useState(false);
+  const [lastNotify, setLastNotify] = useState(() => (companyId ? lastNotifyForCompany(companyId) : null));
+
+  useEffect(() => {
+    setLastNotify(companyId ? lastNotifyForCompany(companyId) : null);
+  }, [companyId, notifyOpen]);
+
+  const handleNotifyOwner = async () => {
+    if (!companyId) {
+      toast.error("Empresa não selecionada");
+      return;
+    }
+    const items = scored
+      .filter((r) => r.level === "critical" || r.level === "warn")
+      .slice(0, 100)
+      .map((r) => ({
+        product_id: r.product.id,
+        name: r.product.name,
+        cfop: r.product.cfop ?? null,
+        score: r.score,
+        problem: r.issues.map((i) => i.message).join("; ") || "—",
+        suggestion: suggestCfopFix(r.product.cfop),
+        sales_30d: r.sales.count,
+      }));
+    if (items.length === 0) {
+      toast.info("Nenhum produto crítico ou em alerta para notificar.");
+      return;
+    }
+    setNotifyLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("notify-fiscal-radar", {
+        body: { company_id: companyId, items, note: notifyNote || undefined },
+      });
+      if (error) throw error;
+      const sentTo = (data as any)?.sent_to || [];
+      appendNotifyLog({
+        ts: new Date().toISOString(),
+        company_id: companyId,
+        recipients: sentTo,
+        critical: (data as any)?.critical || 0,
+        warn: (data as any)?.warn || 0,
+        note: notifyNote || undefined,
+      });
+      toast.success(`E-mail enviado para ${sentTo.length} destinatário(s).`);
+      console.log("[FISCAL_RADAR_NOTIFY]", { company_id: companyId, sent_to: sentTo });
+      setNotifyOpen(false);
+      setNotifyNote("");
+    } catch (e: any) {
+      console.error("[FISCAL_RADAR_NOTIFY] erro:", e);
+      toast.error(`Falha ao notificar: ${e?.message || "erro desconhecido"}`);
+    } finally {
+      setNotifyLoading(false);
+    }
+  };
 
   const scored = useMemo(() => {
     return products.map((p) => {
