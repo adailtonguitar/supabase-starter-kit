@@ -181,6 +181,19 @@ export async function runShadowPipeline<T extends ShadowItemInput>(
     reason: applyReason,
   });
 
+  // Persistência local read-only para o Painel de Auditoria Fiscal.
+  // Fail-safe: nunca interfere na emissão.
+  recordFiscalAuditEvent({
+    produto_id: item.product_id ?? null,
+    cfop_atual: (item.cfop ?? null) as any,
+    cfop_sugerido: out.cfop_suggestion || null,
+    applied: out.applied_fields.length > 0,
+    applied_fields: out.applied_fields,
+    skipped_fields: out.skipped_fields,
+    divergences: out.divergences,
+    reason: applyReason,
+  });
+
   return out;
 }
 
