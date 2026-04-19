@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { resolveCfop } from "./resolve-cfop";
+import { resolveCfop } from "../../../../shared/fiscal/cfop/resolve-cfop";
 
 describe("resolveCfop", () => {
   it("padrão (revenda) → 5102", () => {
