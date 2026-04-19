@@ -80,10 +80,10 @@ Deno.serve(async (req) => {
       .limit(1)
       .maybeSingle();
 
-    // Check if blocked
+    // Check if blocked + fetch company trial_ends_at (single source of truth)
     const { data: companyUser } = await adminClient
       .from("company_users")
-      .select("is_active, company_id")
+      .select("is_active, company_id, companies(trial_ends_at)")
       .eq("user_id", userId)
       .limit(1)
       .maybeSingle();
@@ -101,6 +101,25 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Resolve trial — fail-safe quando trial_ends_at é null
+    const company = (companyUser as unknown as { companies?: { trial_ends_at?: string | null } } | null)?.companies;
+    const trialEndsAt: string | null = company?.trial_ends_at ?? null;
+    const isTrialExpired = (() => {
+      if (!trialEndsAt) return false; // fail-safe: sem trial definido → não bloqueia
+      const end = new Date(trialEndsAt).getTime();
+      if (Number.isNaN(end)) return false;
+      return end < Date.now();
+    })();
+
+    // Observabilidade obrigatória
+    console.log(JSON.stringify({
+      type: "TRIAL_CHECK",
+      company_id: companyUser?.company_id ?? null,
+      trial_ends_at: trialEndsAt,
+      expired: isTrialExpired,
+      ts: new Date().toISOString(),
+    }));
+
     if (!sub) {
       return new Response(
         JSON.stringify({
@@ -109,6 +128,8 @@ Deno.serve(async (req) => {
           subscription_end: null,
           was_subscriber: false,
           last_subscription_end: null,
+          trial_ends_at: trialEndsAt,
+          trial_expired: isTrialExpired,
         }),
         {
           status: 200,
@@ -128,6 +149,8 @@ Deno.serve(async (req) => {
         subscription_end: sub.subscription_end || null,
         was_subscriber: true,
         last_subscription_end: sub.subscription_end || null,
+        trial_ends_at: trialEndsAt,
+        trial_expired: isTrialExpired,
       }),
       {
         status: 200,
