@@ -1156,10 +1156,13 @@ function formatConsultReason(data: Record<string, any>, fallback: string): strin
 }
 
 function normalizeCfopForDestination(baseCfop: unknown, isInterstate: boolean): string {
-  let cfop = String(baseCfop ?? "5102").trim();
-  if (!/^\d{4}$/.test(cfop)) cfop = "5102";
-  if (isInterstate && cfop.startsWith("5")) return `6${cfop.slice(1)}`;
-  if (!isInterstate && cfop.startsWith("6")) return `5${cfop.slice(1)}`;
+  const cfop = String(baseCfop ?? "5102").trim();
+  if (!/^\d{4}$/.test(cfop)) return "5102";
+  // NÃO alterar ST (54xx/64xx) — preservar CFOP fiscalmente sensível
+  if (cfop.startsWith("54") || cfop.startsWith("64")) return cfop;
+  // Corrigir apenas o par revenda 5102 ↔ 6102
+  if (isInterstate && cfop === "5102") return "6102";
+  if (!isInterstate && cfop === "6102") return "5102";
   return cfop;
 }
 
@@ -3569,7 +3572,7 @@ async function handleEmitFromSale(supabase: any, body: any) {
       product_id: item.product_id,
       name: (item.product_name || "Item") as string,
       ncm: (product.ncm as string) || "",
-      cfop: (product.cfop as string) || "5102",
+      cfop: (item.cfop as string) || (product.cfop as string) || "5102",
       cst: (isSimples ? product.csosn : product.cst_icms) as string || defaultCst,
       origem: (product.origem as string) || "0",
       unit: "UN", qty, unit_price: unitPrice,
