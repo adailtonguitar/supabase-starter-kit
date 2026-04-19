@@ -2844,6 +2844,7 @@ async function handleEmitNfe(supabase: any, body: any) {
     }
 
     const cfop = normalizeCfopForDestination(item.cfop || "5102", isInterstate);
+    console.log({ type: "CFOP_INBOUND_DEBUG", flow: "nfe", item_index: i + 1, received_cfop: item.cfop, cfop_after_normalize: cfop, isInterstate, ufEmit: emitUF, ufDest: destUF, product_id: item.product_id ?? null });
     if (!cfop || cfop.length !== 4) {
       throw new Error(`Item ${i + 1} ("${item.name}") com CFOP inválido: "${cfop}"`);
     }
