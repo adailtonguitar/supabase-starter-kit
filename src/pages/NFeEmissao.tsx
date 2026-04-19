@@ -1160,6 +1160,15 @@ export default function NFeEmissao() {
       }
 
       try {
+        console.log("ANTES DO EMIT", {
+          surface: "NFeEmissao",
+          action: "emit_nfe",
+          company_id: companyId,
+          config_id: nfeConfig.id,
+          items_count: form.items.length,
+          dest_uf: form.destUF,
+          ts: new Date().toISOString(),
+        });
         const result = await invokeEdgeFunctionWithAuth("emit-nfce", {
           body: {
             action: "emit_nfe",
@@ -1215,6 +1224,13 @@ export default function NFeEmissao() {
               }),
             },
           },
+        });
+        console.log("DEPOIS DO EMIT", {
+          surface: "NFeEmissao",
+          has_error: !!result?.error,
+          error_message: (result?.error as any)?.message,
+          has_data: !!result?.data,
+          ts: new Date().toISOString(),
         });
 
         // Handle error returned by SDK
