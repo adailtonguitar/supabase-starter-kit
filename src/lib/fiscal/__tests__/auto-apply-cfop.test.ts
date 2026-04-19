@@ -25,10 +25,8 @@ class MemStorage {
   key() { return null; }
   get length() { return this.m.size; }
 }
-// @ts-expect-error injeta global
-globalThis.window = globalThis.window || {};
-// @ts-expect-error
-globalThis.localStorage = new MemStorage();
+(globalThis as any).window = (globalThis as any).window || {};
+(globalThis as any).localStorage = new MemStorage();
 
 function seedTrust(company: string, total = 40, accepted = 40) {
   clearLog(company);
