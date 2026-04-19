@@ -1225,6 +1225,13 @@ export default function NFeEmissao() {
             },
           },
         });
+        console.log("DEPOIS DO EMIT", {
+          surface: "NFeEmissao",
+          has_error: !!result?.error,
+          error_message: (result?.error as any)?.message,
+          has_data: !!result?.data,
+          ts: new Date().toISOString(),
+        });
 
         // Handle error returned by SDK
         if (result?.error) {
