@@ -90,6 +90,7 @@ export const Usuarios = lazyRetry(() => import("@/pages/Usuarios"));
 export const Admin = lazyRetry(() => import("@/pages/Admin"));
 export const RegistroErros = lazyRetry(() => import("@/pages/RegistroErros"));
 export const DiagnosticoSistema = lazyRetry(() => import("@/pages/DiagnosticoSistema"));
+export const FiscalAudit = lazyRetry(() => import("@/pages/FiscalAudit"));
 export const Ajuda = lazyRetry(() => import("@/pages/Ajuda"));
 export const Assistente = lazyRetry(() => import("@/pages/Assistente"));
 
