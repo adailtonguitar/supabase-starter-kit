@@ -1907,6 +1907,7 @@ async function handleEmit(supabase: any, body: any) {
     }
 
     const cfop = (item.cfop || "5102").trim();
+    console.log({ type: "CFOP_INBOUND_DEBUG", flow: "nfce", item_index: i + 1, received_cfop: item.cfop, cfop_used: cfop, product_id: item.product_id ?? null });
     if (!cfop || cfop.length !== 4) {
       throw new Error(`Item ${i + 1} ("${item.name}") com CFOP inválido: "${cfop}"`);
     }
