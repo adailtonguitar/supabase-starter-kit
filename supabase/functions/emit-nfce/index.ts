@@ -9,7 +9,7 @@
  * Ações: emit, emit_from_sale, consult_status, cancel, download_pdf, download_xml, inutilize, backup_xmls
  */
 
-import { normalizeFinalCfop } from "./cfop-final-normalizer.ts";
+import { normalizeFinalCfop, validateFinalCfop } from "./cfop-final-normalizer.ts";
 
 // 🔖 Marcador de versão para confirmar deploy ativo (boot-time + por requisição)
 const BACKEND_VERSION_MARKER = "CFOP_FINAL_NORMALIZER_V1";
@@ -1913,8 +1913,10 @@ async function handleEmit(supabase: any, body: any) {
     const cfop = normalizeFinalCfop(_cfopRaw, 1);
     console.log({ type: "CFOP_INBOUND_DEBUG", flow: "nfce", item_index: i + 1, received_cfop: item.cfop, cfop_used: cfop, product_id: item.product_id ?? null });
     console.log({ type: "CFOP_FINAL_NORMALIZED", flow: "nfce", before: _cfopRaw, after: cfop, idDest: 1 });
-    if (!cfop || cfop.length !== 4) {
-      throw new Error(`Item ${i + 1} ("${item.name}") com CFOP inválido: "${cfop}"`);
+    try {
+      validateFinalCfop(cfop, 1);
+    } catch (e) {
+      throw new Error(`Item ${i + 1} ("${item.name}"): ${(e as Error).message}`);
     }
 
     const qty = item.qty || item.quantity || 1;
@@ -2853,8 +2855,10 @@ async function handleEmitNfe(supabase: any, body: any) {
     const cfop = normalizeFinalCfop(_cfopAfterDest, idDest);
     console.log({ type: "CFOP_INBOUND_DEBUG", flow: "nfe", item_index: i + 1, received_cfop: item.cfop, cfop_after_normalize: cfop, isInterstate, ufEmit: emitUF, ufDest: destUF, product_id: item.product_id ?? null });
     console.log({ type: "CFOP_FINAL_NORMALIZED", flow: "nfe", before: _cfopRaw, after: cfop, idDest });
-    if (!cfop || cfop.length !== 4) {
-      throw new Error(`Item ${i + 1} ("${item.name}") com CFOP inválido: "${cfop}"`);
+    try {
+      validateFinalCfop(cfop, idDest);
+    } catch (e) {
+      throw new Error(`Item ${i + 1} ("${item.name}"): ${(e as Error).message}`);
     }
 
     const qty = item.qty || item.quantity || 1;

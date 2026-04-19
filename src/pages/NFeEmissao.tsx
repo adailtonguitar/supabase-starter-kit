@@ -1166,6 +1166,29 @@ export default function NFeEmissao() {
         console.warn("[SHADOW] NFeEmissao fail-safe (usando form.items)", e);
       }
 
+      // ─── Camada 1: validação fiscal de CFOP (idDest depende do destino) ───
+      const idDestForValidation =
+        form.destUF && (companyInfo as any)?.uf && form.destUF !== (companyInfo as any).uf ? 2 : 1;
+      try {
+        const { validateCfopBatch, formatCfopIssues } = await import("@/lib/fiscal-cfop-validator");
+        const cfopItems = form.items.map((it: any, idx: number) => ({
+          name: it.name,
+          cfop: (processedByIndex[idx]?.cfop ?? it.cfop) as string,
+        }));
+        const issues = validateCfopBatch(cfopItems, idDestForValidation);
+        if (issues.length > 0) {
+          console.error({ type: "FISCAL_VALIDATION_BLOCK", flow: "nfe", idDest: idDestForValidation, issues });
+          toast.error(formatCfopIssues(issues));
+          setEmitting(false);
+          return;
+        }
+      } catch (vErr) {
+        console.error("[FISCAL_VALIDATION] erro inesperado", vErr);
+        toast.error("Erro na validação fiscal — emissão bloqueada.");
+        setEmitting(false);
+        return;
+      }
+
       try {
         console.log("ANTES DO EMIT", {
           surface: "NFeEmissao",
