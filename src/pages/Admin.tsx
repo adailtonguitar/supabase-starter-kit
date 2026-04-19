@@ -187,6 +187,9 @@ export default function Admin() {
         <TabsContent value="ncm-ia">
           <AdminNcmLearning />
         </TabsContent>
+        <TabsContent value="fiscal-audit">
+          <AdminFiscalAudit />
+        </TabsContent>
       </Tabs>
     </div>
   );
