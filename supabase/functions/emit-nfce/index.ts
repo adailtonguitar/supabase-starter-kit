@@ -2452,6 +2452,13 @@ async function handleEmitNfe(supabase: any, body: any) {
     return jsonResponse({ error: e?.message || "Cadastro da empresa incompleto" }, 400);
   }
 
+  const companyStreet = pickFirstNonEmpty(company.street, company.address_street, company.address);
+  const companyNumber = pickFirstNonEmpty(company.number, company.address_number);
+  const companyNeighborhood = pickFirstNonEmpty(company.neighborhood, company.address_neighborhood);
+  const companyCity = pickFirstNonEmpty(company.city, company.address_city);
+  const companyState = pickFirstNonEmpty(company.state, company.address_state).toUpperCase();
+  const companyZip = onlyDigits(pickFirstNonEmpty(company.zip_code, company.address_zip, company.cep));
+
   let config = configRes.data;
   if (!config && config_id) {
     const { data } = await supabase.from("fiscal_configs").select("*")
