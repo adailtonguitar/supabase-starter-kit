@@ -91,6 +91,7 @@ export const Admin = lazyRetry(() => import("@/pages/Admin"));
 export const RegistroErros = lazyRetry(() => import("@/pages/RegistroErros"));
 export const DiagnosticoSistema = lazyRetry(() => import("@/pages/DiagnosticoSistema"));
 export const FiscalAudit = lazyRetry(() => import("@/pages/FiscalAudit"));
+export const AuditoriaProdutosFiscal = lazyRetry(() => import("@/pages/AuditoriaProdutosFiscal"));
 export const Ajuda = lazyRetry(() => import("@/pages/Ajuda"));
 export const Assistente = lazyRetry(() => import("@/pages/Assistente"));
 
@@ -164,6 +165,7 @@ export function LayoutRoutes() {
       <Route path="/admin/erros" element={<RegistroErros />} />
       <Route path="/admin/diagnostico" element={<DiagnosticoSistema />} />
       <Route path="/admin/fiscal-audit" element={<FiscalAudit />} />
+      <Route path="/produtos/auditoria-cfop" element={<AuditoriaProdutosFiscal />} />
       <Route path="/ajuda" element={<Ajuda />} />
       <Route path="/assistente" element={<Assistente />} />
       <Route path="*" element={<NotFound />} />
