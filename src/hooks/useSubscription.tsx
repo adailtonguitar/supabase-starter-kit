@@ -130,15 +130,18 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
       block_reason?: string | null;
     };
 
-    // Paralelo: data de trial + edge (com timeout) — evita somar dois tempos em série.
-    let createdAt = user.created_at;
+    // Paralelo: trial_ends_at da empresa + edge (com timeout)
+    let trialEndsAt: string | null = null;
+    let companyId: string | null = null;
     let data: EdgeSubscriptionPayload | null = null;
     try {
       const [cuResult, response] = await Promise.all([
-        supabase.from("company_users").select("created_at").eq("user_id", user.id).eq("is_active", true).limit(1).single(),
+        supabase.from("company_users").select("company_id, companies!inner(trial_ends_at)").eq("user_id", user.id).eq("is_active", true).limit(1).maybeSingle(),
         invokeCheckSubscriptionWithTimeout(),
       ]);
-      if (cuResult.data?.created_at) createdAt = cuResult.data.created_at;
+      const cuRow = cuResult.data as { company_id?: string; companies?: { trial_ends_at?: string | null } } | null;
+      if (cuRow?.company_id) companyId = cuRow.company_id;
+      if (cuRow?.companies?.trial_ends_at !== undefined) trialEndsAt = cuRow.companies.trial_ends_at ?? null;
       if (
         !response.error &&
         response.data &&
@@ -149,20 +152,25 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
       }
     } catch {
       try {
-        const cuResult = await supabase.from("company_users").select("created_at").eq("user_id", user.id).eq("is_active", true).limit(1).single();
-        if (cuResult.data?.created_at) createdAt = cuResult.data.created_at;
+        const cuResult = await supabase.from("company_users").select("company_id, companies!inner(trial_ends_at)").eq("user_id", user.id).eq("is_active", true).limit(1).maybeSingle();
+        const cuRow = cuResult.data as { company_id?: string; companies?: { trial_ends_at?: string | null } } | null;
+        if (cuRow?.company_id) companyId = cuRow.company_id;
+        if (cuRow?.companies?.trial_ends_at !== undefined) trialEndsAt = cuRow.companies.trial_ends_at ?? null;
       } catch { /* */ }
     }
 
+    const trial = calcTrialFromEndsAt(trialEndsAt);
+    // Observabilidade obrigatória — single source of truth
+    console.log({
+      type: "TRIAL_CHECK",
+      company_id: companyId,
+      trial_ends_at: trialEndsAt,
+      expired: trial.trialExpired,
+      ts: new Date().toISOString(),
+    });
+
     if (!data) {
       try {
-        type CompanyUserBlockedRow = { is_active: boolean } | null;
-        type SubscriptionRow = {
-          status: string;
-          plan_key: string | null;
-          subscription_end: string | null;
-        } | null;
-
         // Check if user is blocked
         const { data: cu } = await supabase.from("company_users").select("is_active").eq("user_id", user.id).limit(1).maybeSingle();
         if (cu && !cu.is_active) {
@@ -193,7 +201,6 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
         }
       } catch (dbErr) {
         console.warn("[useSubscription] DB fallback also failed, using trial:", dbErr);
-        const trial = calcTrial(createdAt);
         const newState: SubscriptionState = { ...defaultState, loading: false, ...trial };
         setState(newState); cacheSubState(newState);
         return;
@@ -218,12 +225,10 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
         const newState: SubscriptionState = { subscribed: false, planKey, subscriptionEnd: lastSubscriptionEnd, loading: false, trialActive: false, trialDaysLeft: null, trialExpired: false, wasSubscriber: true, ...grace, daysUntilExpiry: null, blocked: false, blockReason: null };
         setState(newState); cacheSubState(newState);
       } else {
-        const trial = calcTrial(createdAt);
         const newState: SubscriptionState = { subscribed: false, planKey: null, subscriptionEnd: null, loading: false, ...trial, wasSubscriber: false, subscriptionOverdue: false, gracePeriodActive: false, graceDaysLeft: null, daysUntilExpiry: null, blocked: false, blockReason: null };
         setState(newState); cacheSubState(newState);
       }
     } catch {
-      const trial = calcTrial(createdAt);
       setState((s) => ({ ...s, loading: false, ...trial }));
     }
   }, [user]);
