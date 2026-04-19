@@ -994,6 +994,51 @@ export default function NFeEmissao() {
 
       // ─── PRÉ-VALIDAÇÃO SEFAZ COMPLETA ───
       try {
+        const emitUfNorm = (companyInfo?.address_state || hookState || "MA").toUpperCase();
+        const destUfNorm = (form.destUF || "").toUpperCase();
+        const isInterstateOp = !!destUfNorm && destUfNorm !== emitUfNorm;
+        const isSimplesNacional = companyCrt === 1 || companyCrt === 2;
+
+        // Auto-fix indPres: interestadual presencial é improvável (Rej 697)
+        let presenceTypeNorm = Number(form.presenceType) || 1;
+        if (isInterstateOp && presenceTypeNorm === 1) {
+          console.log("[NFeEmissao] AUTO_FIX_INDPRES", { from: 1, to: 2, reason: "interstate_op" });
+          presenceTypeNorm = 2;
+        }
+
+        // Normalização item-a-item (CFOP interno→inter, CST PIS/COFINS para SN)
+        const normalizedItems = form.items.map((it) => {
+          let cfopNorm = (it.cfop || "").trim();
+          // CFOP 5xxx em operação interestadual → trocar primeiro dígito para 6
+          // Bloqueio ST: NÃO converter para CFOP 54xx → 64xx automaticamente.
+          if (isInterstateOp && /^5\d{3}$/.test(cfopNorm) && !cfopNorm.startsWith("54")) {
+            const fixed = "6" + cfopNorm.slice(1);
+            console.log("[NFeEmissao] AUTO_FIX_CFOP", { from: cfopNorm, to: fixed, reason: "interstate_op" });
+            cfopNorm = fixed;
+          }
+
+          // CST PIS/COFINS para Simples Nacional: somente 49 ou 99 são válidos
+          let pisCstNorm = (it.pisCst || "").trim();
+          let cofinsCstNorm = (it.cofinsCst || "").trim();
+          if (isSimplesNacional) {
+            if (pisCstNorm && !["49", "99"].includes(pisCstNorm)) {
+              console.log("[NFeEmissao] AUTO_FIX_PIS_CST", { from: pisCstNorm, to: "49", reason: "simples_nacional" });
+              pisCstNorm = "49";
+            }
+            if (cofinsCstNorm && !["49", "99"].includes(cofinsCstNorm)) {
+              console.log("[NFeEmissao] AUTO_FIX_COFINS_CST", { from: cofinsCstNorm, to: "49", reason: "simples_nacional" });
+              cofinsCstNorm = "49";
+            }
+          }
+
+          return { ...it, cfop: cfopNorm, pisCst: pisCstNorm, cofinsCst: cofinsCstNorm };
+        });
+
+        // Aplicar de volta no form para emissão coerente
+        if (JSON.stringify(normalizedItems) !== JSON.stringify(form.items) || presenceTypeNorm !== (Number(form.presenceType) || 1)) {
+          setForm((f) => ({ ...f, items: normalizedItems, presenceType: String(presenceTypeNorm) }));
+        }
+
         const preValidation = await preValidateBeforeEmission({
           company_id: companyId,
           config_id: nfeConfig.id,
@@ -1001,17 +1046,17 @@ export default function NFeEmissao() {
           modelo: 55,
           serie: nfeConfig.serie || 1,
           nat_op: form.natOp,
-          presence_type: Number(form.presenceType) || 1,
+          presence_type: presenceTypeNorm,
           fin_nfe: Number(form.finalidade) || 1,
           emit_cnpj: companyInfo?.cnpj || hookCnpj || "",
           emit_ie: companyInfo?.ie || hookIe || "",
-          emit_uf: (companyInfo?.address_state || hookState || "MA").toUpperCase(),
+          emit_uf: emitUfNorm,
           dest_doc: form.destDoc,
           dest_nome: form.destName,
-          dest_uf: form.destUF,
+          dest_uf: destUfNorm,
           dest_ie: form.destIE,
           ind_ie_dest: form.destIE?.trim() ? 1 : ((form.destDoc || "").replace(/\D/g, "").length === 14 ? 2 : 9),
-          items: form.items.map((it) => ({
+          items: normalizedItems.map((it) => ({
             code: it.productCode,
             name: it.name,
             ncm: it.ncm,
