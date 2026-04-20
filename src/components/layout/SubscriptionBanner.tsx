@@ -1,4 +1,4 @@
-import { AlertTriangle, Clock, Crown, X, Loader2 } from "lucide-react";
+import { AlertTriangle, Crown, X, Loader2 } from "lucide-react";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useAdminRole } from "@/hooks/useAdminRole";
 import React, { useEffect, useMemo, useRef, useState } from "react";
@@ -16,8 +16,12 @@ export function SubscriptionBanner() {
 
   const handleRenew = async (plan?: string) => {
     try {
+      if (!plan) {
+        navigate("/renovar");
+        return;
+      }
       setRenewing(true);
-      await createCheckout(plan || planKey || "essencial");
+      await createCheckout(plan);
     } catch {
       toast.error("Erro ao abrir checkout. Tente novamente.");
     } finally {
