@@ -4,9 +4,7 @@ import { createClient, SupabaseClient } from "npm:@supabase/supabase-js@2";
 export const ALLOWED_PLAN_KEYS = [
   "emissor",
   "starter",
-  "essencial",
   "business",
-  "profissional",
   "pro",
 ] as const;
 
