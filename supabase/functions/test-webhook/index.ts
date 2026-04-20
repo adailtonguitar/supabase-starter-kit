@@ -4,6 +4,7 @@ import {
   getAdminClient,
   getMpToken,
   processMpPayment,
+  searchLatestApprovedMpPayment,
 } from "../_shared/billing.ts";
 
 const headers = {
@@ -42,6 +43,7 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const paymentId = body?.paymentId ? String(body.paymentId) : null;
     const simulatedPayment = body?.payment ?? null;
+    const callerEmail = String(body?.userEmail || "").trim() || null;
 
     console.log(JSON.stringify({
       type: "TEST_WEBHOOK_INVOKED",
@@ -61,13 +63,27 @@ Deno.serve(async (req) => {
           headers: { ...headers, "Content-Type": "application/json" },
         });
       }
-      if (!paymentId) {
-        return new Response(JSON.stringify({ error: "paymentId or payment is required" }), {
-          status: 400,
+      let resolvedPaymentId = paymentId;
+      if (!resolvedPaymentId) {
+        const latest = await searchLatestApprovedMpPayment(token, {
+          userId: claimsData.claims.sub,
+          userEmail: callerEmail,
+        });
+        if (!latest.ok) {
+          return new Response(JSON.stringify({ error: `mp_search_${latest.status}`, detail: latest.body }), {
+            status: 400,
+            headers: { ...headers, "Content-Type": "application/json" },
+          });
+        }
+        resolvedPaymentId = latest.payment?.id ? String(latest.payment.id) : null;
+      }
+      if (!resolvedPaymentId) {
+        return new Response(JSON.stringify({ error: "payment_not_found_for_user" }), {
+          status: 404,
           headers: { ...headers, "Content-Type": "application/json" },
         });
       }
-      const mp = await fetchMpPayment(paymentId, token);
+      const mp = await fetchMpPayment(resolvedPaymentId, token);
       if (!mp.ok) {
         return new Response(JSON.stringify({ error: `mp_fetch_${mp.status}`, detail: mp.body }), {
           status: 400,

@@ -47,6 +47,66 @@ export async function fetchMpPayment(paymentId: string | number, token: string) 
   return { ok: true as const, payment: await r.json() };
 }
 
+export async function searchLatestApprovedMpPayment(
+  token: string,
+  params: { userId?: string | null; userEmail?: string | null },
+) {
+  const buildUrl = (withEmail: boolean) => {
+    const url = new URL("https://api.mercadopago.com/v1/payments/search");
+    url.searchParams.set("sort", "date_created");
+    url.searchParams.set("criteria", "desc");
+    url.searchParams.set("status", "approved");
+    url.searchParams.set("limit", "20");
+    if (withEmail && params.userEmail) {
+      url.searchParams.set("payer.email", params.userEmail);
+    }
+    return url.toString();
+  };
+
+  const doFetch = async (withEmail: boolean) => {
+    const r = await fetch(buildUrl(withEmail), {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!r.ok) {
+      return { ok: false as const, status: r.status, body: await r.text() };
+    }
+    return { ok: true as const, data: await r.json() };
+  };
+
+  const primary = await doFetch(!!params.userEmail);
+  const fallback = !primary.ok && params.userEmail ? await doFetch(false) : primary;
+  if (!fallback.ok) return fallback;
+
+  const results = Array.isArray(fallback.data?.results) ? fallback.data.results : [];
+  const normalizedEmail = String(params.userEmail || "").trim().toLowerCase();
+  const normalizedUserId = String(params.userId || "").trim();
+
+  const matched = results.filter((payment: any) => {
+    const paymentEmail = String(payment?.payer?.email || "").trim().toLowerCase();
+    const externalReference = String(payment?.external_reference || "");
+
+    if (normalizedUserId) {
+      try {
+        const parsed = JSON.parse(externalReference || "{}");
+        if (parsed?.user_id === normalizedUserId) return true;
+      } catch {
+        if (externalReference.includes(normalizedUserId)) return true;
+      }
+    }
+
+    if (normalizedEmail && paymentEmail === normalizedEmail) return true;
+    return false;
+  });
+
+  const payment = matched.sort((a: any, b: any) => {
+    const aTs = new Date(a?.date_approved || a?.date_created || 0).getTime();
+    const bTs = new Date(b?.date_approved || b?.date_created || 0).getTime();
+    return bTs - aTs;
+  })[0];
+
+  return { ok: true as const, payment: payment ?? null, scanned: results.length, matched: matched.length };
+}
+
 export interface ProcessResult {
   ok: boolean;
   reason?: string;

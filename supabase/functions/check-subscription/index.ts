@@ -73,15 +73,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Check subscriptions table
-    const { data: sub } = await adminClient
-      .from("subscriptions")
-      .select("*")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
     // Check if blocked + fetch company trial_ends_at (single source of truth)
     const { data: companyUser } = await adminClient
       .from("company_users")
@@ -103,6 +94,29 @@ Deno.serve(async (req) => {
         }
       );
     }
+
+    // Check subscriptions table — prioritize company-scoped active/longest subscription
+    let subQuery = adminClient
+      .from("subscriptions")
+      .select("*")
+      .eq("user_id", userId);
+
+    if (companyUser?.company_id) {
+      subQuery = subQuery.eq("company_id", companyUser.company_id);
+    }
+
+    const { data: subs } = await subQuery.limit(20);
+    const sub = (subs ?? []).sort((a, b) => {
+      const aStatus = a.status === "active" ? 1 : 0;
+      const bStatus = b.status === "active" ? 1 : 0;
+      if (bStatus !== aStatus) return bStatus - aStatus;
+
+      const aEnd = a.subscription_end ? new Date(a.subscription_end).getTime() : 0;
+      const bEnd = b.subscription_end ? new Date(b.subscription_end).getTime() : 0;
+      if (bEnd !== aEnd) return bEnd - aEnd;
+
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    })[0] ?? null;
 
     // Resolve trial — fail-safe quando trial_ends_at é null
     const company = (companyUser as unknown as { companies?: { trial_ends_at?: string | null } } | null)?.companies;
