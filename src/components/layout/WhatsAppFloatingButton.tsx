@@ -1,6 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
-
-const WHATSAPP_NUMBER = "5599982345366";
+import { LEGAL_CONFIG } from "@/config/legal";
 
 const WhatsAppIcon = () => (
   <svg viewBox="0 0 24 24" fill="currentColor" className="w-7 h-7">
@@ -11,7 +10,7 @@ const WhatsAppIcon = () => (
 export function WhatsAppFloatingButton() {
   const handleClick = () => {
     const msg = encodeURIComponent("Olá! Preciso de ajuda com o sistema.");
-    window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${msg}`, "_blank");
+    window.open(`https://wa.me/${LEGAL_CONFIG.supportWhatsappRaw}?text=${msg}`, "_blank");
   };
 
   return (

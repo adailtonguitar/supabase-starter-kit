@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { Download, Upload, Clock, HardDrive, Percent, Save, Loader2, Crown, Check, ArrowRight, MessageCircle, Pencil, Calculator, Send, Mail, Lock, Eye, EyeOff, Wallet, FileText, ShieldAlert } from "lucide-react";
+import { Download, Upload, Clock, HardDrive, Percent, Save, Loader2, Crown, Check, ArrowRight, MessageCircle, Pencil, Calculator, Send, Mail, Lock, Eye, EyeOff, Wallet, FileText, ShieldAlert, X, RotateCcw, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TEFConfigSection } from "@/components/settings/TEFConfigSection";
 import { ScaleConfigSection } from "@/components/settings/ScaleConfigSection";
@@ -20,6 +20,8 @@ import { type TaxRegime } from "@/lib/cst-csosn-validator";
 import { getSuggestedFiscalUpdate, getChangedFiscalFields, getFiscalSuggestionDiagnostics, getBulkFiscalFixAnalysis } from "@/lib/fiscal-product-suggestions";
 import { messageFromFunctionsInvokeError } from "@/lib/supabase-function-error";
 import { getAccessTokenForEdgeFunctions } from "@/lib/supabase-edge-auth";
+import { SubscriptionCancelWizard } from "@/components/subscription/SubscriptionCancelWizard";
+import { LgpdDataSection } from "@/components/lgpd/LgpdDataSection";
 
 /** Alinhado a useCompany / Filiais — define qual empresa abrir após reload. */
 const LS_SELECTED_COMPANY_KEY = "as_selected_company";
@@ -243,11 +245,74 @@ const planFeatures: Record<string, string[]> = {
   pro: ["Sessões ilimitadas", "Todos os módulos inclusos", "NF-e + NFC-e ilimitadas", "Relatórios avançados com IA", "Consulta DF-e", "Suporte dedicado"],
 };
 
+interface SubscriptionManagementState {
+  id: string;
+  status: string;
+  plan_key: string | null;
+  subscription_end: string | null;
+  canceled_at: string | null;
+  cancel_effective_date: string | null;
+  refund_status: string | null;
+  refund_amount: number | null;
+}
+
 function MyPlanSection() {
-  const { access, trialActive, trialDaysLeft, createCheckout, loading } = useSubscription();
+  const { access, trialActive, trialDaysLeft, createCheckout, loading, checkSubscription } = useSubscription();
   const { plan, expiresAt, loading: planLoading } = usePlanFeatures();
   const { isSuperAdmin, loading: adminLoading } = useAdminRole();
   const [upgrading, setUpgrading] = useState(false);
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [subManagement, setSubManagement] = useState<SubscriptionManagementState | null>(null);
+  const [subLoading, setSubLoading] = useState(false);
+  const [reactivating, setReactivating] = useState(false);
+
+  const loadSubscriptionManagement = useCallback(async () => {
+    setSubLoading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setSubManagement(null);
+        return;
+      }
+      const { data } = await supabase
+        .from("subscriptions")
+        .select("id, status, plan_key, subscription_end, canceled_at, cancel_effective_date, refund_status, refund_amount")
+        .eq("user_id", user.id)
+        .in("status", ["active", "scheduled_cancel"])
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      setSubManagement((data as SubscriptionManagementState | null) ?? null);
+    } catch (err) {
+      console.warn("[MyPlanSection] loadSubscriptionManagement failed", err);
+      setSubManagement(null);
+    } finally {
+      setSubLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!loading && !adminLoading && !isSuperAdmin) {
+      void loadSubscriptionManagement();
+    }
+  }, [loading, adminLoading, isSuperAdmin, loadSubscriptionManagement]);
+
+  const handleReactivate = async () => {
+    setReactivating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("reactivate-subscription");
+      if (error) throw error;
+      if (data?.error) throw new Error(String(data.error));
+      toast.success(data?.message || "Assinatura reativada com sucesso.");
+      await loadSubscriptionManagement();
+      await checkSubscription();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Erro ao reativar assinatura";
+      toast.error(msg);
+    } finally {
+      setReactivating(false);
+    }
+  };
 
   if (loading || adminLoading || planLoading) return null;
   if (isSuperAdmin) return null;
@@ -261,6 +326,7 @@ function MyPlanSection() {
   const currentPlan = currentPlanLabels[plan] ?? currentPlanLabels.starter;
   const features = planFeatures[plan] || [];
   const canUpgrade = plan === "starter" || plan === "emissor";
+  const isScheduledCancel = subManagement?.status === "scheduled_cancel";
 
   const handleUpgrade = async () => {
     try {
@@ -280,19 +346,60 @@ function MyPlanSection() {
         <h2 className="text-base font-semibold text-foreground">Meu Plano</h2>
       </div>
       <div className="p-5 space-y-4">
+        {isScheduledCancel && subManagement && (
+          <div className="p-4 rounded-xl border border-warning/40 bg-warning/5 space-y-3">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="w-5 h-5 text-warning flex-shrink-0 mt-0.5" />
+              <div className="flex-1 space-y-1">
+                <p className="font-semibold text-sm text-foreground">Assinatura agendada para cancelamento</p>
+                <p className="text-sm text-muted-foreground">
+                  Você mantém acesso até{" "}
+                  <strong>
+                    {subManagement.cancel_effective_date
+                      ? new Date(subManagement.cancel_effective_date).toLocaleDateString("pt-BR")
+                      : "—"}
+                  </strong>
+                  . Não haverá cobrança de renovação.
+                </p>
+                {subManagement.refund_status === "pending" && subManagement.refund_amount && (
+                  <p className="text-xs text-muted-foreground">
+                    Reembolso pendente: R$ {Number(subManagement.refund_amount).toFixed(2).replace(".", ",")} (processado em até 5 dias úteis).
+                  </p>
+                )}
+              </div>
+            </div>
+            <Button size="sm" variant="outline" onClick={handleReactivate} disabled={reactivating}>
+              {reactivating ? (
+                <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+              ) : (
+                <RotateCcw className="w-3.5 h-3.5 mr-1.5" />
+              )}
+              {reactivating ? "Reativando..." : "Reativar assinatura"}
+            </Button>
+          </div>
+        )}
+
         {access ? (
           <>
             <div className="flex items-center justify-between">
               <div>
                 <span className="text-lg font-bold text-foreground">{currentPlan.name}</span>
-                <span className="ml-2 text-xs font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary">Ativo</span>
+                <span className={`ml-2 text-xs font-medium px-2 py-0.5 rounded-full ${
+                  isScheduledCancel
+                    ? "bg-warning/10 text-warning"
+                    : "bg-primary/10 text-primary"
+                }`}>
+                  {isScheduledCancel ? "Agendado p/ cancelamento" : "Ativo"}
+                </span>
               </div>
               <div className="text-right">
                 <span className="text-2xl font-extrabold text-foreground">R$ {currentPlan.price}</span>
                 <span className="text-sm text-muted-foreground">/mês</span>
               </div>
             </div>
-            {expiresAt && <p className="text-xs text-muted-foreground">Próxima renovação: {new Date(expiresAt).toLocaleDateString("pt-BR")}</p>}
+            {expiresAt && !isScheduledCancel && (
+              <p className="text-xs text-muted-foreground">Próxima renovação: {new Date(expiresAt).toLocaleDateString("pt-BR")}</p>
+            )}
             <ul className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
               {features.map((f) => (
                 <li key={f} className="flex items-center gap-1.5 text-sm text-muted-foreground">
@@ -300,11 +407,36 @@ function MyPlanSection() {
                 </li>
               ))}
             </ul>
-            {canUpgrade && (
-              <Button size="sm" onClick={handleUpgrade} disabled={upgrading}>
-                <ArrowRight className="w-4 h-4 mr-2" /> {upgrading ? "Redirecionando..." : "Fazer upgrade para Business"}
-              </Button>
-            )}
+            <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
+              {canUpgrade && !isScheduledCancel && (
+                <Button size="sm" onClick={handleUpgrade} disabled={upgrading}>
+                  <ArrowRight className="w-4 h-4 mr-2" /> {upgrading ? "Redirecionando..." : "Fazer upgrade para Business"}
+                </Button>
+              )}
+              {!isScheduledCancel && !subLoading && subManagement && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="text-muted-foreground hover:text-destructive"
+                  onClick={() => setCancelOpen(true)}
+                >
+                  <X className="w-4 h-4 mr-1.5" />
+                  Cancelar assinatura
+                </Button>
+              )}
+            </div>
+
+            <SubscriptionCancelWizard
+              open={cancelOpen}
+              onClose={() => setCancelOpen(false)}
+              onCanceled={async () => {
+                await loadSubscriptionManagement();
+                await checkSubscription();
+              }}
+              onDowngrade={async (planKey) => {
+                await createCheckout(planKey);
+              }}
+            />
           </>
         ) : trialActive ? (
           <>
@@ -1332,6 +1464,7 @@ export default function Configuracoes() {
       
       <ChangePasswordSection />
       <MyPlanSection />
+      <LgpdDataSection />
       <CashRegisterToggleSection />
       <PdvFiscalAutomationSection />
       <FiscalReadinessSection />

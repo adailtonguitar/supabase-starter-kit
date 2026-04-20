@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import logoAs from "@/assets/logo-as.png";
+import { LEGAL_CONFIG } from "@/config/legal";
 
 const features = [
   { icon: FileText, title: "NF-e Modelo 55", desc: "Emissão completa com validação SEFAZ em tempo real" },
@@ -202,19 +203,30 @@ export default function EmissorLanding() {
 
       {/* Footer */}
       <footer className="border-t border-border bg-card/50">
-        <div className="max-w-7xl mx-auto px-6 py-8 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <img src={logoAs} alt="AnthoSystem" className="w-6 h-6 rounded-md object-contain" />
-            <span className="text-sm font-bold">
-              <span className="text-primary">Antho</span>System Emissor
-            </span>
+        <div className="max-w-7xl mx-auto px-6 py-8 flex flex-col gap-4">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <img src={logoAs} alt="AnthoSystem" className="w-6 h-6 rounded-md object-contain" />
+              <span className="text-sm font-bold">
+                <span className="text-primary">Antho</span>System Emissor
+              </span>
+            </div>
+            <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
+              <Link to="/termos" className="hover:text-foreground transition-colors">Termos</Link>
+              <Link to="/privacidade" className="hover:text-foreground transition-colors">Privacidade</Link>
+              <Link to="/suporte" className="hover:text-foreground transition-colors">Suporte</Link>
+              <Link to="/" className="hover:text-foreground transition-colors">Sistema Completo</Link>
+            </div>
+            <a
+              href={`mailto:${LEGAL_CONFIG.supportEmail}`}
+              className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {LEGAL_CONFIG.supportEmail}
+            </a>
           </div>
-          <div className="flex gap-4 text-xs text-muted-foreground">
-            <Link to="/termos" className="hover:text-foreground transition-colors">Termos</Link>
-            <Link to="/privacidade" className="hover:text-foreground transition-colors">Privacidade</Link>
-            <Link to="/" className="hover:text-foreground transition-colors">Sistema Completo</Link>
+          <div className="text-center text-xs text-muted-foreground leading-relaxed border-t border-border pt-4">
+            © {new Date().getFullYear()} {LEGAL_CONFIG.companyLegalName} — CNPJ {LEGAL_CONFIG.companyCNPJ}
           </div>
-          <span className="text-xs text-muted-foreground">© {new Date().getFullYear()} AnthoSystem</span>
         </div>
       </footer>
 

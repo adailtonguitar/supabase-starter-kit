@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Mail, Lock, ArrowRight, KeyRound, Eye, EyeOff, Play, ShieldAlert } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
+import { TERMS_VERSION, PRIVACY_VERSION } from "@/config/legal";
 
 const MAX_ATTEMPTS = 5;
 const LOCKOUT_DURATION = 2 * 60 * 1000; // 2 minutes
@@ -61,6 +62,7 @@ export default function Auth() {
   const [forgotEmail, setForgotEmail] = useState("");
   const [isSignUp, setIsSignUp] = useState(false);
   const [signUpName, setSignUpName] = useState("");
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   
   // Rate limiting state — persisted in localStorage to survive page refresh
   const LOCKOUT_STORAGE_KEY = "as_login_lockout";
@@ -266,17 +268,33 @@ export default function Auth() {
       toast.error("A senha deve ter no mínimo 6 caracteres");
       return;
     }
+    if (!acceptedTerms) {
+      toast.error("Você precisa aceitar os Termos de Uso e a Política de Privacidade");
+      return;
+    }
     setLoading(true);
     try {
+      const acceptedAt = new Date().toISOString();
       const { error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          data: { full_name: signUpName.trim() },
+          data: {
+            full_name: signUpName.trim(),
+            terms_accepted_at: acceptedAt,
+            terms_version: TERMS_VERSION,
+            privacy_version: PRIVACY_VERSION,
+          },
           emailRedirectTo: window.location.origin,
         },
       });
       if (error) throw error;
+      try {
+        localStorage.setItem(
+          "pending_terms_acceptance",
+          JSON.stringify({ accepted_at: acceptedAt, terms_version: TERMS_VERSION }),
+        );
+      } catch { /* ignore */ }
       toast.success("Conta criada! Verifique seu e-mail para confirmar.");
       setIsSignUp(false);
     } catch (error: any) {
@@ -567,6 +585,29 @@ export default function Auth() {
                   </label>
                 )}
 
+                {isSignUp && (
+                  <label className="flex items-start gap-2 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={acceptedTerms}
+                      onChange={(e) => setAcceptedTerms(e.target.checked)}
+                      required
+                      className="w-4 h-4 mt-0.5 rounded border-border text-primary focus:ring-primary/20 accent-primary shrink-0"
+                    />
+                    <span className="text-xs text-muted-foreground leading-relaxed">
+                      Li e concordo com os{" "}
+                      <Link to="/termos" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-medium">
+                        Termos de Uso
+                      </Link>{" "}
+                      e a{" "}
+                      <Link to="/privacidade" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-medium">
+                        Política de Privacidade
+                      </Link>
+                      .
+                    </span>
+                  </label>
+                )}
+
                 {/* Rate limit warning */}
                 {isLocked && (
                   <div className="flex items-center gap-2 p-3 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-sm">
@@ -583,8 +624,8 @@ export default function Auth() {
 
                 <button
                   type="submit"
-                  disabled={loading || isLocked}
-                  className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition-all disabled:opacity-50"
+                  disabled={loading || isLocked || (isSignUp && !acceptedTerms)}
+                  className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {loading ? "Processando..." : isSignUp ? "Criar Conta" : "Entrar"}
                   <ArrowRight className="w-4 h-4" />
@@ -602,8 +643,8 @@ export default function Auth() {
                 <button
                   type="button"
                   onClick={handleGoogleSignIn}
-                  disabled={loading}
-                  className="w-full flex items-center justify-center gap-3 py-2.5 rounded-xl bg-background border border-border text-foreground text-sm font-medium hover:bg-accent/50 transition-all disabled:opacity-50"
+                  disabled={loading || (isSignUp && !acceptedTerms)}
+                  className="w-full flex items-center justify-center gap-3 py-2.5 rounded-xl bg-background border border-border text-foreground text-sm font-medium hover:bg-accent/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <svg className="w-4 h-4" viewBox="0 0 24 24">
                     <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/>

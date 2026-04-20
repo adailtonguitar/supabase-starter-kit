@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FileText, ArrowLeft, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
+import { LEGAL_CONFIG } from "@/config/legal";
 
 export default function ContratoSaaS() {
   const navigate = useNavigate();
@@ -22,7 +23,7 @@ export default function ContratoSaaS() {
       <html>
       <head>
         <meta charset="utf-8" />
-        <title>Contrato SaaS — ANTHOSYSTEM</title>
+        <title>Contrato SaaS — ${LEGAL_CONFIG.companyName}</title>
         <style>
           body { font-family: Arial, sans-serif; padding: 40px; color: #000; font-size: 12px; line-height: 1.7; }
           h3 { font-size: 14px; font-weight: bold; margin-top: 20px; }
@@ -73,7 +74,7 @@ export default function ContratoSaaS() {
             Contrato de Prestação de Serviços SaaS
           </CardTitle>
           <p className="text-sm text-muted-foreground">
-            Sistema de Gestão Comercial e Emissão Fiscal — ANTHOSYSTEM
+            Sistema de Gestão Comercial e Emissão Fiscal — {LEGAL_CONFIG.companyName}
           </p>
         </CardHeader>
         <CardContent>
@@ -90,7 +91,7 @@ export default function ContratoSaaS() {
             </p>
 
             <p>
-              <strong>CONTRATADA</strong>: ANTHOSYSTEM TECNOLOGIA LTDA, pessoa jurídica de direito privado, inscrita no CNPJ/MF sob o nº [________________], com sede em [________________], neste ato representada na forma de seu contrato social, doravante denominada simplesmente <strong>"CONTRATADA"</strong> ou <strong>"FORNECEDORA"</strong>;
+              <strong>CONTRATADA</strong>: {LEGAL_CONFIG.companyLegalName}, microempreendedor individual (MEI), inscrita no CNPJ/MF sob o nº {LEGAL_CONFIG.companyCNPJ}, com sede em {LEGAL_CONFIG.companyAddress}, neste ato representada na forma de sua constituição, doravante denominada simplesmente <strong>"CONTRATADA"</strong> ou <strong>"FORNECEDORA"</strong>;
             </p>
 
             <p>
@@ -106,7 +107,7 @@ export default function ContratoSaaS() {
             <section>
               <h3 className="font-bold text-base">CLÁUSULA 1ª — DO OBJETO</h3>
               <p>
-                1.1. O presente contrato tem por objeto a prestação de serviços de licenciamento de uso de software na modalidade SaaS (<em>Software as a Service</em>), por meio da plataforma denominada <strong>ANTHOSYSTEM</strong>, acessível via navegador de internet, destinada à gestão comercial e fiscal de estabelecimentos varejistas do segmento alimentar, em especial supermercados.
+                1.1. O presente contrato tem por objeto a prestação de serviços de licenciamento de uso de software na modalidade SaaS (<em>Software as a Service</em>), por meio da plataforma denominada <strong>{LEGAL_CONFIG.companyName}</strong>, acessível via navegador de internet, destinada à gestão comercial e fiscal de estabelecimentos varejistas.
               </p>
               <p>
                 1.2. O sistema contempla, de forma não exaustiva, as seguintes funcionalidades:
@@ -323,8 +324,8 @@ export default function ContratoSaaS() {
               <div className="space-y-8">
                 <p className="border-t border-foreground/30 pt-2">
                   <strong>CONTRATADA</strong><br />
-                  ANTHOSYSTEM TECNOLOGIA LTDA<br />
-                  CNPJ: [________________]
+                  {LEGAL_CONFIG.companyLegalName}<br />
+                  CNPJ: {LEGAL_CONFIG.companyCNPJ}
                 </p>
               </div>
               <div className="space-y-8">

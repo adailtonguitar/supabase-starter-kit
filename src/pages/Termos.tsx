@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { LEGAL_CONFIG } from "@/config/legal";
 
 const Termos = () => (
   <div className="h-screen overflow-y-auto bg-background text-foreground">
@@ -9,18 +10,25 @@ const Termos = () => (
         <Link to="/"><ArrowLeft className="w-4 h-4 mr-2" /> Voltar</Link>
       </Button>
 
-      <h1 className="text-3xl font-bold mb-2">Termos de Uso (teste lovable)</h1>
-      <p className="text-muted-foreground mb-8">Última atualização: 23 de fevereiro de 2026</p>
+      <h1 className="text-3xl font-bold mb-2">Termos de Uso</h1>
+      <p className="text-muted-foreground mb-8">
+        Versão {LEGAL_CONFIG.termsVersion} — Última atualização: {LEGAL_CONFIG.termsLastUpdate}
+      </p>
 
       <div className="prose prose-sm dark:prose-invert max-w-none space-y-6 text-muted-foreground">
         <section>
           <h2 className="text-xl font-semibold text-foreground">1. Aceitação dos Termos</h2>
-          <p>Ao acessar e utilizar o sistema <strong>Antho System</strong>, você concorda em cumprir e estar vinculado a estes Termos de Uso. Caso não concorde com qualquer parte destes termos, não utilize o serviço.</p>
+          <p>
+            Ao acessar e utilizar o sistema <strong>{LEGAL_CONFIG.companyName}</strong>, mantido por{" "}
+            <strong>{LEGAL_CONFIG.companyLegalName}</strong>, CNPJ {LEGAL_CONFIG.companyCNPJ},
+            você concorda em cumprir e estar vinculado a estes Termos de Uso. Caso não concorde
+            com qualquer parte destes termos, não utilize o serviço.
+          </p>
         </section>
 
         <section>
           <h2 className="text-xl font-semibold text-foreground">2. Descrição do Serviço</h2>
-          <p>O Antho System é uma plataforma de gestão comercial (ERP/PDV) que oferece funcionalidades como controle de estoque, vendas, financeiro, emissão fiscal, relatórios e gestão de clientes, disponibilizada como serviço (SaaS).</p>
+          <p>O {LEGAL_CONFIG.companyName} é uma plataforma de gestão comercial (ERP/PDV) que oferece funcionalidades como controle de estoque, vendas, financeiro, emissão fiscal, relatórios e gestão de clientes, disponibilizada como serviço (SaaS).</p>
         </section>
 
         <section>
@@ -80,9 +88,70 @@ const Termos = () => (
           <p>O Antho System não se responsabiliza por perdas ou danos indiretos, incidentais ou consequentes decorrentes do uso ou impossibilidade de uso do serviço, incluindo perda de dados ou lucros cessantes.</p>
         </section>
 
-        <section>
-          <h2 className="text-xl font-semibold text-foreground">10. Cancelamento e Rescisão</h2>
-          <p>Você pode cancelar sua conta a qualquer momento. Reservamo-nos o direito de suspender ou encerrar contas que violem estes termos, sem aviso prévio.</p>
+        <section className="space-y-3">
+          <h2 className="text-xl font-semibold text-foreground">10. Cancelamento, Reembolso e Direito de Arrependimento</h2>
+
+          <h3 className="text-base font-semibold text-foreground mt-4">10.1. Como cancelar</h3>
+          <p>
+            Você pode cancelar sua assinatura a qualquer momento diretamente pelo menu{" "}
+            <strong>Configurações &gt; Meu Plano &gt; Cancelar assinatura</strong>. Ao cancelar,
+            solicitaremos um motivo para aprimorarmos o serviço. O cancelamento é efetivado
+            imediatamente, mas você mantém o acesso até o fim do período já pago.
+          </p>
+
+          <h3 className="text-base font-semibold text-foreground mt-4">
+            10.2. Direito de Arrependimento (CDC art. 49)
+          </h3>
+          <p>
+            Em conformidade com o <strong>art. 49 do Código de Defesa do Consumidor</strong> (Lei
+            nº 8.078/90), você tem o direito de desistir da contratação no prazo de{" "}
+            <strong>7 (sete) dias corridos</strong> a contar da data do pagamento, com direito a{" "}
+            <strong>reembolso integral</strong> do valor pago. Basta solicitar o reembolso no
+            próprio fluxo de cancelamento dentro desse prazo.
+          </p>
+          <p>
+            O reembolso é processado via Mercado Pago em até{" "}
+            <strong>5 (cinco) dias úteis</strong> após a solicitação e creditado pelo mesmo meio
+            de pagamento utilizado na compra. Ao solicitar o reembolso dentro dos 7 dias, o acesso
+            à plataforma é encerrado no momento em que o estorno é processado.
+          </p>
+
+          <h3 className="text-base font-semibold text-foreground mt-4">
+            10.3. Cancelamento após 7 dias
+          </h3>
+          <p>
+            Após o prazo de arrependimento de 7 dias, <strong>não há reembolso</strong> do valor
+            pago pelo período corrente, por se tratar de serviço continuado já disponibilizado. Ao
+            cancelar nesse cenário:
+          </p>
+          <ul className="list-disc pl-6 space-y-1 text-sm">
+            <li>Você mantém acesso completo à plataforma até o fim do período já pago.</li>
+            <li>Nenhuma cobrança de renovação será feita.</li>
+            <li>Após a data de encerramento, a conta é suspensa e o acesso é bloqueado.</li>
+            <li>Você pode reativar a assinatura a qualquer momento antes da data de encerramento.</li>
+          </ul>
+
+          <h3 className="text-base font-semibold text-foreground mt-4">
+            10.4. Retenção de Dados Após o Cancelamento
+          </h3>
+          <p>
+            Após o encerramento do acesso, seus dados permanecem armazenados por{" "}
+            <strong>90 (noventa) dias</strong> para permitir a eventual reativação da conta e
+            recuperação de informações. Decorrido esse prazo, os dados são removidos conforme
+            nossa <Link to="/privacidade" className="text-primary hover:underline">Política de Privacidade</Link>,
+            exceto aqueles de guarda obrigatória por lei (fiscais, contábeis, tributários).
+          </p>
+
+          <h3 className="text-base font-semibold text-foreground mt-4">
+            10.5. Suspensão e Rescisão pela Contratada
+          </h3>
+          <p>
+            Reservamo-nos o direito de suspender ou encerrar contas em caso de violação destes
+            Termos, uso fraudulento, inadimplência, utilização abusiva dos recursos do sistema ou
+            por determinação legal. Em caso de inadimplência, o acesso é suspenso após{" "}
+            <strong>3 (três) dias de carência</strong> do vencimento, sem direito a reembolso
+            proporcional, e os dados ficam retidos nos termos do item 10.4.
+          </p>
         </section>
 
         <section>
@@ -91,8 +160,24 @@ const Termos = () => (
         </section>
 
         <section>
-          <h2 className="text-xl font-semibold text-foreground">12. Contato</h2>
-          <p>Para dúvidas sobre estes termos, entre em contato pelo suporte disponível no sistema ou pelo e-mail informado na página de ajuda.</p>
+          <h2 className="text-xl font-semibold text-foreground">12. Foro e Legislação Aplicável</h2>
+          <p>
+            Estes Termos são regidos pelas leis da República Federativa do Brasil. Fica eleito o
+            foro da comarca de domicílio de {LEGAL_CONFIG.companyLegalName} para dirimir quaisquer
+            controvérsias decorrentes deste contrato, renunciando as partes a qualquer outro, por
+            mais privilegiado que seja.
+          </p>
+        </section>
+
+        <section>
+          <h2 className="text-xl font-semibold text-foreground">13. Contato</h2>
+          <p>
+            Para dúvidas sobre estes termos, entre em contato pelo e-mail{" "}
+            <a href={`mailto:${LEGAL_CONFIG.supportEmail}`} className="text-primary hover:underline">
+              {LEGAL_CONFIG.supportEmail}
+            </a>{" "}
+            ou pelo suporte disponível no sistema.
+          </p>
         </section>
       </div>
 

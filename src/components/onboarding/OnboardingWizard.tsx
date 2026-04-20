@@ -5,6 +5,42 @@ import { fetchMyCompanyMemberships } from "@/lib/company-memberships";
 import { toast } from "sonner";
 import logoAs from "@/assets/logo-as.png";
 import { useCnpjLookup } from "@/hooks/useCnpjLookup";
+import { TERMS_VERSION } from "@/config/legal";
+
+async function registerTermsAcceptance(companyId: string): Promise<void> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data: existing } = await supabase
+      .from("terms_acceptance")
+      .select("id")
+      .eq("company_id", companyId)
+      .eq("user_id", user.id)
+      .eq("terms_version", TERMS_VERSION)
+      .maybeSingle();
+    if (existing) return;
+
+    let ip = "unknown";
+    try {
+      const res = await fetch("https://api.ipify.org?format=json");
+      const json = await res.json();
+      ip = json.ip || "unknown";
+    } catch { /* fallback */ }
+
+    await supabase.from("terms_acceptance").insert({
+      company_id: companyId,
+      user_id: user.id,
+      ip_address: ip,
+      user_agent: navigator.userAgent,
+      terms_version: TERMS_VERSION,
+    });
+
+    try { localStorage.removeItem("pending_terms_acceptance"); } catch { /* ignore */ }
+  } catch (err) {
+    console.error("[Onboarding] Failed to register terms acceptance:", err);
+  }
+}
 
 interface Props {
   onComplete: () => void;
@@ -51,6 +87,10 @@ export function OnboardingWizard({ onComplete }: Props) {
       });
 
       if (error) throw error;
+
+      if (typeof data === "string") {
+        await registerTermsAcceptance(data);
+      }
 
       toast.success("Empresa criada com sucesso!");
       next();

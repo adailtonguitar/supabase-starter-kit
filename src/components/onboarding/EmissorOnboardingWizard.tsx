@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import logoAs from "@/assets/logo-as.png";
 import { useCnpjLookup } from "@/hooks/useCnpjLookup";
+import { TERMS_VERSION } from "@/config/legal";
 
 interface Props {
   onComplete: () => void;
@@ -123,6 +124,37 @@ export function EmissorOnboardingWizard({ onComplete }: Props) {
         .single();
 
       if (!cu) throw new Error("Empresa não encontrada");
+
+      try {
+        const { data: existing } = await supabase
+          .from("terms_acceptance")
+          .select("id")
+          .eq("company_id", cu.company_id)
+          .eq("user_id", user.id)
+          .eq("terms_version", TERMS_VERSION)
+          .maybeSingle();
+
+        if (!existing) {
+          let ip = "unknown";
+          try {
+            const res = await fetch("https://api.ipify.org?format=json");
+            const json = await res.json();
+            ip = json.ip || "unknown";
+          } catch { /* fallback */ }
+
+          await supabase.from("terms_acceptance").insert({
+            company_id: cu.company_id,
+            user_id: user.id,
+            ip_address: ip,
+            user_agent: navigator.userAgent,
+            terms_version: TERMS_VERSION,
+          });
+
+          try { localStorage.removeItem("pending_terms_acceptance"); } catch { /* ignore */ }
+        }
+      } catch (termsErr) {
+        console.error("[EmissorOnboarding] Failed to register terms acceptance:", termsErr);
+      }
 
       // Update company with full fiscal data
       const { error: updateError } = await supabase.from("companies").update({

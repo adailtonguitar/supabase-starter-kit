@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { LEGAL_CONFIG } from "@/config/legal";
 
 const Privacidade = () => (
   <div className="h-screen overflow-y-auto bg-background text-foreground">
@@ -9,13 +10,35 @@ const Privacidade = () => (
         <Link to="/"><ArrowLeft className="w-4 h-4 mr-2" /> Voltar</Link>
       </Button>
 
-      <h1 className="text-3xl font-bold mb-2">Política de Privacidade (teste lovable)</h1>
-      <p className="text-muted-foreground mb-8">Última atualização: 23 de fevereiro de 2026</p>
+      <h1 className="text-3xl font-bold mb-2">Política de Privacidade</h1>
+      <p className="text-muted-foreground mb-8">
+        Versão {LEGAL_CONFIG.privacyVersion} — Última atualização: {LEGAL_CONFIG.privacyLastUpdate}
+      </p>
 
       <div className="prose prose-sm dark:prose-invert max-w-none space-y-6 text-muted-foreground">
         <section>
           <h2 className="text-xl font-semibold text-foreground">1. Introdução</h2>
-          <p>O <strong>Antho System</strong> respeita a privacidade dos seus usuários e está comprometido com a proteção dos dados pessoais, em conformidade com a Lei Geral de Proteção de Dados (LGPD — Lei nº 13.709/2018).</p>
+          <p>
+            O <strong>{LEGAL_CONFIG.companyName}</strong>, operado por{" "}
+            <strong>{LEGAL_CONFIG.companyLegalName}</strong> (CNPJ {LEGAL_CONFIG.companyCNPJ}),
+            respeita a privacidade dos seus usuários e está comprometido com a proteção dos dados
+            pessoais, em conformidade com a Lei Geral de Proteção de Dados (LGPD — Lei nº 13.709/2018).
+          </p>
+        </section>
+
+        <section>
+          <h2 className="text-xl font-semibold text-foreground">1.1. Controlador dos Dados</h2>
+          <p>
+            O controlador dos dados pessoais tratados por esta plataforma é{" "}
+            <strong>{LEGAL_CONFIG.companyLegalName}</strong>, inscrito no CNPJ sob o nº{" "}
+            {LEGAL_CONFIG.companyCNPJ}, com endereço em {LEGAL_CONFIG.companyAddress}.
+          </p>
+          <p>
+            Encarregado de Proteção de Dados (DPO):{" "}
+            <a href={`mailto:${LEGAL_CONFIG.dpoEmail}`} className="text-primary hover:underline">
+              {LEGAL_CONFIG.dpoEmail}
+            </a>
+          </p>
         </section>
 
         <section>
@@ -24,7 +47,8 @@ const Privacidade = () => (
           <ul className="list-disc pl-6 space-y-1">
             <li><strong>Dados de cadastro:</strong> nome, e-mail, telefone, CNPJ/CPF e dados da empresa;</li>
             <li><strong>Dados de uso:</strong> logs de acesso, páginas visitadas e funcionalidades utilizadas;</li>
-            <li><strong>Dados comerciais:</strong> produtos, vendas, clientes e informações financeiras inseridas pelo usuário no sistema.</li>
+            <li><strong>Dados comerciais:</strong> produtos, vendas, clientes e informações financeiras inseridas pelo usuário no sistema;</li>
+            <li><strong>Dados de cancelamento:</strong> quando você cancela a assinatura, armazenamos o motivo do cancelamento e eventual comentário fornecido, com a finalidade exclusiva de aprimorar nossos serviços.</li>
           </ul>
         </section>
 
@@ -62,14 +86,50 @@ const Privacidade = () => (
 
         <section>
           <h2 className="text-xl font-semibold text-foreground">7. Direitos do Titular</h2>
-          <p>De acordo com a LGPD, você tem direito a:</p>
+          <p>De acordo com o art. 18 da LGPD, você tem direito a:</p>
           <ul className="list-disc pl-6 space-y-1">
+            <li>Confirmar a existência de tratamento dos seus dados;</li>
             <li>Acessar seus dados pessoais;</li>
-            <li>Corrigir dados incompletos ou desatualizados;</li>
-            <li>Solicitar a exclusão dos seus dados;</li>
+            <li>Corrigir dados incompletos, inexatos ou desatualizados;</li>
+            <li>Solicitar a anonimização, bloqueio ou eliminação dos seus dados;</li>
+            <li>Solicitar a portabilidade dos seus dados;</li>
             <li>Revogar o consentimento a qualquer momento;</li>
-            <li>Solicitar a portabilidade dos seus dados.</li>
+            <li>Obter informações sobre compartilhamento e uso dos seus dados.</li>
           </ul>
+          <div className="mt-4 rounded-lg border border-primary/30 bg-primary/5 p-4">
+            <strong className="text-foreground">Como exercer seus direitos:</strong>
+            <ul className="mt-2 list-disc pl-6 space-y-1">
+              <li>
+                <strong>Acesso e portabilidade:</strong> use o botão{" "}
+                <em>"Baixar meus dados"</em> em{" "}
+                <strong>Configurações &gt; Meus dados pessoais (LGPD)</strong>.
+                Retorno imediato, em formato JSON interoperável.
+              </li>
+              <li>
+                <strong>Correção:</strong> edite diretamente seu perfil em{" "}
+                <strong>Configurações</strong>.
+              </li>
+              <li>
+                <strong>Eliminação:</strong> use o botão{" "}
+                <em>"Solicitar exclusão"</em> em{" "}
+                <strong>Configurações &gt; Meus dados pessoais (LGPD)</strong>.
+                Prazo de atendimento: até 15 dias úteis.
+              </li>
+              <li>
+                <strong>Demais direitos:</strong> entre em contato pelo e-mail do DPO
+                (<a
+                  href={`mailto:${LEGAL_CONFIG.dpoEmail}`}
+                  className="text-primary hover:underline"
+                >{LEGAL_CONFIG.dpoEmail}</a>).
+              </li>
+            </ul>
+          </div>
+          <p className="mt-3 text-xs">
+            <strong>Limitação legal:</strong> dados sujeitos a obrigação de retenção pela
+            legislação fiscal (NF-e, NFC-e e documentos correlatos) serão conservados pelo prazo
+            mínimo de 5 anos, conforme exige a legislação tributária brasileira. Sempre que
+            possível, tais dados serão anonimizados.
+          </p>
         </section>
 
         <section>
@@ -84,7 +144,19 @@ const Privacidade = () => (
 
         <section>
           <h2 className="text-xl font-semibold text-foreground">10. Contato</h2>
-          <p>Para exercer seus direitos ou esclarecer dúvidas sobre esta política, entre em contato pelo suporte disponível no sistema ou pelo e-mail informado na página de ajuda.</p>
+          <p>
+            Para exercer seus direitos previstos no art. 18 da LGPD ou esclarecer dúvidas sobre
+            esta política, entre em contato com nosso Encarregado de Proteção de Dados (DPO) pelo
+            e-mail{" "}
+            <a href={`mailto:${LEGAL_CONFIG.dpoEmail}`} className="text-primary hover:underline">
+              {LEGAL_CONFIG.dpoEmail}
+            </a>{" "}
+            ou pelo suporte do sistema em{" "}
+            <a href={`mailto:${LEGAL_CONFIG.supportEmail}`} className="text-primary hover:underline">
+              {LEGAL_CONFIG.supportEmail}
+            </a>
+            . Responderemos sua solicitação no prazo máximo de 15 (quinze) dias.
+          </p>
         </section>
       </div>
 

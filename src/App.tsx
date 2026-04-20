@@ -26,7 +26,7 @@ import { fetchMyCompanyMemberships } from "@/lib/company-memberships";
 
 import {
   LandingPage, Auth, ResetPassword, TrialExpirado, Instalar, Termos,
-  ContratoSaaS, Privacidade, Renovar, PDV, PDVCustomerDisplayPage,
+  ContratoSaaS, Privacidade, Suporte, Renovar, PDV, PDVCustomerDisplayPage,
   EmissorNFe, EmissorLanding, TermosFiscais, LayoutRoutes,
 } from "@/routes/AppRouteDefinitions";
 
@@ -324,6 +324,8 @@ function AppRoutes() {
         <Route path="/termos" element={<Termos />} />
         <Route path="/contrato" element={<ContratoSaaS />} />
         <Route path="/privacidade" element={<Privacidade />} />
+        <Route path="/suporte" element={<Suporte />} />
+        <Route path="/contato" element={<Suporte />} />
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/trial-expirado" element={user && session ? <TrialExpirado /> : <Navigate to="/" replace />} />
         <Route path="/pdv-display" element={<PDVCustomerDisplayPage />} />

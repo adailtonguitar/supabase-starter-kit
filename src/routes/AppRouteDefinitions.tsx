@@ -101,6 +101,7 @@ export const Instalar = lazyRetry(() => import("@/pages/Instalar"));
 export const Termos = lazyRetry(() => import("@/pages/Termos"));
 export const ContratoSaaS = lazyRetry(() => import("@/pages/ContratoSaaS"));
 export const Privacidade = lazyRetry(() => import("@/pages/Privacidade"));
+export const Suporte = lazyRetry(() => import("@/pages/Suporte"));
 export const Renovar = lazyRetry(() => import("@/pages/Renovar"));
 export const TermosFiscais = lazyRetry(() => import("@/pages/TermosFiscais"));
 

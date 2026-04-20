@@ -1,4 +1,4 @@
-project_id = "yrswvxsypndvzspmlogo"
+project_id = "fsvxpxziotklbxkivyug"
 
 [functions.emit-nfce]
 verify_jwt = false
@@ -21,6 +21,12 @@ verify_jwt = false
 [functions.create-subscription-payment]
 verify_jwt = false
 
+[functions.cancel-subscription]
+verify_jwt = false
+
+[functions.reactivate-subscription]
+verify_jwt = false
+
 [functions.mercadopago-webhook]
 verify_jwt = false
 
@@ -31,3 +37,12 @@ verify_jwt = false
 verify_jwt = false
 [functions.test-webhook]
 verify_jwt = false
+
+[functions.notify-critical-errors]
+verify_jwt = false
+
+[functions.export-my-data]
+verify_jwt = true
+
+[functions.request-data-deletion]
+verify_jwt = true

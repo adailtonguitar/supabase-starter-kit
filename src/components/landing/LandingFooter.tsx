@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import logoAs from "@/assets/logo-as.png";
+import { LEGAL_CONFIG } from "@/config/legal";
 
 const InstagramIcon = () => (
   <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
@@ -65,19 +66,29 @@ export function LandingFooter() {
 
           {/* Contact */}
           <div>
-            <h4 className="font-display text-sm font-bold mb-4">Contato</h4>
+            <h4 className="font-display text-sm font-bold mb-4">Contato & Suporte</h4>
             <div className="flex flex-col gap-2.5 text-sm text-muted-foreground">
-              <span>Suporte via WhatsApp</span>
-              <span>contato@anthosystem.com.br</span>
+              <Link to="/suporte" className="hover:text-foreground transition-colors font-medium">
+                Central de Suporte
+              </Link>
+              <a
+                href={`mailto:${LEGAL_CONFIG.supportEmail}`}
+                className="hover:text-foreground transition-colors break-all"
+              >
+                {LEGAL_CONFIG.supportEmail}
+              </a>
+              <span className="text-xs">
+                {LEGAL_CONFIG.supportHours}
+              </span>
             </div>
           </div>
         </div>
 
         <div className="section-divider mb-6" />
 
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
-          <span className="text-xs text-muted-foreground">
-            © {new Date().getFullYear()} AnthoSystem. Todos os direitos reservados.
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
+          <span className="text-xs text-muted-foreground leading-relaxed">
+            © {new Date().getFullYear()} {LEGAL_CONFIG.companyLegalName} — CNPJ {LEGAL_CONFIG.companyCNPJ}. Todos os direitos reservados.
           </span>
           <span className="text-xs text-muted-foreground">
             Desenvolvido por <span className="font-semibold text-foreground">AnthoTec</span>
