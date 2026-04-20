@@ -1,5 +1,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 
+const GRACE_PERIOD_DAYS = 3;
+
 const ALLOWED_ORIGINS = [
   "https://anthosystemcombr.lovable.app",
   "https://anthosystem.com.br",
@@ -91,6 +93,7 @@ Deno.serve(async (req) => {
     if (companyUser && !companyUser.is_active) {
       return new Response(
         JSON.stringify({
+          access: false,
           blocked: true,
           block_reason: "Sua conta foi desativada pelo administrador.",
         }),
@@ -123,6 +126,7 @@ Deno.serve(async (req) => {
     if (!sub) {
       return new Response(
         JSON.stringify({
+          access: !isTrialExpired,
           subscribed: false,
           plan_key: null,
           subscription_end: null,
@@ -141,9 +145,12 @@ Deno.serve(async (req) => {
     const now = new Date();
     const endDate = sub.subscription_end ? new Date(sub.subscription_end) : null;
     const isActive = sub.status === "active" && endDate && endDate > now;
+    const graceEndsAt = endDate ? endDate.getTime() + GRACE_PERIOD_DAYS * 24 * 60 * 60 * 1000 : null;
+    const graceActive = !!endDate && !isActive && graceEndsAt !== null && now.getTime() <= graceEndsAt;
 
     return new Response(
       JSON.stringify({
+        access: isActive || graceActive,
         subscribed: isActive,
         plan_key: sub.plan_key || null,
         subscription_end: sub.subscription_end || null,
