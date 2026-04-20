@@ -46,8 +46,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let authResolved = false;
+    let mounted = true;
+    let subscription: ReturnType<typeof supabase.auth.onAuthStateChange>["data"]["subscription"] | null = null;
 
     const applyAuthState = (nextSession: Session | null) => {
+      if (!mounted) return;
       authResolved = true;
       setSession(nextSession);
       setUser(nextSession?.user ?? null);
@@ -57,6 +60,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     const clearAuthState = () => {
+      if (!mounted) return;
       authResolved = true;
       setSession(null);
       setUser(null);
@@ -75,28 +79,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === "PASSWORD_RECOVERY") {
-        sessionStorage.setItem("needs-password-setup", "true");
-      }
-      if (event === "SIGNED_IN" && session?.user) {
-        // Log login - get company_id asynchronously
-        supabase.from("company_users").select("company_id").eq("user_id", session.user.id).limit(1).single()
-          .then(({ data }) => {
-            if (data?.company_id) logAction({ companyId: data.company_id, userId: session.user.id, action: "Login realizado", module: "auth" });
-          });
-      }
-      if (event === "SIGNED_OUT") {
-        // Logged at signOut method below
-      }
+    void supabase.auth.getSession().then(({ data: { session } }) => {
       applyAuthState(session);
-    });
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      applyAuthState(session);
+      const authSub = supabase.auth.onAuthStateChange((event, nextSession) => {
+        if (event === "INITIAL_SESSION") return;
+
+        if (event === "PASSWORD_RECOVERY") {
+          sessionStorage.setItem("needs-password-setup", "true");
+        }
+        if (event === "SIGNED_IN" && nextSession?.user) {
+          void supabase.from("company_users").select("company_id").eq("user_id", nextSession.user.id).limit(1).single()
+            .then(({ data }) => {
+              if (data?.company_id) logAction({ companyId: data.company_id, userId: nextSession.user.id, action: "Login realizado", module: "auth" });
+            });
+        }
+        applyAuthState(nextSession);
+      });
+
+      subscription = authSub.data.subscription;
     }).catch(() => {
       if (!navigator.onLine && getCachedUser()) {
-        // Offline — using cached user
         authResolved = true;
         setLoading(false);
       } else {
@@ -118,7 +121,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, 8000);
 
     return () => {
-      subscription.unsubscribe();
+      mounted = false;
+      subscription?.unsubscribe();
       clearTimeout(timeout);
     };
   }, []);
