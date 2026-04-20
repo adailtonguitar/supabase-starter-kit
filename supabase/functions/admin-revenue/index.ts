@@ -67,7 +67,7 @@ Deno.serve(async (req) => {
     const PLAN_PRICES: Record<string, number> = {
       starter: 149.9,
       business: 199.9,
-      pro: 449.9,
+      pro: 349.9,
       emissor: 99.9,
     };
 

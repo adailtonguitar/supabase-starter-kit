@@ -237,8 +237,10 @@ function DiscountLimitsSection() {
 }
 
 const planFeatures: Record<string, string[]> = {
-  essencial: ["1 terminal PDV", "Até 500 produtos", "Até 200 notas/mês", "Controle de estoque", "Financeiro básico", "Relatórios de vendas", "Suporte por e-mail"],
-  profissional: ["Até 5 terminais PDV", "Produtos ilimitados", "NF-e + NFC-e", "Relatórios avançados com IA", "Programa de fidelidade", "Multi-usuários e permissões", "Orçamentos e cotações", "Curva ABC e painel de lucro", "Suporte prioritário"],
+  emissor: ["NF-e modelo 55 e 65", "Consulta DF-e", "Até 2 usuários", "Financeiro básico", "Ideal para MEI/ME"],
+  starter: ["3 sessões simultâneas", "Controle de estoque", "Financeiro básico", "Relatórios de vendas", "Suporte por e-mail"],
+  business: ["8 sessões simultâneas", "Emissão de NFC-e", "IA integrada", "Multi-usuários e permissões", "Programa de fidelidade", "Curva ABC e painel de lucro", "Suporte prioritário"],
+  pro: ["Sessões ilimitadas", "Todos os módulos inclusos", "NF-e + NFC-e ilimitadas", "Relatórios avançados com IA", "Consulta DF-e", "Suporte dedicado"],
 };
 
 function MyPlanSection() {
@@ -263,7 +265,7 @@ function MyPlanSection() {
   const handleUpgrade = async () => {
     try {
       setUpgrading(true);
-      await createCheckout("profissional");
+      await createCheckout("business");
     } catch (err: any) {
       toast.error(err?.message || "Erro ao iniciar checkout");
     } finally {
@@ -300,7 +302,7 @@ function MyPlanSection() {
             </ul>
             {canUpgrade && (
               <Button size="sm" onClick={handleUpgrade} disabled={upgrading}>
-                <ArrowRight className="w-4 h-4 mr-2" /> {upgrading ? "Redirecionando..." : "Fazer upgrade para Profissional"}
+                <ArrowRight className="w-4 h-4 mr-2" /> {upgrading ? "Redirecionando..." : "Fazer upgrade para Business"}
               </Button>
             )}
           </>
@@ -314,18 +316,18 @@ function MyPlanSection() {
             </div>
             <p className="text-sm text-muted-foreground">Assine um plano para continuar usando o sistema após o período de teste.</p>
             <div className="flex gap-3 flex-wrap">
-              <Button variant="secondary" size="sm" onClick={() => createCheckout("essencial").catch(() => toast.error("Erro ao iniciar checkout"))}>
-                Essencial — R$ 149,90/mês
+              <Button variant="secondary" size="sm" onClick={() => createCheckout("starter").catch(() => toast.error("Erro ao iniciar checkout"))}>
+                Starter — R$ 149,90/mês
               </Button>
-              <Button size="sm" onClick={() => createCheckout("profissional").catch(() => toast.error("Erro ao iniciar checkout"))}>
-                Profissional — R$ 199,90/mês
+              <Button size="sm" onClick={() => createCheckout("business").catch(() => toast.error("Erro ao iniciar checkout"))}>
+                Business — R$ 199,90/mês
               </Button>
             </div>
           </>
         ) : (
           <>
             <p className="text-sm text-muted-foreground">Você não possui uma assinatura ativa.</p>
-            <Button size="sm" onClick={() => createCheckout("profissional").catch(() => toast.error("Erro ao iniciar checkout"))}>
+            <Button size="sm" onClick={() => createCheckout("business").catch(() => toast.error("Erro ao iniciar checkout"))}>
               Assinar agora
             </Button>
           </>

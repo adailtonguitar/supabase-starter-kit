@@ -47,9 +47,9 @@ function VerifyPaymentButton() {
 
 const plans = [
   {
-    name: "Starter (TESTE)",
-    price: "1,00",
-    desc: "Plano de teste — R$ 1,00",
+    name: "Starter",
+    price: "149,90",
+    desc: "Para pequenos comércios e mercearias",
     features: [
       "3 sessões simultâneas",
       "Controle de estoque",

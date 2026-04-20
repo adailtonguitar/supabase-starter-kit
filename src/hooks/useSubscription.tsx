@@ -36,7 +36,8 @@ function calcGracePeriod(subscriptionEnd: string) {
 }
 
 export const PLANS = {
-  starter: { key: "starter", name: "Starter (TESTE)", price: 1.0 },
+  emissor: { key: "emissor", name: "Emissor", price: 99.9 },
+  starter: { key: "starter", name: "Starter", price: 149.9 },
   business: { key: "business", name: "Business", price: 199.9 },
   pro: { key: "pro", name: "Pro", price: 349.9 },
 } as const;
