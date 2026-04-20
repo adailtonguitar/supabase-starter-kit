@@ -5,17 +5,31 @@ import { PLANS, useSubscription } from "@/hooks/useSubscription";
 import { useAuth } from "@/hooks/useAuth";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Navigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 
 function VerifyPaymentButton() {
   const { checkSubscription } = useSubscription();
+  const navigate = useNavigate();
   const [checking, setChecking] = useState(false);
 
   const handleVerify = async () => {
     setChecking(true);
     try {
-      await checkSubscription();
-      toast.info("Verificação concluída. Se o pagamento foi confirmado, o acesso será liberado automaticamente.");
+      const { error: reconcileError } = await supabase.functions.invoke("reconcile-payments");
+      if (reconcileError) {
+        console.warn("[TrialExpirado] reconcile-payments failed:", reconcileError.message);
+      }
+
+      const nextState = await checkSubscription();
+
+      if (nextState.subscribed) {
+        toast.success("Pagamento confirmado. Liberando acesso...");
+        navigate("/dashboard", { replace: true });
+        return;
+      }
+
+      toast.warning("Pagamento ainda não foi confirmado. Se você acabou de pagar, aguarde alguns segundos e tente novamente.");
     } catch {
       toast.error("Erro ao verificar. Tente novamente em instantes.");
     } finally {

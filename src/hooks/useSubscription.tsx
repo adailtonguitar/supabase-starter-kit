@@ -49,7 +49,7 @@ interface SubscriptionState {
 }
 
 interface SubscriptionContextType extends SubscriptionState {
-  checkSubscription: () => Promise<void>;
+  checkSubscription: () => Promise<SubscriptionState>;
   createCheckout: (planKey: string) => Promise<void>;
   openCustomerPortal: () => Promise<void>;
 }
@@ -63,7 +63,7 @@ const defaultState: SubscriptionState = {
 
 const SubscriptionContext = createContext<SubscriptionContextType>({
   ...defaultState,
-  checkSubscription: async () => {},
+  checkSubscription: async () => defaultState,
   createCheckout: async () => {},
   openCustomerPortal: async () => {},
 });
@@ -116,9 +116,18 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
     return cached ? { ...cached, loading: true } : defaultState;
   });
 
-  const checkSubscription = useCallback(async () => {
-    if (!user) { setState({ ...defaultState, loading: false }); return; }
-    if (!navigator.onLine) { const cached = getCachedSubState(); setState(cached ? { ...cached, loading: false } : { ...defaultState, loading: false }); return; }
+  const checkSubscription = useCallback(async (): Promise<SubscriptionState> => {
+    if (!user) {
+      const newState: SubscriptionState = { ...defaultState, loading: false };
+      setState(newState);
+      return newState;
+    }
+    if (!navigator.onLine) {
+      const cached = getCachedSubState();
+      const newState: SubscriptionState = cached ? { ...cached, loading: false } : { ...defaultState, loading: false };
+      setState(newState);
+      return newState;
+    }
 
     type EdgeSubscriptionPayload = {
       subscribed?: boolean;
@@ -174,8 +183,9 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
         // Check if user is blocked
         const { data: cu } = await supabase.from("company_users").select("is_active").eq("user_id", user.id).limit(1).maybeSingle();
         if (cu && !cu.is_active) {
-          setState({ ...defaultState, loading: false, blocked: true, blockReason: "Sua conta foi desativada pelo administrador." });
-          return;
+          const blockedState: SubscriptionState = { ...defaultState, loading: false, blocked: true, blockReason: "Sua conta foi desativada pelo administrador." };
+          setState(blockedState);
+          return blockedState;
         }
 
         const { data: sub } = await supabase
@@ -203,12 +213,16 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
         console.warn("[useSubscription] DB fallback also failed, using trial:", dbErr);
         const newState: SubscriptionState = { ...defaultState, loading: false, ...trial };
         setState(newState); cacheSubState(newState);
-        return;
+        return newState;
       }
     }
 
     try {
-      if (data?.blocked) { setState({ ...defaultState, loading: false, blocked: true, blockReason: data.block_reason || "Acesso bloqueado pelo administrador." }); return; }
+      if (data?.blocked) {
+        const blockedState: SubscriptionState = { ...defaultState, loading: false, blocked: true, blockReason: data.block_reason || "Acesso bloqueado pelo administrador." };
+        setState(blockedState);
+        return blockedState;
+      }
 
       const isSubscribed = data?.subscribed ?? false;
       const planKey = data?.plan_key ?? null;
@@ -220,16 +234,21 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
         const daysUntilExpiry = calcDaysUntilExpiry(subscriptionEnd);
         const newState: SubscriptionState = { subscribed: true, planKey, subscriptionEnd, loading: false, trialActive: false, trialDaysLeft: null, trialExpired: false, wasSubscriber: true, subscriptionOverdue: false, gracePeriodActive: false, graceDaysLeft: null, daysUntilExpiry, blocked: false, blockReason: null };
         setState(newState); cacheSubState(newState);
+        return newState;
       } else if (wasSubscriber && lastSubscriptionEnd) {
         const grace = calcGracePeriod(lastSubscriptionEnd);
         const newState: SubscriptionState = { subscribed: false, planKey, subscriptionEnd: lastSubscriptionEnd, loading: false, trialActive: false, trialDaysLeft: null, trialExpired: false, wasSubscriber: true, ...grace, daysUntilExpiry: null, blocked: false, blockReason: null };
         setState(newState); cacheSubState(newState);
+        return newState;
       } else {
         const newState: SubscriptionState = { subscribed: false, planKey: null, subscriptionEnd: null, loading: false, ...trial, wasSubscriber: false, subscriptionOverdue: false, gracePeriodActive: false, graceDaysLeft: null, daysUntilExpiry: null, blocked: false, blockReason: null };
         setState(newState); cacheSubState(newState);
+        return newState;
       }
     } catch {
-      setState((s) => ({ ...s, loading: false, ...trial }));
+      const fallbackState: SubscriptionState = { ...defaultState, loading: false, ...trial };
+      setState(fallbackState);
+      return fallbackState;
     }
   }, [user]);
 
