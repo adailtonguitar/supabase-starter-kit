@@ -110,13 +110,20 @@ async function invokeCheckSubscriptionWithTimeout(): Promise<{
 }
 
 export function SubscriptionProvider({ children }: { children: React.ReactNode }) {
-  const { user } = useAuth();
+  const { user, session, loading: authLoading } = useAuth();
   const [state, setState] = useState<SubscriptionState>(() => {
     const cached = getCachedSubState();
     return cached ? { ...cached, loading: true } : defaultState;
   });
 
   const checkSubscription = useCallback(async (): Promise<SubscriptionState> => {
+    if (authLoading || (user && !session)) {
+      const cached = getCachedSubState();
+      const pendingState: SubscriptionState = cached ? { ...cached, loading: true } : { ...defaultState, loading: true };
+      setState(pendingState);
+      return pendingState;
+    }
+
     if (!user) {
       const newState: SubscriptionState = { ...defaultState, loading: false };
       setState(newState);
@@ -250,7 +257,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
       setState(fallbackState);
       return fallbackState;
     }
-  }, [user]);
+  }, [authLoading, session, user]);
 
   useEffect(() => { checkSubscription(); const interval = setInterval(checkSubscription, 15 * 60_000); return () => clearInterval(interval); }, [checkSubscription]); // 15 min (was 5)
 
