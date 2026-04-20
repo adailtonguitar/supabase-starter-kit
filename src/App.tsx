@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { useCompany } from "@/hooks/useCompany";
 import { useAdminRole } from "@/hooks/useAdminRole";
@@ -50,6 +50,7 @@ const PageSpinner = () => (
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, session, loading, signOut } = useAuth();
+  const location = useLocation();
   const { companyId, loading: companyLoading } = useCompany();
   const { access, loading: subLoading } = useSubscription();
   const { isSuperAdmin, loading: adminLoading } = useAdminRole();
@@ -276,7 +277,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   }
 
   if (!isSuperAdmin && !access) {
-    return <Navigate to="/trial-expirado" replace />;
+    return <Navigate to={`/trial-expirado${location.search}${location.hash}`} replace />;
   }
 
   return <>{children}</>;
