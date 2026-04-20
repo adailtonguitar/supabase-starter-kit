@@ -105,6 +105,9 @@ Deno.serve(async (req) => {
       req.headers.get("referer") ||
       "https://app.anthosystem.com";
 
+    const supabaseUrl = Deno.env.get("SUPABASE_URL") || Deno.env.get("VITE_SUPABASE_URL")!;
+    const webhookUrl = `${supabaseUrl}/functions/v1/mercadopago-webhook`;
+
     const preferenceBody = {
       items: [
         {
@@ -121,6 +124,7 @@ Deno.serve(async (req) => {
         user_id: userId,
         plan_key: planKey,
       }),
+      notification_url: webhookUrl,
       back_urls: {
         success: `${origin}/dashboard?payment=success`,
         failure: `${origin}/trial-expirado?payment=failure`,
@@ -131,6 +135,8 @@ Deno.serve(async (req) => {
         installments: 1,
       },
     };
+
+    console.log("[create-checkout-v2] notification_url:", webhookUrl);
 
     const mpResponse = await fetch(
       "https://api.mercadopago.com/checkout/preferences",
