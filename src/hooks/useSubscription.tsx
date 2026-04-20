@@ -2,14 +2,14 @@ import { createContext, useContext, useEffect, useState, useCallback } from "rea
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
-function calcTrialFromEndsAt(trialEndsAt: string | null): { trialActive: boolean; trialDaysLeft: number | null; trialExpired: boolean } {
+function calcTrialFromEndsAt(trialEndsAt: string | null): { trialActive: boolean; trialDaysLeft: number | null } {
   if (!trialEndsAt) {
-    return { trialActive: false, trialDaysLeft: null, trialExpired: false };
+    return { trialActive: false, trialDaysLeft: null };
   }
 
   const endMs = new Date(trialEndsAt).getTime();
   if (Number.isNaN(endMs)) {
-    return { trialActive: false, trialDaysLeft: null, trialExpired: false };
+    return { trialActive: false, trialDaysLeft: null };
   }
 
   const remainMs = endMs - Date.now();
@@ -17,7 +17,6 @@ function calcTrialFromEndsAt(trialEndsAt: string | null): { trialActive: boolean
   return {
     trialActive: !trialExpired,
     trialDaysLeft: trialExpired ? 0 : Math.ceil(remainMs / (24 * 60 * 60 * 1000)),
-    trialExpired,
   };
 }
 
@@ -36,12 +35,6 @@ function calcGracePeriod(subscriptionEnd: string) {
   };
 }
 
-function calcDaysUntilExpiry(subscriptionEnd: string): number | null {
-  const endDate = new Date(subscriptionEnd).getTime();
-  if (Date.now() > endDate) return null;
-  return Math.ceil((endDate - Date.now()) / (24 * 60 * 60 * 1000));
-}
-
 export const PLANS = {
   starter: { key: "starter", name: "Starter (TESTE)", price: 1.0 },
   business: { key: "business", name: "Business", price: 199.9 },
@@ -50,18 +43,13 @@ export const PLANS = {
 
 interface SubscriptionState {
   access: boolean;
-  subscribed: boolean;
-  planKey: string | null;
-  subscriptionEnd: string | null;
   loading: boolean;
   trialActive: boolean;
   trialDaysLeft: number | null;
-  trialExpired: boolean;
   wasSubscriber: boolean;
   subscriptionOverdue: boolean;
   gracePeriodActive: boolean;
   graceDaysLeft: number | null;
-  daysUntilExpiry: number | null;
   blocked: boolean;
   blockReason: string | null;
 }
@@ -74,18 +62,13 @@ interface SubscriptionContextType extends SubscriptionState {
 
 const defaultState: SubscriptionState = {
   access: false,
-  subscribed: false,
-  planKey: null,
-  subscriptionEnd: null,
   loading: true,
   trialActive: false,
   trialDaysLeft: null,
-  trialExpired: false,
   wasSubscriber: false,
   subscriptionOverdue: false,
   gracePeriodActive: false,
   graceDaysLeft: null,
-  daysUntilExpiry: null,
   blocked: false,
   blockReason: null,
 };
@@ -101,13 +84,9 @@ const CHECK_SUBSCRIPTION_INVOKE_MS = 6_000;
 
 type EdgeSubscriptionPayload = {
   access?: boolean;
-  subscribed?: boolean;
-  plan_key?: string | null;
-  subscription_end?: string | null;
   was_subscriber?: boolean;
   last_subscription_end?: string | null;
   trial_ends_at?: string | null;
-  trial_expired?: boolean;
   blocked?: boolean;
   block_reason?: string | null;
 };
@@ -168,27 +147,21 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
       }
 
       const data = response.data as EdgeSubscriptionPayload;
-      const subscribed = data.subscribed === true;
       const access = data.access === true;
       const trial = calcTrialFromEndsAt(data.trial_ends_at ?? null);
-      const grace = !subscribed && data.last_subscription_end
+      const grace = data.last_subscription_end
         ? calcGracePeriod(data.last_subscription_end)
         : { gracePeriodActive: false, graceDaysLeft: null, subscriptionOverdue: false };
 
       const nextState: SubscriptionState = {
         access,
-        subscribed,
-        planKey: data.plan_key ?? null,
-        subscriptionEnd: data.subscription_end ?? data.last_subscription_end ?? null,
         loading: false,
         trialActive: trial.trialActive,
         trialDaysLeft: trial.trialDaysLeft,
-        trialExpired: data.trial_expired === true || trial.trialExpired,
-        wasSubscriber: data.was_subscriber === true,
+        wasSubscriber: data.was_subscriber === true || !!data.last_subscription_end,
         subscriptionOverdue: grace.subscriptionOverdue,
         gracePeriodActive: grace.gracePeriodActive,
         graceDaysLeft: grace.graceDaysLeft,
-        daysUntilExpiry: subscribed && data.subscription_end ? calcDaysUntilExpiry(data.subscription_end) : null,
         blocked: data.blocked === true,
         blockReason: data.blocked === true ? data.block_reason || "Acesso bloqueado pelo administrador." : null,
       };

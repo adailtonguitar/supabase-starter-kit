@@ -1,14 +1,12 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { CreditCard, Clock, Shield, CheckCircle, ArrowRight, Loader2, Zap, ArrowLeft, Star, RefreshCw } from "lucide-react";
+import { CreditCard, Shield, CheckCircle, ArrowRight, Loader2, Zap, ArrowLeft, Star, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { PLANS, useSubscription } from "@/hooks/useSubscription";
+import { useSubscription } from "@/hooks/useSubscription";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Navigate, Link, useNavigate } from "react-router-dom";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
 
 function VerifyPaymentButton() {
   const { checkSubscription } = useSubscription();
@@ -55,8 +53,7 @@ function VerifyPaymentButton() {
 export default function Renovar() {
   const { user, signOut } = useAuth();
   const {
-    access, subscribed, planKey, subscriptionEnd,
-    trialActive, trialDaysLeft, wasSubscriber,
+    access, wasSubscriber,
     gracePeriodActive, graceDaysLeft, subscriptionOverdue,
     loading: subLoading,
   } = useSubscription();
@@ -64,9 +61,6 @@ export default function Renovar() {
 
   if (!user) return <Navigate to="/auth" replace />;
   if (!subLoading && access) return <Navigate to="/dashboard" replace />;
-
-  const currentPlanKey = planKey || "starter";
-  const currentPlan = PLANS[currentPlanKey as keyof typeof PLANS] || PLANS.starter;
 
   const handleRenew = async (key: string) => {
     try {
@@ -139,18 +133,6 @@ export default function Renovar() {
         <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-3">
           Renovar Assinatura
         </h1>
-
-        {subscriptionEnd && (
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-muted border border-border mb-4">
-            <Clock className="w-4 h-4 text-muted-foreground" />
-            <span className="text-sm text-muted-foreground">
-              {subscriptionOverdue ? "Expirou em " : gracePeriodActive ? "Venceu em " : "Válida até "}
-              <strong className="text-foreground">
-                {format(new Date(subscriptionEnd), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
-              </strong>
-            </span>
-          </div>
-        )}
 
         {gracePeriodActive && graceDaysLeft && (
           <p className="text-sm text-primary font-medium">
@@ -238,14 +220,6 @@ export default function Renovar() {
 
       {/* Footer links */}
       <div className="mt-6 text-center space-x-4">
-        {subscribed && (
-          <button
-            onClick={() => window.location.href = "/dashboard"}
-            className="text-sm text-primary hover:text-primary/80 transition-colors underline"
-          >
-            Voltar ao sistema
-          </button>
-        )}
         <button
           onClick={signOut}
           className="text-sm text-muted-foreground hover:text-foreground transition-colors underline"
