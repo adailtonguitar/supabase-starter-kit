@@ -98,8 +98,7 @@ async function invokeCheckSubscriptionWithTimeout(): Promise<{
   data: Record<string, unknown> | null;
   error: { message?: string } | null;
 }> {
-  const { invokeEdgeFunctionWithAuth } = await import("@/lib/invoke-edge-function-with-auth");
-  const invoke = invokeEdgeFunctionWithAuth<Record<string, unknown>>("check-subscription");
+  const invoke = supabase.functions.invoke<Record<string, unknown>>("check-subscription");
   const timeout = new Promise<{ data: null; error: { message: string } }>((resolve) =>
     setTimeout(
       () => resolve({ data: null, error: { message: "check-subscription timeout (fallback DB)" } }),
