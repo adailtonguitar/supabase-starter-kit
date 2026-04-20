@@ -9,9 +9,10 @@ import { SUPABASE_ANON_KEY, SUPABASE_URL, supabase } from "@/integrations/supaba
 import { toast } from "sonner";
 import { logAction } from "@/services/ActionLogger";
 import { usePermissions } from "@/hooks/usePermissions";
-import { useSubscription, PLANS } from "@/hooks/useSubscription";
+import { useSubscription } from "@/hooks/useSubscription";
 import { useAdminRole } from "@/hooks/useAdminRole";
 import { useCompany } from "@/hooks/useCompany";
+import { usePlanFeatures } from "@/hooks/usePlanFeatures";
 import { getFiscalReadiness, getFiscalReadinessPrimaryFixRoute, getFiscalReadinessPrimaryIssue, type FiscalReadinessResult } from "@/lib/fiscal-readiness";
 import { useProducts, useBulkUpdateProducts, type Product } from "@/hooks/useProducts";
 import { useFiscalCategories } from "@/hooks/useFiscalCategories";
@@ -241,16 +242,23 @@ const planFeatures: Record<string, string[]> = {
 };
 
 function MyPlanSection() {
-  const { subscribed, planKey, trialActive, trialDaysLeft, subscriptionEnd, createCheckout, loading } = useSubscription();
+  const { access, trialActive, trialDaysLeft, createCheckout, loading } = useSubscription();
+  const { plan, expiresAt, loading: planLoading } = usePlanFeatures();
   const { isSuperAdmin, loading: adminLoading } = useAdminRole();
   const [upgrading, setUpgrading] = useState(false);
 
-  if (loading || adminLoading) return null;
+  if (loading || adminLoading || planLoading) return null;
   if (isSuperAdmin) return null;
 
-  const currentPlan = planKey && PLANS[planKey as keyof typeof PLANS] ? PLANS[planKey as keyof typeof PLANS] : null;
-  const isEssencial = planKey === "essencial";
-  const features = planKey ? planFeatures[planKey] || [] : [];
+  const currentPlanLabels: Record<string, { name: string; price: string }> = {
+    starter: { name: "Starter", price: "149,90" },
+    business: { name: "Business", price: "199,90" },
+    pro: { name: "Pro", price: "349,90" },
+    emissor: { name: "Emissor", price: "99,90" },
+  };
+  const currentPlan = currentPlanLabels[plan] ?? currentPlanLabels.starter;
+  const features = planFeatures[plan] || [];
+  const canUpgrade = plan === "starter" || plan === "emissor";
 
   const handleUpgrade = async () => {
     try {
@@ -270,7 +278,7 @@ function MyPlanSection() {
         <h2 className="text-base font-semibold text-foreground">Meu Plano</h2>
       </div>
       <div className="p-5 space-y-4">
-        {subscribed && currentPlan ? (
+        {access ? (
           <>
             <div className="flex items-center justify-between">
               <div>
@@ -278,11 +286,11 @@ function MyPlanSection() {
                 <span className="ml-2 text-xs font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary">Ativo</span>
               </div>
               <div className="text-right">
-                <span className="text-2xl font-extrabold text-foreground">R$ {currentPlan.price.toFixed(2).replace(".", ",")}</span>
+                <span className="text-2xl font-extrabold text-foreground">R$ {currentPlan.price}</span>
                 <span className="text-sm text-muted-foreground">/mês</span>
               </div>
             </div>
-            {subscriptionEnd && <p className="text-xs text-muted-foreground">Próxima renovação: {new Date(subscriptionEnd).toLocaleDateString("pt-BR")}</p>}
+            {expiresAt && <p className="text-xs text-muted-foreground">Próxima renovação: {new Date(expiresAt).toLocaleDateString("pt-BR")}</p>}
             <ul className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
               {features.map((f) => (
                 <li key={f} className="flex items-center gap-1.5 text-sm text-muted-foreground">
@@ -290,7 +298,7 @@ function MyPlanSection() {
                 </li>
               ))}
             </ul>
-            {isEssencial && (
+            {canUpgrade && (
               <Button size="sm" onClick={handleUpgrade} disabled={upgrading}>
                 <ArrowRight className="w-4 h-4 mr-2" /> {upgrading ? "Redirecionando..." : "Fazer upgrade para Profissional"}
               </Button>
