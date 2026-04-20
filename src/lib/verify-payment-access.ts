@@ -7,9 +7,37 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function getPaymentIdFromUrl(): string | null {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    return params.get("payment_id") || params.get("collection_id") || params.get("data.id");
+  } catch {
+    return null;
+  }
+}
+
 export async function verifyPaymentAccess(
   checkSubscription: () => Promise<{ access: boolean }>,
 ): Promise<boolean> {
+  const paymentId = getPaymentIdFromUrl();
+
+  if (paymentId) {
+    const { data: testWebhookData, error: testWebhookError } = await invokeEdgeFunctionWithAuth<{
+      ok?: boolean;
+      action?: string;
+      status_db?: string;
+      status_mp?: string;
+      reason?: string;
+      subscription_end?: string | null;
+    }>("test-webhook", { body: { paymentId } });
+
+    if (testWebhookError) {
+      console.warn("[verify-payment-access] test-webhook failed", testWebhookError.message, { paymentId });
+    } else {
+      console.info("[verify-payment-access] test-webhook", { paymentId, ...testWebhookData });
+    }
+  }
+
   for (let attempt = 1; attempt <= VERIFY_PAYMENT_ATTEMPTS; attempt++) {
     const { data: reconcileData, error: reconcileError } = await invokeEdgeFunctionWithAuth<{
       ok?: boolean;
