@@ -7,6 +7,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Navigate, Link, useNavigate } from "react-router-dom";
+import { verifyPaymentAccess } from "@/lib/verify-payment-access";
 
 function VerifyPaymentButton() {
   const { checkSubscription } = useSubscription();
@@ -16,14 +17,9 @@ function VerifyPaymentButton() {
   const handleVerify = async () => {
     setChecking(true);
     try {
-      const { error: reconcileError } = await supabase.functions.invoke("reconcile-payments");
-      if (reconcileError) {
-        console.warn("[Renovar] reconcile-payments failed:", reconcileError.message);
-      }
+      const hasAccess = await verifyPaymentAccess(checkSubscription);
 
-      const nextState = await checkSubscription();
-
-      if (nextState.access) {
+      if (hasAccess) {
         toast.success("Pagamento confirmado. Liberando acesso...");
         navigate("/dashboard", { replace: true });
         return;
