@@ -98,6 +98,18 @@ async function invokeCheckSubscriptionWithTimeout(): Promise<{
   data: Record<string, unknown> | null;
   error: { message?: string } | null;
 }> {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  console.log("SESSION", session);
+
+  if (!session) {
+    return {
+      data: null,
+      error: { message: "Sessão ausente para check-subscription" },
+    };
+  }
+
   const invoke = supabase.functions.invoke<Record<string, unknown>>("check-subscription");
   const timeout = new Promise<{ data: null; error: { message: string } }>((resolve) =>
     setTimeout(
