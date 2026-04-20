@@ -18,7 +18,7 @@ function getCorsHeaders(req: Request) {
 
 const PLANS: Record<string, { title: string; price: number }> = {
   emissor: { title: "Antho System — Emissor", price: 99.9 },
-  starter: { title: "Antho System — Starter", price: 149.9 },
+  starter: { title: "Antho System — Starter (TESTE)", price: 1.0 },
   business: { title: "Antho System — Business", price: 199.9 },
   pro: { title: "Antho System — Pro", price: 449.9 },
 };
@@ -57,6 +57,7 @@ Deno.serve(async (req) => {
     }
 
     const userId = user.id;
+    let companyId: string | null = null;
 
     // Block demo accounts from checkout
     const { data: cuDemo } = await supabase
@@ -66,6 +67,7 @@ Deno.serve(async (req) => {
       .eq("is_active", true)
       .limit(1)
       .maybeSingle();
+    companyId = cuDemo?.company_id ?? null;
     if ((cuDemo?.companies as any)?.is_demo === true) {
       return new Response(
         JSON.stringify({ error: "Checkout não disponível em contas de demonstração. Crie uma conta real para assinar." }),
@@ -122,7 +124,9 @@ Deno.serve(async (req) => {
       },
       external_reference: JSON.stringify({
         user_id: userId,
+        company_id: companyId,
         plan_key: planKey,
+        type: "subscription_checkout",
       }),
       notification_url: webhookUrl,
       back_urls: {
@@ -158,7 +162,7 @@ Deno.serve(async (req) => {
 
     const mpData = await mpResponse.json();
 
-    return new Response(JSON.stringify({ url: mpData.init_point }), {
+    return new Response(JSON.stringify({ url: mpData.init_point, preference_id: mpData.id ?? null }), {
       status: 200,
       headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
     });
