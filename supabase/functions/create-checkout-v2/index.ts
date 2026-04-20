@@ -57,6 +57,7 @@ Deno.serve(async (req) => {
     }
 
     const userId = user.id;
+    let companyId: string | null = null;
 
     // Block demo accounts from checkout
     const { data: cuDemo } = await supabase
@@ -66,6 +67,7 @@ Deno.serve(async (req) => {
       .eq("is_active", true)
       .limit(1)
       .maybeSingle();
+    companyId = cuDemo?.company_id ?? null;
     if ((cuDemo?.companies as any)?.is_demo === true) {
       return new Response(
         JSON.stringify({ error: "Checkout não disponível em contas de demonstração. Crie uma conta real para assinar." }),
@@ -122,7 +124,9 @@ Deno.serve(async (req) => {
       },
       external_reference: JSON.stringify({
         user_id: userId,
+        company_id: companyId,
         plan_key: planKey,
+        type: "subscription_checkout",
       }),
       notification_url: webhookUrl,
       back_urls: {
@@ -158,7 +162,31 @@ Deno.serve(async (req) => {
 
     const mpData = await mpResponse.json();
 
-    return new Response(JSON.stringify({ url: mpData.init_point }), {
+    const mpPaymentId = mpData?.id ? String(mpData.id) : null;
+    if (mpPaymentId) {
+      const { error: paymentSeedError } = await createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+      )
+        .from("payments")
+        .upsert(
+          {
+            mp_payment_id: mpPaymentId,
+            user_id: userId,
+            company_id: companyId,
+            plan_key: planKey,
+            amount: plan.price,
+            status: "pending",
+          },
+          { onConflict: "mp_payment_id" },
+        );
+
+      if (paymentSeedError) {
+        console.error("[create-checkout-v2] payment seed error:", paymentSeedError.message);
+      }
+    }
+
+    return new Response(JSON.stringify({ url: mpData.init_point, preference_id: mpPaymentId }), {
       status: 200,
       headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
     });
