@@ -50,7 +50,7 @@ export default function LandingPage() {
           "offers": {
             "@type": "AggregateOffer",
             "lowPrice": "0",
-            "highPrice": "399.90",
+            "highPrice": "349.90",
             "priceCurrency": "BRL",
             "offerCount": "4"
           },
