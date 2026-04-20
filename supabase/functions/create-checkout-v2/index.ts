@@ -18,7 +18,7 @@ function getCorsHeaders(req: Request) {
 
 const PLANS: Record<string, { title: string; price: number }> = {
   emissor: { title: "Antho System — Emissor", price: 99.9 },
-  starter: { title: "Antho System — Starter", price: 149.9 },
+  starter: { title: "Antho System — Starter (TESTE)", price: 1.0 },
   business: { title: "Antho System — Business", price: 199.9 },
   pro: { title: "Antho System — Pro", price: 449.9 },
 };
@@ -162,31 +162,7 @@ Deno.serve(async (req) => {
 
     const mpData = await mpResponse.json();
 
-    const mpPaymentId = mpData?.id ? String(mpData.id) : null;
-    if (mpPaymentId) {
-      const { error: paymentSeedError } = await createClient(
-        Deno.env.get("SUPABASE_URL")!,
-        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-      )
-        .from("payments")
-        .upsert(
-          {
-            mp_payment_id: mpPaymentId,
-            user_id: userId,
-            company_id: companyId,
-            plan_key: planKey,
-            amount: plan.price,
-            status: "pending",
-          },
-          { onConflict: "mp_payment_id" },
-        );
-
-      if (paymentSeedError) {
-        console.error("[create-checkout-v2] payment seed error:", paymentSeedError.message);
-      }
-    }
-
-    return new Response(JSON.stringify({ url: mpData.init_point, preference_id: mpPaymentId }), {
+    return new Response(JSON.stringify({ url: mpData.init_point, preference_id: mpData.id ?? null }), {
       status: 200,
       headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
     });
