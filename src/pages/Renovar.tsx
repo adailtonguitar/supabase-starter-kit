@@ -25,7 +25,7 @@ function VerifyPaymentButton() {
 
       const nextState = await checkSubscription();
 
-      if (nextState.subscribed) {
+      if (nextState.access) {
         toast.success("Pagamento confirmado. Liberando acesso...");
         navigate("/dashboard", { replace: true });
         return;
@@ -55,7 +55,7 @@ function VerifyPaymentButton() {
 export default function Renovar() {
   const { user, signOut } = useAuth();
   const {
-    subscribed, planKey, subscriptionEnd,
+    access, subscribed, planKey, subscriptionEnd,
     trialActive, trialDaysLeft, wasSubscriber,
     gracePeriodActive, graceDaysLeft, subscriptionOverdue,
     loading: subLoading,
@@ -63,7 +63,7 @@ export default function Renovar() {
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
 
   if (!user) return <Navigate to="/auth" replace />;
-  if (!subLoading && subscribed) return <Navigate to="/dashboard" replace />;
+  if (!subLoading && access) return <Navigate to="/dashboard" replace />;
 
   const currentPlanKey = planKey || "starter";
   const currentPlan = PLANS[currentPlanKey as keyof typeof PLANS] || PLANS.starter;

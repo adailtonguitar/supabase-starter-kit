@@ -23,7 +23,7 @@ function VerifyPaymentButton() {
 
       const nextState = await checkSubscription();
 
-      if (nextState.subscribed) {
+      if (nextState.access) {
         toast.success("Pagamento confirmado. Liberando acesso...");
         navigate("/dashboard", { replace: true });
         return;
@@ -100,11 +100,11 @@ const plans = [
 
 export default function TrialExpirado() {
   const { user, signOut } = useAuth();
-  const { subscribed, createCheckout, wasSubscriber, gracePeriodActive, graceDaysLeft, subscriptionOverdue, blocked, blockReason, loading: subLoading } = useSubscription();
+  const { access, createCheckout, wasSubscriber, gracePeriodActive, graceDaysLeft, subscriptionOverdue, blocked, blockReason, loading: subLoading } = useSubscription();
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
 
   // If user has active subscription, redirect to dashboard
-  if (!subLoading && subscribed) {
+  if (!subLoading && access) {
     return <Navigate to="/dashboard" replace />;
   }
 
