@@ -92,12 +92,15 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
-  define: mode === "development"
-    ? {}
-    : {
-        "import.meta.env.VITE_SUPABASE_URL": JSON.stringify("https://fsvxpxziotklbxkivyug.supabase.co"),
-        "import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY": JSON.stringify("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZzdnhweHppb3RrbGJ4a2l2eXVnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE3ODU5NTMsImV4cCI6MjA4NzM2MTk1M30.8I3ABsRZBZuE1IpK_g9z3PdRUd9Omt_F5qNx0Pgqvyo"),
-      },
+  // CRITICAL: Force the external Supabase project (fsvxpxziotklbxkivyug) in BOTH dev and prod.
+  // The auto-generated .env points to the Lovable Cloud project, which does NOT host this app's
+  // edge functions (check-subscription, etc.). Without this define, fetch falls back to relative
+  // /functions/v1/... and returns Vite's index.html (HTML), causing "Unexpected token '<'" errors.
+  define: {
+    "import.meta.env.VITE_SUPABASE_URL": JSON.stringify("https://fsvxpxziotklbxkivyug.supabase.co"),
+    "import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY": JSON.stringify("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZzdnhweHppb3RrbGJ4a2l2eXVnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE3ODU5NTMsImV4cCI6MjA4NzM2MTk1M30.8I3ABsRZBZuE1IpK_g9z3PdRUd9Omt_F5qNx0Pgqvyo"),
+    "import.meta.env.VITE_SUPABASE_ANON_KEY": JSON.stringify("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZzdnhweHppb3RrbGJ4a2l2eXVnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE3ODU5NTMsImV4cCI6MjA4NzM2MTk1M30.8I3ABsRZBZuE1IpK_g9z3PdRUd9Omt_F5qNx0Pgqvyo"),
+  },
   build: {
     rollupOptions: {
       output: {
