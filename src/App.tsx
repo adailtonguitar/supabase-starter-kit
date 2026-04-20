@@ -51,7 +51,7 @@ const PageSpinner = () => (
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, session, loading, signOut } = useAuth();
   const { companyId, loading: companyLoading } = useCompany();
-  const { subscribed, trialExpired, subscriptionOverdue, blocked, loading: subLoading } = useSubscription();
+  const { access, loading: subLoading } = useSubscription();
   const { isSuperAdmin, loading: adminLoading } = useAdminRole();
   const { accepted: termsAccepted, loading: termsLoading } = useTermsAcceptance();
   useSessionControl();
@@ -275,7 +275,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (!isSuperAdmin && (blocked || (trialExpired && !subscribed) || subscriptionOverdue)) {
+  if (!isSuperAdmin && !access) {
     return <Navigate to="/trial-expirado" replace />;
   }
 

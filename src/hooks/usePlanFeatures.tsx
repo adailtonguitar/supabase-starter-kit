@@ -65,7 +65,7 @@ function getCachedPlan(): PlanFeatures | null {
 
 export function PlanProvider({ children }: { children: React.ReactNode }) {
   const { companyId } = useCompany();
-  const { trialActive } = useSubscription();
+  const { access, trialActive } = useSubscription();
   const [state, setState] = useState<PlanFeatures>(() => {
     const cached = getCachedPlan();
     return cached ? { ...cached, loading: true } : defaults;
@@ -100,8 +100,7 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
       if (error) throw error;
 
       if (!data) {
-        // No plan record: if trial is active, grant Pro; otherwise Starter
-        if (trialActive) {
+        if (access && trialActive) {
           setState(PRO_TRIAL);
           cachePlan(PRO_TRIAL);
         } else {
@@ -131,7 +130,7 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
       };
 
       const planTier = normalizePlanTier(planRow?.plan);
-      if (planTier === "starter" && trialActive) {
+      if (planTier === "starter" && access && trialActive) {
         setState(PRO_TRIAL);
         cachePlan(PRO_TRIAL);
         return;
@@ -154,7 +153,7 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
       console.error("[usePlanFeatures] Error:", err);
       setState(prev => ({ ...prev, loading: false }));
     }
-  }, [companyId, trialActive]);
+  }, [companyId, access, trialActive]);
 
   useEffect(() => {
     fetchPlan();
