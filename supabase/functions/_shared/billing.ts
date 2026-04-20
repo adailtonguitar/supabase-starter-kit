@@ -12,7 +12,7 @@ export const EXPECTED_PRICES: Record<string, number> = {
   emissor: 99.9,
   starter: 149.9,
   business: 199.9,
-  pro: 449.9,
+  pro: 349.9,
 };
 
 export const ALLOWED_SUB_STATUS = ["active", "expired", "canceled", "past_due"] as const;

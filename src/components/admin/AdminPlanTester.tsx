@@ -40,7 +40,7 @@ const FEATURES: FeatureDef[] = [
 const PLANS: { tier: PlanTier; label: string; price: string; color: string }[] = [
   { tier: "starter", label: "Starter", price: "R$ 149,90", color: "bg-muted text-muted-foreground" },
   { tier: "business", label: "Business", price: "R$ 199,90", color: "bg-info/10 text-info" },
-  { tier: "pro", label: "Pro", price: "R$ 449,90", color: "bg-warning/10 text-warning" },
+  { tier: "pro", label: "Pro", price: "R$ 349,90", color: "bg-warning/10 text-warning" },
   { tier: "emissor", label: "Emissor", price: "R$ 99,90", color: "bg-chart-3/10 text-chart-3" },
 ];
 
