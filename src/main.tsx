@@ -5,7 +5,7 @@ import "./styles/theme.css";
 import { loadScaleConfigFromStorage } from "./lib/scale-barcode";
 import { initErrorTracker } from "./services/ErrorTracker";
 import { assertProductionEnvironment } from "./lib/production-guard";
-import { SUPABASE_URL, supabase } from "./integrations/supabase/client";
+import { SUPABASE_URL, supabase } from "@/lib/supabaseClient";
 
 // Bloqueia execução em publish do Lovable e/ou Supabase incorreto em produção
 assertProductionEnvironment(SUPABASE_URL);

@@ -88,9 +88,11 @@ export default defineConfig(({ mode }) => ({
     }),
   ].filter(Boolean),
   resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "./src"),
-    },
+    alias: [
+      { find: "@/integrations/supabase/client", replacement: path.resolve(__dirname, "./src/lib/supabaseClient.ts") },
+      { find: "./integrations/supabase/client", replacement: path.resolve(__dirname, "./src/lib/supabaseClient.ts") },
+      { find: "@", replacement: path.resolve(__dirname, "./src") },
+    ],
   },
   // CRITICAL: Force the external Supabase project (fsvxpxziotklbxkivyug) in BOTH dev and prod.
   // The auto-generated .env points to the Lovable Cloud project, which does NOT host this app's
