@@ -259,7 +259,26 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
     }
   }, [authLoading, session, user]);
 
-  useEffect(() => { checkSubscription(); const interval = setInterval(checkSubscription, 15 * 60_000); return () => clearInterval(interval); }, [checkSubscription]); // 15 min (was 5)
+  useEffect(() => {
+    checkSubscription();
+
+    const interval = setInterval(checkSubscription, 15 * 60_000);
+    const handleFocus = () => { void checkSubscription(); };
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        void checkSubscription();
+      }
+    };
+
+    window.addEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [checkSubscription]); // 15 min + revalidação ao voltar do checkout
 
   const createCheckout = useCallback(async (planKey: string) => {
     // console.log("[createCheckout] Starting checkout for plan:", planKey);
