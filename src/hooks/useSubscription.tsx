@@ -106,7 +106,9 @@ async function invokeCheckSubscriptionWithTimeout(): Promise<{
       CHECK_SUBSCRIPTION_INVOKE_MS,
     ),
   );
-  return Promise.race([invoke, timeout]);
+  const result = await Promise.race([invoke, timeout]);
+  console.log('SUBSCRIPTION_STATUS', result?.data, 'error:', result?.error);
+  return result;
 }
 
 export function SubscriptionProvider({ children }: { children: React.ReactNode }) {
