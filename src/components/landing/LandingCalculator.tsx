@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { Calculator, TrendingDown, DollarSign, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
+import { PLANS } from "@/hooks/useSubscription";
 
 export function LandingCalculator() {
   const [faturamento, setFaturamento] = useState(80000);
@@ -128,10 +129,10 @@ export function LandingCalculator() {
                 <div>
                   <p className="text-sm text-muted-foreground">ROI do sistema</p>
                   <p className="text-2xl font-black text-success">
-                    {Math.round(economiaComSistema / (149.9 * 12))}x
+                    {Math.round(economiaComSistema / (PLANS.starter.price * 12))}x
                   </p>
                   <p className="text-xs text-muted-foreground mt-1">
-                    O sistema se paga {Math.round(economiaComSistema / (149.9 * 12))} vezes por ano
+                    O sistema se paga {Math.round(economiaComSistema / (PLANS.starter.price * 12))} vezes por ano
                   </p>
                 </div>
               </div>

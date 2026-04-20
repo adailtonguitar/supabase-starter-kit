@@ -5,7 +5,7 @@
 
 -- 1) Enum de planos
 DO $$ BEGIN
-  CREATE TYPE public.plan_tier AS ENUM ('starter', 'business', 'pro');
+  CREATE TYPE public.plan_tier AS ENUM ('emissor', 'starter', 'business', 'pro');
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 
