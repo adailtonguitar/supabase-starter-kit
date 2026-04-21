@@ -355,7 +355,9 @@
 @media (max-width: 767px) {
   main > div { max-width: 100vw; overflow-x: hidden; padding-left: 0.75rem !important; padding-right: 0.75rem !important; }
   main > div > .flex.items-center.justify-between { flex-wrap: wrap; gap: 0.5rem; }
-  main h1 { font-size: 1.25rem; }
+  /* Dashboard/app interno: títulos compactos no mobile. A landing usa .font-display
+     nos headlines — escopar evita que o h1 do hero caia pra 20px. */
+  main h1:not(.font-display):not([class*="text-"]) { font-size: 1.25rem; }
   main .overflow-x-auto { -webkit-overflow-scrolling: touch; }
   main table { font-size: 0.75rem; }
 

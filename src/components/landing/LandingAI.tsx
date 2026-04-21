@@ -21,7 +21,7 @@ const aiFeatures = [
     icon: Brain,
     title: "Relatórios Inteligentes",
     desc: "Análises profundas sobre padrões de venda, sazonalidade e oportunidades que você não enxergaria em planilhas.",
-    badge: "Business+",
+    badge: "Planos Business e Pro",
     badgeClass: "bg-info/15 text-info",
   },
 ];

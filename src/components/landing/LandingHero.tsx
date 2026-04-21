@@ -1,11 +1,10 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowRight, Play, CheckCircle2, Wifi, MessageCircle, Rocket, ShoppingCart, TrendingUp, Brain, Package, ZoomIn, X, Zap } from "lucide-react";
+import { ArrowRight, CheckCircle2, Wifi, MessageCircle, Rocket, ShoppingCart, TrendingUp, Brain, Package, ZoomIn, X, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import pdvScreen from "@/assets/pdv-screen.png";
 import checkoutScene from "@/assets/pdv-checkout-scene.jpg";
 
 const highlights = [
@@ -66,7 +65,7 @@ export function LandingHero() {
           >
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-primary/20 bg-primary/5 text-primary text-xs font-semibold uppercase tracking-wider mb-6">
               <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-              Sistema #1 para comércios e varejo
+              ERP + PDV + Fiscal em um só lugar
             </div>
 
             <p className="text-sm font-semibold text-primary uppercase tracking-widest mb-2">AnthoSystem — Seu ERP completo para varejo</p>

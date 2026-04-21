@@ -1,5 +1,9 @@
 import { motion } from "framer-motion";
 import { Check, X, Minus } from "lucide-react";
+import { PLANS } from "@/hooks/useSubscription";
+
+const formatBRL = (n: number) =>
+  n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 type Status = "yes" | "no" | "partial";
 
@@ -32,8 +36,10 @@ const StatusIcon = ({ status }: { status: Status }) => {
   return <Minus className="w-5 h-5 text-warning" />;
 };
 
+// Preço do AnthoSystem vem de PLANS (fonte única de verdade).
+// Concorrentes: snapshot público conferido em fev/2026 — reavaliar trimestralmente.
 const prices: Record<string, string> = {
-  antho: "R$ 149,90",
+  antho: formatBRL(PLANS.starter.price),
   bling: "R$ 199,90",
   tiny: "R$ 159,90",
   marketup: "R$ 299,90",
