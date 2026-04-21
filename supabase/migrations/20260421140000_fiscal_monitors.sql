@@ -12,8 +12,14 @@ ALTER TABLE public.fiscal_configs
   ADD COLUMN IF NOT EXISTS certificate_expiry timestamptz,
   ADD COLUMN IF NOT EXISTS certificate_file_name text;
 
-ALTER TABLE public.nfe_documents
-  ADD COLUMN IF NOT EXISTS rejection_reason text;
+-- nfe_documents é opcional: pode não existir em instalações que só importam NF-e.
+DO $$
+BEGIN
+  IF to_regclass('public.nfe_documents') IS NOT NULL THEN
+    EXECUTE 'ALTER TABLE public.nfe_documents
+             ADD COLUMN IF NOT EXISTS rejection_reason text';
+  END IF;
+END$$;
 
 CREATE INDEX IF NOT EXISTS idx_fiscal_configs_cert_exp
   ON public.fiscal_configs (

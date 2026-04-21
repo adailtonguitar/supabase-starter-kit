@@ -25,7 +25,7 @@ RETURNS text
 LANGUAGE sql VOLATILE
 AS $$
   SELECT 'AS-' || to_char(now() AT TIME ZONE 'UTC', 'YYYYMMDD') || '-' ||
-    upper(substring(encode(gen_random_bytes(3), 'hex') from 1 for 4));
+    upper(substring(md5(random()::text || clock_timestamp()::text) from 1 for 4));
 $$;
 
 -- Trigger: preenche support_code na inserção quando NULL.

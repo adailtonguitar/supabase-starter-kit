@@ -22,6 +22,28 @@
 --   'blocked'   → >14 dias (redireciona para /renovar)
 -- ============================================================
 
+-- 0) Helper is_super_admin() — reutilizado por várias migrations
+-- ------------------------------------------------------------
+-- Cria só se ainda não existir. Usa admin_roles (padrão do projeto).
+CREATE OR REPLACE FUNCTION public.is_super_admin()
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.admin_roles ar
+    WHERE ar.user_id = auth.uid() AND ar.role = 'super_admin'
+  );
+$$;
+
+GRANT EXECUTE ON FUNCTION public.is_super_admin() TO authenticated;
+
+COMMENT ON FUNCTION public.is_super_admin() IS
+  'Retorna TRUE se o usuário autenticado tem role super_admin em admin_roles.
+   STABLE + SECURITY DEFINER para uso em policies RLS.';
+
 -- 1) Colunas em subscriptions
 ALTER TABLE public.subscriptions
   ADD COLUMN IF NOT EXISTS payment_failed_at timestamptz,

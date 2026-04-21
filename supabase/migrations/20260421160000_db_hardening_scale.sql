@@ -17,25 +17,51 @@
 -- ───────────────────────────────────────────────────────────────────────────
 -- S1: profiles — fecha SELECT aberto
 -- ───────────────────────────────────────────────────────────────────────────
-DROP POLICY IF EXISTS "Profiles viewable by everyone" ON public.profiles;
-DROP POLICY IF EXISTS "profiles_select_self_or_colleagues" ON public.profiles;
+-- Detecta qual coluna usar como referência ao usuário: user_id (padrão novo)
+-- ou id (padrão Supabase clássico, onde PK da profiles == auth.uid()).
+DO $$
+DECLARE
+  v_col text;
+BEGIN
+  IF to_regclass('public.profiles') IS NULL THEN
+    RETURN;
+  END IF;
 
--- Usuário vê o próprio perfil + perfis de colegas da mesma empresa.
-CREATE POLICY "profiles_select_self_or_colleagues"
-  ON public.profiles
-  FOR SELECT
-  TO authenticated
-  USING (
-    user_id = auth.uid()
-    OR user_id IN (
-      SELECT cu2.user_id
-      FROM public.company_users cu1
-      JOIN public.company_users cu2 ON cu2.company_id = cu1.company_id
-      WHERE cu1.user_id = auth.uid()
-        AND cu1.is_active = TRUE
-        AND cu2.is_active = TRUE
-    )
-  );
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'profiles' AND column_name = 'user_id'
+  ) THEN
+    v_col := 'user_id';
+  ELSIF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'profiles' AND column_name = 'id'
+  ) THEN
+    v_col := 'id';
+  ELSE
+    RETURN; -- nada a fazer
+  END IF;
+
+  EXECUTE 'DROP POLICY IF EXISTS "Profiles viewable by everyone" ON public.profiles';
+  EXECUTE 'DROP POLICY IF EXISTS "profiles_select_self_or_colleagues" ON public.profiles';
+
+  EXECUTE format($pol$
+    CREATE POLICY "profiles_select_self_or_colleagues"
+      ON public.profiles
+      FOR SELECT
+      TO authenticated
+      USING (
+        %1$I = auth.uid()
+        OR %1$I IN (
+          SELECT cu2.user_id
+          FROM public.company_users cu1
+          JOIN public.company_users cu2 ON cu2.company_id = cu1.company_id
+          WHERE cu1.user_id = auth.uid()
+            AND cu1.is_active = TRUE
+            AND cu2.is_active = TRUE
+        )
+      )
+  $pol$, v_col);
+END$$;
 
 -- ───────────────────────────────────────────────────────────────────────────
 -- S2: feature_flags — SELECT só super_admin (interface pública é RPC)
@@ -51,12 +77,7 @@ BEGIN
         ON public.feature_flags
         FOR SELECT
         TO authenticated
-        USING (
-          EXISTS (
-            SELECT 1 FROM public.user_roles
-            WHERE user_id = auth.uid() AND role = 'super_admin'
-          )
-        )
+        USING (public.is_super_admin())
     $q$;
   END IF;
 END$$;
@@ -64,24 +85,33 @@ END$$;
 -- ───────────────────────────────────────────────────────────────────────────
 -- P1: função STABLE para uso em RLS policies futuras
 -- ───────────────────────────────────────────────────────────────────────────
-CREATE OR REPLACE FUNCTION public.current_user_company_ids()
-RETURNS uuid[]
-LANGUAGE sql
-STABLE
-SECURITY DEFINER
-SET search_path = public
-AS $$
-  SELECT COALESCE(array_agg(DISTINCT company_id), ARRAY[]::uuid[])
-  FROM public.company_users
-  WHERE user_id = auth.uid()
-    AND is_active = TRUE
-$$;
-
-GRANT EXECUTE ON FUNCTION public.current_user_company_ids() TO authenticated;
-
-COMMENT ON FUNCTION public.current_user_company_ids() IS
-  'Retorna UUIDs das empresas ativas do usuário autenticado. STABLE + SECURITY DEFINER.
-   Use em RLS como: company_id = ANY (public.current_user_company_ids()).';
+-- Só cria se ainda não existir (função atual pode estar em uso por policies,
+-- dropar quebraria dependências). Objetivo aqui é garantir que exista.
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_proc p
+    JOIN pg_namespace n ON n.oid = p.pronamespace
+    WHERE n.nspname = 'public'
+      AND p.proname = 'current_user_company_ids'
+  ) THEN
+    EXECUTE $f$
+      CREATE FUNCTION public.current_user_company_ids()
+      RETURNS uuid[]
+      LANGUAGE sql
+      STABLE
+      SECURITY DEFINER
+      SET search_path = public
+      AS $body$
+        SELECT COALESCE(array_agg(DISTINCT company_id), ARRAY[]::uuid[])
+        FROM public.company_users
+        WHERE user_id = auth.uid()
+          AND is_active = TRUE
+      $body$
+    $f$;
+    EXECUTE 'GRANT EXECUTE ON FUNCTION public.current_user_company_ids() TO authenticated';
+  END IF;
+END$$;
 
 -- ───────────────────────────────────────────────────────────────────────────
 -- P2: índices compostos em tabelas quentes (só se existirem)
