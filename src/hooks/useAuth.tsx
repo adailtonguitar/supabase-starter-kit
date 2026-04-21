@@ -2,6 +2,7 @@ import { useEffect, useState, createContext, useContext } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { setErrorTrackerUser } from "@/services/ErrorTracker";
 import { logAction } from "@/services/ActionLogger";
+import { identifyUser } from "@/lib/analytics";
 import type { User, Session } from "@supabase/supabase-js";
 
 const AUTH_CACHE_KEY = "as_cached_user";
@@ -56,6 +57,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(nextSession?.user ?? null);
       cacheUser(nextSession?.user ?? null);
       setErrorTrackerUser(nextSession?.user?.id ?? null, nextSession?.user?.email ?? null);
+      identifyUser(nextSession?.user?.id ?? null);
       setLoading(false);
     };
 
@@ -66,6 +68,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(null);
       cacheUser(null);
       setErrorTrackerUser(null, null);
+      identifyUser(null);
       setLoading(false);
     };
 

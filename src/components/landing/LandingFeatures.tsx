@@ -15,7 +15,7 @@ import {
   Camera,
   ScanBarcode,
 } from "lucide-react";
-import pdvCashier from "@/assets/pdv-cashier.png";
+import pdvScreenReal from "@/assets/pdv-venda-real.png";
 import stockEmployee from "@/assets/stock-employee.png";
 
 const features = [
@@ -153,10 +153,17 @@ export function LandingFeatures() {
             viewport={{ once: true }}
             className="rounded-2xl overflow-hidden border border-border shadow-lg"
           >
-            <img src={pdvCashier} alt="Operador de caixa usando o PDV AnthoSystem" className="w-full h-auto object-cover" loading="lazy" />
+            <img
+              src={pdvScreenReal}
+              alt="Tela do PDV AnthoSystem durante uma venda real — 5 itens lidos por código de barras, subtotal R$ 252,16, botões de pagamento (Dinheiro, Débito, Crédito, PIX, Voucher, A Prazo) e atalhos do caixa"
+              className="w-full h-auto object-cover"
+              loading="lazy"
+              width="1024"
+              height="576"
+            />
             <div className="p-4 bg-card">
-              <p className="font-semibold text-sm">PDV rápido e intuitivo</p>
-              <p className="text-xs text-muted-foreground">Operação ágil com leitor, balança e TEF integrados.</p>
+              <p className="font-semibold text-sm">PDV em operação real</p>
+              <p className="text-xs text-muted-foreground">Tela do sistema durante uma venda — leitura por código, totalização e múltiplas formas de pagamento.</p>
             </div>
           </motion.div>
           <motion.div

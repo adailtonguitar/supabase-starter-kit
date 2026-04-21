@@ -5,6 +5,7 @@ import { ArrowRight, CheckCircle2, Wifi, MessageCircle, Rocket, ShoppingCart, Tr
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { trackEvent } from "@/lib/analytics";
 import checkoutScene from "@/assets/pdv-checkout-scene.jpg";
 
 const highlights = [
@@ -25,6 +26,7 @@ export function LandingHero() {
   const navigate = useNavigate();
 
   const handleDemo = async () => {
+    trackEvent("demo_account_start", { location: "hero" });
     setDemoLoading(true);
     try {
       const demoId = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
@@ -39,9 +41,14 @@ export function LandingHero() {
       });
       if (signInError) throw signInError;
       localStorage.setItem("as_selected_company", data.company_id);
+      trackEvent("demo_account_success", { location: "hero" });
       toast.success("Conta demo criada! Explore o sistema à vontade.");
       navigate("/dashboard");
     } catch (err: any) {
+      trackEvent("demo_account_error", {
+        location: "hero",
+        reason: err?.message?.slice(0, 80) ?? "unknown",
+      });
       toast.error(err?.message || "Erro ao criar demo");
     } finally {
       setDemoLoading(false);
@@ -92,7 +99,10 @@ export function LandingHero() {
 
             <div className="flex flex-col sm:flex-row gap-3 mt-10">
               <Button asChild size="lg" className="text-base px-8 h-13 shadow-lg shadow-primary/20 font-semibold">
-                <Link to="/auth">
+                <Link
+                  to="/auth"
+                  onClick={() => trackEvent("cta_click", { location: "hero", cta: "start_trial" })}
+                >
                   Começar teste grátis por 15 dias
                   <ArrowRight className="w-4 h-4 ml-2" />
                 </Link>

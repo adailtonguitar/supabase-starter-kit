@@ -40,6 +40,33 @@
       JSON-LD é injetado dinamicamente por src/components/SEOHead.tsx com AggregateOffer
       coerente com os planos atuais. Evita duplicação e divergência de preços.
     -->
+
+    <!--
+      Google Analytics 4 — G-YQCQ2JSS8C
+      - anonymize_ip: evita armazenar IP completo (LGPD friendly).
+      - consent default: analytics_storage=granted, ad_storage=denied.
+        Quando o banner de cookies for implementado, basta chamar
+        gtag('consent', 'update', { analytics_storage: 'granted'|'denied' }).
+      - send_page_view: false — a SPA dispara page_view manualmente via
+        src/lib/analytics.ts em cada troca de rota.
+    -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-YQCQ2JSS8C"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){ dataLayer.push(arguments); }
+      window.gtag = gtag;
+      gtag('consent', 'default', {
+        analytics_storage: 'granted',
+        ad_storage: 'denied',
+        ad_user_data: 'denied',
+        ad_personalization: 'denied'
+      });
+      gtag('js', new Date());
+      gtag('config', 'G-YQCQ2JSS8C', {
+        anonymize_ip: true,
+        send_page_view: false
+      });
+    </script>
   </head>
 
   <body>
