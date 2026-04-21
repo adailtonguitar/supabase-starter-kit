@@ -12,6 +12,25 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 
+interface Breadcrumb {
+  ts: number;
+  category: string;
+  level: "info" | "warn" | "error";
+  message: string;
+  data?: Record<string, unknown>;
+}
+
+interface ErrorMetadata {
+  breadcrumbs?: Breadcrumb[];
+  web_vitals?: {
+    LCP?: number; FCP?: number; CLS?: number; INP?: number; TTFB?: number;
+  };
+  viewport?: { w: number; h: number; dpr: number };
+  connection?: { effectiveType?: string; downlink?: number; rtt?: number; saveData?: boolean } | null;
+  url?: string;
+  captured_at?: string;
+}
+
 interface SystemError {
   id: string;
   user_email: string | null;
@@ -22,6 +41,7 @@ interface SystemError {
   browser: string;
   device: string;
   created_at: string;
+  metadata?: ErrorMetadata | null;
 }
 
 export default function RegistroErros() {
@@ -275,6 +295,53 @@ export default function RegistroErros() {
                     <pre className="text-[10px] text-muted-foreground bg-muted/50 rounded-lg p-3 overflow-x-auto max-h-40 whitespace-pre-wrap break-all">
                       {err.error_stack}
                     </pre>
+                  )}
+
+                  {err.metadata?.web_vitals && (
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      {Object.entries(err.metadata.web_vitals).map(([k, v]) => {
+                        if (v == null) return null;
+                        const badVital =
+                          (k === "LCP" && v > 4000) ||
+                          (k === "INP" && v > 500) ||
+                          (k === "CLS" && v > 0.25);
+                        return (
+                          <Badge
+                            key={k}
+                            variant={badVital ? "destructive" : "secondary"}
+                            className="text-[10px] font-mono"
+                          >
+                            {k}: {k === "CLS" ? v.toFixed(3) : `${Math.round(v)}ms`}
+                          </Badge>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {err.metadata?.breadcrumbs && err.metadata.breadcrumbs.length > 0 && (
+                    <div className="pt-1">
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">
+                        Últimas ações ({err.metadata.breadcrumbs.length})
+                      </p>
+                      <div className="space-y-0.5 bg-muted/50 rounded-lg p-2 max-h-40 overflow-y-auto">
+                        {err.metadata.breadcrumbs.slice(-15).map((b, idx) => (
+                          <div key={idx} className="text-[10px] font-mono flex items-start gap-2">
+                            <span className="text-muted-foreground shrink-0 w-14">
+                              {format(new Date(b.ts), "HH:mm:ss")}
+                            </span>
+                            <span className="text-muted-foreground shrink-0 w-16 uppercase">
+                              {b.category}
+                            </span>
+                            <span className={
+                              b.level === "error" ? "text-destructive" :
+                              b.level === "warn"  ? "text-warning" : "text-foreground"
+                            }>
+                              {b.message}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   )}
                 </div>
               )}

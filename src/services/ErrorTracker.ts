@@ -1,7 +1,32 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/database.types";
+import { addBreadcrumb, getBreadcrumbs } from "@/services/Breadcrumbs";
+import { getVitalsSnapshot } from "@/services/WebVitals";
 
 type SystemErrorInsert = Database["public"]["Tables"]["system_errors"]["Insert"];
+
+function getConnectionInfo(): Record<string, unknown> | null {
+  try {
+    const nav = navigator as unknown as {
+      connection?: {
+        effectiveType?: string;
+        downlink?: number;
+        rtt?: number;
+        saveData?: boolean;
+      };
+    };
+    const c = nav.connection;
+    if (!c) return null;
+    return {
+      effectiveType: c.effectiveType,
+      downlink: c.downlink,
+      rtt: c.rtt,
+      saveData: c.saveData,
+    };
+  } catch {
+    return null;
+  }
+}
 
 function getDeviceInfo(): { browser: string; device: string } {
   const ua = navigator.userAgent;
@@ -55,6 +80,21 @@ export async function trackError(opts: {
     const { browser, device } = getDeviceInfo();
     const page = opts.page || window.location.pathname;
 
+    // Contexto estruturado para triagem: breadcrumbs (até 25 passos) +
+    // web vitals no momento da captura + viewport + conexão.
+    const metadata: Record<string, unknown> = {
+      breadcrumbs: getBreadcrumbs(),
+      web_vitals: getVitalsSnapshot(),
+      viewport: {
+        w: window.innerWidth,
+        h: window.innerHeight,
+        dpr: window.devicePixelRatio ?? 1,
+      },
+      connection: getConnectionInfo(),
+      url: window.location.href,
+      captured_at: new Date().toISOString(),
+    };
+
     const row: SystemErrorInsert = {
       user_id: _userId,
       user_email: _userEmail,
@@ -64,6 +104,7 @@ export async function trackError(opts: {
       error_stack: stack,
       browser,
       device,
+      metadata,
     };
 
     const { data, error: insertError } = await supabase
@@ -97,6 +138,11 @@ declare global {
 // Global handlers
 export function initErrorTracker() {
   window.addEventListener("error", (event) => {
+    addBreadcrumb({
+      category: "custom",
+      level: "error",
+      message: `window.onerror: ${event.message?.slice(0, 80) ?? "?"}`,
+    });
     trackError({
       action: "window.onerror",
       error: event.error || event.message,
@@ -104,6 +150,11 @@ export function initErrorTracker() {
   });
 
   window.addEventListener("unhandledrejection", (event) => {
+    addBreadcrumb({
+      category: "custom",
+      level: "error",
+      message: "unhandledrejection",
+    });
     trackError({
       action: "unhandledrejection",
       error: event.reason,

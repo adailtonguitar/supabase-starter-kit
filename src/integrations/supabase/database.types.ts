@@ -2466,6 +2466,7 @@ export type Database = {
           browser: string
           device: string
           created_at: string
+          metadata: Record<string, unknown> | null
         }
         Insert: {
           id?: string
@@ -2478,6 +2479,7 @@ export type Database = {
           browser?: string
           device?: string
           created_at?: string
+          metadata?: Record<string, unknown> | null
         }
         Update: {
           id?: string
@@ -2490,6 +2492,7 @@ export type Database = {
           browser?: string
           device?: string
           created_at?: string
+          metadata?: Record<string, unknown> | null
         }
         Relationships: []
       }

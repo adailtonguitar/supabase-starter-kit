@@ -4,6 +4,8 @@ import "./index.css";
 import "./styles/theme.css";
 import { loadScaleConfigFromStorage } from "./lib/scale-barcode";
 import { initErrorTracker } from "./services/ErrorTracker";
+import { initBreadcrumbAutoCapture } from "./services/Breadcrumbs";
+import { initWebVitals } from "./services/WebVitals";
 import { assertProductionEnvironment } from "./lib/production-guard";
 import { SUPABASE_URL, supabase } from "@/lib/supabaseClient";
 
@@ -44,7 +46,9 @@ async function clearStaleServiceWorkers() {
 // Load scale config from localStorage on boot
 loadScaleConfigFromStorage();
 
-// Initialize error tracking (global error + unhandled rejection handlers)
+// Observabilidade (ordem importa: breadcrumbs e vitals antes do error tracker)
+initBreadcrumbAutoCapture();
+initWebVitals();
 initErrorTracker();
 
 clearStaleServiceWorkers().finally(() => {
