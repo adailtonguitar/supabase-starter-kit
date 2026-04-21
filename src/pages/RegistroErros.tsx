@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { motion } from "framer-motion";
+import { toast } from "sonner";
 
 interface SystemError {
   id: string;
@@ -188,10 +189,21 @@ export default function RegistroErros() {
           onClick={async () => {
             if (!confirm("Apagar todos os registros de erros?")) return;
             try {
-              await (supabase as any).from("system_errors").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+              const { error } = await (supabase as any)
+                .from("system_errors")
+                .delete()
+                .neq("id", "00000000-0000-0000-0000-000000000000");
+              if (error) {
+                console.error("[RegistroErros] Delete error:", error);
+                toast.error(`Falha ao limpar: ${error.message}`);
+                return;
+              }
               setErrors([]);
-            } catch (err) {
+              toast.success("Registros apagados");
+            } catch (err: unknown) {
+              const msg = err instanceof Error ? err.message : "erro desconhecido";
               console.error("[RegistroErros] Delete error:", err);
+              toast.error(`Falha ao limpar: ${msg}`);
             }
           }}
           className="gap-1.5 text-xs"

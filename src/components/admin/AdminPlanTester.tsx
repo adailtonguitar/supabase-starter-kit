@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Shield, Check, X, AlertTriangle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -60,6 +60,12 @@ export default function AdminPlanTester() {
     setCurrentPlan((data as any)?.plan || "starter");
   };
 
+  useEffect(() => {
+    void loadCurrentPlan();
+    // loadCurrentPlan closes over companyId; re-run if companyId changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [companyId]);
+
   const simulatePlan = async (tier: PlanTier) => {
     if (!companyId) { toast.error("Empresa não identificada"); return; }
     setLoading(true);
@@ -109,9 +115,6 @@ export default function AdminPlanTester() {
       setLoading(false);
     }
   };
-
-  // Load on mount
-  if (currentPlan === null) loadCurrentPlan();
 
   const categories = [...new Set(FEATURES.map(f => f.category))];
 
