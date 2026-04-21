@@ -72,10 +72,18 @@ export function LgpdDataSection() {
         return;
       }
 
-      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/export-my-data`;
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+      const anonKey =
+        (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined) ||
+        (import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined) ||
+        "";
+      const url = `${supabaseUrl}/functions/v1/export-my-data`;
       const res = await fetch(url, {
         method: "GET",
-        headers: { Authorization: `Bearer ${token}` },
+        headers: {
+          Authorization: `Bearer ${token}`,
+          apikey: anonKey,
+        },
       });
       if (!res.ok) {
         const errorBody = await res.json().catch(() => ({ error: "Falha ao exportar" }));
