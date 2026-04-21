@@ -16,6 +16,7 @@ const LandingAdvantages = lazy(() => import("@/components/landing/LandingAdvanta
 const LandingComparison = lazy(() => import("@/components/landing/LandingComparison").then(m => ({ default: m.LandingComparison })));
 const LandingTestimonials = lazy(() => import("@/components/landing/LandingTestimonials").then(m => ({ default: m.LandingTestimonials })));
 const LandingAuthority = lazy(() => import("@/components/landing/LandingAuthority").then(m => ({ default: m.LandingAuthority })));
+const LandingSecurity = lazy(() => import("@/components/landing/LandingSecurity").then(m => ({ default: m.LandingSecurity })));
 const LandingPricing = lazy(() => import("@/components/landing/LandingPricing").then(m => ({ default: m.LandingPricing })));
 const LandingFAQ = lazy(() => import("@/components/landing/LandingFAQ").then(m => ({ default: m.LandingFAQ })));
 const LandingCTA = lazy(() => import("@/components/landing/LandingCTA").then(m => ({ default: m.LandingCTA })));
@@ -77,6 +78,8 @@ export default function LandingPage() {
         <div className="section-divider max-w-5xl mx-auto" />
         <LandingTestimonials />
         <LandingAuthority />
+        <div className="section-divider max-w-5xl mx-auto" />
+        <LandingSecurity />
         <LandingPricing />
         <LandingFAQ />
         <LandingCTA />

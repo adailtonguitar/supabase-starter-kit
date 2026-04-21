@@ -8,6 +8,7 @@ import logoAs from "@/assets/logo-as.png";
 const links = [
   { label: "Recursos", href: "#recursos" },
   { label: "Vantagens", href: "#vantagens" },
+  { label: "Segurança", href: "#seguranca" },
   { label: "Planos", href: "#planos" },
   { label: "Emissor NF-e", href: "/emissor", isRoute: true },
   { label: "FAQ", href: "#faq" },
