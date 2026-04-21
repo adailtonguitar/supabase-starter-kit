@@ -52,3 +52,6 @@ verify_jwt = false
 
 [functions.request-data-deletion]
 verify_jwt = false
+
+[functions.notify-admin-role-change]
+verify_jwt = false

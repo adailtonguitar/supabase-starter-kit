@@ -39,6 +39,7 @@ import { AdminFeatureFlags } from "@/components/admin/AdminFeatureFlags";
 import { AdminAiUsage } from "@/components/admin/AdminAiUsage";
 import { AdminSecurity } from "@/components/admin/AdminSecurity";
 import { AdminFiscalMonitor } from "@/components/admin/AdminFiscalMonitor";
+import { AdminRoleAudit } from "@/components/admin/AdminRoleAudit";
 import { lazy, Suspense } from "react";
 
 const FiscalRadarPage = lazy(() => import("./admin/FiscalRadar"));
@@ -136,6 +137,7 @@ export default function Admin() {
           <TabsTrigger value="security" className="text-xs sm:text-sm"><Shield className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" /> <span className="hidden sm:inline">Segurança</span><span className="sm:hidden">Seg.</span></TabsTrigger>
           <TabsTrigger value="fiscal-monitor" className="text-xs sm:text-sm"><FileText className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" /> <span className="hidden sm:inline">Monitor Fiscal</span><span className="sm:hidden">Monitor</span></TabsTrigger>
           <TabsTrigger value="smoke" className="text-xs sm:text-sm"><FlaskConical className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" /> <span className="hidden sm:inline">Smoke</span><span className="sm:hidden">Smoke</span></TabsTrigger>
+          <TabsTrigger value="role-audit" className="text-xs sm:text-sm"><Shield className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" /> <span className="hidden sm:inline">Auditoria Admin</span><span className="sm:hidden">Audit</span></TabsTrigger>
         </TabsList>
 
         <TabsContent value="dashboard">
@@ -224,6 +226,9 @@ export default function Admin() {
         </TabsContent>
         <TabsContent value="fiscal-monitor">
           <AdminFiscalMonitor />
+        </TabsContent>
+        <TabsContent value="role-audit">
+          <AdminRoleAudit />
         </TabsContent>
       </Tabs>
     </div>
