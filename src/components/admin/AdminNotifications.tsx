@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Bell, Send, Loader2, Trash2, Info, AlertTriangle, AlertCircle, Wrench } from "lucide-react";
-import { adminQuery } from "@/lib/admin-query";
+import { adminQuery, adminAction } from "@/lib/admin-query";
 import { logAction } from "@/services/ActionLogger";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -79,16 +78,17 @@ export function AdminNotifications() {
     }
     setSending(true);
     try {
-      const { error } = await supabase.functions.invoke("admin-action", {
-        body: {
-          action: "send_notification",
-          title: title.trim(),
-          message: message.trim(),
-          type,
-          company_id: companyId === "all" ? null : companyId,
-        },
+      const { ok, error, rateLimited } = await adminAction({
+        action: "send_notification",
+        title: title.trim(),
+        message: message.trim(),
+        type,
+        company_id: companyId === "all" ? null : companyId,
       });
-      if (error) throw error;
+      if (!ok) {
+        if (rateLimited) { setSending(false); return; }
+        throw new Error(error ?? "Erro desconhecido");
+      }
       toast.success(companyId === "all" ? "Notificação enviada para todas as empresas!" : "Notificação enviada!");
       logAction({ companyId: companyId === "all" ? "system" : companyId, userId: user?.id, action: "Notificação admin enviada", module: "admin", details: `Título: ${title.trim()}, Tipo: ${type}, Destino: ${companyId === "all" ? "Todas" : companyId}` });
       setTitle("");

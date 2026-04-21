@@ -45,7 +45,7 @@ const FiscalRadarPage = lazy(() => import("./admin/FiscalRadar"));
 function FiscalRadarTab() {
   return <Suspense fallback={<div className="py-8 text-center text-muted-foreground">Carregando...</div>}><FiscalRadarPage /></Suspense>;
 }
-import { adminQuery } from "@/lib/admin-query";
+import { adminQuery, adminAction } from "@/lib/admin-query";
 
 const lazyRetry = (fn: () => Promise<any>) =>
   lazy(() => fn().catch(() => {
@@ -241,16 +241,13 @@ function AdminWhatsAppSupport() {
   useEffect(() => {
     if (!companyId) return;
     const load = async () => {
-      try {
-        const { data, error } = await supabase.functions.invoke("admin-action", {
-          body: { action: "get_whatsapp_support", company_id: companyId },
-        });
-        if (!error && data?.whatsapp_support) {
-          setNumber(data.whatsapp_support);
-          setSavedNumber(data.whatsapp_support);
-        }
-      } catch {
-        // fallback: leave empty
+      const { ok, data } = await adminAction<{ whatsapp_support?: string }>({
+        action: "get_whatsapp_support",
+        company_id: companyId,
+      });
+      if (ok && data?.whatsapp_support) {
+        setNumber(data.whatsapp_support);
+        setSavedNumber(data.whatsapp_support);
       }
       setLoading(false);
     };
@@ -262,20 +259,19 @@ function AdminWhatsAppSupport() {
   const handleSave = async () => {
     if (!companyId) return;
     setSaving(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("admin-action", {
-        body: { action: "update_whatsapp_support", company_id: companyId, whatsapp_support: number || null },
-      });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+    const { ok, error, rateLimited } = await adminAction({
+      action: "update_whatsapp_support",
+      company_id: companyId,
+      whatsapp_support: number || null,
+    });
+    if (ok) {
       setSavedNumber(number);
       setEditing(false);
       toast.success("WhatsApp de suporte salvo!");
-    } catch {
-      toast.error("Erro ao salvar");
-    } finally {
-      setSaving(false);
+    } else if (!rateLimited) {
+      toast.error("Erro ao salvar" + (error ? `: ${error}` : ""));
     }
+    setSaving(false);
   };
 
   const isReadOnly = hasSaved && !editing;
@@ -369,17 +365,17 @@ function CompaniesTab() {
     const newBlocked = !company.is_blocked;
     const reason = newBlocked ? (blockReasons[company.id] || "Bloqueado pelo administrador.") : null;
 
-    try {
-      const { data, error } = await supabase.functions.invoke("admin-action", {
-        body: { action: "toggle_block_company", company_id: company.id, is_blocked: newBlocked, block_reason: reason },
-      });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-
+    const { ok, error, rateLimited } = await adminAction({
+      action: "toggle_block_company",
+      company_id: company.id,
+      is_blocked: newBlocked,
+      block_reason: reason,
+    });
+    if (ok) {
       toast.success(newBlocked ? `${company.name} bloqueada` : `${company.name} desbloqueada`);
       fetchCompanies();
-    } catch (err: any) {
-      toast.error("Erro ao atualizar: " + (err?.message || "Erro desconhecido"));
+    } else if (!rateLimited) {
+      toast.error("Erro ao atualizar: " + (error ?? "Erro desconhecido"));
     }
   };
 

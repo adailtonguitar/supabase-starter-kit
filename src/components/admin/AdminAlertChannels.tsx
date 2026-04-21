@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { adminAction } from "@/lib/admin-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -83,18 +83,19 @@ export function AdminAlertChannels() {
   const handleTest = async () => {
     setSending(true);
     try {
-      const { data, error } = await supabase.functions.invoke("admin-action", {
-        body: {
-          action: "test_alert_channels",
-          severity,
-          message: message.trim() || undefined,
-        },
+      const { ok, data, error, rateLimited } = await adminAction<TestResult>({
+        action: "test_alert_channels",
+        severity,
+        message: message.trim() || undefined,
       });
 
-      if (error) throw error;
+      if (!ok) {
+        if (rateLimited) { setSending(false); return; }
+        throw new Error(error ?? "Resposta vazia");
+      }
       if (!data) throw new Error("Resposta vazia");
 
-      const result = data as TestResult;
+      const result = data;
       setLastResult(result);
 
       const delivered = (["discord", "slack", "telegram"] as ChannelKey[])

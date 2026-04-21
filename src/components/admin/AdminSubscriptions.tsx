@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { adminQuery } from "@/lib/admin-query";
+import { adminQuery, adminAction } from "@/lib/admin-query";
 import { parseMembershipsPayload } from "@/lib/company-memberships";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -139,42 +139,38 @@ export function AdminSubscriptions() {
 
   const savePlan = async (row: PlanRow) => {
     setSaving(row.id);
-    try {
-      const { data, error } = await supabase.functions.invoke("admin-action", {
-        body: {
-          action: "update_company_plan",
-          plan_id: row.id,
-          plan: row.plan,
-          status: row.status,
-          max_users: row.max_users,
-          fiscal_enabled: row.fiscal_enabled,
-          advanced_reports_enabled: row.advanced_reports_enabled,
-          financial_module_level: row.financial_module_level,
-        },
-      });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+    const { ok, error, rateLimited } = await adminAction({
+      action: "update_company_plan",
+      plan_id: row.id,
+      plan: row.plan,
+      status: row.status,
+      max_users: row.max_users,
+      fiscal_enabled: row.fiscal_enabled,
+      advanced_reports_enabled: row.advanced_reports_enabled,
+      financial_module_level: row.financial_module_level,
+    });
+    if (ok) {
       toast.success(`Plano de ${row.company_name} atualizado.`);
       logAction({ companyId: row.company_id, userId: user?.id, action: "Plano alterado via admin", module: "admin", details: `Plano: ${row.plan}, Status: ${row.status}, Empresa: ${row.company_name}` });
-    } catch (err: any) {
-      toast.error("Erro ao salvar: " + (err?.message || "Erro desconhecido"));
+    } else if (!rateLimited) {
+      toast.error("Erro ao salvar: " + (error ?? "Erro desconhecido"));
     }
     setSaving(null);
   };
 
   const toggleDemo = async (row: PlanRow) => {
     const newVal = !row.is_demo;
-    try {
-      const { data, error } = await supabase.functions.invoke("admin-action", {
-        body: { action: "toggle_demo", company_id: row.company_id, is_demo: newVal },
-      });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+    const { ok, error, rateLimited } = await adminAction({
+      action: "toggle_demo",
+      company_id: row.company_id,
+      is_demo: newVal,
+    });
+    if (ok) {
       setPlans(prev => prev.map(r => r.id === row.id ? { ...r, is_demo: newVal } : r));
       toast.success(newVal ? "Empresa marcada como Demo" : "Modo demo desativado");
       logAction({ companyId: row.company_id, userId: user?.id, action: newVal ? "Empresa marcada como demo" : "Demo desativado", module: "admin", details: row.company_name });
-    } catch (err: any) {
-      toast.error("Erro: " + (err?.message || "Erro desconhecido"));
+    } else if (!rateLimited) {
+      toast.error("Erro: " + (error ?? "Erro desconhecido"));
     }
   };
 

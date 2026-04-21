@@ -13,7 +13,7 @@ import {
   Calendar, TrendingUp, Package, DollarSign, ChevronRight, Zap,
   Monitor, Wifi, WifiOff, LogIn, Bug, Heart, Loader2,
 } from "lucide-react";
-import { adminQuery } from "@/lib/admin-query";
+import { adminQuery, adminAction } from "@/lib/admin-query";
 import { supabase } from "@/integrations/supabase/client";
 import { logAction } from "@/services/ActionLogger";
 import { useAuth } from "@/hooks/useAuth";
@@ -257,11 +257,14 @@ export function AdminCompanyHealth() {
     if (!health?.openCashSession) return;
     setActionLoading("closeCash");
     try {
-      const { data, error } = await supabase.functions.invoke("admin-action", {
-        body: { action: "force_close_cash_session", session_id: health.openCashSession.id },
+      const { ok, error, rateLimited } = await adminAction({
+        action: "force_close_cash_session",
+        session_id: health.openCashSession.id,
       });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+      if (!ok) {
+        if (rateLimited) { setActionLoading(null); return; }
+        throw new Error(error ?? "Erro desconhecido");
+      }
       toast.success("Caixa fechado remotamente!");
       logAction({ companyId: selectedCompany!.id, userId: user?.id, action: "Caixa fechado remotamente via admin", module: "admin", details: `session_id: ${health.openCashSession.id}` });
       loadHealth(selectedCompany!);
@@ -275,11 +278,14 @@ export function AdminCompanyHealth() {
     if (!selectedCompany) return;
     setActionLoading("clearErrors");
     try {
-      const { data, error } = await supabase.functions.invoke("admin-action", {
-        body: { action: "clear_company_errors", company_id: selectedCompany.id },
+      const { ok, error, rateLimited } = await adminAction({
+        action: "clear_company_errors",
+        company_id: selectedCompany.id,
       });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+      if (!ok) {
+        if (rateLimited) { setActionLoading(null); return; }
+        throw new Error(error ?? "Erro desconhecido");
+      }
       toast.success("Erros limpos!");
       logAction({ companyId: selectedCompany.id, userId: user?.id, action: "Erros do sistema limpos via admin", module: "admin", details: selectedCompany.name });
       loadHealth(selectedCompany);
@@ -294,11 +300,16 @@ export function AdminCompanyHealth() {
     setActionLoading("block");
     try {
       const newBlocked = !selectedCompany.is_blocked;
-      const { data, error } = await supabase.functions.invoke("admin-action", {
-        body: { action: "toggle_block_company", company_id: selectedCompany.id, is_blocked: newBlocked, block_reason: "Bloqueado via painel de saúde" },
+      const { ok, error, rateLimited } = await adminAction({
+        action: "toggle_block_company",
+        company_id: selectedCompany.id,
+        is_blocked: newBlocked,
+        block_reason: "Bloqueado via painel de saúde",
       });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+      if (!ok) {
+        if (rateLimited) { setActionLoading(null); return; }
+        throw new Error(error ?? "Erro desconhecido");
+      }
       toast.success(newBlocked ? "Empresa bloqueada" : "Empresa desbloqueada");
       logAction({ companyId: selectedCompany.id, userId: user?.id, action: newBlocked ? "Empresa bloqueada via admin" : "Empresa desbloqueada via admin", module: "admin", details: selectedCompany.name });
       const updated = { ...selectedCompany, is_blocked: newBlocked };

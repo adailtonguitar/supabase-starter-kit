@@ -10,7 +10,7 @@ import {
   Bell, AlertTriangle, UserX, CreditCard, Monitor, RefreshCw,
   Clock, Bug, ChevronDown, ChevronUp, Building2, Loader2, X, Trash2, Power,
 } from "lucide-react";
-import { adminQuery } from "@/lib/admin-query";
+import { adminQuery, adminAction } from "@/lib/admin-query";
 import { supabase } from "@/integrations/supabase/client";
 
 interface Alert {
@@ -294,35 +294,33 @@ export function AdminProactiveAlerts() {
 
   const handleBulkCloseCash = async () => {
     setClosingCash(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("admin-action", {
-        body: { action: "close_stuck_cash_sessions", hours_threshold: 24 },
-      });
-      if (error) throw error;
+    const { ok, data, error, rateLimited } = await adminAction<{ closed?: number }>({
+      action: "close_stuck_cash_sessions",
+      hours_threshold: 24,
+    });
+    if (ok) {
       const closed = data?.closed || 0;
       toast.success(`${closed} caixa(s) fechado(s) com sucesso!`);
-      // Remove cash alerts from view
       setAlerts(prev => prev.filter(a => a.type !== "stuck_cash"));
-    } catch (e: any) {
-      toast.error("Erro ao fechar caixas: " + (e.message || "Erro desconhecido"));
+    } else if (!rateLimited) {
+      toast.error("Erro ao fechar caixas: " + (error ?? "Erro desconhecido"));
     }
     setClosingCash(false);
   };
 
   const handleClearOldErrors = async () => {
     setClearingErrors(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("admin-action", {
-        body: { action: "clear_old_errors", days_threshold: 7 },
-      });
-      if (error) throw error;
+    const { ok, data, error, rateLimited } = await adminAction<{ deleted?: number }>({
+      action: "clear_old_errors",
+      days_threshold: 7,
+    });
+    if (ok) {
       const deleted = data?.deleted || 0;
       toast.success(`${deleted} erro(s) antigo(s) removido(s)!`);
-      // Refresh alerts
       setRefreshing(true);
       loadAlerts();
-    } catch (e: any) {
-      toast.error("Erro ao limpar: " + (e.message || "Erro desconhecido"));
+    } else if (!rateLimited) {
+      toast.error("Erro ao limpar: " + (error ?? "Erro desconhecido"));
     }
     setClearingErrors(false);
   };
