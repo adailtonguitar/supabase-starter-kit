@@ -13,23 +13,32 @@ interface PDVProductGridProps {
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
 
+// Limite de linhas renderizadas quando o campo de busca está vazio.
+// Evita lag de render em lojas com 5k+ itens; se o usuário digitar,
+// o filtro roda sobre a lista completa (sem slice).
+const MAX_INITIAL_ROWS = 500;
+
 export function PDVProductGrid({ products, loading, onAddToCart }: PDVProductGridProps) {
   const [search, setSearch] = useState("");
   const [selectedIdx, setSelectedIdx] = useState(0);
   const listRef = useRef<HTMLDivElement>(null);
 
   const filtered = useMemo(() => {
-    if (!search.trim()) return products.slice(0, 80);
+    if (!search.trim()) {
+      return products.length > MAX_INITIAL_ROWS
+        ? products.slice(0, MAX_INITIAL_ROWS)
+        : products;
+    }
     const q = search.toLowerCase();
-    return products
-      .filter(
-        (p) =>
-          p.name.toLowerCase().includes(q) ||
-          p.sku.toLowerCase().includes(q) ||
-          (p.barcode && p.barcode.includes(q))
-      )
-      .slice(0, 80);
+    return products.filter(
+      (p) =>
+        p.name.toLowerCase().includes(q) ||
+        p.sku.toLowerCase().includes(q) ||
+        (p.barcode && p.barcode.includes(q)),
+    );
   }, [products, search]);
+
+  const isTruncated = !search.trim() && products.length > MAX_INITIAL_ROWS;
 
   // Reset selection when search changes
   useEffect(() => {
@@ -85,15 +94,21 @@ export function PDVProductGrid({ products, loading, onAddToCart }: PDVProductGri
             </button>
           )}
         </div>
-        <div className="flex items-center justify-between mt-2 px-1">
+        <div className="flex items-center justify-between mt-2 px-1 gap-2 flex-wrap">
           <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
-            {filtered.length} produto{filtered.length !== 1 ? "s" : ""}
+            {search
+              ? `${filtered.length} de ${products.length} produto${products.length !== 1 ? "s" : ""}`
+              : `${products.length} produto${products.length !== 1 ? "s" : ""} no estoque`}
           </span>
-          {search && (
+          {search ? (
             <span className="text-[10px] text-primary font-semibold">
               Buscando: "{search}"
             </span>
-          )}
+          ) : isTruncated ? (
+            <span className="text-[10px] text-warning font-semibold">
+              Exibindo primeiros {MAX_INITIAL_ROWS} — digite para filtrar
+            </span>
+          ) : null}
         </div>
       </div>
 
