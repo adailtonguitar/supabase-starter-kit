@@ -147,7 +147,7 @@ export default function StatusPage() {
   const overall = statusPill(data?.status ?? "unknown");
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="h-screen overflow-y-auto bg-background">
       <header className="border-b">
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
           <Link to="/" className="text-sm inline-flex items-center gap-1 text-muted-foreground hover:text-foreground">

@@ -39,8 +39,9 @@ export default function Instalar() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex items-start justify-center p-4 sm:p-8">
-      <div className="max-w-2xl w-full space-y-8">
+    <div className="h-screen overflow-y-auto bg-background">
+      <div className="min-h-full flex items-start justify-center p-4 sm:p-8">
+        <div className="max-w-2xl w-full space-y-8 py-4">
         <Link to="/" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors">
           <ArrowLeft className="w-4 h-4" /> Voltar
         </Link>
@@ -301,6 +302,7 @@ export default function Instalar() {
           <p className="text-xs text-muted-foreground">
             Não é necessário baixar da App Store ou Play Store. O app é instalado direto do navegador.
           </p>
+        </div>
         </div>
       </div>
     </div>
