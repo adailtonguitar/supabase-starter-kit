@@ -13,7 +13,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY } from "@/lib/supabaseClient";
 import { useAuth } from "@/hooks/useAuth";
 import { LEGAL_CONFIG } from "@/config/legal";
 
@@ -72,17 +72,12 @@ export function LgpdDataSection() {
         return;
       }
 
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
-      const anonKey =
-        (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined) ||
-        (import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined) ||
-        "";
-      const url = `${supabaseUrl}/functions/v1/export-my-data`;
+      const url = `${SUPABASE_URL}/functions/v1/export-my-data`;
       const res = await fetch(url, {
         method: "GET",
         headers: {
           Authorization: `Bearer ${token}`,
-          apikey: anonKey,
+          apikey: SUPABASE_ANON_KEY,
         },
       });
       if (!res.ok) {
