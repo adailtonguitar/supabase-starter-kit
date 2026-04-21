@@ -64,6 +64,7 @@ interface SystemError {
   browser: string | null;
   device: string | null;
   created_at: string;
+  fingerprint: string | null;
 }
 
 interface ClassifiedError extends SystemError {
@@ -86,8 +87,77 @@ function classifyError(err: SystemError): ClassifiedError {
 }
 
 function fingerprint(err: SystemError): string {
-  // Agrupa por primeiras palavras da mensagem (simples mas efetivo)
+  // Preferimos o fingerprint persistido (hash estável computado por trigger no DB).
+  // Fallback: primeiras palavras da mensagem (erros antigos sem backfill).
+  if (err.fingerprint && err.fingerprint.length > 0) return err.fingerprint;
   return err.error_message.slice(0, 100).toLowerCase().trim();
+}
+
+interface SpikeInfo {
+  fingerprint: string;
+  count_now: number;
+  baseline_hourly: number; // média hora dos últimos 7d
+  ratio: number; // count_now / baseline_hourly
+}
+
+/**
+ * Detecta spikes: fingerprints com volume muito acima do baseline de 7 dias.
+ * Regra: count_now >= 5 AND ratio >= 5x OR count_now >= 20.
+ * Retorna só os fingerprints "spikados" ordenados por ratio desc.
+ */
+async function detectSpikes(
+  admin: ReturnType<typeof createClient>,
+  fingerprints: string[],
+  countsNow: Map<string, number>,
+): Promise<SpikeInfo[]> {
+  if (fingerprints.length === 0) return [];
+
+  // Baseline: eventos por fingerprint nos últimos 7d, excluindo a última 1h
+  const to = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+  const from = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+
+  const { data, error } = await admin
+    .from("system_errors")
+    .select("fingerprint", { count: "exact" })
+    .in("fingerprint", fingerprints)
+    .gte("created_at", from)
+    .lt("created_at", to);
+
+  if (error || !data) {
+    console.warn("[notify-critical-errors] baseline query failed:", error?.message);
+    return [];
+  }
+
+  // Conta por fingerprint
+  const baselineCount = new Map<string, number>();
+  for (const row of data as Array<{ fingerprint: string | null }>) {
+    if (!row.fingerprint) continue;
+    baselineCount.set(row.fingerprint, (baselineCount.get(row.fingerprint) ?? 0) + 1);
+  }
+
+  // 7 dias = 168h
+  const HOURS = 7 * 24;
+  const spikes: SpikeInfo[] = [];
+  for (const fp of fingerprints) {
+    const countNow = countsNow.get(fp) ?? 0;
+    const baselineTotal = baselineCount.get(fp) ?? 0;
+    const baselineHourly = baselineTotal / HOURS;
+    // Se nunca apareceu antes, qualquer 5+ ocorrências já é spike novo.
+    const isNewSpike = baselineHourly === 0 && countNow >= 5;
+    const ratio = baselineHourly > 0 ? countNow / baselineHourly : countNow;
+    const isRatioSpike = countNow >= 5 && baselineHourly > 0 && ratio >= 5;
+    const isVolumeSpike = countNow >= 20;
+    if (isNewSpike || isRatioSpike || isVolumeSpike) {
+      spikes.push({
+        fingerprint: fp,
+        count_now: countNow,
+        baseline_hourly: Number(baselineHourly.toFixed(2)),
+        ratio: Number(ratio.toFixed(1)),
+      });
+    }
+  }
+
+  return spikes.sort((a, b) => b.ratio - a.ratio);
 }
 
 function escapeHtml(s: string | null | undefined): string {
@@ -247,7 +317,7 @@ Deno.serve(async (req) => {
     const { data: rawErrors, error: fetchErr } = await admin
       .from("system_errors")
       .select(
-        "id, user_id, user_email, page, action, error_message, error_stack, browser, device, created_at",
+        "id, user_id, user_email, page, action, error_message, error_stack, browser, device, created_at, fingerprint",
       )
       .is("notified_at", null)
       .lt("created_at", cutoff)
@@ -288,11 +358,22 @@ Deno.serve(async (req) => {
       0,
     );
 
+    // Detecção de spike: fingerprint muito acima do baseline de 7 dias
+    const topFps = Array.from(groups.entries())
+      .sort((a, b) => b[1].length - a[1].length)
+      .slice(0, 10)
+      .map(([fp]) => fp);
+    const countsNow = new Map<string, number>(
+      Array.from(groups.entries()).map(([fp, arr]) => [fp, arr.length]),
+    );
+    const spikes = await detectSpikes(admin, topFps, countsNow);
+
     const shouldNotify =
       criticalErrors.length > 0 ||
       errors.length > 20 ||
       distinctCount >= 5 ||
-      maxGroupCount >= 10;
+      maxGroupCount >= 10 ||
+      spikes.length > 0;
 
     if (!shouldNotify) {
       // Marca como notificados mesmo assim (baixa severidade — não polui fila)
@@ -362,10 +443,22 @@ Deno.serve(async (req) => {
       .slice(0, 3)
       .map(([, errs]) => `${errs.length}× ${errs[0].error_message.slice(0, 80)}`);
 
-    const severity: "critical" | "warning" = criticalErrors.length > 0 ? "critical" : "warning";
+    const severity: "critical" | "warning" =
+      criticalErrors.length > 0 || spikes.length > 0 ? "critical" : "warning";
     const alertMessage = [
       `**${errors.length}** erro(s) detectado(s) nos últimos minutos — **${criticalErrors.length}** crítico(s) em **${distinctCount}** grupo(s) distinto(s).`,
       "",
+      ...(spikes.length > 0
+        ? [
+          "🚀 **SPIKE detectado:**",
+          ...spikes.slice(0, 5).map((s) => {
+            const sample = groups.get(s.fingerprint)?.[0]?.error_message.slice(0, 90) ?? s.fingerprint;
+            const baseline = s.baseline_hourly > 0 ? `${s.baseline_hourly}/h (7d)` : "novo";
+            return `• ${s.count_now}× (${s.ratio}x acima do baseline ${baseline}) — ${sample}`;
+          }),
+          "",
+        ]
+        : []),
       ...(topCritical.length > 0
         ? [
           "**Críticos (top 5):**",
@@ -391,6 +484,7 @@ Deno.serve(async (req) => {
         criticos: criticalErrors.length,
         grupos: distinctCount,
         max_repeticoes: maxGroupCount,
+        spikes: spikes.length,
       },
     });
 
@@ -422,6 +516,7 @@ Deno.serve(async (req) => {
         notified: markedCount,
         critical_count: criticalErrors.length,
         distinct_groups: distinctCount,
+        spikes,
         email: {
           status: emailStatus,
           sent_to: emailStatus === "ok" ? NOTIFICATION_EMAIL : null,

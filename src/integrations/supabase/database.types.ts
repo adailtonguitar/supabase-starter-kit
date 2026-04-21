@@ -2467,6 +2467,8 @@ export type Database = {
           device: string
           created_at: string
           metadata: Record<string, unknown> | null
+          fingerprint: string | null
+          support_code: string | null
         }
         Insert: {
           id?: string
@@ -2480,6 +2482,8 @@ export type Database = {
           device?: string
           created_at?: string
           metadata?: Record<string, unknown> | null
+          fingerprint?: string | null
+          support_code?: string | null
         }
         Update: {
           id?: string
@@ -2493,6 +2497,8 @@ export type Database = {
           device?: string
           created_at?: string
           metadata?: Record<string, unknown> | null
+          fingerprint?: string | null
+          support_code?: string | null
         }
         Relationships: []
       }
