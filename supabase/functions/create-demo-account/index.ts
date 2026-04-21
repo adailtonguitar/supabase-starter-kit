@@ -16,20 +16,26 @@ function getCorsHeaders(req: Request) {
   };
 }
 
-// ── In-memory rate limiting ──
-const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
-const RATE_LIMIT_WINDOW = 60 * 1000;
-const RATE_LIMIT_MAX = 3;
-
-function isRateLimited(ip: string): boolean {
-  const now = Date.now();
-  const entry = rateLimitMap.get(ip);
-  if (!entry || now > entry.resetAt) {
-    rateLimitMap.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW });
+// Rate limit persistente via tabela (ver migration 20260420160000):
+//   3 tentativas por IP por hora.
+// O limit anterior era in-memory e resetava quando a Edge Function dormia
+// — por isso alguns dias tiveram 70+ contas demo criadas do mesmo IP.
+async function isRateLimitedDb(
+  admin: ReturnType<typeof createClient>,
+  ip: string,
+  userAgent: string,
+): Promise<boolean> {
+  const { data, error } = await admin.rpc("check_demo_rate_limit", {
+    p_ip: ip,
+    p_user_agent: userAgent,
+    p_window_minutes: 60,
+    p_max_attempts: 3,
+  });
+  if (error) {
+    console.error("[rate_limit] db error, permitindo por failover:", error.message);
     return false;
   }
-  entry.count++;
-  return entry.count > RATE_LIMIT_MAX;
+  return data === true;
 }
 
 // ── Demo seed data ──
@@ -256,16 +262,10 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const clientIp = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() 
-      || req.headers.get("cf-connecting-ip") 
+    const clientIp = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
+      || req.headers.get("cf-connecting-ip")
       || "unknown";
-    
-    if (isRateLimited(clientIp)) {
-      return new Response(
-        JSON.stringify({ error: "Muitas tentativas. Aguarde 1 minuto antes de criar outra conta demo." }),
-        { status: 429, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } }
-      );
-    }
+    const userAgent = (req.headers.get("user-agent") || "unknown").slice(0, 500);
 
     const { company_name } = await req.json();
 
@@ -282,6 +282,17 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
+
+    // Rate limit persistente (3 por IP por hora) via banco
+    if (await isRateLimitedDb(supabaseAdmin, clientIp, userAgent)) {
+      console.warn(`[rate_limit] bloqueado IP=${clientIp}`);
+      return new Response(
+        JSON.stringify({
+          error: "Muitas tentativas. Você já criou 3 contas demo na última hora. Tente novamente mais tarde ou crie uma conta gratuita real."
+        }),
+        { status: 429, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } }
+      );
+    }
 
     const demoId = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
     const email = `demo_${demoId}@demo.anthosystem.com`;
