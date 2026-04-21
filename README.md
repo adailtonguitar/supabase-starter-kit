@@ -50,6 +50,23 @@ npm run dev
 - Click on "New codespace" to launch a new Codespace environment.
 - Edit files directly within the Codespace and commit and push your changes once you're done.
 
+## Documentação
+
+- [`CHANGELOG.md`](./CHANGELOG.md) — histórico de mudanças relevantes.
+- [`docs/SAAS_IMPROVEMENTS.md`](./docs/SAAS_IMPROVEMENTS.md) — guia das 10
+  melhorias operacionais (feature flags, dunning, 2FA, monitor fiscal,
+  pulso da empresa, etc.) com "para que serve" e "como usar".
+
+## Scripts úteis
+
+```sh
+npm run dev         # servidor de desenvolvimento
+npm run build       # build de produção
+npm run lint        # ESLint
+npm test            # testes unitários (vitest)
+npm run audit:rls   # verifica se novas tabelas têm RLS + policies
+```
+
 ## What technologies are used for this project?
 
 This project is built with:
