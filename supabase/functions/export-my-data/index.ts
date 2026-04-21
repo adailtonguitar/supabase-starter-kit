@@ -1,5 +1,5 @@
 /**
- * export-my-data
+ * export-my-data (v2: verify_jwt=false, auth manual)
  *
  * LGPD Art. 18, II e V — Direito de acesso e portabilidade.
  *
