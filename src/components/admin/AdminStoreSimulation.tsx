@@ -286,43 +286,73 @@ export function AdminStoreSimulation() {
       }
     }
 
-    // 4) Revert test sales — delete and restore stock
+    // 4) Revert test sales — delete and restore stock (sem N+1)
     const testSaleIds = results.filter((r) => r.success && r.saleId).map((r) => r.saleId!);
 
     if (testSaleIds.length > 0) {
-      // Batch restore: delete sale_items, financial_entries, then sales
-      for (const saleId of testSaleIds) {
-        // Get items to restore stock
-        const { data: saleItems } = await supabase
+      // Chunk helper para evitar IN(...) gigantes (Postgres/Supabase costumam aceitar ~1000)
+      const chunk = <V,>(arr: V[], size: number): V[][] => {
+        const out: V[][] = [];
+        for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+        return out;
+      };
+
+      // 4.1) Buscar TODOS os sale_items de uma só vez (em chunks se necessário)
+      const allItems: { product_id: string; quantity: number | string }[] = [];
+      for (const ids of chunk(testSaleIds, 500)) {
+        const { data } = await supabase
           .from("sale_items")
           .select("product_id, quantity")
-          .eq("sale_id", saleId);
-
-        if (saleItems) {
-          for (const item of saleItems as any[]) {
-            // Restore stock
-            const { data: prod } = await supabase
-              .from("products")
-              .select("stock_quantity")
-              .eq("id", item.product_id)
-              .single();
-
-            if (prod) {
-              await supabase
-                .from("products")
-                .update({ stock_quantity: Number((prod as any).stock_quantity) + Number(item.quantity) })
-                .eq("id", item.product_id);
-            }
-          }
-        }
-
-        // Delete related records
-        await supabase.from("sale_items").delete().eq("sale_id", saleId);
-        await supabase.from("financial_entries").delete().eq("reference", saleId);
-        await supabase.from("sales").delete().eq("id", saleId);
+          .in("sale_id", ids);
+        if (data) allItems.push(...(data as typeof allItems));
       }
 
-      // Close test session
+      // 4.2) Agregar quantidade a restaurar por produto (1 update por produto, não 1 por item)
+      const restoreByProduct = new Map<string, number>();
+      for (const item of allItems) {
+        const prev = restoreByProduct.get(item.product_id) ?? 0;
+        restoreByProduct.set(item.product_id, prev + Number(item.quantity || 0));
+      }
+
+      // 4.3) Buscar estoque atual dos produtos afetados em 1 select
+      const productIds = Array.from(restoreByProduct.keys());
+      const productStock = new Map<string, number>();
+      for (const ids of chunk(productIds, 500)) {
+        const { data } = await supabase
+          .from("products")
+          .select("id, stock_quantity")
+          .in("id", ids);
+        if (data) {
+          for (const p of data as { id: string; stock_quantity: number | string | null }[]) {
+            productStock.set(p.id, Number(p.stock_quantity ?? 0));
+          }
+        }
+      }
+
+      // 4.4) UPDATEs paralelos (um por produto, limitados a 10 em paralelo)
+      const updates = productIds.map((pid) => ({
+        id: pid,
+        newStock: (productStock.get(pid) ?? 0) + (restoreByProduct.get(pid) ?? 0),
+      }));
+      const CONCURRENCY = 10;
+      for (let i = 0; i < updates.length; i += CONCURRENCY) {
+        await Promise.all(
+          updates.slice(i, i + CONCURRENCY).map((u) =>
+            supabase.from("products").update({ stock_quantity: u.newStock }).eq("id", u.id),
+          ),
+        );
+      }
+
+      // 4.5) Deletar em batch (1 query por tabela por chunk de ids)
+      for (const ids of chunk(testSaleIds, 500)) {
+        await Promise.all([
+          supabase.from("sale_items").delete().in("sale_id", ids),
+          supabase.from("financial_entries").delete().in("reference", ids),
+        ]);
+        await supabase.from("sales").delete().in("id", ids);
+      }
+
+      // 4.6) Fechar sessão de teste
       await supabase
         .from("cash_sessions")
         .update({ status: "fechado", closed_at: new Date().toISOString() } as any)

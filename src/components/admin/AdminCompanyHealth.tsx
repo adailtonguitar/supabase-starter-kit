@@ -109,20 +109,19 @@ export function AdminCompanyHealth() {
     setHealth(null);
 
     try {
-      // Parallel queries
+      // Parallel queries (erros é sequencial porque depende de user_ids da empresa)
       const [
         usersData,
         productsData,
         salesData,
-        errorsData,
         cashSessionData,
         subscriptionData,
         logsData,
       ] = await Promise.all([
-        // Users count
-        adminQuery<{ id: string }>({
+        // Users (pega user_id pra usar como filtro em system_errors)
+        adminQuery<{ id: string; user_id: string }>({
           table: "company_users",
-          select: "id",
+          select: "id, user_id",
           filters: [{ op: "eq", column: "company_id", value: company.id }],
           limit: 500,
         }),
@@ -142,16 +141,6 @@ export function AdminCompanyHealth() {
             { op: "gte", column: "created_at", value: new Date().toISOString().slice(0, 10) },
           ],
           limit: 1000,
-        }),
-        // Errors last 24h (system_errors is global, no company_id filter)
-        adminQuery<{ id: string; error_message: string; created_at: string }>({
-          table: "system_errors",
-          select: "id, error_message, created_at",
-          filters: [
-            { op: "gte", column: "created_at", value: new Date(Date.now() - 86400000).toISOString() },
-          ],
-          limit: 50,
-          order: { column: "created_at", ascending: false },
         }),
         // Open cash session
         adminQuery<{ id: string; opened_at: string }>({
@@ -184,16 +173,33 @@ export function AdminCompanyHealth() {
         }),
       ]);
 
-      // Get user email for last login
+      const memberUserIds = usersData.map((u) => u.user_id).filter(Boolean);
+
+      // Errors last 24h filtrados por membros da empresa
+      // (system_errors é global, sem company_id — precisamos cruzar por user_id)
+      const errorsData = memberUserIds.length > 0
+        ? await adminQuery<{ id: string; error_message: string; created_at: string }>({
+            table: "system_errors",
+            select: "id, error_message, created_at",
+            filters: [
+              { op: "gte", column: "created_at", value: new Date(Date.now() - 86400000).toISOString() },
+              { op: "in", column: "user_id", value: memberUserIds },
+            ],
+            limit: 50,
+            order: { column: "created_at", ascending: false },
+          })
+        : [];
+
+      // Nome do último usuário que logou (via profiles.full_name — company_users NÃO tem email)
       let lastLoginUser: string | null = null;
       if (logsData.length > 0 && logsData[0].user_id) {
-        const userData = await adminQuery<{ email: string }>({
-          table: "company_users",
-          select: "email",
+        const profileData = await adminQuery<{ full_name: string | null }>({
+          table: "profiles",
+          select: "full_name",
           filters: [{ op: "eq", column: "user_id", value: logsData[0].user_id }],
           limit: 1,
         });
-        lastLoginUser = userData[0]?.email || null;
+        lastLoginUser = profileData[0]?.full_name || logsData[0].user_id.slice(0, 8) + "…";
       }
 
       // Determine sync status based on recent activity
