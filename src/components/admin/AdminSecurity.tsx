@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { Shield, Loader2, Save } from "lucide-react";
 import { MfaEnrollCard } from "@/components/security/MfaEnrollCard";
 import { AdminCronStatus } from "@/components/admin/AdminCronStatus";
+import { AdminDbHealth } from "@/components/admin/AdminDbHealth";
 
 interface Settings {
   require_mfa_for_super_admin: boolean;
@@ -86,6 +87,8 @@ export function AdminSecurity() {
   return (
     <div className="space-y-6">
       <MfaEnrollCard />
+
+      <AdminDbHealth />
 
       <AdminCronStatus />
 
