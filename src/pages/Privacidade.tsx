@@ -83,13 +83,93 @@ const Privacidade = () => {
         </section>
 
         <section>
-          <h2 className="text-xl font-semibold text-foreground">4. Compartilhamento de Dados</h2>
-          <p>Não vendemos seus dados pessoais. Podemos compartilhar dados apenas com:</p>
-          <ul className="list-disc pl-6 space-y-1">
-            <li>Processadores de pagamento para cobrança de assinaturas;</li>
-            <li>Prestadores de serviço essenciais ao funcionamento da plataforma;</li>
-            <li>Autoridades competentes, quando exigido por lei.</li>
-          </ul>
+          <h2 className="text-xl font-semibold text-foreground">4. Compartilhamento de Dados (sub-operadores)</h2>
+          <p>
+            <strong>Não vendemos seus dados pessoais.</strong> Compartilhamos apenas com os
+            sub-operadores a seguir, contratualmente obrigados a tratar seus dados exclusivamente
+            para executar o serviço, com o mesmo nível de proteção exigido pela LGPD:
+          </p>
+
+          <div className="mt-4 overflow-x-auto rounded-xl border border-border">
+            <table className="w-full text-xs sm:text-sm">
+              <thead className="bg-muted/50">
+                <tr className="text-left">
+                  <th className="px-3 py-2 font-semibold text-foreground">Sub-operador</th>
+                  <th className="px-3 py-2 font-semibold text-foreground">Finalidade</th>
+                  <th className="px-3 py-2 font-semibold text-foreground">Local</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                <tr>
+                  <td className="px-3 py-2">
+                    <strong className="text-foreground">Supabase</strong>
+                    <br />
+                    <a href="https://supabase.com/legal/dpa" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline text-[10px]">DPA</a>
+                  </td>
+                  <td className="px-3 py-2">Hospedagem, banco de dados, autenticação, armazenamento de arquivos e funções servidor (edge functions).</td>
+                  <td className="px-3 py-2">AWS <strong>São Paulo (BR)</strong></td>
+                </tr>
+                <tr>
+                  <td className="px-3 py-2">
+                    <strong className="text-foreground">Amazon Web Services</strong>
+                    <br />
+                    <a href="https://aws.amazon.com/compliance/data-protection/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline text-[10px]">Compliance</a>
+                  </td>
+                  <td className="px-3 py-2">Infraestrutura física sob a Supabase — servidores, rede e armazenamento em bloco.</td>
+                  <td className="px-3 py-2">São Paulo (BR)</td>
+                </tr>
+                <tr>
+                  <td className="px-3 py-2">
+                    <strong className="text-foreground">Mercado Pago</strong>
+                    <br />
+                    <a href="https://www.mercadopago.com.br/privacidade" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline text-[10px]">Privacidade</a>
+                  </td>
+                  <td className="px-3 py-2">Processamento de pagamentos da assinatura (Pix, boleto, cartão). Dados do cartão nunca trafegam nem ficam armazenados em nossa infra — tokenização direta.</td>
+                  <td className="px-3 py-2">Brasil / Argentina</td>
+                </tr>
+                <tr>
+                  <td className="px-3 py-2">
+                    <strong className="text-foreground">Resend</strong>
+                    <br />
+                    <a href="https://resend.com/legal/privacy-policy" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline text-[10px]">Privacidade</a>
+                  </td>
+                  <td className="px-3 py-2">Envio de e-mails transacionais (recuperação de senha, avisos de vencimento fiscal, alertas de cobrança).</td>
+                  <td className="px-3 py-2">EUA</td>
+                </tr>
+                <tr>
+                  <td className="px-3 py-2">
+                    <strong className="text-foreground">Google Analytics 4</strong>
+                    <br />
+                    <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline text-[10px]">Privacidade</a>
+                  </td>
+                  <td className="px-3 py-2">Análise estatística de uso do site (páginas visitadas, performance). <strong>IP anonimizado</strong>, sem cookies de publicidade. Só ativo após consentimento explícito.</td>
+                  <td className="px-3 py-2">EUA</td>
+                </tr>
+                <tr>
+                  <td className="px-3 py-2">
+                    <strong className="text-foreground">Google Gemini</strong>
+                    <br />
+                    <a href="https://ai.google.dev/gemini-api/terms" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline text-[10px]">Termos</a>
+                  </td>
+                  <td className="px-3 py-2">Funcionalidades de inteligência artificial (cadastro por foto, insights). Enviamos apenas o conteúdo estritamente necessário — não enviamos dados de clientes ou vendas.</td>
+                  <td className="px-3 py-2">EUA</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <p className="mt-4 text-xs">
+            <strong>Transferência internacional:</strong> sub-operadores localizados fora do Brasil
+            (Resend e Google) operam sob salvaguardas adequadas conforme art. 33 da LGPD —
+            cláusulas contratuais padrão e certificações de conformidade. O armazenamento
+            principal dos seus dados operacionais (vendas, estoque, clientes, NF-e) permanece
+            integralmente no Brasil.
+          </p>
+
+          <p className="mt-3 text-xs">
+            Também podemos compartilhar dados com <strong>autoridades competentes</strong> quando
+            exigido por lei (intimação judicial, fiscalização da Receita Federal/SEFAZ).
+          </p>
         </section>
 
         <section>
