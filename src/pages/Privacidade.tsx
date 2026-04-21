@@ -1,9 +1,27 @@
 import { Link } from "react-router-dom";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Cookie } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { LEGAL_CONFIG } from "@/config/legal";
+import { getConsent, setConsent } from "@/lib/consent";
 
-const Privacidade = () => (
+const Privacidade = () => {
+  const current = typeof window !== "undefined" ? getConsent() : null;
+  const currentLabel =
+    current?.status === "accepted"
+      ? "Você aceitou cookies de analytics."
+      : current?.status === "rejected"
+      ? "Você recusou cookies de analytics — apenas essenciais são usados."
+      : "Você ainda não decidiu — o banner aparecerá na próxima visita.";
+
+  const handleSet = (accepted: boolean) => {
+    setConsent(accepted);
+    toast.success(
+      accepted ? "Cookies de analytics ativados." : "Cookies de analytics desativados.",
+    );
+  };
+
+  return (
   <div className="h-screen overflow-y-auto bg-background text-foreground">
     <div className="max-w-3xl mx-auto px-6 py-12">
       <Button asChild variant="ghost" size="sm" className="mb-8">
@@ -133,8 +151,51 @@ const Privacidade = () => (
         </section>
 
         <section>
-          <h2 className="text-xl font-semibold text-foreground">8. Cookies</h2>
-          <p>Utilizamos cookies essenciais para o funcionamento do sistema (autenticação e preferências). Não utilizamos cookies de rastreamento de terceiros para publicidade.</p>
+          <h2 className="text-xl font-semibold text-foreground">8. Cookies e tecnologias similares</h2>
+          <p>
+            Utilizamos dois tipos de cookies e armazenamento local, nenhum para publicidade:
+          </p>
+          <ul className="list-disc pl-6 space-y-2 mt-2">
+            <li>
+              <strong>Essenciais</strong> — autenticação, preferências de tema, cache offline do PDV,
+              tokens de sessão. Sem eles o sistema não funciona e por isso não exigem consentimento.
+            </li>
+            <li>
+              <strong>Analytics (opcional)</strong> — Google Analytics 4 (GA4) com IP anonimizado.
+              Coleta estatísticas agregadas de uso (páginas visitadas, performance, dispositivos)
+              sem identificar você pessoalmente. Sinalizadores <em>ad_storage</em>,{" "}
+              <em>ad_user_data</em> e <em>ad_personalization</em> estão explicitamente desabilitados
+              — ou seja, seus dados não são usados para anúncios personalizados.
+            </li>
+          </ul>
+
+          <div className="mt-5 rounded-xl border border-border bg-card p-4">
+            <div className="flex items-start gap-3">
+              <Cookie className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-foreground mb-1">
+                  Suas preferências de cookies
+                </p>
+                <p className="text-xs text-muted-foreground mb-3">{currentLabel}</p>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <Button
+                    size="sm"
+                    variant={current?.status === "accepted" ? "default" : "outline"}
+                    onClick={() => handleSet(true)}
+                  >
+                    Aceitar analytics
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={current?.status === "rejected" ? "default" : "outline"}
+                    onClick={() => handleSet(false)}
+                  >
+                    Apenas essenciais
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
         </section>
 
         <section>
@@ -165,6 +226,7 @@ const Privacidade = () => (
       </div>
     </div>
   </div>
-);
+  );
+};
 
 export default Privacidade;

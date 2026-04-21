@@ -18,6 +18,7 @@ import { HelmetProvider } from "react-helmet-async";
 import { useSessionControl } from "@/hooks/useSessionControl";
 import { ScrollToTop } from "@/components/ScrollToTop";
 import { AnalyticsTracker } from "@/components/AnalyticsTracker";
+import { CookieConsent } from "@/components/CookieConsent";
 import { OnboardingWizard } from "@/components/onboarding/OnboardingWizard";
 import { EmissorOnboardingWizard } from "@/components/onboarding/EmissorOnboardingWizard";
 import { useTermsAcceptance } from "@/hooks/useTermsAcceptance";
@@ -398,6 +399,7 @@ const App = () => (
                     <UpdateNoticeModal />
                     <MaintenanceBanner />
                     <GlobalConsentsGate />
+                    <CookieConsent />
                     <AppRoutes />
                   </WalkthroughProvider>
                 </LocalDBProvider>

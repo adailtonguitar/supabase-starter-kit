@@ -44,28 +44,44 @@
     <!--
       Google Analytics 4 — G-YQCQ2JSS8C
       - anonymize_ip: evita armazenar IP completo (LGPD friendly).
-      - consent default: analytics_storage=granted, ad_storage=denied.
-        Quando o banner de cookies for implementado, basta chamar
-        gtag('consent', 'update', { analytics_storage: 'granted'|'denied' }).
+      - consent default: LIDO do localStorage (as_cookie_consent_v1).
+        Se o usuário ainda não decidiu (primeira visita), fica denied.
+        O banner de cookies (src/components/CookieConsent.tsx) chama
+        updateConsent() de @/lib/analytics ao decidir.
       - send_page_view: false — a SPA dispara page_view manualmente via
         src/lib/analytics.ts em cada troca de rota.
     -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-YQCQ2JSS8C"></script>
     <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){ dataLayer.push(arguments); }
-      window.gtag = gtag;
-      gtag('consent', 'default', {
-        analytics_storage: 'granted',
-        ad_storage: 'denied',
-        ad_user_data: 'denied',
-        ad_personalization: 'denied'
-      });
-      gtag('js', new Date());
-      gtag('config', 'G-YQCQ2JSS8C', {
-        anonymize_ip: true,
-        send_page_view: false
-      });
+      (function () {
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){ dataLayer.push(arguments); }
+        window.gtag = gtag;
+
+        // Lê consent salvo antes de qualquer evento. Default = denied (LGPD).
+        var initialAnalytics = 'denied';
+        try {
+          var raw = localStorage.getItem('as_cookie_consent_v1');
+          if (raw) {
+            var parsed = JSON.parse(raw);
+            if (parsed && parsed.status === 'accepted') {
+              initialAnalytics = 'granted';
+            }
+          }
+        } catch (_) { /* localStorage bloqueado (modo anônimo estrito) */ }
+
+        gtag('consent', 'default', {
+          analytics_storage: initialAnalytics,
+          ad_storage: 'denied',
+          ad_user_data: 'denied',
+          ad_personalization: 'denied'
+        });
+        gtag('js', new Date());
+        gtag('config', 'G-YQCQ2JSS8C', {
+          anonymize_ip: true,
+          send_page_view: false
+        });
+      })();
     </script>
   </head>
 
