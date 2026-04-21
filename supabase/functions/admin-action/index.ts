@@ -1,5 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { sendExternalAlert } from "../_shared/alerts.ts";
+import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 
 const ALLOWED_ORIGINS = [
   "https://anthosystemcombr.lovable.app",
@@ -64,6 +65,17 @@ Deno.serve(async (req) => {
 
     const body = await req.json();
     const { action } = body;
+
+    // ── Rate limit server-side: última defesa contra token comprometido
+    // ── ou client modificado. Janela de 60s, 20 ações por user/ação.
+    // ── Coerente com adminActionLimiter do frontend (20/60s).
+    if (action) {
+      const rlKey = `admin-action:${userId}:${action}`;
+      const rl = await checkRateLimit(adminClient, rlKey, 20, 60);
+      if (!rl.allowed) {
+        return rateLimitResponse(rl, getCorsHeaders(req));
+      }
+    }
 
     // ── close_stuck_cash_sessions ──
     if (action === "close_stuck_cash_sessions") {

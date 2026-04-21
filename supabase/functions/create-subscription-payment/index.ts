@@ -1,4 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 
 const ALLOWED_ORIGINS = [
   "https://anthosystemcombr.lovable.app",
@@ -60,6 +61,13 @@ Deno.serve(async (req) => {
         JSON.stringify({ error: "Usuário sem e-mail" }),
         { status: 400, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } }
       );
+    }
+
+    // Rate limit: 5 tentativas por minuto por usuário (idempotente e ainda
+    // toca Mercado Pago). Evita bots e clicks acidentais em loop.
+    const rl = await checkRateLimit(supabase, `create-subscription-payment:${userId}`, 5, 60);
+    if (!rl.allowed) {
+      return rateLimitResponse(rl, getCorsHeaders(req));
     }
 
     // Get company_id

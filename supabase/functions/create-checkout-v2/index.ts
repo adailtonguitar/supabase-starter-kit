@@ -1,4 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 
 const ALLOWED_ORIGINS = [
   "https://anthosystemcombr.lovable.app",
@@ -57,6 +58,18 @@ Deno.serve(async (req) => {
     }
 
     const userId = user.id;
+
+    // Rate limit: checkout é caro (chamada Mercado Pago) e não deve ser
+    // clicado em loop. 5 tentativas por minuto por usuário.
+    const adminRl = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    );
+    const rl = await checkRateLimit(adminRl, `create-checkout:${userId}`, 5, 60);
+    if (!rl.allowed) {
+      return rateLimitResponse(rl, getCorsHeaders(req));
+    }
+
     let companyId: string | null = null;
 
     // Block demo accounts from checkout

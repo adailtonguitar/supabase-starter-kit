@@ -1,4 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 
 const ALLOWED_ORIGINS = [
   "https://anthosystemcombr.lovable.app",
@@ -72,6 +73,13 @@ Deno.serve(async (req) => {
 
     if (!roleData) {
       return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403, headers: getCorsHeaders(req) });
+    }
+
+    // Rate limit server-side: 60 queries por usuário em janela de 60s.
+    // Coerente com adminQueryLimiter do frontend. Fail-open em erro da RPC.
+    const rl = await checkRateLimit(adminClient, `admin-query:${userId}`, 60, 60);
+    if (!rl.allowed) {
+      return rateLimitResponse(rl, getCorsHeaders(req));
     }
 
     const body = await req.json();

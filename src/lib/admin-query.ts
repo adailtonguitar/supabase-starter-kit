@@ -23,6 +23,19 @@ function notifyRateLimited(fn: string, retryAfterMs: number) {
   console.warn(`[rate-limit] ${fn} bloqueado por ${retryAfterMs}ms`);
 }
 
+function notifyServerRateLimited(fn: string) {
+  toast.error(
+    `Limite do servidor atingido para ${fn}. Aguarde um pouco antes de tentar de novo.`,
+    { id: `rl-server-${fn}`, duration: 5000 },
+  );
+  console.warn(`[rate-limit:server] 429 em ${fn}`);
+}
+
+function isServer429(err: unknown): boolean {
+  const e = err as { context?: { response?: { status?: number } }; status?: number };
+  return e?.context?.response?.status === 429 || e?.status === 429;
+}
+
 export async function adminQuery<T = any>(params: AdminQueryParams): Promise<T[]> {
   const { allowed, retryAfterMs } = adminQueryLimiter.check("admin-query");
   if (!allowed) {
@@ -35,6 +48,7 @@ export async function adminQuery<T = any>(params: AdminQueryParams): Promise<T[]
       body: params,
     });
     if (error) {
+      if (isServer429(error)) notifyServerRateLimited("admin-query");
       console.warn("[adminQuery] edge error:", error.message || error);
       return [];
     }
@@ -102,6 +116,10 @@ export async function adminAction<T = unknown>(
   try {
     const { data, error } = await supabase.functions.invoke("admin-action", { body });
     if (error) {
+      if (isServer429(error)) {
+        notifyServerRateLimited(`admin-action:${actionKey}`);
+        return { ok: false, data: null, error: "rate_limited", rateLimited: true };
+      }
       return { ok: false, data: null, error: error.message || "edge_error" };
     }
     const payload = (data ?? {}) as Record<string, unknown>;
