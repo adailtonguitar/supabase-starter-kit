@@ -10,9 +10,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import { Save, RefreshCw, Trash2, Loader2 } from "lucide-react";
+import { Save, RefreshCw, Trash2, Loader2, LogIn } from "lucide-react";
 import { logAction } from "@/services/ActionLogger";
 import { useAuth } from "@/hooks/useAuth";
+import { useCompany } from "@/hooks/useCompany";
+import { useNavigate } from "react-router-dom";
+import { startImpersonation } from "@/lib/impersonation";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -47,6 +50,37 @@ const PLAN_PRESETS: Record<string, Partial<PlanRow>> = {
 
 export function AdminSubscriptions() {
   const { user } = useAuth();
+  const { companyId, switchCompany } = useCompany();
+  const navigate = useNavigate();
+  const [impersonating, setImpersonating] = useState<string | null>(null);
+
+  const impersonate = async (row: PlanRow) => {
+    if (!row.company_id) return;
+    const reason = window.prompt(
+      `Motivo da impersonation em "${row.company_name ?? row.company_id}" (registrado em auditoria):`,
+      "",
+    );
+    if (reason === null) return;
+    setImpersonating(row.company_id);
+    try {
+      await startImpersonation({
+        companyId: row.company_id,
+        reason: reason.trim() || undefined,
+        currentCompanyId: companyId,
+      });
+      toast.success("Sessão iniciada. Redirecionando…");
+      switchCompany(row.company_id);
+      setTimeout(() => navigate("/dashboard"), 400);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Falha ao iniciar impersonation";
+      if (msg.includes("mfa_required")) {
+        toast.error("Ative 2FA em Configurações antes de impersonar.");
+      } else {
+        toast.error(msg);
+      }
+    }
+    setImpersonating(null);
+  };
   const [plans, setPlans] = useState<PlanRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -397,6 +431,20 @@ export function AdminSubscriptions() {
                         <Save className="h-3.5 w-3.5 mr-1" /> {saving === row.id ? "Salvando..." : "Salvar"}
                       </Button>
                     </div>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="w-full"
+                      onClick={() => impersonate(row)}
+                      disabled={impersonating === row.company_id}
+                    >
+                      {impersonating === row.company_id ? (
+                        <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+                      ) : (
+                        <LogIn className="h-3.5 w-3.5 mr-1" />
+                      )}
+                      Entrar como esta empresa
+                    </Button>
                   </div>
                 ))}
               </div>
@@ -474,9 +522,24 @@ export function AdminSubscriptions() {
                           </Button>
                         </TableCell>
                         <TableCell className="text-right">
-                          <Button size="sm" variant="outline" onClick={() => savePlan(row)} disabled={saving === row.id}>
-                            <Save className="h-3.5 w-3.5 mr-1" /> {saving === row.id ? "..." : "Salvar"}
-                          </Button>
+                          <div className="flex gap-1 justify-end">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => impersonate(row)}
+                              disabled={impersonating === row.company_id}
+                              title="Entrar como esta empresa (auditado)"
+                            >
+                              {impersonating === row.company_id ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <LogIn className="h-3.5 w-3.5" />
+                              )}
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={() => savePlan(row)} disabled={saving === row.id}>
+                              <Save className="h-3.5 w-3.5 mr-1" /> {saving === row.id ? "..." : "Salvar"}
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}

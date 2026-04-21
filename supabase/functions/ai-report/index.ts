@@ -1,4 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { isFeatureEnabled } from "../_shared/feature-flags.ts";
+import { checkAiQuota, logAiUsage } from "../_shared/ai-usage.ts";
 
 const ALLOWED_ORIGINS = [
   "https://anthosystemcombr.lovable.app",
@@ -561,6 +563,23 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "company_id required" }), { status: 400, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } });
     }
 
+    // ── Kill switch (feature flag) ──
+    const sbAdminFlag = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    );
+    const flagEnabled = await isFeatureEnabled(sbAdminFlag, "ai_report", company_id);
+    if (!flagEnabled) {
+      return new Response(
+        JSON.stringify({
+          error: "Relatórios com IA temporariamente indisponíveis.",
+          code: "FEATURE_DISABLED",
+          feature: "ai_report",
+        }),
+        { status: 503, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } },
+      );
+    }
+
     // Verify user belongs to the requested company (prevent IDOR)
     const { data: membership, error: memberErr } = await supabase
       .from("company_users")
@@ -588,6 +607,22 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "Limite de relatórios excedido. Aguarde 1 minuto." }), {
         status: 429, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
       });
+    }
+
+    // ── Quota mensal por plano ──
+    const quota = await checkAiQuota(sbAdminFlag, company_id, "ai_report");
+    if (!quota.allowed) {
+      return new Response(
+        JSON.stringify({
+          error: quota.reason ?? "Limite mensal de relatórios IA atingido para o seu plano.",
+          code: "QUOTA_EXCEEDED",
+          feature: "ai_report",
+          plan: quota.plan,
+          used: quota.used,
+          limit: quota.limit,
+        }),
+        { status: 429, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } },
+      );
     }
 
     const today = new Date().toISOString().split("T")[0];
@@ -619,9 +654,24 @@ Deno.serve(async (req) => {
       const dataSummary = buildDataSummary(report_type || "general", sales, products, financial);
       const systemPrompt = getSystemPrompt(report_type || "general", isQuick);
 
+      const startedAt = Date.now();
       const aiContent = await callGemini(GEMINI_KEY, systemPrompt, dataSummary, isQuick);
       
       if (aiContent) {
+        // Log de uso bem-sucedido (model/tokens desconhecidos nesta função — usa estimativa).
+        logAiUsage(sbAdminFlag, {
+          companyId: company_id,
+          userId: user.id,
+          functionName: "ai_report",
+          provider: "google",
+          model: isQuick ? "gemini-2.0-flash-lite" : "gemini-2.0-flash",
+          tokensPrompt: Math.ceil((systemPrompt.length + dataSummary.length) / 3.5),
+          tokensCompletion: Math.ceil(aiContent.length / 3.5),
+          success: true,
+          latencyMs: Date.now() - startedAt,
+          metadata: { report_type: report_type ?? "general" },
+        }).catch(() => { /* fail-open */ });
+
         return new Response(JSON.stringify({ report: aiContent }), {
           headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
         });

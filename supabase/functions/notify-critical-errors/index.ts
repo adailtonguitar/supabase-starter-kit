@@ -17,6 +17,7 @@
  */
 
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { sendExternalAlert } from "../_shared/alerts.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -219,11 +220,23 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    if (!resendKey) {
-      return new Response(JSON.stringify({ error: "RESEND_API_KEY not configured" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    // RESEND é opcional agora: se só canais externos (Discord/Slack/Telegram)
+    // estiverem configurados, ainda conseguimos notificar.
+    const hasDiscord = !!Deno.env.get("ALERT_DISCORD_WEBHOOK_URL");
+    const hasSlack = !!Deno.env.get("ALERT_SLACK_WEBHOOK_URL");
+    const hasTelegram =
+      !!Deno.env.get("ALERT_TELEGRAM_BOT_TOKEN") &&
+      !!Deno.env.get("ALERT_TELEGRAM_CHAT_ID");
+    const hasAnyChannel = !!resendKey || hasDiscord || hasSlack || hasTelegram;
+
+    if (!hasAnyChannel) {
+      return new Response(
+        JSON.stringify({
+          error:
+            "Nenhum canal de notificação configurado (RESEND_API_KEY, ALERT_DISCORD_WEBHOOK_URL, ALERT_SLACK_WEBHOOK_URL ou ALERT_TELEGRAM_*)",
+        }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
     }
 
     const admin = createClient(supabaseUrl, serviceKey);
@@ -300,59 +313,122 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Envia e-mail
+    // Envia e-mail (se RESEND estiver configurado)
     const subject = `⚠️ ${criticalErrors.length > 0 ? criticalErrors.length + " erro(s) crítico(s) — " : ""}${errors.length} erro(s) total — AnthoSystem`;
     const html = buildEmailHtml(classified, groups);
 
-    const resendRes = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${resendKey}`,
+    let emailStatus: "ok" | "skipped" | "error" = "skipped";
+    let resendId: string | null = null;
+    let emailError: string | null = null;
+
+    if (resendKey) {
+      try {
+        const resendRes = await fetch("https://api.resend.com/emails", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${resendKey}`,
+          },
+          body: JSON.stringify({
+            from: "Antho System Alerts <noreply@anthosystem.com.br>",
+            to: [NOTIFICATION_EMAIL],
+            subject,
+            html,
+          }),
+        });
+
+        if (!resendRes.ok) {
+          const text = await resendRes.text();
+          console.error("[notify-critical-errors] Resend failed:", resendRes.status, text);
+          emailStatus = "error";
+          emailError = `HTTP ${resendRes.status}: ${text.slice(0, 300)}`;
+        } else {
+          const resendData = await resendRes.json().catch(() => ({}));
+          resendId = resendData?.id ?? null;
+          emailStatus = "ok";
+        }
+      } catch (err) {
+        console.error("[notify-critical-errors] Resend threw:", err);
+        emailStatus = "error";
+        emailError = err instanceof Error ? err.message : String(err);
+      }
+    }
+
+    // Fan-out para canais externos (Discord/Slack/Telegram).
+    // Envia só os erros críticos ou um resumo agregado.
+    const topCritical = criticalErrors.slice(0, 5);
+    const topFingerprints = Array.from(groups.entries())
+      .sort((a, b) => b[1].length - a[1].length)
+      .slice(0, 3)
+      .map(([, errs]) => `${errs.length}× ${errs[0].error_message.slice(0, 80)}`);
+
+    const severity: "critical" | "warning" = criticalErrors.length > 0 ? "critical" : "warning";
+    const alertMessage = [
+      `**${errors.length}** erro(s) detectado(s) nos últimos minutos — **${criticalErrors.length}** crítico(s) em **${distinctCount}** grupo(s) distinto(s).`,
+      "",
+      ...(topCritical.length > 0
+        ? [
+          "**Críticos (top 5):**",
+          ...topCritical.map(
+            (e) =>
+              `• [${e.critical_reason}] ${e.error_message.slice(0, 120)}${e.user_email ? ` (${e.user_email})` : ""}`,
+          ),
+        ]
+        : []),
+      ...(topFingerprints.length > 0
+        ? ["", "**Grupos mais frequentes:**", ...topFingerprints.map((s) => `• ${s}`)]
+        : []),
+    ].join("\n");
+
+    const externalAlert = await sendExternalAlert({
+      title: subject,
+      message: alertMessage,
+      severity,
+      source: "notify-critical-errors",
+      url: "https://anthosystem.com.br/registro-erros",
+      fields: {
+        total: errors.length,
+        criticos: criticalErrors.length,
+        grupos: distinctCount,
+        max_repeticoes: maxGroupCount,
       },
-      body: JSON.stringify({
-        from: "Antho System Alerts <noreply@anthosystem.com.br>",
-        to: [NOTIFICATION_EMAIL],
-        subject,
-        html,
-      }),
     });
 
-    if (!resendRes.ok) {
-      const text = await resendRes.text();
-      console.error("[notify-critical-errors] Resend failed:", resendRes.status, text);
-      return new Response(
-        JSON.stringify({
-          error: "Failed to send email",
-          status: resendRes.status,
-          details: text,
-        }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
+    // Marca como notificados — só se pelo menos UM canal entregou (email OU externo).
+    const anyDelivered =
+      emailStatus === "ok" ||
+      externalAlert.discord === "ok" ||
+      externalAlert.slack === "ok" ||
+      externalAlert.telegram === "ok";
+
+    let markedCount = 0;
+    if (anyDelivered) {
+      const allIds = errors.map((e) => e.id);
+      const { error: updErr } = await admin
+        .from("system_errors")
+        .update({ notified_at: new Date().toISOString() })
+        .in("id", allIds);
+
+      if (updErr) {
+        console.error("[notify-critical-errors] Mark notified failed:", updErr);
+      } else {
+        markedCount = allIds.length;
+      }
     }
-
-    // Marca como notificados
-    const allIds = errors.map((e) => e.id);
-    const { error: updErr } = await admin
-      .from("system_errors")
-      .update({ notified_at: new Date().toISOString() })
-      .in("id", allIds);
-
-    if (updErr) {
-      console.error("[notify-critical-errors] Mark notified failed:", updErr);
-      // e-mail já foi; não retornamos erro total
-    }
-
-    const resendData = await resendRes.json().catch(() => ({}));
 
     return new Response(
       JSON.stringify({
-        ok: true,
-        notified: allIds.length,
+        ok: anyDelivered,
+        notified: markedCount,
         critical_count: criticalErrors.length,
         distinct_groups: distinctCount,
-        email_sent_to: NOTIFICATION_EMAIL,
-        resend_id: resendData?.id ?? null,
+        email: {
+          status: emailStatus,
+          sent_to: emailStatus === "ok" ? NOTIFICATION_EMAIL : null,
+          resend_id: resendId,
+          error: emailError,
+        },
+        external: externalAlert,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );

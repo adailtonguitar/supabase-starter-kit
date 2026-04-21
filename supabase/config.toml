@@ -41,6 +41,12 @@ verify_jwt = false
 [functions.notify-critical-errors]
 verify_jwt = false
 
+[functions.process-dunning]
+verify_jwt = false
+
+[functions.notify-fiscal-certificate]
+verify_jwt = false
+
 [functions.export-my-data]
 verify_jwt = false
 

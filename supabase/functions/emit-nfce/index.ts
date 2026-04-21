@@ -17,6 +17,7 @@ const DEPLOY_TIMESTAMP = new Date().toISOString();
 console.log(`[BOOT] ${BACKEND_VERSION_MARKER} deployed_at=${DEPLOY_TIMESTAMP}`);
 
 import { corsHeaders, createServiceClient, jsonResponse, requireCompanyMembership, requireUser } from "../_shared/auth.ts";
+import { isFeatureEnabled } from "../_shared/feature-flags.ts";
 import {
   classifyAndNormalizePayment,
   normalizePaymentsForNfce,
@@ -4199,6 +4200,33 @@ Deno.serve(async (req) => {
       }
     }
     const supabase = createServiceClient();
+
+    // ── Kill switch (feature flags) ──
+    // Bloqueia só ações de emissão — consultas, downloads, etc. continuam funcionando
+    // para o cliente não perder acesso a notas já emitidas durante um incidente.
+    const companyIdForFlag = body.company_id ? String(body.company_id) : null;
+    if (action === "emit" || action === "emit_from_sale") {
+      const flagOk = await isFeatureEnabled(supabase, "emit_nfce", companyIdForFlag);
+      if (!flagOk) {
+        return jsonResponse({
+          ok: false,
+          error: "Emissão de NFCe temporariamente desligada pela equipe AnthoSystem. Tente novamente em alguns minutos.",
+          code: "FEATURE_DISABLED",
+          feature: "emit_nfce",
+        }, 503);
+      }
+    }
+    if (action === "emit_nfe") {
+      const flagOk = await isFeatureEnabled(supabase, "emit_nfe", companyIdForFlag);
+      if (!flagOk) {
+        return jsonResponse({
+          ok: false,
+          error: "Emissão de NFe temporariamente desligada pela equipe AnthoSystem. Tente novamente em alguns minutos.",
+          code: "FEATURE_DISABLED",
+          feature: "emit_nfe",
+        }, 503);
+      }
+    }
 
     switch (action) {
       case "emit":

@@ -1,4 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { sendExternalAlert } from "../_shared/alerts.ts";
 
 const ALLOWED_ORIGINS = [
   "https://anthosystemcombr.lovable.app",
@@ -234,6 +235,46 @@ Deno.serve(async (req) => {
 
       if (error) throw error;
       return jsonOk(req, { success: true });
+    }
+
+    // ── test_alert_channels ──
+    // Dispara um alerta de teste nos canais externos configurados
+    // (Discord/Slack/Telegram) e retorna o status de cada um.
+    if (action === "test_alert_channels") {
+      const severity = (body.severity || "warning") as "info" | "warning" | "critical";
+      const customMessage =
+        typeof body.message === "string" && body.message.trim()
+          ? body.message.trim()
+          : "Este é um alerta de TESTE enviado pelo painel administrativo. Se você está vendo isso, o canal está funcionando corretamente.";
+
+      const hasDiscord = !!Deno.env.get("ALERT_DISCORD_WEBHOOK_URL");
+      const hasSlack = !!Deno.env.get("ALERT_SLACK_WEBHOOK_URL");
+      const hasTelegram =
+        !!Deno.env.get("ALERT_TELEGRAM_BOT_TOKEN") &&
+        !!Deno.env.get("ALERT_TELEGRAM_CHAT_ID");
+
+      const result = await sendExternalAlert({
+        title: "🧪 Teste de canal de alertas",
+        message: customMessage,
+        severity,
+        source: "admin-action/test_alert_channels",
+        url: "https://anthosystem.com.br/admin",
+        fields: {
+          enviado_por: userId,
+          severidade: severity,
+          timestamp: new Date().toISOString(),
+        },
+      });
+
+      return jsonOk(req, {
+        success: true,
+        configured: {
+          discord: hasDiscord,
+          slack: hasSlack,
+          telegram: hasTelegram,
+        },
+        result,
+      });
     }
 
     // ── get_whatsapp_support ──

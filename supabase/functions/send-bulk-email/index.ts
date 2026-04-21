@@ -1,4 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { isFeatureEnabled } from "../_shared/feature-flags.ts";
 
 const ALLOWED_ORIGINS = [
   "https://anthosystemcombr.lovable.app",
@@ -56,6 +57,19 @@ Deno.serve(async (req) => {
         status: 403,
         headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
       });
+    }
+
+    // ── Kill switch (feature flag) ──
+    const flagEnabled = await isFeatureEnabled(adminClient, "bulk_email", null);
+    if (!flagEnabled) {
+      return new Response(
+        JSON.stringify({
+          error: "Envio em massa temporariamente desligado pela administração.",
+          code: "FEATURE_DISABLED",
+          feature: "bulk_email",
+        }),
+        { status: 503, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } },
+      );
     }
 
     const body = await req.json();

@@ -1,4 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { isFeatureEnabled } from "../_shared/feature-flags.ts";
+import { checkAiQuota, logAiUsage, estimateTokensFromText } from "../_shared/ai-usage.ts";
 
 const ALLOWED_ORIGINS = [
   "https://anthosystemcombr.lovable.app",
@@ -451,7 +453,14 @@ SEGURANÇA:
 - Use o Diagnóstico Financeiro IA mensalmente para insights
 Quando não souber a resposta ou for algo fora do escopo do sistema, sugira que o usuário clique em "Falar com suporte humano" para atendimento personalizado.`;
 
-async function callGemini(messages: Array<{role: string; content: string}>): Promise<string> {
+interface GeminiResult {
+  text: string;
+  model: string;
+  tokensPrompt: number;
+  tokensCompletion: number;
+}
+
+async function callGemini(messages: Array<{role: string; content: string}>): Promise<GeminiResult> {
   const apiKey = Deno.env.get("GOOGLE_GEMINI_KEY") || Deno.env.get("GEMINI_API_KEY");
   if (!apiKey) throw new Error("GOOGLE_GEMINI_KEY ou GEMINI_API_KEY não configurada");
 
@@ -488,7 +497,14 @@ async function callGemini(messages: Array<{role: string; content: string}>): Pro
 
       const data = await res.json();
       const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (text) return text;
+      if (text) {
+        const usage = data?.usageMetadata ?? {};
+        const tokensPrompt = Number(usage.promptTokenCount ?? 0) ||
+          estimateTokensFromText(SYSTEM_PROMPT + messages.map(m => m.content).join("\n"));
+        const tokensCompletion = Number(usage.candidatesTokenCount ?? 0) ||
+          estimateTokensFromText(text);
+        return { text, model, tokensPrompt, tokensCompletion };
+      }
     } catch (err) {
       console.error(`Gemini ${model} failed:`, err);
       continue;
@@ -530,6 +546,23 @@ Deno.serve(async (req) => {
       });
     }
 
+    // ── Kill switch (feature flag) ──
+    const adminForFlag = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    );
+    const flagEnabled = await isFeatureEnabled(adminForFlag, "ai_support", null);
+    if (!flagEnabled) {
+      return new Response(
+        JSON.stringify({
+          error: "Assistente de suporte temporariamente indisponível. Tente novamente mais tarde.",
+          code: "FEATURE_DISABLED",
+          feature: "ai_support",
+        }),
+        { status: 503, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } },
+      );
+    }
+
     // Rate limiting: max 10 messages per minute per user
     const rlKey = user.id;
     const now = Date.now();
@@ -545,7 +578,7 @@ Deno.serve(async (req) => {
       rlEntry.count++;
     }
 
-    const { messages } = await req.json();
+    const { messages, company_id: companyIdFromBody } = await req.json();
     if (!messages || !Array.isArray(messages)) {
       return new Response(JSON.stringify({ error: "messages array required" }), {
         status: 400,
@@ -553,9 +586,55 @@ Deno.serve(async (req) => {
       });
     }
 
-    const answer = await callGemini(messages);
+    // Quota: quando company_id for informado, verifica antes de chamar Gemini.
+    if (companyIdFromBody) {
+      const quota = await checkAiQuota(adminForFlag, companyIdFromBody, "ai_support");
+      if (!quota.allowed) {
+        return new Response(
+          JSON.stringify({
+            error: quota.reason ?? "Quota de IA atingida para este mês.",
+            code: "QUOTA_EXCEEDED",
+            feature: "ai_support",
+            plan: quota.plan,
+            used: quota.used,
+            limit: quota.limit,
+          }),
+          { status: 429, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } },
+        );
+      }
+    }
 
-    return new Response(JSON.stringify({ answer }), {
+    const startedAt = Date.now();
+    let result: GeminiResult;
+    try {
+      result = await callGemini(messages);
+    } catch (callErr) {
+      // Log falha também, pra métricas de confiabilidade
+      await logAiUsage(adminForFlag, {
+        companyId: companyIdFromBody ?? null,
+        userId: user.id,
+        functionName: "ai_support",
+        provider: "google",
+        success: false,
+        errorCode: callErr instanceof Error ? callErr.message.slice(0, 120) : "unknown",
+        latencyMs: Date.now() - startedAt,
+      });
+      throw callErr;
+    }
+
+    await logAiUsage(adminForFlag, {
+      companyId: companyIdFromBody ?? null,
+      userId: user.id,
+      functionName: "ai_support",
+      provider: "google",
+      model: result.model,
+      tokensPrompt: result.tokensPrompt,
+      tokensCompletion: result.tokensCompletion,
+      success: true,
+      latencyMs: Date.now() - startedAt,
+    });
+
+    return new Response(JSON.stringify({ answer: result.text }), {
       headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
     });
   } catch (err) {

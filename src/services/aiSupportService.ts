@@ -648,6 +648,13 @@ export async function getResponse(
         ? [...conversationHistory, { role: "user", content: userMessage }]
         : [{ role: "user", content: userMessage }];
 
+      // Inclui company_id (se disponível) para quota tracking no servidor.
+      let companyId: string | null = null;
+      try {
+        const sel = localStorage.getItem("as_selected_company");
+        if (sel) companyId = sel;
+      } catch { /* ignore */ }
+
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 15000);
 
@@ -660,7 +667,7 @@ export async function getResponse(
             "Authorization": `Bearer ${accessToken}`,
             "apikey": supabaseKey,
           },
-          body: JSON.stringify({ messages }),
+          body: JSON.stringify({ messages, company_id: companyId }),
           signal: controller.signal,
         });
       } catch {

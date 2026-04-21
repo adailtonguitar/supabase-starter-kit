@@ -162,9 +162,21 @@ Deno.serve(async (req) => {
     const graceEndsAt = endDate ? endDate.getTime() + GRACE_PERIOD_DAYS * 24 * 60 * 60 * 1000 : null;
     const graceActive = !!endDate && !isActive && graceEndsAt !== null && now.getTime() <= graceEndsAt;
 
+    // Dunning — grace_stage progressivo (null | warning | readonly | blocked)
+    let graceStage: "warning" | "readonly" | "blocked" | null = null;
+    if (endDate && endDate < now && sub.status !== "canceled") {
+      const daysOver = Math.floor((now.getTime() - endDate.getTime()) / 86_400_000);
+      if (daysOver <= 3) graceStage = "warning";
+      else if (daysOver <= 14) graceStage = "readonly";
+      else graceStage = "blocked";
+    }
+
+    const blockedByDunning = graceStage === "blocked";
+    const readOnly = graceStage === "readonly";
+
     return new Response(
       JSON.stringify({
-        access: isActive || graceActive,
+        access: (isActive || graceActive) && !blockedByDunning,
         subscribed: isActive,
         plan_key: sub.plan_key || null,
         subscription_end: sub.subscription_end || null,
@@ -172,6 +184,12 @@ Deno.serve(async (req) => {
         last_subscription_end: sub.subscription_end || null,
         trial_ends_at: trialEndsAt,
         trial_expired: isTrialExpired,
+        grace_stage: graceStage,
+        read_only: readOnly,
+        blocked: blockedByDunning,
+        block_reason: blockedByDunning
+          ? "Assinatura vencida há mais de 14 dias. Renove para reativar."
+          : null,
       }),
       {
         status: 200,

@@ -12,6 +12,7 @@ import { PlanProvider, usePlanFeatures } from "@/hooks/usePlanFeatures";
 import { LocalDBProvider } from "@/components/providers/LocalDBProvider";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { UpdateNoticeModal } from "@/components/UpdateNoticeModal";
+import { MaintenanceBanner } from "@/components/MaintenanceBanner";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { HelmetProvider } from "react-helmet-async";
 import { useSessionControl } from "@/hooks/useSessionControl";
@@ -23,11 +24,12 @@ import { WalkthroughProvider } from "@/hooks/useWalkthrough";
 import { WalkthroughRunner } from "@/components/WalkthroughRunner";
 import { toast } from "sonner";
 import { fetchMyCompanyMemberships } from "@/lib/company-memberships";
+import { PendingConsentsDialog } from "@/components/legal/PendingConsentsDialog";
 
 import {
   LandingPage, Auth, ResetPassword, TrialExpirado, Instalar, Termos,
   ContratoSaaS, Privacidade, Suporte, Renovar, PDV, PDVCustomerDisplayPage,
-  EmissorNFe, EmissorLanding, TermosFiscais, LayoutRoutes,
+  EmissorNFe, EmissorLanding, TermosFiscais, StatusPage, LayoutRoutes,
 } from "@/routes/AppRouteDefinitions";
 
 const queryClient = new QueryClient({
@@ -291,6 +293,12 @@ function EmissorGuard({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function GlobalConsentsGate() {
+  const { user, session } = useAuth();
+  if (!user || !session) return null;
+  return <PendingConsentsDialog />;
+}
+
 function LandingRedirectWrapper() {
   const { user, session, loading } = useAuth();
   // Only redirect if we have a real session, not just a cached user
@@ -329,6 +337,7 @@ function AppRoutes() {
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/trial-expirado" element={user && session ? <TrialExpirado /> : <Navigate to="/" replace />} />
         <Route path="/pdv-display" element={<PDVCustomerDisplayPage />} />
+        <Route path="/status" element={<StatusPage />} />
         <Route path="/renovar" element={user && session ? <Renovar /> : <Navigate to="/auth" replace />} />
         <Route
           path="/pdv"
@@ -385,6 +394,8 @@ const App = () => (
                   <WalkthroughProvider>
                     <WalkthroughRunner />
                     <UpdateNoticeModal />
+                    <MaintenanceBanner />
+                    <GlobalConsentsGate />
                     <AppRoutes />
                   </WalkthroughProvider>
                 </LocalDBProvider>

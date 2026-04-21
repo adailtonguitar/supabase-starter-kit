@@ -1,5 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { nuvemFiscalRequest } from "../_shared/nuvem-fiscal-auth.ts";
+import { isFeatureEnabled } from "../_shared/feature-flags.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -27,6 +28,21 @@ Deno.serve(async (req) => {
   const results: { company: string; new_docs: number; errors: string[] }[] = [];
 
   try {
+    // ── Kill switch global ──
+    const flagEnabled = await isFeatureEnabled(supabaseAdmin, "auto_fetch_dfe", null);
+    if (!flagEnabled) {
+      return new Response(
+        JSON.stringify({
+          ok: false,
+          skipped: true,
+          code: "FEATURE_DISABLED",
+          feature: "auto_fetch_dfe",
+          message: "Busca automática de DF-e desligada pela administração.",
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
     const { data: companies } = await supabaseAdmin
       .from("companies")
       .select("id, cnpj, name")

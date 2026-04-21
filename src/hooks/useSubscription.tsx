@@ -53,6 +53,8 @@ interface SubscriptionState {
   graceDaysLeft: number | null;
   blocked: boolean;
   blockReason: string | null;
+  readOnly: boolean;
+  graceStage: "warning" | "readonly" | "blocked" | null;
 }
 
 interface SubscriptionContextType extends SubscriptionState {
@@ -72,6 +74,8 @@ const defaultState: SubscriptionState = {
   graceDaysLeft: null,
   blocked: false,
   blockReason: null,
+  readOnly: false,
+  graceStage: null,
 };
 
 const SubscriptionContext = createContext<SubscriptionContextType>({
@@ -90,6 +94,8 @@ type EdgeSubscriptionPayload = {
   trial_ends_at?: string | null;
   blocked?: boolean;
   block_reason?: string | null;
+  read_only?: boolean;
+  grace_stage?: "warning" | "readonly" | "blocked" | null;
 };
 
 async function invokeCheckSubscriptionWithTimeout(): Promise<{
@@ -165,6 +171,8 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
         graceDaysLeft: grace.graceDaysLeft,
         blocked: data.blocked === true,
         blockReason: data.blocked === true ? data.block_reason || "Acesso bloqueado pelo administrador." : null,
+        readOnly: data.read_only === true,
+        graceStage: data.grace_stage ?? null,
       };
 
       setState(nextState);

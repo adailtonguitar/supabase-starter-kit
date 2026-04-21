@@ -1,4 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { isFeatureEnabled } from "../_shared/feature-flags.ts";
+import { checkAiQuota, logAiUsage } from "../_shared/ai-usage.ts";
 
 const ALLOWED_ORIGINS = [
   "https://anthosystemcombr.lovable.app",
@@ -16,7 +18,7 @@ function getCorsHeaders(req: Request) {
   };
 }
 
-async function callGeminiVision(apiKey: string, contents: any[]): Promise<{ data: any | null; error: string | null; status: number }> {
+async function callGeminiVision(apiKey: string, contents: any[]): Promise<{ data: any | null; error: string | null; status: number; model: string | null }> {
   const models = ["gemini-2.5-flash-lite", "gemini-2.0-flash-lite", "gemini-2.0-flash", "gemini-1.5-flash"];
   
   for (const model of models) {
@@ -49,14 +51,14 @@ async function callGeminiVision(apiKey: string, contents: any[]): Promise<{ data
 
       const data = await resp.json();
       console.log(`[analyze-product-image] Sucesso com ${model}!`);
-      return { data, error: null, status: 200 };
+      return { data, error: null, status: 200, model };
     } catch (err: any) {
       console.error(`[analyze-product-image] Erro de rede no ${model}:`, err?.message);
       continue;
     }
   }
 
-  return { data: null, error: "Todos os modelos falharam. Aguarde 1-2 minutos.", status: 429 };
+  return { data: null, error: "Todos os modelos falharam. Aguarde 1-2 minutos.", status: 429, model: null };
 }
 
 Deno.serve(async (req) => {
@@ -98,6 +100,22 @@ Deno.serve(async (req) => {
       });
     }
 
+    // ── Kill switch (feature flag) ──
+    const supabaseUrlFlag = Deno.env.get("SUPABASE_URL")!;
+    const serviceRoleKeyFlag = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const sbAdminFlag = createClient(supabaseUrlFlag, serviceRoleKeyFlag);
+    const flagEnabled = await isFeatureEnabled(sbAdminFlag, "ai_product_image", company_id ?? null);
+    if (!flagEnabled) {
+      return new Response(
+        JSON.stringify({
+          error: "Análise de imagem com IA temporariamente indisponível.",
+          code: "FEATURE_DISABLED",
+          feature: "ai_product_image",
+        }),
+        { status: 503, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } },
+      );
+    }
+
     // Rate limiting: max 10 analyses per minute per company
     if (company_id) {
       const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -113,6 +131,22 @@ Deno.serve(async (req) => {
         return new Response(JSON.stringify({ error: "Limite de análises excedido. Aguarde 1 minuto." }), {
           status: 429, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
         });
+      }
+
+      // Quota mensal por plano
+      const quota = await checkAiQuota(sbAdmin, company_id, "ai_product_image");
+      if (!quota.allowed) {
+        return new Response(
+          JSON.stringify({
+            error: quota.reason ?? "Limite de análises por IA do seu plano atingido.",
+            code: "QUOTA_EXCEEDED",
+            feature: "ai_product_image",
+            plan: quota.plan,
+            used: quota.used,
+            limit: quota.limit,
+          }),
+          { status: 429, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } },
+        );
       }
     }
 
@@ -191,7 +225,28 @@ ${categoriesHint}
       },
     ];
 
+    const startedAt = Date.now();
     const result = await callGeminiVision(GEMINI_KEY, contents);
+    const latencyMs = Date.now() - startedAt;
+
+    // Log de uso (sucesso ou falha) — sempre async, nunca bloqueante
+    const sbAdminLog = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    );
+    const usage = result.data?.usageMetadata ?? {};
+    logAiUsage(sbAdminLog, {
+      companyId: company_id ?? null,
+      userId: (claimsData.claims.sub as string | undefined) ?? null,
+      functionName: "ai_product_image",
+      provider: "google",
+      model: result.model ?? undefined,
+      tokensPrompt: Number(usage.promptTokenCount ?? 0),
+      tokensCompletion: Number(usage.candidatesTokenCount ?? 0),
+      success: Boolean(result.data),
+      errorCode: result.data ? undefined : (result.error ?? "unknown").slice(0, 120),
+      latencyMs,
+    }).catch(() => { /* fail-open */ });
 
     if (!result.data) {
       return new Response(JSON.stringify({ error: result.error }), {

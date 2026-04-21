@@ -169,9 +169,18 @@ const Suporte = () => (
         <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
           <li>1. Nome da empresa cadastrada no sistema</li>
           <li>2. E-mail do usuário que está com o problema</li>
-          <li>3. Descrição do que tentou fazer e o que aconteceu</li>
-          <li>4. Quando possível, uma captura de tela</li>
+          <li>3. <strong>Código de suporte</strong> (se apareceu na tela de erro — começa com <code className="bg-muted px-1 rounded">AS-</code>)</li>
+          <li>4. Descrição do que tentou fazer e o que aconteceu</li>
+          <li>5. Quando possível, uma captura de tela</li>
         </ul>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Button asChild size="sm" variant="outline">
+            <Link to="/status">Ver status do sistema</Link>
+          </Button>
+          <Button asChild size="sm" variant="ghost">
+            <Link to="/ajuda">Central de Ajuda</Link>
+          </Button>
+        </div>
       </section>
 
       <p className="text-xs text-center text-muted-foreground mt-10">

@@ -13,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Shield, ShieldCheck, Activity, Search, Ban, CheckCircle, LayoutDashboard, Users, CreditCard, FileText, DollarSign, Trash2, FlaskConical, MessageCircle, Save, Loader2, Pencil, Mail, ShoppingCart, Bug, Stethoscope, TrendingUp, Megaphone, Heart, Bell, Database, Receipt, Bot, Radio, Brain } from "lucide-react";
+import { Shield, ShieldCheck, Activity, Search, Ban, CheckCircle, LayoutDashboard, Users, CreditCard, FileText, DollarSign, Trash2, FlaskConical, MessageCircle, Save, Loader2, Pencil, Mail, ShoppingCart, Bug, Stethoscope, TrendingUp, Megaphone, Heart, Bell, Database, Receipt, Bot, Radio, Brain, ToggleRight } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { AdminDashboard } from "@/components/admin/AdminDashboard";
 import { AdminSubscriptions } from "@/components/admin/AdminSubscriptions";
@@ -34,6 +34,11 @@ import { AdminAuditoria } from "@/components/admin/AdminAuditoria";
 import { AdminSmokeRunner } from "@/components/admin/AdminSmokeRunner";
 import { AdminNcmLearning } from "@/components/admin/AdminNcmLearning";
 import { AdminFiscalAudit } from "@/components/admin/AdminFiscalAudit";
+import { AdminAlertChannels } from "@/components/admin/AdminAlertChannels";
+import { AdminFeatureFlags } from "@/components/admin/AdminFeatureFlags";
+import { AdminAiUsage } from "@/components/admin/AdminAiUsage";
+import { AdminSecurity } from "@/components/admin/AdminSecurity";
+import { AdminFiscalMonitor } from "@/components/admin/AdminFiscalMonitor";
 import { lazy, Suspense } from "react";
 
 const FiscalRadarPage = lazy(() => import("./admin/FiscalRadar"));
@@ -125,6 +130,11 @@ export default function Admin() {
           <TabsTrigger value="ncm-ia" className="text-xs sm:text-sm"><Brain className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" /> NCM IA</TabsTrigger>
           <TabsTrigger value="fiscal-audit" className="text-xs sm:text-sm"><ShieldCheck className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" /> Auditoria Fiscal</TabsTrigger>
           <TabsTrigger value="fiscal-radar" className="text-xs sm:text-sm"><Radio className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" /> Radar Fiscal</TabsTrigger>
+          <TabsTrigger value="alert-channels" className="text-xs sm:text-sm"><Radio className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" /> <span className="hidden sm:inline">Canais Alerta</span><span className="sm:hidden">Alertas</span></TabsTrigger>
+          <TabsTrigger value="feature-flags" className="text-xs sm:text-sm"><ToggleRight className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" /> <span className="hidden sm:inline">Feature Flags</span><span className="sm:hidden">Flags</span></TabsTrigger>
+          <TabsTrigger value="ai-usage" className="text-xs sm:text-sm"><Brain className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" /> <span className="hidden sm:inline">Custo IA</span><span className="sm:hidden">IA $</span></TabsTrigger>
+          <TabsTrigger value="security" className="text-xs sm:text-sm"><Shield className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" /> <span className="hidden sm:inline">Segurança</span><span className="sm:hidden">Seg.</span></TabsTrigger>
+          <TabsTrigger value="fiscal-monitor" className="text-xs sm:text-sm"><FileText className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" /> <span className="hidden sm:inline">Monitor Fiscal</span><span className="sm:hidden">Monitor</span></TabsTrigger>
         </TabsList>
 
         <TabsContent value="dashboard">
@@ -198,6 +208,21 @@ export default function Admin() {
         </TabsContent>
         <TabsContent value="fiscal-radar">
           <FiscalRadarTab />
+        </TabsContent>
+        <TabsContent value="alert-channels">
+          <AdminAlertChannels />
+        </TabsContent>
+        <TabsContent value="feature-flags">
+          <AdminFeatureFlags />
+        </TabsContent>
+        <TabsContent value="ai-usage">
+          <AdminAiUsage />
+        </TabsContent>
+        <TabsContent value="security">
+          <AdminSecurity />
+        </TabsContent>
+        <TabsContent value="fiscal-monitor">
+          <AdminFiscalMonitor />
         </TabsContent>
       </Tabs>
     </div>

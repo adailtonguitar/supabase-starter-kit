@@ -22,6 +22,16 @@ import { messageFromFunctionsInvokeError } from "@/lib/supabase-function-error";
 import { getAccessTokenForEdgeFunctions } from "@/lib/supabase-edge-auth";
 import { SubscriptionCancelWizard } from "@/components/subscription/SubscriptionCancelWizard";
 import { LgpdDataSection } from "@/components/lgpd/LgpdDataSection";
+import { MfaEnrollCard } from "@/components/security/MfaEnrollCard";
+import { DataQualityCard } from "@/components/dashboard/DataQualityCard";
+
+function MfaSection() {
+  return (
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+      <MfaEnrollCard />
+    </motion.div>
+  );
+}
 
 /** Alinhado a useCompany / Filiais — define qual empresa abrir após reload. */
 const LS_SELECTED_COMPANY_KEY = "as_selected_company";
@@ -260,6 +270,7 @@ function MyPlanSection() {
   const { access, trialActive, trialDaysLeft, createCheckout, loading, checkSubscription } = useSubscription();
   const { plan, expiresAt, loading: planLoading } = usePlanFeatures();
   const { isSuperAdmin, loading: adminLoading } = useAdminRole();
+  const navigate = useNavigate();
   const [upgrading, setUpgrading] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [subManagement, setSubManagement] = useState<SubscriptionManagementState | null>(null);
@@ -413,6 +424,13 @@ function MyPlanSection() {
                   <ArrowRight className="w-4 h-4 mr-2" /> {upgrading ? "Redirecionando..." : "Fazer upgrade para Business"}
                 </Button>
               )}
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => navigate("/minha-assinatura")}
+              >
+                Ver detalhes da assinatura
+              </Button>
               {!isScheduledCancel && !subLoading && subManagement && (
                 <Button
                   size="sm"
@@ -1462,7 +1480,9 @@ export default function Configuracoes() {
       </motion.div>
 
       
+      <DataQualityCard />
       <ChangePasswordSection />
+      <MfaSection />
       <MyPlanSection />
       <LgpdDataSection />
       <CashRegisterToggleSection />

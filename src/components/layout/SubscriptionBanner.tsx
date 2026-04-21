@@ -6,7 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
 export function SubscriptionBanner() {
-  const { gracePeriodActive, graceDaysLeft, trialActive, trialDaysLeft, createCheckout, loading: subLoading } = useSubscription();
+  const { gracePeriodActive, graceDaysLeft, trialActive, trialDaysLeft, createCheckout, loading: subLoading, readOnly, graceStage } = useSubscription();
   const { isSuperAdmin, loading: adminLoading } = useAdminRole();
   const [dismissed, setDismissed] = useState(() => {
     try { return sessionStorage.getItem("sub_banner_dismissed") === "1"; } catch { return false; }
@@ -38,10 +38,11 @@ export function SubscriptionBanner() {
   const bannerType = useMemo(() => {
     if (adminLoading || subLoading) return null;
     if (isSuperAdmin) return null;
+    if (readOnly || graceStage === "readonly") return "readonly";
     if (gracePeriodActive && graceDaysLeft !== null) return "grace";
     if (trialActive && trialDaysLeft !== null && trialDaysLeft <= 5) return "trial";
     return null;
-  }, [adminLoading, subLoading, isSuperAdmin, gracePeriodActive, graceDaysLeft, trialActive, trialDaysLeft]);
+  }, [adminLoading, subLoading, isSuperAdmin, gracePeriodActive, graceDaysLeft, trialActive, trialDaysLeft, readOnly, graceStage]);
 
   const [visibleBannerType, setVisibleBannerType] = useState<string | null>(null);
   const [hasSettled, setHasSettled] = useState(false);
@@ -76,6 +77,23 @@ export function SubscriptionBanner() {
   }, [bannerType, hasSettled]);
 
   if (dismissed || !visibleBannerType) return null;
+
+  if (visibleBannerType === "readonly") {
+    return (
+      <div className="bg-orange-500/10 border-b border-orange-500/40 px-4 py-2 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 text-sm">
+          <AlertTriangle className="w-4 h-4 text-orange-600 shrink-0" />
+          <span className="text-orange-900 dark:text-orange-200 font-medium">
+            Modo somente-leitura: assinatura vencida há mais de 3 dias. Emissão de NF-e e novos cadastros estão suspensos.{" "}
+            <button onClick={() => handleRenew()} disabled={renewing} className="underline font-bold inline-flex items-center gap-1">
+              {renewing && <Loader2 className="w-3 h-3 animate-spin" />}
+              Renovar agora
+            </button>
+          </span>
+        </div>
+      </div>
+    );
+  }
 
   if (visibleBannerType === "grace") {
     return (

@@ -22,6 +22,8 @@ import { useAdminRole } from "@/hooks/useAdminRole";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { OnboardingChecklist } from "@/components/onboarding/OnboardingChecklist";
+import { CertificateExpiryBanner } from "@/components/fiscal/CertificateExpiryBanner";
+import { CompanyPulseWidget } from "@/components/dashboard/CompanyPulseWidget";
 
 const DASHBOARD_SUMMARY_STORAGE_KEY = "as_dashboard_owner_summary";
 
@@ -309,6 +311,7 @@ export default function Dashboard() {
       animate="animate"
       className="p-3 sm:p-6 space-y-4 sm:space-y-5 max-w-7xl mx-auto min-w-0"
     >
+      <CertificateExpiryBanner />
       {/* ─── Header ─── */}
       <motion.div variants={item} className="flex items-center justify-between">
         <div>
@@ -386,6 +389,13 @@ export default function Dashboard() {
       {!ownerSummary && (
         <motion.div variants={item}>
           <OnboardingChecklist />
+        </motion.div>
+      )}
+
+      {/* ─── Pulso da empresa (visão do dono) ─── */}
+      {ownerSummary && (
+        <motion.div variants={item}>
+          <CompanyPulseWidget />
         </motion.div>
       )}
 

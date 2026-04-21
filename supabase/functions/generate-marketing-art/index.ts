@@ -1,4 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { isFeatureEnabled } from "../_shared/feature-flags.ts";
+import { checkAiQuota, logAiUsage } from "../_shared/ai-usage.ts";
 
 const ALLOWED_ORIGINS = [
   "https://anthosystemcombr.lovable.app",
@@ -55,6 +57,41 @@ Deno.serve(async (req) => {
     const prompt = body.prompt || "";
     if (!prompt) return jsonRes({ error: "Prompt é obrigatório" }, 400);
 
+    // ── Kill switch (feature flag) ──
+    const sbAdminFlag = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    );
+    const flagEnabled = await isFeatureEnabled(sbAdminFlag, "ai_marketing_art", body.company_id ?? null);
+    if (!flagEnabled) {
+      return jsonRes(
+        {
+          error: "Geração de artes com IA temporariamente indisponível.",
+          code: "FEATURE_DISABLED",
+          feature: "ai_marketing_art",
+        },
+        503,
+      );
+    }
+
+    // ── Quota mensal por plano ──
+    if (body.company_id) {
+      const quota = await checkAiQuota(sbAdminFlag, body.company_id, "ai_marketing_art");
+      if (!quota.allowed) {
+        return jsonRes(
+          {
+            error: quota.reason ?? "Limite mensal de artes de marketing atingido para o seu plano.",
+            code: "QUOTA_EXCEEDED",
+            feature: "ai_marketing_art",
+            plan: quota.plan,
+            used: quota.used,
+            limit: quota.limit,
+          },
+          429,
+        );
+      }
+    }
+
     const width = body.width || 1080;
     const height = body.height || 1080;
     const fullPrompt = `Create a ${width}x${height} professional social media promotional image. ${prompt}. High quality, vibrant colors, modern design.`;
@@ -104,6 +141,17 @@ Deno.serve(async (req) => {
               if (part.inlineData?.data) {
                 const mime = part.inlineData.mimeType || "image/png";
                 console.log(`[marketing-art] Success with ${model}!`);
+                // Log de uso
+                logAiUsage(sbAdminFlag, {
+                  companyId: body.company_id ?? null,
+                  userId: user.id,
+                  functionName: "ai_marketing_art",
+                  provider: "google",
+                  model,
+                  tokensPrompt: Number(data?.usageMetadata?.promptTokenCount ?? 0),
+                  tokensCompletion: Number(data?.usageMetadata?.candidatesTokenCount ?? 0),
+                  success: true,
+                }).catch(() => { /* fail-open */ });
                 return jsonRes({
                   success: true,
                   image: `data:${mime};base64,${part.inlineData.data}`,
@@ -122,6 +170,15 @@ Deno.serve(async (req) => {
     }
 
     // All models failed
+    logAiUsage(sbAdminFlag, {
+      companyId: body.company_id ?? null,
+      userId: user.id,
+      functionName: "ai_marketing_art",
+      provider: "google",
+      success: false,
+      errorCode: errors.join(" | ").slice(0, 120),
+    }).catch(() => { /* fail-open */ });
+
     const isQuotaError = errors.every(e => e.includes("quota") || e.includes("429"));
     const userMessage = isQuotaError
       ? "Limite de uso da API Gemini atingido. Aguarde 1-2 minutos e tente novamente."

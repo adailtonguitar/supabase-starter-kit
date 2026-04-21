@@ -110,12 +110,15 @@ describe("PIS/COFINS Engine", () => {
     expect(config.vPis).toBe(0);
   });
 
-  it("tributação normal Lucro Presumido", () => {
+  it("tributação normal Regime Normal (não-cumulativo por padrão)", () => {
+    // CRT 3 sozinho não distingue Lucro Presumido (cumulativo, 0,65%) de
+    // Lucro Real (não-cumulativo, 1,65%). Engine assume não-cumulativo até
+    // recebermos o campo `regime` explícito na entrada.
     const config = getPisCofinsConfig({ ncm: "61091000", crt: 3, valor: 100 });
     expect(config.mode).toBe("normal");
     expect(config.cstPis).toBe("01");
-    expect(config.aliqPis).toBe(0.65);
-    expect(config.vPis).toBe(0.65);
+    expect(config.aliqPis).toBe(1.65);
+    expect(config.vPis).toBe(1.65);
   });
 
   it("validação: SN com CST 01 deve dar erro", () => {

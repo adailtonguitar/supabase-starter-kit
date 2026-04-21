@@ -31,24 +31,26 @@ export async function trackError(opts: {
   page?: string;
   action?: string;
   error: unknown;
-}) {
+}): Promise<{ supportCode: string | null }> {
   try {
     const message = opts.error instanceof Error ? opts.error.message : String(opts.error);
     const stack = opts.error instanceof Error ? opts.error.stack?.slice(0, 2000) || "" : "";
 
-    // Deduplicate: skip if same error within 5 seconds
     const now = Date.now();
-    if (message === lastError && now - lastErrorTime < 5000) return;
+    if (message === lastError && now - lastErrorTime < 5000) {
+      return { supportCode: null };
+    }
     lastError = message;
     lastErrorTime = now;
 
-    // Skip common non-actionable errors (e bug legado já corrigido no bundle atual)
     if (
       message.includes("ResizeObserver") ||
       message.includes("Loading chunk") ||
       (message.includes("requested version") && message.includes("existing version")) ||
       (message.includes("memberProbe") && message.includes("not defined"))
-    ) return;
+    ) {
+      return { supportCode: null };
+    }
 
     const { browser, device } = getDeviceInfo();
     const page = opts.page || window.location.pathname;
@@ -64,12 +66,24 @@ export async function trackError(opts: {
       device,
     };
 
-    const { error: insertError } = await supabase.from("system_errors").insert(row);
+    const { data, error: insertError } = await supabase
+      .from("system_errors")
+      .insert(row)
+      .select("*")
+      .single();
+
     if (insertError) {
       console.warn("[ErrorTracker] Failed to log error:", insertError.message);
+      return { supportCode: null };
     }
+    const record = data as unknown as Record<string, unknown> | null;
+    const supportCode = record && typeof record["support_code"] === "string"
+      ? (record["support_code"] as string)
+      : null;
+    return { supportCode };
   } catch (e) {
     console.warn("[ErrorTracker] Exception:", e);
+    return { supportCode: null };
   }
 }
 

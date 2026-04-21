@@ -103,6 +103,8 @@ export const ContratoSaaS = lazyRetry(() => import("@/pages/ContratoSaaS"));
 export const Privacidade = lazyRetry(() => import("@/pages/Privacidade"));
 export const Suporte = lazyRetry(() => import("@/pages/Suporte"));
 export const Renovar = lazyRetry(() => import("@/pages/Renovar"));
+export const MinhaAssinatura = lazyRetry(() => import("@/pages/MinhaAssinatura"));
+export const StatusPage = lazyRetry(() => import("@/pages/StatusPage"));
 export const TermosFiscais = lazyRetry(() => import("@/pages/TermosFiscais"));
 
 /** Inner layout routes (inside AppLayout) */
@@ -132,6 +134,7 @@ export function LayoutRoutes() {
       <Route path="/comissoes" element={<PlanGate feature="hasCommissions" featureName="Comissões"><Comissoes /></PlanGate>} />
       <Route path="/conciliacao" element={<PlanGate feature="hasBankReconciliation" featureName="Conciliação Bancária"><ConciliacaoBancaria /></PlanGate>} />
       <Route path="/configuracoes" element={<Configuracoes />} />
+      <Route path="/minha-assinatura" element={<MinhaAssinatura />} />
       <Route path="/usuarios" element={<Usuarios />} />
       <Route path="/cadastro/empresas" element={<Empresas />} />
       <Route path="/cadastro/clientes" element={<Clientes />} />
