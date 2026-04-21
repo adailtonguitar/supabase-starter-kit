@@ -2514,6 +2514,28 @@ export type Database = {
         Update: Record<string, any>
         Relationships: []
       }
+      web_vitals_samples: {
+        Row: Record<string, any>
+        Insert: {
+          user_id?: string | null
+          session_id?: string | null
+          page?: string
+          lcp?: number | null
+          fcp?: number | null
+          cls?: number | null
+          inp?: number | null
+          ttfb?: number | null
+          viewport_w?: number | null
+          viewport_h?: number | null
+          dpr?: number | null
+          connection?: string | null
+          url?: string | null
+          user_agent?: string | null
+          created_at?: string
+        }
+        Update: Record<string, any>
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
