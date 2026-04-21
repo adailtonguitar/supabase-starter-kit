@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { ShieldAlert, Loader2, Calendar, AlertTriangle, CheckCircle2, FileWarning } from "lucide-react";
+import { ShieldAlert, Loader2, Calendar, AlertTriangle, CheckCircle2, FileWarning, Info } from "lucide-react";
 
 interface CertificateAlert {
   company_id: string;
@@ -21,6 +21,9 @@ interface CertificateAlert {
 
 interface RejectionDashboard {
   ok: boolean;
+  available?: boolean;
+  reason?: string;
+  message?: string;
   totals: {
     total: number;
     authorized: number;
@@ -75,8 +78,11 @@ export function AdminFiscalMonitor() {
     setCertsLoading(false);
   };
 
+  const [dashError, setDashError] = useState<string | null>(null);
+
   const loadDashboard = async (d: number) => {
     setDashLoading(true);
+    setDashError(null);
     try {
       const { data, error } = await supabase.rpc("get_fiscal_rejection_dashboard", {
         p_days: d,
@@ -87,6 +93,7 @@ export function AdminFiscalMonitor() {
     } catch (err) {
       console.error("[AdminFiscalMonitor] loadDashboard:", err);
       setDashboard(null);
+      setDashError(err instanceof Error ? err.message : "Erro desconhecido");
     }
     setDashLoading(false);
   };
@@ -209,10 +216,33 @@ export function AdminFiscalMonitor() {
           </Select>
         </CardHeader>
         <CardContent className="space-y-4">
-          {dashLoading || !dashboard ? (
+          {dashLoading ? (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" /> Carregando…
             </div>
+          ) : dashError ? (
+            <Alert variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>Não foi possível carregar o painel</AlertTitle>
+              <AlertDescription className="text-xs">{dashError}</AlertDescription>
+            </Alert>
+          ) : !dashboard ? (
+            <Alert>
+              <Info className="h-4 w-4" />
+              <AlertTitle>Sem dados</AlertTitle>
+              <AlertDescription>
+                Nenhuma informação retornada pelo servidor.
+              </AlertDescription>
+            </Alert>
+          ) : dashboard.available === false ? (
+            <Alert>
+              <Info className="h-4 w-4" />
+              <AlertTitle>Módulo de emissão não configurado</AlertTitle>
+              <AlertDescription>
+                {dashboard.message ||
+                  "Esta instalação não emite NF-e/NFC-e próprios — apenas importa. Não há rejeições a monitorar."}
+              </AlertDescription>
+            </Alert>
           ) : (
             <>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
