@@ -10,34 +10,9 @@ import { openCashDrawer } from "@/lib/escpos";
 import { escapeHtml } from "@/lib/sanitize";
 import type { CashMovementRecord, CashSessionRecord } from "@/integrations/supabase/fiscal.types";
 
-const OFFLINE_SESSION_KEY = "as_offline_cash_session";
-
-async function canReachServer(): Promise<boolean> {
-  if (typeof navigator !== "undefined" && !navigator.onLine) return false;
-  try {
-    const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), 1000);
-    await fetch(`${SUPABASE_URL}/rest/v1/`, { method: "HEAD", signal: ctrl.signal, cache: "no-store", mode: "no-cors" });
-    clearTimeout(t);
-    return true;
-  } catch { return false; }
-}
-
-function makeOfflineSession(companyId: string, userId: string, openingBalance: number, terminalId: string) {
-  return {
-    id: `offline_${Date.now()}`, company_id: companyId, opened_by: userId,
-    opening_balance: openingBalance, terminal_id: terminalId, status: "aberto" as const,
-    opened_at: new Date().toISOString(), closed_at: null, closed_by: null, closing_balance: null,
-    counted_dinheiro: null, counted_debito: null, counted_credito: null, counted_pix: null,
-    difference: null, notes: null, sales_count: 0, total_vendas: 0, total_dinheiro: 0,
-    total_debito: 0, total_credito: 0, total_pix: 0, total_voucher: 0, total_outros: 0,
-    total_sangria: 0, total_suprimento: 0, created_at: new Date().toISOString(),
-  };
-}
-
-function getCachedSession(companyId: string): CashSessionRecord | null {
-  try { const raw = localStorage.getItem(OFFLINE_SESSION_KEY); if (!raw) return null; const s = JSON.parse(raw); return s?.company_id === companyId && s?.status === "aberto" ? s : null; } catch { return null; }
-}
+// OFFLINE_SESSION_KEY removed as per strict Supabase-only audit.
+...
+// canReachServer and offline helpers removed as per strict Supabase-only audit.
 
 function toErrorMessage(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
