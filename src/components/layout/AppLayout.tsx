@@ -4,7 +4,7 @@ import { MobileBottomNav } from "./MobileBottomNav";
 import { MobileTopBar } from "./MobileTopBar";
 import { SubscriptionBanner } from "./SubscriptionBanner";
 import { CertificateExpiryBanner } from "./CertificateExpiryBanner";
-import { DemoBanner } from "./DemoBanner";
+
 import { ImpersonationBanner } from "./ImpersonationBanner";
 import { OnlineStatusIndicator } from "./OnlineStatusIndicator";
 import { SyncStatusPanel } from "./SyncStatusPanel";
