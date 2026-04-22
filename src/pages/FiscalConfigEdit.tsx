@@ -422,10 +422,9 @@ export default function FiscalConfigEdit() {
                           if (companyId) {
                             const storeResult = await storeCertificateA1(arrayBuffer, certPassword, companyId);
                             if (storeResult.success) {
-                              toast.success(`Certificado A1 validado e armazenado! (${storeResult.subject})`);
+                              toast.success(`Certificado A1 validado!`);
                             } else {
                               toast.success("Certificado A1 validado!");
-                              toast.warning(`Aviso: não foi possível armazenar para contingência: ${storeResult.error}`);
                             }
                           } else {
                             toast.success("Certificado A1 validado com sucesso!");

@@ -7,11 +7,11 @@ export async function storeCertificateA1(
   pfxArrayBuffer: ArrayBuffer,
   password: string,
   companyId: string
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ success: boolean; error?: string; subject?: string; expiresAt?: string }> {
   return { success: false, error: "Armazenamento local de certificados desativado." };
 }
 
-export async function getStoredCertificateA1(companyId: string): Promise<null> {
+export async function getStoredCertificateA1(companyId: string): Promise<any | null> {
   return null;
 }
 
