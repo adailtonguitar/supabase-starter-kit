@@ -147,14 +147,12 @@ function getDraftsKey(companyId: string | null, userId?: string | null): string 
 function loadDrafts(companyId: string | null, userId?: string | null): NFeDraft[] {
   try {
     const raw = localStorage.getItem(getDraftsKey(companyId, userId));
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
+function loadDrafts(companyId: string | null, userId?: string | null): NFeDraft[] {
+  return [];
 }
 
 function saveDrafts(drafts: NFeDraft[], companyId: string | null, userId?: string | null) {
-  try { localStorage.setItem(getDraftsKey(companyId, userId), JSON.stringify(drafts)); } catch { /* */ }
+  // Local drafts disabled to ensure Supabase is the single source of truth
 }
 
 
