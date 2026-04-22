@@ -7,7 +7,7 @@ export function aprenderNCM(descricao: string, ncm: string): void {
   // No-op
 }
 
-export function sugerirNCM(descricao: string): null {
+export function sugerirNCM(descricao: string): { ncm: string; termo: string; count: number } | null {
   return null;
 }
 
