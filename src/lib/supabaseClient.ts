@@ -16,7 +16,8 @@ const baseSupabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_K
 });
 
 /**
- * Proxy wrapper for Supabase client to enforce logging and strict error handling.
+ * Proxy wrapper for Supabase client to enforce logging, strict error handling,
+ * and multi-tenant isolation validation.
  */
 export const supabase = new Proxy(baseSupabase, {
   get(target, prop, receiver) {
@@ -24,22 +25,42 @@ export const supabase = new Proxy(baseSupabase, {
 
     if (prop === 'from' || prop === 'rpc') {
       return (...args: any[]) => {
+        const tableName = args[0];
         const query = value.apply(target, args);
-        console.log(`[Supabase Request] ${String(prop)}:`, ...args);
+        
+        // Skip validation for internal/auth tables or RPCs if needed
+        const isGlobalTable = ['profiles', 'companies', 'company_users', 'subscriptions'].includes(tableName);
+        const isRpc = prop === 'rpc';
 
-        // Proxy the query object to intercept the final execution (like .then, .select, etc.)
+        // Proxy the query object to intercept final execution and validation
         const originalThen = query.then;
         query.then = async (onfulfilled: any, onrejected: any) => {
           try {
+            // Strict Validation Requirement:
+            // "Before any DB operation: ensure currentCompanyId exists, ensure user is authenticated"
+            const { data: { session } } = await baseSupabase.auth.getSession();
+            const selectedCompanyId = localStorage.getItem('as_selected_company');
+
+            if (!session) {
+              console.error(`[Multi-tenant Block] Unauthorized access attempt to ${tableName}`);
+              throw new Error("Sessão expirada ou usuário não autenticado.");
+            }
+
+            if (!isGlobalTable && !isRpc && !selectedCompanyId) {
+              console.error(`[Multi-tenant Block] No company selected for table: ${tableName}`);
+              throw new Error("Nenhuma empresa selecionada para realizar esta operação.");
+            }
+
+            // Execute the query
             const result = await originalThen.call(query);
-            console.log(`[Supabase Response] ${String(prop)} result:`, result);
+            
             if (result.error) {
-              console.error(`[Supabase Error] ${String(prop)}:`, result.error);
+              console.error(`[Supabase Error] ${String(prop)} on ${tableName}:`, result.error);
               throw result.error;
             }
             return onfulfilled ? onfulfilled(result) : result;
           } catch (error) {
-            console.error(`[Supabase Exception] ${String(prop)}:`, error);
+            console.error(`[Supabase Exception] ${String(prop)} on ${tableName}:`, error);
             if (onrejected) return onrejected(error);
             throw error;
           }
