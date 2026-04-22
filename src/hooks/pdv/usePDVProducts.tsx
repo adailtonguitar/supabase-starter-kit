@@ -1,10 +1,5 @@
-/**
- * usePDVProducts — Product loading, caching, and refresh for the POS.
- */
 import { useState, useCallback, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { cacheSet, cacheGet } from "@/lib/offline-cache";
-import { toast } from "sonner";
 import type { PDVProduct } from "@/hooks/usePDV";
 import { PRODUCTS_ACTIVE_OR_LEGACY_NULL } from "@/lib/product-active-filter";
 
@@ -17,39 +12,24 @@ export function usePDVProducts(companyId: string | null) {
     setLoadingProducts(true);
 
     try {
-      if (navigator.onLine) {
-        const { data, error } = await supabase
-          .from("products")
-          .select("*")
-          .eq("company_id", companyId)
-          .or(PRODUCTS_ACTIVE_OR_LEGACY_NULL)
-          .order("name");
+      const { data, error } = await supabase
+        .from("products")
+        .select("*")
+        .eq("company_id", companyId)
+        .or(PRODUCTS_ACTIVE_OR_LEGACY_NULL)
+        .order("name");
 
-        if (data && data.length > 0) {
-          setProducts(data as PDVProduct[]);
-          cacheSet("pdv_products", companyId, data).catch(() => {});
-        } else if (error) {
-          throw error;
-        }
-      } else {
-        throw new Error("offline");
-      }
-    } catch {
-      const cached = await cacheGet<PDVProduct[]>("pdv_products", companyId);
-      if (cached?.data && cached.data.length > 0) {
-        setProducts(cached.data);
-        if (!navigator.onLine) {
-          toast.info("Produtos carregados do cache offline", { id: "pdv-offline-products" });
-        }
-      }
+      if (error) throw error;
+      setProducts((data || []) as PDVProduct[]);
+    } catch (err) {
+      console.error("[usePDVProducts] Error loading products:", err);
+    } finally {
+      setLoadingProducts(false);
     }
-
-    setLoadingProducts(false);
   }, [companyId]);
 
   useEffect(() => { loadProducts(); }, [loadProducts]);
 
-  // Refresh every 2 minutes
   useEffect(() => {
     if (!companyId) return;
     const interval = setInterval(() => { loadProducts(); }, 2 * 60 * 1000);
@@ -58,7 +38,6 @@ export function usePDVProducts(companyId: string | null) {
 
   const refreshProducts = useCallback(() => { loadProducts(); }, [loadProducts]);
 
-  /** Update local stock after a sale (optimistic). */
   const decrementLocalStock = useCallback((soldItems: Array<{ id: string; quantity: number }>) => {
     setProducts(prev => prev.map(p => {
       const sold = soldItems.find(c => c.id === p.id);
