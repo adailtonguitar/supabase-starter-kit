@@ -65,6 +65,17 @@ type FiscalEmitResponse = {
   status?: string;
   error?: string;
   details?: unknown;
+  access_key?: string;
+  number?: number | string;
+  serie?: string;
+  protocol?: string;
+  /** URL oficial codificada no QR Code da NFC-e (NT2015/002). */
+  qrcode?: string;
+  qr_code?: string;
+  qr_code_url?: string;
+  /** URL humana de consulta da NFC-e no portal SEFAZ. */
+  url_consulta?: string;
+  consulta_url?: string;
 };
 
 interface NfceFormData {
@@ -136,6 +147,9 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
   const { data: allProducts = [] } = useProducts();
   const [emitting, setEmitting] = useState(false);
   const [successFiscalEnvironment, setSuccessFiscalEnvironment] = useState<"homologacao" | "producao">("producao");
+  const [successAccessKey, setSuccessAccessKey] = useState<string | undefined>(undefined);
+  const [successQrCodeUrl, setSuccessQrCodeUrl] = useState<string | undefined>(undefined);
+  const [successConsultaUrl, setSuccessConsultaUrl] = useState<string | undefined>(undefined);
   const [step, setStep] = useState<"edit" | "success" | "error">("edit");
   const [errorMsg, setErrorMsg] = useState("");
   const [rejection, setRejection] = useState<SefazRejection | null>(null);
@@ -227,6 +241,9 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
     if (!open || !sale) return;
     setStep("edit");
     setSuccessFiscalEnvironment("producao");
+    setSuccessAccessKey(undefined);
+    setSuccessQrCodeUrl(undefined);
+    setSuccessConsultaUrl(undefined);
     setActiveTab("items");
 
     let parsedItems: Array<Record<string, unknown>> = [];
@@ -516,18 +533,13 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
         const fakeChave = Array.from({ length: 44 }, () => Math.floor(Math.random() * 10)).join("");
         const fakeProtocol = Date.now().toString();
 
-        // Obter número atomicamente via RPC
-        let simNumber = 1;
-        try {
-          const { data: rpcNum, error: rpcErr } = await supabase.rpc("next_fiscal_number", {
-            p_config_id: nfceConfig.id as string,
-          });
-          if (!rpcErr && typeof rpcNum === "number") {
-            simNumber = rpcNum;
-          }
-        } catch {
-          console.warn("[NfceEmission] RPC next_fiscal_number failed, using fallback");
-        }
+        // ⚠️ NÃO consumimos `next_fiscal_number` aqui: essa RPC incrementa
+        // atomicamente `fiscal_configs.next_number` e qualquer emissão real
+        // posterior pularia o número, criando "furo de numeração" — infração
+        // grave em fiscalização SEFAZ/SPED. Como o documento é apenas
+        // simulação (status='simulado', environment='homologacao', sem envio),
+        // usamos um número aleatório só para identificação interna.
+        const simNumber = Math.floor(Date.now() % 1_000_000);
         
         // Registra como simulação no banco (schema de `fiscal_documents` não tem `sale_id`)
         const { error: insertErr } = await supabase.from("fiscal_documents").insert({
@@ -564,6 +576,13 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
           ]);
         } catch { /* ignore */ }
 
+        // Em simulação local não há chave válida nem QR assinado por CSC.
+        // Mantemos os três undefined para o componente de sucesso mostrar
+        // claramente "SEM VALOR FISCAL — SIMULAÇÃO" em vez de um QR que
+        // apontaria para consulta pública com chave inexistente na SEFAZ.
+        setSuccessAccessKey(undefined);
+        setSuccessQrCodeUrl(undefined);
+        setSuccessConsultaUrl(undefined);
         setStep("success");
         logAction({ companyId: companyId!, action: "NFC-e emitida (simulação)", module: "fiscal", details: `Venda ${sale?.id?.slice(0, 8)} - ${formatCurrency(sale?.total || 0)}` });
         toast.success("✅ Simulação concluída! (modo teste — sem envio à SEFAZ)", {
@@ -712,6 +731,9 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
           ]);
         } catch { /* ignore */ }
 
+        setSuccessAccessKey(data?.access_key);
+        setSuccessQrCodeUrl(data?.qrcode || data?.qr_code || data?.qr_code_url);
+        setSuccessConsultaUrl(data?.url_consulta || data?.consulta_url);
         setStep("success");
         toast.success("NFC-e emitida com sucesso!");
         onSuccess?.();
@@ -731,6 +753,9 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
         } catch { /* ignore */ }
 
         // Pending/processing status — still a success, just not yet authorized
+        setSuccessAccessKey(data?.access_key);
+        setSuccessQrCodeUrl(data?.qrcode || data?.qr_code || data?.qr_code_url);
+        setSuccessConsultaUrl(data?.url_consulta || data?.consulta_url);
         setStep("success");
         toast.success("NFC-e enviada! Aguardando autorização da SEFAZ.", { duration: 5000 });
         onSuccess?.();
@@ -1118,6 +1143,9 @@ export function NfceEmissionDialog({ sale, open, onOpenChange, onSuccess }: Nfce
           <NfceSuccessStep
             saleId={sale?.id}
             fiscalEnvironment={successFiscalEnvironment}
+            accessKey={successAccessKey}
+            qrCodeUrl={successQrCodeUrl}
+            consultaUrl={successConsultaUrl}
             items={form.items}
             paymentValue={form.paymentValue}
             paymentMethod={form.paymentMethod}

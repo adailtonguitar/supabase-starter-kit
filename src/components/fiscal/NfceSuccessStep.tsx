@@ -26,6 +26,18 @@ interface NfceSuccessStepProps {
   saleId?: string;
   /** Ambiente da NFC-e conforme fiscal_configs (não hardcoded). */
   fiscalEnvironment?: "homologacao" | "producao";
+  /**
+   * Chave de acesso de 44 dígitos retornada pela SEFAZ/provedor.
+   * Sem ela, o QR Code exibido não tem validade fiscal.
+   */
+  accessKey?: string;
+  /**
+   * URL completa do QR Code da NFC-e, conforme NT2015/002 da SEFAZ
+   * (inclui chave + parâmetros CSC). Se presente, é usada no QR.
+   */
+  qrCodeUrl?: string;
+  /** URL de consulta humana (exibida no rodapé do cupom). */
+  consultaUrl?: string;
   items: NfceItem[];
   paymentValue: number;
   paymentMethod: string;
@@ -36,9 +48,62 @@ interface NfceSuccessStepProps {
   onClose: () => void;
 }
 
+/**
+ * Dígitos 1-2 da chave = código UF (IBGE).
+ * Usado como fallback quando o provedor não devolve `qrcode`/`url_consulta`.
+ * NÃO substitui o QR oficial assinado por CSC — apenas aponta para o portal SEFAZ
+ * correto para consulta manual por chave.
+ */
+const UF_CONSULTA_FALLBACK: Record<string, string> = {
+  "11": "https://www.sefaz.ro.gov.br/nfce/consulta",
+  "12": "https://portal.sefaz.ac.gov.br/Nfce/Consulta",
+  "13": "https://sistemas.sefaz.am.gov.br/nfceweb/consultarNFCe.jsp",
+  "14": "https://www.sefaz.rr.gov.br/nfce/servlet/wp_consulta_nfce",
+  "15": "https://www.sefa.pa.gov.br/nfce/Consulta.aspx",
+  "16": "https://www.sefaz.ap.gov.br/nfce/nfcep.php",
+  "17": "https://www.sefaz.to.gov.br/nfce/consulta.jsp",
+  "21": "https://www.nfce.sefaz.ma.gov.br/portal/consultaNFCe.jsp",
+  "22": "https://www.sefaz.pi.gov.br/nfceweb/consultarNFCe.jsf",
+  "23": "https://nfce.sefaz.ce.gov.br/pages/consultaNota.jsf",
+  "24": "https://nfce.set.rn.gov.br/consultarNFCe.aspx",
+  "25": "https://www.nfce.sefaz.pb.gov.br/nfce/qrcode",
+  "26": "https://nfce.sefaz.pe.gov.br/nfce/consulta",
+  "27": "http://www.sefaz.al.gov.br/nfce/qrcode",
+  "28": "https://www.nfce.se.gov.br/portal/consultarNFCe.jsp",
+  "29": "https://nfce.sefaz.ba.gov.br/modulos/consultaQRCode.aspx",
+  "31": "https://nfce.fazenda.mg.gov.br/portalnfce/sistema/qrcode.xhtml",
+  "32": "http://www4.fazenda.rj.gov.br/consultaNFCe/QRCode",
+  "33": "http://www4.fazenda.rj.gov.br/consultaNFCe/QRCode",
+  "35": "https://www.nfce.fazenda.sp.gov.br/NFCeConsultaPublica/Paginas/ConsultaQRCode.aspx",
+  "41": "https://www.fazenda.pr.gov.br/nfce/qrcode",
+  "42": "https://sat.sef.sc.gov.br/nfce/consulta",
+  "43": "https://www.sefaz.rs.gov.br/NFCE/NFCE-COM.aspx",
+  "50": "http://www.sefaz.ms.gov.br/nfce/consulta",
+  "51": "https://www.sefaz.mt.gov.br/nfce/consultanfce",
+  "52": "https://www.sefaz.go.gov.br/nfe/consulta",
+  "53": "https://dec.fazenda.df.gov.br/ConsultarNFCe.aspx",
+};
+
+function isValidAccessKey(key: string | undefined | null): key is string {
+  if (!key) return false;
+  const digits = key.replace(/\D/g, "");
+  return digits.length === 44;
+}
+
+function buildConsultaUrl(accessKey: string): string {
+  const cUF = accessKey.substring(0, 2);
+  const base = UF_CONSULTA_FALLBACK[cUF];
+  if (!base) return `https://www.nfe.fazenda.gov.br/portal/consultaRecibo.aspx?chave=${accessKey}`;
+  const sep = base.includes("?") ? "&" : "?";
+  return `${base}${sep}chave=${accessKey}`;
+}
+
 export function NfceSuccessStep({
   saleId,
   fiscalEnvironment = "producao",
+  accessKey,
+  qrCodeUrl,
+  consultaUrl,
   items,
   paymentValue,
   paymentMethod,
@@ -56,6 +121,20 @@ export function NfceSuccessStep({
     fiscalEnvironment === "homologacao"
       ? "Ambiente: Homologação — sem valor fiscal"
       : "Ambiente: Produção";
+
+  // Decide o que codificar no QR. Prioridade:
+  // 1) qrCodeUrl oficial (NT2015/002, assinado por CSC) — fonte única de verdade
+  // 2) chave de 44 dígitos → URL de consulta pública por UF
+  // 3) sem chave válida → QR é escondido e cupom exibe aviso "SEM VALOR FISCAL"
+  const hasValidKey = isValidAccessKey(accessKey);
+  const qrValue = qrCodeUrl
+    ? qrCodeUrl
+    : hasValidKey
+      ? consultaUrl && consultaUrl.startsWith("http")
+        ? consultaUrl
+        : buildConsultaUrl(accessKey)
+      : null;
+  const formattedKey = hasValidKey ? (accessKey as string).replace(/\D/g, "").replace(/(\d{4})(?=\d)/g, "$1 ") : "";
 
   const handlePrint = () => {
     const cupom = document.getElementById("nfce-cupom");
@@ -121,8 +200,9 @@ export function NfceSuccessStep({
         </div>
       `}
       <div class="qr-section">
-        ${document.getElementById("nfce-cupom")?.querySelector("svg")?.outerHTML || ""}
-        <div class="qr-label">Consulte pelo QR Code</div>
+        ${qrValue ? (document.getElementById("nfce-cupom")?.querySelector("svg")?.outerHTML || "") : ""}
+        ${qrValue ? `<div class="qr-label">Consulte pelo QR Code</div>` : `<div class="qr-label" style="color:#c00;font-weight:bold">SEM VALOR FISCAL — SIMULAÇÃO</div>`}
+        ${hasValidKey ? `<div class="qr-label" style="font-size:8px;word-break:break-all;margin-top:4px">Chave: ${formattedKey}</div>` : ""}
       </div>
       <div class="footer">
         <div>${fiscalEnvironment === "homologacao" ? "Ambiente: Homologação — sem valor fiscal" : "Ambiente: Produção"}</div>
@@ -198,12 +278,22 @@ export function NfceSuccessStep({
         )}
 
         <div className="flex flex-col items-center border-b border-dashed border-gray-400 pb-2">
-          <QRCodeSVG
-            value={`https://www.nfce.fazenda.sp.gov.br/consulta?chave=${saleId || "SIMULACAO"}`}
-            size={100}
-            level="M"
-          />
-          <p className="text-[9px] text-gray-500 mt-1">Consulte pelo QR Code</p>
+          {qrValue ? (
+            <>
+              <QRCodeSVG value={qrValue} size={100} level="M" />
+              <p className="text-[9px] text-gray-500 mt-1">Consulte pelo QR Code</p>
+            </>
+          ) : (
+            <div className="text-center py-3 px-2 rounded border border-dashed border-red-400 bg-red-50">
+              <p className="text-[10px] font-bold text-red-700">SEM VALOR FISCAL</p>
+              <p className="text-[9px] text-red-600 mt-0.5">Simulação — sem autorização da SEFAZ</p>
+            </div>
+          )}
+          {hasValidKey && (
+            <p className="text-[8px] font-mono text-gray-600 mt-1 break-all max-w-[260px] text-center leading-tight">
+              Chave: {formattedKey}
+            </p>
+          )}
         </div>
 
         <div className="text-center text-[9px] text-gray-500 pt-1">

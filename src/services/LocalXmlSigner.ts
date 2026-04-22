@@ -30,6 +30,146 @@ function openDB(): Promise<IDBDatabase> {
   });
 }
 
+// ── Encryption at rest para senha do PFX (hardening aditivo) ──
+// Motivação: antes, a senha ficava em texto claro no IndexedDB. Um DB dump
+// + o pfxBase64 armazenado no mesmo registro permite impersonação offline.
+// Agora, encriptamos a senha com AES-GCM usando uma chave derivada de:
+//   - um device salt aleatório (salvo na store `secrets`)
+//   - o companyId como AAD
+// Isso NÃO torna o storage imune (quem dumpar o IDB tem o salt também), mas:
+//   • impede vazamento via logs/extensões que listam valores sem correlacionar stores
+//   • força um passo extra de derivação que atrapalha scripts genéricos
+//   • mantém compat: entries v1 (texto claro) continuam funcionando e são
+//     migradas transparentemente na próxima gravação (em `storeCertificateA1`).
+// Para proteção forte de verdade, migrar para certificado A3 (token físico).
+
+const SECRETS_STORE = "entity_cache";
+const DEVICE_SALT_KEY = "secret:pfx_device_salt_v1";
+
+function hasSubtleCrypto(): boolean {
+  return typeof crypto !== "undefined"
+    && typeof crypto.subtle !== "undefined"
+    && typeof crypto.getRandomValues === "function";
+}
+
+async function getOrCreateDeviceSalt(): Promise<Uint8Array> {
+  const db = await openDB();
+  const existing = await new Promise<{ data?: { saltBase64?: string } } | null>((resolve) => {
+    const tx = db.transaction(SECRETS_STORE, "readonly");
+    const req = tx.objectStore(SECRETS_STORE).get(DEVICE_SALT_KEY);
+    req.onsuccess = () => resolve(req.result as { data?: { saltBase64?: string } } | null);
+    req.onerror = () => resolve(null);
+  });
+  if (existing?.data?.saltBase64) {
+    const binary = atob(existing.data.saltBase64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    return bytes;
+  }
+  const salt = new Uint8Array(32);
+  crypto.getRandomValues(salt);
+  let bin = "";
+  for (let i = 0; i < salt.length; i++) bin += String.fromCharCode(salt[i]);
+  await new Promise<void>((resolve) => {
+    const tx = db.transaction(SECRETS_STORE, "readwrite");
+    tx.objectStore(SECRETS_STORE).put({
+      key: DEVICE_SALT_KEY,
+      entity_type: "secret",
+      data: { saltBase64: btoa(bin) },
+      cached_at: new Date().toISOString(),
+    });
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => resolve();
+  });
+  return salt;
+}
+
+async function deriveKey(salt: Uint8Array, companyId: string): Promise<CryptoKey> {
+  const ikm = new TextEncoder().encode(`anthosystem-pfx-v1::${companyId}`);
+  const baseKey = await crypto.subtle.importKey("raw", ikm, { name: "PBKDF2" }, false, ["deriveKey"]);
+  return crypto.subtle.deriveKey(
+    { name: "PBKDF2", salt: salt as BufferSource, iterations: 120_000, hash: "SHA-256" },
+    baseKey,
+    { name: "AES-GCM", length: 256 },
+    false,
+    ["encrypt", "decrypt"],
+  );
+}
+
+interface EncryptedField {
+  v: 1;
+  iv: string;
+  ct: string;
+}
+
+async function encryptPassword(plaintext: string, companyId: string): Promise<EncryptedField | null> {
+  if (!hasSubtleCrypto()) return null;
+  try {
+    const salt = await getOrCreateDeviceSalt();
+    const key = await deriveKey(salt, companyId);
+    const iv = new Uint8Array(12);
+    crypto.getRandomValues(iv);
+    const aad = new TextEncoder().encode(companyId);
+    const ct = await crypto.subtle.encrypt(
+      { name: "AES-GCM", iv: iv as BufferSource, additionalData: aad as BufferSource },
+      key,
+      new TextEncoder().encode(plaintext),
+    );
+    const ctBytes = new Uint8Array(ct);
+    let ctBin = "";
+    let ivBin = "";
+    for (let i = 0; i < ctBytes.length; i++) ctBin += String.fromCharCode(ctBytes[i]);
+    for (let i = 0; i < iv.length; i++) ivBin += String.fromCharCode(iv[i]);
+    return { v: 1, iv: btoa(ivBin), ct: btoa(ctBin) };
+  } catch (err) {
+    console.warn("[LocalXmlSigner] encryptPassword falhou, gravando em texto claro (fallback)", err);
+    return null;
+  }
+}
+
+async function decryptPassword(field: EncryptedField, companyId: string): Promise<string | null> {
+  if (!hasSubtleCrypto()) return null;
+  try {
+    const salt = await getOrCreateDeviceSalt();
+    const key = await deriveKey(salt, companyId);
+    const ivBin = atob(field.iv);
+    const ctBin = atob(field.ct);
+    const iv = new Uint8Array(ivBin.length);
+    const ct = new Uint8Array(ctBin.length);
+    for (let i = 0; i < ivBin.length; i++) iv[i] = ivBin.charCodeAt(i);
+    for (let i = 0; i < ctBin.length; i++) ct[i] = ctBin.charCodeAt(i);
+    const aad = new TextEncoder().encode(companyId);
+    const pt = await crypto.subtle.decrypt(
+      { name: "AES-GCM", iv: iv as BufferSource, additionalData: aad as BufferSource },
+      key,
+      ct as BufferSource,
+    );
+    return new TextDecoder().decode(pt);
+  } catch (err) {
+    console.warn("[LocalXmlSigner] decryptPassword falhou — entry possivelmente de outro device", err);
+    return null;
+  }
+}
+
+interface StoredCertRecord {
+  pfxBase64: string;
+  password?: string;
+  password_enc?: EncryptedField;
+  subject?: string;
+  expiresAt?: string;
+}
+
+async function resolveStoredPassword(data: StoredCertRecord, companyId: string): Promise<string | null> {
+  if (data.password_enc) {
+    const plain = await decryptPassword(data.password_enc, companyId);
+    if (plain !== null) return plain;
+  }
+  if (typeof data.password === "string" && data.password.length > 0) {
+    return data.password;
+  }
+  return null;
+}
+
 /** Store a PFX binary + password in IndexedDB for offline use */
 export async function storeCertificateA1(
   pfxArrayBuffer: ArrayBuffer,
@@ -71,12 +211,20 @@ export async function storeCertificateA1(
     const pfxBase64 = btoa(binaryStr);
 
     const db = await openDB();
+    // Tenta encriptar a senha. Se o browser não tiver SubtleCrypto (ambiente
+    // inseguro sem HTTPS, etc.), cai para texto claro como antes — o fluxo
+    // continua funcional e apenas perde a camada de defesa em profundidade.
+    const password_enc = await encryptPassword(password, companyId);
+    const dataField: StoredCertRecord = password_enc
+      ? { pfxBase64, password_enc, subject, expiresAt }
+      : { pfxBase64, password, subject, expiresAt };
+
     await new Promise<void>((resolve, reject) => {
       const tx = db.transaction(CERT_STORE, "readwrite");
       tx.objectStore(CERT_STORE).put({
         key: `${CERT_KEY}:${companyId}`,
         entity_type: "certificate",
-        data: { pfxBase64, password, subject, expiresAt },
+        data: dataField,
         cached_at: new Date().toISOString(),
       });
       tx.oncomplete = () => resolve();
@@ -102,13 +250,17 @@ export async function getStoredCertificateA1(companyId: string): Promise<{
 } | null> {
   try {
     const db = await openDB();
-    const record = await new Promise<{ data?: { pfxBase64: string; password: string; subject?: string; expiresAt?: string } } | null>((resolve) => {
+    const record = await new Promise<{ data?: StoredCertRecord } | null>((resolve) => {
       const tx = db.transaction(CERT_STORE, "readonly");
       const req = tx.objectStore(CERT_STORE).get(`${CERT_KEY}:${companyId}`);
-      req.onsuccess = () => resolve(req.result as { data?: { pfxBase64: string; password: string; subject?: string; expiresAt?: string } } | null);
+      req.onsuccess = () => resolve(req.result as { data?: StoredCertRecord } | null);
       req.onerror = () => resolve(null);
     });
-    return record?.data ?? null;
+    const data = record?.data;
+    if (!data) return null;
+    const password = await resolveStoredPassword(data, companyId);
+    if (password === null) return null;
+    return { pfxBase64: data.pfxBase64, password, subject: data.subject, expiresAt: data.expiresAt };
   } catch {
     return null;
   }
@@ -124,16 +276,20 @@ export async function hasCertificateA1(companyId: string): Promise<boolean> {
 /** Load certificate from IndexedDB and return parsed key + cert */
 async function loadCertificate(companyId: string) {
   const db = await openDB();
-  const record = await new Promise<{ data?: { pfxBase64: string; password: string } } | null>((resolve, reject) => {
+  const record = await new Promise<{ data?: StoredCertRecord } | null>((resolve, reject) => {
     const tx = db.transaction(CERT_STORE, "readonly");
     const req = tx.objectStore(CERT_STORE).get(`${CERT_KEY}:${companyId}`);
-    req.onsuccess = () => resolve(req.result as { data?: { pfxBase64: string; password: string } } | null);
+    req.onsuccess = () => resolve(req.result as { data?: StoredCertRecord } | null);
     req.onerror = () => reject(req.error);
   });
 
   if (!record?.data) throw new Error("Certificado A1 não encontrado no dispositivo.");
 
-  const { pfxBase64, password } = record.data;
+  const { pfxBase64 } = record.data;
+  const password = await resolveStoredPassword(record.data, companyId);
+  if (password === null) {
+    throw new Error("Senha do certificado não disponível neste dispositivo — reimporte o certificado A1.");
+  }
   const pfxDer = forge.util.decode64(pfxBase64);
   const pfxAsn1 = forge.asn1.fromDer(pfxDer);
   const p12 = forge.pkcs12.pkcs12FromAsn1(pfxAsn1, false, password);

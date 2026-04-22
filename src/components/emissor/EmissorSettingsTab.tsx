@@ -471,9 +471,16 @@ export default function EmissorSettingsTab({ companyId }: { companyId: string })
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 p-3 rounded-lg bg-primary/10 text-primary text-xs">
-                <Shield className="w-4 h-4 flex-shrink-0" />
-                O certificado A1 é validado localmente. A chave privada nunca sai do navegador.
+              <div className="flex items-start gap-2 p-3 rounded-lg bg-primary/10 text-primary text-xs">
+                <Shield className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-medium">Como seu certificado A1 é usado</p>
+                  <p className="mt-1 text-foreground/80">
+                    O PFX é enviado via HTTPS ao nosso servidor fiscal para assinar os XMLs junto ao provedor (SEFAZ/Nuvem Fiscal).
+                    A senha nunca é armazenada em texto claro no servidor (apenas hash bcrypt). Para máxima soberania, prefira certificado A3
+                    (token físico) — a chave privada nunca sai do hardware.
+                  </p>
+                </div>
               </div>
             </>
           ) : (
