@@ -409,105 +409,14 @@ export function usePDV() {
       return { saleId, nfceNumber, fiscalDocId, isContingency: false, accessKey, serie, isHomologacao: isHomologacaoReceipt };
     } catch (onlineErr: unknown) {
       if (onlineErr instanceof Error && onlineErr.message === "DISCOUNT_BLOCKED") throw onlineErr;
-      if (!isConnectivityError(onlineErr)) {
-        throw onlineErr instanceof Error ? onlineErr : new Error("Falha na finalização da venda");
-      }
-
-      // CONTINGENCY FALLBACK
-      const maxDisc = options?.maxDiscountPercent ?? 5;
-      if (cart.globalDiscountPercent > maxDisc) {
-        toast.error(`🚫 Desconto global de ${cart.globalDiscountPercent}% excede o limite de ${maxDisc}% para seu perfil.`, { duration: 6000 });
-        finalizingRef.current = false;
-        setFinalizingSale(false);
-        throw new Error("DISCOUNT_BLOCKED");
-      }
-      for (const [itemId, disc] of Object.entries(cart.itemDiscounts)) {
-        if (disc > maxDisc) {
-          const itemName = cart.cartItems.find(i => i.id === itemId)?.name || itemId;
-          toast.error(`🚫 Desconto de ${disc}% no item "${itemName}" excede o limite de ${maxDisc}%.`, { duration: 6000 });
-          finalizingRef.current = false;
-          setFinalizingSale(false);
-          throw new Error("DISCOUNT_BLOCKED");
-        }
-      }
-
-      setContingencyMode(true);
-
-      let userId = "";
-      if (navigator.onLine) {
-        try {
-          const { data: { user } } = await supabase.auth.getUser();
-          userId = user?.id || "";
-          if (userId) localStorage.setItem("as_cached_user_id", userId);
-        } catch {}
-      }
-      if (!userId) userId = localStorage.getItem("as_cached_user_id") || "";
-
-      const saleItems: FinalizeSaleItemInput[] = cart.cartItems.map((item) => {
-        const manualDiscountRaw = cart.itemDiscounts[item.id] || 0;
-        const manualDiscount = Math.min(Number.isFinite(manualDiscountRaw) ? manualDiscountRaw : 0, maxDisc);
-        const priceAfterManual = item.price * (1 - manualDiscount / 100);
-        const itemSubtotal = priceAfterManual * item.quantity;
-        return {
-          product_id: item.id, product_name: item.name, quantity: item.quantity,
-          unit_price: item.price, discount_percent: manualDiscount,
-          subtotal: Math.round(itemSubtotal * 100) / 100,
-        };
+      
+      const errMsg = onlineErr instanceof Error ? onlineErr.message : "Falha na finalização da venda";
+      toast.error(`❌ Erro: ${errMsg}`, {
+        description: "Não foi possível processar a venda. Verifique sua conexão.",
+        duration: 8000
       });
-
-      const offlineSaleId = crypto.randomUUID();
-      let contingencyNumber = "900001";
-
-      try {
-        let configId = "";
-        let serie = 1;
-        let emitente: { cnpj: string; name: string; ie: string; uf: string; crt: number } | undefined;
-        let environment: "homologacao" | "producao" = "homologacao";
-
-        if (navigator.onLine) {
-          try {
-            const { config: contConfig, crt: contCrt } = await getFiscalConfig(companyId!, "nfce");
-            if (contConfig) { configId = contConfig.id; serie = contConfig.serie || 1; environment = contConfig.environment || "homologacao"; }
-            const { data: company } = await supabase.from("companies").select("cnpj, name, state_registration, address_state").eq("id", companyId!).single();
-            if (company) emitente = { cnpj: company.cnpj || "", name: company.name || "", ie: company.state_registration || "", uf: company.address_state || "SP", crt: contCrt };
-          } catch {}
-        }
-
-        const contingencyPayload = await buildContingencyPayload({
-          saleId: offlineSaleId, companyId: companyId!, configId, serie, emitente, environment,
-          form: {
-            nat_op: "VENDA DE MERCADORIA",
-            payment_method: payments[0]?.method === "dinheiro" ? "01" : payments[0]?.method === "pix" ? "17" : "99",
-            payment_value: cart.total,
-            change: payments[0]?.change_amount || 0,
-            customer_name: options?.fiscalCustomer?.name?.trim() || undefined,
-            customer_doc: options?.fiscalCustomer?.doc?.replace(/\D/g, "") || undefined,
-            items: cart.cartItems.map(item => ({
-              name: item.name, ncm: item.ncm || "", cfop: "5102", cst: "", unit: item.unit || "UN",
-              qty: item.quantity, unit_price: item.price,
-              discount: item.price * (cart.itemDiscounts[item.id] || 0) / 100 * item.quantity,
-              pis_cst: "49", cofins_cst: "49", icms_aliquota: 0,
-            })),
-          },
-        });
-
-        contingencyNumber = String(contingencyPayload.contingency_number || contingencyNumber);
-        await queueOperation("fiscal_contingency", contingencyPayload as unknown as Record<string, unknown>, 1, 5);
-      } catch {}
-
-      try {
-        await queueOperation("sale", {
-          company_id: companyId, terminal_id: currentSession?.terminal_id || "OFFLINE",
-          session_id: currentSession?.id || null, total: cart.total, subtotal: cart.subtotal,
-          discount_pct: cart.globalDiscountPercent, discount_val: cart.globalDiscountValue,
-          payments: payments.map(p => ({ method: p.method, amount: p.amount, approved: p.approved })),
-          items: saleItems, user_id: userId, created_at: new Date().toISOString(),
-        }, 2, 3);
-      } catch {}
-
-      setContingencySaleIds(prev => new Set(prev).add(offlineSaleId));
-      cart.clearCart();
-      return { saleId: offlineSaleId, nfceNumber: `CONT-${contingencyNumber}`, fiscalDocId: undefined, isContingency: true };
+      
+      throw onlineErr instanceof Error ? onlineErr : new Error(errMsg);
     } finally {
       finalizingRef.current = false;
       setFinalizingSale(false);

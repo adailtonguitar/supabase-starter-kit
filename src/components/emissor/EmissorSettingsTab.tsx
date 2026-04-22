@@ -456,7 +456,7 @@ export default function EmissorSettingsTab({ companyId }: { companyId: string })
                           setCertBase64(btoa(binaryStr));
                           const storeResult = await storeCertificateA1(arrayBuffer, certPassword, companyId);
                           if (storeResult.success) {
-                            toast.success(`Certificado A1 validado e armazenado! (${storeResult.subject})`);
+                            toast.success(`Certificado A1 validado!`);
                           } else {
                             toast.success("Certificado A1 validado!");
                           }

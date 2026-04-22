@@ -4,7 +4,7 @@ import { MobileBottomNav } from "./MobileBottomNav";
 import { MobileTopBar } from "./MobileTopBar";
 import { SubscriptionBanner } from "./SubscriptionBanner";
 import { CertificateExpiryBanner } from "./CertificateExpiryBanner";
-import { DemoBanner } from "./DemoBanner";
+
 import { ImpersonationBanner } from "./ImpersonationBanner";
 import { OnlineStatusIndicator } from "./OnlineStatusIndicator";
 import { SyncStatusPanel } from "./SyncStatusPanel";
@@ -32,7 +32,6 @@ export const AppLayout = memo(function AppLayout({ children }: AppLayoutProps) {
       <div className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden">
         <ImpersonationBanner />
         <OnlineStatusIndicator />
-        <DemoBanner />
         <SubscriptionBanner />
         <CertificateExpiryBanner />
         {isMobile ? <MobileTopBar /> : <AppHeader />}

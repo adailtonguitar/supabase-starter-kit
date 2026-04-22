@@ -145,16 +145,11 @@ function getDraftsKey(companyId: string | null, userId?: string | null): string 
 }
 
 function loadDrafts(companyId: string | null, userId?: string | null): NFeDraft[] {
-  try {
-    const raw = localStorage.getItem(getDraftsKey(companyId, userId));
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
+  return [];
 }
 
 function saveDrafts(drafts: NFeDraft[], companyId: string | null, userId?: string | null) {
-  try { localStorage.setItem(getDraftsKey(companyId, userId), JSON.stringify(drafts)); } catch { /* */ }
+  // Local drafts disabled to ensure Supabase is the single source of truth
 }
 
 
@@ -1205,8 +1200,8 @@ export default function NFeEmissao() {
             action: "emit_nfe",
             company_id: companyId,
             config_id: nfeConfig.id,
-            certificate_base64: storedCert?.pfxBase64 || null,
-            certificate_password: storedCert?.password || null,
+            certificate_base64: null,
+            certificate_password: null,
             form: {
               nat_op: form.natOp,
               finalidade: form.finalidade,

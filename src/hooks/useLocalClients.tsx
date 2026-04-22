@@ -1,11 +1,6 @@
-/**
- * useLocalClients — Offline-first client access.
- * Reads from Supabase when online, falls back to IndexedDB cache when offline.
- */
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "./useCompany";
-import { cacheSet, cacheGet } from "@/lib/offline-cache";
 
 export interface LocalClient {
   id: string;
@@ -43,36 +38,17 @@ export function useLocalClients() {
     queryFn: async (): Promise<LocalClient[]> => {
       if (!companyId) return [];
 
-      // Online: fetch from Supabase and update cache
-      if (navigator.onLine) {
-        try {
-          const { data, error } = await supabase
-            .from("clients")
-            .select("*")
-            .eq("company_id", companyId)
-            .eq("is_active", true)
-            .order("name");
-          if (error) throw error;
-          const clients = (data as LocalClient[]) || [];
-          // Update IndexedDB cache in background
-          cacheSet("clients", companyId, clients).catch(() => {});
-          return clients;
-        } catch (err) {
-          console.warn("[useLocalClients] Online fetch failed, trying cache:", err);
-        }
-      }
-
-      // Offline or fetch failed: read from IndexedDB
-      const cached = await cacheGet<LocalClient[]>("clients", companyId);
-      if (cached) {
-        // console.log(`[useLocalClients] Serving ${cached.data.length} clients from cache (stale: ${cached.stale})`);
-        return cached.data;
-      }
-
-      return [];
+      const { data, error } = await supabase
+        .from("clients")
+        .select("*")
+        .eq("company_id", companyId)
+        .eq("is_active", true)
+        .order("name");
+      
+      if (error) throw error;
+      return (data as LocalClient[]) || [];
     },
     enabled: !!companyId,
-    staleTime: navigator.onLine ? 30_000 : Infinity,
-    retry: navigator.onLine ? 1 : 0,
+    staleTime: 30_000,
   });
 }
