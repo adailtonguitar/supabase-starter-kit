@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { Smartphone, TrendingUp, DollarSign, BarChart3, AlertTriangle } from "lucide-react";
-import mobileMockup from "@/assets/mobile-mockup.png";
+import mobileMockup from "@/assets/mobile-mockup.webp";
 
 const mobileFeatures = [
   { icon: BarChart3, label: "Painel financeiro", value: "R$ 45.200", color: "bg-primary/10 text-primary" },

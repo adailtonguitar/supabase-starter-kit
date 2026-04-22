@@ -3,7 +3,7 @@ import { Building2, Package, ShoppingCart, CheckCircle2, ArrowRight, ArrowLeft, 
 import { supabase } from "@/integrations/supabase/client";
 import { fetchMyCompanyMemberships } from "@/lib/company-memberships";
 import { toast } from "sonner";
-import logoAs from "@/assets/logo-as.png";
+import logoAs from "@/assets/logo-as.webp";
 import { useCnpjLookup } from "@/hooks/useCnpjLookup";
 import { TERMS_VERSION } from "@/config/legal";
 

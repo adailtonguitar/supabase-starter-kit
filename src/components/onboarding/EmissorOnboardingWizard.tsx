@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Building2, FileText, CheckCircle2, ArrowRight, ArrowLeft, MapPin, Upload, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import logoAs from "@/assets/logo-as.png";
+import logoAs from "@/assets/logo-as.webp";
 import { useCnpjLookup } from "@/hooks/useCnpjLookup";
 import { TERMS_VERSION } from "@/config/legal";
 

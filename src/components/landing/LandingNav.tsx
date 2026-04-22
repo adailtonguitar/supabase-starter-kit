@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Menu, X } from "lucide-react";
-import logoAs from "@/assets/logo-as.png";
+import logoAs from "@/assets/logo-as.webp";
 
 const links = [
   { label: "Recursos", href: "#recursos" },

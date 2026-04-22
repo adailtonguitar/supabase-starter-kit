@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { Brain, Sparkles, Stethoscope, TrendingUp, Zap } from "lucide-react";
-import financeiroGestor from "@/assets/financeiro-gestor.png";
+import financeiroGestor from "@/assets/financeiro-gestor.webp";
 
 const aiFeatures = [
   {

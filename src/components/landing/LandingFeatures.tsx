@@ -15,8 +15,8 @@ import {
   Camera,
   ScanBarcode,
 } from "lucide-react";
-import pdvScreenReal from "@/assets/pdv-venda-real.png";
-import stockEmployee from "@/assets/stock-employee.png";
+import pdvScreenReal from "@/assets/pdv-venda-real.webp";
+import stockEmployee from "@/assets/stock-employee.webp";
 
 const features = [
   {
