@@ -1,4 +1,74 @@
-import { supabase, safeRpc, SUPABASE_URL, SUPABASE_ANON_KEY } from "@/integrations/supabase/client";
+import { createClient } from '@supabase/supabase-js';
 
-export { supabase, safeRpc, SUPABASE_URL, SUPABASE_ANON_KEY };
+// Use 'any' for Database type to ensure resilience across schema changes.
+// Strict types for RPCs and critical tables are in database.types.ts.
+type Database = any;
+
+export const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
+export const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
+const SUPABASE_PUBLISHABLE_KEY = SUPABASE_ANON_KEY;
+
+const baseSupabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+  }
+});
+
+/**
+ * Proxy wrapper for Supabase client to enforce logging and strict error handling.
+ */
+export const supabase = new Proxy(baseSupabase, {
+  get(target, prop, receiver) {
+    const value = Reflect.get(target, prop, receiver);
+
+    if (prop === 'from' || prop === 'rpc') {
+      return (...args: any[]) => {
+        const query = value.apply(target, args);
+        console.log(`[Supabase Request] ${String(prop)}:`, ...args);
+
+        // Proxy the query object to intercept the final execution (like .then, .select, etc.)
+        const originalThen = query.then;
+        query.then = async (onfulfilled: any, onrejected: any) => {
+          try {
+            const result = await originalThen.call(query);
+            console.log(`[Supabase Response] ${String(prop)} result:`, result);
+            if (result.error) {
+              console.error(`[Supabase Error] ${String(prop)}:`, result.error);
+              throw result.error;
+            }
+            return onfulfilled ? onfulfilled(result) : result;
+          } catch (error) {
+            console.error(`[Supabase Exception] ${String(prop)}:`, error);
+            if (onrejected) return onrejected(error);
+            throw error;
+          }
+        };
+        return query;
+      };
+    }
+    return value;
+  }
+});
+
+// ─── safeRpc: wrapper resiliente para RPCs ───
+export interface SafeRpcResult<T> {
+  success: boolean;
+  data: T | null;
+  error: string | null;
+}
+
+export async function safeRpc<T = any>(
+  fnName: string,
+  params?: Record<string, unknown>,
+): Promise<SafeRpcResult<T>> {
+  try {
+    const { data, error } = await supabase.rpc(fnName, params);
+    if (error) return { success: false, data: null, error: error.message };
+    return { success: true, data: data as T, error: null };
+  } catch (e: any) {
+    return { success: false, data: null, error: e?.message || "RPC failed" };
+  }
+}
+
 export default supabase;
