@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { APP_VERSION } from "@/config/app";
-import anthoLogo from "@/assets/logo-as.png";
+import anthoLogo from "@/assets/logo-as.webp";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Link, useLocation } from "react-router-dom";
 import {
@@ -384,8 +384,13 @@ export function AppSidebar({ mobileOpen, onMobileClose }: AppSidebarProps) {
                       <span className="text-[10px] text-muted-foreground/70 font-medium">Seu ERP completo para varejo</span>
                     </div>
                   </div>
-                  <button onClick={onMobileClose} className="p-2 rounded-lg text-sidebar-foreground hover:bg-sidebar-accent transition-colors">
-                    <X className="w-5 h-5" />
+                  <button
+                    type="button"
+                    onClick={onMobileClose}
+                    aria-label="Fechar menu"
+                    className="p-2 rounded-lg text-sidebar-foreground hover:bg-sidebar-accent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    <X className="w-5 h-5" aria-hidden="true" />
                   </button>
                 </div>
               </div>
@@ -417,12 +422,23 @@ export function AppSidebar({ mobileOpen, onMobileClose }: AppSidebarProps) {
                 <div className="flex items-center gap-1 px-1 mt-1 justify-between">
                   <ThemeToggle />
                   {pendingCount > 0 && (
-                    <button onClick={syncAll} disabled={syncing || !isOnline} className="p-1.5 rounded-lg text-warning hover:bg-sidebar-accent transition-colors">
-                      <RefreshCw className={cn("w-3.5 h-3.5", syncing && "animate-spin")} />
+                    <button
+                      type="button"
+                      onClick={syncAll}
+                      disabled={syncing || !isOnline}
+                      aria-label={`Sincronizar ${pendingCount} alteração${pendingCount > 1 ? "ões" : ""} pendente${pendingCount > 1 ? "s" : ""}`}
+                      className="p-1.5 rounded-lg text-warning hover:bg-sidebar-accent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      <RefreshCw className={cn("w-3.5 h-3.5", syncing && "animate-spin")} aria-hidden="true" />
                     </button>
                   )}
-                  <button onClick={signOut} className="p-1.5 rounded-lg text-sidebar-foreground hover:bg-sidebar-accent hover:text-destructive transition-colors">
-                    <LogOut className="w-3.5 h-3.5" />
+                  <button
+                    type="button"
+                    onClick={signOut}
+                    aria-label="Sair da conta"
+                    className="p-1.5 rounded-lg text-sidebar-foreground hover:bg-sidebar-accent hover:text-destructive transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    <LogOut className="w-3.5 h-3.5" aria-hidden="true" />
                   </button>
                 </div>
               </div>
@@ -463,18 +479,22 @@ export function AppSidebar({ mobileOpen, onMobileClose }: AppSidebarProps) {
           </AnimatePresence>
           {!collapsed && (
             <button
+              type="button"
               onClick={() => setCollapsed(!collapsed)}
-              className="p-1 rounded-md text-muted-foreground/50 hover:text-sidebar-foreground hover:bg-sidebar-accent/80 transition-colors"
+              aria-label="Recolher menu lateral"
+              className="p-1 rounded-md text-muted-foreground/50 hover:text-sidebar-foreground hover:bg-sidebar-accent/80 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
-              <ChevronLeft className="w-3.5 h-3.5" />
+              <ChevronLeft className="w-3.5 h-3.5" aria-hidden="true" />
             </button>
           )}
           {collapsed && (
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
+                  type="button"
                   onClick={() => setCollapsed(false)}
-                  className="p-1 rounded-md text-muted-foreground/50 hover:text-sidebar-foreground hover:bg-sidebar-accent/80 transition-colors mt-1"
+                  aria-label="Expandir menu lateral"
+                  className="p-1 rounded-md text-muted-foreground/50 hover:text-sidebar-foreground hover:bg-sidebar-accent/80 transition-colors mt-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   <ChevronRight className="w-3.5 h-3.5" />
                 </button>
@@ -529,8 +549,14 @@ export function AppSidebar({ mobileOpen, onMobileClose }: AppSidebarProps) {
           {pendingCount > 0 && (
             <Tooltip>
               <TooltipTrigger asChild>
-                <button onClick={syncAll} disabled={syncing || !isOnline} className="p-1.5 rounded-lg text-warning hover:bg-sidebar-accent transition-colors">
-                  <RefreshCw className={cn("w-3.5 h-3.5", syncing && "animate-spin")} />
+                <button
+                  type="button"
+                  onClick={syncAll}
+                  disabled={syncing || !isOnline}
+                  aria-label={`Sincronizar ${pendingCount} alteração${pendingCount > 1 ? "ões" : ""} pendente${pendingCount > 1 ? "s" : ""}`}
+                  className="p-1.5 rounded-lg text-warning hover:bg-sidebar-accent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <RefreshCw className={cn("w-3.5 h-3.5", syncing && "animate-spin")} aria-hidden="true" />
                 </button>
               </TooltipTrigger>
               <TooltipContent side="right">{pendingCount} pendentes</TooltipContent>
@@ -538,8 +564,13 @@ export function AppSidebar({ mobileOpen, onMobileClose }: AppSidebarProps) {
           )}
           <Tooltip>
             <TooltipTrigger asChild>
-              <button onClick={signOut} className="p-1.5 rounded-lg text-sidebar-foreground hover:bg-sidebar-accent hover:text-destructive transition-colors">
-                <LogOut className="w-3.5 h-3.5" />
+              <button
+                type="button"
+                onClick={signOut}
+                aria-label="Sair da conta"
+                className="p-1.5 rounded-lg text-sidebar-foreground hover:bg-sidebar-accent hover:text-destructive transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <LogOut className="w-3.5 h-3.5" aria-hidden="true" />
               </button>
             </TooltipTrigger>
             <TooltipContent side="right">Sair</TooltipContent>

@@ -2,8 +2,18 @@ import { Link } from "react-router-dom";
 import { ArrowLeft, Cookie } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { SEOHead } from "@/components/SEOHead";
 import { LEGAL_CONFIG } from "@/config/legal";
 import { getConsent, setConsent } from "@/lib/consent";
+
+const breadcrumbs = {
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  itemListElement: [
+    { "@type": "ListItem", position: 1, name: "Início", item: "https://anthosystem.com.br/" },
+    { "@type": "ListItem", position: 2, name: "Política de Privacidade", item: "https://anthosystem.com.br/privacidade" },
+  ],
+};
 
 const Privacidade = () => {
   const current = typeof window !== "undefined" ? getConsent() : null;
@@ -22,7 +32,13 @@ const Privacidade = () => {
   };
 
   return (
-  <div className="h-screen overflow-y-auto bg-background text-foreground">
+  <main className="h-screen overflow-y-auto bg-background text-foreground" id="main-content">
+    <SEOHead
+      title="Política de Privacidade"
+      description="Política de Privacidade do AnthoSystem. Como tratamos dados pessoais sob a LGPD, sub-operadores, direitos dos titulares e gestão de cookies."
+      path="/privacidade"
+      jsonLd={breadcrumbs}
+    />
     <div className="max-w-3xl mx-auto px-6 py-12">
       <Button asChild variant="ghost" size="sm" className="mb-8">
         <Link to="/"><ArrowLeft className="w-4 h-4 mr-2" /> Voltar</Link>
@@ -305,7 +321,7 @@ const Privacidade = () => {
         <p>Veja também nossos <Link to="/termos" className="text-primary hover:underline">Termos de Uso</Link>.</p>
       </div>
     </div>
-  </div>
+  </main>
   );
 };
 

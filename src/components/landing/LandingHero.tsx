@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowRight, CheckCircle2, Wifi, MessageCircle, Rocket, ShoppingCart, TrendingUp, Brain, Package, ZoomIn, X, Zap } from "lucide-react";
@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { trackEvent } from "@/lib/analytics";
-import checkoutScene from "@/assets/pdv-checkout-scene.jpg";
+import checkoutScene from "@/assets/pdv-checkout-scene.webp";
 
 const highlights = [
   "PDV com leitor e balança",
@@ -24,6 +24,15 @@ export function LandingHero() {
   const [zoomed, setZoomed] = useState(false);
   const [demoLoading, setDemoLoading] = useState(false);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!zoomed) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setZoomed(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [zoomed]);
 
   const handleDemo = async () => {
     trackEvent("demo_account_start", { location: "hero" });
@@ -144,9 +153,11 @@ export function LandingHero() {
             className="relative"
           >
             {/* Checkout scene */}
-            <div
-              className="relative cursor-pointer group"
+            <button
+              type="button"
+              className="relative cursor-pointer group text-left w-full rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               onClick={() => setZoomed(true)}
+              aria-label="Ampliar imagem do PDV em operação"
             >
               <div className="rounded-2xl overflow-hidden shadow-2xl shadow-primary/10 border border-border/50">
                 <img
@@ -158,13 +169,13 @@ export function LandingHero() {
               </div>
 
               {/* Zoom hint */}
-              <div className="absolute top-4 right-4 bg-background/70 backdrop-blur-sm rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity border border-border/50">
-                <ZoomIn className="w-4 h-4 text-primary" />
+              <div className="absolute top-4 right-4 bg-background/70 backdrop-blur-sm rounded-full p-2 opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity border border-border/50">
+                <ZoomIn className="w-4 h-4 text-primary" aria-hidden="true" />
               </div>
 
               {/* Subtle glow */}
               <div className="absolute -inset-4 -z-10 bg-primary/5 rounded-3xl blur-2xl" />
-            </div>
+            </button>
 
             {/* Floating cards */}
             <motion.div
@@ -207,20 +218,29 @@ export function LandingHero() {
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-50 bg-background/90 backdrop-blur-md flex items-center justify-center p-4 cursor-pointer"
             onClick={() => setZoomed(false)}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="hero-zoom-title"
           >
             <motion.div
               initial={{ scale: 0.8, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.8, opacity: 0 }}
               transition={{ type: "spring", damping: 25 }}
-              className="relative max-w-6xl w-full"
+              className="relative max-w-6xl w-full cursor-auto"
               onClick={(e) => e.stopPropagation()}
             >
+              <h2 id="hero-zoom-title" className="sr-only">
+                Imagem ampliada do PDV AnthoSystem em operação
+              </h2>
               <button
+                type="button"
                 onClick={() => setZoomed(false)}
-                className="absolute -top-12 right-0 text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2 text-sm"
+                className="absolute -top-12 right-0 text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2 text-sm rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                aria-label="Fechar imagem ampliada"
+                autoFocus
               >
-                <X className="w-5 h-5" /> Fechar
+                <X className="w-5 h-5" aria-hidden="true" /> Fechar
               </button>
               <div className="rounded-xl border-2 border-border overflow-hidden shadow-2xl">
                 <img
@@ -230,7 +250,7 @@ export function LandingHero() {
                 />
               </div>
               <p className="text-center text-sm text-muted-foreground mt-4">
-                Sistema AnthoSystem em operação real — clique fora para fechar
+                Sistema AnthoSystem em operação real — pressione Esc ou clique fora para fechar
               </p>
             </motion.div>
           </motion.div>

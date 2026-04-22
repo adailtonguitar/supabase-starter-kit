@@ -31,7 +31,7 @@ export default function LandingPage() {
       {/* Skip to content - accessibility */}
       <a
         href="#main-content"
-        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-[100] focus:px-4 focus:py-2 focus:bg-primary focus:text-primary-foreground focus:rounded-lg focus:outline-none"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-[100] focus:px-4 focus:py-2 focus:bg-primary focus:text-primary-foreground focus:rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
       >
         Pular para o conteúdo principal
       </a>
@@ -42,20 +42,48 @@ export default function LandingPage() {
         path="/"
         jsonLd={{
           "@context": "https://schema.org",
-          "@type": "SoftwareApplication",
-          "name": "AnthoSystem",
-          "applicationCategory": "BusinessApplication",
-          "operatingSystem": "Web",
-          "description": "Sistema de gestão completo para comércios e varejo. PDV, estoque, fiscal e financeiro integrados.",
-          "url": "https://anthosystem.com.br",
-          "offers": {
-            "@type": "AggregateOffer",
-            "lowPrice": "0",
-            "highPrice": "349.90",
-            "priceCurrency": "BRL",
-            "offerCount": "4"
-          },
-          "author": { "@type": "Organization", "name": "AnthoSystem" }
+          "@graph": [
+            {
+              "@type": "Organization",
+              "@id": "https://anthosystem.com.br/#organization",
+              name: "AnthoSystem",
+              url: "https://anthosystem.com.br",
+              logo: "https://anthosystem.com.br/marketing/og-banner-1200x630.png",
+              sameAs: [],
+              contactPoint: {
+                "@type": "ContactPoint",
+                contactType: "customer support",
+                availableLanguage: "Portuguese",
+                email: "contato@anthosystem.com.br",
+              },
+            },
+            {
+              "@type": "WebSite",
+              "@id": "https://anthosystem.com.br/#website",
+              url: "https://anthosystem.com.br",
+              name: "AnthoSystem",
+              publisher: { "@id": "https://anthosystem.com.br/#organization" },
+              inLanguage: "pt-BR",
+            },
+            {
+              "@type": "SoftwareApplication",
+              "@id": "https://anthosystem.com.br/#software",
+              name: "AnthoSystem",
+              applicationCategory: "BusinessApplication",
+              operatingSystem: "Web, iOS, Android",
+              description:
+                "Sistema de gestão completo para comércios e varejo. PDV, estoque, fiscal e financeiro integrados.",
+              url: "https://anthosystem.com.br",
+              offers: {
+                "@type": "AggregateOffer",
+                lowPrice: "0",
+                highPrice: "349.90",
+                priceCurrency: "BRL",
+                offerCount: "4",
+              },
+              publisher: { "@id": "https://anthosystem.com.br/#organization" },
+            },
+          ],
         }}
       />
       <main id="main-content" role="main">

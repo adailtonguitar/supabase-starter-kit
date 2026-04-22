@@ -17,11 +17,14 @@ export function ThemeToggle() {
     localStorage.setItem("theme", isLight ? "light" : "dark");
   }, [isLight]);
 
+  const label = isLight ? "Ativar modo escuro" : "Ativar modo claro";
   return (
     <button
       onClick={() => setIsLight((v) => !v)}
-      className="p-2 rounded-lg hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
-      title={isLight ? "Modo escuro" : "Modo claro"}
+      className="p-2 rounded-lg hover:bg-accent transition-colors text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      aria-label={label}
+      aria-pressed={isLight}
+      title={label}
     >
       {isLight ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
     </button>

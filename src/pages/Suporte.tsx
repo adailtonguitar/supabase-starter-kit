@@ -1,10 +1,26 @@
 import { Link } from "react-router-dom";
 import { ArrowLeft, Mail, MessageCircle, Clock, AlertTriangle, BookOpen, Headphones } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { SEOHead } from "@/components/SEOHead";
 import { LEGAL_CONFIG } from "@/config/legal";
 
+const breadcrumbs = {
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  itemListElement: [
+    { "@type": "ListItem", position: 1, name: "Início", item: "https://anthosystem.com.br/" },
+    { "@type": "ListItem", position: 2, name: "Suporte", item: "https://anthosystem.com.br/suporte" },
+  ],
+};
+
 const Suporte = () => (
-  <div className="h-screen overflow-y-auto bg-background text-foreground">
+  <main className="h-screen overflow-y-auto bg-background text-foreground" id="main-content">
+    <SEOHead
+      title="Central de Suporte"
+      description="Canais oficiais de suporte do AnthoSystem: WhatsApp, e-mail e base de conhecimento. SLA de resposta conforme o plano."
+      path="/suporte"
+      jsonLd={breadcrumbs}
+    />
     <div className="max-w-3xl mx-auto px-6 py-12">
       <Button asChild variant="ghost" size="sm" className="mb-8">
         <Link to="/"><ArrowLeft className="w-4 h-4 mr-2" /> Voltar</Link>
@@ -187,7 +203,7 @@ const Suporte = () => (
         {LEGAL_CONFIG.companyName} — {LEGAL_CONFIG.companyLegalName} — CNPJ {LEGAL_CONFIG.companyCNPJ}
       </p>
     </div>
-  </div>
+  </main>
 );
 
 export default Suporte;

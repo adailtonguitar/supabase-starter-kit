@@ -10,7 +10,11 @@ const WhatsAppIcon = () => (
 export function WhatsAppFloatingButton() {
   const handleClick = () => {
     const msg = encodeURIComponent("Olá! Preciso de ajuda com o sistema.");
-    window.open(`https://wa.me/${LEGAL_CONFIG.supportWhatsappRaw}?text=${msg}`, "_blank");
+    window.open(
+      `https://wa.me/${LEGAL_CONFIG.supportWhatsappRaw}?text=${msg}`,
+      "_blank",
+      "noopener,noreferrer",
+    );
   };
 
   return (

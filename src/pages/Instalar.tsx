@@ -4,7 +4,7 @@ import { Download, Smartphone, Monitor, Share, PlusSquare, MoreVertical, ArrowDo
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import logoAs from "@/assets/logo-as.png";
+import logoAs from "@/assets/logo-as.webp";
 
 export default function Instalar() {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
@@ -39,15 +39,15 @@ export default function Instalar() {
   };
 
   return (
-    <div className="h-screen overflow-y-auto bg-background">
+    <main className="h-screen overflow-y-auto bg-background" id="main-content">
       <div className="min-h-full flex items-start justify-center p-4 sm:p-8">
         <div className="max-w-2xl w-full space-y-8 py-4">
         <Link to="/" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors">
-          <ArrowLeft className="w-4 h-4" /> Voltar
+          <ArrowLeft className="w-4 h-4" aria-hidden="true" /> Voltar
         </Link>
 
         <div className="text-center space-y-3">
-          <img src={logoAs} alt="Logo" className="w-20 h-20 mx-auto rounded-2xl shadow-lg" />
+          <img src={logoAs} alt="AnthoSystem — logotipo do aplicativo" className="w-20 h-20 mx-auto rounded-2xl shadow-lg" />
           <h1 className="text-3xl font-bold text-foreground">Instalar Aplicativo</h1>
           <p className="text-muted-foreground max-w-md mx-auto">
             Instale o app no seu dispositivo para acesso rápido, mesmo offline. Funciona como um aplicativo nativo!
@@ -305,6 +305,6 @@ export default function Instalar() {
         </div>
         </div>
       </div>
-    </div>
+    </main>
   );
 }

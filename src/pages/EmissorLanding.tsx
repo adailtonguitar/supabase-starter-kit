@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { SEOHead } from "@/components/SEOHead";
@@ -7,12 +7,12 @@ import { toast } from "sonner";
 import {
   FileText, Check, ArrowRight, Shield, Zap, Clock, Cloud,
   Building2, Mail, Lock, User, Eye, EyeOff, Loader2,
-  Receipt, Settings, BarChart3, Package
+  Receipt, Settings, BarChart3, Package, X
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import logoAs from "@/assets/logo-as.png";
+import logoAs from "@/assets/logo-as.webp";
 import { LEGAL_CONFIG } from "@/config/legal";
 
 const features = [
@@ -57,7 +57,7 @@ export default function EmissorLanding() {
           }
         }}
       />
-      <nav className="sticky top-0 z-50 backdrop-blur-2xl bg-background/70 border-b border-border/50">
+      <nav aria-label="Navegação principal do Emissor NF-e" className="sticky top-0 z-50 backdrop-blur-2xl bg-background/70 border-b border-border/50">
         <div className="max-w-7xl mx-auto flex items-center justify-between px-6 h-16">
           <Link to="/" className="flex items-center gap-2">
             <img src={logoAs} alt="AnthoSystem" className="w-8 h-8 rounded-lg object-contain" />
@@ -78,6 +78,7 @@ export default function EmissorLanding() {
         </div>
       </nav>
 
+      <main id="main-content">
       {/* Hero */}
       <section className="relative overflow-hidden">
         <div className="absolute inset-0 pointer-events-none">
@@ -200,6 +201,7 @@ export default function EmissorLanding() {
           </motion.div>
         </div>
       </section>
+      </main>
 
       {/* Footer */}
       <footer className="border-t border-border bg-card/50">
@@ -247,6 +249,30 @@ function EmissorSignUpModal({ onClose }: { onClose: () => void }) {
     email: "",
     password: "",
   });
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const previouslyFocused = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    previouslyFocused.current = document.activeElement as HTMLElement | null;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+
+    const firstFocusable = dialogRef.current?.querySelector<HTMLElement>(
+      'input, button, [tabindex]:not([tabindex="-1"])',
+    );
+    firstFocusable?.focus();
+
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prevOverflow;
+      previouslyFocused.current?.focus?.();
+    };
+  }, [onClose]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -288,15 +314,30 @@ function EmissorSignUpModal({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4" onClick={(e) => e.target === e.currentTarget && onClose()}>
+    <div
+      className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="emissor-signup-title"
+    >
       <motion.div
+        ref={dialogRef}
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="w-full max-w-md bg-card rounded-2xl border border-border p-6 shadow-2xl"
+        className="w-full max-w-md bg-card rounded-2xl border border-border p-6 shadow-2xl relative"
       >
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Fechar cadastro"
+          className="absolute top-3 right-3 p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <X className="w-4 h-4" aria-hidden="true" />
+        </button>
         <div className="flex items-center gap-2 mb-6">
-          <Receipt className="w-5 h-5 text-primary" />
-          <h2 className="text-lg font-bold">Criar Conta — Emissor NF-e</h2>
+          <Receipt className="w-5 h-5 text-primary" aria-hidden="true" />
+          <h2 id="emissor-signup-title" className="text-lg font-bold">Criar Conta — Emissor NF-e</h2>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -365,8 +406,14 @@ function EmissorSignUpModal({ onClose }: { onClose: () => void }) {
                 required
                 minLength={6}
               />
-              <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
+                aria-pressed={showPassword}
+              >
+                {showPassword ? <EyeOff className="w-4 h-4" aria-hidden="true" /> : <Eye className="w-4 h-4" aria-hidden="true" />}
               </button>
             </div>
           </div>

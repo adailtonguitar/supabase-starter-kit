@@ -1,6 +1,6 @@
 import { memo } from "react";
 import { Link } from "react-router-dom";
-import anthoLogo from "@/assets/logo-as.png";
+import anthoLogo from "@/assets/logo-as.webp";
 import { APP_VERSION } from "@/config/app";
 import { NotificationBell } from "./NotificationBell";
 import { useAuth } from "@/hooks/useAuth";
@@ -39,7 +39,11 @@ export const MobileTopBar = memo(function MobileTopBar() {
       {/* Right actions */}
       <div className="flex items-center gap-2">
         <NotificationBell />
-        <Link to="/configuracoes">
+        <Link
+          to="/configuracoes"
+          aria-label="Abrir configurações da conta"
+          className="rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+        >
           <UserAvatarMini email={user?.email} />
         </Link>
       </div>

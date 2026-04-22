@@ -108,15 +108,18 @@ function NotificationItem({ notification: n, onMarkRead }: { notification: AppNo
   };
 
   return (
-    <div
+    <button
+      type="button"
       className={cn(
-        "flex gap-3 px-4 py-3 border-b border-border/50 last:border-0 transition-colors cursor-pointer hover:bg-accent/50",
+        "w-full text-left flex gap-3 px-4 py-3 border-b border-border/50 last:border-0 transition-colors cursor-pointer hover:bg-accent/50 focus-visible:outline-none focus-visible:bg-accent/50 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
         !n.is_read && "bg-primary/5"
       )}
       onClick={handleClick}
+      aria-expanded={expanded}
+      aria-label={`${n.is_read ? "" : "Não lida. "}${n.title}`}
     >
       <div className={cn("mt-0.5 shrink-0", config.color)}>
-        <Icon className="w-4 h-4" />
+        <Icon className="w-4 h-4" aria-hidden="true" />
       </div>
       <div className="min-w-0 flex-1">
         <div className="flex items-start justify-between gap-2">
@@ -124,7 +127,7 @@ function NotificationItem({ notification: n, onMarkRead }: { notification: AppNo
             {n.title}
           </p>
           {!n.is_read && (
-            <span className="w-2 h-2 rounded-full bg-primary shrink-0 mt-1.5" />
+            <span className="w-2 h-2 rounded-full bg-primary shrink-0 mt-1.5" aria-hidden="true" />
           )}
         </div>
         <p className={cn("text-xs text-muted-foreground mt-0.5", !expanded && "line-clamp-2")}>
@@ -134,6 +137,6 @@ function NotificationItem({ notification: n, onMarkRead }: { notification: AppNo
           {formatDistanceToNow(new Date(n.created_at), { addSuffix: true, locale: ptBR })}
         </p>
       </div>
-    </div>
+    </button>
   );
 }

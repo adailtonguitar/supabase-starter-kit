@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import logoAs from "@/assets/logo-as.png";
+import logoAs from "@/assets/logo-as.webp";
 import { LEGAL_CONFIG } from "@/config/legal";
 
 export function LandingFooter() {
@@ -25,7 +25,7 @@ export function LandingFooter() {
 
           {/* Links */}
           <div>
-            <h4 className="font-display text-sm font-bold mb-4">Produto</h4>
+            <h3 className="font-display text-sm font-bold mb-4">Produto</h3>
             <div className="flex flex-col gap-2.5 text-sm text-muted-foreground">
               <a href="#recursos" className="hover:text-foreground transition-colors">Recursos</a>
               <a href="#planos" className="hover:text-foreground transition-colors">Planos</a>
@@ -36,7 +36,7 @@ export function LandingFooter() {
 
           {/* Legal */}
           <div>
-            <h4 className="font-display text-sm font-bold mb-4">Legal</h4>
+            <h3 className="font-display text-sm font-bold mb-4">Legal</h3>
             <div className="flex flex-col gap-2.5 text-sm text-muted-foreground">
               <Link to="/termos" className="hover:text-foreground transition-colors">Termos de Uso</Link>
               <Link to="/privacidade" className="hover:text-foreground transition-colors">Privacidade</Link>
@@ -45,7 +45,7 @@ export function LandingFooter() {
 
           {/* Contact */}
           <div>
-            <h4 className="font-display text-sm font-bold mb-4">Contato & Suporte</h4>
+            <h3 className="font-display text-sm font-bold mb-4">Contato & Suporte</h3>
             <div className="flex flex-col gap-2.5 text-sm text-muted-foreground">
               <Link to="/suporte" className="hover:text-foreground transition-colors font-medium">
                 Central de Suporte

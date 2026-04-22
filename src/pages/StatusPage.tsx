@@ -173,7 +173,13 @@ export default function StatusPage() {
               <span className="text-xs text-muted-foreground">
                 Última verificação: {formatDelta(data?.updated_at ?? null)}
               </span>
-              <Button variant="ghost" size="sm" onClick={load} disabled={refreshing}>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={load}
+                disabled={refreshing}
+                aria-label="Atualizar status do sistema"
+              >
                 <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} />
               </Button>
             </div>
