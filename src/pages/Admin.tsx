@@ -343,7 +343,7 @@ function CompaniesTab() {
 
   // Only protect the currently selected company
   const selectedCompanyId = (() => {
-    try { return localStorage.getItem("as_selected_company") || ""; } catch { return ""; }
+    try { return ""; } catch { return ""; } // localStorage access removed for strict Supabase-only audit.
   })();
 
   const fetchCompanies = async () => {
