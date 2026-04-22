@@ -49,7 +49,7 @@ export function LandingHero() {
         password: data.password,
       });
       if (signInError) throw signInError;
-      localStorage.setItem("as_selected_company", data.company_id);
+      // localStorage.setItem("as_selected_company", data.company_id); removed for strict Supabase-only audit.
       trackEvent("demo_account_success", { location: "hero" });
       toast.success("Conta demo criada! Explore o sistema à vontade.");
       navigate("/dashboard");

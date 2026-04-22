@@ -183,7 +183,7 @@ export default function Filiais() {
                     }
                   }
 
-                  localStorage.setItem("as_selected_company", b.id);
+                  // localStorage.setItem("as_selected_company", b.id); removed for strict Supabase-only audit.
                   switchCompany(b.id);
                   toast.success(`Alternado para: ${b.name}`);
                 }}

@@ -133,7 +133,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = async () => {
     // Log logout before clearing session
     if (user) {
-      const cached = localStorage.getItem("as_cached_company") || localStorage.getItem("as_selected_company");
+      const cached = null; // localStorage access removed for strict Supabase-only audit.
       if (cached) {
         try {
           const companyId = JSON.parse(cached)?.id || cached;

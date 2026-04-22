@@ -24,7 +24,7 @@ export function LandingCTA() {
         password: data.password,
       });
       if (signInError) throw signInError;
-      localStorage.setItem("as_selected_company", data.company_id);
+      // localStorage.setItem("as_selected_company", data.company_id); removed for strict Supabase-only audit.
       toast.success("Conta demo criada! Explore o sistema à vontade.");
       navigate("/dashboard");
     } catch (err: any) {

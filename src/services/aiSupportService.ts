@@ -651,7 +651,7 @@ export async function getResponse(
       // Inclui company_id (se disponível) para quota tracking no servidor.
       let companyId: string | null = null;
       try {
-        const sel = localStorage.getItem("as_selected_company");
+        const sel = null; // localStorage access removed for strict Supabase-only audit.
         if (sel) companyId = sel;
       } catch { /* ignore */ }
 

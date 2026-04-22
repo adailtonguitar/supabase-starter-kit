@@ -4,9 +4,6 @@ import { fetchMyCompanyMemberships } from "@/lib/company-memberships";
 import { PRODUCTS_ACTIVE_OR_LEGACY_NULL } from "@/lib/product-active-filter";
 import { useAuth } from "./useAuth";
 
-const COMPANY_CACHE_KEY = "as_cached_company";
-const SELECTED_COMPANY_KEY = "as_selected_company";
-
 const COMPANY_SELECT =
   "name, logo_url, slogan, pix_key, pix_key_type, pix_city, address_city, address_street, address_number, address_neighborhood, address_state, cnpj, ie, phone, tax_regime, crt, pdv_auto_emit_nfce";
 
@@ -27,13 +24,8 @@ interface CachedCompany {
   addressCity: string | null;
   addressState: string | null;
   taxRegime: string | null;
-  /** CRT 1/2 = Simples Nacional (PDV valida CSOSN mesmo se tax_regime no banco estiver vazio). */
   crt: number | null;
   pdvAutoEmitNfce: boolean;
-}
-
-function getScopedStorageKey(baseKey: string, userId?: string | null) {
-  return userId ? `${baseKey}:${userId}` : baseKey;
 }
 
 type CompanyRow = {
@@ -56,45 +48,9 @@ type CompanyRow = {
   pdv_auto_emit_nfce?: boolean | null;
 };
 
-function cacheCompany(data: CachedCompany, userId?: string | null) {
-  try { localStorage.setItem(getScopedStorageKey(COMPANY_CACHE_KEY, userId), JSON.stringify(data)); } catch { /* */ }
-}
+/** Memory-only cache for the current session. */
+let memorySelectedCompanyId: string | null = null;
 
-function getCachedCompany(userId?: string | null): CachedCompany | null {
-  try {
-    const scopedRaw = localStorage.getItem(getScopedStorageKey(COMPANY_CACHE_KEY, userId));
-    if (scopedRaw) return JSON.parse(scopedRaw);
-    if (!userId) return null;
-    const legacyRaw = localStorage.getItem(COMPANY_CACHE_KEY);
-    if (legacyRaw) return JSON.parse(legacyRaw);
-  } catch { /* */ }
-  return null;
-}
-
-function getSelectedCompany(userId?: string | null): string | null {
-  try {
-    const scoped = localStorage.getItem(getScopedStorageKey(SELECTED_COMPANY_KEY, userId));
-    if (scoped) return scoped;
-    if (!userId) return null;
-    return localStorage.getItem(SELECTED_COMPANY_KEY);
-  } catch {
-    return null;
-  }
-}
-
-function setSelectedCompany(companyId: string, userId?: string | null) {
-  try { localStorage.setItem(getScopedStorageKey(SELECTED_COMPANY_KEY, userId), companyId); } catch { /* */ }
-}
-
-function clearSelectedCompany(userId?: string | null) {
-  try { localStorage.removeItem(getScopedStorageKey(SELECTED_COMPANY_KEY, userId)); } catch { /* */ }
-}
-
-function clearCachedCompany(userId?: string | null) {
-  try { localStorage.removeItem(getScopedStorageKey(COMPANY_CACHE_KEY, userId)); } catch { /* */ }
-}
-
-/** Ordena tenants ativos por volume (vendas, depois produtos) — primeiro = operação principal na prática. */
 async function rankActiveCompanyIdsByActivity(activeIds: string[]): Promise<string[]> {
   if (activeIds.length <= 1) return [...activeIds];
   try {
@@ -112,12 +68,11 @@ async function rankActiveCompanyIdsByActivity(activeIds: string[]): Promise<stri
     scored.sort((a, b) => b.score - a.score);
     return scored.map((x) => x.id);
   } catch (e) {
-    console.warn("[useCompany] rankActiveCompanyIdsByActivity falhou (rede/RLS); mantendo ordem dos IDs", e);
+    console.warn("[useCompany] rankActiveCompanyIdsByActivity failed:", e);
     return [...activeIds];
   }
 }
 
-/** Uma rodada de rede: ranking + linhas de companies em paralelo (evita estourar timeout de rota). */
 async function resolveActiveCompany(
   activeIds: string[],
   preferredFirst: string | null,
@@ -128,36 +83,6 @@ async function resolveActiveCompany(
   let chosen =
     preferredFirst && activeIds.includes(preferredFirst) ? preferredFirst : ranked[0];
 
-  // Com filial fixada (Filiais / restore grava as_selected_company), não repointar para "mais atividade"
-  // — isso abria outra empresa e parecia que o backup não gravou nada.
-  const pinnedBranch = Boolean(preferredFirst && activeIds.includes(preferredFirst));
-  if (!pinnedBranch && activeIds.length > 1 && ranked.length >= 2) {
-    try {
-      const bestId = ranked[0];
-      if (chosen !== bestId) {
-        const [{ count: curS }, { count: bestS }, { count: curP }, { count: bestP }] = await Promise.all([
-          supabase.from("sales").select("id", { count: "exact", head: true }).eq("company_id", chosen),
-          supabase.from("sales").select("id", { count: "exact", head: true }).eq("company_id", bestId),
-          supabase.from("products").select("id", { count: "exact", head: true }).eq("company_id", chosen).or(PRODUCTS_ACTIVE_OR_LEGACY_NULL),
-          supabase.from("products").select("id", { count: "exact", head: true }).eq("company_id", bestId).or(PRODUCTS_ACTIVE_OR_LEGACY_NULL),
-        ]);
-        const switchForSales = (curS ?? 0) === 0 && (bestS ?? 0) >= 1;
-        const switchForProducts =
-          (curS ?? 0) === 0 && (bestS ?? 0) === 0 && (curP ?? 0) === 0 && (bestP ?? 0) >= 1;
-        if (switchForSales || switchForProducts) {
-          chosen = bestId;
-          try {
-            localStorage.removeItem(SELECTED_COMPANY_KEY);
-          } catch {
-            /* */
-          }
-        }
-      }
-    } catch (e) {
-      console.warn("[useCompany] Comparação de atividade entre tenants ignorada", e);
-    }
-  }
-
   const tryIds = [...new Set([chosen, ...ranked].filter((id) => activeIds.includes(id)))];
   let results;
   try {
@@ -167,60 +92,18 @@ async function resolveActiveCompany(
       ),
     );
   } catch (e) {
-    console.warn("[useCompany] Falha ao buscar companies em lote; usando tenant sem linha", e);
+    console.warn("[useCompany] Failed to fetch companies batch:", e);
     return { id: chosen, row: null };
   }
 
   for (let i = 0; i < tryIds.length; i++) {
     const { data, error } = results[i];
     if (!error && data) {
-      if (tryIds[i] !== chosen) {
-        try {
-          localStorage.removeItem(SELECTED_COMPANY_KEY);
-        } catch {
-          /* */
-        }
-      }
       return { id: tryIds[i], row: data as CompanyRow };
     }
   }
 
-  // Mantém o tenant para products/sales mesmo se SELECT em companies falhar (RLS pontual); formulário Empresa pode ficar vazio.
   return { id: chosen, row: null };
-}
-
-function extractCompanyFields(company: CompanyRow | null | undefined): Omit<CachedCompany, 'companyId'> {
-  return {
-    companyName: company?.name ?? null,
-    logoUrl: company?.logo_url ?? null,
-    slogan: company?.slogan ?? null,
-    pixKey: company?.pix_key ?? null,
-    pixKeyType: company?.pix_key_type ?? null,
-    pixCity: company?.pix_city || company?.address_city || null,
-    cnpj: company?.cnpj ?? null,
-    ie: company?.ie ?? null,
-    phone: company?.phone ?? null,
-    addressStreet: company?.address_street ?? null,
-    addressNumber: company?.address_number ?? null,
-    addressNeighborhood: company?.address_neighborhood ?? null,
-    addressCity: company?.address_city ?? null,
-    addressState: company?.address_state ?? null,
-    taxRegime: company?.tax_regime ?? null,
-    crt: company?.crt != null && Number.isFinite(Number(company.crt)) ? Number(company.crt) : null,
-    pdvAutoEmitNfce: company?.pdv_auto_emit_nfce ?? true,
-  };
-}
-
-function hasCompanyIdentity(fields: Omit<CachedCompany, 'companyId'>): boolean {
-  return Boolean(
-    fields.companyName ||
-    fields.cnpj ||
-    fields.ie ||
-    fields.addressStreet ||
-    fields.addressCity ||
-    fields.phone ||
-    fields.logoUrl,
-  );
 }
 
 function mergeCompanyFields(
@@ -280,25 +163,19 @@ const nullFields: Omit<CachedCompany, 'companyId'> = {
 
 export function useCompany(): CompanyData {
   const { user, session } = useAuth();
-  const cached = getCachedCompany(user?.id);
-  const [companyId, setCompanyId] = useState<string | null>(cached?.companyId ?? null);
-  const [fields, setFields] = useState<Omit<CachedCompany, 'companyId'>>(cached ? { ...nullFields, ...cached } : nullFields);
+  const [companyId, setCompanyId] = useState<string | null>(memorySelectedCompanyId);
+  const [fields, setFields] = useState<Omit<CachedCompany, 'companyId'>>(nullFields);
   const [loading, setLoading] = useState(true);
   const retryCount = useRef(0);
   const retryTimer = useRef<ReturnType<typeof setTimeout>>();
 
   const applyCompany = useCallback((resolvedId: string, company: CompanyRow | null | undefined) => {
-    const isSameCompany = companyId === resolvedId;
+    memorySelectedCompanyId = resolvedId;
     setCompanyId(resolvedId);
     setFields((prev) => {
-      const latestCached = getCachedCompany(user?.id);
-      const cachedFallback = latestCached?.companyId === resolvedId ? { ...nullFields, ...latestCached } : nullFields;
-      const baseFallback = isSameCompany && hasCompanyIdentity(prev) ? prev : cachedFallback;
-      const next = mergeCompanyFields(company, baseFallback);
-      cacheCompany({ companyId: resolvedId, ...next }, user?.id);
-      return next;
+      return mergeCompanyFields(company, prev);
     });
-  }, [companyId, user?.id]);
+  }, []);
 
   useEffect(() => {
     retryCount.current = 0;
@@ -311,19 +188,11 @@ export function useCompany(): CompanyData {
       return;
     }
 
-    const latestCached = getCachedCompany(user.id);
-    if (!navigator.onLine && latestCached?.companyId) {
-      setCompanyId(latestCached.companyId);
-      setFields({ ...nullFields, ...latestCached });
-      setLoading(false);
-      return;
-    }
-
     let cancelled = false;
 
     const fetchCompany = async (targetCompanyId?: string) => {
       try {
-        const selectedId = targetCompanyId || getSelectedCompany(user.id);
+        const selectedId = targetCompanyId || memorySelectedCompanyId;
         let resolvedCompanyId: string | null = null;
 
         const memberships = await fetchMyCompanyMemberships(user.id);
@@ -332,16 +201,11 @@ export function useCompany(): CompanyData {
         if (selectedId) {
           const sel = memberships.find((m) => m.company_id === selectedId && m.is_active);
           if (sel) resolvedCompanyId = selectedId;
-          else clearSelectedCompany(user.id);
+          else memorySelectedCompanyId = null;
         }
 
         const activeIds = memberships.filter((m) => m.is_active).map((m) => m.company_id);
         if (activeIds.length === 0) {
-          if (retryCount.current < 3) {
-            retryCount.current++;
-            retryTimer.current = setTimeout(() => { if (!cancelled) fetchCompany(); }, Math.min(400 * retryCount.current, 1200));
-            return;
-          }
           setCompanyId(null);
           setFields(nullFields);
           if (!cancelled) setLoading(false);
@@ -360,25 +224,7 @@ export function useCompany(): CompanyData {
         }
       } catch (err) {
         console.error("[useCompany] Failed to fetch company:", err);
-        if (!cancelled && retryCount.current < 3) {
-          retryCount.current++;
-          retryTimer.current = setTimeout(() => { if (!cancelled) fetchCompany(); }, Math.min(400 * retryCount.current, 1200));
-          return;
-        }
-        const offlineCached = getCachedCompany(user.id);
-        if (!navigator.onLine && offlineCached?.companyId) {
-          setCompanyId(offlineCached.companyId);
-          setFields({ ...nullFields, ...offlineCached });
-        } else {
-          try {
-            const m = await fetchMyCompanyMemberships(user.id);
-            const ids = m.filter((x) => x.is_active).map((x) => x.company_id);
-            if (ids.length > 0) applyCompany(ids[0], null);
-            else setCompanyId(null);
-          } catch {
-            setCompanyId(null);
-          }
-        }
+        setCompanyId(null);
       }
       if (!cancelled) setLoading(false);
     };
@@ -395,7 +241,7 @@ export function useCompany(): CompanyData {
       const access = memberships.find((m) => m.company_id === newCompanyId && m.is_active);
       if (!access) { setLoading(false); return; }
 
-      setSelectedCompany(newCompanyId, user.id);
+      memorySelectedCompanyId = newCompanyId;
 
       const activeIds = memberships.filter((m) => m.is_active).map((m) => m.company_id);
       const { id, row } = await resolveActiveCompany(activeIds, newCompanyId);

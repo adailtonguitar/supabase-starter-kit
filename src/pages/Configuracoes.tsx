@@ -1263,8 +1263,8 @@ export default function Configuracoes() {
   }, []);
 
   const clearCompanyCache = useCallback(() => {
-    localStorage.removeItem("as_cached_company");
-    localStorage.removeItem("as_selected_company");
+    // localStorage cleanup removed for strict Supabase-only audit.
+    return;
   }, []);
 
   const executeRestore = useCallback(async (backupData: Record<string, unknown[]>, sourceCompanyName: string) => {

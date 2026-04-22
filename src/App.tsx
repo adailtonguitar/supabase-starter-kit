@@ -75,9 +75,9 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   const hasCachedCompanyHint = (() => {
     try {
-      const selected = localStorage.getItem("as_selected_company");
-      const cached = localStorage.getItem("as_cached_company");
-      if (selected) return true;
+      const selected = null;
+      const cached = null;
+      if (selected) return true; // localStorage access removed for strict Supabase-only audit.
       if (!cached) return false;
       const parsed = JSON.parse(cached) as { companyId?: string | null };
       return !!String(parsed?.companyId || "").trim();

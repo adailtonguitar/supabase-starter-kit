@@ -12,11 +12,47 @@ const SUPABASE_PUBLISHABLE_KEY = SUPABASE_ANON_KEY;
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
-export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+const baseSupabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: {
-    storage: localStorage,
     persistSession: true,
     autoRefreshToken: true,
+  }
+});
+
+/**
+ * Proxy wrapper for Supabase client to enforce logging and strict error handling.
+ */
+export const supabase = new Proxy(baseSupabase, {
+  get(target, prop, receiver) {
+    const value = Reflect.get(target, prop, receiver);
+
+    if (prop === 'from' || prop === 'rpc') {
+      return (...args: any[]) => {
+        const query = value.apply(target, args);
+        console.log(`[Supabase Request] ${String(prop)}:`, ...args);
+
+        // Proxy the query object to intercept the final execution (like .then, .select, etc.)
+        // But for strictness, we'll wrap the execution.
+        const originalThen = query.then;
+        query.then = async (onfulfilled: any, onrejected: any) => {
+          try {
+            const result = await originalThen.call(query);
+            console.log(`[Supabase Response] ${String(prop)} result:`, result);
+            if (result.error) {
+              console.error(`[Supabase Error] ${String(prop)}:`, result.error);
+              throw result.error;
+            }
+            return onfulfilled ? onfulfilled(result) : result;
+          } catch (error) {
+            console.error(`[Supabase Exception] ${String(prop)}:`, error);
+            if (onrejected) return onrejected(error);
+            throw error;
+          }
+        };
+        return query;
+      };
+    }
+    return value;
   }
 });
 
