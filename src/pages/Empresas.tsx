@@ -96,7 +96,7 @@ const Empresas = () => {
 
       if (loadError) {
         toast.error(
-          "Não foi possível carregar a empresa (rede ou permissão). Se a tela continuar vazia após recarregar, rode a migration `rpc_get_company_record` no Supabase ou limpe no navegador as chaves localStorage \"as_selected_company\" e \"as_cached_company\".",
+          "Não foi possível carregar a empresa (rede ou permissão). Verifique sua conexão com o Supabase.",
           { duration: 12_000 },
         );
       }
