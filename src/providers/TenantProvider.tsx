@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -20,7 +20,7 @@ interface TenantContextType {
 
 const TenantContext = createContext<TenantContextType | undefined>(undefined);
 
-const STORAGE_KEY = "as_selected_company_id";
+const STORAGE_KEY = "as_selected_company";
 
 export function TenantProvider({ children }: { children: React.ReactNode }) {
   const { user, session } = useAuth();
@@ -29,6 +29,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
     return localStorage.getItem(STORAGE_KEY);
   });
   const [isLoading, setIsLoading] = useState(true);
+  const isFirstLoad = useRef(true);
 
   const fetchCompanies = useCallback(async () => {
     if (!user) {
@@ -55,6 +56,14 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
 
       // Resolve currentCompanyId
       let nextId = currentCompanyId;
+      
+      // On first load, if we have a stored ID, check if it's still valid
+      if (isFirstLoad.current && nextId) {
+        const stillValid = validCompanies.find((c) => c.id === nextId);
+        if (!stillValid) nextId = null;
+        isFirstLoad.current = false;
+      }
+
       if (!nextId || !validCompanies.find((c) => c.id === nextId)) {
         nextId = validCompanies[0]?.id || null;
       }
