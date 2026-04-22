@@ -42,9 +42,32 @@ const faqs = [
   },
 ];
 
+const faqJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: faqs.map((f) => ({
+    "@type": "Question",
+    name: f.q,
+    acceptedAnswer: {
+      "@type": "Answer",
+      text: f.a,
+    },
+  })),
+};
+
 export function LandingFAQ() {
   return (
     <section id="faq" className="py-24 relative overflow-hidden">
+      {/*
+        schema.org/FAQPage — permite que o Google renderize as perguntas
+        direto na SERP com acordeão expansível. Precisa ter as mesmas
+        perguntas/respostas visíveis em tela (cumprido pelo Accordion abaixo).
+      */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
+      />
+
       {/* Subtle background glow */}
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] rounded-full bg-primary/5 blur-[120px]" />
