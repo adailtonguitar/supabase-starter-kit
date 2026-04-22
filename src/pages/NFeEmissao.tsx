@@ -145,9 +145,6 @@ function getDraftsKey(companyId: string | null, userId?: string | null): string 
 }
 
 function loadDrafts(companyId: string | null, userId?: string | null): NFeDraft[] {
-  try {
-    const raw = localStorage.getItem(getDraftsKey(companyId, userId));
-function loadDrafts(companyId: string | null, userId?: string | null): NFeDraft[] {
   return [];
 }
 
