@@ -24,6 +24,8 @@ import { useSync } from "@/hooks/useSync";
 import { useAdminRole } from "@/hooks/useAdminRole";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useWhatsAppSupport } from "@/hooks/useWhatsAppSupport";
+import { CompanySelector } from "@/components/CompanySelector";
+import { useTenant } from "@/providers/TenantProvider";
 
 
 // ─── Section labels ───
@@ -205,6 +207,7 @@ export function AppSidebar({ mobileOpen, onMobileClose }: AppSidebarProps) {
   const { isOnline, pendingCount, syncing, syncAll } = useSync();
   const { signOut, user } = useAuth();
   const { isSuperAdmin } = useAdminRole();
+  const { currentCompany } = useTenant();
   
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
     const initial: Record<string, boolean> = {};
@@ -392,6 +395,10 @@ export function AppSidebar({ mobileOpen, onMobileClose }: AppSidebarProps) {
                   >
                     <X className="w-5 h-5" aria-hidden="true" />
                   </button>
+                </div>
+                {/* Multi-tenant Selector */}
+                <div className="mt-4 px-2">
+                  <CompanySelector />
                 </div>
               </div>
 
