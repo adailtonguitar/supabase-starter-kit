@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
-import { RefreshCw, Download, Search, FileText, AlertTriangle, Package, Loader2, CheckCircle, Eye, ShieldCheck } from "lucide-react";
+import { RefreshCw, Download, Search, FileText, AlertTriangle, Package, Loader2, CheckCircle, Eye, ShieldCheck, Clock } from "lucide-react";
 import { format } from "date-fns";
 import { NFeImportDialog } from "@/components/stock/NFeImportDialog";
 import { toast } from "sonner";
@@ -90,11 +90,30 @@ function ConsultaDFeContent() {
     return <Badge variant={info.variant} className="text-xs capitalize">{situacao || "—"}</Badge>;
   };
 
+  const MDE_PRAZO_DIAS = 180;
+  const getMdePrazo = (dataEmissao?: string): { diasRestantes: number | null; vencido: boolean; critico: boolean } => {
+    if (!dataEmissao) return { diasRestantes: null, vencido: false, critico: false };
+    const emissao = new Date(dataEmissao);
+    if (isNaN(emissao.getTime())) return { diasRestantes: null, vencido: false, critico: false };
+    const hoje = new Date();
+    const msDia = 1000 * 60 * 60 * 24;
+    const decorridos = Math.floor((hoje.getTime() - emissao.getTime()) / msDia);
+    const restantes = MDE_PRAZO_DIAS - decorridos;
+    return { diasRestantes: restantes, vencido: restantes < 0, critico: restantes >= 0 && restantes <= 30 };
+  };
+
+  const docsPendentes = documents.filter(d => !d.status_manifestacao || d.status_manifestacao === "pendente");
+  const prazoCritico = docsPendentes.filter(d => {
+    const p = getMdePrazo(d.data_emissao);
+    return p.critico || p.vencido;
+  }).length;
+
   const stats = {
     total: documents.length,
-    pendentes: documents.filter(d => !d.status_manifestacao || d.status_manifestacao === "pendente").length,
+    pendentes: docsPendentes.length,
     manifestados: documents.filter(d => d.status_manifestacao === "ciencia" || d.status_manifestacao === "confirmado").length,
     importados: documents.filter(d => d.importado).length,
+    prazoCritico,
   };
 
   return (
@@ -166,6 +185,27 @@ function ConsultaDFeContent() {
         </Card>
       </div>
 
+      {stats.prazoCritico > 0 && (
+        <Card className="border-warning bg-warning/5">
+          <CardContent className="pt-4 pb-4">
+            <div className="flex items-start gap-3">
+              <Clock className="w-5 h-5 text-warning mt-0.5 shrink-0" />
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-foreground">
+                  Atenção: {stats.prazoCritico} {stats.prazoCritico === 1 ? "nota pendente" : "notas pendentes"} próxima{stats.prazoCritico === 1 ? "" : "s"} ou além do prazo de 180 dias
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  A legislação (Ajuste SINIEF 07/2005) exige <strong>manifestação do destinatário</strong> em até{" "}
+                  <strong>180 dias da emissão</strong>. Após esse prazo, o "Desconhecimento" e a "Operação Não Realizada"
+                  não podem mais ser registrados — a nota passa a constar como operação aceita, podendo gerar cobrança
+                  indevida de ICMS/IPI e problemas no cruzamento do SPED.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {error && (
         <Card className="border-destructive">
           <CardContent className="pt-4">
@@ -226,7 +266,32 @@ function ConsultaDFeContent() {
                         {doc.valor_total ? formatCurrency(doc.valor_total) : "—"}
                       </TableCell>
                       <TableCell>{getSituacaoBadge(doc.situacao)}</TableCell>
-                      <TableCell>{getStatusBadge(doc)}</TableCell>
+                      <TableCell>
+                        <div className="flex flex-col gap-1">
+                          {getStatusBadge(doc)}
+                          {(!doc.status_manifestacao || doc.status_manifestacao === "pendente") && (() => {
+                            const prazo = getMdePrazo(doc.data_emissao);
+                            if (prazo.diasRestantes === null) return null;
+                            if (prazo.vencido) {
+                              return (
+                                <Badge variant="destructive" className="text-[10px] gap-1 w-fit">
+                                  <Clock className="w-2.5 h-2.5" />
+                                  Prazo 180d vencido
+                                </Badge>
+                              );
+                            }
+                            if (prazo.critico) {
+                              return (
+                                <Badge variant="outline" className="text-[10px] gap-1 w-fit border-warning text-warning">
+                                  <Clock className="w-2.5 h-2.5" />
+                                  Faltam {prazo.diasRestantes}d
+                                </Badge>
+                              );
+                            }
+                            return null;
+                          })()}
+                        </div>
+                      </TableCell>
                       <TableCell className="text-center">
                         <div className="flex items-center justify-center gap-1">
                           {/* Manifest dropdown */}

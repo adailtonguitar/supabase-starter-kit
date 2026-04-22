@@ -214,7 +214,23 @@ Deno.serve(async (req) => {
       });
 
     if (uploadErr) {
-      console.error("Upload error:", uploadErr);
+      // Se o upload falhou, o SPED NÃO ficou persistido. Retornar sucesso aqui
+      // enganaria o usuário e ele acharia que a obrigação acessória foi entregue.
+      // Agora devolvemos 500 com mensagem explícita e o conteúdo em memória
+      // para que a UI permita reenviar / baixar localmente como fallback.
+      console.error("[generate-sped] Upload error:", uploadErr);
+      return jsonResponse(
+        {
+          success: false,
+          error: `Falha ao persistir SPED no storage: ${uploadErr.message || "erro desconhecido"}`,
+          period,
+          docs_count: fiscalDocs.length,
+          items_count: allSaleItems.length,
+          lines_count: lines.length,
+          sped_content: spedContent,
+        },
+        500,
+      );
     }
 
     return jsonResponse(

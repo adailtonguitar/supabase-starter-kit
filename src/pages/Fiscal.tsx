@@ -434,11 +434,25 @@ export default function Fiscal() {
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="bg-card rounded-xl card-shadow border border-border p-5">
           <div className="flex items-center gap-2 mb-4">
             <FileSpreadsheet className="w-5 h-5 text-primary" />
-            <h2 className="text-base font-semibold text-foreground">Exportação SPED Fiscal (EFD ICMS/IPI)</h2>
+            <h2 className="text-base font-semibold text-foreground">Exportação auxiliar SPED Fiscal (EFD ICMS/IPI)</h2>
           </div>
-          <p className="text-sm text-muted-foreground mb-4">
-            Gera o arquivo SPED Fiscal com os registros de documentos fiscais, produtos e participantes do período selecionado.
-          </p>
+          <div className="mb-4 space-y-2 text-sm">
+            <p className="text-muted-foreground">
+              Gera um arquivo SPED Fiscal <strong>pré-preenchido</strong> com os registros de documentos fiscais, produtos
+              e participantes do período selecionado.
+            </p>
+            <div className="flex items-start gap-2 p-3 rounded-lg bg-warning/10 border border-warning/30 text-warning-foreground">
+              <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0 text-warning" />
+              <div className="text-xs leading-relaxed">
+                <p className="font-semibold">Este não é o arquivo final entregue ao Fisco.</p>
+                <p className="mt-1">
+                  O SPED Fiscal definitivo deve ser validado, complementado (blocos E, G, H, K conforme sua operação)
+                  e transmitido pelo <strong>PVA SPED Fiscal (Receita Federal)</strong> até o dia 20 do mês subsequente
+                  ao período de apuração. Este export serve como ponto de partida para seu contador.
+                </p>
+              </div>
+            </div>
+          </div>
           <div className="flex flex-wrap items-end gap-4">
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1 block">Mês</label>
