@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
+import { TenantProvider, useTenant } from "@/providers/TenantProvider";
 import { useCompany } from "@/hooks/useCompany";
 import { useAdminRole } from "@/hooks/useAdminRole";
 import { SubscriptionProvider, useSubscription } from "@/hooks/useSubscription";
@@ -55,7 +56,7 @@ const PageSpinner = () => (
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, session, loading, signOut } = useAuth();
   const location = useLocation();
-  const { companyId, loading: companyLoading } = useCompany();
+  const { currentCompanyId: companyId, isLoading: companyLoading } = useTenant();
   const { access, loading: subLoading } = useSubscription();
   const { isSuperAdmin, loading: adminLoading } = useAdminRole();
   const { accepted: termsAccepted, loading: termsLoading } = useTermsAcceptance();
@@ -391,9 +392,10 @@ const App = () => (
           <ScrollToTop />
           <AnalyticsTracker />
           <AuthProvider>
-            <SubscriptionProvider>
-              <PlanProvider>
-                <LocalDBProvider>
+            <TenantProvider>
+              <SubscriptionProvider>
+                <PlanProvider>
+                  <LocalDBProvider>
                   <WalkthroughProvider>
                     <WalkthroughRunner />
                     <UpdateNoticeModal />
@@ -404,7 +406,8 @@ const App = () => (
                   </WalkthroughProvider>
                 </LocalDBProvider>
               </PlanProvider>
-            </SubscriptionProvider>
+              </SubscriptionProvider>
+            </TenantProvider>
           </AuthProvider>
         </BrowserRouter>
       </TooltipProvider>
