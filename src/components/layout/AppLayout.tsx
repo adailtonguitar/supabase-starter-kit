@@ -3,6 +3,7 @@ import { AppSidebar } from "./AppSidebar";
 import { MobileBottomNav } from "./MobileBottomNav";
 import { MobileTopBar } from "./MobileTopBar";
 import { SubscriptionBanner } from "./SubscriptionBanner";
+import { CertificateExpiryBanner } from "./CertificateExpiryBanner";
 import { DemoBanner } from "./DemoBanner";
 import { ImpersonationBanner } from "./ImpersonationBanner";
 import { OnlineStatusIndicator } from "./OnlineStatusIndicator";
@@ -33,6 +34,7 @@ export const AppLayout = memo(function AppLayout({ children }: AppLayoutProps) {
         <OnlineStatusIndicator />
         <DemoBanner />
         <SubscriptionBanner />
+        <CertificateExpiryBanner />
         {isMobile ? <MobileTopBar /> : <AppHeader />}
         <main className={`flex-1 overflow-y-auto overflow-x-auto min-h-0 min-w-0 ${isMobile ? "pb-20" : ""}`}>
           {isMobile ? (
