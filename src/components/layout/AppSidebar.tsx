@@ -510,6 +510,11 @@ export function AppSidebar({ mobileOpen, onMobileClose }: AppSidebarProps) {
             </Tooltip>
           )}
         </div>
+        {!collapsed && (
+          <div className="mt-4 mb-1 px-1">
+            <CompanySelector />
+          </div>
+        )}
       </div>
 
       <nav className="flex-1 min-h-0 py-2 px-2 space-y-0.5 overflow-y-auto scrollbar-thin">
