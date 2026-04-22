@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo, useRef } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useCompany } from "@/hooks/useCompany";
 import { supabase } from "@/integrations/supabase/client";
@@ -10,7 +10,7 @@ export interface OnboardingStep {
   description: string;
   icon: string;
   route: string;
-  checkKey: string; // localStorage key or table check
+  checkKey: string;
 }
 
 const ONBOARDING_STEPS: OnboardingStep[] = [
@@ -56,19 +56,25 @@ const ONBOARDING_STEPS: OnboardingStep[] = [
   },
 ];
 
-// Storage keys removed for strict Supabase-only audit.
-...
+const MS_COMPANY_CONSIDERED_ESTABLISHED = 48 * 60 * 60 * 1000;
+
+type MemberProbe = "idle" | "none" | "has" | "error";
+
+interface OnboardingState {
+  completedSteps: string[];
+  dismissed: boolean;
+}
+
 export function useOnboardingChecklist() {
   const { user } = useAuth();
   const { companyId, loading: companyLoading } = useCompany();
+  const tenantReady = !!companyId && !companyLoading;
   const [state, setState] = useState<OnboardingState>({ completedSteps: [], dismissed: false });
   const [welcomeSeen, setWelcomeSeen] = useState(false);
   const [welcomeLoaded, setWelcomeLoaded] = useState(false);
   const [checklistLoaded, setChecklistLoaded] = useState(false);
   const [companyAgeLoaded, setCompanyAgeLoaded] = useState(false);
-  /** true = empresa criada há mais de MS_COMPANY_CONSIDERED_ESTABLISHED ou falha ao ler created_at (preferir não incomodar). */
   const [companyIsEstablished, setCompanyIsEstablished] = useState(true);
-  /** Evita tratar conta com vínculo real como “primeiro login” quando RLS falha; só exibe welcome se probe = none. */
   const [memberProbe, setMemberProbe] = useState<MemberProbe>("idle");
 
   useEffect(() => {
@@ -77,7 +83,6 @@ export function useOnboardingChecklist() {
       setMemberProbe("idle");
       return;
     }
-    setMemberProbe("idle");
     (async () => {
       try {
         const rows = await fetchMyCompanyMemberships(user.id);
@@ -88,37 +93,9 @@ export function useOnboardingChecklist() {
         if (!cancelled) setMemberProbe("error");
       }
     })();
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [user?.id]);
 
-  // Migrate legacy key -> per-user key (so old users don't see it again)
-  useEffect(() => {
-    try {
-      if (!user?.id) return;
-      const legacySeen = localStorage.getItem(WELCOME_KEY) === "true";
-      const scopedSeen = localStorage.getItem(welcomeKey) === "true";
-      if (legacySeen && !scopedSeen) {
-        localStorage.setItem(welcomeKey, "true");
-      }
-      setWelcomeSeen(localStorage.getItem(welcomeKey) === "true");
-    } catch {
-      /* best effort */
-    }
-  }, [user?.id, welcomeKey]);
-
-  // Keep state in sync when the key changes (user switch / session restore)
-  useEffect(() => {
-    try {
-      const scoped = localStorage.getItem(welcomeKey);
-      if (scoped != null) setWelcomeSeen(scoped === "true");
-    } catch {
-      /* best effort */
-    }
-  }, [welcomeKey]);
-
-  // Authoritative source of truth: DB (survives anonymous tabs / storage resets)
   useEffect(() => {
     let cancelled = false;
     const run = async () => {
@@ -135,17 +112,15 @@ export function useOnboardingChecklist() {
         if (error) throw error;
         const dbSeen = !!data?.welcome_seen_at;
         if (cancelled) return;
-        setWelcomeSeen((prev) => (dbSeen ? true : prev));
+        setWelcomeSeen(dbSeen);
       } catch {
-        // best effort: keep localStorage-derived value
+        setWelcomeSeen(false);
       } finally {
         if (!cancelled) setWelcomeLoaded(true);
       }
     };
     run();
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [user?.id]);
 
   useEffect(() => {
@@ -176,43 +151,19 @@ export function useOnboardingChecklist() {
         if (!cancelled) setCompanyAgeLoaded(true);
       }
     })();
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [companyId]);
 
   const markWelcomeSeen = useCallback(() => {
     setWelcomeSeen(true);
-    try {
-      localStorage.setItem(welcomeKey, "true");
-    } catch {}
     (async () => {
       try {
         if (!user?.id) return;
         await supabase.from("profiles").update({ welcome_seen_at: new Date().toISOString() } as any).eq("id", user.id);
-      } catch {
-        /* best effort */
-      }
+      } catch { /* ignored */ }
     })();
-  }, [welcomeKey, user?.id]);
+  }, [user?.id]);
 
-  const tenantWelcomeSynced = useRef(false);
-  useEffect(() => {
-    if (!tenantReady || !user?.id) {
-      tenantWelcomeSynced.current = false;
-      return;
-    }
-    if (welcomeSeen) return;
-    if (tenantWelcomeSynced.current) return;
-    tenantWelcomeSynced.current = true;
-    markWelcomeSeen();
-  }, [tenantReady, user?.id, welcomeSeen, markWelcomeSeen]);
-
-  useEffect(() => {
-    saveState(onboardingKey, state);
-  }, [onboardingKey, state]);
-
-  // Server-side onboarding checklist state
   useEffect(() => {
     let cancelled = false;
     const run = async () => {
@@ -230,15 +181,12 @@ export function useOnboardingChecklist() {
         if (cancelled) return;
         const dbDismissed = !!data?.onboarding_dismissed_at;
         const dbSteps = Array.isArray(data?.onboarding_completed_steps) ? (data?.onboarding_completed_steps as unknown as string[]) : [];
-        setState((prev) => {
-          const mergedSteps = Array.from(new Set([...(prev.completedSteps || []), ...dbSteps]));
-          return {
-            completedSteps: mergedSteps,
-            dismissed: prev.dismissed || dbDismissed,
-          };
+        setState({
+          completedSteps: dbSteps,
+          dismissed: dbDismissed,
         });
       } catch {
-        // best effort: keep localStorage-derived state
+        setState({ completedSteps: [], dismissed: false });
       } finally {
         if (!cancelled) setChecklistLoaded(true);
       }
@@ -250,20 +198,16 @@ export function useOnboardingChecklist() {
   const completeStep = useCallback((stepId: string) => {
     setState((prev) => {
       if (prev.completedSteps.includes(stepId)) return prev;
-      return { ...prev, completedSteps: [...prev.completedSteps, stepId] };
+      const next = [...prev.completedSteps, stepId];
+      (async () => {
+        try {
+          if (!user?.id) return;
+          await supabase.from("profiles").update({ onboarding_completed_steps: next } as any).eq("id", user.id);
+        } catch { /* ignored */ }
+      })();
+      return { ...prev, completedSteps: next };
     });
-    // Best effort: persist server-side
-    (async () => {
-      try {
-        if (!user?.id) return;
-        const next = Array.from(new Set([...(state.completedSteps || []), stepId]));
-        await supabase.from("profiles").update({ onboarding_completed_steps: next } as any).eq("id", user.id);
-      } catch {
-        /* best effort */
-      }
-    })();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id, state.completedSteps]);
+  }, [user?.id]);
 
   const dismissChecklist = useCallback(() => {
     setState((prev) => ({ ...prev, dismissed: true }));
@@ -271,82 +215,13 @@ export function useOnboardingChecklist() {
       try {
         if (!user?.id) return;
         await supabase.from("profiles").update({ onboarding_dismissed_at: new Date().toISOString() } as any).eq("id", user.id);
-      } catch {
-        /* best effort */
-      }
+      } catch { /* ignored */ }
     })();
   }, [user?.id]);
 
-  /** Empresas antigas: persistir dismiss no profile (evita voltar o card se algo limpar estado local). */
-  const establishedDismissSyncedForCompany = useRef<string | null>(null);
-  useEffect(() => {
-    if (!checklistLoaded || !companyAgeLoaded || !tenantReady || !companyId || !user?.id) return;
-    if (!companyIsEstablished) return;
-    const everyStepDone = state.completedSteps.length >= ONBOARDING_STEPS.length;
-    if (state.dismissed || everyStepDone) return;
-    if (establishedDismissSyncedForCompany.current === companyId) return;
-    establishedDismissSyncedForCompany.current = companyId;
-    dismissChecklist();
-  }, [
-    checklistLoaded,
-    companyAgeLoaded,
-    companyIsEstablished,
-    tenantReady,
-    companyId,
-    user?.id,
-    state.dismissed,
-    state.completedSteps.length,
-    dismissChecklist,
-  ]);
-
-  /** Contas novas com uso real (produto ou venda visível) dispensam o checklist sem esperar 48h. */
-  const checklistProbeDoneForCompany = useRef<Set<string>>(new Set());
-  useEffect(() => {
-    if (!checklistLoaded || !companyAgeLoaded || !tenantReady || !companyId || !user?.id) return;
-    if (companyIsEstablished) return;
-    const everyStepDone = state.completedSteps.length >= ONBOARDING_STEPS.length;
-    if (state.dismissed || everyStepDone) return;
-    if (checklistProbeDoneForCompany.current.has(companyId)) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        const [{ data: pRows }, { data: sRows }] = await Promise.all([
-          supabase.from("products").select("id").eq("company_id", companyId).limit(1),
-          supabase.from("sales").select("id").eq("company_id", companyId).limit(1),
-        ]);
-        if (cancelled) return;
-        checklistProbeDoneForCompany.current.add(companyId);
-        const hasActivity = (pRows?.length ?? 0) > 0 || (sRows?.length ?? 0) > 0;
-        if (hasActivity) dismissChecklist();
-      } catch {
-        checklistProbeDoneForCompany.current.add(companyId);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    checklistLoaded,
-    companyAgeLoaded,
-    companyIsEstablished,
-    tenantReady,
-    companyId,
-    user?.id,
-    state.dismissed,
-    state.completedSteps.length,
-    dismissChecklist,
-  ]);
-
   const resetOnboarding = useCallback(() => {
-    checklistProbeDoneForCompany.current.clear();
-    establishedDismissSyncedForCompany.current = null;
-    tenantWelcomeSynced.current = false;
     setState({ completedSteps: [], dismissed: false });
     setWelcomeSeen(false);
-    try {
-      localStorage.removeItem(welcomeKey);
-      localStorage.removeItem(onboardingKey);
-    } catch {}
     (async () => {
       try {
         if (!user?.id) return;
@@ -355,11 +230,9 @@ export function useOnboardingChecklist() {
           onboarding_dismissed_at: null,
           onboarding_completed_steps: null,
         } as any).eq("id", user.id);
-      } catch {
-        /* best effort */
-      }
+      } catch { /* ignored */ }
     })();
-  }, [welcomeKey, onboardingKey, user?.id]);
+  }, [user?.id]);
 
   const steps = ONBOARDING_STEPS;
   const completedCount = state.completedSteps.length;
