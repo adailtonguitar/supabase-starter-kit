@@ -1411,13 +1411,94 @@ function resolveIcmsAliquota(
   return baseAliq;
 }
 
+// ─── FCP (Fundo de Combate à Pobreza) por UF ───
+// Base legal: art. 82 ADCT + convênios ICMS (varia por UF, normalmente 1 a 2 pontos).
+// Aplicado sobre a mesma base do ICMS na operação interna (ICMS00/20/70) e
+// sobre a base do ICMS-ST (ICMS10) quando a mercadoria está sujeita a ST com FCP.
+// Piauí (PI) estava gerando rejeição 793 e é mantido em 0 até normalização.
+const FCP_UF_INTERNAL: Record<string, number> = {
+  RJ: 2, MG: 2, MS: 2, GO: 2, MT: 2, PI: 0, AL: 1, MA: 2,
+  BA: 2, PE: 2, CE: 2, PA: 2, SE: 2, PB: 2, RN: 2, TO: 2,
+};
+function resolveInternalFcpPercent(uf?: string | null, explicit?: number | null): number {
+  if (!uf) return 0;
+  const key = String(uf).toUpperCase().trim();
+  if (key === "PI") return 0; // Prevenção de rejeição 793
+  if (typeof explicit === "number" && Number.isFinite(explicit) && explicit >= 0) return explicit;
+  return FCP_UF_INTERNAL[key] || 0;
+}
+
+// ─── Lei 12.741/2012 (Lei da Transparência) — IBPT aproximado ───
+// Tabela simplificada baseada nas planilhas públicas do IBPT (impostometro.com.br).
+// Retorna o percentual aproximado TOTAL de tributos (federal + estadual + municipal)
+// para efeito de informação ao consumidor. A tabela oficial tem ~30k NCMs; aqui
+// usamos um classificador por prefixo/família mais um fallback conservador.
+// Valores combinam tributos federais médios (IPI/II/PIS/COFINS) + ICMS estimado
+// da UF emitente. Para Simples Nacional, a alíquota aproximada do DAS é usada.
+const IBPT_SIMPLES_APROX = 13.45; // média ponderada dos anexos do Simples
+
+function estimateFederalTaxPercent(ncm: string): number {
+  const clean = (ncm || "").replace(/\D/g, "");
+  if (!clean) return 11.44; // fallback genérico (PIS 1.65 + COFINS 7.6 + IPI aprox 2.2)
+  const p2 = clean.slice(0, 2);
+  const p4 = clean.slice(0, 4);
+
+  // Monofásicos e setores específicos
+  if (MONOFASICO_PREFIXES_PIS.has(p4)) return 18.70; // combustíveis, medicamentos, cosméticos, bebidas
+  if (p4 === "2402" || p4 === "2403") return 40.30; // tabaco/cigarro
+  if (p4 === "8703" || p4 === "8704") return 28.60; // automóveis
+  if (p2 === "84" || p2 === "85") return 13.45; // eletroeletrônicos
+  if (p2 === "61" || p2 === "62" || p2 === "63") return 11.22; // vestuário
+  if (p2 === "72" || p2 === "73") return 14.10; // aço/ferro
+
+  // Cesta básica (imunidade parcial)
+  if (ISENTO_PREFIXES_PIS.some(p => clean.startsWith(p))) return 6.10;
+  if (ISENTO_BROAD_PREFIXES.includes(p2)) return 7.80;
+
+  return 11.44; // genérico
+}
+
+function estimateStateTaxPercent(uf: string | undefined, isSimples: boolean): number {
+  if (isSimples) return 0; // já somado no DAS/IBPT_SIMPLES_APROX
+  const ALIQ_INTERNA_UF_LOCAL: Record<string, number> = {
+    AC: 19, AL: 19, AP: 18, AM: 20, BA: 20.5, CE: 20, DF: 20, ES: 17,
+    GO: 19, MA: 22, MT: 17, MS: 17, MG: 18, PA: 19, PB: 20, PR: 19.5,
+    PE: 20.5, PI: 21, RJ: 22, RN: 18, RS: 17, RO: 19.5, RR: 20, SC: 17,
+    SP: 18, SE: 19, TO: 20,
+  };
+  const key = (uf || "").toUpperCase();
+  return ALIQ_INTERNA_UF_LOCAL[key] ?? 18;
+}
+
+function estimateTotalTaxPercent(ncm: string, uf: string | undefined, isSimples: boolean): number {
+  if (isSimples) return IBPT_SIMPLES_APROX;
+  const federal = estimateFederalTaxPercent(ncm);
+  const estadual = estimateStateTaxPercent(uf, false);
+  // Municipal (ISS) não se aplica a produtos; mantemos 0.
+  return Math.round((federal + estadual) * 100) / 100;
+}
+
 // ─── Construtor de bloco ICMS por regime ───
-function buildIcmsBlock(item: any, isSimples: boolean, indIEDest?: number, modelo: number = 65, isInterstate: boolean = false) {
+// ATENÇÃO: novos parâmetros são **opcionais** e default = 0. Quando não informados,
+// o comportamento é idêntico ao anterior (vFCP = 0), garantindo compatibilidade
+// retroativa para chamadas existentes.
+function buildIcmsBlock(
+  item: any,
+  isSimples: boolean,
+  indIEDest?: number,
+  modelo: number = 65,
+  isInterstate: boolean = false,
+  fcpInternalPercent: number = 0,
+) {
   const cst = (item.cst || "").trim();
   const origem = Number(item.origem) || 0;
   const vProd = item.qty * item.unit_price - (item.discount || 0);
   const rawAliqIcms = item.icms_aliquota || 0;
   const aliqIcms = resolveIcmsAliquota(rawAliqIcms, origem, modelo, isInterstate);
+  // FCP interno: só se aplica para operação interna (não interestadual) e se houver
+  // percentual definido. Em operação interestadual o FCP vai no ICMSUFDest (DIFAL)
+  // e já é tratado na camada superior — aqui zeramos para evitar duplicidade.
+  const pFCP = !isInterstate && fcpInternalPercent > 0 ? fcpInternalPercent : 0;
 
   if (isSimples) {
     // MIGRAÇÃO CSOSN 102: Simples Nacional sem cálculo real de ST
@@ -1454,14 +1535,25 @@ function buildIcmsBlock(item: any, isSimples: boolean, indIEDest?: number, model
         `[ICMS-ST] Base ST incluindo acessórios — vProd=${vProd.toFixed(2)} +IPI=${vIPI.toFixed(2)} +Frete=${vFrete.toFixed(2)} +Seguro=${vSeguro.toFixed(2)} +Outros=${vOutro.toFixed(2)} MVA=${mva}% → vBCST=${bcST.toFixed(2)}`,
       );
     }
-    return {
-      ICMS10: {
-        orig: origem, CST: cst, modBC: 3,
-        vBC: Math.round(vBC * 100) / 100, pICMS: aliqIcms, vICMS: Math.round(vICMS * 100) / 100,
-        modBCST: 4, pMVAST: mva, vBCST: Math.round(bcST * 100) / 100,
-        pICMSST: aliqIcms, vICMSST: Math.round(icmsST * 100) / 100,
-      },
+    const icms10: any = {
+      orig: origem, CST: cst, modBC: 3,
+      vBC: Math.round(vBC * 100) / 100, pICMS: aliqIcms, vICMS: Math.round(vICMS * 100) / 100,
+      modBCST: 4, pMVAST: mva, vBCST: Math.round(bcST * 100) / 100,
+      pICMSST: aliqIcms, vICMSST: Math.round(icmsST * 100) / 100,
     };
+    if (pFCP > 0) {
+      const vBCFCP = Math.round(vBC * 100) / 100;
+      const vFCP = Math.round(vBC * (pFCP / 100) * 100) / 100;
+      const vBCFCPST = Math.round(bcST * 100) / 100;
+      const vFCPST = Math.round(bcST * (pFCP / 100) * 100) / 100;
+      icms10.vBCFCP = vBCFCP;
+      icms10.pFCP = pFCP;
+      icms10.vFCP = vFCP;
+      icms10.vBCFCPST = vBCFCPST;
+      icms10.pFCPST = pFCP;
+      icms10.vFCPST = vFCPST;
+    }
+    return { ICMS10: icms10 };
   }
   if (cst === "60") {
     return { ICMS60: { orig: origem, CST: "60" } };
@@ -1470,23 +1562,33 @@ function buildIcmsBlock(item: any, isSimples: boolean, indIEDest?: number, model
     return { ICMS40: { orig: origem, CST: cst } };
   }
   if (cst === "20") {
-    return {
-      ICMS20: {
-        orig: origem, CST: "20", modBC: 3, pRedBC: 0,
-        vBC: Math.round(vProd * 100) / 100, pICMS: aliqIcms,
-        vICMS: Math.round(vProd * (aliqIcms / 100) * 100) / 100,
-      },
+    const vBC20 = Math.round(vProd * 100) / 100;
+    const icms20: any = {
+      orig: origem, CST: "20", modBC: 3, pRedBC: 0,
+      vBC: vBC20, pICMS: aliqIcms,
+      vICMS: Math.round(vProd * (aliqIcms / 100) * 100) / 100,
     };
+    if (pFCP > 0) {
+      icms20.vBCFCP = vBC20;
+      icms20.pFCP = pFCP;
+      icms20.vFCP = Math.round(vBC20 * (pFCP / 100) * 100) / 100;
+    }
+    return { ICMS20: icms20 };
   }
   const vBC = vProd;
   const vICMS = vBC * (aliqIcms / 100);
-  return {
-    ICMS00: {
-      orig: origem, CST: cst || "00", modBC: 3,
-      vBC: Math.round(vBC * 100) / 100, pICMS: aliqIcms,
-      vICMS: Math.round(vICMS * 100) / 100,
-    },
+  const icms00: any = {
+    orig: origem, CST: cst || "00", modBC: 3,
+    vBC: Math.round(vBC * 100) / 100, pICMS: aliqIcms,
+    vICMS: Math.round(vICMS * 100) / 100,
   };
+  if (pFCP > 0) {
+    const vBCFCP = Math.round(vBC * 100) / 100;
+    icms00.vBCFCP = vBCFCP;
+    icms00.pFCP = pFCP;
+    icms00.vFCP = Math.round(vBCFCP * (pFCP / 100) * 100) / 100;
+  }
+  return { ICMS00: icms00 };
 }
 
 // ─── Classificação PIS/COFINS por NCM (monofásico, isento, normal) ───
@@ -2031,6 +2133,7 @@ async function handleEmit(supabase: any, body: any) {
 
   // Totalizadores
   let totalVProd = 0, totalVDesc = 0, totalVICMS = 0, totalVBCST = 0, totalVST = 0, totalVPIS = 0, totalVCOFINS = 0;
+  let totalVFCPNfce = 0, totalVFCPSTNfce = 0, totalVTotTribNfce = 0;
 
   const taxClassificationAudit: any[] = [];
   const detItems = items.map((item: any, i: number) => {
@@ -2138,13 +2241,26 @@ async function handleEmit(supabase: any, body: any) {
       }
     }
 
-    const icmsBlock = buildIcmsBlock({ ...item, qty, unit_price: unitPrice, discount }, isSimples, 9);
+    const fcpInternalNfce = resolveInternalFcpPercent(
+      companyState,
+      (company as any)?.fcp_internal_percent ?? null,
+    );
+    const icmsBlock = buildIcmsBlock(
+      { ...item, qty, unit_price: unitPrice, discount },
+      isSimples,
+      9,
+      65,
+      false,
+      fcpInternalNfce,
+    );
 
     const icmsKey = Object.keys(icmsBlock)[0];
     const icmsData = (icmsBlock as any)[icmsKey];
     if (icmsData.vICMS) totalVICMS += icmsData.vICMS;
     if (icmsData.vBCST) totalVBCST += icmsData.vBCST;
     if (icmsData.vICMSST) totalVST += icmsData.vICMSST;
+    if (icmsData.vFCP) totalVFCPNfce += icmsData.vFCP;
+    if (icmsData.vFCPST) totalVFCPSTNfce += icmsData.vFCPST;
 
     // ── PIS/COFINS: classificação automática por NCM ──
     const ncmClassNfce = classifyPisCofinsNCM(ncm);
@@ -2183,7 +2299,14 @@ async function handleEmit(supabase: any, body: any) {
 
     if (item.cest) prodBlock.CEST = String(item.cest).replace(/\D/g, "");
 
-    const det: any = { nItem: i + 1, prod: prodBlock, imposto: { ICMS: icmsBlock, PIS, COFINS } };
+    // Lei 12.741/2012 — Valor aproximado dos tributos por item
+    const vTotTribItem = Math.round(
+      vProdLiq * (estimateTotalTaxPercent(ncm, companyState, isSimples) / 100) * 100,
+    ) / 100;
+    totalVTotTribNfce += vTotTribItem;
+
+    const impostoBlockNfce: any = { vTotTrib: vTotTribItem, ICMS: icmsBlock, PIS, COFINS };
+    const det: any = { nItem: i + 1, prod: prodBlock, imposto: impostoBlockNfce };
     if (discount > 0) det.prod.vDesc = discount;
 
     return det;
@@ -2276,7 +2399,18 @@ async function handleEmit(supabase: any, body: any) {
   if (isSimples) infAdFisco = "DOCUMENTO EMITIDO POR ME OU EPP OPTANTE PELO SIMPLES NACIONAL";
   const infAdic: any = {};
   if (infAdFisco) infAdic.infAdFisco = infAdFisco;
-  if (form.inf_adic) infAdic.infCpl = form.inf_adic;
+
+  // Lei 12.741/2012 — frase obrigatória no cupom com tributos aproximados
+  const vTotTribTotalNfce = Math.round(totalVTotTribNfce * 100) / 100;
+  const pctTotTribNfce = totalVProd > 0
+    ? Math.round((vTotTribTotalNfce / totalVProd) * 10000) / 100
+    : 0;
+  const leiTransparenciaMsg = vTotTribTotalNfce > 0
+    ? `Val Aprox Tributos R$ ${vTotTribTotalNfce.toFixed(2).replace(".", ",")} (${pctTotTribNfce.toFixed(2).replace(".", ",")}%) Fonte: IBPT`
+    : "";
+  const userInfCpl = form.inf_adic ? String(form.inf_adic).trim() : "";
+  const infCplParts = [leiTransparenciaMsg, userInfCpl].filter((s) => s.length > 0);
+  if (infCplParts.length > 0) infAdic.infCpl = infCplParts.join(" | ");
 
   // Payload
   const payload: any = {
@@ -2305,10 +2439,10 @@ async function handleEmit(supabase: any, body: any) {
         ICMSTot: {
           vBC: Math.round((totalVICMS > 0 ? totalVProd : 0) * 100) / 100,
           vICMS: Math.round(totalVICMS * 100) / 100,
-          vICMSDeson: 0, vFCP: 0,
+          vICMSDeson: 0, vFCP: Math.round(totalVFCPNfce * 100) / 100,
           vBCST: Math.round(totalVBCST * 100) / 100,
           vST: Math.round(totalVST * 100) / 100,
-          vFCPST: 0, vFCPSTRet: 0,
+          vFCPST: Math.round(totalVFCPSTNfce * 100) / 100, vFCPSTRet: 0,
           vProd: Math.round(totalVProd * 100) / 100,
           vFrete: 0, vSeg: 0,
           vDesc: Math.round(totalVDesc * 100) / 100,
@@ -2316,6 +2450,7 @@ async function handleEmit(supabase: any, body: any) {
           vPIS: Math.round(totalVPIS * 100) / 100,
           vCOFINS: Math.round(totalVCOFINS * 100) / 100,
           vOutro: 0, vNF,
+          vTotTrib: vTotTribTotalNfce,
         },
       },
       pag: pagBlock,
@@ -3024,6 +3159,7 @@ async function handleEmitNfe(supabase: any, body: any) {
   // Totalizadores
   let totalVProd = 0, totalVDesc = 0, totalVICMS = 0, totalVBCST = 0, totalVST = 0, totalVPIS = 0, totalVCOFINS = 0;
   let totalVFCPUFDest = 0, totalVICMSUFDest = 0, totalVICMSUFRemet = 0;
+  let totalVFCPNfe = 0, totalVFCPSTNfe = 0, totalVTotTribNfe = 0;
 
   const resolvedItemsForReturn: Array<Record<string, unknown>> = [];
   const taxClassificationAuditNfe: any[] = [];
@@ -3158,13 +3294,25 @@ async function handleEmitNfe(supabase: any, body: any) {
       console.warn(`[emit-nfe] ST obrigatória para NCM ${item.ncm || ncm} UF ${stUf} mas migrado para CSOSN 102 (sem risco)`);
     }
 
-    const icmsBlock = buildIcmsBlock({ ...item, qty, unit_price: unitPrice, discount }, isSimples, preIndIEDest, 55, isInterstate);
+    const fcpInternalNfe = isInterstate
+      ? 0
+      : resolveInternalFcpPercent(emitUF, (company as any)?.fcp_internal_percent ?? null);
+    const icmsBlock = buildIcmsBlock(
+      { ...item, qty, unit_price: unitPrice, discount },
+      isSimples,
+      preIndIEDest,
+      55,
+      isInterstate,
+      fcpInternalNfe,
+    );
 
     const icmsKey = Object.keys(icmsBlock)[0];
     const icmsData = (icmsBlock as any)[icmsKey];
     if (icmsData.vICMS) totalVICMS += icmsData.vICMS;
     if (icmsData.vBCST) totalVBCST += icmsData.vBCST;
     if (icmsData.vICMSST) totalVST += icmsData.vICMSST;
+    if (icmsData.vFCP) totalVFCPNfe += icmsData.vFCP;
+    if (icmsData.vFCPST) totalVFCPSTNfe += icmsData.vFCPST;
 
     // ── PIS/COFINS: classificação automática por NCM ──
     const ncmClass = classifyPisCofinsNCM(ncm);
@@ -3203,7 +3351,13 @@ async function handleEmitNfe(supabase: any, body: any) {
 
     if (item.cest) prodBlock.CEST = String(item.cest).replace(/\D/g, "");
 
-    const impostoBlock: any = { ICMS: icmsBlock, PIS, COFINS };
+    // Lei 12.741/2012 — Valor aproximado dos tributos por item
+    const vTotTribItemNfe = Math.round(
+      vProdLiq * (estimateTotalTaxPercent(ncm, companyState, isSimples) / 100) * 100,
+    ) / 100;
+    totalVTotTribNfe += vTotTribItemNfe;
+
+    const impostoBlock: any = { vTotTrib: vTotTribItemNfe, ICMS: icmsBlock, PIS, COFINS };
 
     // ─── DIFAL: ICMSUFDest por item (interestadual + não contribuinte) ───
     if (applyDifal && pICMSUFDest > pICMSInter) {
@@ -3372,7 +3526,18 @@ async function handleEmitNfe(supabase: any, body: any) {
   if (isSimples) infAdFisco = "DOCUMENTO EMITIDO POR ME OU EPP OPTANTE PELO SIMPLES NACIONAL";
   const infAdic: any = {};
   if (infAdFisco) infAdic.infAdFisco = infAdFisco;
-  if (form.inf_adic) infAdic.infCpl = form.inf_adic;
+
+  // Lei 12.741/2012 — frase obrigatória na NF-e com tributos aproximados
+  const vTotTribTotalNfe = Math.round(totalVTotTribNfe * 100) / 100;
+  const pctTotTribNfe = totalVProd > 0
+    ? Math.round((vTotTribTotalNfe / totalVProd) * 10000) / 100
+    : 0;
+  const leiTransparenciaMsgNfe = vTotTribTotalNfe > 0
+    ? `Val Aprox Tributos R$ ${vTotTribTotalNfe.toFixed(2).replace(".", ",")} (${pctTotTribNfe.toFixed(2).replace(".", ",")}%) Fonte: IBPT`
+    : "";
+  const userInfCplNfe = form.inf_adic ? String(form.inf_adic).trim() : "";
+  const infCplPartsNfe = [leiTransparenciaMsgNfe, userInfCplNfe].filter((s) => s.length > 0);
+  if (infCplPartsNfe.length > 0) infAdic.infCpl = infCplPartsNfe.join(" | ");
 
   // Finalidade
   const finNFe = Number(form.finalidade) || 1;
@@ -3430,10 +3595,10 @@ async function handleEmitNfe(supabase: any, body: any) {
         ICMSTot: {
           vBC: Math.round((totalVICMS > 0 ? totalVProd : 0) * 100) / 100,
           vICMS: Math.round(totalVICMS * 100) / 100,
-          vICMSDeson: 0, vFCP: Math.round(totalVFCPUFDest * 100) / 100,
+          vICMSDeson: 0, vFCP: Math.round(totalVFCPNfe * 100) / 100,
           vBCST: Math.round(totalVBCST * 100) / 100,
           vST: Math.round(totalVST * 100) / 100,
-          vFCPST: 0, vFCPSTRet: 0,
+          vFCPST: Math.round(totalVFCPSTNfe * 100) / 100, vFCPSTRet: 0,
           vProd: Math.round(totalVProd * 100) / 100,
           vFrete: 0, vSeg: 0,
           vDesc: Math.round(totalVDesc * 100) / 100,
@@ -3441,6 +3606,7 @@ async function handleEmitNfe(supabase: any, body: any) {
           vPIS: Math.round(totalVPIS * 100) / 100,
           vCOFINS: Math.round(totalVCOFINS * 100) / 100,
           vOutro: 0, vNF,
+          vTotTrib: vTotTribTotalNfe,
           vFCPUFDest: Math.round(totalVFCPUFDest * 100) / 100,
           vICMSUFDest: Math.round(totalVICMSUFDest * 100) / 100,
           vICMSUFRemet: Math.round(totalVICMSUFRemet * 100) / 100,
@@ -3905,6 +4071,17 @@ async function handleConsultStatus(supabase: any, body: any, callerUserId?: stri
   });
 }
 
+// ─── Prazos legais de cancelamento por tipo ───
+// NFC-e: em regra 30 min (alguns estados aceitam até 2h, mas adotamos o
+// menor prazo para evitar rejeição e comportamento inconsistente entre UFs).
+// NF-e: 24h em todos os estados (alguns admitem até 168h/7d para casos
+// específicos, mas o padrão é 24h).
+// Fontes: Ajuste SINIEF 07/2005; NT2012/002; NT2016/003.
+const CANCEL_DEADLINE_MINUTES: Record<string, number> = {
+  nfce: 30,
+  nfe: 24 * 60,
+};
+
 // ─── Cancelar documento ───
 async function handleCancel(supabase: any, body: any, callerUserId?: string | null) {
   const { access_key, justificativa, doc_type, doc_id, company_id } = body;
@@ -3918,6 +4095,57 @@ async function handleCancel(supabase: any, body: any, callerUserId?: string | nu
     if (!userRole || !["admin", "gerente"].includes(userRole.role)) {
       return jsonResponse({ success: false, error: "Apenas administradores e gerentes podem cancelar documentos fiscais" }, 403);
     }
+  }
+
+  // ─── Validação do prazo legal de cancelamento (guard server-side) ───
+  // Bloqueia antes de chamar a SEFAZ quando o prazo já venceu. Economiza
+  // uma chamada externa e dá mensagem clara de que é preciso CCe ou nota
+  // de entrada/estorno. Se não conseguirmos localizar o documento, seguimos
+  // para a SEFAZ (a própria rejeitará com o código apropriado — fail-safe
+  // para não bloquear cancelamentos legítimos em caso de inconsistência
+  // local).
+  const normalizedDocType = doc_type === "nfe" ? "nfe" : "nfce";
+  const deadlineMinutes = CANCEL_DEADLINE_MINUTES[normalizedDocType] ?? 30;
+  try {
+    let docLookup: any = null;
+    if (access_key) {
+      const query = supabase
+        .from("fiscal_documents")
+        .select("created_at, status, doc_type")
+        .eq("access_key", access_key);
+      const { data } = company_id
+        ? await query.eq("company_id", company_id).maybeSingle()
+        : await query.maybeSingle();
+      docLookup = data;
+    } else if (doc_id) {
+      const { data } = await supabase
+        .from("fiscal_documents")
+        .select("created_at, status, doc_type")
+        .eq("id", doc_id)
+        .maybeSingle();
+      docLookup = data;
+    }
+    if (docLookup?.created_at) {
+      const created = new Date(docLookup.created_at).getTime();
+      const elapsedMin = Math.floor((Date.now() - created) / 60000);
+      if (elapsedMin > deadlineMinutes) {
+        const hRestantes = Math.max(0, deadlineMinutes - elapsedMin);
+        const ref = normalizedDocType === "nfe"
+          ? "24 horas (NF-e — Ajuste SINIEF 07/2005)"
+          : "30 minutos (NFC-e — NT2012/002)";
+        console.warn(`[handleCancel] Prazo expirado para ${normalizedDocType}: ${elapsedMin}min decorridos, limite ${deadlineMinutes}min.`);
+        return jsonResponse({
+          success: false,
+          error: `Prazo de cancelamento expirado. Limite legal: ${ref}. Decorrido: ~${Math.round(elapsedMin / 60 * 10) / 10}h. Use Carta de Correção (se aplicável) ou emita nota de entrada/estorno pelo destinatário.`,
+          deadline_expired: true,
+          elapsed_minutes: elapsedMin,
+          limit_minutes: deadlineMinutes,
+          remaining_minutes: hRestantes,
+        }, 400);
+      }
+    }
+  } catch (err) {
+    console.warn("[handleCancel] Falha ao consultar prazo local; seguindo para SEFAZ:", err);
   }
 
   const token = await getNuvemFiscalToken();
@@ -3979,6 +4207,152 @@ async function handleCancel(supabase: any, body: any, callerUserId?: string | nu
   }
 
   return jsonResponse({ success: true, data });
+}
+
+// ─── Carta de Correção Eletrônica (CCe) ───
+// Permite corrigir erros não-fatais em NF-e autorizada (CFOP, texto de info
+// complementar, dados do transportador etc.). Limites legais:
+//   • Prazo: 30 dias a partir da autorização (Ajuste SINIEF 07/2005, cláusula décima-A);
+//   • Máximo 20 CCes por NF-e (sequencial 1 a 20);
+//   • Correção deve ter no mínimo 15 caracteres;
+//   • NÃO PODE corrigir: valores (vBC, vICMS, vProd), partes envolvidas,
+//     datas de emissão/saída, números de nota/série ou dados da CFOP que
+//     alterem a natureza da operação.
+// NFC-e (modelo 65) NÃO admite CCe — apenas NF-e modelo 55.
+async function handleCartaCorrecao(supabase: any, body: any, callerUserId?: string | null) {
+  const { access_key, correcao, sequencial, company_id, doc_id } = body;
+
+  if (!correcao || String(correcao).trim().length < 15) {
+    return jsonResponse({ success: false, error: "Texto da correção deve ter no mínimo 15 caracteres (Ajuste SINIEF 07/2005)." }, 400);
+  }
+  if (String(correcao).length > 1000) {
+    return jsonResponse({ success: false, error: "Texto da correção não pode exceder 1000 caracteres." }, 400);
+  }
+
+  // Autorização: admin/gerente
+  if (callerUserId && company_id) {
+    const { data: userRole } = await supabase.from("company_users").select("role")
+      .eq("user_id", callerUserId).eq("company_id", company_id).eq("is_active", true).maybeSingle();
+    if (!userRole || !["admin", "gerente"].includes(userRole.role)) {
+      return jsonResponse({ success: false, error: "Apenas administradores e gerentes podem emitir Carta de Correção." }, 403);
+    }
+  }
+
+  // Localizar documento e validar tipo + prazo + sequencial
+  let docLookup: any = null;
+  try {
+    if (access_key) {
+      const query = supabase
+        .from("fiscal_documents")
+        .select("id, created_at, status, doc_type, cce_last_sequence")
+        .eq("access_key", access_key);
+      const { data } = company_id
+        ? await query.eq("company_id", company_id).maybeSingle()
+        : await query.maybeSingle();
+      docLookup = data;
+    } else if (doc_id) {
+      const { data } = await supabase
+        .from("fiscal_documents")
+        .select("id, created_at, status, doc_type, cce_last_sequence")
+        .eq("id", doc_id)
+        .maybeSingle();
+      docLookup = data;
+    }
+  } catch (_) {
+    // se a coluna cce_last_sequence ainda não existir, seguimos com fallback
+  }
+
+  if (docLookup) {
+    if (docLookup.doc_type !== "nfe") {
+      return jsonResponse({ success: false, error: "Carta de Correção aplica-se apenas a NF-e (modelo 55)." }, 400);
+    }
+    if (docLookup.status !== "autorizada") {
+      return jsonResponse({ success: false, error: `Carta de Correção só é válida para NF-e autorizada (status atual: ${docLookup.status || "?"}).` }, 400);
+    }
+    const created = new Date(docLookup.created_at).getTime();
+    const daysElapsed = Math.floor((Date.now() - created) / (1000 * 60 * 60 * 24));
+    if (daysElapsed > 30) {
+      return jsonResponse({
+        success: false,
+        error: `Prazo de CCe expirado. Limite legal: 30 dias (Ajuste SINIEF 07/2005). Decorridos: ${daysElapsed} dias.`,
+        deadline_expired: true,
+      }, 400);
+    }
+  }
+
+  // Sequencial: se informado usa-o; senão calcula como próximo do último
+  let seq = Number(sequencial);
+  if (!seq || seq < 1) {
+    const lastSeq = Number(docLookup?.cce_last_sequence || 0);
+    seq = lastSeq + 1;
+  }
+  if (seq < 1 || seq > 20) {
+    return jsonResponse({ success: false, error: `Sequencial ${seq} inválido. Deve estar entre 1 e 20.` }, 400);
+  }
+
+  const token = await getNuvemFiscalToken();
+  const baseUrl = getApiBaseUrl();
+
+  // Resolver referência do provedor (UUID preferido; fallback chave)
+  let docRef: string | null = docLookup?.id ? null : (access_key || doc_id || null);
+  if (access_key) {
+    try {
+      const resolved = await resolveProviderDocRef({
+        supabase, token, baseUrl,
+        endpoint: "nfe",
+        companyId: company_id || null,
+        accessKey: String(access_key),
+      });
+      if (resolved) docRef = resolved;
+    } catch (_) {
+      // fallback
+    }
+  }
+  if (!docRef) docRef = access_key;
+  if (!docRef) {
+    return jsonResponse({ success: false, error: "Chave ou ID da NF-e não informado." }, 400);
+  }
+
+  const resp = await safeFetch(`${baseUrl}/nfe/${docRef}/carta-correcao`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ correcao: String(correcao).trim(), sequencial: seq }),
+  }, 20000);
+
+  const data = await parseResponseJsonSafe(resp, "carta-correcao");
+  if (!resp.ok) {
+    const errMsg = data?.error?.message || data?.mensagem || data?.message || `Erro ao emitir CCe (HTTP ${resp.status})`;
+    return jsonResponse({ success: false, error: errMsg });
+  }
+
+  const sefazStatus = String(data?.status_sefaz || data?.status || "").toLowerCase();
+  if (sefazStatus.includes("rejeit") || sefazStatus.includes("erro")) {
+    const motivo = data?.motivo_status || data?.mensagem_sefaz || data?.xMotivo || "CCe rejeitada pela SEFAZ.";
+    return jsonResponse({ success: false, error: motivo });
+  }
+
+  // Persistir registro da CCe no histórico (tabela dedicada) e atualizar o
+  // último sequencial no fiscal_documents para facilitar o próximo cálculo.
+  try {
+    if (docLookup?.id) {
+      await supabase.from("fiscal_correction_letters").insert({
+        fiscal_document_id: docLookup.id,
+        company_id: company_id || null,
+        access_key: access_key || null,
+        sequencial: seq,
+        correcao: String(correcao).trim(),
+        protocol_number: data?.numero_protocolo || data?.nProt || null,
+        provider_response: data || null,
+      });
+      await supabase.from("fiscal_documents")
+        .update({ cce_last_sequence: seq })
+        .eq("id", docLookup.id);
+    }
+  } catch (err) {
+    console.warn("[handleCartaCorrecao] Falha ao persistir histórico de CCe:", err);
+  }
+
+  return jsonResponse({ success: true, sequencial: seq, data });
 }
 
 // ─── Download PDF ───
@@ -4405,6 +4779,8 @@ Deno.serve(async (req) => {
         return await handleInutilize(supabase, body, userId);
       case "backup_xmls":
         return await handleBackupXmls(supabase, body);
+      case "carta_correcao":
+        return await handleCartaCorrecao(supabase, body, userId);
       case "upload_certificate":
         return await handleUploadCertificate(supabase, body);
       case "delete_certificate":
