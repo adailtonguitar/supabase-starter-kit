@@ -89,6 +89,9 @@ export default function Fiscal() {
   const [cancelling, setCancelling] = useState(false);
   const [cancelJustificativa, setCancelJustificativa] = useState("");
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [showCceDialog, setShowCceDialog] = useState(false);
+  const [cceText, setCceText] = useState("");
+  const [cceLoading, setCceLoading] = useState(false);
   const [showInutPanel, setShowInutPanel] = useState(false);
   const [inutDocType, setInutDocType] = useState<"nfce" | "nfe">("nfce");
   const [inutSerie, setInutSerie] = useState(1);
@@ -967,6 +970,27 @@ export default function Fiscal() {
                   </button>
                 );
               })()}
+              {/* Carta de Correção Eletrônica — apenas NF-e autorizada até 30 dias após emissão */}
+              {selectedDoc.doc_type === "nfe" && selectedDoc.status === "autorizada" && (() => {
+                const emittedAt = new Date(selectedDoc.created_at).getTime();
+                const daysElapsed = Math.floor((Date.now() - emittedAt) / (1000 * 60 * 60 * 24));
+                if (daysElapsed > 30) {
+                  return (
+                    <div className="flex-1 py-2.5 rounded-xl bg-muted text-muted-foreground text-xs font-medium text-center px-2">
+                      CCe indisponível ({daysElapsed}d &gt; 30d)
+                    </div>
+                  );
+                }
+                return (
+                  <button
+                    onClick={() => { setCceText(""); setShowCceDialog(true); }}
+                    className="flex-1 py-2.5 rounded-xl bg-primary/10 text-primary text-sm font-medium hover:bg-primary/20 transition-all"
+                    title="Carta de Correção Eletrônica — até 30 dias após autorização"
+                  >
+                    CCe ({30 - daysElapsed}d restantes)
+                  </button>
+                );
+              })()}
             </div>
 
             {/* Cancel confirmation */}
@@ -1012,6 +1036,76 @@ export default function Fiscal() {
                   >
                     {cancelling && <Loader2 className="w-4 h-4 animate-spin" />}
                     Confirmar Cancelamento
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* CCe dialog */}
+            {showCceDialog && (
+              <div className="mt-4 p-4 rounded-xl bg-primary/5 border border-primary/20 space-y-3">
+                <div>
+                  <p className="text-sm font-medium text-foreground">Carta de Correção Eletrônica (CCe)</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Use para corrigir informações não-fiscais (CFOP equivocado, texto do campo Informações Complementares, dados do transportador etc.).{" "}
+                    <strong>Não corrige valores, partes envolvidas, datas, números ou alíquotas.</strong> Prazo: 30 dias da autorização, máx. 20 CCes por NF-e.
+                  </p>
+                </div>
+                <textarea
+                  value={cceText}
+                  onChange={(e) => setCceText(e.target.value)}
+                  placeholder="Texto da correção. Mínimo 15 caracteres, máx. 1000. Ex: Onde se lê CFOP 5102, leia-se CFOP 5405."
+                  rows={4}
+                  maxLength={1000}
+                  className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm text-foreground resize-none focus:outline-none focus:ring-2 focus:ring-primary/30"
+                />
+                <div className="flex justify-between items-center text-xs text-muted-foreground">
+                  <span>{cceText.length}/1000 caracteres</span>
+                  {cceText.length > 0 && cceText.length < 15 && (
+                    <span className="text-destructive">Mínimo 15 caracteres</span>
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setShowCceDialog(false)}
+                    className="flex-1 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:bg-muted transition-colors"
+                    disabled={cceLoading}
+                  >
+                    Voltar
+                  </button>
+                  <button
+                    disabled={cceLoading || cceText.trim().length < 15}
+                    onClick={async () => {
+                      if (!selectedDoc) return;
+                      setCceLoading(true);
+                      try {
+                        const { data, error } = await supabase.functions.invoke("emit-nfce", {
+                          body: {
+                            action: "carta_correcao",
+                            access_key: selectedDoc.access_key || undefined,
+                            doc_id: selectedDoc.id,
+                            correcao: cceText.trim(),
+                            company_id: companyId || undefined,
+                          },
+                        });
+                        if (error) {
+                          toast.error(error.message || "Erro ao emitir CCe");
+                        } else if (data?.success === false) {
+                          toast.error(data.error || "CCe rejeitada");
+                        } else {
+                          toast.success(`CCe ${data?.sequencial || ""} emitida com sucesso!`);
+                          setShowCceDialog(false);
+                          loadDocs();
+                        }
+                      } catch (err) {
+                        toast.error(err instanceof Error ? err.message : "Erro inesperado");
+                      }
+                      setCceLoading(false);
+                    }}
+                    className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-all disabled:opacity-50"
+                  >
+                    {cceLoading && <Loader2 className="w-4 h-4 animate-spin" />}
+                    Enviar Correção
                   </button>
                 </div>
               </div>
