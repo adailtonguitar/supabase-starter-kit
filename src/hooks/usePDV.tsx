@@ -329,11 +329,10 @@ export function usePDV() {
 
           if (isSimulation && simConfig) {
             const fakeChave = Array.from({ length: 44 }, () => Math.floor(Math.random() * 10)).join("");
-            let simNum = 1;
-            try {
-              const rpcNum = await safeRpc<number>("next_fiscal_number", { p_config_id: simConfig.id });
-              if (rpcNum.success && typeof rpcNum.data === "number") simNum = rpcNum.data;
-            } catch {}
+            // ⚠️ NÃO chamamos next_fiscal_number em simulação — ver comentário
+            // em NfceEmissionDialog.handleEmit. Usar RPC aqui consumiria o
+            // próximo número da série e causaria gap em emissões reais.
+            const simNum = Math.floor(Date.now() % 1_000_000);
             nfceNumber = `SIM-${simNum}`;
             accessKey = fakeChave;
             serie = String(simConfig.serie ?? 1);

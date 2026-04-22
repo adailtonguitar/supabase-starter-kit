@@ -1312,8 +1312,6 @@ async function resolveProviderDocRef(params: {
 }
 
 // ─── Numeração segura (atômica via RPC) ───
-
-// ─── Numeração segura (atômica via RPC) ───
 async function getNextNumberSafe(supabase: ReturnType<typeof createClient>, configId: string): Promise<number> {
   const { data, error } = await supabase.rpc("next_fiscal_number" as any, {
     p_config_id: configId,
@@ -1332,17 +1330,94 @@ async function getNextNumberSafe(supabase: ReturnType<typeof createClient>, conf
   return next;
 }
 
+/**
+ * Obtém um número fiscal reutilizável quando o usuário está fazendo retry
+ * de uma emissão que falhou ANTES de chegar à SEFAZ (sem access_key gravada
+ * e sem protocolo). Caso contrário consome um número novo.
+ *
+ * Regras de reuso (seguras para SEFAZ):
+ *   ✅ Reusa se existe fiscal_documents(sale_id, company_id) com:
+ *        - status ∈ {'erro','pendente','rascunho'}
+ *        - access_key IS NULL (SEFAZ nunca viu este nNF)
+ *        - protocol_number IS NULL
+ *        - number > 0 (já tem número gasto da série)
+ *   ❌ NUNCA reusa se status='rejeitada' com access_key preenchida
+ *       (SEFAZ registrou o nNF — uso requer inutilização formal).
+ *   ❌ NUNCA reusa se status ∈ {'autorizada','contingencia','cancelada'}.
+ */
+async function getReusableOrNextNumber(
+  supabase: ReturnType<typeof createClient>,
+  configId: string,
+  companyId: string,
+  saleId: string | null | undefined,
+  docType: "nfe" | "nfce",
+): Promise<{ numero: number; reused: boolean }> {
+  if (saleId) {
+    try {
+      const { data: existing } = await supabase
+        .from("fiscal_documents")
+        .select("id, number, status, access_key, protocol_number")
+        .eq("company_id", companyId)
+        .eq("sale_id", String(saleId))
+        .eq("doc_type", docType)
+        .in("status", ["erro", "pendente", "rascunho"])
+        .is("access_key", null)
+        .is("protocol_number", null)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      const rec = existing as { id?: string; number?: number } | null | undefined;
+      if (rec && typeof rec.number === "number" && rec.number > 0) {
+        console.log(
+          `[fiscal-numbering] REUSE nNF=${rec.number} para sale_id=${saleId} (doc=${docType}, company=${companyId}) — evita gap de numeração`,
+        );
+        return { numero: rec.number, reused: true };
+      }
+    } catch (err) {
+      console.warn("[fiscal-numbering] Falha ao consultar reuso; segue com nova numeração:", err);
+    }
+  }
+  const numero = await getNextNumberSafe(supabase, configId);
+  return { numero, reused: false };
+}
+
 // ─── CST/CSOSN de ST ───
 const CSOSN_ST = new Set(["201", "202", "203"]);
 const CST_ST = new Set(["10", "30", "70"]);
 const CSOSN_ICMSSN102_ALLOWED = new Set(["102", "103", "300", "400", "900"]);
 
+// ─── CONFAZ Res 13/2012: alíquota de 4% para importados em operação interestadual ───
+// Origens 1, 2, 3, 6, 7, 8 indicam mercadoria com conteúdo de importação
+// (estrangeira ou nacional com >40% importado). Em operações interestaduais,
+// a alíquota máxima é sempre 4%, independentemente do ICMS do estado.
+// Aplicável apenas a NF-e modelo 55 (NFC-e 65 é sempre interna ao consumidor final).
+const IMPORTED_ORIGENS = new Set([1, 2, 3, 6, 7, 8]);
+
+function resolveIcmsAliquota(
+  baseAliq: number,
+  origem: number,
+  modelo: number,
+  isInterstate: boolean,
+): number {
+  if (modelo === 55 && isInterstate && IMPORTED_ORIGENS.has(origem)) {
+    if (baseAliq !== 4) {
+      console.warn(
+        `[ICMS] Alíquota interestadual ajustada para 4% (CONFAZ Res 13/2012) — origem=${origem}, aliq_antes=${baseAliq}`,
+      );
+    }
+    return 4;
+  }
+  return baseAliq;
+}
+
 // ─── Construtor de bloco ICMS por regime ───
-function buildIcmsBlock(item: any, isSimples: boolean, indIEDest?: number, modelo: number = 65) {
+function buildIcmsBlock(item: any, isSimples: boolean, indIEDest?: number, modelo: number = 65, isInterstate: boolean = false) {
   const cst = (item.cst || "").trim();
   const origem = Number(item.origem) || 0;
   const vProd = item.qty * item.unit_price - (item.discount || 0);
-  const aliqIcms = item.icms_aliquota || 0;
+  const rawAliqIcms = item.icms_aliquota || 0;
+  const aliqIcms = resolveIcmsAliquota(rawAliqIcms, origem, modelo, isInterstate);
 
   if (isSimples) {
     // MIGRAÇÃO CSOSN 102: Simples Nacional sem cálculo real de ST
@@ -1362,9 +1437,23 @@ function buildIcmsBlock(item: any, isSimples: boolean, indIEDest?: number, model
     const mva = item.mva != null && item.mva > 0 ? item.mva : 40;
     const vBC = vProd;
     const vICMS = vBC * (aliqIcms / 100);
-    const bcST = vProd * (1 + mva / 100);
+    // Base ST (ICMS-ST) deve incluir valores acessórios que integram a operação:
+    // IPI, frete, seguro e outras despesas, conforme LC 87/96 art. 8º, II e
+    // convênios. Só então aplicamos o MVA. Valores em zero (default) preservam
+    // comportamento anterior para itens sem acessórios.
+    const vIPI = Number(item.ipi_value) || 0;
+    const vFrete = Number(item.freight_value) || 0;
+    const vSeguro = Number(item.insurance_value) || 0;
+    const vOutro = Number(item.other_charges_value) || 0;
+    const baseStBruta = vProd + vIPI + vFrete + vSeguro + vOutro;
+    const bcST = baseStBruta * (1 + mva / 100);
     const icmsSTTotal = bcST * (aliqIcms / 100);
     const icmsST = Math.max(0, icmsSTTotal - vICMS);
+    if (vIPI + vFrete + vSeguro + vOutro > 0) {
+      console.log(
+        `[ICMS-ST] Base ST incluindo acessórios — vProd=${vProd.toFixed(2)} +IPI=${vIPI.toFixed(2)} +Frete=${vFrete.toFixed(2)} +Seguro=${vSeguro.toFixed(2)} +Outros=${vOutro.toFixed(2)} MVA=${mva}% → vBCST=${bcST.toFixed(2)}`,
+      );
+    }
     return {
       ICMS10: {
         orig: origem, CST: cst, modBC: 3,
@@ -1501,8 +1590,25 @@ function validarConsistenciaFiscal(
 // ─── Construtor de PIS/COFINS ───
 // REGRA CRÍTICA: Simples Nacional (CRT 1/2) NUNCA destaca PIS/COFINS na NF-e/NFC-e.
 // O cálculo real ocorre no DAS. Usar CST 49 (Outras Operações de Saída) com valores zerados.
-// Regime Normal: CST depende do NCM (monofásico=04, isento=06, normal=01 com 1.65%/7.60%)
-function buildPisCofins(pisCst: string, cofinsCst: string, vProd: number, isSimples = false, ncm = "") {
+// Regime Normal: CST depende do NCM + regime PIS/COFINS da empresa:
+//   • Não-cumulativo (Lucro Real):   1,65% PIS + 7,60% COFINS
+//   • Cumulativo (Lucro Presumido):  0,65% PIS + 3,00% COFINS
+type PisCofinsRegime = "cumulativo" | "nao_cumulativo";
+
+function getPisCofinsAliquotas(regime: PisCofinsRegime): { pPIS: number; pCOFINS: number } {
+  return regime === "cumulativo"
+    ? { pPIS: 0.65, pCOFINS: 3.0 }
+    : { pPIS: 1.65, pCOFINS: 7.6 };
+}
+
+function buildPisCofins(
+  pisCst: string,
+  cofinsCst: string,
+  vProd: number,
+  isSimples = false,
+  ncm = "",
+  regime: PisCofinsRegime = "nao_cumulativo",
+) {
   const pis: any = {};
   const cofins: any = {};
   const ntCst = new Set(["04", "05", "06", "07", "08", "09"]);
@@ -1540,12 +1646,12 @@ function buildPisCofins(pisCst: string, cofinsCst: string, vProd: number, isSimp
     return { PIS: pis, COFINS: cofins };
   }
 
-  // Tributação normal: CST 01 com 1.65% PIS e 7.60% COFINS (não-cumulativo)
+  // Tributação normal: alíquotas conforme regime PIS/COFINS da empresa
   const effectivePisCst = pisCst || "01";
   const effectiveCofCst = cofinsCst || "01";
+  const { pPIS, pCOFINS } = getPisCofinsAliquotas(regime);
 
   if (["01", "02"].includes(effectivePisCst)) {
-    const pPIS = 1.65;
     const vPIS = Math.round(vProd * pPIS / 100 * 100) / 100;
     pis.PISAliq = { CST: effectivePisCst, vBC: Math.round(vProd * 100) / 100, pPIS, vPIS };
   } else if (ntCst.has(effectivePisCst)) {
@@ -1555,7 +1661,6 @@ function buildPisCofins(pisCst: string, cofinsCst: string, vProd: number, isSimp
   }
 
   if (["01", "02"].includes(effectiveCofCst)) {
-    const pCOFINS = 7.6;
     const vCOFINS = Math.round(vProd * pCOFINS / 100 * 100) / 100;
     cofins.COFINSAliq = { CST: effectiveCofCst, vBC: Math.round(vProd * 100) / 100, pCOFINS, vCOFINS };
   } else if (ntCst.has(effectiveCofCst)) {
@@ -1700,9 +1805,25 @@ async function handleEmit(supabase: any, body: any) {
   // CRT e regime
   const crt = form.crt || company.crt || 1;
   const isSimples = crt === 1 || crt === 2;
+  // Regime PIS/COFINS (apenas relevante para CRT=3 — Lucro Real vs Presumido).
+  // Default 'nao_cumulativo' preserva cálculo histórico (1,65%/7,60%).
+  const pisCofinsRegime: PisCofinsRegime =
+    (company as Record<string, unknown>).pis_cofins_regime === "cumulativo"
+      ? "cumulativo"
+      : "nao_cumulativo";
 
-  // Numeração
-  const numero = await getNextNumberSafe(supabase, config.id);
+  // Numeração — tenta reusar nNF de tentativa anterior (mesma venda) que
+  // NÃO chegou à SEFAZ (sem access_key/protocolo). Evita gap de numeração.
+  const { numero, reused: numberReused } = await getReusableOrNextNumber(
+    supabase,
+    String(config.id),
+    String(company_id),
+    sale_id ? String(sale_id) : null,
+    "nfce",
+  );
+  if (numberReused) {
+    console.log(`[emit-nfce] ♻️ nNF ${numero} reutilizado (retry de sale_id=${sale_id})`);
+  }
 
   // Ambiente
   const ambiente = config.environment === "producao" ? "producao" : "homologacao";
@@ -2030,7 +2151,7 @@ async function handleEmit(supabase: any, body: any) {
     const tipoTributacaoProdutoNfce = ncmClassNfce;
     const pisCst = isSimples ? "49" : (item.pis_cst || "01");
     const cofinsCst = isSimples ? "49" : (item.cofins_cst || "01");
-    const { PIS, COFINS } = buildPisCofins(pisCst, cofinsCst, vProdLiq, isSimples, ncm);
+    const { PIS, COFINS } = buildPisCofins(pisCst, cofinsCst, vProdLiq, isSimples, ncm, pisCofinsRegime);
 
     // ── Validação de consistência fiscal NFC-e ──
     const stCfgCheck = ncm.length === 8 ? getSTConfigNfce(ncm, companyState) as any : { temST: false };
@@ -2319,6 +2440,20 @@ async function handleEmit(supabase: any, body: any) {
   const accessKey = nfData.chave || nfData.chave_acesso || nfData.access_key || "";
   const nuvemFiscalId = nfData.id || nfData.nuvem_fiscal_id || nfData.document_id || nfData.documento_id || null;
   const protocolNumber = nfData.protocolo || nfData.numero_protocolo || "";
+  // QR Code oficial da NFC-e (NT2015/002) — assinado pelo CSC pela Nuvem Fiscal.
+  // Sem este campo, o cupom exibido ao consumidor não é fiscalmente válido.
+  const qrCodeUrl: string = nfData?.qrcode
+    || nfData?.qr_code
+    || nfData?.qrCode
+    || nfData?.DANFE_qrcode
+    || nfData?.danfe?.qrcode
+    || nfData?.autorizacao?.qrcode
+    || "";
+  const urlConsulta: string = nfData?.url_consulta
+    || nfData?.urlChave
+    || nfData?.urlConsulta
+    || nfData?.consulta_nfce
+    || "";
 
   const isAuthorized = statusStr.includes("autoriz") || statusStr.includes("aprovad") || cStatStr === "100";
   const isContingency = statusStr.includes("contingencia") || statusStr.includes("contingência");
@@ -2338,8 +2473,24 @@ async function handleEmit(supabase: any, body: any) {
     status: finalStatus, total_value: vNF, environment: ambiente,
     customer_name: form.customer_name || null, customer_cpf_cnpj: form.customer_doc || null,
     payment_method: mainPayMethod, is_contingency: isContingency,
+    qr_code_url: qrCodeUrl || null,
+    url_consulta: urlConsulta || null,
   };
   if (sale_id) insertRow.sale_id = String(sale_id);
+
+  // Em caso de retry com número reusado, removemos o registro antigo (status
+  // 'erro'/'pendente' sem access_key) para não acumular duplicatas da mesma
+  // venda. Só apaga registros que jamais chegaram à SEFAZ — seguro.
+  if (numberReused && sale_id) {
+    await supabase.from("fiscal_documents")
+      .delete()
+      .eq("company_id", company_id)
+      .eq("sale_id", String(sale_id))
+      .eq("doc_type", "nfce")
+      .is("access_key", null)
+      .is("protocol_number", null)
+      .in("status", ["erro", "pendente", "rascunho"]);
+  }
 
   const insertRes = await supabase.from("fiscal_documents").insert(insertRow);
   if (insertRes.error) {
@@ -2388,6 +2539,8 @@ async function handleEmit(supabase: any, body: any) {
     number: numero,
     access_key: accessKey,
     protocol: protocolNumber,
+    qrcode: qrCodeUrl || undefined,
+    url_consulta: urlConsulta || undefined,
     risk_score: riskResult.score,
     risk_level: riskResult.level,
   });
@@ -2488,6 +2641,11 @@ async function handleEmitNfe(supabase: any, body: any) {
   // CRT e regime
   const crt = form.crt || company.crt || 1;
   const isSimples = crt === 1 || crt === 2;
+  // Regime PIS/COFINS (Lucro Real vs Presumido) — relevante apenas para CRT=3.
+  const pisCofinsRegime: PisCofinsRegime =
+    (company as Record<string, unknown>).pis_cofins_regime === "cumulativo"
+      ? "cumulativo"
+      : "nao_cumulativo";
 
   // Numeração
   const numero = await getNextNumberSafe(supabase, config.id);
@@ -3000,7 +3158,7 @@ async function handleEmitNfe(supabase: any, body: any) {
       console.warn(`[emit-nfe] ST obrigatória para NCM ${item.ncm || ncm} UF ${stUf} mas migrado para CSOSN 102 (sem risco)`);
     }
 
-    const icmsBlock = buildIcmsBlock({ ...item, qty, unit_price: unitPrice, discount }, isSimples, preIndIEDest, 55);
+    const icmsBlock = buildIcmsBlock({ ...item, qty, unit_price: unitPrice, discount }, isSimples, preIndIEDest, 55, isInterstate);
 
     const icmsKey = Object.keys(icmsBlock)[0];
     const icmsData = (icmsBlock as any)[icmsKey];
@@ -3013,7 +3171,7 @@ async function handleEmitNfe(supabase: any, body: any) {
     const tipoTributacaoProduto = ncmClass; // conceito interno — não altera XML
     const pisCst = isSimples ? "49" : (item.pis_cst || "01");
     const cofinsCst = isSimples ? "49" : (item.cofins_cst || "01");
-    const { PIS, COFINS } = buildPisCofins(pisCst, cofinsCst, vProdLiq, isSimples, ncm);
+    const { PIS, COFINS } = buildPisCofins(pisCst, cofinsCst, vProdLiq, isSimples, ncm, pisCofinsRegime);
 
     // ── Validação de consistência fiscal (não-bloqueante para alertas) ──
     item._stDetected = stCfg.temST;
