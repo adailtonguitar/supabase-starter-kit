@@ -32,7 +32,6 @@ export const AppLayout = memo(function AppLayout({ children }: AppLayoutProps) {
       <div className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden">
         <ImpersonationBanner />
         <OnlineStatusIndicator />
-        <DemoBanner />
         <SubscriptionBanner />
         <CertificateExpiryBanner />
         {isMobile ? <MobileTopBar /> : <AppHeader />}

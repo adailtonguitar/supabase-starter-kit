@@ -54,23 +54,7 @@ export function AdminFiscalAudit() {
     }
   };
 
-  const seedDemoData = () => {
-    for (let i = 0; i < 35; i++) {
-      const hasDiv = i % 5 === 0;
-      recordFiscalAuditEvent({
-        produto_id: `demo-${i}`,
-        cfop_atual: hasDiv ? "5101" : "5102",
-        cfop_sugerido: "5405",
-        applied: !hasDiv,
-        applied_fields: !hasDiv ? ["cfop", "csosn"] : [],
-        skipped_fields: hasDiv ? ["cfop"] : [],
-        divergences: hasDiv ? [{ field: "cfop", current: "5101", suggested: "5405" }] : [],
-        reason: !hasDiv ? "auto_applied_safe" : "shadow_only",
-      });
-    }
-    setTick(t => t + 1);
-    toast.success("35 eventos de demonstração inseridos");
-  };
+  // seedDemoData removed to ensure only production data is used.
 
   const divergences = events
     .filter(e => (e.divergences?.length ?? 0) > 0)
@@ -119,9 +103,6 @@ export function AdminFiscalAudit() {
               }}
             >
               <Trash2 className="h-4 w-4 mr-1" /> Limpar eventos
-            </Button>
-            <Button variant="secondary" size="sm" onClick={seedDemoData}>
-              <FlaskConical className="h-4 w-4 mr-1" /> Inserir 35 eventos demo
             </Button>
           </div>
         </CardContent>
