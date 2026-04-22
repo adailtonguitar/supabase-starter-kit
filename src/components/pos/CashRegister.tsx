@@ -2,17 +2,13 @@ import { useState, useEffect, useCallback } from "react";
 import { DollarSign, Lock, Unlock, ArrowDownCircle, ArrowUpCircle, Banknote, CreditCard, QrCode, X, Loader2, Clock, ShoppingCart, Wallet, TrendingUp, ChevronRight, Printer, HandCoins } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { CashSessionService } from "@/services";
-import { SUPABASE_URL, supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useCompany } from "@/hooks/useCompany";
 import { toast } from "sonner";
 import { openCashDrawer } from "@/lib/escpos";
 import { escapeHtml } from "@/lib/sanitize";
 import type { CashMovementRecord, CashSessionRecord } from "@/integrations/supabase/fiscal.types";
-
-// OFFLINE_SESSION_KEY removed as per strict Supabase-only audit.
-...
-// canReachServer and offline helpers removed as per strict Supabase-only audit.
 
 function toErrorMessage(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
@@ -49,7 +45,7 @@ export function CashRegister({ onClose, terminalId = "01", preventClose = false,
   const [fiadoCount, setFiadoCount] = useState(0);
 
   const loadFiadoMovements = useCallback(async (sessionId: string) => {
-    if (!sessionId || sessionId.startsWith("offline_")) { setTotalFiadoRecebido(0); setFiadoCount(0); return; }
+    if (!sessionId) { setTotalFiadoRecebido(0); setFiadoCount(0); return; }
     try {
       const { data } = await supabase.from("cash_movements").select("amount").eq("session_id", sessionId).eq("type", "suprimento").ilike("description", "Recebimento fiado%");
       if (data && data.length > 0) {
@@ -63,16 +59,20 @@ export function CashRegister({ onClose, terminalId = "01", preventClose = false,
   const loadSession = useCallback(async () => {
     if (!companyId) { setLoading(false); return; }
     setLoading(true);
-    const online = await canReachServer();
-    let foundSession: CashSessionRecord | null = null;
-    if (!online) { foundSession = getCachedSession(companyId); if (foundSession) { setSession(foundSession); loadFiadoMovements(foundSession.id); } setLoading(false); }
-    else {
-      try { foundSession = await CashSessionService.getCurrentSession(companyId, terminalId); setSession(foundSession); if (foundSession) loadFiadoMovements(foundSession.id); }
-      catch { foundSession = getCachedSession(companyId); if (foundSession) { setSession(foundSession); loadFiadoMovements(foundSession.id); } }
-      finally { setLoading(false); }
+    try { 
+      const foundSession = await CashSessionService.getCurrentSession(companyId, terminalId); 
+      setSession(foundSession); 
+      if (foundSession) {
+        loadFiadoMovements(foundSession.id); 
+      } else {
+        setView("open");
+      }
     }
-    // If no session found, go directly to "open" view to avoid double prompt
-    if (!foundSession) { setView("open"); }
+    catch (err) { 
+      console.error("[CashRegister] Failed to load session:", err);
+      toast.error("Erro ao carregar sessão de caixa.");
+    }
+    finally { setLoading(false); }
   }, [companyId, terminalId, loadFiadoMovements]);
 
   useEffect(() => { if (!skipInitialLoad) loadSession(); }, [loadSession, skipInitialLoad]);
@@ -96,20 +96,12 @@ export function CashRegister({ onClose, terminalId = "01", preventClose = false,
   const handleOpen = async () => {
     if (!companyId || !user) return;
     setSubmitting(true);
-    const online = await canReachServer();
-    if (!online) {
-      const offlineSession = makeOfflineSession(companyId, user.id, Number(openingBalance) || 0, terminalId);
-      try { localStorage.setItem(OFFLINE_SESSION_KEY, JSON.stringify(offlineSession)); } catch { }
-      setSession(offlineSession); setView("status"); setSubmitting(false);
-      toast.success("Caixa aberto offline (sem conexão)"); return;
-    }
     try {
       const data = await CashSessionService.open({ companyId, userId: user.id, openingBalance: Number(openingBalance) || 0, terminalId });
       setSession(data); setView("status"); toast.success("Caixa aberto com sucesso");
-    } catch {
-      const offlineSession = makeOfflineSession(companyId, user.id, Number(openingBalance) || 0, terminalId);
-      try { localStorage.setItem(OFFLINE_SESSION_KEY, JSON.stringify(offlineSession)); } catch { }
-      setSession(offlineSession); setView("status"); toast.success("Caixa aberto offline (sem conexão)");
+    } catch (err) {
+      console.error("[CashRegister] Failed to open session:", err);
+      toast.error(toErrorMessage(err));
     } finally { setSubmitting(false); }
   };
 
@@ -117,7 +109,6 @@ export function CashRegister({ onClose, terminalId = "01", preventClose = false,
     if (!companyId || !user || !session) return;
     setSubmitting(true);
     try {
-      // Snapshot dos valores antes de limpar a sessão
       const snapshot = {
         terminal_id: session.terminal_id || terminalId,
         opened_at: session.opened_at,
@@ -134,7 +125,6 @@ export function CashRegister({ onClose, terminalId = "01", preventClose = false,
         closingNotes,
       };
       await CashSessionService.close({ sessionId: session.id, companyId, userId: user.id, countedDinheiro: Number(countedDinheiro) || 0, countedDebito: Number(countedDebito) || 0, countedCredito: Number(countedCredito) || 0, countedPix: Number(countedPix) || 0, notes: closingNotes || undefined });
-      try { localStorage.removeItem(OFFLINE_SESSION_KEY); } catch {}
       setClosedSnapshot(snapshot);
       setSession(null);
       setView("closed_summary");
@@ -258,7 +248,7 @@ export function CashRegister({ onClose, terminalId = "01", preventClose = false,
   );
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={preventClose ? undefined : onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200" onClick={preventClose ? undefined : onClose}>
       <div
         className="bg-card rounded-2xl shadow-2xl w-full max-w-md mx-4 max-h-[90vh] overflow-hidden flex flex-col border border-border"
         onClick={(e) => e.stopPropagation()}
@@ -616,4 +606,3 @@ export function CashRegister({ onClose, terminalId = "01", preventClose = false,
     </div>
   );
 }
-
