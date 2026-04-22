@@ -1,255 +1,28 @@
-import { useState, useEffect, useRef, useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { fetchMyCompanyMemberships } from "@/lib/company-memberships";
-import { PRODUCTS_ACTIVE_OR_LEGACY_NULL } from "@/lib/product-active-filter";
-import { useAuth } from "./useAuth";
+import { useTenant } from "@/providers/TenantProvider";
 
-const COMPANY_SELECT =
-  "name, logo_url, slogan, pix_key, pix_key_type, pix_city, address_city, address_street, address_number, address_neighborhood, address_state, cnpj, ie, phone, tax_regime, crt, pdv_auto_emit_nfce";
-
-interface CachedCompany {
-  companyId: string;
-  companyName: string | null;
-  logoUrl: string | null;
-  slogan: string | null;
-  pixKey: string | null;
-  pixKeyType: string | null;
-  pixCity: string | null;
-  cnpj: string | null;
-  ie: string | null;
-  phone: string | null;
-  addressStreet: string | null;
-  addressNumber: string | null;
-  addressNeighborhood: string | null;
-  addressCity: string | null;
-  addressState: string | null;
-  taxRegime: string | null;
-  crt: number | null;
-  pdvAutoEmitNfce: boolean;
-}
-
-type CompanyRow = {
-  name?: string | null;
-  logo_url?: string | null;
-  slogan?: string | null;
-  pix_key?: string | null;
-  pix_key_type?: string | null;
-  pix_city?: string | null;
-  address_city?: string | null;
-  address_street?: string | null;
-  address_number?: string | null;
-  address_neighborhood?: string | null;
-  address_state?: string | null;
-  cnpj?: string | null;
-  ie?: string | null;
-  phone?: string | null;
-  tax_regime?: string | null;
-  crt?: number | null;
-  pdv_auto_emit_nfce?: boolean | null;
-};
-
-/** Memory-only cache for the current session. */
-let memorySelectedCompanyId: string | null = null;
-
-async function rankActiveCompanyIdsByActivity(activeIds: string[]): Promise<string[]> {
-  if (activeIds.length <= 1) return [...activeIds];
-  try {
-    const scored = await Promise.all(
-      activeIds.map(async (id) => {
-        const [{ count: salesC }, { count: productsC }] = await Promise.all([
-          supabase.from("sales").select("id", { count: "exact", head: true }).eq("company_id", id),
-          supabase.from("products").select("id", { count: "exact", head: true }).eq("company_id", id).or(PRODUCTS_ACTIVE_OR_LEGACY_NULL),
-        ]);
-        const s = salesC ?? 0;
-        const p = productsC ?? 0;
-        return { id, score: s * 1_000_000 + p };
-      }),
-    );
-    scored.sort((a, b) => b.score - a.score);
-    return scored.map((x) => x.id);
-  } catch (e) {
-    console.warn("[useCompany] rankActiveCompanyIdsByActivity failed:", e);
-    return [...activeIds];
-  }
-}
-
-async function resolveActiveCompany(
-  activeIds: string[],
-  preferredFirst: string | null,
-): Promise<{ id: string; row: CompanyRow | null }> {
-  if (activeIds.length === 0) return { id: "", row: null };
-
-  const ranked = await rankActiveCompanyIdsByActivity(activeIds);
-  let chosen =
-    preferredFirst && activeIds.includes(preferredFirst) ? preferredFirst : ranked[0];
-
-  const tryIds = [...new Set([chosen, ...ranked].filter((id) => activeIds.includes(id)))];
-  let results;
-  try {
-    results = await Promise.all(
-      tryIds.map((id) =>
-        supabase.from("companies").select(COMPANY_SELECT).eq("id", id).maybeSingle(),
-      ),
-    );
-  } catch (e) {
-    console.warn("[useCompany] Failed to fetch companies batch:", e);
-    return { id: chosen, row: null };
-  }
-
-  for (let i = 0; i < tryIds.length; i++) {
-    const { data, error } = results[i];
-    if (!error && data) {
-      return { id: tryIds[i], row: data as CompanyRow };
-    }
-  }
-
-  return { id: chosen, row: null };
-}
-
-function mergeCompanyFields(
-  company: CompanyRow | null | undefined,
-  fallback: Omit<CachedCompany, 'companyId'>,
-): Omit<CachedCompany, 'companyId'> {
-  if (!company) return fallback;
+export function useCompany() {
+  const { currentCompanyId, currentCompany, isLoading, switchCompany } = useTenant();
 
   return {
-    companyName: company.name ?? fallback.companyName,
-    logoUrl: company.logo_url ?? null,
-    slogan: company.slogan ?? fallback.slogan,
-    pixKey: company.pix_key ?? fallback.pixKey,
-    pixKeyType: company.pix_key_type ?? fallback.pixKeyType,
-    pixCity: company.pix_city ?? company.address_city ?? fallback.pixCity,
-    cnpj: company.cnpj ?? fallback.cnpj,
-    ie: company.ie ?? fallback.ie,
-    phone: company.phone ?? fallback.phone,
-    addressStreet: company.address_street ?? fallback.addressStreet,
-    addressNumber: company.address_number ?? fallback.addressNumber,
-    addressNeighborhood: company.address_neighborhood ?? fallback.addressNeighborhood,
-    addressCity: company.address_city ?? fallback.addressCity,
-    addressState: company.address_state ?? fallback.addressState,
-    taxRegime: company.tax_regime ?? fallback.taxRegime,
-    crt: company.crt != null && Number.isFinite(Number(company.crt)) ? Number(company.crt) : fallback.crt,
-    pdvAutoEmitNfce: company.pdv_auto_emit_nfce ?? fallback.pdvAutoEmitNfce,
+    companyId: currentCompanyId,
+    companyName: currentCompany?.name || null,
+    logoUrl: currentCompany?.logo_url || null,
+    slogan: currentCompany?.slogan || null,
+    pixKey: currentCompany?.pix_key || null,
+    pixKeyType: currentCompany?.pix_key_type || null,
+    pixCity: currentCompany?.pix_city || currentCompany?.address_city || null,
+    cnpj: currentCompany?.cnpj || null,
+    ie: currentCompany?.ie || null,
+    phone: currentCompany?.phone || null,
+    addressStreet: currentCompany?.address_street || null,
+    addressNumber: currentCompany?.address_number || null,
+    addressNeighborhood: currentCompany?.address_neighborhood || null,
+    addressCity: currentCompany?.address_city || null,
+    addressState: currentCompany?.address_state || null,
+    taxRegime: currentCompany?.tax_regime || null,
+    crt: currentCompany?.crt != null ? Number(currentCompany.crt) : null,
+    pdvAutoEmitNfce: currentCompany?.pdv_auto_emit_nfce ?? true,
+    loading: isLoading,
+    switchCompany,
   };
-}
-
-interface CompanyData {
-  companyId: string | null;
-  companyName: string | null;
-  logoUrl: string | null;
-  slogan: string | null;
-  pixKey: string | null;
-  pixKeyType: string | null;
-  pixCity: string | null;
-  cnpj: string | null;
-  ie: string | null;
-  phone: string | null;
-  addressStreet: string | null;
-  addressNumber: string | null;
-  addressNeighborhood: string | null;
-  addressCity: string | null;
-  addressState: string | null;
-  taxRegime: string | null;
-  crt: number | null;
-  pdvAutoEmitNfce: boolean;
-  loading: boolean;
-  switchCompany: (companyId: string) => void;
-}
-
-const nullFields: Omit<CachedCompany, 'companyId'> = {
-  companyName: null, logoUrl: null, slogan: null, pixKey: null, pixKeyType: null, pixCity: null,
-  cnpj: null, ie: null, phone: null, addressStreet: null, addressNumber: null, addressNeighborhood: null, addressCity: null, addressState: null, taxRegime: null, crt: null, pdvAutoEmitNfce: true,
-};
-
-export function useCompany(): CompanyData {
-  const { user, session } = useAuth();
-  const [companyId, setCompanyId] = useState<string | null>(memorySelectedCompanyId);
-  const [fields, setFields] = useState<Omit<CachedCompany, 'companyId'>>(nullFields);
-  const [loading, setLoading] = useState(true);
-  const retryCount = useRef(0);
-  const retryTimer = useRef<ReturnType<typeof setTimeout>>();
-
-  const applyCompany = useCallback((resolvedId: string, company: CompanyRow | null | undefined) => {
-    memorySelectedCompanyId = resolvedId;
-    setCompanyId(resolvedId);
-    setFields((prev) => {
-      return mergeCompanyFields(company, prev);
-    });
-  }, []);
-
-  useEffect(() => {
-    retryCount.current = 0;
-    if (retryTimer.current) clearTimeout(retryTimer.current);
-
-    if (!user || !session) {
-      setCompanyId(null);
-      setFields(nullFields);
-      setLoading(false);
-      return;
-    }
-
-    let cancelled = false;
-
-    const fetchCompany = async (targetCompanyId?: string) => {
-      try {
-        const selectedId = targetCompanyId || memorySelectedCompanyId;
-        let resolvedCompanyId: string | null = null;
-
-        const memberships = await fetchMyCompanyMemberships(user.id);
-        if (cancelled) return;
-
-        if (selectedId) {
-          const sel = memberships.find((m) => m.company_id === selectedId && m.is_active);
-          if (sel) resolvedCompanyId = selectedId;
-          else memorySelectedCompanyId = null;
-        }
-
-        const activeIds = memberships.filter((m) => m.is_active).map((m) => m.company_id);
-        if (activeIds.length === 0) {
-          setCompanyId(null);
-          setFields(nullFields);
-          if (!cancelled) setLoading(false);
-          return;
-        }
-
-        const preferred = resolvedCompanyId ?? null;
-        const { id: finalId, row } = await resolveActiveCompany(activeIds, preferred);
-        if (cancelled) return;
-
-        if (!finalId) {
-          setCompanyId(null);
-          setFields(nullFields);
-        } else {
-          applyCompany(finalId, row);
-        }
-      } catch (err) {
-        console.error("[useCompany] Failed to fetch company:", err);
-        setCompanyId(null);
-      }
-      if (!cancelled) setLoading(false);
-    };
-
-    fetchCompany();
-    return () => { cancelled = true; if (retryTimer.current) clearTimeout(retryTimer.current); };
-  }, [user, session, applyCompany]);
-
-  const switchCompany = useCallback((newCompanyId: string) => {
-    if (!user) return;
-    setLoading(true);
-    (async () => {
-      const memberships = await fetchMyCompanyMemberships(user.id);
-      const access = memberships.find((m) => m.company_id === newCompanyId && m.is_active);
-      if (!access) { setLoading(false); return; }
-
-      memorySelectedCompanyId = newCompanyId;
-
-      const activeIds = memberships.filter((m) => m.is_active).map((m) => m.company_id);
-      const { id, row } = await resolveActiveCompany(activeIds, newCompanyId);
-      if (id) applyCompany(id, row);
-      else applyCompany(newCompanyId, null);
-      setLoading(false);
-    })();
-  }, [user, applyCompany]);
-
-  return { companyId, ...fields, loading, switchCompany };
 }
