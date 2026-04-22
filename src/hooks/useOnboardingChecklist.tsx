@@ -56,51 +56,13 @@ const ONBOARDING_STEPS: OnboardingStep[] = [
   },
 ];
 
-const STORAGE_KEY = "antho_onboarding";
-const WELCOME_KEY = "antho_welcome_seen";
-
-/** Acima disso, a empresa é considerada “de produção”: não exibir Primeiros passos (evita RLS/contagens zeradas falsas). */
-const MS_COMPANY_CONSIDERED_ESTABLISHED = 48 * 60 * 60 * 1000;
-
-type MemberProbe = "idle" | "none" | "has" | "error";
-
-interface OnboardingState {
-  completedSteps: string[];
-  dismissed: boolean;
-}
-
-function loadState(storageKey: string): OnboardingState {
-  try {
-    const raw = localStorage.getItem(storageKey);
-    if (raw) return JSON.parse(raw);
-  } catch {}
-  return { completedSteps: [], dismissed: false };
-}
-
-function saveState(storageKey: string, state: OnboardingState) {
-  try {
-    localStorage.setItem(storageKey, JSON.stringify(state));
-  } catch {}
-}
-
+// Storage keys removed for strict Supabase-only audit.
+...
 export function useOnboardingChecklist() {
   const { user } = useAuth();
   const { companyId, loading: companyLoading } = useCompany();
-  /** Empresa ativa já resolvida — quem está no app com tenant não é “primeiro login” de conta. */
-  const tenantReady = !!companyId && !companyLoading;
-  const onboardingKey = useMemo(() => (user?.id ? `${STORAGE_KEY}:${user.id}` : STORAGE_KEY), [user?.id]);
-  const [state, setState] = useState<OnboardingState>(() => loadState(onboardingKey));
-  const welcomeKey = useMemo(() => (user?.id ? `${WELCOME_KEY}:${user.id}` : WELCOME_KEY), [user?.id]);
-  const [welcomeSeen, setWelcomeSeen] = useState(() => {
-    try {
-      // Prefer scoped key (per-user). Fallback to legacy global key if present.
-      const scoped = localStorage.getItem(welcomeKey);
-      if (scoped != null) return scoped === "true";
-      return localStorage.getItem(WELCOME_KEY) === "true";
-    } catch {
-      return false;
-    }
-  });
+  const [state, setState] = useState<OnboardingState>({ completedSteps: [], dismissed: false });
+  const [welcomeSeen, setWelcomeSeen] = useState(false);
   const [welcomeLoaded, setWelcomeLoaded] = useState(false);
   const [checklistLoaded, setChecklistLoaded] = useState(false);
   const [companyAgeLoaded, setCompanyAgeLoaded] = useState(false);
